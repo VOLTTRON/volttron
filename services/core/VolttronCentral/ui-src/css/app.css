@@ -923,7 +923,6 @@ br + .form__control-help {
 
 .panel-exterior {
     padding: 1.5em 2.5em;
-    border-top: 1px solid #fff;
     height: 100%;
     float: left;
 }

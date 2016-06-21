@@ -143,12 +143,12 @@ var EditChartForm = React.createClass({
 
         return (
             <form className="edit-chart-form" onSubmit={this._onSubmit}>
-                <h1>{this.props.chart ? 'Edit' : 'Add'} Chart</h1>
+                <h1>Configure Chart</h1>
                 {this.state.error && (
                     <div className="error">{this.state.error.message}</div>
                 )}
                 <div className="form__control-group">
-                    <label htmlFor="topic">Topic</label>
+                    <label htmlFor="topic">Topics</label>
                     {topicsSelector}
                 </div>
                 <div className="form__control-group">

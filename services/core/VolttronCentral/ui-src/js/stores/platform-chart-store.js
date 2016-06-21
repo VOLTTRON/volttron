@@ -4,6 +4,7 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
+var platformsStore = require('./platforms-store.js')
 
 
 var _chartData = {};
@@ -83,7 +84,7 @@ chartStore.getChartTopics = function (parentUuid) {
                     if (_chartData.hasOwnProperty(topic.name))
                     {
                         var path = _chartData[topic.name].series.find(function (item) {
-                            return item.topic === topic.path;
+                            return item.topic === topic.value;
                         });
 
                         topicInChart = (path ? true : false);
@@ -92,6 +93,20 @@ chartStore.getChartTopics = function (parentUuid) {
                     return !topicInChart;
                 });
             }
+
+            // Filter out any orphan chart topics not associated with registered platforms
+            var platformUuids = platformsStore.getPlatforms().map(function (platform) {
+                return platform.uuid;
+            });
+
+            topics = topics.filter(function (topic) {
+
+                var platformTopic = platformUuids.filter(function (uuid) {
+                    return topic.value.indexOf(uuid) > -1;
+                });
+
+                return (platformTopic.length ? true : false);
+            });
         }
     }
 

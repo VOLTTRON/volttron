@@ -424,15 +424,11 @@ var platformActionCreators = {
                                 name = topicParts[topicParts.length - 1]; // the name is the column name
                             }
 
-                            item.path = topic;
+                            item.value = topic;
                             item.label = label;
                             item.key = index;
                             item.name = name;
-                            // item.uuid = this.state.selectedTopic;
-                            // item.topic = this.state.selectedTopic;
-                            // item.pinned = (this.state.pin ? true : false);
                             item.parentPath = parentPath;
-                            // item.parentUuid = this.props.platform.uuid;
 
                             filteredTopics.push(item);
                         }
@@ -2333,12 +2329,12 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
 
         return (
             React.createElement("form", {className: "edit-chart-form", onSubmit: this._onSubmit}, 
-                React.createElement("h1", null, this.props.chart ? 'Edit' : 'Add', " Chart"), 
+                React.createElement("h1", null, "Configure Chart"), 
                 this.state.error && (
                     React.createElement("div", {className: "error"}, this.state.error.message)
                 ), 
                 React.createElement("div", {className: "form__control-group"}, 
-                    React.createElement("label", {htmlFor: "topic"}, "Topic"), 
+                    React.createElement("label", {htmlFor: "topic"}, "Topics"), 
                     topicsSelector
                 ), 
                 React.createElement("div", {className: "form__control-group"}, 
@@ -3261,7 +3257,7 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
                             className: "button", 
                             onClick: this._onAddChartClick.bind(null, this.state.platform)
                         }, 
-                            "Add chart"
+                            "Configure Chart"
                         )
                     ), 
                     React.createElement("h2", null, "Charts"), 
@@ -5422,6 +5418,7 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
+var platformsStore = require('./platforms-store.js')
 
 
 var _chartData = {};
@@ -5501,7 +5498,7 @@ chartStore.getChartTopics = function (parentUuid) {
                     if (_chartData.hasOwnProperty(topic.name))
                     {
                         var path = _chartData[topic.name].series.find(function (item) {
-                            return item.topic === topic.path;
+                            return item.topic === topic.value;
                         });
 
                         topicInChart = (path ? true : false);
@@ -5510,6 +5507,20 @@ chartStore.getChartTopics = function (parentUuid) {
                     return !topicInChart;
                 });
             }
+
+            // Filter out any orphan chart topics not associated with registered platforms
+            var platformUuids = platformsStore.getPlatforms().map(function (platform) {
+                return platform.uuid;
+            });
+
+            topics = topics.filter(function (topic) {
+
+                var platformTopic = platformUuids.filter(function (uuid) {
+                    return topic.value.indexOf(uuid) > -1;
+                });
+
+                return (platformTopic.length ? true : false);
+            });
         }
     }
 
@@ -5806,7 +5817,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = chartStore;
 
 
-},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40,"../stores/authorization-store":44}],49:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40,"../stores/authorization-store":44,"./platforms-store.js":51}],49:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');

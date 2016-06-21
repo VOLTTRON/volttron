@@ -253,15 +253,11 @@ var platformActionCreators = {
                                 name = topicParts[topicParts.length - 1]; // the name is the column name
                             }
 
-                            item.path = topic;
+                            item.value = topic;
                             item.label = label;
                             item.key = index;
                             item.name = name;
-                            // item.uuid = this.state.selectedTopic;
-                            // item.topic = this.state.selectedTopic;
-                            // item.pinned = (this.state.pin ? true : false);
                             item.parentPath = parentPath;
-                            // item.parentUuid = this.props.platform.uuid;
 
                             filteredTopics.push(item);
                         }
