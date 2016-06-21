@@ -17,6 +17,7 @@ from subprocess import CalledProcessError
 from os.path import dirname
 
 import zmq
+from volttron.platform.vip.connection import Connection
 from zmq.utils import jsonapi
 
 
@@ -447,6 +448,15 @@ class PlatformWrapper:
             self._t_process = subprocess.Popen(tparams, env=self.env)
             time.sleep(5)
             #self._t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
+
+        control = Connection(self.local_vip_address, peer="control")
+        # Loop until we are sure that the platform is started up.
+        while True:
+            if 'control' in control.server.vip.peerlist().get(timeout=10):
+                _log.debug('CONTROL FOUND!')
+                break
+            # _log.debug('CONTROL NOT FOUND!')
+            gevent.sleep(0.2)
 
     def is_running(self):
         self.logit("PROCESS IS RUNNING: {}".format(self._p_process))
