@@ -457,10 +457,11 @@ __docformat__ = 'reStructuredText'
 
 import datetime
 import pytz
-from dateutil.tz import tzlocal
+from dateutil.tz import tzlocal, tzutc
 import sys
 import logging
 
+from tzlocal import *
 from volttron.platform.vip.agent import Agent, Core, RPC, Unreachable, compat
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
@@ -613,12 +614,19 @@ class ActuatorAgent(Agent):
         test_now = utils.get_aware_utc_now()
         if test_now - now > datetime.timedelta(minutes=3):
             now = test_now
-
+        _log.debug("In _update_device_state_and_schedule: now is {}".format(
+            now))
         self._device_states = self._schedule_manager.get_schedule_state(now)
+        _log.debug("device states is {}".format(
+            self._device_states))
         schedule_next_event_time = self._schedule_manager.get_next_event_time(now)
+        _log.debug("schedule_next_event_time is {}".format(
+            schedule_next_event_time))
         new_update_event_time = self._get_ajusted_next_event_time(now, schedule_next_event_time)
-
+        _log.debug("new_update_event_time is {}".format(
+            new_update_event_time))
         for device, state in self._device_states.iteritems():
+            _log.debug("device, state -  {}, {}".format(device, state))
             header = self._get_headers(state.agent_id, time=utils.format_timestamp(now), task_id=state.task_id)
             header['window'] = state.time_remaining
             topic = topics.ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace('{device}', device)

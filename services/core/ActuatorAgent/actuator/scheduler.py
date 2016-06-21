@@ -62,6 +62,8 @@ from copy import deepcopy
 from cPickle import dump, load
 
 import bisect
+import logging
+from volttron.platform.agent import utils
 
 PRIORITY_HIGH = 'HIGH'
 PRIORITY_LOW = 'LOW'
@@ -71,6 +73,8 @@ ALL_PRIORITIES = {PRIORITY_HIGH, PRIORITY_LOW, PRIORITY_LOW_PREEMPT}
 #RequestResult - Result of a schedule request returned from the schedule manager.
 RequestResult = namedtuple('RequestResult', ['success', 'data', 'info_string'])
 DeviceState = namedtuple('DeviceState', ['agent_id', 'task_id', 'time_remaining'])
+utils.setup_logging()
+_log = logging.getLogger(__name__)
 
 class TimeSlice(object):
     def __init__(self, start=None, end=None):
@@ -244,6 +248,7 @@ class Schedule(object):
         '''Should be called before working with a schedule. 
         Updates the state to the schedule to eliminate stuff in the past.'''
         now_slice = bisect.bisect_left(self.time_slots, TimeSlice(now))
+        _log.debug("now_slice in make_current {}".format(now_slice))
         if now_slice > 0:
             del self.time_slots[:now_slice]
         
@@ -258,7 +263,12 @@ class Schedule(object):
         self.make_current(now)
         if not self.time_slots:
             return None
-        
+        _log.debug("in schedule get_next_event_time timeslots {} now {"
+                   "}".format(self.time_slots[0], now))
+        # _log.debug("in schedule get_next_event_time start-{} end-{} now{"
+        #            "}".format(self.time_slots[0].start,
+        #                       self.time_slots[0].end),
+        #                       now)
         next_time = self.time_slots[0].end if self.time_slots[0].contains_include_start(now) else self.time_slots[0].start
         #Round to the next second to fix timer goofyness in agent timers.
         if next_time.microsecond:
@@ -426,6 +436,7 @@ class ScheduleManager(object):
             task = self.tasks[task_id]
             agent_id = task.agent_id
             current_task_slots = task.get_current_slots(now)
+            _log.debug("current_task_slots {}".format(current_task_slots))
             for device, time_slot in current_task_slots.items():
                 assert (device not in running_results)
                 running_results[device] = DeviceState(agent_id, task_id, (time_slot.end-now).total_seconds())

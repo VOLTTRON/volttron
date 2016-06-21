@@ -69,7 +69,8 @@ import stat
 import sys
 import syslog
 import traceback
-
+from dateutil.tz import tzutc, tzlocal
+import calendar
 import gevent
 
 from zmq.utils import jsonapi
@@ -331,7 +332,17 @@ def get_aware_utc_now():
     utcnow = datetime.utcnow()
     utcnow = pytz.UTC.localize(utcnow)
     return utcnow
-    
+
+def get_utc_seconds_from_epoch(timestamp=datetime.now(tz=tzutc())):
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=tzlocal())
+    # utctimetuple can be called on aware timestamps and it will
+    # convert to UTC first.
+    seconds_from_epoch = calendar.timegm(timestamp.utctimetuple())
+    # timetuple loses microsecond accuracy so we have to put it back.
+    seconds_from_epoch += timestamp.microsecond / 1000000
+    return seconds_from_epoch
+
 def process_timestamp(timestamp_string, topic=''):
     if timestamp_string is None:
         _log.error("message for {topic} missing timetamp".format(topic=topic))
