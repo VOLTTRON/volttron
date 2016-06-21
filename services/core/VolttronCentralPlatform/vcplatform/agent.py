@@ -642,7 +642,7 @@ class VolttronCentralPlatform(Agent):
         if not self == self._agent_connected_to_vc:
             # Add the vcpublickey to the auth file.
             entry = AuthEntry(
-                credentials="CURVE:{}".format(vcpublickey),
+                credentials=vcpublickey,
                 capabilities=['manager'])  # , address=parsedaddress.hostname)
             authfile = AuthFile()
             authfile.add(entry)

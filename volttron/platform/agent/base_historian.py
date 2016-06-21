@@ -472,11 +472,16 @@ class BaseHistorianAgent(Agent):
         Filter out all but the all topics
         """
 
-        if topic.endswith("/all") or '/all/' in topic:
-            return
-
-        # Anon the topic if necessary.
+        # Anon the topic.
         topic = self._get_topic(topic)
+
+        # topic now is going to always end in all.
+        if not topic.endswith('/'):
+            topic += '/'
+
+        if not topic.endswith('all'):
+            topic += 'all'
+
         parts = topic.split('/')
         # strip off the first part of the topic.
         device = '/'.join(parts[1:-1])

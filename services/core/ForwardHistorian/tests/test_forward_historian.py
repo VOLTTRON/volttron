@@ -120,5 +120,3 @@ def test_reconnect_forwarder(volttron_instance1_encrypt,
 
     for i in range(len(publishedmessages)):
         assert allforwardedmessage[i] == publishedmessages[i]
-
-

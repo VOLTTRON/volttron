@@ -23,9 +23,7 @@ def get_new_keypair():
 
 def add_to_auth(volttron_home, publickey, capabilities=None):
     authfile = AuthFile(os.path.join(volttron_home, 'auth.json'))
-    entry = AuthEntry(
-        credentials="CURVE:{}".format(publickey), capabilities=capabilities
-    )
+    entry = AuthEntry(credentials=publickey, capabilities=capabilities)
     authfile.add(entry)
 
 
@@ -163,7 +161,7 @@ def test_agent_can_be_managed(pa_instance):
     # ks = KeyStore(tf.name)
     # ks.generate()
     #
-    # entry = AuthEntry(credentials="CURVE:{}".format(ks.public()))
+    # entry = AuthEntry(credentials=ks.public())
     # authfile = AuthFile(os.path.join(pa_wrapper.volttron_home, "auth.json"))
     # authfile.add(entry)
     # gevent.sleep(0.1)

@@ -1,10 +1,12 @@
+.. _Scripts:
+
 Scripts
 =======
 
 In order to make repetitive tasks less repetitive the VOLTTRON team has
 create several scripts in order to help. These tasks are available in
 the scripts directory. Before using these scripts you should become
-familiar with the `Agent Development <Agent-Development>`__ process.
+familiar with the :ref:`Agent Development <Agent-Development>` process.
 
 In addition to the scripts directory, the VOLTTRON team has added the
 config directory to the .gitignore file. By convention this is where we
