@@ -160,7 +160,7 @@ class _inotify(object):
             self._fd = None
 
     def add_watch(self, pathname, mask=IN_ALL_EVENTS):
-        wd = inotify_add_watch(self.fileno(), pathname, mask | IN_IGNORED)
+        wd = inotify_add_watch(self.fileno(), bytes(pathname,encoding="utf-8"), mask | IN_IGNORED)
         with self._lock:
             self._watch_names[pathname] = wd
             self._watch_wds[wd] = (pathname, mask)
