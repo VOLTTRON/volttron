@@ -56,6 +56,7 @@
 # }}}
 
 import logging
+import urlparse
 
 import gevent
 
@@ -83,10 +84,18 @@ class Connection(object):
         if address.startswith('ipc'):
             full_address = address
         else:
-            full_address = build_vip_address_string(
-                vip_root=address, serverkey=serverkey, publickey=publickey,
-                secretkey=secretkey
-            )
+            parsed = urlparse.urlparse(address)
+            qs = urlparse.parse_qs(parsed.query)
+            _log.debug('QS IS: {}'.format(qs))
+            # Handle case when the address has all the information in it.
+            if 'serverkey' in qs.keys() and 'publickey' in qs.keys() and \
+                'secretkey' in qs.keys():
+                full_address = address
+            else:
+                full_address = build_vip_address_string(
+                    vip_root=address, serverkey=serverkey, publickey=publickey,
+                    secretkey=secretkey
+                )
         self._server = Agent(address=full_address)
         self._greenlet = None
 
@@ -96,12 +105,18 @@ class Connection(object):
         if self._greenlet is None:
             event = gevent.event.Event()
             self._greenlet = gevent.spawn(self._server.core.run, event)
-            event.wait()
-
-            _log.debug('Connection peerlist: {}'.format(
-                self._server.vip.peerlist().get(timeout=4)
-            ))
+            event.wait(timeout=30)
         return self._server
+
+    def peers(self, timeout=30):
+        return self.server.vip.peerlist().get(timeout=timeout)
+
+    def is_connected(self, timeout=30):
+        try:
+            self.server.vip.ping('').get(timeout=timeout)
+            return True
+        except gevent.Timeout:
+            return False
 
     def publish(self, topic, header=None, message=None, timeout=None):
         if timeout:
