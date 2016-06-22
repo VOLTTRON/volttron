@@ -226,8 +226,8 @@ def historian(config_path, **kwargs):
                 # No topics present.
                 return []
 
-        def query_historian(self, topic, start=None, end=None, skip=0,
-                            count=None, order="FIRST_TO_LAST"):
+        def query_historian(self, topic, start=None, end=None, agg_type=None,
+              agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
             """This function should return the results of a query in the form:
             {"values": [(timestamp1, value1), (timestamp2, value2), ...],
              "metadata": {"key1": value1, "key2": value2, ...}}
@@ -245,7 +245,8 @@ def historian(config_path, **kwargs):
                 return results
             _log.debug("Querying db reader")
             results = self.reader.query(
-                topic_id, start=start, end=end, skip=skip, count=count,
+                topic_id, start=start, end=end, agg_type=agg_type,
+                agg_period=agg_period, skip=skip, count=count,
                 order=order)
             if len(results.get('values',[])) > 0 :
                 results['metadata'] = self.topic_meta.get(topic_id, {})

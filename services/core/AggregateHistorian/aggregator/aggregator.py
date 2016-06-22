@@ -108,38 +108,58 @@ class AggregateHistorian(Agent):
         # 2. load topic name and topic id.
         self.topic_id_map, name_map = self.dbfuncts.get_topic_map()
 
-        # 3. Validate aggregation details in config
-        self.period = aggregation_utils.format_aggregation_time_period(
-            self.config['aggregation_period'])
-        for data in self.config['points']:
-            if data['topic_name'] is None or self.topic_id_map[data[
-                    'topic_name'].lower()] is None:
-                raise ValueError("Invalid topic name " + data['topic_name'])
-            if data['aggregation_type'].upper() not in ['AVG', 'MIN', 'MAX',
-                                                        'COUNT', 'SUM']:
-                raise ValueError("Invalid aggregation type {}"
-                                 .format(data['aggregation_type']))
-            if data.get('min_count', 0) < 0:
-                raise ValueError("Invalid min_count ({}). min_count should be "
-                                 "an integer grater than 0".
-                                 format(data['min_count']))
+
 
     @Core.receiver('onstart')
     def _on_start(self, sender, **kwargs):
-        for data in self.config['points']:
-            self.dbfuncts.create_aggregate_store(data['aggregation_type'],
-                                                 self.period)
-        frequency = aggregation_utils.compute_aggregation_frequency_seconds(
-            self.period, self.config.get('use_calendar_time_periods', False))
-        self.core.periodic(frequency, self.collect_aggregate_data)
+        for  agg_group in self.config['aggregations'] :
 
-    def collect_aggregate_data(self):
+            # 1. Validate aggregation details in config
+            period = aggregation_utils.format_aggregation_time_period(
+                agg_group['aggregation_period'])
+            for data in agg_group['points']:
+                if data['topic_name'] is None or self.topic_id_map[data[
+                    'topic_name'].lower()] is None:
+                    raise ValueError("Invalid topic name " + data[
+                        'topic_name'])
+                if data['aggregation_type'].upper() not in ['AVG', 'MIN',
+                                                            'MAX',
+                                                            'COUNT', 'SUM']:
+                    raise ValueError("Invalid aggregation type {}"
+                                     .format(data['aggregation_type']))
+                if data.get('min_count', 0) < 0:
+                    raise ValueError("Invalid min_count ({}). min_count "
+                                     "should be "
+                                     "an integer grater than 0".
+                                     format(data['min_count']))
+                self.dbfuncts.create_aggregate_store(data['aggregation_type'],
+                                                 period)
+            use_calendar_periods = agg_group.get('use_calendar_time_periods',
+                                                 False)
+            frequency = \
+                aggregation_utils.compute_aggregation_frequency_seconds(
+                    period,
+                    use_calendar_periods)
+            self.core.periodic(frequency,
+                               self.collect_aggregate_data,
+                               [period, use_calendar_periods, agg_group[
+                                   'points']]
+                               )
+
+    def collect_aggregate_data(self, *args):
+        period = args[0]
+        use_calendar = args[1]
+        points = args[2]
+
+
+        _log.debug("Time period passed as arg  {} ".format(period))
+
         end_time, start_time = aggregation_utils.compute_aggregation_timeslice(
-            self.period, self.config.get('use_calendar_time_periods', False))
+            period, use_calendar)
 
         _log.debug("After  compute period = {} start_time {} end_time {} ".
-                   format(self.period, start_time, end_time))
-        for data in self.config['points']:
+                   format(period, start_time, end_time))
+        for data in points:
             topic_id = self.topic_id_map[data['topic_name'].lower()]
             agg, count = self.dbfuncts.collect_aggregate(
                 topic_id,
@@ -162,7 +182,7 @@ class AggregateHistorian(Agent):
                                             count=data.get('min_count', 0)))
             else:
                 self.dbfuncts.insert_aggregate(data['aggregation_type'],
-                                               self.period,
+                                               period,
                                                end_time,
                                                topic_id,
                                                agg)

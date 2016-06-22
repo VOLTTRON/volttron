@@ -64,6 +64,7 @@ from datetime import datetime
 import os
 from basedb import DbDriver
 from volttron.platform.agent import utils
+from volttron.platform.aggregation_utils import aggregation_utils
 from zmq.utils import jsonapi
 
 utils.setup_logging()
@@ -135,8 +136,8 @@ class SqlLiteFuncts(DbDriver):
         print (connect_params)
         super(SqlLiteFuncts, self).__init__('sqlite3', **connect_params)
 
-    def query(self, topic_id, start=None, end=None, skip=0,
-              count=None, order="FIRST_TO_LAST"):
+    def query(self, topic_id, start=None, end=None, agg_type=None,
+              agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}
@@ -150,8 +151,14 @@ class SqlLiteFuncts(DbDriver):
          @param start:
          @param topic_id:
         """
+        table_name = self.data_table
+        if agg_type and agg_period:
+            agg_period = aggregation_utils.format_aggregation_time_period(
+                agg_period)
+            table_name = agg_type + "_" + agg_period
+
         query = '''SELECT ts, value_string
-                   FROM ''' + self.data_table + '''
+                   FROM ''' + table_name + '''
                    {where}
                    {order_by}
                    {limit}

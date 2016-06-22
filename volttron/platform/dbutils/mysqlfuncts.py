@@ -61,6 +61,7 @@ import pytz
 import re
 from basedb import DbDriver
 from volttron.platform.agent import utils
+from volttron.platform.aggregation_utils import aggregation_utils
 from zmq.utils import jsonapi
 
 utils.setup_logging()
@@ -89,8 +90,8 @@ class MySqlFuncts(DbDriver):
         else:
             self.MICROSECOND_SUPPORT = True
 
-    def query(self, topic_id, start=None, end=None, skip=0,
-              count=None, order="FIRST_TO_LAST"):
+    def query(self, topic_id, start=None, end=None, skip=0, agg_type=None,
+              agg_period=None, count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}
@@ -98,8 +99,14 @@ class MySqlFuncts(DbDriver):
          metadata is not required (The caller will normalize this to {}
          for you)
         """
+        table_name = self.data_table
+        if agg_type and agg_period:
+            agg_period = aggregation_utils.format_aggregation_time_period(
+                agg_period)
+            table_name = agg_type + "_" + agg_period
+
         query = '''SELECT ts, value_string
-                FROM ''' + self.data_table + '''
+                FROM ''' + table_name + '''
                 {where}
                 {order_by}
                 {limit}

@@ -1027,8 +1027,8 @@ class BaseQueryHistorianAgent(Agent):
         """
 
     @abstractmethod
-    def query_historian(self, topic, start=None, end=None, skip=0, count=None,
-                        order=None):
+    def query_historian(self, topic, start=None, end=None, agg_type=None,
+              agg_period=None, skip=0, count=None, order=None):
         """
         This function is called by :py:meth:`BaseQueryHistorianAgent.query`
         to actually query the data store

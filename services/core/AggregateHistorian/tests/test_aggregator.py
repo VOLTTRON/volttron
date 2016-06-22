@@ -34,18 +34,21 @@ sqlite_platform = {
         "topics_table": "topics_table",
         "meta_table": "meta_table"
     },
-    "aggregation_period": "2m",
-    "use_calendar_time_periods": True,
-    "points": [
-        {
-            "topic_name": "device1/out_temp",
-            "aggregation_type": "sum",
-            "min_count": 2
-        },
-        {
-            "topic_name": "device1/in_temp",
-            "aggregation_type": "sum",
-            "min_count": 2
+    "aggregations":[
+        {"aggregation_period": "2m",
+        "use_calendar_time_periods": True,
+        "points": [
+            {
+                "topic_name": "device1/out_temp",
+                "aggregation_type": "sum",
+                "min_count": 2
+            },
+            {
+                "topic_name": "device1/in_temp",
+                "aggregation_type": "sum",
+                "min_count": 2
+            }
+        ]
         }
     ]
 }
@@ -73,18 +76,21 @@ mysql_platform = {
         "topics_table": "topics_table",
         "meta_table": "meta_table",
     },
-    "aggregation_period": "2m",
-    "use_calendar_time_periods": False,
-    "points": [
-        {
-            "topic_name": "device1/out_temp",
-            "aggregation_type": "sum",
-            "min_count": 2
-        },
-        {
-            "topic_name": "device1/in_temp",
-            "aggregation_type": "sum",
-            "min_count": 2
+    "aggregations":[
+        {"aggregation_period": "2m",
+        "use_calendar_time_periods": False,
+        "points": [
+            {
+                "topic_name": "device1/out_temp",
+                "aggregation_type": "sum",
+                "min_count": 2
+            },
+            {
+                "topic_name": "device1/in_temp",
+                "aggregation_type": "sum",
+                "min_count": 2
+            }
+        ]
         }
     ]
 }
@@ -347,7 +353,7 @@ def test_basic_function(aggregate_agent, volttron_instance1):
         cursor.execute("DELETE FROM sum_2m")
         db_connection.commit()
     volttron_instance1.start_agent(aggregate_agent)
-    # gevent.sleep(2)
+    #gevent.sleep(2)
     gevent.sleep(5 * 60)  # sleep till we see two rows in aggregate table
     cursor = db_connection.cursor()
     cursor.execute("SELECT value_string from sum_2m "
