@@ -436,7 +436,7 @@ class Core(BasicCore):
         # pre-start
         state = type('HelloState', (), {'count': 0, 'ident': None})
         def hello():
-            state.ident = ident = bytes('connect.hello.%d' % state.count)
+            state.ident = ident = bytes('connect.hello.%d' % state.count,uncoding='utf-8')
             state.count += 1
             self.spawn(self.socket.send_vip,
                        b'', b'hello', [b'hello'], msg_id=ident)
