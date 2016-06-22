@@ -136,7 +136,7 @@ class AuthService(Agent):
                 self.auth_entries = []
             with open(self.auth_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
-                data = strip_comments(FileObject(fil, close=False).read().encode("utf-8"))
+                data = strip_comments(FileObject(fil, close=False).read().decode("utf-8"))
                 auth_data = jsonapi.loads(data)
         except Exception:
             _log.exception('error loading %s', self.auth_file)
