@@ -260,7 +260,7 @@ class Router(BaseRouter):
 
     def setup(self):
         sock = self.socket
-        sock.identity = identity = str(uuid.uuid4())
+        sock.identity = identity = uuid.uuid4().bytes
         if self._monitor:
             Monitor(sock.get_monitor_socket()).start()
         sock.bind('inproc://vip')
