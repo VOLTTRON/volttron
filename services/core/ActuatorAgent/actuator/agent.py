@@ -456,12 +456,9 @@ __docformat__ = 'reStructuredText'
 
 
 import datetime
-import pytz
-from dateutil.tz import tzlocal, tzutc
-import sys
 import logging
 
-from tzlocal import *
+from tzlocal import get_localzone
 from volttron.platform.vip.agent import Agent, Core, RPC, Unreachable, compat
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
@@ -470,7 +467,6 @@ from actuator.scheduler import ScheduleManager
 
 from volttron.platform.jsonrpc import RemoteError
 
-from dateutil.parser import parse
 
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
 REVERT_POINT_RESPONSE_PREFIX = topics.ACTUATOR_REVERTED_POINT()
@@ -1080,7 +1076,7 @@ class ActuatorAgent(Agent):
         topic = topics.ACTUATOR_SCHEDULE_RESULT()
         headers = self._get_headers(requester_id, task_id=task_id)
         headers['type'] = SCHEDULE_ACTION_NEW
-
+        local_tz = get_localzone()
         try:
             if requests and isinstance(requests[0], basestring):
                 requests = [requests]
@@ -1095,9 +1091,9 @@ class ActuatorAgent(Agent):
                 end = utils.parse_timestamp_string(end)
 
                 if start.tzinfo is None:
-                    start = start.replace(tzinfo=tzlocal())
+                    start = local_tz.localize(start)
                 if end.tzinfo is None:
-                    end = end.replace(tzinfo=tzlocal())
+                    end = local_tz.localize(end)
 
                 requests.append([device, start, end])
 
