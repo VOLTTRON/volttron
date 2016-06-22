@@ -170,8 +170,8 @@ class dualmethod(object):
         if self.finstance is None:
             if self.fclass is None:
                 raise AttributeError('no instance or class method is set')
-            return MethodType(self.fclass,  owner)
-        return MethodType(self.finstance,  owner)
+            return MethodType(self.fclass,  instance)
+        return MethodType(self.finstance,  instance)
 
     def instancemethod(self, finstance):
         '''Descriptor to set the instance method.'''
