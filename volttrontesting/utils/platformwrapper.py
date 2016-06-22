@@ -1,4 +1,5 @@
 import ConfigParser as configparser
+import urlparse
 from contextlib import closing
 import json
 import logging
@@ -18,6 +19,7 @@ from os.path import dirname
 
 import zmq
 from volttron.platform.vip.connection import Connection
+from volttron.platform.web import build_vip_address_string
 from zmq.utils import jsonapi
 
 
@@ -198,6 +200,28 @@ class PlatformWrapper:
         authfile = AuthFile(self.volttron_home+"/auth.json")
         authfile.add(entry)
 
+    def build_connection(self, peer):
+        self.logit('generating new public secret key pair for connecction')
+        tf = tempfile.NamedTemporaryFile()
+        ks = KeyStore(tf.name)
+        ks.generate()
+        publickey = ks.public()
+        secretkey = ks.secret()
+        # Strip off the key and stuff from the vip address.
+        parsed = urlparse.urlparse(self.vip_address)
+        address = "{}://{}".format(parsed.scheme, parsed.netloc)
+        # Build address of new agent.
+        address = build_vip_address_string(address, self.publickey,
+                                           publickey, secretkey)
+
+        # Add properties on for testing environment.
+        connection = Connection(address, peer=peer)
+        connection.publickey = publickey
+        connection.secretkey = secretkey
+        connection.serverkey = self.publickey
+
+        return connection
+
     def build_agent(self, address=None, should_spawn=True, identity=None,
                     publickey=None, secretkey=None, serverkey=None,
                     generatekeys=False, **kwargs):
@@ -331,6 +355,8 @@ class PlatformWrapper:
         self.logit('PLATFORM NAME IS: {}'.format(self.platform_name))
         enable_logging = os.environ.get('ENABLE_LOGGING', False)
         debug_mode = os.environ.get('DEBUG_MODE', False)
+        if not debug_mode:
+            debug_mode = os.environ.get('DEBUG', False)
         self.skip_cleanup = os.environ.get('SKIP_CLEANUP', False)
         if debug_mode:
             self.skip_cleanup = True
@@ -559,6 +585,36 @@ class PlatformWrapper:
                                          start=start)
 
         return results
+
+    def build_wheel(self, agent_dir, config=None):
+        """ Build a wheel file.
+
+        If config is not specified then the default config (in the agent's
+        code directory) will be used.
+
+        This function will build a wheel file in the volttron-home packaged
+        directory.  If config is a  dictionary it will be converted to a file
+        and used within the packaging process.  If it is a file it will be
+        used directly.
+
+        :return: string:
+            - path to the created wheel file.
+            - None if it was not able to create the file.
+        """
+        if not config:
+            assert os.path.exists(os.path.join(agent_dir, "config"))
+            config_file = os.path.join(agent_dir, "config")
+        else:
+            if isinstance(config_file, dict):
+                from os.path import join, basename
+                temp_config = join(self.volttron_home,
+                                   basename(agent_dir) + "_config_file")
+                with open(temp_config, "w") as fp:
+                    fp.write(json.dumps(config_file))
+                config_file = temp_config
+        self.logit('Building agent package')
+        wheel_file = self.build_agentpackage(agent_dir, config_file)
+        return wheel_file
 
     def install_agent(self, agent_wheel=None, agent_dir=None, config_file=None,
         start=True):
