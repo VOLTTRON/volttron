@@ -189,7 +189,7 @@ class Address(object):
             parts.extend(['?', qs])
         if self.identity is not None:
             parts.extend(['#', urllib.parse.quote(self.identity)])
-        return ''.join(parts)
+        return b''.join(parts).decode("utf-8")
 
     def __repr__(self):
         return '%s.%s(%r)' % (
