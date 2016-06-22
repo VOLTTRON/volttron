@@ -118,7 +118,7 @@ IN_NONBLOCK = os.O_NONBLOCK
 
 __all__.extend(name for name in dir() if name.startswith('IN_'))
 
-
+# xxx not found. 
 _libc = ctypes.CDLL(None)
 inotify_init = ctypes.CFUNCTYPE(c_int, c_int, use_errno=True)(
     ('inotify_init1', _libc), ((1, 'flags', 0),))

@@ -73,7 +73,7 @@ import base64
 import binascii
 from contextlib import contextmanager
 import urllib
-import urlparse
+
 import uuid
 
 from zmq import (SNDMORE, RCVMORE, NOBLOCK, POLLOUT, DEALER, ROUTER,
@@ -150,7 +150,7 @@ class Address(object):
             setattr(self, name, None)
         for name, value in defaults.iteritems():
             setattr(self, name, value)
-        url = urlparse.urlparse(address, 'tcp')
+        url = urllib.parse.urlparse(address, 'tcp')
         self.base = '%s://%s%s' % url[:3]
         if url.fragment:
             self.identity = url.fragment
@@ -160,7 +160,7 @@ class Address(object):
             self.identity = defaults.get('identity')
         if url.scheme not in ['tcp', 'ipc', 'inproc']:
             raise ValueError('unknown address scheme: %s' % url.scheme)
-        for name, value in urlparse.parse_qsl(url.query, True):
+        for name, value in urllib.parse.urlparse_qsl(url.query, True):
             name = name.lower()
             if name in self._KEYS:
                 if value and name.endswith('key'):

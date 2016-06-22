@@ -58,7 +58,7 @@
 '''VOLTTRON platform™ messaging utilities.'''
 
 from string import Formatter
-
+import _string
 
 __all__ = ['normtopic', 'Topic']
 
@@ -70,6 +70,7 @@ __license__ = 'FreeBSD'
 def normtopic(topic):
     '''Normalize topic, removing extra slashes and dots.'''
     if not topic:
+        print(topic)
         return topic
     comps = []
     for comp in topic.split('/'):
@@ -79,7 +80,8 @@ def normtopic(topic):
             comps.pop()
         else:
             comps.append(comp)
-    return (u'/' if isinstance(topic, unicode) else '/').join(comps)
+    print (comps)
+    return '/'.join(comps)
 
 
 class TopicFormatter(Formatter):
@@ -112,7 +114,13 @@ class TopicFormatter(Formatter):
     See the Formatter documentation for the built-in string module for
     more information on formatters and the role of each method.
     '''
-    def _vformat(self, format_string, args, kwargs, used_args, recursion_depth):
+    def vformat(self,format_string, args, kwargs):
+        used_args = set()
+        result, _ = self._vformat(format_string, args, kwargs, used_args, 2)
+        self.check_unused_args(used_args, args, kwargs)
+        return result
+    
+    def _vformat(self, format_string, args, kwargs, used_args, recursion_depth,auto_arg_index=0):
         if recursion_depth < 0:
             raise ValueError('maximum string recursion exceeded')
         result = []
@@ -129,6 +137,7 @@ class TopicFormatter(Formatter):
             try:
                 obj, arg_used = self.get_field(name, args, kwargs)
             except (KeyError, AttributeError) as e:
+                print(args,kwargs,used_args,recursion_depth,platformral,name,format_spec,conversion)
                 if platformral:
                     try:
                         platformral, _ = platformral.rsplit('//', 1)
@@ -148,10 +157,10 @@ class TopicFormatter(Formatter):
             else:
                 obj = self.convert_field(obj, conversion)
                 format_spec = self._vformat(format_spec, args, kwargs,
-                                            used_args, recursion_depth - 1)
+                                            used_args, recursion_depth - 1)[0]
                 obj = self.format_field(obj, format_spec)
             result.append(obj)
-        return ''.join(result)
+        return ''.join(result),auto_arg_index
 
     def check_unused_args(self, used_args, args, kwargs):
         for name in kwargs:
@@ -159,26 +168,28 @@ class TopicFormatter(Formatter):
                 raise ValueError('unused keyword argument: {}'.format(name))
 
 
-class Topic(unicode):
+class Topic(str):
     def __init__(self, format_string):
         '''Perform minimal validation of names used in format fields.'''
-        for _, name, _, _ in format_string._formatter_parser():
+        for _, name, _, _ in Formatter().parse(format_string):
             if name is None:
                 continue
-            name, _ = name._formatter_field_name_split()
-            if isinstance(name, (int, long)) or not name:
+            name, _ = _string.formatter_field_name_split(name)
+            if isinstance(name, int) or not name:
                 raise ValueError('positional format fields are not supported;'
                                  ' use named format fields only')
             if name[:1].isdigit():
                 raise ValueError('invalid format field name: {}'.format(name))
     def __call__(self, **kwargs):
-        return self.__class__(normtopic(self.vformat(kwargs)))
+        o = self.__class__(normtopic(self.vformat(kwargs)))        
+        return o
     def _(self, **kwargs):
         return self.__class__(self.vformat(kwargs))
     def format(self, **kwargs):
         return self.vformat(kwargs)
     def vformat(self, kwargs):
         formatter = TopicFormatter()
+        print (kwargs)
         return formatter.vformat(self, (), kwargs)
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__,

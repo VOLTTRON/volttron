@@ -62,7 +62,7 @@ from setuptools import setup, find_packages
 
 # Requirements which must be built separately with the provided options.
 option_requirements = [
-    ('pyzmq>=14.7,<15', ['--zmq=bundled']),
+    ('pyzmq>=14.7,<=15', ['--zmq=bundled']),
 ]
 
 # Requirements in the repository which should be installed as editable.
