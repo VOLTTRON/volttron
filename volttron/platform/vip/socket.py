@@ -183,13 +183,13 @@ class Address(object):
              for name, value in params if value is not None})
 
     def __str__(self):
-        parts = [self.base]
-        qs = self.qs
+        parts = [self.base.encode("utf-8")]
+        qs = self.qs        
         if qs:
             parts.extend(['?', qs])
         if self.identity is not None:
             parts.extend(['#', urllib.parse.quote(self.identity)])
-        return b''.join(parts).decode("utf-8")
+        return ''.join(parts)
 
     def __repr__(self):
         return '%s.%s(%r)' % (
