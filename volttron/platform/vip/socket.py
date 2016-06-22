@@ -160,7 +160,7 @@ class Address(object):
             self.identity = defaults.get('identity')
         if url.scheme not in ['tcp', 'ipc', 'inproc']:
             raise ValueError('unknown address scheme: %s' % url.scheme)
-        for name, value in urllib.parse.urlparse_qsl(url.query, True):
+        for name, value in urllib.parse.parse_qsl(url.query, True):
             name = name.lower()
             if name in self._KEYS:
                 if value and name.endswith('key'):
