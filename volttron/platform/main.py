@@ -567,7 +567,7 @@ def main(argv=sys.argv):
             except OSError as exc:
                 parser.error(str(exc))
             try:
-                key = ''.join(curve_keypair())
+                key = ''.join(map(lambda x:x.encode("utf-8"),curve_keypair()))
                 os.write(fd, key)
             finally:
                 os.close(fd)
