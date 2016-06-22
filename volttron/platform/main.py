@@ -568,7 +568,7 @@ def main(argv=sys.argv):
                 parser.error(str(exc))
             try:
                 # xxx: make it a bytes concatenation??
-                key = ''.join(map(lambda x:x.encode("utf-8"),curve_keypair()))
+                key = b''.join(curve_keypair())
                 os.write(fd, key)
             finally:
                 os.close(fd)
