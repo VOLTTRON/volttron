@@ -55,7 +55,7 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-from __future__ import absolute_import
+
 
 from base64 import b64encode, b64decode
 import inspect
@@ -70,6 +70,7 @@ from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable
 from .... import jsonrpc
+import collections
 
 
 __all__ = ['PubSub']
@@ -139,11 +140,11 @@ class PubSub(SubsystemBase):
         self._sync(peer, {})
 
     def _sync(self, peer, items):
-        items = {(bus, prefix) for bus, topics in items.iteritems()
+        items = {(bus, prefix) for bus, topics in items.items()
                  for prefix in topics}
         remove = []
-        for bus, subscriptions in self._peer_subscriptions.iteritems():
-            for prefix, subscribers in subscriptions.iteritems():
+        for bus, subscriptions in self._peer_subscriptions.items():
+            for prefix, subscribers in subscriptions.items():
                 item = bus, prefix
                 try:
                     items.remove(item)
@@ -182,7 +183,7 @@ class PubSub(SubsystemBase):
         subscriptions = self._peer_subscriptions[bus]
         if prefix is None:
             remove = []
-            for topic, subscribers in subscriptions.iteritems():
+            for topic, subscribers in subscriptions.items():
                 subscribers.discard(peer)
                 if not subscribers:
                     remove.append(topic)
@@ -198,7 +199,7 @@ class PubSub(SubsystemBase):
     def _peer_list(self, prefix='', bus='', subscribed=True, reverse=False):
         peer = bytes(self.rpc().context.vip_message.peer)
         if bus is None:
-            buses = self._peer_subscriptions.iteritems()
+            buses = iter(self._peer_subscriptions.items())
         else:
             buses = [(bus, self._peer_subscriptions[bus])]
         if reverse:
@@ -207,7 +208,7 @@ class PubSub(SubsystemBase):
             test = lambda t: t.startswith(prefix)
         results = []
         for bus, subscriptions in buses:
-            for topic, subscribers in subscriptions.iteritems():
+            for topic, subscribers in subscriptions.items():
                 if test(topic):
                     member = peer in subscribers
                     if not subscribed or member:
@@ -221,7 +222,7 @@ class PubSub(SubsystemBase):
     def _distribute(self, peer, topic, headers, message=None, bus=''):
         subscriptions = self._peer_subscriptions[bus]
         subscribers = set()
-        for prefix, subscription in subscriptions.iteritems():
+        for prefix, subscription in subscriptions.items():
             if subscription and topic.startswith(prefix):
                 subscribers |= subscription
         if subscribers:
@@ -247,7 +248,7 @@ class PubSub(SubsystemBase):
             pass
         else:
             sender = decode_peer(sender)
-            for prefix, callbacks in subscriptions.iteritems():
+            for prefix, callbacks in subscriptions.items():
                 if topic.startswith(prefix):
                     handled += 1
                     for callback in callbacks:
@@ -259,13 +260,13 @@ class PubSub(SubsystemBase):
     def synchronize(self, peer):
         '''Unsubscribe from stale/forgotten/unsolicited subscriptions.'''
         if peer is None:
-            items = [(peer, {bus: subscriptions.keys()
-                             for bus, subscriptions in buses.iteritems()})
-                     for peer, buses in self._my_subscriptions.iteritems()]
+            items = [(peer, {bus: list(subscriptions.keys())
+                             for bus, subscriptions in buses.items()})
+                     for peer, buses in self._my_subscriptions.items()]
         else:
             buses = self._my_subscriptions.get(peer) or {}
-            items = [(peer, {bus: subscriptions.keys()
-                             for bus, subscriptions in buses.iteritems()})]
+            items = [(peer, {bus: list(subscriptions.keys())
+                             for bus, subscriptions in buses.items()})]
         for (peer, subscriptions) in items:
             self.rpc().notify(peer, 'pubsub.sync', subscriptions)
 
@@ -274,7 +275,7 @@ class PubSub(SubsystemBase):
                                bus, subscribed, reverse)
 
     def add_subscription(self, peer, prefix, callback, bus=''):
-        if not callable(callback):
+        if not isinstance(callback, collections.Callable):
             raise ValueError('callback %r is not callable' % (callback,))
         try:
             buses = self._my_subscriptions[peer]
@@ -318,12 +319,12 @@ class PubSub(SubsystemBase):
         if prefix is None:
             if callback is None:
                 subscriptions = buses.pop(bus)
-                topics = subscriptions.keys()
+                topics = list(subscriptions.keys())
             else:
                 subscriptions = buses[bus]
                 topics = []
                 remove = []
-                for topic, callbacks in subscriptions.iteritems():
+                for topic, callbacks in subscriptions.items():
                     try:
                         callbacks.remove(callback)
                     except KeyError:
