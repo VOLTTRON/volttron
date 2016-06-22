@@ -57,7 +57,7 @@
 
 '''Interface to Linux inotify system calls.'''
 
-from __future__ import absolute_import, print_function
+
 
 from collections import namedtuple
 import ctypes
@@ -208,7 +208,7 @@ class _inotify(object):
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
-    def next(self):
+    def __next__(self):
         return self.read()
 
     def __iter__(self):
@@ -220,7 +220,7 @@ class inotify(_inotify):
 
 
 def _main(argv, inotify_cls):
-    masks = sorted((name[3:], value) for name, value in globals().iteritems()
+    masks = sorted((name[3:], value) for name, value in globals().items()
                    if name.startswith('IN_') and
                    name not in ['IN_NONBLOCK', 'IN_CLOEXEC', 'IN_ALL_EVENTS',
                                 'IN_CLOSE', 'IN_MOVE'])

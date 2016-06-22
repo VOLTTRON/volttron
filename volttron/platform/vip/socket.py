@@ -67,12 +67,12 @@ defined in green.py.
 '''
 
 
-from __future__ import absolute_import
+
 
 import base64
 import binascii
 from contextlib import contextmanager
-import urllib
+import urllib.request, urllib.parse, urllib.error
 
 import uuid
 
@@ -148,7 +148,7 @@ class Address(object):
     def __init__(self, address, **defaults):
         for name in self._KEYS:
             setattr(self, name, None)
-        for name, value in defaults.iteritems():
+        for name, value in defaults.items():
             setattr(self, name, value)
         url = urllib.parse.urlparse(address, 'tcp')
         self.base = '%s://%s%s' % url[:3]
@@ -178,7 +178,7 @@ class Address(object):
     @property
     def qs(self):
         params = ((name, getattr(self, name)) for name in self._KEYS)
-        return urllib.urlencode(
+        return urllib.parse.urlencode(
             {name: ('XXXXX' if name in self._MASK_KEYS and value else value)
              for name, value in params if value is not None})
 
@@ -188,7 +188,7 @@ class Address(object):
         if qs:
             parts.extend(['?', qs])
         if self.identity is not None:
-            parts.extend(['#', urllib.quote(self.identity)])
+            parts.extend(['#', urllib.parse.quote(self.identity)])
         return ''.join(parts)
 
     def __repr__(self):
@@ -266,7 +266,7 @@ class Message(object):
             name, [bytes(x) for x in value]
             if isinstance(value, (list, tuple))
             else bytes(value)) for name, value in
-                self.__dict__.iteritems())
+                self.__dict__.items())
         return '%s(**{%s})' % (self.__class__.__name__, attrs)
 
 
@@ -415,7 +415,7 @@ class _Socket(object):
             self.send_multipart([peer, user, msg_id, subsystem],
                                 flags=flags|more, copy=copy, track=track)
             if args:
-                send = (self.send if isinstance(args, basestring)
+                send = (self.send if isinstance(args, str)
                         else self.send_multipart)
                 send(args, flags=flags, copy=copy, track=track)
 
@@ -505,7 +505,7 @@ class _Socket(object):
         state = self._recv_state
         frames = self.recv_vip(flags=flags, copy=copy, track=track)
         via = frames.pop(0) if state == -1 else None
-        dct = dict(zip(('peer', 'user', 'id', 'subsystem', 'args'), frames))
+        dct = dict(list(zip(('peer', 'user', 'id', 'subsystem', 'args'), frames)))
         if via is not None:
             dct['via'] = via
         return dct
