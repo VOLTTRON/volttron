@@ -183,7 +183,7 @@ class Address(object):
              for name, value in params if value is not None})
 
     def __str__(self):
-        parts = [self.base.encode("utf-8")]
+        parts = [self.base.decode("utf-8")]
         qs = self.qs        
         if qs:
             parts.extend(['?', qs])
