@@ -102,7 +102,8 @@ chartStore.getChartTopics = function (parentUuid) {
             topics = topics.filter(function (topic) {
 
                 var platformTopic = platformUuids.filter(function (uuid) {
-                    return topic.value.indexOf(uuid) > -1;
+                    return ((topic.value.indexOf(uuid) > -1) 
+                        || (topic.hasOwnProperty("path") && (topic.path.indexOf(uuid) > -1)));
                 });
 
                 return (platformTopic.length ? true : false);

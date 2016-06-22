@@ -4,6 +4,7 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var platformsStore = require('../stores/platforms-store');
 var platformChartStore = require('../stores/platform-chart-store');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -251,6 +252,8 @@ var platformActionCreators = {
 
                                 label = topicParts[topicParts.length - 1] + " (" + parentPath + ")";
                                 name = topicParts[topicParts.length - 1]; // the name is the column name
+
+                                item.path = platformsPanelItemsStore.findTopicInTree(topic);
                             }
 
                             item.value = topic;

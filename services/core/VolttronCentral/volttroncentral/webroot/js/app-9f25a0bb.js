@@ -175,6 +175,7 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var platformsStore = require('../stores/platforms-store');
 var platformChartStore = require('../stores/platform-chart-store');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -422,6 +423,8 @@ var platformActionCreators = {
 
                                 label = topicParts[topicParts.length - 1] + " (" + parentPath + ")";
                                 name = topicParts[topicParts.length - 1]; // the name is the column name
+
+                                item.path = platformsPanelItemsStore.findTopicInTree(topic);
                             }
 
                             item.value = topic;
@@ -666,7 +669,7 @@ function handle401(error, message, highlight, orientation) {
 module.exports = platformActionCreators;
 
 
-},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":35,"../dispatcher":36,"../lib/rpc":39,"../stores/authorization-store":44,"../stores/platform-chart-store":48,"../stores/platforms-store":51}],6:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":35,"../dispatcher":36,"../lib/rpc":39,"../stores/authorization-store":44,"../stores/platform-chart-store":48,"../stores/platforms-panel-items-store":49,"../stores/platforms-store":51}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -5515,7 +5518,8 @@ chartStore.getChartTopics = function (parentUuid) {
             topics = topics.filter(function (topic) {
 
                 var platformTopic = platformUuids.filter(function (uuid) {
-                    return topic.value.indexOf(uuid) > -1;
+                    return ((topic.value.indexOf(uuid) > -1) 
+                        || (topic.hasOwnProperty("path") && (topic.path.indexOf(uuid) > -1)));
                 });
 
                 return (platformTopic.length ? true : false);
