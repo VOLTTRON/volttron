@@ -270,7 +270,7 @@ class Router(BaseRouter):
         if not addr.identity:
             addr.identity = identity
         if not addr.domain:
-            addr.domain = 'vip'
+            addr.domain = b'vip'
         addr.bind(sock)
         _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:

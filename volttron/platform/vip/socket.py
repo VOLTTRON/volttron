@@ -199,7 +199,7 @@ class Address(object):
         '''Extended zmq.Socket.bind() to include options in the address.'''
         if not self.domain:
             raise ValueError('Address domain must be set')
-        sock.zap_domain = self.domain or ''
+        sock.zap_domain = self.domain or b''
         if self.identity:
             sock.identity = self.identity
         elif not sock.identity:
