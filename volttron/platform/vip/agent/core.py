@@ -430,7 +430,7 @@ class Core(BasicCore):
         # pre-setup
         self.socket = vip.Socket(self.context)
         if self.identity:
-            self.socket.identity = self.identity
+            self.socket.identity = bytes(self.identity,encoding="utf-8")
         yield
 
         # pre-start
