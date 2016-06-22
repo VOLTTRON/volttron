@@ -55,7 +55,7 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-from __future__ import absolute_import, print_function
+
 
 from contextlib import contextmanager
 from errno import ENOENT
@@ -264,10 +264,10 @@ class BasicCore(object):
         current.link(lambda glt: self._async.stop())
 
         looper = self.loop()
-        looper.next()
+        next(looper)
         self.onsetup.send(self)
 
-        loop = looper.next()
+        loop = next(looper)
         if loop:
             current.link(lambda glt: loop.kill())
         scheduler = gevent.spawn(schedule_loop)
@@ -284,10 +284,10 @@ class BasicCore(object):
         except (gevent.GreenletExit, KeyboardInterrupt):
             pass
         scheduler.kill()
-        looper.next()
+        next(looper)
         receivers = self.onstop.sendby(link_receiver, self)
         gevent.wait(receivers)
-        looper.next()
+        next(looper)
         self.onfinish.send(self)
 
     def stop(self, timeout=None):
