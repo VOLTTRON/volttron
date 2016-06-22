@@ -260,17 +260,17 @@ class Router(BaseRouter):
 
     def setup(self):
         sock = self.socket
-        sock.identity = identity = str(uuid.uuid4())
+        sock.identity = identity = uuid.uuid4().bytes
         if self._monitor:
             Monitor(sock.get_monitor_socket()).start()
         sock.bind('inproc://vip')
         _log.debug('In-process VIP router bound to inproc://vip')
-        sock.zap_domain = 'vip'
+        sock.zap_domain = b'vip'
         addr = self.local_address
         if not addr.identity:
             addr.identity = identity
         if not addr.domain:
-            addr.domain = 'vip'
+            addr.domain = b'vip'
         addr.bind(sock)
         _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:
@@ -567,7 +567,8 @@ def main(argv=sys.argv):
             except OSError as exc:
                 parser.error(str(exc))
             try:
-                key = ''.join(curve_keypair())
+                # xxx: make it a bytes concatenation??
+                key = b''.join(curve_keypair())
                 os.write(fd, key)
             finally:
                 os.close(fd)

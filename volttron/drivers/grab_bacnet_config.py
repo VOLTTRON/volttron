@@ -382,7 +382,7 @@ try:
         
         config_writer.writerow(results)
 
-except Exception, e:
+except Exception as e:
     _log.exception("an error has occurred: %s", e)
 finally:
     _log.debug("finally")

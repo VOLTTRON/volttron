@@ -55,7 +55,7 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-from __future__ import absolute_import, print_function
+
 
 from contextlib import contextmanager
 from errno import ENOENT
@@ -264,10 +264,10 @@ class BasicCore(object):
         current.link(lambda glt: self._async.stop())
 
         looper = self.loop()
-        looper.next()
+        next(looper)
         self.onsetup.send(self)
 
-        loop = looper.next()
+        loop = next(looper)
         if loop:
             current.link(lambda glt: loop.kill())
         scheduler = gevent.spawn(schedule_loop)
@@ -284,10 +284,10 @@ class BasicCore(object):
         except (gevent.GreenletExit, KeyboardInterrupt):
             pass
         scheduler.kill()
-        looper.next()
+        next(looper)
         receivers = self.onstop.sendby(link_receiver, self)
         gevent.wait(receivers)
-        looper.next()
+        next(looper)
         self.onfinish.send(self)
 
     def stop(self, timeout=None):
@@ -430,13 +430,13 @@ class Core(BasicCore):
         # pre-setup
         self.socket = vip.Socket(self.context)
         if self.identity:
-            self.socket.identity = self.identity
+            self.socket.identity = bytes(self.identity,encoding="utf-8")
         yield
 
         # pre-start
         state = type('HelloState', (), {'count': 0, 'ident': None})
         def hello():
-            state.ident = ident = b'connect.hello.%d' % state.count
+            state.ident = ident = bytes('connect.hello.%d' % state.count,encoding='utf-8')
             state.count += 1
             self.spawn(self.socket.send_vip,
                        b'', b'hello', [b'hello'], msg_id=ident)

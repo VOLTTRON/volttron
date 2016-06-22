@@ -353,7 +353,7 @@ class PlatformWrapper():
         status_agent_status = status[0][2][1]
         assert not isinstance(status_agent_status, int)
 #         self.assertIn("running",status_agent_status, "Agent status shows error")
-        print status
+        print (status)
 
     def confirm_agent_running(self, agent_name, max_retries=5, timeout_seconds=2):
 
@@ -380,7 +380,7 @@ class PlatformWrapper():
 
     def direct_stop_agent(self, agent_uuid):
         result = self.conn.call.stop_agent(agent_uuid)
-        print result
+        print (result)
 
 
     def shutdown_platform(self, cleanup_temp=True):
@@ -391,13 +391,13 @@ class PlatformWrapper():
             time.sleep(3)
             self.p_process.kill()
         else:
-            print "platform process was null"
+            print ("platform process was null")
 
         if self.use_twistd and self.t_process != None:
             self.t_process.kill()
             self.t_process.wait()
         elif self.use_twistd:
-            print "twistd process was null"
+            print ("twistd process was null")
         if cleanup_temp:
             if self.tmpdir:
                 shutil.rmtree(self.tmpdir, ignore_errors=True)

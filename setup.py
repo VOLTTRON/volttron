@@ -62,7 +62,7 @@ from setuptools import setup, find_packages
 
 # Requirements which must be built separately with the provided options.
 option_requirements = [
-    ('pyzmq>=14.7,<15', ['--zmq=bundled']),
+    ('pyzmq>=14.7,<=15', ['--zmq=bundled']),
 ]
 
 # Requirements in the repository which should be installed as editable.
@@ -77,7 +77,7 @@ requirements = [
     'pymodbus>=1.2,<2',
     'setuptools',
     'simplejson>=3.3,<4',
-    'Smap==2.0.24c780d',
+    'smap',#'Smap==2.0.24c780d',
     'wheel>=0.24,<2',
 ]
 

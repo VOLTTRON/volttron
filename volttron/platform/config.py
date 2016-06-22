@@ -425,7 +425,7 @@ class ArgumentParser(_argparse.ArgumentParser):
                 continue
             try:
                 value = _os.environ[action.env_var]
-            except (AttributeError, KeyError):
+            except (AttributeError, KeyError,TypeError):
                 continue
             for opt in action.option_strings:
                 if opt.startswith('--'):

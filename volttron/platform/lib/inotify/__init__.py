@@ -57,7 +57,7 @@
 
 '''Interface to Linux inotify system calls.'''
 
-from __future__ import absolute_import, print_function
+
 
 from collections import namedtuple
 import ctypes
@@ -118,7 +118,7 @@ IN_NONBLOCK = os.O_NONBLOCK
 
 __all__.extend(name for name in dir() if name.startswith('IN_'))
 
-
+# xxx not found. 
 _libc = ctypes.CDLL(None)
 inotify_init = ctypes.CFUNCTYPE(c_int, c_int, use_errno=True)(
     ('inotify_init1', _libc), ((1, 'flags', 0),))
@@ -160,7 +160,7 @@ class _inotify(object):
             self._fd = None
 
     def add_watch(self, pathname, mask=IN_ALL_EVENTS):
-        wd = inotify_add_watch(self.fileno(), pathname, mask | IN_IGNORED)
+        wd = inotify_add_watch(self.fileno(), bytes(pathname,encoding="utf-8"), mask | IN_IGNORED)
         with self._lock:
             self._watch_names[pathname] = wd
             self._watch_wds[wd] = (pathname, mask)
@@ -208,7 +208,7 @@ class _inotify(object):
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
-    def next(self):
+    def __next__(self):
         return self.read()
 
     def __iter__(self):
@@ -220,7 +220,7 @@ class inotify(_inotify):
 
 
 def _main(argv, inotify_cls):
-    masks = sorted((name[3:], value) for name, value in globals().iteritems()
+    masks = sorted((name[3:], value) for name, value in globals().items()
                    if name.startswith('IN_') and
                    name not in ['IN_NONBLOCK', 'IN_CLOEXEC', 'IN_ALL_EVENTS',
                                 'IN_CLOSE', 'IN_MOVE'])

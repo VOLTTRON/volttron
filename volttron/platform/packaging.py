@@ -522,7 +522,7 @@ def main(argv=sys.argv):
                             print('Invalid package name {}'.format(opts.package))
                         verifier = auth.SignedZipPackageVerifier(opts.package)
                         verifier.verify()
-                        print "Package is verified"
+                        print ("Package is verified")
                     else:
                         user_type = {'admin': opts.admin,
                                   'creator': opts.creator,

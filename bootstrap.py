@@ -273,10 +273,6 @@ def main(argv=sys.argv):
                          'potential damage.\n' % os.path.basename(argv[0]))
         sys.exit(77)
 
-    # Unfortunately, many dependencies are not yet available in Python3.
-    if sys.version_info[:2] != (2, 7):
-        sys.stderr.write('error: Python 2.7 is required\n')
-        sys.exit(1)
 
     # Build the parser
     python = os.path.join('$VIRTUAL_ENV',

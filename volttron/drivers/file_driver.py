@@ -97,7 +97,7 @@ class FileRegister(BaseRegister):
         except (ValueError, IOError):
             #Build up default files.
             value = self.parse_value('0')
-            print "Creating default file for point: ", self.point_name
+            print ("Creating default file for point: ", self.point_name)
             with open(self.file_path, 'w') as f:
                 f.write(str(value))
             return value

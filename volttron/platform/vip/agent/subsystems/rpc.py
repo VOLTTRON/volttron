@@ -55,7 +55,7 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-from __future__ import absolute_import
+
 
 import inspect
 import logging
@@ -151,7 +151,7 @@ class Dispatcher(jsonrpc.Dispatcher):
             method = self.methods[name]
         except KeyError:
             if name == 'inspect':
-                return {'methods': self.methods.keys()}
+                return {'methods': list(self.methods.keys())}
             elif name.endswith('.inspect'):
                 try:
                     method = self.methods[name[:-8]]
@@ -168,7 +168,7 @@ class Dispatcher(jsonrpc.Dispatcher):
             return method(*args, **kwargs)
         except Exception as exc:   # pylint: disable=broad-except
             exc_tb = traceback.format_exc()
-            print("RPC ERROR",exc_tb)
+            print(("RPC ERROR",exc_tb))
             _log.error('unhandled exception in JSON-RPC method %r: \n%s',
                        name, exc_tb)
             if getattr(method, 'traceback', True):
@@ -250,7 +250,7 @@ class RPC(SubsystemBase):
 
     @export.classmethod
     def export(cls, name=None):   # pylint: disable=no-self-argument
-        if not isinstance(name, basestring):
+        if not isinstance(name, str):
             method, name = name, name.__name__
             annotate(method, set, 'rpc.exports', name)
             return method

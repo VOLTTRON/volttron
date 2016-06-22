@@ -211,18 +211,18 @@ class AIPplatform(object):
                 os.makedirs(path, 0o755)
 
     def finish(self):
-        for exeenv in self.agents.itervalues():
+        for exeenv in self.agents.values():
             if exeenv.process.poll() is None:
                 exeenv.process.send_signal(signal.SIGINT)
-        for exeenv in self.agents.itervalues():
+        for exeenv in self.agents.values():
             if exeenv.process.poll() is None:
                 exeenv.process.terminate()
-        for exeenv in self.agents.itervalues():
+        for exeenv in self.agents.values():
             if exeenv.process.poll() is None:
                 exeenv.process.kill()
 
     def shutdown(self):
-        for agent_uuid in self.agents.iterkeys():
+        for agent_uuid in self.agents.keys():
             self.stop_agent(agent_uuid)
         event = gevent.event.Event()
         agent = Agent(identity='aip', address='inproc://vip')
@@ -245,7 +245,7 @@ class AIPplatform(object):
 
     def autostart(self):
         agents, errors = [], []
-        for agent_uuid, agent_name in self.list_agents().iteritems():
+        for agent_uuid, agent_name in self.list_agents().items():
             try:
                 priority = self._agent_priority(agent_uuid)
             except EnvironmentError as exc:
@@ -323,11 +323,11 @@ class AIPplatform(object):
 
     def active_agents(self):
         return {agent_uuid: execenv.name
-                for agent_uuid, execenv in self.agents.iteritems()}
+                for agent_uuid, execenv in self.agents.items()}
 
     def clear_status(self, clear_all=False):
         remove = []
-        for agent_uuid, execenv in self.agents.iteritems():
+        for agent_uuid, execenv in self.agents.items():
             if execenv.process.poll() is not None:
                 if clear_all:
                     remove.append(agent_uuid)
@@ -340,7 +340,7 @@ class AIPplatform(object):
 
     def status_agents(self):
         return [(agent_uuid, agent_name, self.agent_status(agent_uuid))
-                for agent_uuid, agent_name in self.active_agents().iteritems()]
+                for agent_uuid, agent_name in self.active_agents().items()]
 
     def tag_agent(self, agent_uuid, tag):
         tag_file = os.path.join(self.install_dir, agent_uuid, 'TAG')
@@ -385,7 +385,7 @@ class AIPplatform(object):
         if failed_terms:
             msg = '\n'.join('  {}: {} ({})'.format(
                              term, hard_reqs[term], avail)
-                            for term, avail in failed_terms.iteritems())
+                            for term, avail in failed_terms.items())
             _log.error('hard resource requirements not met:\n%s', msg)
             raise ValueError('hard resource requirements not met')
         requirements = execreqs.get('requirements', {})
@@ -402,7 +402,7 @@ class AIPplatform(object):
             errmsg, failed_terms = exc.args
         msg = '\n'.join('  {}: {} ({})'.format(
                          term, requirements.get(term, '<unset>'), avail)
-                        for term, avail in failed_terms.iteritems())
+                        for term, avail in failed_terms.items())
         _log.error('%s:\n%s', errmsg, msg)
         raise ValueError(errmsg)
 
@@ -553,6 +553,6 @@ class AIPplatform(object):
         return execenv.process.poll()
 
     def agent_uuid_from_pid(self, pid):
-        for agent_uuid, execenv in self.agents.iteritems():
+        for agent_uuid, execenv in self.agents.items():
             if execenv.process.pid == pid:
                 return agent_uuid if execenv.process.poll() is None else None

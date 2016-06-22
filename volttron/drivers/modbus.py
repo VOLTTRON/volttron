@@ -413,35 +413,35 @@ if __name__ == "__main__":
     from pprint import pprint
     iface = ModbusInterface('130.20.3.14')
     r = iface.get_point_sync('ReturnAirCO2')
-    print 'ReturnAirCO2', r
+    print ('ReturnAirCO2', r)
     r = iface.get_point_sync('ServiceSwitch')
-    print 'ServiceSwitch', r
+    print ('ServiceSwitch', r)
     r = iface.get_point_sync('ReturnAirCO2Stpt')
-    print 'ReturnAirCO2Stpt', r
+    print ('ReturnAirCO2Stpt', r)
     r = iface.get_point_sync('DamperSignal')
-    print 'DamperSignal', r
+    print ('DamperSignal', r)
     r = iface.get_point_sync('CoolSupplyFanSpeed1')
-    print 'CoolSupplyFanSpeed1', r
+    print ('CoolSupplyFanSpeed1', r)
     r = iface.get_point_sync('ESMMode')
-    print 'ESMMode', r
+    print ('ESMMode', r)
     r = iface.get_point_sync('CoolCall1')
-    print 'Occupied', r
-    print
-    print 'Writing to ESMMode:', True
+    print ('Occupied', r)
+    print (' ')
+    print ( 'Writing to ESMMode:', True)
     r = iface.set_point_sync('ESMMode', True)
-    print 'New ESMMode:', r
-    print
-    print 'Writing to CoolSupplyFanSpeed1:', 65.0
+    print ('New ESMMode:', r)
+    print (' ')
+    print ('Writing to CoolSupplyFanSpeed1:', 65.0)
     r = iface.set_point_sync('CoolSupplyFanSpeed1', 65.0)
-    print 'New CoolSupplyFanSpeed1', r
+    print ('New CoolSupplyFanSpeed1', r)
     
     r = iface.scrape_all()
     pprint(r)
     
-    print 'Getting via async interface'
-    print 'ESMMode',
+    print ('Getting via async interface')
+    print ('ESMMode',)
     def printvalue(value):
-        print value
+        print (value)
     
     d = iface.get_point_async('ESMMode')
     d.addCallback(printvalue)
