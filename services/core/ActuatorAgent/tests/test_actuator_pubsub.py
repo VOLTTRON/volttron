@@ -70,7 +70,7 @@ from mock import MagicMock
 from volttron.platform.agent import PublishMixin
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
-from dateutil.tz import tzutc, tzlocal
+from dateutil.tz import tzutc
 
 
 FAILURE = 'FAILURE'
@@ -256,6 +256,7 @@ def publish(publish_agent, topic, header, message):
     else:
         publish_agent_v2.publish_json(topic, header, message)
 
+@pytest.mark.dev
 @pytest.mark.actuator_pubsub
 def test_schedule_response(publish_agent):
     """
@@ -279,8 +280,8 @@ def test_schedule_response(publish_agent):
     # Mock callback methods
     print ("\n**** test_schedule_response ****")
     global publish_agent_v2
-    start = str(datetime.now(tz=tzlocal()) + timedelta(seconds=10))
-    end = str(datetime.now(tz=tzlocal()) + timedelta(seconds=20))
+    start = str(datetime.now(tz=tzutc()) + timedelta(seconds=10))
+    end = str(datetime.now(tz=tzutc()) + timedelta(seconds=20))
     header = {
         'type': 'NEW_SCHEDULE',
         'requesterID': TEST_AGENT,  # The name of the requesting agent.

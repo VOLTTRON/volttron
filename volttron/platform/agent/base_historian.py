@@ -1084,9 +1084,10 @@ class BaseHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
 # intended use.
 import ply.lex as lex
 import ply.yacc as yacc
-from dateutil.tz import gettz, tzlocal
+from dateutil.tz import gettz
+from tzlocal import get_localzone
 
-local = tzlocal()
+local = get_localzone()
 
 
 def now(tzstr='UTC'):

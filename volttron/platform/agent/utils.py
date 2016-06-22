@@ -69,7 +69,9 @@ import stat
 import sys
 import syslog
 import traceback
-from dateutil.tz import tzutc, tzlocal
+from dateutil.tz import tzutc
+from tzlocal import get_localzone
+
 import calendar
 import gevent
 
@@ -335,7 +337,8 @@ def get_aware_utc_now():
 
 def get_utc_seconds_from_epoch(timestamp=datetime.now(tz=tzutc())):
     if timestamp.tzinfo is None:
-        timestamp = timestamp.replace(tzinfo=tzlocal())
+        local_tz = get_localzone()
+        timestamp = local_tz.localize(timestamp)
     # utctimetuple can be called on aware timestamps and it will
     # convert to UTC first.
     seconds_from_epoch = calendar.timegm(timestamp.utctimetuple())
