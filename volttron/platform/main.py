@@ -265,7 +265,7 @@ class Router(BaseRouter):
             Monitor(sock.get_monitor_socket()).start()
         sock.bind('inproc://vip')
         _log.debug('In-process VIP router bound to inproc://vip')
-        sock.zap_domain = 'vip'
+        sock.zap_domain = b'vip'
         addr = self.local_address
         if not addr.identity:
             addr.identity = identity
