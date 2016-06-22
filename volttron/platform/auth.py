@@ -255,7 +255,7 @@ class AuthService(Agent):
             return dump_user(domain, address, mechanism, *credentials[:1])
 
 
-class String(unicode):
+class String(string):
     def __new__(cls, value):
         obj = super(String, cls).__new__(cls, value)
         if len(obj) > 1 and obj[0] == obj[-1] == '/':
