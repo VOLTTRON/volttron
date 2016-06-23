@@ -180,7 +180,7 @@ var PlatformsPanel = React.createClass({
         );
 
         var filterUnknownIcon = (
-            <div className="status-unknown">
+            <div className="status-unknown moveDown">
                 <span>&#9644;</span>
             </div>
         );

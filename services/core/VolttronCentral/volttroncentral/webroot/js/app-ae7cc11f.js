@@ -4144,7 +4144,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         );
 
         var filterUnknownIcon = (
-            React.createElement("div", {className: "status-unknown"}, 
+            React.createElement("div", {className: "status-unknown moveDown"}, 
                 React.createElement("span", null, "▬")
             )
         );

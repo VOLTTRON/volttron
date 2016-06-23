@@ -866,13 +866,13 @@ br + .form__control-help {
     color: #BABABA;
 }
 
-/*.status-good, .status-bad, .status-unknown {
-    width: 20px;
-    height: 20px;
-    display: inline-block;
-    float: left;
-    margin-right: 10px;
-}*/
+.status-unknown.noRotate {
+    line-height: 14px;
+}
+
+.moveDown {
+    transform: translateY(-2px);
+}
 
 .error {
     border: 1px solid #faa;
