@@ -6,12 +6,18 @@ import tempfile
 
 import pytest
 import gevent
+from volttron.platform.vip.connection import Connection
+from volttrontesting.utils.platformwrapper import PlatformWrapper
 from zmq.utils import jsonapi
 
 from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
+from volttron.platform.agent.known_identities import (
+    VOLTTRON_CENTRAL_PLATFORM, VOLTTRON_CENTRAL)
 from volttron.platform.keystore import KeyStore
 from volttron.platform.web import DiscoveryInfo
+from volttrontesting.fixtures.volttron_platform_fixtures import (
+    get_rand_ip_and_port,
+)
 
 
 def get_new_keypair():
@@ -52,6 +58,113 @@ def get_auth_token(jsonrpc_address):
 
     return do_rpc(jsonrpc_address, 'get_authorization',
                   params).json()['result']
+
+
+def values_not_none(keylist, lookup):
+    for k in keylist:
+        names = k.split('.')
+        obj = lookup
+        for i in xrange(len(names)):
+            if i == len(names) - 1:
+                return names[i] in obj and obj[names[i]] is not None
+            try:
+                obj = obj[names[i]]
+            except KeyError:
+                return False
+    # passes a None keylist?
+    return False
+
+
+def contains_keys(keylist, lookup):
+    for k in keylist:
+        names = k.split('.')
+        obj = lookup
+        for i in xrange(len(names)):
+            if i == len(names) - 1:
+                return names[i] in obj
+            try:
+                obj = obj[names[i]]
+            except KeyError:
+                return False
+    # passes a None keylist?
+    return False
+
+
+@pytest.mark.pa
+def test_listagents(pa_instance):
+    wrapper, agent_uuid = pa_instance
+    agent = Connection(wrapper.local_vip_address, VOLTTRON_CENTRAL_PLATFORM)
+    params = dict(id='foo', method='list_agents')
+    agent_list = agent.call(
+        'route_request', 'foo', 'list_agents', None)
+    assert 1 <= len(agent_list)
+    expected_keys = ['name', 'uuid', 'tag', 'priority', 'process_id', 'health',
+                     'health.status', 'heatlh.context', 'health.last_updated',
+                     'error_code', 'permissions', 'permissions.can_restart',
+                     'permissions.can_remove', 'can_stop', 'can_start']
+    expected_key_set = set(expected_keys)
+    none_key_set = set(['tag', 'priority', 'health.context', 'error_code'])
+    not_none_key_set = expected_key_set.difference(none_key_set)
+    for a in agent_list:
+        assert contains_keys(expected_keys, a)
+        assert values_not_none(not_none_key_set, a)
+
+
+@pytest.mark.pa
+def test_pa_autoregister_same_platform(vc_instance):
+    vc_wrapper, vc_uuid, rpc_instance = vc_instance
+    # Connection to vc instance through server.
+    vc_conn = vc_wrapper.build_connection(VOLTTRON_CENTRAL)
+    before_starting_platform = len(vc_conn.call('get_platforms'))
+
+    pa_uuid = vc_wrapper.install_agent(
+        agent_dir='services/core/VolttronCentralPlatform'
+    )
+    registered_platforms = vc_conn.call('get_platforms')
+    assert vc_wrapper.is_agent_running(pa_uuid)
+    assert before_starting_platform + 1 == len(registered_platforms)
+    found = False
+    for p in registered_platforms:
+        if p['address'] == vc_wrapper.local_vip_address:
+            assert p['display_name'] == 'local'
+            assert p['serverkey'] is None
+            assert p['registered_time_utc'] is not None
+            found = True
+            break
+    assert found
+
+
+@pytest.mark.pa
+def test_pa_autoregister_through_call_to_vc(vc_instance):
+    vc_wrapper, vc_uuid, rpc_instance = vc_instance
+    # Connection to vc instance through server.
+    vc_conn = vc_wrapper.build_connection(VOLTTRON_CENTRAL)
+    before_starting_platform = len(vc_conn.call('get_platforms'))
+
+    pa_wrapper = PlatformWrapper()
+    display_name = get_rand_ip_and_port()
+    pa_vip = "tcp://{}".format(display_name)
+    # Note only using the web address in this scenario.
+    pa_wrapper.startup_platform(
+        vip_address=pa_vip, encrypt=True,
+        volttron_central_address=vc_wrapper.bind_web_address)
+
+    pa_uuid = pa_wrapper.install_agent(
+        agent_dir='services/core/VolttronCentralPlatform'
+    )
+    assert pa_vip == pa_wrapper.vip_address
+    registered_platforms = vc_conn.call('get_platforms')
+    assert pa_wrapper.is_agent_running(pa_uuid)
+    assert before_starting_platform + 1 == len(registered_platforms)
+    found = False
+    for p in registered_platforms:
+        if p['address'] == pa_vip:
+            assert pa_vip == p['display_name']
+            assert p['serverkey'] is not None
+            assert p['registered_time_utc'] is not None
+            found = True
+            break
+    assert found
 
 
 @pytest.mark.pa
