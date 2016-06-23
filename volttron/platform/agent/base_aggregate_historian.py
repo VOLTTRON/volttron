@@ -68,7 +68,6 @@ from volttron.platform.agent import utils
 from volttron.platform.aggregation_utils import aggregation_utils
 from volttron.platform.vip.agent import Agent
 
-utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '1.0'
 

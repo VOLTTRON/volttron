@@ -70,7 +70,6 @@ from volttron.platform.aggregation_utils import aggregation_utils
 from volttron.platform.dbutils import sqlutils
 from volttron.platform.vip.agent import Core
 
-utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '1.0'
 

@@ -377,9 +377,10 @@ def test_basic_function(aggregate_agent, volttron_instance1):
     assert float(rows[0][0]) == 3.0
     assert float(rows[1][0]) == 7.0
 
-    cursor.execute("SELECT count(value_string) from sum_3m where "
+    cursor.execute("SELECT value_string from sum_3m where "
                    "topic_id =1")
     rows = cursor.fetchall()
     print ("result is {}".format(rows))
     assert float(rows[0][0]) == 3.0
     assert float(rows[1][0]) == 7.0
+
