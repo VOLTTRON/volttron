@@ -92,7 +92,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/dashboard":17,"./components/login-form":21,"./components/page-not-found":24,"./components/platform":28,"./components/platform-charts":26,"./components/platform-manager":27,"./components/platforms":31,"./stores/authorization-store":44,"./stores/platforms-panel-items-store":49,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":17,"./components/login-form":20,"./components/page-not-found":24,"./components/platform":28,"./components/platform-charts":26,"./components/platform-manager":27,"./components/platforms":31,"./stores/authorization-store":44,"./stores/platforms-panel-items-store":49,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -2079,7 +2079,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":45,"./exchange":20,"jquery":undefined,"react":undefined}],17:[function(require,module,exports){
+},{"../stores/console-store":45,"./exchange":19,"jquery":undefined,"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2191,6 +2191,228 @@ module.exports = RegisterPlatformForm;
 
 var React = require('react');
 
+var Exchange = React.createClass({displayName: "Exchange",
+    _formatTime: function (time) {
+        var d = new Date();
+
+        d.setTime(time);
+
+        return d.toLocaleString();
+    },
+    _formatMessage: function (message) {
+        return JSON.stringify(message, null, '    ');
+    },
+    render: function () {
+        var exchange = this.props.exchange;
+        var classes = ['response'];
+        var responseText;
+
+        if (!exchange.completed) {
+            classes.push('response--pending');
+            responseText = 'Waiting for response...';
+        } else if (exchange.error) {
+            classes.push('response--error');
+            responseText = exchange.error.message;
+        } else {
+            if (exchange.response.error) {
+                classes.push('response--error');
+            }
+
+            responseText = this._formatMessage(exchange.response);
+        }
+
+        return (
+            React.createElement("div", {className: "exchange"}, 
+                React.createElement("div", {className: "request"}, 
+                    React.createElement("div", {className: "time"}, this._formatTime(exchange.initiated)), 
+                    React.createElement("pre", null, this._formatMessage(exchange.request))
+                ), 
+                React.createElement("div", {className: classes.join(' ')}, 
+                    exchange.completed && React.createElement("div", {className: "time"}, this._formatTime(exchange.completed)), 
+                    React.createElement("pre", null, responseText)
+                )
+            )
+        );
+    }
+});
+
+module.exports = Exchange;
+
+
+},{"react":undefined}],20:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
+
+var LoginForm = React.createClass({displayName: "LoginForm",
+    getInitialState: function () {
+        var state = {};
+
+        return state;
+    },
+    _onUsernameChange: function (e) {
+        this.setState({
+            username: e.target.value,
+            error: null,
+        });
+    },
+    _onPasswordChange: function (e) {
+        this.setState({
+            password: e.target.value,
+            error: null,
+        });
+    },
+    _onSubmit: function (e) {
+        e.preventDefault();
+        platformManagerActionCreators.requestAuthorization(
+            this.state.username,
+            this.state.password
+        );
+    },
+    render: function () {
+        return (
+            React.createElement("form", {className: "login-form", onSubmit: this._onSubmit}, 
+                React.createElement("input", {
+                    className: "login-form__field", 
+                    type: "text", 
+                    placeholder: "Username", 
+                    autoFocus: true, 
+                    onChange: this._onUsernameChange}
+                ), 
+                React.createElement("input", {
+                    className: "login-form__field", 
+                    type: "password", 
+                    placeholder: "Password", 
+                    onChange: this._onPasswordChange}
+                ), 
+                React.createElement("input", {
+                    className: "button login-form__submit", 
+                    type: "submit", 
+                    value: "Log in", 
+                    disabled: !this.state.username || !this.state.password}
+                )
+            )
+        );
+    }
+});
+
+module.exports = LoginForm;
+
+
+},{"../action-creators/platform-manager-action-creators":7,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var modalActionCreators = require('../action-creators/modal-action-creators');
+
+var Modal = React.createClass({displayName: "Modal",
+    _onClick: function (e) {
+		if (e.target === e.currentTarget) {
+			modalActionCreators.closeModal();
+		}
+	},
+	render: function () {
+		return (
+			React.createElement("div", {className: "modal__overlay", onClick: this._onClick}, 
+				React.createElement("div", {className: "modal__dialog"}, 
+					this.props.children
+				)
+			)
+		);
+	},
+});
+
+module.exports = Modal;
+
+
+},{"../action-creators/modal-action-creators":4,"react":undefined}],22:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
+var authorizationStore = require('../stores/authorization-store');
+var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+
+var Navigation = React.createClass({displayName: "Navigation",
+    getInitialState: getStateFromStores,
+    componentDidMount: function () {
+        authorizationStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function () {
+        authorizationStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function () {
+        this.setState(getStateFromStores());
+    },
+    _onLogOutClick: function () {
+        platformManagerActionCreators.clearAuthorization();
+    },
+    render: function () {
+        var navItems;
+
+        if (this.state.loggedIn) {
+            navItems = ['Dashboard', 'Platforms', 'Charts'].map(function (navItem) {
+                var route = navItem.toLowerCase();
+
+                return (
+                    React.createElement(Router.Link, {
+                        key: route, 
+                        to: route, 
+                        className: "navigation__item", 
+                        activeClassName: "navigation__item--active"
+                    }, 
+                        navItem
+                    )
+                );
+            });
+
+            navItems.push(
+                React.createElement("a", {
+                    key: "logout", 
+                    className: "navigation__item", 
+                    tabIndex: "0", 
+                    onClick: this._onLogOutClick
+                }, 
+                    "Log out"
+                )
+            );
+        }
+
+        return (
+            React.createElement("nav", {className: "navigation"}, 
+                React.createElement("h1", {className: "logo"}, 
+                    React.createElement("span", {className: "logo__name"}, "VOLTTRON"), 
+                    React.createElement("span", {className: "logo__tm"}, "™"), 
+                    React.createElement("span", {className: "logo__central"}, " Central"), 
+                    React.createElement("span", {className: "logo__beta"}, "BETA"), 
+                    React.createElement("span", {className: "logo__funding"}, "Funded by DOE EERE BTO")
+                ), 
+                navItems
+            )
+        );
+    }
+});
+
+function getStateFromStores() {
+    return {
+        loggedIn: !!authorizationStore.getAuthorization(),
+    };
+}
+
+module.exports = Navigation;
+
+
+},{"../action-creators/platform-manager-action-creators":7,"../action-creators/platforms-panel-action-creators":8,"../stores/authorization-store":44,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
@@ -2199,7 +2421,7 @@ var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var chartStore = require('../stores/platform-chart-store');
 var ComboBox = require('./combo-box');
 
-var EditChartForm = React.createClass({displayName: "EditChartForm",
+var NewChartForm = React.createClass({displayName: "NewChartForm",
     getInitialState: function () {
         var state = {};
 
@@ -2396,232 +2618,10 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
     },
 });
 
-module.exports = EditChartForm;
+module.exports = NewChartForm;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platform-chart-store":48,"../stores/platforms-panel-items-store":49,"./combo-box":11,"react":undefined}],20:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var Exchange = React.createClass({displayName: "Exchange",
-    _formatTime: function (time) {
-        var d = new Date();
-
-        d.setTime(time);
-
-        return d.toLocaleString();
-    },
-    _formatMessage: function (message) {
-        return JSON.stringify(message, null, '    ');
-    },
-    render: function () {
-        var exchange = this.props.exchange;
-        var classes = ['response'];
-        var responseText;
-
-        if (!exchange.completed) {
-            classes.push('response--pending');
-            responseText = 'Waiting for response...';
-        } else if (exchange.error) {
-            classes.push('response--error');
-            responseText = exchange.error.message;
-        } else {
-            if (exchange.response.error) {
-                classes.push('response--error');
-            }
-
-            responseText = this._formatMessage(exchange.response);
-        }
-
-        return (
-            React.createElement("div", {className: "exchange"}, 
-                React.createElement("div", {className: "request"}, 
-                    React.createElement("div", {className: "time"}, this._formatTime(exchange.initiated)), 
-                    React.createElement("pre", null, this._formatMessage(exchange.request))
-                ), 
-                React.createElement("div", {className: classes.join(' ')}, 
-                    exchange.completed && React.createElement("div", {className: "time"}, this._formatTime(exchange.completed)), 
-                    React.createElement("pre", null, responseText)
-                )
-            )
-        );
-    }
-});
-
-module.exports = Exchange;
-
-
-},{"react":undefined}],21:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-var Router = require('react-router');
-
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-
-var LoginForm = React.createClass({displayName: "LoginForm",
-    getInitialState: function () {
-        var state = {};
-
-        return state;
-    },
-    _onUsernameChange: function (e) {
-        this.setState({
-            username: e.target.value,
-            error: null,
-        });
-    },
-    _onPasswordChange: function (e) {
-        this.setState({
-            password: e.target.value,
-            error: null,
-        });
-    },
-    _onSubmit: function (e) {
-        e.preventDefault();
-        platformManagerActionCreators.requestAuthorization(
-            this.state.username,
-            this.state.password
-        );
-    },
-    render: function () {
-        return (
-            React.createElement("form", {className: "login-form", onSubmit: this._onSubmit}, 
-                React.createElement("input", {
-                    className: "login-form__field", 
-                    type: "text", 
-                    placeholder: "Username", 
-                    autoFocus: true, 
-                    onChange: this._onUsernameChange}
-                ), 
-                React.createElement("input", {
-                    className: "login-form__field", 
-                    type: "password", 
-                    placeholder: "Password", 
-                    onChange: this._onPasswordChange}
-                ), 
-                React.createElement("input", {
-                    className: "button login-form__submit", 
-                    type: "submit", 
-                    value: "Log in", 
-                    disabled: !this.state.username || !this.state.password}
-                )
-            )
-        );
-    }
-});
-
-module.exports = LoginForm;
-
-
-},{"../action-creators/platform-manager-action-creators":7,"react":undefined,"react-router":undefined}],22:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var modalActionCreators = require('../action-creators/modal-action-creators');
-
-var Modal = React.createClass({displayName: "Modal",
-    _onClick: function (e) {
-		if (e.target === e.currentTarget) {
-			modalActionCreators.closeModal();
-		}
-	},
-	render: function () {
-		return (
-			React.createElement("div", {className: "modal__overlay", onClick: this._onClick}, 
-				React.createElement("div", {className: "modal__dialog"}, 
-					this.props.children
-				)
-			)
-		);
-	},
-});
-
-module.exports = Modal;
-
-
-},{"../action-creators/modal-action-creators":4,"react":undefined}],23:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-var Router = require('react-router');
-
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-var authorizationStore = require('../stores/authorization-store');
-var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
-
-var Navigation = React.createClass({displayName: "Navigation",
-    getInitialState: getStateFromStores,
-    componentDidMount: function () {
-        authorizationStore.addChangeListener(this._onStoreChange);
-    },
-    componentWillUnmount: function () {
-        authorizationStore.removeChangeListener(this._onStoreChange);
-    },
-    _onStoreChange: function () {
-        this.setState(getStateFromStores());
-    },
-    _onLogOutClick: function () {
-        platformManagerActionCreators.clearAuthorization();
-    },
-    render: function () {
-        var navItems;
-
-        if (this.state.loggedIn) {
-            navItems = ['Dashboard', 'Platforms', 'Charts'].map(function (navItem) {
-                var route = navItem.toLowerCase();
-
-                return (
-                    React.createElement(Router.Link, {
-                        key: route, 
-                        to: route, 
-                        className: "navigation__item", 
-                        activeClassName: "navigation__item--active"
-                    }, 
-                        navItem
-                    )
-                );
-            });
-
-            navItems.push(
-                React.createElement("a", {
-                    key: "logout", 
-                    className: "navigation__item", 
-                    tabIndex: "0", 
-                    onClick: this._onLogOutClick
-                }, 
-                    "Log out"
-                )
-            );
-        }
-
-        return (
-            React.createElement("nav", {className: "navigation"}, 
-                React.createElement("h1", {className: "logo"}, 
-                    React.createElement("span", {className: "logo__name"}, "VOLTTRON"), 
-                    React.createElement("span", {className: "logo__tm"}, "™"), 
-                    React.createElement("span", {className: "logo__central"}, " Central"), 
-                    React.createElement("span", {className: "logo__beta"}, "BETA"), 
-                    React.createElement("span", {className: "logo__funding"}, "Funded by DOE EERE BTO")
-                ), 
-                navItems
-            )
-        );
-    }
-});
-
-function getStateFromStores() {
-    return {
-        loggedIn: !!authorizationStore.getAuthorization(),
-    };
-}
-
-module.exports = Navigation;
-
-
-},{"../action-creators/platform-manager-action-creators":7,"../action-creators/platforms-panel-action-creators":8,"../stores/authorization-store":44,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platform-chart-store":48,"../stores/platforms-panel-items-store":49,"./combo-box":11,"react":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3158,7 +3158,7 @@ var React = require('react');
 var PlatformChart = require('./platform-chart');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
-var EditChartForm = require('./edit-chart-form');
+var NewChartForm = require('./new-chart-form');
 var platformsStore = require('../stores/platforms-store');
 var chartStore = require('../stores/platform-chart-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -3215,7 +3215,7 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
         {
             platformActionCreators.loadChartTopics(this.state.platform);
 
-            modalActionCreators.openModal(React.createElement(EditChartForm, {platform: this.state.platform}));
+            modalActionCreators.openModal(React.createElement(NewChartForm, {platform: this.state.platform}));
         }
         else
         {
@@ -3266,7 +3266,7 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
 module.exports = PlatformCharts;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../stores/platform-chart-store":48,"../stores/platforms-store":51,"./edit-chart-form":19,"./platform-chart":25,"react":undefined}],27:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../stores/platform-chart-store":48,"../stores/platforms-store":51,"./new-chart-form":23,"./platform-chart":25,"react":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -3481,7 +3481,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/authorization-store":44,"../stores/console-store":45,"../stores/modal-store":47,"../stores/platforms-panel-store":50,"../stores/status-indicator-store":52,"./console":14,"./modal":22,"./navigation":23,"./platforms-panel":30,"./status-indicator":34,"jquery":undefined,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/authorization-store":44,"../stores/console-store":45,"../stores/modal-store":47,"../stores/platforms-panel-store":50,"../stores/status-indicator-store":52,"./console":14,"./modal":21,"./navigation":22,"./platforms-panel":30,"./status-indicator":34,"jquery":undefined,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var React = require('react');

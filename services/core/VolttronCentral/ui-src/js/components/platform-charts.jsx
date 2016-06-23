@@ -4,7 +4,7 @@ var React = require('react');
 var PlatformChart = require('./platform-chart');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
-var EditChartForm = require('./edit-chart-form');
+var NewChartForm = require('./new-chart-form');
 var platformsStore = require('../stores/platforms-store');
 var chartStore = require('../stores/platform-chart-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -61,7 +61,7 @@ var PlatformCharts = React.createClass({
         {
             platformActionCreators.loadChartTopics(this.state.platform);
 
-            modalActionCreators.openModal(<EditChartForm platform={this.state.platform}/>);
+            modalActionCreators.openModal(<NewChartForm platform={this.state.platform}/>);
         }
         else
         {

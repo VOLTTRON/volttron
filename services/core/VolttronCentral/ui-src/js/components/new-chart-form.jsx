@@ -10,7 +10,7 @@ var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var chartStore = require('../stores/platform-chart-store');
 var ComboBox = require('./combo-box');
 
-var EditChartForm = React.createClass({
+var NewChartForm = React.createClass({
     getInitialState: function () {
         var state = {};
 
@@ -207,4 +207,4 @@ var EditChartForm = React.createClass({
     },
 });
 
-module.exports = EditChartForm;
+module.exports = NewChartForm;
