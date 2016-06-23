@@ -69,8 +69,7 @@ platformsPanelItemsStore.findTopicInTree = function (topic)
         var buildingName = topicParts[1];
 
         for (var key in _items.platforms)
-        { //_items.platforms.children.find(function (platform) {
-
+        { 
             var platform = _items.platforms[key];       
             var foundPlatform = false;
 

@@ -2203,9 +2203,7 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
     getInitialState: function () {
         var state = {};
 
-        for (var prop in this.props.chart) {
-            state[prop] = this.props.chart[prop];
-        }
+        state.refreshInterval = 15000;
 
         state.topics = chartStore.getChartTopics(this.props.platform.uuid);
 
@@ -2278,11 +2276,6 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
         {
             platformsPanelActionCreators.checkItem(selectedTopic.path, true);
         }
-
-        // if (selectedTopic.pinned)
-        // {
-        //     platformActionCreators.saveCharts();
-        // }
 
         modalActionCreators.closeModal();
     },
@@ -5892,8 +5885,7 @@ platformsPanelItemsStore.findTopicInTree = function (topic)
         var buildingName = topicParts[1];
 
         for (var key in _items.platforms)
-        { //_items.platforms.children.find(function (platform) {
-
+        { 
             var platform = _items.platforms[key];       
             var foundPlatform = false;
 

@@ -14,9 +14,7 @@ var EditChartForm = React.createClass({
     getInitialState: function () {
         var state = {};
 
-        for (var prop in this.props.chart) {
-            state[prop] = this.props.chart[prop];
-        }
+        state.refreshInterval = 15000;
 
         state.topics = chartStore.getChartTopics(this.props.platform.uuid);
 
@@ -89,11 +87,6 @@ var EditChartForm = React.createClass({
         {
             platformsPanelActionCreators.checkItem(selectedTopic.path, true);
         }
-
-        // if (selectedTopic.pinned)
-        // {
-        //     platformActionCreators.saveCharts();
-        // }
 
         modalActionCreators.closeModal();
     },
