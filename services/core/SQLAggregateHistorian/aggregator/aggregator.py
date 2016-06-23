@@ -65,20 +65,21 @@ import logging
 import sys
 
 from volttron.platform.agent import utils
-from volttron.platform.aggregation_utils import aggregation_utils
 from volttron.platform.dbutils import sqlutils
-from volttron.platform.vip.agent import Agent, Core
+from volttron.platform.vip.agent import Core
+from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
+from volttron.platform.aggregation_utils import aggregation_utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '4.0'
+__version__ = '1.0'
 
 
-class AggregateHistorian(Agent):
+class SQLAggregateHistorian(AggregateHistorian):
     """
-    Agent to aggeregate data in historian based on a specific time period.
-    Different instance of this agent is needed to aggregate data over different
-    time period.
+    Agent to aggregate data in historian based on a specific time period.
+    Different instance of this agent is needed to interact with different
+    type of historians.
     """
 
     def __init__(self, config_path, **kwargs):
@@ -89,12 +90,10 @@ class AggregateHistorian(Agent):
         :param config_path: configuration file path
         :param kwargs:
         """
-        super(AggregateHistorian, self).__init__(**kwargs)
-        self.config = utils.load_config(config_path)
-        self._agent_id = self.config['agentid']
-        connection = self.config.get('connection', None)
+        super(SQLAggregateHistorian, self).__init__(config_path, **kwargs)
 
         # 1. Check connection to db instantiate db functions class
+        connection = self.config.get('connection', None)
         assert connection is not None
         database_type = connection.get('type', None)
         assert database_type is not None
@@ -112,14 +111,18 @@ class AggregateHistorian(Agent):
 
     @Core.receiver('onstart')
     def _on_start(self, sender, **kwargs):
-        for  agg_group in self.config['aggregations'] :
+        for agg_group in self.config['aggregations']:
 
-            # 1. Validate aggregation details in config
-            period = aggregation_utils.format_aggregation_time_period(
+            # 1. Normalize aggregation period and
+            # initialize use_calendar_periods flag
+            agg_time_period = aggregation_utils.format_aggregation_time_period(
                 agg_group['aggregation_period'])
+            use_calendar_periods = agg_group.get('use_calendar_time_periods',
+                                                 False)
+            # 2. Validate aggregation details in config
             for data in agg_group['points']:
                 if data['topic_name'] is None or self.topic_id_map[data[
-                    'topic_name'].lower()] is None:
+                        'topic_name'].lower()] is None:
                     raise ValueError("Invalid topic name " + data[
                         'topic_name'])
                 if data['aggregation_type'].upper() not in ['AVG', 'MIN',
@@ -133,24 +136,17 @@ class AggregateHistorian(Agent):
                                      "an integer grater than 0".
                                      format(data['min_count']))
                 self.dbfuncts.create_aggregate_store(data['aggregation_type'],
-                                                 period)
-            use_calendar_periods = agg_group.get('use_calendar_time_periods',
-                                                 False)
-            frequency = \
-                aggregation_utils.compute_aggregation_frequency_seconds(
-                    period,
-                    use_calendar_periods)
-            self.core.periodic(frequency,
-                               self.collect_aggregate_data,
-                               [period, use_calendar_periods, agg_group[
-                                   'points']]
-                               )
+                                                     agg_time_period)
+            # 3. Call parent method to set up periodic aggregation
+            # collection calls
+            self.setup_periodic_data_collection(agg_time_period,
+                                      use_calendar_periods,
+                                      agg_group['points'])
 
     def collect_aggregate_data(self, *args):
         period = args[0]
         use_calendar = args[1]
         points = args[2]
-
 
         _log.debug("Time period passed as arg  {} ".format(period))
 
@@ -191,7 +187,7 @@ class AggregateHistorian(Agent):
 def main(argv=sys.argv):
     """Main method called by the eggsecutable."""
     try:
-        utils.vip_main(AggregateHistorian)
+        utils.vip_main(SQLAggregateHistorian)
     except Exception as e:
         _log.exception('unhandled exception' + e.message)
 

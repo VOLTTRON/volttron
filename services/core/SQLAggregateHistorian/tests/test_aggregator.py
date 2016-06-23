@@ -49,7 +49,22 @@ sqlite_platform = {
                 "min_count": 2
             }
         ]
-        }
+        },
+        {"aggregation_period": "3m",
+         "use_calendar_time_periods": False,
+         "points": [
+             {
+                 "topic_name": "device1/out_temp",
+                 "aggregation_type": "sum",
+                 "min_count": 2
+             },
+             {
+                 "topic_name": "device1/in_temp",
+                 "aggregation_type": "sum",
+                 "min_count": 2
+             }
+         ]
+         }
     ]
 }
 
@@ -91,7 +106,22 @@ mysql_platform = {
                 "min_count": 2
             }
         ]
-        }
+        },
+        {"aggregation_period": "3m",
+         "use_calendar_time_periods": False,
+         "points": [
+             {
+                 "topic_name": "device1/out_temp",
+                 "aggregation_type": "sum",
+                 "min_count": 2
+             },
+             {
+                 "topic_name": "device1/in_temp",
+                 "aggregation_type": "sum",
+                 "min_count": 2
+             }
+         ]
+         }
     ]
 }
 
@@ -144,7 +174,7 @@ def aggregate_agent(request, volttron_instance1):
 
     # Make database connection
     agent_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/AggregateHistorian",
+        agent_dir="services/core/SQLAggregateHistorian",
         config_file=request.param,
         start=False)
     print("agent id: ", agent_uuid)
@@ -289,30 +319,6 @@ def connect_sqlite(request):
     db_connection.commit()
 
 
-#
-# @pytest.fixture()
-# def clean(request):
-#     def delete_rows():
-#         global db_connection, data_table
-#         cursor = db_connection.cursor()
-#         cursor.execute("DELETE FROM " + data_table)
-#         db_connection.commit()
-#         print("deleted test records from " + data_table)
-#
-#     request.addfinalizer(delete_rows)
-
-# def assert_timestamp(result, expected_date, expected_time):
-#     global MICROSECOND_SUPPORT
-#     print("MICROSECOND SUPPORT ", MICROSECOND_SUPPORT)
-#     print("TIMESTAMP with microseconds ", expected_time)
-#     print("TIMESTAMP without microseconds ", expected_time[:-7])
-#     if MICROSECOND_SUPPORT:
-#         assert (result == expected_date + 'T' + expected_time + '+00:00')
-#     else:
-#         # mysql version < 5.6.4
-#         assert (result == expected_date + 'T' + expected_time[:-7] +
-#                 '.000000+00:00')
-
 def publish_test_data(start_time, start_reading, count):
     global db_connection, data_table
     cursor = db_connection.cursor()
@@ -370,3 +376,13 @@ def test_basic_function(aggregate_agent, volttron_instance1):
     print ("result is {}".format(rows))
     assert float(rows[0][0]) == 3.0
     assert float(rows[1][0]) == 7.0
+
+    cursor.execute("SELECT count(value_string) from sum_3m where "
+                   "topic_id =1")
+    rows = cursor.fetchall()
+    print ("result is {}".format(rows))
+    assert float(rows[0][0]) == 3.0
+    assert float(rows[1][0]) == 7.0
+
+
+
