@@ -34,22 +34,22 @@ sqlite_platform = {
         "topics_table": "topics_table",
         "meta_table": "meta_table"
     },
-    "aggregations":[
+    "aggregations": [
         {"aggregation_period": "2m",
-        "use_calendar_time_periods": True,
-        "points": [
-            {
-                "topic_name": "device1/out_temp",
-                "aggregation_type": "sum",
-                "min_count": 2
-            },
-            {
-                "topic_name": "device1/in_temp",
-                "aggregation_type": "sum",
-                "min_count": 2
-            }
-        ]
-        },
+         "use_calendar_time_periods": True,
+         "points": [
+             {
+                 "topic_name": "device1/out_temp",
+                 "aggregation_type": "sum",
+                 "min_count": 2
+             },
+             {
+                 "topic_name": "device1/in_temp",
+                 "aggregation_type": "sum",
+                 "min_count": 2
+             }
+         ]
+         },
         {"aggregation_period": "3m",
          "use_calendar_time_periods": False,
          "points": [
@@ -91,22 +91,22 @@ mysql_platform = {
         "topics_table": "topics_table",
         "meta_table": "meta_table",
     },
-    "aggregations":[
+    "aggregations": [
         {"aggregation_period": "2m",
-        "use_calendar_time_periods": False,
-        "points": [
-            {
-                "topic_name": "device1/out_temp",
-                "aggregation_type": "sum",
-                "min_count": 2
-            },
-            {
-                "topic_name": "device1/in_temp",
-                "aggregation_type": "sum",
-                "min_count": 2
-            }
-        ]
-        },
+         "use_calendar_time_periods": False,
+         "points": [
+             {
+                 "topic_name": "device1/out_temp",
+                 "aggregation_type": "sum",
+                 "min_count": 2
+             },
+             {
+                 "topic_name": "device1/in_temp",
+                 "aggregation_type": "sum",
+                 "min_count": 2
+             }
+         ]
+         },
         {"aggregation_period": "3m",
          "use_calendar_time_periods": False,
          "points": [
@@ -359,7 +359,7 @@ def test_basic_function(aggregate_agent, volttron_instance1):
         cursor.execute("DELETE FROM sum_2m")
         db_connection.commit()
     volttron_instance1.start_agent(aggregate_agent)
-    #gevent.sleep(2)
+    # gevent.sleep(2)
     gevent.sleep(5 * 60)  # sleep till we see two rows in aggregate table
     cursor = db_connection.cursor()
     cursor.execute("SELECT value_string from sum_2m "
@@ -383,6 +383,3 @@ def test_basic_function(aggregate_agent, volttron_instance1):
     print ("result is {}".format(rows))
     assert float(rows[0][0]) == 3.0
     assert float(rows[1][0]) == 7.0
-
-
-

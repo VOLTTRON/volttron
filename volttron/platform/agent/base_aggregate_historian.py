@@ -62,14 +62,11 @@
 from __future__ import absolute_import
 
 import logging
-import sys
-from datetime import datetime, timedelta
 from abc import abstractmethod
 
 from volttron.platform.agent import utils
 from volttron.platform.aggregation_utils import aggregation_utils
-from volttron.platform.dbutils import sqlutils
-from volttron.platform.vip.agent import Agent, Core
+from volttron.platform.vip.agent import Agent
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -98,9 +95,8 @@ class AggregateHistorian(Agent):
         self.config = utils.load_config(config_path)
         self._agent_id = self.config['agentid']
 
-
-
-    def setup_periodic_data_collection(self, aggregation_period, use_calendar_periods,
+    def setup_periodic_data_collection(self, aggregation_period,
+                                       use_calendar_periods,
                                        points):
         """
         Converts aggrgation time period into seconds and setups periodic

@@ -65,8 +65,27 @@ from datetime import datetime, timedelta
 
 
 def format_aggregation_time_period(time_period):
-    period = int(time_period[:-1])
+    """
+    Validates and normalizes aggregation time period. For example,
+    if aggregation time period is given as 48h it will get converted into 2d
+    @param time_period: time period string to be validated and normalized
+    @return: normalized time period
+    """
+    try:
+        period = int(time_period[:-1])
+    except ValueError:
+        raise ValueError("Aggregation period {} provided is invalid. Please "
+                         "specify an integer followed by m/h/d/w/M "
+                         "(minutes, hours, days, weeks".format(time_period))
+
     unit = time_period[-1:]
+
+    if unit not in ['m', 'h', 'd', 'w', 'M']:
+        raise ValueError(
+            "Invalid unit {} provided for aggregation time "
+            "period {}. Valid time periods are m,h,d,w,"
+            "or M (minutes, hours, days, weeks, months".format(unit,
+                                                               time_period))
     if unit == 'm':
         if period >= 60 and period % 60 == 0:
             period /= 60
@@ -79,26 +98,23 @@ def format_aggregation_time_period(time_period):
         if period >= 7 and period % 7 == 0:
             period /= 7
             unit = 'w'
-    # elif unit == 'w':
-    #     start_time = end_time - timedelta(weeks=period_int)
-    # elif unit == 'M':
-    #     start_time = end_time - timedelta(days=30)
-    return time_period
+
+    return period+unit
 
 
-def compute_aggregation_frequency_seconds(period, use_calendar_periods):
+def compute_aggregation_frequency_seconds(agg_period, use_calendar_periods):
     """
     Return aggregate collection frequency in seconds. This can be used
     to call the aggregate collection method periodically using
     self.core.periodic()
-    @param period: period string from AggregateHistorian config
-    @param calendar_periods: boolean to say if aggregate period should be
+    @param agg_period: period string from AggregateHistorian config
+    @param use_calendar_periods: boolean to say if aggregate period should be
     based on calendar periods. For example: Week = Sunday to Saturday,
     Hourly average would be 1AM= 2AM, 2AM-3AM etc
     @return: collection frequency in seconds
     """
-    period_int = int(period[:-1])
-    unit = period[-1:]
+    period_int = int(agg_period[:-1])
+    unit = agg_period[-1:]
     if unit == 'm':
         return period_int * 60
     elif unit == 'h':
@@ -117,10 +133,21 @@ def compute_aggregation_frequency_seconds(period, use_calendar_periods):
             return period_int * 30 * 24 * 60 * 60
 
 
-def compute_aggregation_timeslice(period, use_calender_time_periods):
+def compute_aggregation_timeslice(agg_period, use_calender_time_periods):
+    """
+    Computes the start and end time for querying the historians data table
+    for computing aggregates. Start and end time depend on whether the time
+    periods should align to calendar time periods. For example a daily
+    average could be computed for data collected between 12am to 11.59am of
+    a specific date or data between (current_time - 24 hours) and current_time.
+    Setting use_calendar_time_periods to true results in former.
+    @param agg_period:
+    @param use_calender_time_periods:
+    @return:
+    """
     current = datetime.utcnow()
-    period_int = int(period[:-1])
-    unit = period[-1:]
+    period_int = int(agg_period[:-1])
+    unit = agg_period[-1:]
     end_time = current
     if unit == 'm':
         start_time = end_time - timedelta(minutes=period_int)

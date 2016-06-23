@@ -150,6 +150,8 @@ class SqlLiteFuncts(DbDriver):
          @param end:
          @param start:
          @param topic_id:
+         @param agg_type:
+         @param agg_period:
         """
         table_name = self.data_table
         if agg_type and agg_period:
@@ -337,11 +339,11 @@ if __name__ == '__main__':
 
     functs = SqlLiteFuncts(con, tables_def)
     functs.collect_aggregate('device1/in_temp',
-                           'sum',
-                           datetime.strptime(
-                               '2016-06-05 22:47:02.417604+00:00',
-                               "%Y-%m-%d %H:%M:%S.%f+00:00"),
-                           datetime.strptime(
-                               '2016-06-05 22:49:02.417604+00:00',
-                               "%Y-%m-%d %H:%M:%S.%f+00:00")
-                           )
+                             'sum',
+                             datetime.strptime(
+                                 '2016-06-05 22:47:02.417604+00:00',
+                                 "%Y-%m-%d %H:%M:%S.%f+00:00"),
+                             datetime.strptime(
+                                 '2016-06-05 22:49:02.417604+00:00',
+                                 "%Y-%m-%d %H:%M:%S.%f+00:00")
+                             )

@@ -65,10 +65,10 @@ import logging
 import sys
 
 from volttron.platform.agent import utils
-from volttron.platform.dbutils import sqlutils
-from volttron.platform.vip.agent import Core
 from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from volttron.platform.aggregation_utils import aggregation_utils
+from volttron.platform.dbutils import sqlutils
+from volttron.platform.vip.agent import Core
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -107,13 +107,11 @@ class SQLAggregateHistorian(AggregateHistorian):
         # 2. load topic name and topic id.
         self.topic_id_map, name_map = self.dbfuncts.get_topic_map()
 
-
-
     @Core.receiver('onstart')
     def _on_start(self, sender, **kwargs):
         for agg_group in self.config['aggregations']:
 
-            # 1. Normalize aggregation period and
+            # 1. Validate and normalize aggregation period and
             # initialize use_calendar_periods flag
             agg_time_period = aggregation_utils.format_aggregation_time_period(
                 agg_group['aggregation_period'])
@@ -140,8 +138,8 @@ class SQLAggregateHistorian(AggregateHistorian):
             # 3. Call parent method to set up periodic aggregation
             # collection calls
             self.setup_periodic_data_collection(agg_time_period,
-                                      use_calendar_periods,
-                                      agg_group['points'])
+                                                use_calendar_periods,
+                                                agg_group['points'])
 
     def collect_aggregate_data(self, *args):
         period = args[0]
