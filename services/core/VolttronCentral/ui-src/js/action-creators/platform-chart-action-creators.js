@@ -120,6 +120,8 @@ var platformChartActionCreators = {
                     panelItem: panelItem
                 });
 
+                platformsPanelActionCreators.checkItem(panelItem.path, true);
+
                 var savedCharts = platformChartStore.getPinnedCharts();
                 var inSavedChart = savedCharts.find(function (chart) {
                     return chart.chartKey === panelItem.name;
@@ -170,6 +172,8 @@ var platformChartActionCreators = {
             type: ACTION_TYPES.REMOVE_FROM_CHART,
             panelItem: panelItem
         });        
+
+        platformsPanelActionCreators.checkItem(panelItem.path, false);
 
         if (inSavedChart)
         {

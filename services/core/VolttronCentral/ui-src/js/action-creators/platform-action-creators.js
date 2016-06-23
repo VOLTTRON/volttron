@@ -230,7 +230,6 @@ var platformActionCreators = {
                             var name;
                             var parentPath;
                             var label;
-                            // var name;
 
                             if (topic.indexOf("datalogger/platforms") > -1) // if a platform instance
                             {

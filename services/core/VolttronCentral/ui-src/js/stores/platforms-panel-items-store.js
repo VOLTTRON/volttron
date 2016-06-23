@@ -43,8 +43,6 @@ platformsPanelItemsStore.findTopicInTree = function (topic)
         {
             if (key === topicParts[2])
             {
-                // path = ["platforms", uuid];
-
                 if (_items.platforms[key].hasOwnProperty("points"))
                 {
                     _items.platforms[key].points.children.find(function (point) {

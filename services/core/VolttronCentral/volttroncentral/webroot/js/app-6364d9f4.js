@@ -401,7 +401,6 @@ var platformActionCreators = {
                             var name;
                             var parentPath;
                             var label;
-                            // var name;
 
                             if (topic.indexOf("datalogger/platforms") > -1) // if a platform instance
                             {
@@ -792,6 +791,8 @@ var platformChartActionCreators = {
                     panelItem: panelItem
                 });
 
+                platformsPanelActionCreators.checkItem(panelItem.path, true);
+
                 var savedCharts = platformChartStore.getPinnedCharts();
                 var inSavedChart = savedCharts.find(function (chart) {
                     return chart.chartKey === panelItem.name;
@@ -842,6 +843,8 @@ var platformChartActionCreators = {
             type: ACTION_TYPES.REMOVE_FROM_CHART,
             panelItem: panelItem
         });        
+
+        platformsPanelActionCreators.checkItem(panelItem.path, false);
 
         if (inSavedChart)
         {
@@ -3740,16 +3743,14 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         var checked = e.target.checked;
 
-        platformsPanelActionCreators.checkItem(this.props.itemPath, checked);
-
-        this.setState({checked: checked});
-
         if (checked)
         {
+            this.setState({checked: null});
             platformChartActionCreators.addToChart(this.props.panelItem);
         }
         else
         {
+            this.setState({checked: null});
             platformChartActionCreators.removeFromChart(this.props.panelItem);
         }
     },
@@ -3782,6 +3783,10 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         var childClass;
         var arrowClasses = [ "arrowButton", "noRotate" ];
+        var arrowContent;
+        var arrowContentStyle = {
+            width: "14px"
+        }
 
         if (this.state.hasOwnProperty("loading"))
         {
@@ -3799,10 +3804,21 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         if (["point"].indexOf(panelItem.type) > -1)
         {
-            ChartCheckbox = (React.createElement("input", {className: "panelItemCheckbox", 
+            if (this.state.checked !== null)
+            {
+                ChartCheckbox = (React.createElement("input", {className: "panelItemCheckbox", 
                                     type: "checkbox", 
                                     onChange: this._checkItem, 
                                     checked: this.state.checked}));
+            }
+            else
+            {
+                ChartCheckbox = (
+                    React.createElement("div", {className: "checkboxSpinner arrowButton"}, 
+                        React.createElement("span", {style: arrowContentStyle}, React.createElement("i", {className: "fa fa-circle-o-notch fa-spin fa-fw"}))
+                    )
+                )
+            }
         }
 
         var tooltipStyle = {
@@ -3819,11 +3835,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
-        }
-
-        var arrowContent;
-        var arrowContentStyle = {
-            width: "14px"
         }
 
         if (this.state.cancelButton)
@@ -5859,8 +5870,6 @@ platformsPanelItemsStore.findTopicInTree = function (topic)
         {
             if (key === topicParts[2])
             {
-                // path = ["platforms", uuid];
-
                 if (_items.platforms[key].hasOwnProperty("points"))
                 {
                     _items.platforms[key].points.children.find(function (point) {
