@@ -99,7 +99,7 @@ def format_aggregation_time_period(time_period):
             period /= 7
             unit = 'w'
 
-    return period+unit
+    return str(period)+unit
 
 
 def compute_aggregation_frequency_seconds(agg_period, use_calendar_periods):
