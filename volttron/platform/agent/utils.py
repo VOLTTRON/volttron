@@ -53,30 +53,28 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
-'''VOLTTRON platform™ agent helper classes/functions.'''
+"""VOLTTRON platform™ agent helper classes/functions."""
 
 import argparse
-from dateutil.parser import parse
-from datetime import datetime, timedelta
+import calendar
 import errno
 import logging
+import sys
+import syslog
+import traceback
+from datetime import datetime
+
+import gevent
 import os
 import pytz
 import re
 import stat
-import sys
-import syslog
-import traceback
+from dateutil.parser import parse
 from dateutil.tz import tzutc
 from tzlocal import get_localzone
-
-import calendar
-import gevent
-
 from zmq.utils import jsonapi
-
 from ..lib.inotify.green import inotify, IN_MODIFY
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread']
@@ -85,16 +83,15 @@ __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
-
 _comment_re = re.compile(
-        r'((["\'])(?:\\?.)*?\2)|(/\*.*?\*/)|((?:#|//).*?(?=\n|$))',
-        re.MULTILINE | re.DOTALL)
-
+    r'((["\'])(?:\\?.)*?\2)|(/\*.*?\*/)|((?:#|//).*?(?=\n|$))',
+    re.MULTILINE | re.DOTALL)
 
 _log = logging.getLogger(__name__)
 
+
 def _repl(match):
-    '''Replace the matched group with an appropriate string.'''
+    """Replace the matched group with an appropriate string."""
     # If the first group matched, a quoted string was matched and should
     # be returned unchanged.  Otherwise a comment was matched and the
     # empty string should be returned.
@@ -102,26 +99,26 @@ def _repl(match):
 
 
 def strip_comments(string):
-    '''Return string with all comments stripped.
+    """Return string with all comments stripped.
 
     Both JavaScript-style comments (//... and /*...*/) and hash (#...)
     comments are removed.
-    '''
+    """
     return _comment_re.sub(_repl, string)
 
 
 def load_config(config_path):
-    '''Load a JSON-encoded configuration file.'''
+    """Load a JSON-encoded configuration file."""
     return jsonapi.loads(strip_comments(open(config_path).read()))
 
 
 def run_agent(cls, subscribe_address=None, publish_address=None,
               config_path=None, **kwargs):
-    '''Instantiate an agent and run it in the current thread.
+    """Instantiate an agent and run it in the current thread.
 
     Attempts to get keyword parameters from the environment if they
     are not set.
-    '''
+    """
     if not subscribe_address:
         subscribe_address = os.environ.get('AGENT_SUB_ADDR')
     if subscribe_address:
@@ -139,10 +136,10 @@ def run_agent(cls, subscribe_address=None, publish_address=None,
 
 
 def start_agent_thread(cls, **kwargs):
-    '''Instantiate an agent class and run it in a new daemon thread.
+    """Instantiate an agent class and run it in a new daemon thread.
 
     Returns the thread object.
-    '''
+    """
     import threading
     agent = cls(**kwargs)
     thread = threading.Thread(target=agent.run)
@@ -158,10 +155,10 @@ def isapipe(fd):
 
 def default_main(agent_class, description=None, argv=sys.argv,
                  parser_class=argparse.ArgumentParser, **kwargs):
-    '''Default main entry point implementation for legacy agents.
+    """Default main entry point implementation for legacy agents.
 
     description and parser_class are depricated. Please avoid using them.
-    '''
+    """
     try:
         # If stdout is a pipe, re-open it line buffered
         if isapipe(sys.stdout):
@@ -195,7 +192,7 @@ def default_main(agent_class, description=None, argv=sys.argv,
 
 
 def vip_main(agent_class, **kwargs):
-    '''Default main entry point implementation for VIP agents.'''
+    """Default main entry point implementation for VIP agents."""
     try:
         # If stdout is a pipe, re-open it line buffered
         if isapipe(sys.stdout):
@@ -229,11 +226,12 @@ class SyslogFormatter(logging.Formatter):
                   logging.INFO: syslog.LOG_INFO,
                   logging.WARNING: syslog.LOG_WARNING,
                   logging.ERROR: syslog.LOG_ERR,
-                  logging.CRITICAL: syslog.LOG_CRIT,}
+                  logging.CRITICAL: syslog.LOG_CRIT}
 
     def format(self, record):
         level = self._level_map.get(record.levelno, syslog.LOG_INFO)
-        return '<{}>'.format(level) + super(SyslogFormatter, self).format(record)
+        return '<{}>'.format(level) + super(SyslogFormatter, self).format(
+            record)
 
 
 class JsonFormatter(logging.Formatter):
@@ -248,7 +246,6 @@ class JsonFormatter(logging.Formatter):
 class AgentFormatter(logging.Formatter):
     def __init__(self, fmt=None, datefmt=None):
         if fmt is None:
-            #fmt = "%(composite_name)s %(levelname)s|[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
             fmt = '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'
         super(AgentFormatter, self).__init__(fmt=fmt, datefmt=datefmt)
 
@@ -257,7 +254,7 @@ class AgentFormatter(logging.Formatter):
             cname = '(%(processName)s %(process)d) %(remote_name)s'
         elif record.name.startswith('agents.std'):
             cname = '(%(processName)s %(process)d) <{}>'.format(
-                    record.name.split('.', 2)[1])
+                record.name.split('.', 2)[1])
         else:
             cname = '() %(name)s'
         return cname % record.__dict__
@@ -266,7 +263,7 @@ class AgentFormatter(logging.Formatter):
         if 'composite_name' not in record.__dict__:
             record.__dict__['composite_name'] = self.composite_name(record)
         if len(record.args) > 0 \
-            and 'tornado.access' in record.__dict__['composite_name']:
+                and 'tornado.access' in record.__dict__['composite_name']:
             record.__dict__['msg'] = ','.join([str(b) for b in record.args])
             record.__dict__['args'] = []
         return super(AgentFormatter, self).format(record)
@@ -280,14 +277,15 @@ def setup_logging(level=logging.DEBUG):
             handler.setFormatter(JsonFormatter())
         else:
             fmt = '%(asctime)s %(name)s %(levelname)s: %(message)s'
-            #fmt = '%(asctime)s %(name)s %(levelname)s: [%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s'
             handler.setFormatter(logging.Formatter(fmt))
 
         root.addHandler(handler)
     root.setLevel(level)
 
+
 def format_timestamp(time_stamp):
-    """Create a consistent datetime string representation based on ISO 8601 format.
+    """Create a consistent datetime string representation based on
+    ISO 8601 format.
     
     YYYY-MM-DDTHH:MM:SS.mmmmmm for unaware datetime objects.
     YYYY-MM-DDTHH:MM:SS.mmmmmm+HH:MM for aware datetime objects
@@ -297,33 +295,37 @@ def format_timestamp(time_stamp):
     :returns: datetime in string format
     :rtype: str
     """
-    
+
     time_str = time_stamp.strftime("%Y-%m-%dT%H:%M:%S.%f")
-    
+
     if time_stamp.tzinfo is not None:
         sign = '+'
         td = time_stamp.tzinfo.utcoffset(time_stamp)
         if td.days < 0:
             sign = '-'
             td = -td
-            
+
         seconds = td.seconds
         minutes, seconds = divmod(seconds, 60)
         hours, minutes = divmod(minutes, 60)
-        time_str += "{sign}{HH:02}:{MM:02}".format(sign=sign, HH=hours, MM=minutes)
-    
+        time_str += "{sign}{HH:02}:{MM:02}".format(sign=sign,
+                                                   HH=hours,
+                                                   MM=minutes)
+
     return time_str
 
+
 def parse_timestamp_string(time_stamp_str):
-    """Create a datetime object from the supplied date/time string.
-    Uses dateutil.parse with no extra parameters.
-    
-    :param time_stamp: value to convert
-    :type time_stamp: str
-    :returns: datetime object
-    :rtype: datetime
     """
+    Create a datetime object from the supplied date/time string.
+    Uses dateutil.parse with no extra parameters.
+
+    @param time_stamp_str:
+    @return: value to convert
+    """
+
     return parse(time_stamp_str)
+
 
 def get_aware_utc_now():
     """Create a timezone aware UTC datetime object from the system time.
@@ -335,10 +337,20 @@ def get_aware_utc_now():
     utcnow = pytz.UTC.localize(utcnow)
     return utcnow
 
+
 def get_utc_seconds_from_epoch(timestamp=datetime.now(tz=tzutc())):
+    """
+    convert a given time stamp to seconds from epoch based on utc time. If
+    given time is naive datetime it is considered be local to where this
+    code is running.
+    @param timestamp: datetime object
+    @return: seconds from epoch
+    """
     if timestamp.tzinfo is None:
         local_tz = get_localzone()
+        # Do not use datetime.replace(tzinfo=local_tz) instead use localize()
         timestamp = local_tz.localize(timestamp)
+
     # utctimetuple can be called on aware timestamps and it will
     # convert to UTC first.
     seconds_from_epoch = calendar.timegm(timestamp.utctimetuple())
@@ -346,16 +358,23 @@ def get_utc_seconds_from_epoch(timestamp=datetime.now(tz=tzutc())):
     seconds_from_epoch += timestamp.microsecond / 1000000
     return seconds_from_epoch
 
+
 def process_timestamp(timestamp_string, topic=''):
+    """
+    Convert timestamp string timezone aware utc timestamp
+    @param timestamp_string: datetime string to parse
+    @param topic: topic to which parse errors are published
+    @return: UTC datetime object and the original timezone of input datetime
+    """
     if timestamp_string is None:
         _log.error("message for {topic} missing timetamp".format(topic=topic))
         return
-    
+
     try:
         timestamp = parse(timestamp_string)
-    except (ValueError, TypeError) as e:
-        _log.error("message for {topic} bad timetamp string: {ts_string}".format(topic=topic,
-                                                                                 ts_string=timestamp_string))
+    except (ValueError, TypeError):
+        _log.error("message for {topic} bad timetamp string: {ts_string}"
+                   .format(topic=topic, ts_string=timestamp_string))
         return
 
     if timestamp.tzinfo is None:
@@ -366,8 +385,9 @@ def process_timestamp(timestamp_string, topic=''):
         timestamp = timestamp.astimezone(pytz.UTC)
     return timestamp, original_tz
 
+
 def watch_file(fullpath, callback):
-    '''Run callback method whenever the file changes'''
+    """Run callback method whenever the file changes"""
     dirname, filename = os.path.split(fullpath)
     with inotify() as inot:
         inot.add_watch(dirname, IN_MODIFY)
@@ -375,26 +395,31 @@ def watch_file(fullpath, callback):
             if event.name == filename and event.mask & IN_MODIFY:
                 callback()
 
+
 def create_file_if_missing(path, permission=0o660, contents=None):
     try:
-        fil = open(path)
+        open(path)
     except IOError as exc:
         if exc.errno != errno.ENOENT:
             raise
         _log.debug('missing file %s', path)
         _log.info('creating file %s', path)
-        fd = os.open(path, os.O_CREAT|os.O_WRONLY, permission)
+        fd = os.open(path, os.O_CREAT | os.O_WRONLY, permission)
         try:
             if contents:
                 os.write(fd, contents)
         finally:
             os.close(fd)
-            
+
+
 def fix_sqlite3_datetime(sql=None):
-    """Primarily for fixing the base historian cache on certain versions of python. 
+    """Primarily for fixing the base historian cache on certain versions
+    of python.
     
-    Registers a new datetime converter to that uses dateutil parse. This should 
-    better resolve #216, #174, and #91 without the goofy workarounds that change data.
+    Registers a new datetime converter to that uses dateutil parse. This
+    should
+    better resolve #216, #174, and #91 without the goofy workarounds that
+    change data.
     
     Optional sql argument is for testing only.
     """
