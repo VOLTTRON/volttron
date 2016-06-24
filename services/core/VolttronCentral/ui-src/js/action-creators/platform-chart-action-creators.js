@@ -67,19 +67,18 @@ var platformChartActionCreators = {
                     {
                         if (error.message === "historian unavailable")
                         {
-                            message = "Unable to update chart: The historian agent is unavailable.";
-                            orientation = "center";
+                            message = "Unable to update chart: The VOLTTRON Central platform's historian is unavailable.";
+                            orientation = "left";
                         }
                     }
                     else
                     {
-                        var platform = platformsStore.getPlatform(item.parentUuid);
-                        var historianRunning = platformsStore.getHistorianRunning(platform);
+                        var historianRunning = platformsStore.getVcHistorianRunning();
 
                         if (!historianRunning)
                         {
-                            message = "Unable to update chart: The historian agent is unavailable.";
-                            orientation = "center";
+                            message = "Unable to update chart: The VOLTTRON Central platform's historian is unavailable.";
+                            orientation = "left";
                         }
                     }
 
@@ -141,19 +140,18 @@ var platformChartActionCreators = {
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Unable to load chart: The historian agent is not available.";
-                        orientation = "center";
+                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        orientation = "left";
                     }
                 }
                 else
                 {
-                    var platform = platformsStore.getPlatform(panelItem.parentUuid);
-                    var historianRunning = platformsStore.getHistorianRunning(platform);
+                    var historianRunning = platformsStore.getVcHistorianRunning();
 
                     if (!historianRunning)
                     {
-                        message = "Unable to load chart: The historian agent is not available.";
-                        orientation = "center";
+                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        orientation = "left";
                     }
                 }
 

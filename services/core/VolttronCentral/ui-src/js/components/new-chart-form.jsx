@@ -16,7 +16,7 @@ var NewChartForm = React.createClass({
 
         state.refreshInterval = 15000;
 
-        state.topics = chartStore.getChartTopics(this.props.platform.uuid);
+        state.topics = chartStore.getChartTopics();
 
         state.selectedTopic = "";
 
@@ -29,7 +29,7 @@ var NewChartForm = React.createClass({
         chartStore.removeChangeListener(this._onStoresChange);
     },
     _onStoresChange: function () {
-        this.setState({ topics: chartStore.getChartTopics(this.props.platform.uuid)});
+        this.setState({ topics: chartStore.getChartTopics()});
     },
     _onPropChange: function (e) {
         var state = {};
@@ -75,8 +75,12 @@ var NewChartForm = React.createClass({
             selectedTopic.pinned = (this.state.pin ? true : false);
             selectedTopic.refreshInterval = this.state.refreshInterval;
             selectedTopic.chartType = this.state.chartType;
-            selectedTopic.parentUuid = this.props.platform.uuid;
             selectedTopic.path = platformsPanelItemsStore.findTopicInTree(selectedTopic.topic);
+
+            if (selectedTopic.path && selectedTopic.path.length > 1)
+            {
+                selectedTopic.parentUuid = selectedTopic.path[selectedTopic.path.length - 2];
+            }
         }
 
         var notifyRouter = false;
@@ -131,6 +135,10 @@ var NewChartForm = React.createClass({
                 <ComboBox items={this.state.topics} itemskey="key" itemsvalue="value" itemslabel="label" onselect={this._onTopicChange}>
                 </ComboBox>
             )
+        }
+        else
+        {
+            topicsSelector = <div>Loading topics ...</div>
         }
 
         return (
@@ -199,7 +207,7 @@ var NewChartForm = React.createClass({
                         className="button"
                         disabled={!this.state.selectedTopic || !this.state.chartType}
                     >
-                        Save
+                        Load Chart
                     </button>
                 </div>
             </form>

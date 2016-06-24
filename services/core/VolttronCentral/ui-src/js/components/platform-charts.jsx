@@ -13,12 +13,9 @@ var platformManagerActionCreators = require('../action-creators/platform-manager
 var PlatformCharts = React.createClass({
     getInitialState: function () {
 
-        var vc = platformsStore.getVcInstance();
-
         var state = {
-            platform: vc,
             chartData: chartStore.getData(),
-            historianRunning: platformsStore.getHistorianRunning(vc)
+            historianRunning: platformsStore.getVcHistorianRunning()
         };
 
         return state;
@@ -26,11 +23,6 @@ var PlatformCharts = React.createClass({
     componentDidMount: function () {
         chartStore.addChangeListener(this._onChartStoreChange);
         platformsStore.addChangeListener(this._onPlatformStoreChange);
-
-        if (!this.state.platform)
-        {
-            platformManagerActionCreators.loadPlatforms();
-        }
     },
     componentWillUnmount: function () {
         chartStore.removeChangeListener(this._onChartStoreChange);
@@ -40,32 +32,19 @@ var PlatformCharts = React.createClass({
         this.setState({chartData: chartStore.getData()});
     },
     _onPlatformStoreChange: function () {
-
-        var platform = this.state.platform;
-
-        if (!platform)
-        {
-            platform = platformsStore.getVcInstance();
-
-            if (platform)
-            {
-                this.setState({platform: platform});
-            }
-        }
-
-        this.setState({historianRunning: platformsStore.getHistorianRunning(platform)});
+        this.setState({historianRunning: platformsStore.getVcHistorianRunning()});
     },
-    _onAddChartClick: function (platform) {
+    _onAddChartClick: function () {
 
         if (this.state.historianRunning)
         {
-            platformActionCreators.loadChartTopics(this.state.platform);
+            platformActionCreators.loadChartTopics();
 
-            modalActionCreators.openModal(<NewChartForm platform={this.state.platform}/>);
+            modalActionCreators.openModal(<NewChartForm/>);
         }
         else
         {
-            var message = "Charts can't be added. The historian agent is unavailable."
+            var message = "Chart topics can't be loaded. The VOLTTRON Central platform's historian is unavailable."
             statusIndicatorActionCreators.openStatusIndicator("error", message);
         }
     },
@@ -96,7 +75,7 @@ var PlatformCharts = React.createClass({
                     <div className="view__actions">
                         <button
                             className="button"
-                            onClick={this._onAddChartClick.bind(null, this.state.platform)}
+                            onClick={this._onAddChartClick}
                         >
                             Add Chart
                         </button>

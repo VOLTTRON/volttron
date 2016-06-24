@@ -17,7 +17,8 @@ var ComboBox = React.createClass({
             inputValue: "",
             hideMenu: true,
             preppedItems: preppedItems,
-            itemsList: preppedItems
+            itemsList: preppedItems,
+            focusedIndex: -1
         };
 
         this.forceHide = false;
@@ -30,6 +31,43 @@ var ComboBox = React.createClass({
             React.findDOMNode(this.refs.comboInput).blur();
             this.forceHide = false;
         }
+        else
+        {
+            if (this.state.focusedIndex > -1)
+            {
+                var modal = document.querySelector(".modal__dialog");
+
+                var comboItems = document.querySelectorAll(".combobox-item");
+
+                if (comboItems.length > this.state.focusedIndex)
+                {
+                    var targetItem = comboItems[this.state.focusedIndex];
+
+                    if (targetItem)
+                    {
+                        var menu = targetItem.parentNode;
+
+                        var menuRect = menu.getBoundingClientRect();
+                        var modalRect = modal.getBoundingClientRect();
+                        var targetRect = targetItem.getBoundingClientRect();
+
+                        console.log("target bottom: " + targetRect.bottom + ", modal bottom: " + modalRect.bottom);
+
+                        if (targetRect.bottom > modalRect.bottom || targetRect.top < modalRect.top)
+                        {
+                            console.log("target height: " + targetRect.height + ", index: " + this.state.focusedIndex);
+
+                            var newTop = targetRect.top - menuRect.top;
+
+                            console.log("scrollTop: " + newTop);
+
+                            modal.scrollTop = newTop;
+                        }
+                    }
+
+                }
+            }
+        }
     },
     handleClickOutside: function () {
         if (!this.state.hideMenu)
@@ -37,6 +75,7 @@ var ComboBox = React.createClass({
             var validValue = this._validateValue(this.state.inputValue);
             this.props.onselect(validValue);
             this.setState({hideMenu: true});
+            this.setState({focusedIndex: -1});
         }
     },
     _validateValue: function (inputValue) {
@@ -63,18 +102,69 @@ var ComboBox = React.createClass({
         this.setState({hideMenu: true});
 
         this.props.onselect(e.target.dataset.value);
+
+        this.setState({focusedIndex: -1});
     },
     _onFocus: function () {
         this.setState({hideMenu: false});
     },
     _onKeyup: function (e) {
-        if (e.keyCode === 13)
+        switch (e.keyCode)
         {
-            this.forceHide = true;
-            this.setState({hideMenu: true});
+            case 13:    //Enter key
+                this.forceHide = true;
+                this.setState({hideMenu: true});
 
-            var validValue = this._validateValue(this.state.inputValue);
-            this.props.onselect(validValue);
+                var inputValue = this.state.inputValue;
+
+                if (this.state.focusedIndex > -1)
+                {
+                    var selectedItem = this.state.itemsList[this.state.focusedIndex];
+                    inputValue = selectedItem.label;
+
+                    this.setState({inputValue: inputValue});
+                    this.setState({selectedKey: selectedItem.key});
+                    this.setState({selectedLabel: selectedItem.label});
+                    this.setState({selectedValue: selectedItem.value});
+                }
+
+                var validValue = this._validateValue(inputValue);
+                this.props.onselect(validValue);
+
+                this.setState({focusedIndex: -1});
+                break;
+        }
+    },
+    _onKeydown: function (e) {
+        switch (e.keyCode)
+        {
+            case 9:    //Tab key
+            case 40:    //Arrow down key
+
+                e.preventDefault();
+
+                var newIndex = 0;
+
+                if (this.state.focusedIndex < this.state.itemsList.length - 1)
+                {
+                    newIndex = this.state.focusedIndex + 1;
+                }
+
+                this.setState({focusedIndex: newIndex});
+                break;
+            case 38:    //Arrow up key
+
+                e.preventDefault();
+
+                var newIndex = this.state.itemsList.length - 1;
+
+                if (this.state.focusedIndex > 0)
+                {
+                    newIndex = this.state.focusedIndex - 1;
+                }                
+
+                this.setState({focusedIndex: newIndex});
+                break;
         }
     },
     _onChange: function (e) {
@@ -100,8 +190,17 @@ var ComboBox = React.createClass({
         };
 
         var items = this.state.itemsList.map(function (item, index) {
+
+            var highlightStyle = {};
+
+            if (this.state.focusedIndex > -1 && this.state.focusedIndex === index)
+            {
+                highlightStyle.backgroundColor = "#B2C9D1"
+            }
+
             return (
-                <div className="combobox-item">
+                <div className="combobox-item"
+                    style={highlightStyle}>
                     <div 
                         onClick={this._onClick}
                         data-label={item.label}
@@ -120,7 +219,9 @@ var ComboBox = React.createClass({
                     onFocus={this._onFocus} 
                     onChange={this._onChange}
                     onKeyUp={this._onKeyup}
+                    onKeyDown={this._onKeydown}
                     ref="comboInput"
+                    placeholder="type here to see topics"
                     value={this.state.inputValue}></input>
 
                 <div className="combobox-menu" style={menuStyle}>                    

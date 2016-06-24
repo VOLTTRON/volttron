@@ -207,7 +207,7 @@ var platformActionCreators = {
             callback(authorization, user);
         }
     },
-    loadChartTopics: function (platform) {
+    loadChartTopics: function () {
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
@@ -234,8 +234,8 @@ var platformActionCreators = {
                             if (topic.indexOf("datalogger/platforms") > -1) // if a platform instance
                             {
                                 var platformUuid = topicParts[2];
-                                var platform = platformsStore.getPlatform(platformUuid);
-                                parentPath = (platform ? platform.name : "Unknown Platform");
+                                var topicPlatform = platformsStore.getPlatform(platformUuid);
+                                parentPath = (topicPlatform ? topicPlatform.name : "Unknown Platform");
                                 label = topicParts[topicParts.length - 2] + "/" + topicParts[topicParts.length - 1] + " (" + parentPath + ")";
                                 name = topicParts[topicParts.length - 2] + " / " + topicParts[topicParts.length - 1]; // the name is the
                                                                                                                     // last two path parts
@@ -268,7 +268,6 @@ var platformActionCreators = {
 
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_CHART_TOPICS,
-                    platform: platform,
                     topics: filteredTopics
                 });
             })

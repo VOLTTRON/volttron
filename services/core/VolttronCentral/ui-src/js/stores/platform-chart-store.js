@@ -9,7 +9,9 @@ var platformsStore = require('./platforms-store.js')
 
 var _chartData = {};
 var _showCharts = false;
-var _chartTopics = {};
+var _chartTopics = {
+    platforms: []
+};
 
 var chartStore = new Store();
 
@@ -64,13 +66,13 @@ chartStore.showCharts = function () {
     return showCharts;
 }
 
-chartStore.getChartTopics = function (parentUuid) {
+chartStore.getChartTopics = function () {
     
     var topics = [];
 
-    if (_chartTopics.hasOwnProperty(parentUuid))
+    if (_chartTopics.hasOwnProperty("platforms"))
     {
-        topics = JSON.parse(JSON.stringify(_chartTopics[parentUuid]));
+        topics = JSON.parse(JSON.stringify(_chartTopics.platforms));
 
         if (topics.length)
         {    
@@ -252,7 +254,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             var chartTopics = JSON.parse(JSON.stringify(action.topics));
 
-            _chartTopics[action.platform.uuid] = chartTopics;            
+            _chartTopics.platforms = chartTopics;            
 
             chartStore.emitChange();
             break;

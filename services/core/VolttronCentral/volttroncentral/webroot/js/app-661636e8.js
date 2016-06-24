@@ -378,7 +378,7 @@ var platformActionCreators = {
             callback(authorization, user);
         }
     },
-    loadChartTopics: function (platform) {
+    loadChartTopics: function () {
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
@@ -405,8 +405,8 @@ var platformActionCreators = {
                             if (topic.indexOf("datalogger/platforms") > -1) // if a platform instance
                             {
                                 var platformUuid = topicParts[2];
-                                var platform = platformsStore.getPlatform(platformUuid);
-                                parentPath = (platform ? platform.name : "Unknown Platform");
+                                var topicPlatform = platformsStore.getPlatform(platformUuid);
+                                parentPath = (topicPlatform ? topicPlatform.name : "Unknown Platform");
                                 label = topicParts[topicParts.length - 2] + "/" + topicParts[topicParts.length - 1] + " (" + parentPath + ")";
                                 name = topicParts[topicParts.length - 2] + " / " + topicParts[topicParts.length - 1]; // the name is the
                                                                                                                     // last two path parts
@@ -439,7 +439,6 @@ var platformActionCreators = {
 
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_CHART_TOPICS,
-                    platform: platform,
                     topics: filteredTopics
                 });
             })
@@ -738,19 +737,18 @@ var platformChartActionCreators = {
                     {
                         if (error.message === "historian unavailable")
                         {
-                            message = "Unable to update chart: The historian agent is unavailable.";
-                            orientation = "center";
+                            message = "Unable to update chart: The VOLTTRON Central platform's historian is unavailable.";
+                            orientation = "left";
                         }
                     }
                     else
                     {
-                        var platform = platformsStore.getPlatform(item.parentUuid);
-                        var historianRunning = platformsStore.getHistorianRunning(platform);
+                        var historianRunning = platformsStore.getVcHistorianRunning();
 
                         if (!historianRunning)
                         {
-                            message = "Unable to update chart: The historian agent is unavailable.";
-                            orientation = "center";
+                            message = "Unable to update chart: The VOLTTRON Central platform's historian is unavailable.";
+                            orientation = "left";
                         }
                     }
 
@@ -812,19 +810,18 @@ var platformChartActionCreators = {
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Unable to load chart: The historian agent is not available.";
-                        orientation = "center";
+                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        orientation = "left";
                     }
                 }
                 else
                 {
-                    var platform = platformsStore.getPlatform(panelItem.parentUuid);
-                    var historianRunning = platformsStore.getHistorianRunning(platform);
+                    var historianRunning = platformsStore.getVcHistorianRunning();
 
                     if (!historianRunning)
                     {
-                        message = "Unable to load chart: The historian agent is not available.";
-                        orientation = "center";
+                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        orientation = "left";
                     }
                 }
 
@@ -1461,7 +1458,8 @@ var ComboBox = React.createClass({displayName: "ComboBox",
             inputValue: "",
             hideMenu: true,
             preppedItems: preppedItems,
-            itemsList: preppedItems
+            itemsList: preppedItems,
+            focusedIndex: -1
         };
 
         this.forceHide = false;
@@ -1474,6 +1472,43 @@ var ComboBox = React.createClass({displayName: "ComboBox",
             React.findDOMNode(this.refs.comboInput).blur();
             this.forceHide = false;
         }
+        else
+        {
+            if (this.state.focusedIndex > -1)
+            {
+                var modal = document.querySelector(".modal__dialog");
+
+                var comboItems = document.querySelectorAll(".combobox-item");
+
+                if (comboItems.length > this.state.focusedIndex)
+                {
+                    var targetItem = comboItems[this.state.focusedIndex];
+
+                    if (targetItem)
+                    {
+                        var menu = targetItem.parentNode;
+
+                        var menuRect = menu.getBoundingClientRect();
+                        var modalRect = modal.getBoundingClientRect();
+                        var targetRect = targetItem.getBoundingClientRect();
+
+                        console.log("target bottom: " + targetRect.bottom + ", modal bottom: " + modalRect.bottom);
+
+                        if (targetRect.bottom > modalRect.bottom || targetRect.top < modalRect.top)
+                        {
+                            console.log("target height: " + targetRect.height + ", index: " + this.state.focusedIndex);
+
+                            var newTop = targetRect.top - menuRect.top;
+
+                            console.log("scrollTop: " + newTop);
+
+                            modal.scrollTop = newTop;
+                        }
+                    }
+
+                }
+            }
+        }
     },
     handleClickOutside: function () {
         if (!this.state.hideMenu)
@@ -1481,6 +1516,7 @@ var ComboBox = React.createClass({displayName: "ComboBox",
             var validValue = this._validateValue(this.state.inputValue);
             this.props.onselect(validValue);
             this.setState({hideMenu: true});
+            this.setState({focusedIndex: -1});
         }
     },
     _validateValue: function (inputValue) {
@@ -1507,18 +1543,69 @@ var ComboBox = React.createClass({displayName: "ComboBox",
         this.setState({hideMenu: true});
 
         this.props.onselect(e.target.dataset.value);
+
+        this.setState({focusedIndex: -1});
     },
     _onFocus: function () {
         this.setState({hideMenu: false});
     },
     _onKeyup: function (e) {
-        if (e.keyCode === 13)
+        switch (e.keyCode)
         {
-            this.forceHide = true;
-            this.setState({hideMenu: true});
+            case 13:    //Enter key
+                this.forceHide = true;
+                this.setState({hideMenu: true});
 
-            var validValue = this._validateValue(this.state.inputValue);
-            this.props.onselect(validValue);
+                var inputValue = this.state.inputValue;
+
+                if (this.state.focusedIndex > -1)
+                {
+                    var selectedItem = this.state.itemsList[this.state.focusedIndex];
+                    inputValue = selectedItem.label;
+
+                    this.setState({inputValue: inputValue});
+                    this.setState({selectedKey: selectedItem.key});
+                    this.setState({selectedLabel: selectedItem.label});
+                    this.setState({selectedValue: selectedItem.value});
+                }
+
+                var validValue = this._validateValue(inputValue);
+                this.props.onselect(validValue);
+
+                this.setState({focusedIndex: -1});
+                break;
+        }
+    },
+    _onKeydown: function (e) {
+        switch (e.keyCode)
+        {
+            case 9:    //Tab key
+            case 40:    //Arrow down key
+
+                e.preventDefault();
+
+                var newIndex = 0;
+
+                if (this.state.focusedIndex < this.state.itemsList.length - 1)
+                {
+                    newIndex = this.state.focusedIndex + 1;
+                }
+
+                this.setState({focusedIndex: newIndex});
+                break;
+            case 38:    //Arrow up key
+
+                e.preventDefault();
+
+                var newIndex = this.state.itemsList.length - 1;
+
+                if (this.state.focusedIndex > 0)
+                {
+                    newIndex = this.state.focusedIndex - 1;
+                }                
+
+                this.setState({focusedIndex: newIndex});
+                break;
         }
     },
     _onChange: function (e) {
@@ -1544,8 +1631,17 @@ var ComboBox = React.createClass({displayName: "ComboBox",
         };
 
         var items = this.state.itemsList.map(function (item, index) {
+
+            var highlightStyle = {};
+
+            if (this.state.focusedIndex > -1 && this.state.focusedIndex === index)
+            {
+                highlightStyle.backgroundColor = "#B2C9D1"
+            }
+
             return (
-                React.createElement("div", {className: "combobox-item"}, 
+                React.createElement("div", {className: "combobox-item", 
+                    style: highlightStyle}, 
                     React.createElement("div", {
                         onClick: this._onClick, 
                         "data-label": item.label, 
@@ -1564,7 +1660,9 @@ var ComboBox = React.createClass({displayName: "ComboBox",
                     onFocus: this._onFocus, 
                     onChange: this._onChange, 
                     onKeyUp: this._onKeyup, 
+                    onKeyDown: this._onKeydown, 
                     ref: "comboInput", 
+                    placeholder: "type here to see topics", 
                     value: this.state.inputValue}), 
 
                 React.createElement("div", {className: "combobox-menu", style: menuStyle}, 
@@ -2430,7 +2528,7 @@ var NewChartForm = React.createClass({displayName: "NewChartForm",
 
         state.refreshInterval = 15000;
 
-        state.topics = chartStore.getChartTopics(this.props.platform.uuid);
+        state.topics = chartStore.getChartTopics();
 
         state.selectedTopic = "";
 
@@ -2443,7 +2541,7 @@ var NewChartForm = React.createClass({displayName: "NewChartForm",
         chartStore.removeChangeListener(this._onStoresChange);
     },
     _onStoresChange: function () {
-        this.setState({ topics: chartStore.getChartTopics(this.props.platform.uuid)});
+        this.setState({ topics: chartStore.getChartTopics()});
     },
     _onPropChange: function (e) {
         var state = {};
@@ -2489,8 +2587,12 @@ var NewChartForm = React.createClass({displayName: "NewChartForm",
             selectedTopic.pinned = (this.state.pin ? true : false);
             selectedTopic.refreshInterval = this.state.refreshInterval;
             selectedTopic.chartType = this.state.chartType;
-            selectedTopic.parentUuid = this.props.platform.uuid;
             selectedTopic.path = platformsPanelItemsStore.findTopicInTree(selectedTopic.topic);
+
+            if (selectedTopic.path && selectedTopic.path.length > 1)
+            {
+                selectedTopic.parentUuid = selectedTopic.path[selectedTopic.path.length - 2];
+            }
         }
 
         var notifyRouter = false;
@@ -2545,6 +2647,10 @@ var NewChartForm = React.createClass({displayName: "NewChartForm",
                 React.createElement(ComboBox, {items: this.state.topics, itemskey: "key", itemsvalue: "value", itemslabel: "label", onselect: this._onTopicChange}
                 )
             )
+        }
+        else
+        {
+            topicsSelector = React.createElement("div", null, "Loading topics ...")
         }
 
         return (
@@ -2613,7 +2719,7 @@ var NewChartForm = React.createClass({displayName: "NewChartForm",
                         className: "button", 
                         disabled: !this.state.selectedTopic || !this.state.chartType
                     }, 
-                        "Save"
+                        "Load Chart"
                     )
                 )
             )
@@ -3170,12 +3276,9 @@ var platformManagerActionCreators = require('../action-creators/platform-manager
 var PlatformCharts = React.createClass({displayName: "PlatformCharts",
     getInitialState: function () {
 
-        var vc = platformsStore.getVcInstance();
-
         var state = {
-            platform: vc,
             chartData: chartStore.getData(),
-            historianRunning: platformsStore.getHistorianRunning(vc)
+            historianRunning: platformsStore.getVcHistorianRunning()
         };
 
         return state;
@@ -3183,11 +3286,6 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
     componentDidMount: function () {
         chartStore.addChangeListener(this._onChartStoreChange);
         platformsStore.addChangeListener(this._onPlatformStoreChange);
-
-        if (!this.state.platform)
-        {
-            platformManagerActionCreators.loadPlatforms();
-        }
     },
     componentWillUnmount: function () {
         chartStore.removeChangeListener(this._onChartStoreChange);
@@ -3197,32 +3295,19 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
         this.setState({chartData: chartStore.getData()});
     },
     _onPlatformStoreChange: function () {
-
-        var platform = this.state.platform;
-
-        if (!platform)
-        {
-            platform = platformsStore.getVcInstance();
-
-            if (platform)
-            {
-                this.setState({platform: platform});
-            }
-        }
-
-        this.setState({historianRunning: platformsStore.getHistorianRunning(platform)});
+        this.setState({historianRunning: platformsStore.getVcHistorianRunning()});
     },
-    _onAddChartClick: function (platform) {
+    _onAddChartClick: function () {
 
         if (this.state.historianRunning)
         {
-            platformActionCreators.loadChartTopics(this.state.platform);
+            platformActionCreators.loadChartTopics();
 
-            modalActionCreators.openModal(React.createElement(NewChartForm, {platform: this.state.platform}));
+            modalActionCreators.openModal(React.createElement(NewChartForm, null));
         }
         else
         {
-            var message = "Charts can't be added. The historian agent is unavailable."
+            var message = "Chart topics can't be loaded. The VOLTTRON Central platform's historian is unavailable."
             statusIndicatorActionCreators.openStatusIndicator("error", message);
         }
     },
@@ -3253,7 +3338,7 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
                     React.createElement("div", {className: "view__actions"}, 
                         React.createElement("button", {
                             className: "button", 
-                            onClick: this._onAddChartClick.bind(null, this.state.platform)
+                            onClick: this._onAddChartClick
                         }, 
                             "Add Chart"
                         )
@@ -5429,7 +5514,9 @@ var platformsStore = require('./platforms-store.js')
 
 var _chartData = {};
 var _showCharts = false;
-var _chartTopics = {};
+var _chartTopics = {
+    platforms: []
+};
 
 var chartStore = new Store();
 
@@ -5484,13 +5571,13 @@ chartStore.showCharts = function () {
     return showCharts;
 }
 
-chartStore.getChartTopics = function (parentUuid) {
+chartStore.getChartTopics = function () {
     
     var topics = [];
 
-    if (_chartTopics.hasOwnProperty(parentUuid))
+    if (_chartTopics.hasOwnProperty("platforms"))
     {
-        topics = JSON.parse(JSON.stringify(_chartTopics[parentUuid]));
+        topics = JSON.parse(JSON.stringify(_chartTopics.platforms));
 
         if (topics.length)
         {    
@@ -5672,7 +5759,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             var chartTopics = JSON.parse(JSON.stringify(action.topics));
 
-            _chartTopics[action.platform.uuid] = chartTopics;            
+            _chartTopics.platforms = chartTopics;            
 
             chartStore.emitChange();
             break;
@@ -6960,6 +7047,30 @@ platformsStore.getHistorianRunning = function (platform) {
 
     var historianRunning = false;
 
+    if (platform)
+    {
+        if (platform.hasOwnProperty("agents"))
+        {
+            var historian = platform.agents.find(function (agent) {     
+                return agent.name.toLowerCase().indexOf("historian") > -1;
+            });
+
+            if (historian)
+            {
+                historianRunning = ((historian.process_id !== null) && (historian.return_code === null));
+            }
+        }        
+    }
+
+    return historianRunning;
+};
+
+platformsStore.getVcHistorianRunning = function () {
+
+    var historianRunning = false;
+
+    var platform = platformsStore.getVcInstance();
+    
     if (platform)
     {
         if (platform.hasOwnProperty("agents"))

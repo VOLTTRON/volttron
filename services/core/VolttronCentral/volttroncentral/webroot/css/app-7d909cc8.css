@@ -1336,6 +1336,9 @@ a.view__item:hover::before {
     position: absolute;
     top: 24px;
     left: 0px;
+
+    cursor: pointer;
+    -moz-user-select: none;
 }
 
 .combobox-item {
