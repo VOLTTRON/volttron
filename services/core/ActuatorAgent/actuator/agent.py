@@ -485,7 +485,6 @@ SCHEDULE_CANCEL_PREEMPTED = 'PREEMPTED'
 
 ACTUATOR_COLLECTION = 'actuators'
 
-utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 __version__ = "0.3"
