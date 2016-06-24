@@ -219,8 +219,8 @@ def historian(config_path, **kwargs):
                     # TODO handle when something happens during writing of data.
                     _log.error('SOME THINGS DID NOT WORK')
 
-        def query_historian(self, topic, start=None, end=None, skip=0,
-                            count=None, order="FIRST_TO_LAST"):
+        def query_historian(self, topic, start=None, end=None, agg_type=None,
+              agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
             """ Returns the results of the query from the mongo database.
 
             This historian stores data to the nearest second.  It will not
@@ -231,14 +231,20 @@ def historian(config_path, **kwargs):
             {"values": [(timestamp1, value1), (timestamp2, value2), ...],
              "metadata": {"key1": value1, "key2": value2, ...}}
 
-             metadata is not required (The caller will normalize this to {}
-             for you)
-             @param order:
-             @param count:
-             @param skip:
-             @param end:
-             @param start:
-             @param topic:
+            metadata is not required (The caller will normalize this to {}
+            for you)
+            @param topic: Topic to query for
+            @param start: Start of query timestamp as a datetime
+            @param end: End of query timestamp as a datetime
+            @param agg_type: If this is a query for aggregate data, the type of
+            aggregation ( for example, sum, avg)
+            @param agg_period: If this is a query for aggregate data, the time
+            period of aggregation
+            @param skip: Skip this number of results
+            @param count: Limit results to this value
+            @param order: How to order the results, either "FIRST_TO_LAST" or
+            "LAST_TO_FIRST"
+            @return: Results of the query
             """
 
             topic_lower = topic.lower()

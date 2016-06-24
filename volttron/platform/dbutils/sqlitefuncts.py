@@ -100,11 +100,6 @@ class SqlLiteFuncts(DbDriver):
         self.topics_table = tables_def['topics_table']
         self.meta_table = tables_def['meta_table']
 
-        if 'detect_types' not in connect_params.keys():
-            connect_params['detect_types'] = \
-                sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-
-        print ("detect types is {}".format(connect_params['detect_types']))
         conn = sqlite3.connect(
             self.__database,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
@@ -132,6 +127,10 @@ class SqlLiteFuncts(DbDriver):
         conn.close()
 
         connect_params['database'] = self.__database
+
+        if 'detect_types' not in connect_params.keys():
+            connect_params['detect_types'] = \
+                sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
 
         print (connect_params)
         super(SqlLiteFuncts, self).__init__('sqlite3', **connect_params)

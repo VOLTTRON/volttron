@@ -938,27 +938,22 @@ class BaseQueryHistorianAgent(Agent):
     """
 
     @RPC.export
-    def query(self, topic=None, start=None, end=None, skip=0,
-              count=None, order="FIRST_TO_LAST"):
+    def query(self, topic=None, start=None, end=None, agg_type=None,
+              agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
         """RPC call
 
         Call this method to query an Historian for time series data.
 
-        :param topic: Topic to query for.
-        :param start: Start time of the query. Defaults to None which is the beginning of time.
-        :param end: End time of the query.  Defaults to None which is the end of time.
-        :param skip: Skip this number of results.
-        :param count: Limit results to this value.
-        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
-        :type topic: str
-        :type start: str
-        :type end: str
-        :type skip: int
-        :type count: int
-        :type order: str
+        @param topic: Topic to query for.
+        @param start: Start time of the query. Defaults to None which is the beginning of time.
+        @param end: End time of the query.  Defaults to None which is the
+        end of time.
+        @param skip: Skip this number of results.
+        @param count: Limit results to this value.
+        @param order: How to order the results, either "FIRST_TO_LAST" or
+        "LAST_TO_FIRST"
 
-        :return: Results of the query
-        :rtype: dict
+        @return: Results of the query
 
         Return values will have the following form:
 
@@ -1000,7 +995,8 @@ class BaseQueryHistorianAgent(Agent):
         if start:
             _log.debug("start={}".format(start))
 
-        results = self.query_historian(topic, start, end, skip, count, order)
+        results = self.query_historian(topic, start, end, agg_type,
+                                       agg_period,  skip, count, order)
         metadata = results.get("metadata", None)
         values = results.get("values", None)
         if values is not None and metadata is None:
@@ -1048,24 +1044,21 @@ class BaseQueryHistorianAgent(Agent):
         Timestamps must be strings formatted by
         :py:func:`volttron.platform.agent.utils.format_timestamp`.
 
-        "metadata" is not required. The caller will normalize this to {} for you if it is missing.
+        "metadata" is not required. The caller will normalize this to {}
+        for you if it is missing.
 
-        :param topic: Topic to query for.
-        :param start: Start of query timestamp as a datetime.
-        :param end: End of query timestamp as a datetime.
-        :param skip: Skip this number of results.
-        :param count: Limit results to this value.
-        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
-        :type topic: str
-        :type start: datetime
-        :type end: datetime
-        :type skip: int
-        :type count: int
-        :type order: str
-
-        :return: Results of the query
-        :rtype: dict
-
+        @param topic: Topic to query for
+        @param start: Start of query timestamp as a datetime
+        @param end: End of query timestamp as a datetime
+        @param agg_type: If this is a query for aggregate data, the type of
+        aggregation ( for example, sum, avg)
+        @param agg_period: If this is a query for aggregate data, the time
+        period of aggregation
+        @param skip: Skip this number of results
+        @param count: Limit results to this value
+        @param order: How to order the results, either "FIRST_TO_LAST" or
+        "LAST_TO_FIRST"
+        @return: Results of the query
         """
 
 
