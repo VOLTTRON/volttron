@@ -14,29 +14,23 @@ var PlatformCharts = React.createClass({
     getInitialState: function () {
 
         var state = {
-            chartData: chartStore.getData(),
-            historianRunning: platformsStore.getVcHistorianRunning()
+            chartData: chartStore.getData()
         };
 
         return state;
     },
     componentDidMount: function () {
         chartStore.addChangeListener(this._onChartStoreChange);
-        platformsStore.addChangeListener(this._onPlatformStoreChange);
     },
     componentWillUnmount: function () {
         chartStore.removeChangeListener(this._onChartStoreChange);
-        platformsStore.removeChangeListener(this._onPlatformStoreChange);
     },
     _onChartStoreChange: function () {
         this.setState({chartData: chartStore.getData()});
     },
-    _onPlatformStoreChange: function () {
-        this.setState({historianRunning: platformsStore.getVcHistorianRunning()});
-    },
     _onAddChartClick: function () {
 
-        if (this.state.historianRunning)
+        if (platformsStore.getVcHistorianRunning())
         {
             platformActionCreators.loadChartTopics();
 

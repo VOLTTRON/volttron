@@ -250,7 +250,7 @@ var PlatformsPanelItem = React.createClass({
                     });
 
                     return (
-                        <PlatformsPanelItem panelItem={propChild} itemPath={propChild.path} panelChildren={grandchildren}/>
+                        <PlatformsPanelItem key={propChild.uuid} panelItem={propChild} itemPath={propChild.path} panelChildren={grandchildren}/>
                     );
                 }); 
 

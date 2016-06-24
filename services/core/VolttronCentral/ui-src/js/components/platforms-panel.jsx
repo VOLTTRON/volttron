@@ -233,7 +233,7 @@ var PlatformsPanel = React.createClass({
                 })
                 .map(function (platform) {
                     return (
-                        <PlatformsPanelItem panelItem={platform} itemPath={platform.path}/>
+                        <PlatformsPanelItem key={platform.uuid} panelItem={platform} itemPath={platform.path}/>
                     );
                 });
         }

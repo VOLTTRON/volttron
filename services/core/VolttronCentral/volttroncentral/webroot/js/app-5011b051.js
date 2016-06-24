@@ -894,7 +894,8 @@ var platformManagerActionCreators = {
     initialize: function () {
         if (!authorizationStore.getAuthorization()) { return; }
 
-        platformManagerActionCreators.loadPlatforms();
+        var reload = false;
+        platformManagerActionCreators.loadPlatforms(reload);
     },
     requestAuthorization: function (username, password) {
         new rpc.Exchange({
@@ -930,7 +931,7 @@ var platformManagerActionCreators = {
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     },
-    loadPlatforms: function () {
+    loadPlatforms: function (reload) {
         var authorization = authorizationStore.getAuthorization();
 
         return new rpc.Exchange({
@@ -960,12 +961,16 @@ var platformManagerActionCreators = {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
                     platforms: panelPlatforms,
+                    reload: reload
                 });
 
                 managerPlatforms.forEach(function (platform, i) {
                     platformActionCreators.loadAgents(platform);
 
-                    platformActionCreators.loadCharts(platform);
+                    if (!reload)
+                    {
+                        platformActionCreators.loadCharts(platform);
+                    }
                 });
             })
             .catch(rpc.Error, function (error) {
@@ -1008,7 +1013,9 @@ var platformManagerActionCreators = {
                 });
 
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.", name, "center");        
-                platformManagerActionCreators.loadPlatforms();                
+
+                var reload = true;
+                platformManagerActionCreators.loadPlatforms(reload);
 
             })
             .catch(rpc.Error, function (error) {
@@ -1060,7 +1067,8 @@ var platformManagerActionCreators = {
                     platform: platform
                 });
 
-                platformManagerActionCreators.loadPlatforms();
+                var reload = true;
+                platformManagerActionCreators.loadPlatforms(reload);
             })
             .catch(rpc.Error, function (error) { 
                 var message = "Platform " + platformName + " was not deregistered: " + error.message;
@@ -3277,29 +3285,23 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
     getInitialState: function () {
 
         var state = {
-            chartData: chartStore.getData(),
-            historianRunning: platformsStore.getVcHistorianRunning()
+            chartData: chartStore.getData()
         };
 
         return state;
     },
     componentDidMount: function () {
         chartStore.addChangeListener(this._onChartStoreChange);
-        platformsStore.addChangeListener(this._onPlatformStoreChange);
     },
     componentWillUnmount: function () {
         chartStore.removeChangeListener(this._onChartStoreChange);
-        platformsStore.removeChangeListener(this._onPlatformStoreChange);
     },
     _onChartStoreChange: function () {
         this.setState({chartData: chartStore.getData()});
     },
-    _onPlatformStoreChange: function () {
-        this.setState({historianRunning: platformsStore.getVcHistorianRunning()});
-    },
     _onAddChartClick: function () {
 
-        if (this.state.historianRunning)
+        if (platformsStore.getVcHistorianRunning())
         {
             platformActionCreators.loadChartTopics();
 
@@ -3964,7 +3966,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                     });
 
                     return (
-                        React.createElement(PlatformsPanelItem, {panelItem: propChild, itemPath: propChild.path, panelChildren: grandchildren})
+                        React.createElement(PlatformsPanelItem, {key: propChild.uuid, panelItem: propChild, itemPath: propChild.path, panelChildren: grandchildren})
                     );
                 }); 
 
@@ -4282,7 +4284,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                 })
                 .map(function (platform) {
                     return (
-                        React.createElement(PlatformsPanelItem, {panelItem: platform, itemPath: platform.path})
+                        React.createElement(PlatformsPanelItem, {key: platform.uuid, panelItem: platform, itemPath: platform.path})
                     );
                 });
         }
@@ -6314,19 +6316,22 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             var platforms = action.platforms;
 
             platforms.forEach(function (platform)
-            {
-                _items["platforms"][platform.uuid] = platform; 
-                
-                var platformItem = _items["platforms"][platform.uuid];
-                platformItem.path = ["platforms", platform.uuid];
+            {   
+                if (!action.reload || !_items["platforms"].hasOwnProperty(platform.uuid))
+                {
+                    _items["platforms"][platform.uuid] = platform;
 
-                platformItem.status = platform.health.status.toUpperCase();
-                platformItem.statusLabel = getStatusLabel(platformItem.status);
-                platformItem.context = platform.health.context;
-                platformItem.children = [];
-                platformItem.type = "platform";
-                platformItem.visible = true;
-                platformItem.expanded = null;
+                    var platformItem = _items["platforms"][platform.uuid];
+
+                    platformItem.path = ["platforms", platform.uuid];
+                    platformItem.status = platform.health.status.toUpperCase();
+                    platformItem.statusLabel = getStatusLabel(platformItem.status);
+                    platformItem.context = platform.health.context;
+                    platformItem.children = [];
+                    platformItem.type = "platform";
+                    platformItem.visible = true;
+                    platformItem.expanded = null;
+                }
             });
 
             var platformsToRemove = [];

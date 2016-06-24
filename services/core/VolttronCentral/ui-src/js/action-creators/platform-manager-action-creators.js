@@ -13,7 +13,8 @@ var platformManagerActionCreators = {
     initialize: function () {
         if (!authorizationStore.getAuthorization()) { return; }
 
-        platformManagerActionCreators.loadPlatforms();
+        var reload = false;
+        platformManagerActionCreators.loadPlatforms(reload);
     },
     requestAuthorization: function (username, password) {
         new rpc.Exchange({
@@ -49,7 +50,7 @@ var platformManagerActionCreators = {
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     },
-    loadPlatforms: function () {
+    loadPlatforms: function (reload) {
         var authorization = authorizationStore.getAuthorization();
 
         return new rpc.Exchange({
@@ -79,12 +80,16 @@ var platformManagerActionCreators = {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
                     platforms: panelPlatforms,
+                    reload: reload
                 });
 
                 managerPlatforms.forEach(function (platform, i) {
                     platformActionCreators.loadAgents(platform);
 
-                    platformActionCreators.loadCharts(platform);
+                    if (!reload)
+                    {
+                        platformActionCreators.loadCharts(platform);
+                    }
                 });
             })
             .catch(rpc.Error, function (error) {
@@ -127,7 +132,9 @@ var platformManagerActionCreators = {
                 });
 
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.", name, "center");        
-                platformManagerActionCreators.loadPlatforms();                
+
+                var reload = true;
+                platformManagerActionCreators.loadPlatforms(reload);
 
             })
             .catch(rpc.Error, function (error) {
@@ -179,7 +186,8 @@ var platformManagerActionCreators = {
                     platform: platform
                 });
 
-                platformManagerActionCreators.loadPlatforms();
+                var reload = true;
+                platformManagerActionCreators.loadPlatforms(reload);
             })
             .catch(rpc.Error, function (error) { 
                 var message = "Platform " + platformName + " was not deregistered: " + error.message;

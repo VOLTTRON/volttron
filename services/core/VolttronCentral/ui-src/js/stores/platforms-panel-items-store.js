@@ -400,19 +400,22 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             var platforms = action.platforms;
 
             platforms.forEach(function (platform)
-            {
-                _items["platforms"][platform.uuid] = platform; 
-                
-                var platformItem = _items["platforms"][platform.uuid];
-                platformItem.path = ["platforms", platform.uuid];
+            {   
+                if (!action.reload || !_items["platforms"].hasOwnProperty(platform.uuid))
+                {
+                    _items["platforms"][platform.uuid] = platform;
 
-                platformItem.status = platform.health.status.toUpperCase();
-                platformItem.statusLabel = getStatusLabel(platformItem.status);
-                platformItem.context = platform.health.context;
-                platformItem.children = [];
-                platformItem.type = "platform";
-                platformItem.visible = true;
-                platformItem.expanded = null;
+                    var platformItem = _items["platforms"][platform.uuid];
+
+                    platformItem.path = ["platforms", platform.uuid];
+                    platformItem.status = platform.health.status.toUpperCase();
+                    platformItem.statusLabel = getStatusLabel(platformItem.status);
+                    platformItem.context = platform.health.context;
+                    platformItem.children = [];
+                    platformItem.type = "platform";
+                    platformItem.visible = true;
+                    platformItem.expanded = null;
+                }
             });
 
             var platformsToRemove = [];
