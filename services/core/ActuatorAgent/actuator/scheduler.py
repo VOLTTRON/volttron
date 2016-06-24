@@ -75,7 +75,6 @@ ALL_PRIORITIES = {PRIORITY_HIGH, PRIORITY_LOW, PRIORITY_LOW_PREEMPT}
 RequestResult = namedtuple('RequestResult', ['success', 'data', 'info_string'])
 DeviceState = namedtuple('DeviceState',
                          ['agent_id', 'task_id', 'time_remaining'])
-utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
