@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 import os
 import requests
@@ -165,6 +166,8 @@ def test_pa_autoregister_through_call_to_vc(vc_instance):
             found = True
             break
     assert found
+    pa_conn = pa_wrapper.build_connection(VOLTTRON_CENTRAL_PLATFORM)
+    assert pa_conn.call('get_platform_uuid') is not None
 
 
 @pytest.mark.pa
@@ -251,6 +254,25 @@ def test_agent_can_be_managed(pa_instance):
     assert returnedid
 
 
+@pytest.mark.pa
+def test_reconfigure_agent(pa_instance):
+    wrapper = pa_instance[0]
+    connection = wrapper.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
+    auuid = str(uuid.uuid4())
+    assert connection.is_connected()
+    connection.call('reconfigure', platform_uuid=auuid)
+    assert auuid == connection.call('get_platform_uuid')
+
+
+@pytest.mark.pa
+def test_status_good_when_agent_starts(pa_instance):
+    wrapper = pa_instance[0]
+    connection = wrapper.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
+
+    assert connection.is_connected()
+    status = connection.call('get_status')
+    assert isinstance(status, dict)
+    assert status
 # @pytest.mark.pa
 # def test_agent_data(pa_instance, vc_instance):
 #     pa_wrapper = pa_instance['wrapper']

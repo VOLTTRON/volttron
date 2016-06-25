@@ -78,9 +78,6 @@ def test_auto_register_platform(vc_instance):
     assert platform_uuid == platform_uuid2
 
 
-
-
-
 @pytest.mark.vc
 def test_vc_settings_store(vc_instance):
     """ Test the reading and writing of data through the get_setting,
@@ -130,6 +127,7 @@ def test_vc_settings_store(vc_instance):
     resp = tester.do_rpc('get_setting_keys')
     assert kv['key'] not in resp.json()['result']
 
+
 @pytest.mark.vc
 def test_register_instance(vc_instance, pa_instance):
 
@@ -145,7 +143,8 @@ def test_register_instance(vc_instance, pa_instance):
     print("vip address of vc_agent: {}".format(vc_wrapper.vip_address))
 
     # Call register_instance rpc method on vc
-    response = do_rpc("register_instance", [pa_wrapper.bind_web_address],
+    response = do_rpc("register_instance",
+                      dict(discovery_address=pa_wrapper.bind_web_address),
                       auth, vc_jsonrpc)
 
     validate_response(response)

@@ -59,6 +59,7 @@ class APITester(object):
     def unregister_platform(self, platform_uuid):
         return self.do_rpc('unregister_platform', platform_uuid=platform_uuid)
 
+
 def do_rpc(method, params=None, auth_token=None, rpc_root=None):
     """ A utility method for calling json rpc based funnctions.
 
@@ -77,6 +78,7 @@ def do_rpc(method, params=None, auth_token=None, rpc_root=None):
         'method': method,
     }
 
+    print("PARAMS ARE: {}".format(params))
     if auth_token:
         json_package['authorization'] = auth_token
 
@@ -84,6 +86,7 @@ def do_rpc(method, params=None, auth_token=None, rpc_root=None):
         json_package['params'] = params
 
     data = jsonapi.dumps(json_package)
+    print('Posted data is {}'.format(data))
 
     return requests.post(rpc_root, data=data)
 
