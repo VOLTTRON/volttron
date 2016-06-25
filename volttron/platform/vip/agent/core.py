@@ -170,6 +170,7 @@ def findsignal(obj, owner, name):
 
 
 class BasicCore(object):
+    delay_onstart_signal = False
     def __init__(self, owner):
         self.greenlet = None
         self._async = None
@@ -223,6 +224,11 @@ class BasicCore(object):
         # pre-finish
         yield
 
+    def link_receiver(self, receiver, sender, **kwargs):
+        greenlet = gevent.spawn(receiver, sender, **kwargs)
+        self.greenlet.link(lambda glt: greenlet.kill())
+        return greenlet
+
     def run(self, running_event=None):   # pylint: disable=method-hidden
         '''Entry point for running agent.'''
 
@@ -256,11 +262,6 @@ class BasicCore(object):
                     greenlet = gevent.spawn(callback)
                     cur.link(lambda glt: greenlet.kill())
 
-        def link_receiver(receiver, sender, **kwargs):
-            greenlet = gevent.spawn(receiver, sender, **kwargs)
-            current.link(lambda glt: greenlet.kill())
-            return greenlet
-
         self._stop_event = stop = gevent.event.Event()
         self._schedule_event = gevent.event.Event()
         self._async = gevent.get_hub().loop.async()
@@ -277,7 +278,8 @@ class BasicCore(object):
         scheduler = gevent.spawn(schedule_loop)
         if loop:
             loop.link(lambda glt: scheduler.kill())
-        self.onstart.sendby(link_receiver, self)
+        if not self.delay_onstart_signal:
+            self.onstart.sendby(self.link_receiver, self)
         if running_event:
             running_event.set()
             del running_event
@@ -289,7 +291,7 @@ class BasicCore(object):
             pass
         scheduler.kill()
         looper.next()
-        receivers = self.onstop.sendby(link_receiver, self)
+        receivers = self.onstop.sendby(self.link_receiver, self)
         gevent.wait(receivers)
         looper.next()
         self.onfinish.send(self)
@@ -394,6 +396,11 @@ class BasicCore(object):
 
 
 class Core(BasicCore):
+    #We want to delay the calling of "onstart" methods until we have confirmation
+    # from the server that we have a connection. We will fire the event when
+    # we hear the response to the hello message.
+    delay_onstart_signal = True
+
     def __init__(self, owner, address=None, identity=None, context=None,
                  publickey=None, secretkey=None, serverkey=None):
         if not address:
@@ -528,11 +535,32 @@ class Core(BasicCore):
         # pre-start
         state = type('HelloState', (), {'count': 0, 'ident': None})
 
+        def connection_failed_check():
+            # Print warnings the longer we go without getting a connection.
+            gevent.sleep(10.0)
+            if self.connected:
+                return
+            _log.error("No response to hello message after 10 seconds.")
+            _log.error("A common reason for this is a conflicting VIP ID.")
+            _log.error("Shutting down agent.")
+            self.stop(timeout=5.0)
+
         def hello():
             state.ident = ident = b'connect.hello.%d' % state.count
             state.count += 1
             self.spawn(self.socket.send_vip,
                        b'', b'hello', [b'hello'], msg_id=ident)
+
+            self.spawn(connection_failed_check)
+
+
+        def hello_response(sender, version='',
+                           router='', identity=''):
+            _log.info("Connected to platform: router: {} version: {} identity: {}".format(router, version, identity))
+            _log.debug("Running onstart methods.")
+            self.onstart.sendby(self.link_receiver, self)
+
+
 
         def monitor():
             # Call socket.monitor() directly rather than use
@@ -555,6 +583,8 @@ class Core(BasicCore):
                         self.ondisconnected.send(self)
             finally:
                 self.socket.monitor(None, 0)
+
+        self.onconnected.connect(hello_response)
 
         if self.address[:4] in ['tcp:', 'ipc:']:
             self.spawn(monitor).join(0)
