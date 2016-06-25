@@ -279,9 +279,18 @@ var platformActionCreators = {
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Charts can't be added. The historian agent is unavailable."
+                        message = "Charts can't be added. The VOLTTRON Central historian is unavailable."
                     }
                 }
+                else
+                {
+                    message = "Chart topics can't be loaded. " + error.message;
+                }
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_CHART_TOPICS,
+                    topics: []
+                });
 
                 statusIndicatorActionCreators.openStatusIndicator("error", message);
                 handle401(error);

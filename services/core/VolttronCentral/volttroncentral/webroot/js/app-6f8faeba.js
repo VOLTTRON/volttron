@@ -450,9 +450,18 @@ var platformActionCreators = {
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Charts can't be added. The historian agent is unavailable."
+                        message = "Charts can't be added. The VOLTTRON Central historian is unavailable."
                     }
                 }
+                else
+                {
+                    message = "Chart topics can't be loaded. " + error.message;
+                }
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_CHART_TOPICS,
+                    topics: []
+                });
 
                 statusIndicatorActionCreators.openStatusIndicator("error", message);
                 handle401(error);
@@ -3276,7 +3285,6 @@ var PlatformChart = require('./platform-chart');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
 var NewChartForm = require('./new-chart-form');
-var platformsStore = require('../stores/platforms-store');
 var chartStore = require('../stores/platform-chart-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
@@ -3301,17 +3309,8 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
     },
     _onAddChartClick: function () {
 
-        if (platformsStore.getVcHistorianRunning())
-        {
-            platformActionCreators.loadChartTopics();
-
-            modalActionCreators.openModal(React.createElement(NewChartForm, null));
-        }
-        else
-        {
-            var message = "Chart topics can't be loaded. The VOLTTRON Central platform's historian is unavailable."
-            statusIndicatorActionCreators.openStatusIndicator("error", message);
-        }
+        platformActionCreators.loadChartTopics();
+        modalActionCreators.openModal(React.createElement(NewChartForm, null));
     },
     render: function () {
 
@@ -3356,7 +3355,7 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
 module.exports = PlatformCharts;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../stores/platform-chart-store":48,"../stores/platforms-store":51,"./new-chart-form":23,"./platform-chart":25,"react":undefined}],27:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../stores/platform-chart-store":48,"./new-chart-form":23,"./platform-chart":25,"react":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -5609,8 +5608,8 @@ chartStore.getChartTopics = function () {
             });
 
             topics = topics.filter(function (topic) {
-
                 var platformTopic = platformUuids.filter(function (uuid) {
+
                     return ((topic.value.indexOf(uuid) > -1) 
                         || (topic.hasOwnProperty("path") && (topic.path.indexOf(uuid) > -1)));
                 });

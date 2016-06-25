@@ -5,7 +5,6 @@ var PlatformChart = require('./platform-chart');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
 var NewChartForm = require('./new-chart-form');
-var platformsStore = require('../stores/platforms-store');
 var chartStore = require('../stores/platform-chart-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
@@ -30,17 +29,8 @@ var PlatformCharts = React.createClass({
     },
     _onAddChartClick: function () {
 
-        if (platformsStore.getVcHistorianRunning())
-        {
-            platformActionCreators.loadChartTopics();
-
-            modalActionCreators.openModal(<NewChartForm/>);
-        }
-        else
-        {
-            var message = "Chart topics can't be loaded. The VOLTTRON Central platform's historian is unavailable."
-            statusIndicatorActionCreators.openStatusIndicator("error", message);
-        }
+        platformActionCreators.loadChartTopics();
+        modalActionCreators.openModal(<NewChartForm/>);
     },
     render: function () {
 
