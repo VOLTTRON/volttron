@@ -113,13 +113,11 @@ class DiscoveryInfo(object):
         :param discovery_address: An http(s) address with volttron running.
         :return:
         """
+        parsed = urlparse(discovery_address)
 
+        assert parsed.scheme
+        assert not parsed.path
         try:
-            parsed = urlparse(discovery_address)
-
-            assert parsed.scheme
-            assert not parsed.path
-
             real_url = urljoin(discovery_address, "/discovery/")
             _log.info('Connecting to: {}'.format(real_url))
             response = requests.get(real_url)
@@ -128,11 +126,6 @@ class DiscoveryInfo(object):
                 raise DiscoveryError(
                     "Invalid discovery response from {}".format(real_url)
                 )
-        except AttributeError as e:
-            raise DiscoveryError(
-                "Invalid discovery_address passed {}"
-                .format(discovery_address)
-            )
         except (ConnectionError, NewConnectionError) as e:
             raise DiscoveryError(
                 "Connection to {} not available".format(real_url)
@@ -174,7 +167,8 @@ def is_ip_private(vip_address):
 
 
 class MasterWebService(Agent):
-    """The service that is responsible for managing and serving registered pages
+    """The service that is responsible for managing and serving registered
+    pages
 
     Agents can register either a directory of files to serve or an rpc method
     that will be called during the request process.
@@ -199,7 +193,7 @@ class MasterWebService(Agent):
             if not entries:
                 _log.debug(
                     'Adding default curve credentials for discoverability.')
-                authfile.add(AuthEntry(credentials="/.*/"))
+                authfile.add(AuthEntry(credentials="/CURVE:.*/"))
 
         self.serverkey = serverkey
         self.registeredroutes = []
@@ -214,11 +208,10 @@ class MasterWebService(Agent):
         if not self.volttron_central_address:
             self.volttron_central_address = bind_web_address
 
-
         if not mimetypes.inited:
             mimetypes.init()
 
-        authentry = AuthEntry(credentials="/.*/")
+        authentry = AuthEntry(credentials="/CURVE:.*/")
         authfile = AuthFile()
         authfile.add(authentry)
 
@@ -248,7 +241,7 @@ class MasterWebService(Agent):
         """
         _log.info(
             'Registering agent route expression: {} peer: {} function: {}'
-                .format(regex, peer, fn))
+            .format(regex, peer, fn))
         compiled = re.compile(regex)
         self.peerroutes[peer].append(compiled)
         self.registeredroutes.insert(0, (compiled, 'peer_route', (peer, fn)))
@@ -300,7 +293,9 @@ class MasterWebService(Agent):
         assert len(vcpublickey) == 43
 
         authfile = AuthFile()
-        authentry = AuthEntry(credentials=vcpublickey)
+        authentry = AuthEntry(
+            credentials="CURVE:{}".format(vcpublickey)
+        )
 
         authfile.add(authentry)
         start_response('200 OK',
@@ -332,10 +327,11 @@ class MasterWebService(Agent):
         return jsonapi.dumps(return_dict)
 
     def app_routing(self, env, start_response):
-        """The main routing function that maps the incoming request to a response.
+        """The main routing function that maps the incoming request to a
+        response.
 
-        Depending on the registered routes map the request data onto an rpc function
-        or a specific named file.
+        Depending on the registered routes map the request data onto an rpc
+        function or a specific named file.
         """
         path_info = env['PATH_INFO']
 
@@ -356,7 +352,7 @@ class MasterWebService(Agent):
                 _log.debug('registered route t is: {}'.format(t))
                 if t == 'callable':  # Generally for locally called items.
                     return v(env, start_response, data)
-                elif t == 'peer_route':  # RPC calls from agents on the platform.
+                elif t == 'peer_route':  # RPC calls from agents on platform.
                     _log.debug('Matched peer_route with pattern {}'.format(
                         k.pattern))
                     peer, fn = (v[0], v[1])
@@ -368,10 +364,7 @@ class MasterWebService(Agent):
                             if res['error']['code'] == UNAUTHORIZED:
                                 start_response('401 Unauthorized', [
                                     ('Content-Type', 'text/html')])
-                                message = res['error']['message']
-                                code = res['error']['code']
-                                return [b'<h1>{}</h1>\n<h2>CODE:{}</h2>'
-                                            .format(message, code)]
+                                return [b'<h1>Unauthorized</h1>']
                     start_response('200 OK',
                                    [('Content-Type', 'application/json')])
                     _log.debug('RESPONSE WEB: {}'.format(res))
@@ -416,8 +409,8 @@ class MasterWebService(Agent):
         hostname = parsed.hostname
         port = parsed.port
 
-        _log.info('Starting web server binding to {}:{}.' \
-                   .format(hostname, port))
+        _log.info('Starting web server binding to {}:{}.'
+            .format(hostname, port))
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
                                       self._get_discovery))
         self.registeredroutes.append((re.compile('^/discovery/allow$'),
@@ -433,25 +426,5 @@ class MasterWebService(Agent):
         with open(os.path.join(logdir, 'web.access.log'), 'wb') as accesslog:
             with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
                 server = pywsgi.WSGIServer((hostname, port), self.app_routing,
-                                       log=accesslog, error_log=errlog)
+                                           log=accesslog, error_log=errlog)
                 server.serve_forever()
-
-
-def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
-    """ Build a full vip address string based upon the passed arguments
-
-    All arguments are required to be non-None in order for the string to be
-    created successfully.
-
-    :raises ValueError if one of the parameters is None.
-    """
-    _log.debug("root: {}, serverkey: {}, publickey: {}, secretkey: {}".format(
-        vip_root, serverkey, publickey, secretkey))
-    if not (serverkey and publickey and secretkey and vip_root):
-        raise ValueError("All parameters must be entered.")
-
-    root = "{}?serverkey={}&publickey={}&secretkey={}".format(
-        vip_root, serverkey, publickey, secretkey
-    )
-
-    return root
