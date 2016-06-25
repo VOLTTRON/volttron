@@ -43,8 +43,6 @@ platformsPanelItemsStore.findTopicInTree = function (topic)
         {
             if (key === topicParts[2])
             {
-                // path = ["platforms", uuid];
-
                 if (_items.platforms[key].hasOwnProperty("points"))
                 {
                     _items.platforms[key].points.children.find(function (point) {
@@ -69,8 +67,7 @@ platformsPanelItemsStore.findTopicInTree = function (topic)
         var buildingName = topicParts[1];
 
         for (var key in _items.platforms)
-        { //_items.platforms.children.find(function (platform) {
-
+        { 
             var platform = _items.platforms[key];       
             var foundPlatform = false;
 
@@ -154,22 +151,30 @@ platformsPanelItemsStore.getItem = function (itemPath)
 platformsPanelItemsStore.getChildren = function (parent, parentPath) {
 
     var itemsList = [];
-    var item = _items;
+    var item = _items;    
 
     if (parentPath !== null) // for everything but the top level, drill down to the parent
     {
+        var validPath = true;
+
         for (var i = 0; i < parentPath.length; i++)
         {
             if (item.hasOwnProperty(parentPath[i]))
             {
                 item = item[parentPath[i]];
             }
+            else
+            {
+                validPath = false;
+            }
         }
-    
-          
-        for (var i = 0; i < item.children.length; i++)
-        {           
-            itemsList.push(item[item.children[i]]);
+              
+        if (validPath)
+        {
+            for (var i = 0; i < item.children.length; i++)
+            {           
+                itemsList.push(item[item.children[i]]);            
+            }
         }
             
     }
@@ -395,23 +400,22 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             var platforms = action.platforms;
 
             platforms.forEach(function (platform)
-            {
-                _items["platforms"][platform.uuid] = platform; 
-                
-                var platformItem = _items["platforms"][platform.uuid];
-                platformItem.path = ["platforms", platform.uuid];
+            {   
+                if (!action.reload || !_items["platforms"].hasOwnProperty(platform.uuid))
+                {
+                    _items["platforms"][platform.uuid] = platform;
 
-                platformItem.status = platform.health.status.toUpperCase();
-                platformItem.statusLabel = getStatusLabel(platformItem.status);
-                platformItem.context = platform.health.context;
-                platformItem.children = [];
-                platformItem.type = "platform";
-                platformItem.visible = true;
-                platformItem.expanded = null;
-                // platformItem.name = (platform.name === null ? platform.uuid : platform.name);
+                    var platformItem = _items["platforms"][platform.uuid];
 
-                // loadAgents(platform);                
-                // loadDevices(platform);
+                    platformItem.path = ["platforms", platform.uuid];
+                    platformItem.status = platform.health.status.toUpperCase();
+                    platformItem.statusLabel = getStatusLabel(platformItem.status);
+                    platformItem.context = platform.health.context;
+                    platformItem.children = [];
+                    platformItem.type = "platform";
+                    platformItem.visible = true;
+                    platformItem.expanded = null;
+                }
             });
 
             var platformsToRemove = [];
@@ -430,7 +434,9 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             platformsToRemove.forEach(function (uuid) {
                 delete _items.platforms[uuid];
-            });            
+            });       
+
+            _lastCheck = false;
             
             platformsPanelItemsStore.emitChange();
             break;
@@ -443,7 +449,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 insertAgents(platform, action.agents);
             }
 
-            // platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_DEVICE_STATUSES:
 
@@ -454,7 +459,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 insertDevices(platform, action.devices);
             }
 
-            // platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_PERFORMANCE_STATS:
             
@@ -486,8 +490,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                         action.points.forEach(function (point)
                         {
-                            //TODO: add UUID to points rpc?
-
                             var pointProps = point;
                             pointProps.expanded = false;
                             pointProps.visible = true;
@@ -624,11 +626,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             buildingProps.devices.children = [];
             buildingProps.devices.type = "type";
             buildingProps.devices.sortOrder = _devicesOrder;
-
-
-            //TODO: add building points
-            // buildingProps.children.push("points");
-            // buildingProps.points = [];
 
             platform.buildings.children.push(buildingProps.uuid);
             platform.buildings[buildingProps.uuid] = buildingProps;            

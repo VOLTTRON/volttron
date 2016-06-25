@@ -4,16 +4,21 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
+var platformsStore = require('./platforms-store.js')
 
 
 var _chartData = {};
 var _showCharts = false;
-var _chartTopics = {};
+var _chartTopics = {
+    platforms: []
+};
 
 var chartStore = new Store();
 
 chartStore.getPinnedCharts = function () {
     var pinnedCharts = [];
+
+    var user = authorizationStore.getUsername();
 
     for (var key in _chartData)
     {
@@ -61,13 +66,13 @@ chartStore.showCharts = function () {
     return showCharts;
 }
 
-chartStore.getChartTopics = function (parentUuid) {
+chartStore.getChartTopics = function () {
     
     var topics = [];
 
-    if (_chartTopics.hasOwnProperty(parentUuid))
+    if (_chartTopics.hasOwnProperty("platforms"))
     {
-        topics = JSON.parse(JSON.stringify(_chartTopics[parentUuid]));
+        topics = JSON.parse(JSON.stringify(_chartTopics.platforms));
 
         if (topics.length)
         {    
@@ -81,7 +86,7 @@ chartStore.getChartTopics = function (parentUuid) {
                     if (_chartData.hasOwnProperty(topic.name))
                     {
                         var path = _chartData[topic.name].series.find(function (item) {
-                            return item.topic === topic.path;
+                            return item.topic === topic.value;
                         });
 
                         topicInChart = (path ? true : false);
@@ -90,6 +95,22 @@ chartStore.getChartTopics = function (parentUuid) {
                     return !topicInChart;
                 });
             }
+
+            // Filter out any orphan chart topics not associated with registered platforms
+            var platformUuids = platformsStore.getPlatforms().map(function (platform) {
+                return platform.uuid;
+            });
+
+            topics = topics.filter(function (topic) {
+                
+                // This filter will keep platform topics of known platforms and any topic that
+                // looks like a device topic
+                var platformTopic = platformUuids.filter(function (uuid) {
+                    return ((topic.value.indexOf(uuid) > -1) || (topic.value.indexOf("datalogger/platform") < 0));
+                });
+
+                return (platformTopic.length ? true : false);
+            });
         }
     }
 
@@ -127,8 +148,6 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             {
                 if (action.panelItem.hasOwnProperty("data"))
                 {
-                    // _chartData[action.panelItem.name] = JSON.parse(JSON.stringify(action.panelItem.data));
-                    
                     var chartObj = {
                         refreshInterval: (action.panelItem.hasOwnProperty("refreshInterval") ? action.panelItem.refreshInterval :15000),
                         pinned: (action.panelItem.hasOwnProperty("pinned") ? action.panelItem.pinned : false),
@@ -236,7 +255,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             var chartTopics = JSON.parse(JSON.stringify(action.topics));
 
-            _chartTopics[action.platform.uuid] = chartTopics;            
+            _chartTopics.platforms = chartTopics;            
 
             chartStore.emitChange();
             break;
@@ -252,6 +271,45 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
                 chartStore.emitChange();
             }
+
+            break;
+
+        case ACTION_TYPES.REMOVE_PLATFORM_CHARTS:
+
+            var seriesToCut = [];
+
+            for (var name in _chartData)
+            {
+                _chartData[name].series.forEach(function (series) {
+
+                    if (series.path.indexOf(this.uuid) > -1)
+                    {
+                        seriesToCut.push({name: series.name, uuid: series.uuid});
+                    }
+
+                }, action.platform);
+            }
+
+            seriesToCut.forEach(function (series) {
+                removeSeries(series.name, series.uuid);
+
+                if (_chartData[series.name].series.length === 0)
+                {
+                    delete _chartData[series.name];
+                }
+
+            }, action.platform);
+
+            if (seriesToCut.length)
+            {
+                chartStore.emitChange();
+            }
+
+            break;
+
+        case ACTION_TYPES.CLEAR_AUTHORIZATION: 
+
+            _chartData = {};
 
             break;
     }
@@ -331,7 +389,6 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                 if (skey === "0" && typeof value === 'string' &&
                     Date.parse(value + 'Z')) {
                     value = Date.parse(value + 'Z');
-                    // initialState.xDates = true;
                 }
 
                 newItem[skey] = value;    

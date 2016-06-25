@@ -23,6 +23,8 @@ var PlatformManager = React.createClass({
     getInitialState: function () {
         var state = getStateFromStores();
 
+        this.uninitialized = true;
+
         return state;
     },
     componentWillMount: function () {
@@ -38,6 +40,57 @@ var PlatformManager = React.createClass({
     },
     componentDidUpdate: function () {
         this._doModalBindings();
+
+        if (this.state.expanded)
+        {               
+            this.uninitialized = false;
+
+            var handle = document.querySelector(".resize-handle");
+
+            var onMouseDown = function (evt)
+            {
+                var exteriorPanel = this.parentNode;
+                var children = exteriorPanel.parentNode.childNodes;
+                var platformsPanel;
+
+                for (var i = 0; i < children.length; i++)
+                {
+                    if (children[i].classList.contains("platform-statuses"))
+                    {
+                        platformsPanel = children[i];
+                        break;
+                    }
+                }
+
+                var target = (evt.target.setCapture ? evt.target : document);
+
+                if (target.setCapture)
+                {
+                    target.setCapture();
+                }
+
+                var onMouseMove = function (evt)
+                {               
+                    var newWidth = Math.min(window.innerWidth, evt.clientX);
+                    
+                    platformsPanel.style.width = newWidth + "px";
+                    exteriorPanel.style.width = (window.innerWidth - newWidth - 100) + "px";
+                };                    
+
+                var onMouseUp = function (evt)
+                {
+                    target.removeEventListener("mousemove", onMouseMove);
+                    target.removeEventListener("mouseup", onMouseUp);
+                };                  
+
+                target.addEventListener("mousemove", onMouseMove);
+                target.addEventListener("mouseup", onMouseUp);
+
+                evt.preventDefault();
+            }
+
+            handle.addEventListener("mousedown", onMouseDown);
+        }
     },
     _doModalBindings: function () {
         if (this.state.modalContent) {
@@ -111,6 +164,17 @@ var PlatformManager = React.createClass({
             );
         }
 
+        var resizeHandle;
+
+        if (this.state.expanded === true)
+        {
+            resizeHandle = (
+                <div className="resize-handle"></div>
+            );
+
+            exteriorClasses.push("absolute_anchor");
+        }
+
         return (
             <div className={classes.join(' ')}>
                 {statusIndicator}
@@ -119,6 +183,7 @@ var PlatformManager = React.createClass({
                     <Navigation />                
                     <PlatformsPanel/>
                     <div className={exteriorClasses.join(' ')}>
+                        {resizeHandle}
                         <Router.RouteHandler />
                     </div>
                 </div>
@@ -140,8 +205,7 @@ function getStateFromStores() {
         loggedIn: !!authorizationStore.getAuthorization(),
         modalContent: modalStore.getModalContent(),
         expanded: platformsPanelStore.getExpanded(),
-        status: statusIndicatorStore.getStatus(),
-        statusMessage: statusIndicatorStore.getStatusMessage(),
+        status: statusIndicatorStore.getStatus()
     };
 }
 

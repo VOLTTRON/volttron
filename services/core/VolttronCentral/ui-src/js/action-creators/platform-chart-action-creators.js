@@ -37,7 +37,7 @@ var platformChartActionCreators = {
 
 		series.forEach(function (item) {            
             new rpc.Exchange({
-                method: 'platforms.uuid.' + item.parentUuid + '.historian.query',
+                method: 'historian.query',
                 params: {
                     topic: item.topic,
                     count: 20,
@@ -61,26 +61,28 @@ var platformChartActionCreators = {
                 .catch(rpc.Error, function (error) {
 
                     var message = "Unable to update chart: " + error.message;
+                    var orientation;
 
                     if (error.code === -32602)
                     {
                         if (error.message === "historian unavailable")
                         {
-                            message = "Unable to update chart: The historian agent is unavailable.";
+                            message = "Unable to update chart: The VOLTTRON Central platform's historian is unavailable.";
+                            orientation = "left";
                         }
                     }
                     else
                     {
-                        var platform = platformsStore.getPlatform(item.parentUuid);
-                        var historianRunning = platformsStore.getHistorianRunning(platform);
+                        var historianRunning = platformsStore.getVcHistorianRunning();
 
                         if (!historianRunning)
                         {
-                            message = "Unable to update chart: The historian agent is unavailable.";
+                            message = "Unable to update chart: The VOLTTRON Central platform's historian is unavailable.";
+                            orientation = "left";
                         }
                     }
 
-                    handle401(error, message);
+                    handle401(error, message, null, orientation);
                 });
 		});
 
@@ -90,7 +92,7 @@ var platformChartActionCreators = {
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
-            method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
+            method: 'historian.query',
             params: {
                 topic: panelItem.topic,
                 count: 20,
@@ -117,6 +119,8 @@ var platformChartActionCreators = {
                     panelItem: panelItem
                 });
 
+                platformsPanelActionCreators.checkItem(panelItem.path, true);
+
                 var savedCharts = platformChartStore.getPinnedCharts();
                 var inSavedChart = savedCharts.find(function (chart) {
                     return chart.chartKey === panelItem.name;
@@ -130,28 +134,30 @@ var platformChartActionCreators = {
             .catch(rpc.Error, function (error) {
 
                 var message = "Unable to load chart: " + error.message;
+                var orientation;
 
                 if (error.code === -32602)
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Unable to load chart: The historian agent is not available.";
+                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        orientation = "left";
                     }
                 }
                 else
                 {
-                    var platform = platformsStore.getPlatform(panelItem.parentUuid);
-                    var historianRunning = platformsStore.getHistorianRunning(platform);
+                    var historianRunning = platformsStore.getVcHistorianRunning();
 
                     if (!historianRunning)
                     {
-                        message = "Unable to load chart: The historian agent is not available.";
+                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        orientation = "left";
                     }
                 }
 
                 platformsPanelActionCreators.checkItem(panelItem.path, false);
-                handle401(error, message);
-            });
+                handle401(error, message, null, orientation);
+           });
     },
     removeFromChart: function(panelItem) {
 
@@ -164,6 +170,8 @@ var platformChartActionCreators = {
             type: ACTION_TYPES.REMOVE_FROM_CHART,
             panelItem: panelItem
         });        
+
+        platformsPanelActionCreators.checkItem(panelItem.path, false);
 
         if (inSavedChart)
         {
@@ -180,8 +188,8 @@ var platformChartActionCreators = {
     }
 };
 
-function handle401(error, message) {
-    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
+function handle401(error, message, highlight, orientation) {
+   if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
@@ -193,8 +201,8 @@ function handle401(error, message) {
     }
     else
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
-};
+}
 
 module.exports = platformChartActionCreators;
