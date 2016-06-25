@@ -62,6 +62,8 @@ import errno
 import logging
 from logging import handlers
 import logging.config
+from urlparse import urlparse
+
 import os
 import resource
 import stat
@@ -271,6 +273,10 @@ class Router(BaseRouter):
         self._monitor = monitor
         self._tracker = tracker
         self._volttron_central_address = volttron_central_address
+        if self._volttron_central_address:
+            parsed = urlparse(self._volttron_central_address)
+
+        self._volttron_central_serverkey = volttron_central_serverkey
         self._platform_name = platform_name
         self._bind_web_address = bind_web_address
 
@@ -341,9 +347,11 @@ class Router(BaseRouter):
                     value = self.local_address.base
                 # Allow the agents to know the serverkey.
                 elif name == b'serverkey':
-                    value = self._publickey
+                    value = encode_key(self._publickey)
                 elif name == b'volttron-central-address':
                     value = self._volttron_central_address
+                elif name == b'volttron-central-serverkey':
+                    value = self._volttron_central_serverkey
                 elif name == b'platform-name':
                     value = self._platform_name
                 elif name == b'bind-web-address':
@@ -432,7 +440,8 @@ def start_volttron_process(opts):
     _log.debug('')
     if opts.volttron_central_address:
         if '|' in opts.volttron_central_address:
-            platform_name, opts.volttron_central_address = opts.volttron_central_address.split('|')
+            platform_name, opts.volttron_central_address = \
+                opts.volttron_central_address.split('|')
     opts.platform_name = platform_name
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
@@ -452,6 +461,7 @@ def start_volttron_process(opts):
                 'volttron-central-address must begin with http or https.')
         opts.volttron_central_address = config.expandall(
             opts.volttron_central_address)
+    opts.volttron_central_serverkey = opts.volttron_central_serverkey
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
@@ -539,6 +549,7 @@ def start_volttron_process(opts):
     # Main loops
     def router(stop):
         try:
+            _log.warn("PUBLICKEY: {}".format(publickey))
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, publickey=publickey,
                    default_user_id=b'vip.service', monitor=opts.monitor,
@@ -546,6 +557,7 @@ def start_volttron_process(opts):
                    volttron_central_address=opts.volttron_central_address,
                    platform_name=opts.platform_name,
                    bind_web_address=opts.bind_web_address).run()
+
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
@@ -580,8 +592,10 @@ def start_volttron_process(opts):
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
-            ControlService(opts.aip, address=address, identity='control', tracker=tracker, heartbeat_autostart=True),
-            PubSubService(protected_topics_file, address=address, identity='pubsub', heartbeat_autostart=True),
+            ControlService(opts.aip, address=address, identity='control',
+                           tracker=tracker, heartbeat_autostart=True),
+            PubSubService(protected_topics_file, address=address,
+                          identity='pubsub', heartbeat_autostart=True),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
@@ -700,6 +714,7 @@ def main(argv=sys.argv):
         '--volttron-central-address', metavar='VOLTTRONCENTRAL',
         default=None,
         help='The web address of a volttron central install instance.')
+
     # XXX: re-implement control options
     #on
     #control.add_argument(
@@ -771,6 +786,7 @@ def main(argv=sys.argv):
         # Used to contact volttron central when registering volttron central
         # platform agent.
         volttron_central_address=None,
+        volttron_central_serverkey=None,
         platform_name=None,
         #allow_root=False,
         #allow_users=None,
