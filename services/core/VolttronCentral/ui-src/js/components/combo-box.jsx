@@ -51,15 +51,9 @@ var ComboBox = React.createClass({
                         var modalRect = modal.getBoundingClientRect();
                         var targetRect = targetItem.getBoundingClientRect();
 
-                        console.log("target bottom: " + targetRect.bottom + ", modal bottom: " + modalRect.bottom);
-
                         if (targetRect.bottom > modalRect.bottom || targetRect.top < modalRect.top)
                         {
-                            console.log("target height: " + targetRect.height + ", index: " + this.state.focusedIndex);
-
                             var newTop = targetRect.top - menuRect.top;
-
-                            console.log("scrollTop: " + newTop);
 
                             modal.scrollTop = newTop;
                         }
