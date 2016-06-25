@@ -50,6 +50,10 @@ from settings import remote_url, topics_prefixes_to_watch, heartbeat_period
 # Setup logging so that we could use it if we needed to.
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
+if "VOLTTRON_HOME" not in os.environ:
+    os.environ["VOLTTRON_HOME"] = '`/.volttron'
+
 logging.basicConfig(
                 level=logging.debug,
                 format='%(asctime)s   %(levelname)-8s %(message)s',
