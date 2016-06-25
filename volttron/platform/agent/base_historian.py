@@ -369,6 +369,7 @@ class BaseHistorianAgent(Agent):
 
     def _capture_record_data(self, peer, sender, bus, topic, headers,
                              message):
+        _log.debug('Capture record data {}'.format(topic))
         # Anon the topic if necessary.
         topic = self._get_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
