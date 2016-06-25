@@ -74,6 +74,7 @@ import gevent
 from gevent.fileobject import FileObject
 import zmq
 from zmq import curve_keypair, green
+from zmq import ZMQError
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from zmq.utils import jsonapi
@@ -286,7 +287,11 @@ class Router(BaseRouter):
             addr.identity = identity
         if not addr.domain:
             addr.domain = 'vip'
-        addr.bind(sock)
+        try:
+            addr.bind(sock)
+        except ZMQError as zmqerr:
+            _log.exception("couldn't bind to address: {}".format(addr.base))
+            raise
         _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:
             if not address.identity:
