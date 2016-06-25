@@ -76,19 +76,22 @@ instance with VCA.
    to VCA after being deployed.
    
 """
-
+import uuid
 from collections import defaultdict
+from copy import deepcopy
 import errno
 import logging
-import sys
 import os
 import os.path as p
+import sys
+from urlparse import urlparse
 
 import gevent
 from abc import ABCMeta
 
 from authenticate import Authenticate
 from sessions import SessionHandler
+from volttron.platform.vip.connection import Connection
 from volttron.utils.persistance import load_create_store
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
@@ -106,16 +109,15 @@ from volttron.platform.jsonrpc import (
     UNAVAILABLE_AGENT)
 from volttron.platform.messaging.health import UNKNOWN_STATUS, Status, \
     BAD_STATUS
-from .resource_directory import ResourceDirectory
 from volttron.platform.vip.agent import Agent, RPC, PubSub, Core, Unreachable
 from volttron.platform.vip.agent.subsystems import query
 from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 from zmq.utils import jsonapi
-from .registry import PlatformRegistry
 
-__version__ = "3.5.3"
+__version__ = "3.5.4"
 
+utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 # Web root is going to be relative to the volttron central agents
