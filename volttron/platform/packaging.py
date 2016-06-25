@@ -205,8 +205,14 @@ def _create_initial_package(agent_dir_to_package, wheelhouse):
         shutil.copytree(agent_dir_to_package, builddir)
         subprocess.check_call([sys.executable, 'setup.py', '--no-user-cfg',
                                '--quiet', 'bdist_wheel'], cwd=builddir)
+
         wheel_name = os.listdir(distdir)[0]
         wheel_path = os.path.join(distdir, wheel_name)
+
+        identity_template_filename = os.path.join(builddir, "IDENTITY")
+        if os.path.exists(identity_template_filename):
+            add_files_to_package(wheel_path, {'identity_file': identity_template_filename})
+
         if not os.path.exists(wheelhouse):
             os.makedirs(wheelhouse, 0o750)
         wheel_dest = os.path.join(wheelhouse, wheel_name)

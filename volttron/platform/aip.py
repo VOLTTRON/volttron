@@ -294,10 +294,79 @@ class AIPplatform(object):
                 unpacker.unpack(dest=agent_path)
             else:
                 unpack(agent_wheel, dest=agent_path)
+
+            self._setup_agent_vip_id(agent_uuid)
+
         except Exception:
             shutil.rmtree(agent_path)
             raise
         return agent_uuid
+
+    def _setup_agent_vip_id(self, agent_uuid):
+        agent_path = os.path.join(self.install_dir, agent_uuid)
+        name = self.agent_name(agent_uuid)
+        pkg = UnpackedPackage(os.path.join(agent_path,  name))
+        identity_template_filename = os.path.join(pkg.distinfo, "IDENTITY_TEMPLATE")
+
+        rm_id_template = False
+
+        if not os.path.exists(identity_template_filename):
+            agent_name = self.agent_name(agent_uuid)
+            name_template = agent_name + " #{n}"
+        else:
+            with open(identity_template_filename, 'rb') as fp:
+                name_template = fp.read(64)
+
+            rm_id_template = True
+
+        _log.debug('Using name template "' + name_template + '" to generate VIP ID')
+
+        final_identity = self._get_available_agent_identity(name_template)
+
+        if final_identity is None:
+            raise ValueError("Agent with VIP ID "+name_template+" already installed on platform.")
+
+        identity_filename = os.path.join(agent_path, "IDENTITY")
+
+        with open(identity_filename, 'wb') as fp:
+            fp.write(final_identity)
+
+        _log.info("Agent {uuid} setup to use VIP ID {vip_id}". format(uuid=agent_uuid,
+                                                                      vip_id=final_identity))
+
+        #Cleanup IDENTITY_TEMPLATE file.
+        if rm_id_template:
+            os.remove(identity_template_filename)
+            _log.debug('IDENTITY_TEMPLATE file removed.')
+
+
+    def get_all_agent_identities(self):
+        results = set()
+        for agent_uuid in self.list_agents():
+            try:
+                agent_identity = self.agent_identity(agent_uuid)
+            except ValueError:
+                continue
+
+            if agent_identity is not None:
+                results.add(agent_identity)
+
+        return results
+
+    def _get_available_agent_identity(self, name_template):
+        all_agent_identities = self.get_all_agent_identities()
+
+        #Provided name template is static
+        if name_template == name_template.format(n=0):
+            return name_template if name_template not in all_agent_identities else None
+
+        #Find a free ID
+        count = 1
+        while True:
+            test_name = name_template.format(n=count)
+            if test_name not in all_agent_identities:
+                return test_name
+            count += 1
 
     def remove_agent(self, agent_uuid):
         if agent_uuid not in os.listdir(self.install_dir):
