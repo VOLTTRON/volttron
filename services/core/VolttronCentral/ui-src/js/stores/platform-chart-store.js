@@ -102,10 +102,11 @@ chartStore.getChartTopics = function () {
             });
 
             topics = topics.filter(function (topic) {
+                
+                // This filter will keep platform topics of known platforms and any topic that
+                // looks like a device topic
                 var platformTopic = platformUuids.filter(function (uuid) {
-
-                    return ((topic.value.indexOf(uuid) > -1) 
-                        || (topic.hasOwnProperty("path") && (topic.path.indexOf(uuid) > -1)));
+                    return ((topic.value.indexOf(uuid) > -1) || (topic.value.indexOf("datalogger/platform") < 0));
                 });
 
                 return (platformTopic.length ? true : false);
