@@ -1,3 +1,5 @@
+.. _Agent-Signing:
+
 Agent Package Signing
 ========================
 

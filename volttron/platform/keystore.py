@@ -77,7 +77,7 @@ _log = logging.getLogger(__name__)
 class BaseJSONStore(object):
     '''JSON-file-backed store for dictionaries'''
 
-    def __init__(self, filename, permissions=0o600):
+    def __init__(self, filename, permissions=0o660):
         self.filename = filename
         self.permissions = permissions
         create_file_if_missing(filename)
@@ -106,7 +106,7 @@ class BaseJSONStore(object):
 
 
 class KeyStore(BaseJSONStore):
-    """Handle generation, storage, and retrival of CURVE key pairs"""
+    '''Handle generation, storage, and retrival of keys'''
 
     def __init__(self, filename=None):
         if filename is None:

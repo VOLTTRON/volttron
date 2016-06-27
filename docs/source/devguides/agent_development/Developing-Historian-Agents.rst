@@ -1,3 +1,5 @@
+.. _Developing-Historian-Agents:
+
 Developing Historian Agents
 ===========================
 
@@ -7,7 +9,7 @@ cache published data to disk until it is successfully recorded to a
 historian, create the public facing interface for querying results, and
 spells out a simple interface for concrete implementation to meet to
 make a working Historian Agent. The VOLTTRON provides support for
-several `historians <VOLTTRON-Historians>`__ without modification.
+several :ref:`historians <VOLTTRON-Historians>` without modification.
 Please use one of these if it fits your project criteria, otherwise
 continue reading.
 

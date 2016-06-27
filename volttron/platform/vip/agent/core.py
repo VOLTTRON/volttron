@@ -82,6 +82,7 @@ from .. import green as vip
 from .. import router
 from .... import platform
 from volttron.platform.keystore import KeyStore
+from volttron.platform.agent import utils
 
 __all__ = ['BasicCore', 'Core', 'killing']
 
@@ -378,7 +379,8 @@ class BasicCore(object):
     @dualmethod
     def schedule(self, deadline, func, *args, **kwargs):
         if hasattr(deadline, 'timetuple'):
-            deadline = time.mktime(deadline.timetuple())
+            #deadline = time.mktime(deadline.timetuple())
+            deadline = utils.get_utc_seconds_from_epoch(deadline)
         event = ScheduledEvent(func, args, kwargs)
         heapq.heappush(self._schedule, (deadline, event))
         self._schedule_event.set()
@@ -387,7 +389,8 @@ class BasicCore(object):
     @schedule.classmethod
     def schedule(cls, deadline, *args, **kwargs):   # pylint: disable=no-self-argument
         if hasattr(deadline, 'timetuple'):
-            deadline = time.mktime(deadline.timetuple())
+            #deadline = time.mktime(deadline.timetuple())
+            deadline = utils.get_utc_seconds_from_epoch(deadline)
 
         def decorate(method):
             annotate(method, list, 'core.schedule', (deadline, args, kwargs))

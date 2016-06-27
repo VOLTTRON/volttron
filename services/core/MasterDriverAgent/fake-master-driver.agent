@@ -1,6 +1,6 @@
 {
     "agentid": "master_driver",
     "driver_config_list": [
-    					   "/home/volttron/git/volttron/services/core/MasterDriverAgent/master_driver/test_fakedriver.config"
+    					   "/home/volttron/volttron/examples/configurations/drivers/fake.config"
     					  ]
 }

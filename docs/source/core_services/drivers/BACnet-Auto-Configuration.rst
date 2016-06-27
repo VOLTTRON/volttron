@@ -1,3 +1,5 @@
+.. _BACnet-Auto-Configuration:
+
 ===================================================
 Automatically Generating BACnet Configuration Files
 ===================================================

@@ -1,3 +1,5 @@
+.. _Volttron-Restricted: 
+
 VOLTTRON Restricted Code
 =========================
 
@@ -7,8 +9,8 @@ volttron team at volttron@pnnl.gov.
 
 -  NOTE: Once the package is installed all aspects of the package will
    be enforced. To override the behavior add no-verify, no-mobility, or
-   no-resource-monitor to the `configuration
-   file <PlatformConfiguration>`__.
+   no-resource-monitor to the :ref:`configuration
+   file <PlatformConfiguration>`.
 
 The Volttron Restricted package contains the following security
 enhancements:
@@ -24,12 +26,11 @@ enhancements:
 The following pages describe the functionality exposed by the Volttron
 Restricted package:
 
--  `Signing and Verification of Agent Packages <Agent-Signing>`__
--  `Resource Monitor <Resource%20Monitor>`__
--  `PingPongAgent <PingPongAgent>`__
+-  :ref:`Signing and Verification of Agent Packages <Agent-Signing>`
+-  :ref:`Resource Monitor <Resource-Monitor>`
+-  :ref:`PingPongAgent <PingPongAgent>`
 
-Note: VOLTTRON-Restricted supports VOLTTRON 2.x. It will be updated when
-VOLTTRON 3 is released.
+Note: VOLTTRON-Restricted supports VOLTTRON 2.x and is being update to VOLTTRON 3.5
 
 Installation
 ---

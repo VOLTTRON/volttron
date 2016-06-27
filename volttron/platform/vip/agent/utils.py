@@ -62,6 +62,7 @@ import gevent
 
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent
+from volttron.platform.web import build_vip_address_string
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -71,22 +72,25 @@ def build_agent(address=None, identity=None, publickey=None, secretkey=None,
                 timeout=10, serverkey=None, **kwargs):
     """ Builds a dynamic agent connected to the specifiedd address.
 
-    All key parameters should have been encoded with
-    :py:meth:`volttron.platform.vip.socket.encode_key`
-
-    :param str address: VIP address to connect to
-    :param str identity: Agent's identity
-    :param str publickey: Agent's Base64-encoded CURVE public key
-    :param str secretkey: Agent's Base64-encoded CURVE secret key
-    :param str serverkey: Server's Base64-encoded CURVE public key
-    :param int timeout: Seconds to wait for agent to start
-    :param kwargs: Any Agent specific parameters
-    :return: Agent that has been started
-    :rtype: Agent
+    :param address:
+    :param identity:
+    :param publickey:
+    :param secretkey:
+    :param timeout:
+    :param kwargs:
+    :return:
     """
-    agent = Agent(address=address, identity=identity, publickey=publickey,
-                  secretkey=secretkey, serverkey=serverkey)
+    if not address:
+        address = os.environ['VOLTTRON_HOME']
+
+    _log.debug('BUILDING AGENT VIP: {}'.format(address))
+    vip_address = build_vip_address_string(
+        vip_root=address, publickey=publickey, secretkey=secretkey,
+        serverkey=serverkey)
+    agent = Agent(address=vip_address, identity=identity)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     event.wait(timeout=timeout)
+    _log.debug('RETURNING AGENT')
+
     return agent
