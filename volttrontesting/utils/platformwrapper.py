@@ -134,21 +134,24 @@ def build_vip_address(dest_wrapper, agent):
 
 
 class PlatformWrapper:
-    def __init__(self):
+    def __init__(self, volttron_home=None):
         '''Initializes a new volttron environment
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory for
         agents that are built.
         '''
-        self.__volttron_home = tempfile.mkdtemp()
+        if volttron_home is None:
+            self.__volttron_home = tempfile.mkdtemp()
+
+            self.env = dict(
+                VOLTTRON_HOME=self.__volttron_home,
+                PATH=os.environ['PATH']
+            )
+        else:
+            self.__volttron_home = volttron_home
+
         self.__packaged_dir = os.path.join(self.volttron_home, "packaged")
         os.makedirs(self.__packaged_dir)
-        self.env = os.environ.copy()
-        self.env['VOLTTRON_HOME'] = self.volttron_home
-
-        # TODO: does changing os.environ affect the environment external to
-        # this script?
-        os.environ['VOLTTRON_HOME'] = self.volttron_home
 
         # By default no web server should be started.
         self.__bind_web_address = None
