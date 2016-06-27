@@ -370,16 +370,20 @@ class PlatformWrapper:
             with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
                 fd.write(json.dumps(auth_dict))
 
-    def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
-                         mode=UNRESTRICTED, encrypt=False,
+    def startup_platform(self, vip_address=None, auth_dict=None,
+                         use_twistd=False, mode=UNRESTRICTED, encrypt=False,
                          bind_web_address=None, volttron_central_address=None,
                          volttron_central_serverkey=None):
-        # if not isinstance(vip_address, list):
-        #     self.vip_address = [vip_address]
-        # else:
-        #     self.vip_address = vip_address
+        os.environ['VOLTTRON_HOME'] = self.__volttron_home
+        self.logit('Starting platform - VOLTTRON_HOME: {}'.format(
+            self.volttron_home))
 
-        self.vip_address = vip_address
+        if vip_address is None:
+            if self.vip_address is None:
+                raise AttributeError(
+                    "vip-address not specified nor set on instance.")
+        else:
+            self.vip_address = vip_address
         self.mode = mode
         self.bind_web_address = bind_web_address
         self.__encrypted = encrypt
@@ -411,42 +415,44 @@ class PlatformWrapper:
         ipc = 'ipc://{}{}/run/'.format(
             '@' if sys.platform.startswith('linux') else '',
             self.volttron_home)
-        self.local_vip_address = ipc + 'vip.socket'
+        self.__local_vip_address = ipc + 'vip.socket'
         if not encrypt:
             if os.path.exists(os.path.join(self.volttron_home, 'curve.key')):
                 # Remove connection encryption
                 with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
                     pass
 
+        for k, v in self.__dict__.items():
+            self.logit("configuration: {} => {}".format(k, v))
+
         self.set_auth_dict(auth_dict)
 
         self.opts = {'verify_agents': False,
-                'volttron_home': self.volttron_home,
-                'vip_address': vip_address,
-                'vip_local_address': ipc + 'vip.socket',
-                'publish_address': ipc + 'publish',
-                'subscribe_address': ipc + 'subscribe',
-                'bind_web_address': bind_web_address,
-                'volttron_central_address': volttron_central_address,
-                'volttron_central_serverkey': volttron_central_serverkey,
-                'platform_name': None,
-                'developer_mode': not encrypt,
-                'log': os.path.join(self.volttron_home,'volttron.log'),
-                'log_config': None,
-                'monitor': True,
-                'autostart': True,
-                'log_level': logging.DEBUG,
-                'verboseness': logging.DEBUG}
+                     'volttron_home': self.volttron_home,
+                     'vip_address': vip_address,
+                     'vip_local_address': ipc + 'vip.socket',
+                     'publish_address': ipc + 'publish',
+                     'subscribe_address': ipc + 'subscribe',
+                     'bind_web_address': bind_web_address,
+                     'volttron_central_address': volttron_central_address,
+                     'volttron_central_serverkey': volttron_central_serverkey,
+                     'platform_name': None,
+                     'developer_mode': not encrypt,
+                     'log': os.path.join(self.volttron_home,'volttron.log'),
+                     'log_config': None,
+                     'monitor': True,
+                     'autostart': True,
+                     'log_level': logging.DEBUG,
+                     'verboseness': logging.DEBUG}
 
-        print(self.opts)
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
 
         parser =  configparser.ConfigParser()
         parser.add_section('volttron')
-        parser.set('volttron', 'vip-address', vip_address)
-        if bind_web_address:
-            parser.set('volttron', 'bind-web-address', bind_web_address)
+        parser.set('volttron', 'vip-address', self.vip_address)
+        if self.bind_web_address:
+            parser.set('volttron', 'bind-web-address', self.bind_web_address)
         if self.volttron_central_address:
             parser.set('volttron', 'volttron-central-address',
                        volttron_central_address)
@@ -486,6 +492,7 @@ class PlatformWrapper:
         if self.opts['developer_mode']:
             cmd.append('--developer-mode')
 
+        self.logit("popen arguments are: {}".format(cmd))
         self._p_process = Popen(cmd, env=self.env, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
 
@@ -496,12 +503,6 @@ class PlatformWrapper:
 
         # # make sure we don't return too quickly.
         gevent.sleep(0.2)
-
-        #os.environ['VOLTTRON_HOME'] = self.opts['volttron_home']
-        #self._p_process = Process(target=start_volttron_process, args=(self.opts,))
-        #self._p_process.daemon = True
-        #self._p_process.start()
-
         gevent.sleep(0.2)
         self.use_twistd = use_twistd
 
@@ -517,13 +518,13 @@ class PlatformWrapper:
             time.sleep(5)
             #self._t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
-        control = Connection(self.local_vip_address, peer="control")
+        self.__control = Connection(self.local_vip_address, peer="control")
         # Loop until we are sure that the platform is started up.
         while True:
-            if 'control' in control.server.vip.peerlist().get(timeout=10):
+            if 'control' in self.__control.server.vip.peerlist().get(
+                    timeout=10):
                 _log.debug('CONTROL FOUND!')
                 break
-            # _log.debug('CONTROL NOT FOUND!')
             gevent.sleep(0.2)
 
     def is_running(self):
@@ -586,14 +587,13 @@ class PlatformWrapper:
         return aip
 
     def _install_agent(self, wheel_file, start):
+
         aip = self._aip()
         auuid = aip.install_agent(wheel_file)
         assert auuid is not None
         if start:
             self.logit('STARTING: {}'.format(wheel_file))
             status = self.start_agent(auuid)
-            #aip.start_agent(auuid)
-            #status = aip.agent_status(auuid)
             self.logit('STATUS NOW: {}'.format(status))
             assert status > 0
 
@@ -622,7 +622,7 @@ class PlatformWrapper:
             raise PlatformWrapperError("Instance isn't running!")
         results = []
 
-        for path, config, start  in agent_configs:
+        for path, config, start in agent_configs:
             results = self.install_agent(agent_dir=path, config_file=config,
                                          start=start)
 
@@ -647,12 +647,12 @@ class PlatformWrapper:
             assert os.path.exists(os.path.join(agent_dir, "config"))
             config_file = os.path.join(agent_dir, "config")
         else:
-            if isinstance(config_file, dict):
+            if isinstance(config, dict):
                 from os.path import join, basename
                 temp_config = join(self.volttron_home,
                                    basename(agent_dir) + "_config_file")
                 with open(temp_config, "w") as fp:
-                    fp.write(json.dumps(config_file))
+                    fp.write(json.dumps(config))
                 config_file = temp_config
         self.logit('Building agent package')
         wheel_file = self.build_agentpackage(agent_dir, config_file)
@@ -660,7 +660,7 @@ class PlatformWrapper:
 
     def install_agent(self, agent_wheel=None, agent_dir=None, config_file=None,
         start=True):
-        '''Install and optionally start an agent on the platform.
+        """Install and optionally start an agent on the platform.
 
             This function allows installation from an agent wheel or an
             agent directory (NOT BOTH).  If an agent_wheel is specified then
@@ -671,7 +671,7 @@ class PlatformWrapper:
             none of these exist then an assertion error will be thrown.
 
             This function will return with a uuid of the installed agent.
-        '''
+        """
 
         assert self.is_running()
         assert agent_wheel or agent_dir
@@ -704,73 +704,90 @@ class PlatformWrapper:
 
         if start:
             assert self.is_agent_running(agent_uuid)
-
+        gevent.sleep(1)
         return agent_uuid
 
     def start_agent(self, agent_uuid):
         self.logit('Starting agent {}'.format(agent_uuid))
-        self.logit("VOLTTRONO_HOME SETTING: {}".format(os.environ['VOLTTRON_HOME']))
-        cmd = ['volttron-ctl', 'start', agent_uuid]
-        p = Popen(cmd, env=self.env,
-                  stdout=sys.stdout, stderr=sys.stderr)
-        p.wait()
-
-        # Confirm agent running
-        cmd = ['volttron-ctl', 'status', agent_uuid]
-        res = subprocess.check_output(cmd, env=self.env)
-        assert 'running' in res
-        pidpos = res.index('[') + 1
-        pidend = res.index(']')
-        pid = int(res[pidpos: pidend])
-
-        self._started_pids.append(pid)
-        return int(pid)
+        self.__control.call('start_agent', agent_uuid)
+        status = self.agent_status(agent_uuid)
+        if len(status) == 2:
+            if status[1] is None:
+                self._started_pids.append(status[0])
+        # tuple with (pid, return status)
+        return status
+        # self.logit("VOLTTRONO_HOME SETTING: {}".format(
+        #     self.env['VOLTTRON_HOME']))
+        # cmd = ['volttron-ctl', 'start', agent_uuid]
+        # p = Popen(cmd, env=self.env,
+        #           stdout=sys.stdout, stderr=sys.stderr)
+        # p.wait()
+        #
+        # # Confirm agent running
+        # cmd = ['volttron-ctl', 'status', agent_uuid]
+        # res = subprocess.check_output(cmd, env=self.env)
+        # assert 'running' in res
+        # pidpos = res.index('[') + 1
+        # pidend = res.index(']')
+        # pid = int(res[pidpos: pidend])
+        #
+        # self._started_pids.append(pid)
+        # return int(pid)
 
     def stop_agent(self, agent_uuid):
         # Confirm agent running
         _log.debug("STOPPING AGENT: {}".format(agent_uuid))
-        try:
-            cmd = ['volttron-ctl', 'stop', agent_uuid]
-            res = subprocess.check_output(cmd, env=self.env)
-        except CalledProcessError as ex:
-            _log.error("Exception: {}".format(ex))
+        self.__control.call('stop_agent', agent_uuid)
         return self.agent_status(agent_uuid)
+        # try:
+        #     cmd = ['volttron-ctl', 'stop', agent_uuid]
+        #     res = subprocess.check_output(cmd, env=self.env)
+        # except CalledProcessError as ex:
+        #     _log.error("Exception: {}".format(ex))
+        # return self.agent_status(agent_uuid)
 
     def list_agents(self):
-        aip = self._aip()
-        return aip.list_agents()
+        return self.__control.call('list_agents')
+        # aip = self._aip()
+        # return aip.list_agents()
 
     def remove_agent(self, agent_uuid):
         """Remove the agent specified by agent_uuid"""
         _log.debug("REMOVING AGENT: {}".format(agent_uuid))
-        try:
-            cmd = ['volttron-ctl', 'remove', agent_uuid]
-            res = subprocess.check_output(cmd, env=self.env)
-        except CalledProcessError as ex:
-            _log.error("Exception: {}".format(ex))
+        self.__control.call('remove_agent', agent_uuid)
         return self.agent_status(agent_uuid)
+        # try:
+        #     cmd = ['volttron-ctl', 'remove', agent_uuid]
+        #     res = subprocess.check_output(cmd, env=self.env)
+        # except CalledProcessError as ex:
+        #     _log.error("Exception: {}".format(ex))
+        # return self.agent_status(agent_uuid)
 
     def is_agent_running(self, agent_uuid):
         return self.agent_status(agent_uuid) is not None
 
     def agent_status(self, agent_uuid):
         _log.debug("AGENT_STATUS: {}".format(agent_uuid))
-        # Confirm agent running
-        cmd = ['volttron-ctl', 'status', agent_uuid]
-        pid = None
-        try:
-            res = subprocess.check_output(cmd, env=self.env)
-
-            try:
-                pidpos = res.index('[') + 1
-                pidend = res.index(']')
-                pid = int(res[pidpos: pidend])
-            except:
-                pid = None
-        except CalledProcessError as ex:
-            _log.error("Exception: {}".format(ex))
-
-        return pid
+        status = self.__control.call('agent_status', agent_uuid)
+        if status == [None, None]:
+            status = None
+        return status
+        # # Confirm agent running
+        # cmd = ['volttron-ctl', 'status', agent_uuid]
+        # pid = None
+        # try:
+        #     res = subprocess.check_output(cmd, env=self.env)
+        #
+        #     try:
+        #         pidpos = res.index('[') + 1
+        #         pidend = res.index(']')
+        #         pid = int(res[pidpos: pidend])
+        #     except:
+        #         pid = None
+        # except CalledProcessError as ex:
+        #     _log.error("Exception: {}".format(ex))
+        #
+        # return pid
 
     def build_agentpackage(self, agent_dir, config_file):
         assert os.path.exists(agent_dir)
