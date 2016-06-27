@@ -94,6 +94,7 @@ def contains_keys(keylist, lookup):
 @pytest.mark.pa
 def test_listagents(pa_instance):
     wrapper, agent_uuid = pa_instance
+    print('LIST AGENTS')
     agent = Connection(wrapper.local_vip_address, VOLTTRON_CENTRAL_PLATFORM)
     params = dict(id='foo', method='list_agents')
     agent_list = agent.call(
@@ -117,10 +118,11 @@ def test_pa_autoregister_same_platform(vc_instance):
     # Connection to vc instance through server.
     vc_conn = vc_wrapper.build_connection(VOLTTRON_CENTRAL)
     before_starting_platform = len(vc_conn.call('get_platforms'))
-
+    print('Before starting platform len: {}'.format(before_starting_platform))
     pa_uuid = vc_wrapper.install_agent(
         agent_dir='services/core/VolttronCentralPlatform'
     )
+    gevent.sleep(5)
     registered_platforms = vc_conn.call('get_platforms')
     assert vc_wrapper.is_agent_running(pa_uuid)
     assert before_starting_platform + 1 == len(registered_platforms)
@@ -270,9 +272,14 @@ def test_status_good_when_agent_starts(pa_instance):
     connection = wrapper.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
 
     assert connection.is_connected()
-    status = connection.call('get_status')
-    assert isinstance(status, dict)
+    status = connection.call('health.get_status')
+    jsonstatus = jsonapi.loads(status)
+    print(jsonstatus)
+    assert isinstance(jsonstatus, dict)
     assert status
+
+
+
 # @pytest.mark.pa
 # def test_agent_data(pa_instance, vc_instance):
 #     pa_wrapper = pa_instance['wrapper']
