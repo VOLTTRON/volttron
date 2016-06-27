@@ -163,6 +163,10 @@ class PlatformWrapper:
         self.__local_vip_address = None
         self.__vip_address = None
         self.__encrypted = False
+        self.__volttron_central_address = None
+        self.__volttron_central_serverkey = None
+        self.__local_vip_address = None
+        self.__control = None
         self.logit('Creating platform wrapper')
 
     def logit(self, message):
@@ -175,6 +179,15 @@ class PlatformWrapper:
     @property
     def bind_web_address(self):
         return self.__bind_web_address
+
+    @bind_web_address.setter
+    def bind_web_address(self, value):
+        if value is None:
+            raise ValueError("bind_web_address cannot have None value.")
+        parsed = urlparse.urlparse(value)
+        if parsed.scheme not in ('http', 'https'):
+            raise ValueError("bind_web_addres must have http or https scheme.")
+        self.__bind_web_address = value
 
     @property
     def local_vip_address(self):
@@ -189,8 +202,34 @@ class PlatformWrapper:
         return self.__publickey
 
     @property
+    def local_vip_address(self):
+        return self.__local_vip_address
+
+    @property
     def vip_address(self):
         return self.__vip_address
+
+    @vip_address.setter
+    def vip_address(self, value):
+        if value is None:
+            raise ValueError("Setting of vip_address requires a value.")
+        self.__vip_address = value
+
+    @property
+    def volttron_central_address(self):
+        return self.__volttron_central_address
+
+    @volttron_central_address.setter
+    def volttron_central_address(self, value):
+        self.__volttron_central_address = value
+
+    @property
+    def volttron_central_serverkey(self):
+        return self.__volttron_central_serverkey
+
+    @volttron_central_serverkey.setter
+    def volttron_central_serverkey(self, value):
+        self.__volttron_central_address = value
 
     @property
     def volttron_home(self):
@@ -291,7 +330,7 @@ class PlatformWrapper:
         key = ''.join(zmq.curve_keypair())
         with open(os.path.join(self.volttron_home, 'curve.key'), 'w') as fd:
             fd.write(key)
-        return encode_key(key[:40]) # public key
+        return encode_key(key[:40])  # public key
 
     def _read_auth_file(self):
         auth_path = os.path.join(self.volttron_home, 'auth.json')
