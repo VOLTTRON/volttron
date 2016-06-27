@@ -65,7 +65,7 @@ from urlparse import urlparse
 import gevent
 from zmq.utils import jsonapi
 
-from volttron.platform.vip.agent import Agent, Core, compat
+from volttron.platform.vip.agent import Agent, Core, compat, Unreachable
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
@@ -89,6 +89,7 @@ def historian(config_path, **kwargs):
         'include_destination_in_header',
         False)
 
+    required_target_agents = config.get('required_target_agents', [])
     backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
     origin = config.get('origin', None)
     overwrite_origin = config.get('overwrite_origin', False)
@@ -211,6 +212,14 @@ def historian(config_path, **kwargs):
             if not self._target_platform:
                 _log.debug('Could not connect to target')
                 return
+
+            for vip_id in required_target_agents:
+                try:
+                    self._target_platform.vip.ping(vip_id).get()
+                except Unreachable:
+                    _log.warning("Skipping publish: Target platform not running required agent {}".format(vip_id))
+                    return
+
             for x in to_publish_list:
                 topic = x['topic']
                 value = x['value']
