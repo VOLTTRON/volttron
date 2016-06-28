@@ -122,7 +122,7 @@ def test_pa_autoregister_same_platform(vc_instance):
     pa_uuid = vc_wrapper.install_agent(
         agent_dir='services/core/VolttronCentralPlatform'
     )
-    gevent.sleep(5)
+
     registered_platforms = vc_conn.call('get_platforms')
     assert vc_wrapper.is_agent_running(pa_uuid)
     assert before_starting_platform + 1 == len(registered_platforms)
@@ -274,7 +274,7 @@ def test_status_good_when_agent_starts(pa_instance):
     assert connection.is_connected()
     status = connection.call('health.get_status')
     jsonstatus = jsonapi.loads(status)
-    print(jsonstatus)
+
     assert isinstance(jsonstatus, dict)
     assert status
 
