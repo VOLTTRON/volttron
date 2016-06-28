@@ -34,7 +34,6 @@ def web_api_tester(request, vc_instance, pa_instance):
 
 
 @pytest.mark.vc
-@pytest.mark.xfail(reason='Not sure why this is failing.')
 def test_auto_register_platform(vc_instance):
     vc, vcuuid, jsonrpc = vc_instance
 
@@ -76,6 +75,15 @@ def test_auto_register_platform(vc_instance):
     # Specific platform not the same as vcp on the platform
     platform_uuid2= jsondata['result'][0]['uuid']
     assert platform_uuid == platform_uuid2
+
+
+@pytest.mark.vc
+def test_get_setting_keys_first_returns_empty(vc_instance):
+    vc, vcuuid, jsonrpc = vc_instance
+    tester = APITester(jsonrpc)
+    resp = tester.do_rpc('get_setting_keys')
+    assert resp.json()['result'] is not None
+    assert [] == resp.json()['result']
 
 
 @pytest.mark.vc
@@ -170,7 +178,6 @@ def test_list_exported_methods(web_api_tester):
 
 
 @pytest.mark.vc
-@pytest.mark.xfail(reason='Platforms now have static uuids that are not the same as the installed platform uuid.')
 def test_list_agents(web_api_tester):
     platforms = web_api_tester.list_platforms().json()['result']
     assert len(platforms) > 0
