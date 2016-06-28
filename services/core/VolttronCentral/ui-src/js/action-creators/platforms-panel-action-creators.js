@@ -201,7 +201,7 @@ function handle401(error, message, highlight, orientation) {
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     }
-    else
+    else if (message)
     {
         statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }

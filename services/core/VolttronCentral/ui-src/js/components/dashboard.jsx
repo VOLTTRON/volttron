@@ -37,7 +37,7 @@ var Dashboard = React.createClass({
         if (pinnedCharts.length === 0) {
             platformCharts = (
                 <p className="empty-help">
-                    Pin a platform chart to have it appear on the dashboard
+                    Pin a chart to have it appear on the dashboard
                 </p>
             );
         }

@@ -230,11 +230,11 @@ var platformActionCreators = {
                         });
                     })            
                     .catch(rpc.Error, function (error) {
-                        handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message, platform.name);
+                        handle401(error);
                     });
             })            
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message, platform.name);
+                handle401(error);
             });
     },
     startAgent: function (platform, agent) {
@@ -494,12 +494,12 @@ var platformActionCreators = {
                                 });
                             })
                             .catch(rpc.Error, function (error) {
-                                handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message, this.name);
+                                handle401(error);
                             });                            
                         }
                 })
                 .catch(rpc.Error, function (error) {
-                    handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message, this.name);
+                    handle401(error);
                 });
         }.bind(platform);
 
@@ -667,7 +667,7 @@ function handle401(error, message, highlight, orientation) {
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     }
-    else
+    else if (message)
     {
         statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
@@ -684,6 +684,7 @@ var dispatcher = require('../dispatcher');
 var authorizationStore = require('../stores/authorization-store');
 var platformChartStore = require('../stores/platform-chart-store');
 var platformsStore = require('../stores/platforms-store');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
@@ -725,43 +726,28 @@ var platformChartActionCreators = {
                 authorization: authorization,
             }).promise
                 .then(function (result) {
-                	item.data = result.values;
 
-                    item.data.forEach(function (datum) {
-                        datum.name = item.name;
-                        datum.parent = item.parentPath;
-                    	datum.uuid = item.uuid;
-                    });
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.REFRESH_CHART,
-                        item: item
-                    });
-                })
-                .catch(rpc.Error, function (error) {
-
-                    var message = "Unable to update chart: " + error.message;
-                    var orientation;
-
-                    if (error.code === -32602)
+                    if (result.hasOwnProperty("values"))
                     {
-                        if (error.message === "historian unavailable")
-                        {
-                            message = "Unable to update chart: The VOLTTRON Central platform's historian is unavailable.";
-                            orientation = "left";
-                        }
+                    	item.data = result.values;
+
+                        item.data.forEach(function (datum) {
+                            datum.name = item.name;
+                            datum.parent = item.parentPath;
+                        	datum.uuid = item.uuid;
+                        });
+                        dispatcher.dispatch({
+                            type: ACTION_TYPES.REFRESH_CHART,
+                            item: item
+                        });
                     }
                     else
                     {
-                        var historianRunning = platformsStore.getVcHistorianRunning();
-
-                        if (!historianRunning)
-                        {
-                            message = "Unable to update chart: The VOLTTRON Central platform's historian is unavailable.";
-                            orientation = "left";
-                        }
+                        console.log("chart " + item.name + " isn't being refreshed");
                     }
-
-                    handle401(error, message, null, orientation);
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error);
                 });
 		});
 
@@ -780,34 +766,59 @@ var platformChartActionCreators = {
             authorization: authorization,
         }).promise
             .then(function (result) {
-                panelItem.data = result.values;
 
-                panelItem.data.forEach(function (datum) {
-                    datum.name = panelItem.name;
-                    datum.parent = panelItem.parentPath;
-                    datum.uuid = panelItem.uuid;
-                });
+                if (result.hasOwnProperty("values"))
+                {    
+                    panelItem.data = result.values;
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.SHOW_CHARTS,
-                    emitChange: (emitChange === null || typeof emitChange === "undefined" ? true : emitChange)
-                });
+                    panelItem.data.forEach(function (datum) {
+                        datum.name = panelItem.name;
+                        datum.parent = panelItem.parentPath;
+                        datum.uuid = panelItem.uuid;
+                    });
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.ADD_TO_CHART,
-                    panelItem: panelItem
-                });
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.SHOW_CHARTS,
+                        emitChange: (emitChange === null || typeof emitChange === "undefined" ? true : emitChange)
+                    });
 
-                platformsPanelActionCreators.checkItem(panelItem.path, true);
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.ADD_TO_CHART,
+                        panelItem: panelItem
+                    });
 
-                var savedCharts = platformChartStore.getPinnedCharts();
-                var inSavedChart = savedCharts.find(function (chart) {
-                    return chart.chartKey === panelItem.name;
-                });
+                    platformsPanelActionCreators.checkItem(panelItem.path, true);
 
-                if (inSavedChart)
+                    var savedCharts = platformChartStore.getPinnedCharts();
+                    var inSavedChart = savedCharts.find(function (chart) {
+                        return chart.chartKey === panelItem.name;
+                    });
+
+                    if (inSavedChart)
+                    {
+                        platformActionCreators.saveCharts(savedCharts);
+                    }
+                }
+                else
                 {
-                    platformActionCreators.saveCharts(savedCharts);
+                    var message = "Unable to load chart: An unknown problem occurred.";
+                    var orientation = "center";
+                    var error = {};
+
+                    if (panelItem.path && panelItem.path.length > 1)
+                    {
+                        var platformUuid = panelItem.path[1];
+                        var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
+
+                        if (!forwarderRunning)
+                        {
+                            message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
+                            orientation = "left";
+                        }             
+                    }
+
+                    platformsPanelActionCreators.checkItem(panelItem.path, false);
+                    handle401(error, message, null, orientation);
                 }
             })
             .catch(rpc.Error, function (error) {
@@ -878,7 +889,7 @@ function handle401(error, message, highlight, orientation) {
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     }
-    else
+    else if (message)
     {
         statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
@@ -887,7 +898,7 @@ function handle401(error, message, highlight, orientation) {
 module.exports = platformChartActionCreators;
 
 
-},{"../action-creators/platform-action-creators":5,"../action-creators/platforms-panel-action-creators":8,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":35,"../dispatcher":36,"../lib/rpc":39,"../stores/authorization-store":44,"../stores/platform-chart-store":48,"../stores/platforms-store":51}],7:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../action-creators/platforms-panel-action-creators":8,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":35,"../dispatcher":36,"../lib/rpc":39,"../stores/authorization-store":44,"../stores/platform-chart-store":48,"../stores/platforms-panel-items-store":49,"../stores/platforms-store":51}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1096,7 +1107,7 @@ function handle401(error, message, highlight, orientation) {
 
         platformManagerActionCreators.clearAuthorization();
     }
-    else
+    else if (message)
     {
         statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
@@ -1309,7 +1320,7 @@ function handle401(error, message, highlight, orientation) {
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     }
-    else
+    else if (message)
     {
         statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
@@ -2231,7 +2242,7 @@ var Dashboard = React.createClass({displayName: "Dashboard",
         if (pinnedCharts.length === 0) {
             platformCharts = (
                 React.createElement("p", {className: "empty-help"}, 
-                    "Pin a platform chart to have it appear on the dashboard"
+                    "Pin a chart to have it appear on the dashboard"
                 )
             );
         }
@@ -7042,50 +7053,42 @@ platformsStore.getVcInstance = function ()
     return vc;
 };
 
-platformsStore.getHistorianRunning = function (platform) {
+platformsStore.getAgentRunning = function (platform, agentType) {
 
-    var historianRunning = false;
+    var agentRunning = false;
 
     if (platform)
     {
         if (platform.hasOwnProperty("agents"))
         {
-            var historian = platform.agents.find(function (agent) {     
-                return agent.name.toLowerCase().indexOf("historian") > -1;
+            var agentToFind = platform.agents.find(function (agent) {     
+                return agent.name.toLowerCase().indexOf(agentType) > -1;
             });
 
-            if (historian)
+            if (agentToFind)
             {
-                historianRunning = ((historian.process_id !== null) && (historian.return_code === null));
+                agentRunning = ((agentToFind.process_id !== null) && (agentToFind.return_code === null));
             }
         }        
     }
 
-    return historianRunning;
+    return agentRunning;
 };
 
 platformsStore.getVcHistorianRunning = function () {
 
-    var historianRunning = false;
-
-    var platform = platformsStore.getVcInstance();
-    
-    if (platform)
-    {
-        if (platform.hasOwnProperty("agents"))
-        {
-            var historian = platform.agents.find(function (agent) {     
-                return agent.name.toLowerCase().indexOf("historian") > -1;
-            });
-
-            if (historian)
-            {
-                historianRunning = ((historian.process_id !== null) && (historian.return_code === null));
-            }
-        }        
-    }
+    var platform = platformsStore.getVcInstance();    
+    var historianRunning = platformsStore.getAgentRunning(platform, "historian");
 
     return historianRunning;
+};
+
+platformsStore.getForwarderRunning = function (platformUuid) {
+
+    var platform = platformsStore.getPlatform(platformUuid);
+    var forwarderRunning = platformsStore.getAgentRunning(platform, "forwarderagent");
+
+    return forwarderRunning;
 };
 
 platformsStore.dispatchToken = dispatcher.register(function (action) {
