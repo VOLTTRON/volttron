@@ -197,14 +197,12 @@ var ControlButton = React.createClass({
 		        top: this.state.taptipY + "px"
 		    };
 
-            //TODO: add this to repository
             if (this.props.taptip.styles)
             {
                 this.props.taptip.styles.forEach(function (styleToAdd) {
                     taptipStyle[styleToAdd.key] = styleToAdd.value;
                 });
             }
-            //end TODO
 
 		    var tapTipClasses = "taptip_outer";
 

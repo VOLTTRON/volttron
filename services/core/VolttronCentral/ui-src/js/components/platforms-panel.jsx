@@ -23,6 +23,18 @@ var PlatformsPanel = React.createClass({
     componentDidMount: function () {
         platformsPanelStore.addChangeListener(this._onPanelStoreChange);
         platformsPanelItemsStore.addChangeListener(this._onPanelItemsStoreChange);
+
+        this.exteriorPanel = document.querySelector(".panel-exterior");
+        var children = this.exteriorPanel.parentNode.childNodes;
+        
+        for (var i = 0; i < children.length; i++)
+        {
+            if (children[i].classList.contains("platform-statuses"))
+            {
+                this.platformsPanel = children[i];
+                break;
+            }
+        }
     },
     componentWillUnmount: function () {
         platformsPanelStore.removeChangeListener(this._onPanelStoreChange);
@@ -38,6 +50,12 @@ var PlatformsPanel = React.createClass({
         
         if (expanded !== null)
         {
+            if (expanded === false)
+            {
+                this.platformsPanel.style.width = "";
+                this.exteriorPanel.style.width = "";
+            }
+
             var platformsList = platformsPanelItemsStore.getChildren("platforms", null);
             this.setState({platforms: platformsList});
         }
@@ -45,6 +63,8 @@ var PlatformsPanel = React.createClass({
         {
             this.setState({filterValue: ""});
             this.setState({filterStatus: ""});
+            this.platformsPanel.style.width = "";
+            this.exteriorPanel.style.width = "";
         }
     },
     _onPanelItemsStoreChange: function () {
@@ -85,15 +105,15 @@ var PlatformsPanel = React.createClass({
         var platforms;
         
         var classes = (this.state.expanded === null ? 
-                        "platform-statuses platform-collapsed" : 
+                        ["platform-statuses", "platform-collapsed"] : 
                         (this.state.expanded ? 
-                            "platform-statuses slow-open platform-expanded" :
-                            "platform-statuses slow-shut platform-collapsed")
+                            ["platform-statuses", "slow-open", "platform-expanded"] :
+                            ["platform-statuses", "slow-shut", "platform-collapsed"])
                         );
 
         var contentsStyle = { 
             display: (this.state.expanded ? "block" : "none"),
-            padding: "0px 20px 20px 10px",
+            padding: "0px 0px 20px 10px",
             clear: "right",
             width: "100%"
         };
@@ -160,7 +180,7 @@ var PlatformsPanel = React.createClass({
         );
 
         var filterUnknownIcon = (
-            <div className="status-unknown">
+            <div className="status-unknown moveDown">
                 <span>&#9644;</span>
             </div>
         );
@@ -213,13 +233,13 @@ var PlatformsPanel = React.createClass({
                 })
                 .map(function (platform) {
                     return (
-                        <PlatformsPanelItem panelItem={platform} itemPath={platform.path}/>
+                        <PlatformsPanelItem key={platform.uuid} panelItem={platform} itemPath={platform.path}/>
                     );
                 });
         }
 
         return (
-            <div className={classes}>
+            <div className={classes.join(" ")}>
                 <div className="extend-panel"
                     onClick={this._togglePanel}>{ this.state.expanded ? '\u25c0' : '\u25b6' }</div>
                 <div style={contentsStyle}>
