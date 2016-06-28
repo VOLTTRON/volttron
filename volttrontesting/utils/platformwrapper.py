@@ -4,6 +4,7 @@ from contextlib import closing
 import json
 import logging
 import os
+from os.path import dirname
 import shutil
 import sys
 import tempfile
@@ -13,27 +14,19 @@ import gevent
 from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
-from subprocess import CalledProcessError
-
-from os.path import dirname
-
 import zmq
-from volttron.platform.vip.connection import Connection
-from volttron.platform.web import build_vip_address_string
 from zmq.utils import jsonapi
 
-
-from volttron.platform.auth import AuthFile, AuthEntry
-from volttron.platform.keystore import KeyStore
-from volttron.platform.agent.utils import strip_comments
-from volttron.platform.messaging import topics
-from volttron.platform.main import start_volttron_process
-from volttron.platform.vip.agent import Agent
-from volttron.platform.vip.socket import encode_key
-from volttron.platform.aip import AIPplatform
-#from volttron.platform.control import client, server
 from volttron.platform import packaging
 from volttron.platform.agent import utils
+from volttron.platform.agent.utils import strip_comments
+from volttron.platform.aip import AIPplatform
+from volttron.platform.auth import AuthFile, AuthEntry
+from volttron.platform.keystore import KeyStore
+from volttron.platform.vip.agent import Agent
+from volttron.platform.vip.socket import encode_key
+from volttron.platform.vip.connection import Connection
+from volttron.platform.web import build_vip_address_string
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -42,6 +35,7 @@ RESTRICTED_AVAILABLE = False
 
 try:
     from volttron.restricted import (auth, certs)
+
     RESTRICTED_AVAILABLE = True
 
 except ImportError:
@@ -49,12 +43,12 @@ except ImportError:
     auth = None
     certs = None
 
-#Filenames for the config files which are created during setup and then
-#passed on the command line
+# Filenames for the config files which are created during setup and then
+# passed on the command line
 TMP_PLATFORM_CONFIG_FILENAME = "config"
 TMP_SMAP_CONFIG_FILENAME = "test-smap.ini"
 
-#Used to fill in TWISTED_CONFIG template
+# Used to fill in TWISTED_CONFIG template
 TEST_CONFIG_FILE = 'base-platform-test.json'
 
 PLATFORM_CONFIG_UNRESTRICTED = """
@@ -63,14 +57,11 @@ no-verify
 no-mobility
 """
 
-
 PLATFORM_CONFIG_RESTRICTED = """
 mobility-address = {mobility-address}
 control-socket = {tmpdir}/run/control
 resource-monitor = {resource-monitor}
 """
-
-
 
 TWISTED_CONFIG = """
 [report 0]
@@ -101,15 +92,15 @@ if os.environ.get('CI', None) is None:
     VCTRL = os.path.join(VOLTTRON_ROOT, "env/bin/volttron-ctl")
     TWISTED_START = os.path.join(VOLTTRON_ROOT, "env/bin/twistd")
 else:
-    VSTART ="volttron"
+    VSTART = "volttron"
     VCTRL = "volttron-ctl"
     TWISTED_START = "twistd"
 
 SEND_AGENT = "send"
 
 RUN_DIR = 'run'
-PUBLISH_TO = RUN_DIR+'/publish'
-SUBSCRIBE_TO = RUN_DIR+'/subscribe'
+PUBLISH_TO = RUN_DIR + '/publish'
+SUBSCRIBE_TO = RUN_DIR + '/subscribe'
 
 
 class PlatformWrapperError(StandardError):
@@ -239,7 +230,7 @@ class PlatformWrapper:
         """ Add a CURVE:.* entry to the auth.json file.
         """
         entry = AuthEntry(credentials="/CURVE:.*/")
-        authfile = AuthFile(self.volttron_home+"/auth.json")
+        authfile = AuthFile(self.volttron_home + "/auth.json")
         authfile.add(entry)
 
     def build_connection(self, peer):
@@ -286,13 +277,13 @@ class PlatformWrapper:
         if address is None:
             if use_ipc:
                 self.logit('Using IPC vip-address')
-                address = "ipc://@"+self.volttron_home+"/run/vip.socket"
+                address = "ipc://@" + self.volttron_home + "/run/vip.socket"
             else:
-                self.logit('Using vip-address '+self.vip_address)
+                self.logit('Using vip-address ' + self.vip_address)
                 address = self.vip_address
 
         if generatekeys or (publickey is None and serverkey is None and
-                                    self.encrypted):
+                                self.encrypted):
             self.logit('generating new public secret key pair')
             tf = tempfile.NamedTemporaryFile()
             ks = KeyStore(tf.name)
@@ -318,7 +309,7 @@ class PlatformWrapper:
             self.logit('platformwrapper.build_agent spawning')
             self.logit('Agent connecting to: {}'.format(agent.core.address))
             event = gevent.event.Event()
-            gevent.spawn(agent.core.run, event)#.join(0)
+            gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
 
             hello = agent.vip.hello().get(timeout=.3)
@@ -327,6 +318,7 @@ class PlatformWrapper:
         return agent
 
     def generate_key(self):
+        """ Create a curve key for the platform and return the publickey"""
         key = ''.join(zmq.curve_keypair())
         with open(os.path.join(self.volttron_home, 'curve.key'), 'w') as fd:
             fd.write(key)
@@ -349,7 +341,7 @@ class PlatformWrapper:
 
     def _append_allow_curve_key(self, publickey):
         entry = AuthEntry(credentials="CURVE:{}".format(publickey))
-        authfile = AuthFile(self.volttron_home+"/auth.json")
+        authfile = AuthFile(self.volttron_home + "/auth.json")
         authfile.add(entry)
 
     def add_capabilities(self, publickey, capabilities):
@@ -358,7 +350,8 @@ class PlatformWrapper:
         auth, auth_path = self._read_auth_file()
         cred = 'CURVE:{}'.format(publickey)
         allow = auth['allow']
-        entry = next((item for item in allow if item['credentials'] == cred), {})
+        entry = next((item for item in allow if item['credentials'] == cred),
+                     {})
         caps = entry.get('capabilities', [])
         entry['capabilities'] = list(set(caps + capabilities))
 
@@ -374,6 +367,23 @@ class PlatformWrapper:
                          use_twistd=False, mode=UNRESTRICTED, encrypt=False,
                          bind_web_address=None, volttron_central_address=None,
                          volttron_central_serverkey=None):
+        """ Start up the platform instance.
+
+        When this function completes there will be a volttron instance started
+        using the specified vip_address.  The instance will be connected to
+        via a control agent that will allow all of the functions of volttorn-ctl
+        from the command line.
+
+        :param vip_address:
+        :param auth_dict:
+        :param use_twistd:
+        :param mode:
+        :param encrypt:
+        :param bind_web_address:
+        :param volttron_central_address:
+        :param volttron_central_serverkey:
+        :return:
+        """
         os.environ['VOLTTRON_HOME'] = self.__volttron_home
         self.logit('Starting platform - VOLTTRON_HOME: {}'.format(
             self.volttron_home))
@@ -407,8 +417,9 @@ class PlatformWrapper:
         if debug_mode:
             self.skip_cleanup = True
             enable_logging = True
-        self.logit("In start up platform enable_logging is {} ".format(enable_logging))
-        assert self.mode in MODES, 'Invalid platform mode set: '+str(mode)
+        self.logit(
+            "In start up platform enable_logging is {} ".format(enable_logging))
+        assert self.mode in MODES, 'Invalid platform mode set: ' + str(mode)
         opts = None
 
         # see main.py for how we handle pub sub addresses.
@@ -438,7 +449,7 @@ class PlatformWrapper:
                      'volttron_central_serverkey': volttron_central_serverkey,
                      'platform_name': None,
                      'developer_mode': not encrypt,
-                     'log': os.path.join(self.volttron_home,'volttron.log'),
+                     'log': os.path.join(self.volttron_home, 'volttron.log'),
                      'log_config': None,
                      'monitor': True,
                      'autostart': True,
@@ -448,7 +459,7 @@ class PlatformWrapper:
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
 
-        parser =  configparser.ConfigParser()
+        parser = configparser.ConfigParser()
         parser.add_section('volttron')
         parser.set('volttron', 'vip-address', self.vip_address)
         if self.bind_web_address:
@@ -469,19 +480,21 @@ class PlatformWrapper:
             if not RESTRICTED_AVAILABLE:
                 raise ValueError("restricted is not available.")
 
-            certsdir = os.path.join(os.path.expanduser(self.env['VOLTTRON_HOME']),
-                                    'certificates')
+            certsdir = os.path.join(
+                os.path.expanduser(self.env['VOLTTRON_HOME']),
+                'certificates')
 
             print ("certsdir", certsdir)
             self.certsobj = certs.Certs(certsdir)
 
             with closing(open(pconfig, 'wb')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
-            opts = type('Options', (), {'resource-monitor':False,
+            opts = type('Options', (), {'resource-monitor': False,
                                         'verify_agents': True,
                                         'volttron_home': self.volttron_home})()
         else:
-            raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
+            raise PlatformWrapperError(
+                "Invalid platform mode specified: {}".format(mode))
 
         log = os.path.join(self.env['VOLTTRON_HOME'], 'volttron.log')
         if enable_logging:
@@ -503,10 +516,9 @@ class PlatformWrapper:
 
         # # make sure we don't return too quickly.
         gevent.sleep(0.2)
-        gevent.sleep(0.2)
         self.use_twistd = use_twistd
 
-        #TODO: Revise this to start twistd with platform.
+        # TODO: Revise this to start twistd with platform.
         if self.use_twistd:
             tconfig = os.path.join(self.volttron_home, TMP_SMAP_CONFIG_FILENAME)
 
@@ -516,7 +528,7 @@ class PlatformWrapper:
             tparams = [TWISTED_START, "-n", "smap", tconfig]
             self._t_process = subprocess.Popen(tparams, env=self.env)
             time.sleep(5)
-            #self._t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
+            # self._t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
         self.__control = Connection(self.local_vip_address, peer="control")
         # Loop until we are sure that the platform is started up.
@@ -534,51 +546,27 @@ class PlatformWrapper:
     def twistd_is_running(self):
         return self._t_process is not None
 
-    # def publish(self, topic, data):
-    #     '''Publish data to a zmq context.
-    #
-    #     The publisher is goint to use the platform that is contained within
-    #     this wrapper to write data to.
-    #     '''
-    #     if not self.zmq_context:
-    #         self.zmq_context = zmq.Context()
-    #     self.logit("binding publisher to: ", self.env['AGENT_PUB_ADDR'])
-    #     pub = zmq.Socket(self.zmq_context, zmq.PUB)
-    #     pub.bind(self.env['AGENT_PUB_ADDR'])
-    #     pub.send_multipart([topic, data])
-
-    # def fillout_file(self, filename, template, config_file):
-    #
-    #     try:
-    #         config = json.loads(open(config_file, 'r').read())
-    #     except Exception as e:
-    #         sys.stderr.write (str(e))
-    #         raise PlatformWrapperError("Could not load configuration file for tests")
-    #
-    #     config['tmpdir'] = self.tmpdir
-    #
-    #     outfile = os.path.join(self.tmpdir, filename)
-    #     with closing(open(outfile, 'w')) as cfg:
-    #         cfg.write(template.format(**config))
-    #
-    #     return outfile
 
     def direct_sign_agentpackage_creator(self, package):
         assert (RESTRICTED), "Auth not available"
         print ("wrapper.certsobj", self.certsobj.cert_dir)
-        assert(auth.sign_as_creator(package, 'creator', certsobj=self.certsobj)), "Signing as {} failed.".format('creator')
-
+        assert (auth.sign_as_creator(package, 'creator',
+                                     certsobj=self.certsobj)), "Signing as {} failed.".format(
+            'creator')
 
     def direct_sign_agentpackage_admin(self, package):
         assert (RESTRICTED), "Auth not available"
-        assert(auth.sign_as_admin(package, 'admin', certsobj=self.certsobj)), "Signing as {} failed.".format('admin')
+        assert (auth.sign_as_admin(package, 'admin',
+                                   certsobj=self.certsobj)), "Signing as {} failed.".format(
+            'admin')
 
-
-    def direct_sign_agentpackage_initiator(self, package, config_file, contract):
+    def direct_sign_agentpackage_initiator(self, package, config_file,
+                                           contract):
         assert (RESTRICTED), "Auth not available"
-        files = {"config_file":config_file,"contract":contract}
-        assert(auth.sign_as_initiator(package, 'initiator', files=files,
-                                      certsobj=self.certsobj)), "Signing as {} failed.".format('initiator')
+        files = {"config_file": config_file, "contract": contract}
+        assert (auth.sign_as_initiator(package, 'initiator', files=files,
+                                       certsobj=self.certsobj)), "Signing as {} failed.".format(
+            'initiator')
 
     def _aip(self):
         opts = type('Options', (), self.opts)
@@ -659,7 +647,7 @@ class PlatformWrapper:
         return wheel_file
 
     def install_agent(self, agent_wheel=None, agent_dir=None, config_file=None,
-        start=True):
+                      start=True):
         """Install and optionally start an agent on the platform.
 
             This function allows installation from an agent wheel or an
@@ -690,8 +678,9 @@ class PlatformWrapper:
             else:
                 if isinstance(config_file, dict):
                     from os.path import join, basename
-                    temp_config=join(self.volttron_home, basename(agent_dir) + "_config_file")
-                    with open(temp_config,"w") as fp:
+                    temp_config = join(self.volttron_home,
+                                       basename(agent_dir) + "_config_file")
+                    with open(temp_config, "w") as fp:
                         fp.write(json.dumps(config_file))
                     config_file = temp_config
             self.logit('Building agent package')
@@ -703,11 +692,15 @@ class PlatformWrapper:
         assert agent_uuid is not None
 
         if start:
+            # Wait for the agent to make sure that it is through its startup
+            # phase (This will be replaced by another method of determining
+            # this via the heartbeat mechanism.
+            gevent.sleep(1)
             assert self.is_agent_running(agent_uuid)
-        gevent.sleep(1)
         return agent_uuid
 
     def start_agent(self, agent_uuid):
+        """ Start the agent via agent uuid."""
         self.logit('Starting agent {}'.format(agent_uuid))
         self.__control.call('start_agent', agent_uuid)
         status = self.agent_status(agent_uuid)
@@ -716,55 +709,31 @@ class PlatformWrapper:
                 self._started_pids.append(status[0])
         # tuple with (pid, return status)
         return status
-        # self.logit("VOLTTRONO_HOME SETTING: {}".format(
-        #     self.env['VOLTTRON_HOME']))
-        # cmd = ['volttron-ctl', 'start', agent_uuid]
-        # p = Popen(cmd, env=self.env,
-        #           stdout=sys.stdout, stderr=sys.stderr)
-        # p.wait()
-        #
-        # # Confirm agent running
-        # cmd = ['volttron-ctl', 'status', agent_uuid]
-        # res = subprocess.check_output(cmd, env=self.env)
-        # assert 'running' in res
-        # pidpos = res.index('[') + 1
-        # pidend = res.index(']')
-        # pid = int(res[pidpos: pidend])
-        #
-        # self._started_pids.append(pid)
-        # return int(pid)
 
     def stop_agent(self, agent_uuid):
+        """ Stop the agent via agent uuid."""
         # Confirm agent running
         _log.debug("STOPPING AGENT: {}".format(agent_uuid))
         self.__control.call('stop_agent', agent_uuid)
         return self.agent_status(agent_uuid)
-        # try:
-        #     cmd = ['volttron-ctl', 'stop', agent_uuid]
-        #     res = subprocess.check_output(cmd, env=self.env)
-        # except CalledProcessError as ex:
-        #     _log.error("Exception: {}".format(ex))
-        # return self.agent_status(agent_uuid)
 
     def list_agents(self):
+        """ list the agents that are on the instance."""
         return self.__control.call('list_agents')
-        # aip = self._aip()
-        # return aip.list_agents()
 
     def remove_agent(self, agent_uuid):
         """Remove the agent specified by agent_uuid"""
         _log.debug("REMOVING AGENT: {}".format(agent_uuid))
         self.__control.call('remove_agent', agent_uuid)
         return self.agent_status(agent_uuid)
-        # try:
-        #     cmd = ['volttron-ctl', 'remove', agent_uuid]
-        #     res = subprocess.check_output(cmd, env=self.env)
-        # except CalledProcessError as ex:
-        #     _log.error("Exception: {}".format(ex))
-        # return self.agent_status(agent_uuid)
 
     def is_agent_running(self, agent_uuid):
-        return self.agent_status(agent_uuid) is not None
+        """Determine if the agent is running or not"""
+        status = self.agent_status(agent_uuid)
+
+        if status is None or status[0] is None:
+            return False
+        return status[0] > 0
 
     def agent_status(self, agent_uuid):
         _log.debug("AGENT_STATUS: {}".format(agent_uuid))
@@ -772,22 +741,6 @@ class PlatformWrapper:
         if status == [None, None]:
             status = None
         return status
-        # # Confirm agent running
-        # cmd = ['volttron-ctl', 'status', agent_uuid]
-        # pid = None
-        # try:
-        #     res = subprocess.check_output(cmd, env=self.env)
-        #
-        #     try:
-        #         pidpos = res.index('[') + 1
-        #         pidend = res.index(']')
-        #         pid = int(res[pidpos: pidend])
-        #     except:
-        #         pid = None
-        # except CalledProcessError as ex:
-        #     _log.error("Exception: {}".format(ex))
-        #
-        # return pid
 
     def build_agentpackage(self, agent_dir, config_file):
         assert os.path.exists(agent_dir)
@@ -795,56 +748,13 @@ class PlatformWrapper:
         wheel_path = packaging.create_package(agent_dir,
                                               self.packaged_dir)
         packaging.add_files_to_package(wheel_path, {
-                'config_file': os.path.join('./', config_file)
-            })
+            'config_file': os.path.join('./', config_file)
+        })
 
         return wheel_path
 
-    # def direct_build_agentpackage(self, agent_dir):
-    #     self.logit("Building agent_directory ", agent_dir)
-    #     wheel_path = packaging.create_package(os.path.join('./', agent_dir),
-    #                                           self.packaged_dir)
-    #
-    #     return wheel_path
-    #
-    # def direct_send_agent(self, package, target):
-    #     pparams = [VCTRL, SEND_AGENT, target, package]
-    #     print (pparams, "CWD", os.getcwd())
-    #     send_process = subprocess.call(pparams, env=self.env)
-    #     print ("Done sending to", target)
-    #
-    # def direct_configure_agentpackage(self, agent_wheel, config_file):
-    #     packaging.add_files_to_package(agent_wheel, {
-    #                             'config_file':os.path.join('./', config_file)
-    #                         })
-    #
-    #
-
-#     def direct_build_install_agent(self, agent_dir, config_file):
-#         agent_wheel = self.build_agentpackage(agent_dir=agent_dir,
-#             config_file=config_file)
-#         self.direct_configure_agentpackage(agent_wheel, config_file)
-#         assert(agent_wheel is not None,"Agent wheel was not built")
-#
-#         uuid = self.test_aip.install_agent(agent_wheel)
-#         #aip volttron_home, verify_agents
-#         return uuid
-# #         conn.call.start_agent()
-
-
-
-    # def direct_build_install_run_agent(self, agent_dir, config_file):
-    #     agent_uuid = self.direct_build_install_agent(agent_dir, config_file)
-    #     self.direct_start_agent(agent_uuid)
-    #     return agent_uuid
-    #
-    # def direct_build_send_agent(self, agent_dir, config_file, target):
-    #     agent_uuid = self.direct_buid_install_agent(agent_dir, config_file)
-    #     self.direct_start_agent(agent_uuid)
-    #     return agent_uuid
-
-
-    def confirm_agent_running(self, agent_name, max_retries=5, timeout_seconds=2):
+    def confirm_agent_running(self, agent_name, max_retries=5,
+                              timeout_seconds=2):
         running = False
         retries = 0
         while (not running and retries < max_retries):
@@ -861,20 +771,19 @@ class PlatformWrapper:
             time.sleep(timeout_seconds)
         return running
 
-
-    # def direct_stop_agent(self, agent_uuid):
-    #     result = self.conn.call.stop_agent(agent_uuid)
-    #     print result
-
-
     def shutdown_platform(self, cleanup=True):
-        '''Stop platform here
+        """ Shutdown the instance.
 
-           This function will shutdown the platform and attempt to kill any
-           process that the platformwrapper has started.
-        '''
+        This method will cleanup all of the agents that were installed on the
+        instance and if cleanup is True, then will remove the temporary
+        directory from the filesystem.
+
+        :param cleanup:
+        :return:
+        """
         import signal
-        self.logit('shutting down platform: PIDS: {}'.format(self._started_pids))
+        self.logit(
+            'shutting down platform: PIDS: {}'.format(self._started_pids))
         while self._started_pids:
             pid = self._started_pids.pop()
             self.logit('ending pid: {}'.format(pid))
@@ -882,7 +791,7 @@ class PlatformWrapper:
                 os.kill(pid, signal.SIGTERM)
             except:
                 self.logit('could not kill: {} '.format(pid))
-        if self._p_process != None:
+        if self._p_process is not None:
             try:
                 gevent.sleep(0.2)
                 self._p_process.terminate()
@@ -899,7 +808,7 @@ class PlatformWrapper:
             self.logit("twistd process was null")
 
         self.logit('CLEANUP IS {} skipcleanup is {}'.format(cleanup,
-                                                       self.skip_cleanup))
+                                                            self.skip_cleanup))
         if not self.skip_cleanup and cleanup:
             self.logit("Doing cleanup for {}".format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)
@@ -914,5 +823,6 @@ def mergetree(src, dst, symlinks=False, ignore=None):
         if os.path.isdir(s):
             mergetree(s, d, symlinks, ignore)
         else:
-            if not os.path.exists(d) or os.stat(src).st_mtime - os.stat(dst).st_mtime > 1:
+            if not os.path.exists(d) or os.stat(src).st_mtime - os.stat(
+                    dst).st_mtime > 1:
                 shutil.copy2(s, d)

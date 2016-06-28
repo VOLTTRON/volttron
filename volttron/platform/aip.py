@@ -183,11 +183,11 @@ ignore_enoent = IgnoreErrno(errno.ENOENT)
 
 
 class ExecutionEnvironment(object):
-    '''Environment reserved for agent execution.
+    """Environment reserved for agent execution.
 
     Deleting ExecutionEnvironment objects should cause the process to
     end and all resources to be returned to the system.
-    '''
+    """
     def __init__(self):
         self.process = None
         self.env = None
