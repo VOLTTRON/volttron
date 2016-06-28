@@ -62,40 +62,99 @@ the VOLTTRON Central demo you can stop the demos by executing
 
     ./scripts/management-service-demo/stop-platforms.sh
 
-Once the demos is complete you may wish to see the `VOLTTRON
+Once the demo is complete you may wish to see the `VOLTTRON
 Central <VOLTTRON-Central>`__ page for more details on how to configure
 the agent for your specific use case.
 
 Login
 ~~~~~
 
-| To login to the Management Platform, navigate in a browser to
+To log into the VOLTTRON Central web app, navigate in a browser to
 localhost:8080, and enter the username and password on the login screen.
-| |Login Screen|
+|Login Screen|
 
 Logout
 ~~~~~~
 
-| To logout of the Management Platform, click the link at the top right
+To log out of VOLTTRON Central, click the link at the top right
 of the screen.
-| |Logout Button|
+|Logout Button|
+
+Platforms Tree
+----------------
+
+The side panel on the left side of the screen can be extended to
+reveal the tree view of registered platforms.
+
+|Platforms Panel|
+
+|Platforms Tree|
+
+Top-level nodes in the tree are platforms. Platforms can be expanded
+in the tree to reveal installed agents, devices on buildings, and 
+performance statistics about the platform instances. 
+
+Loading the Tree
+----------------
+
+The initial state of the tree is not loaded. The first time a top-level
+node is expanded is when the items for that platform are loaded.
+
+|Load Tree|
+
+After a platform has been loaded in the tree, all the items under a node
+can be quickly expanded by double-clicking on the node.
+
+Health Status
+----------------
+
+The health status of items in the tree is indicated by the color and 
+shape next to items. A green triangle means healthy, a red circle
+means there's a problem, and a gray rectangle means the status can't
+be determined.
+
+Information about the health status also may be found by hovering the
+cursor over the item.
+
+|Status Tooltips|
+
+Filtering the Tree
+----------------
+
+The tree can be filtered by typing in the search field at the top or 
+clicking on a status button next to the search field.
+
+|Filter Name|
+
+|Filter Button|
+
+|Filter Status|
+
+Charts from Tree
+----------------
+
+Performance statistics and device points can be added to charts from
+the tree by checking boxes next to the items.
+
+|Add Charts|
 
 Platforms Screen
 ----------------
 
-| This screen lists the registered VOLTTRON Platforms, and allows new
+This screen lists the registered VOLTTRON Platforms, and allows new
 platforms to be registered by clicking the button in the top right
 corner of the screen. This includes the Platform UID as well as the
 number of agents running, stopped and installed on each platform.
-| |Platforms|
+
+|Platforms|
 
 Register new Platform
 ~~~~~~~~~~~~~~~~~~~~~
 
-| To register a new VOLTTRON Platform, click the Button in the corner of
+To register a new VOLTTRON Platform, click the button in the corner of
 the screen. You will need to provide a name and the IP address of the
 VOLTTRON Platform.
-| |Register Platform Information|
+|Register Platform Information|
 
 Deregister Platform
 ~~~~~~~~~~~~~~~~~~~
@@ -106,9 +165,9 @@ the platform display.
 Platform View
 -------------
 
-| Use the Platform View to manage a specific VOLTTRON Platform. This
+Use the Platform View to manage a specific VOLTTRON Platform. This
 includes installing agents, start/stop agents, and configuring charts.
-| |Platform Screen|
+|Platform Screen|
 
 Install Agent
 ~~~~~~~~~~~~~
@@ -119,33 +178,41 @@ the button To upload the wheel file used to install the agent.
 Start and Stop Agents
 ~~~~~~~~~~~~~~~~~~~~~
 
-| To Start or Stop an Agent, click on the button as shown in the figure.
+To Start or Stop an Agent, click on the button as shown in the figure.
 If the agent is running, its PID will be displayed.
-| |Start Agent Button|
+|Start Agent Button|
 
 Add Chart
 ~~~~~~~~~
 
-| To add a chart, click the Add Chart button. You will need to provide
+To add a chart, click the Add Chart button. You will need to provide
 the published topic the chart pulls data from. You may also select
 refresh interval and chart type as well as pin the chart to the
 dashboard.
-| |Add Chart Screen|
+|Add Chart Screen|
 
 Edit Chart
 ~~~~~~~~~~
 
-| To edit a chart, click the edit chart button. You will get a popup
+To edit a chart, click the edit chart button. You will get a popup
 window of settings for the chart, as shown in the figure. To pin the
 chart to the dashboard select the checkbox.
-| |Edit Chart Screen|
+|Edit Chart Screen|
 
 .. |Run VC Demo| image:: files/vc-run-demo.png
 .. |Login Screen| image:: files/login-screen.png
 .. |Logout Button| image:: files/logout-button.png
 .. |Platforms| image:: files/platforms.png
 .. |Register Platform Information| image:: files/register-new-platform.png
-.. |Platform Screen| image:: files/platform-default.png
+.. |Platform Screen| image:: files/manage-platforms.png
 .. |Start Agent Button| image:: files/start-agent.png
 .. |Add Chart Screen| image:: files/add-chart.png
 .. |Edit Chart Screen| image:: files/edit-chart.png
+.. |Platforms Tree| image:: files/side-panel-open.png
+.. |Platforms Panel| image:: files/side-panel-closed.png
+.. |Status Tooltips| image:: files/problems-found.png
+.. |Load Tree| image:: files/load-tree-item.png
+.. |Filter Button| image:: files/filter-button.png
+.. |Filter Name| image:: files/filter-name.png
+.. |Filter Status| image:: files/filter-status.png
+.. |Add Charts| image:: files/add-charts.png
