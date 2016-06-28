@@ -410,6 +410,8 @@ class VolttronCentralPlatform(Agent):
     # @RPC.allow("can_manage")
     def restart_agent(self, agent_uuid):
         self._control.call("restart_agent", agent_uuid)
+        gevent.sleep(0.2)
+        return self.agent_status(agent_uuid)
 
     @RPC.export
     def agent_status(self, agent_uuid):
@@ -448,7 +450,7 @@ class VolttronCentralPlatform(Agent):
                                  self.vip.rpc.call('control', method).get()]}
 
         elif method in ('agent_status', 'start_agent', 'stop_agent',
-                        'remove_agent'):
+                        'remove_agent', 'restart_agent'):
             _log.debug('We are trying to exectute method {}'.format(method))
             if isinstance(params, list) and len(params) != 1 or \
                             isinstance(params,

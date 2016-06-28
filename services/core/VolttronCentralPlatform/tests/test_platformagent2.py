@@ -38,11 +38,11 @@ def test_can_pa_install_start_stop_restart_listener(pa_wrapper):
     )]}
 
     print('Calling route_request...')
-    installed = platform.call('route_request', 'foo', 'install', files)
+    installed = platform.call('route_request', 'msgid', 'install', files)
     assert installed
     assert len(installed) == 1
     iuuid = installed[0]
-    status = platform.call('route_request', 'foo1', 'agent_status', iuuid)
+    status = platform.call('route_request', 'msgid1', 'agent_status', iuuid)
     # An agent that hasn't started will have None process id and return code.
     keys = ('process_id', 'return_code')
     for k in keys:
@@ -51,21 +51,30 @@ def test_can_pa_install_start_stop_restart_listener(pa_wrapper):
 
     # An agent that has been started/currently running will have a process_id
     # but not a return_code.
-    status = platform.call('route_request', 'foo2', 'start_agent', iuuid)
+    status = platform.call('route_request', 'msgid2', 'start_agent', iuuid)
     for k in keys:
         assert k in status.keys()
     assert status['return_code'] is None
     pid = status['process_id']
 
-    status = platform.call('route_request', 'foo3', 'stop_agent', iuuid)
+    status = platform.call('route_request', 'msgid3', 'stop_agent', iuuid)
     for k in keys:
         assert k in status.keys()
+
     #assert status['return_code'] == 0
     #pid = status['process_id']
-
     print('status is: {}'.format(status))
     assert len(status) == 2
 
+    status = platform.call('route_request', 'msgid4', 'restart_agent', iuuid)
+    for k in keys:
+        assert k in status.keys()
+
+    print('status is: {}'.format(status))
+    # assert status['return_code'] == 0
+    pid2 = status['process_id']
+    #assert len(status) == 2
+    assert pid != pid2
 
 
     #platform.inst
