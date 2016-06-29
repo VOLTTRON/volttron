@@ -70,6 +70,8 @@ from volttron.platform.messaging.utils import normtopic
 
 from dateutil.parser import parse
 
+import io
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -83,7 +85,7 @@ class SyslogAgent(Agent):
     on message bus whenever there is change on that file.
     """
 
-    def __init__(self, config_path, **kwargs):
+    def __init__(self, syslog_file_path, syslog_topic):
         """ Configures the `SyslogAgent`
 
         Validates that the outfile parameter in the config file is specified
@@ -93,34 +95,39 @@ class SyslogAgent(Agent):
         @param kwargs:
         @return:
         """
-        kwargs.pop('identity')
-        super(SyslogAgent, self).__init__(identity='syslog', **kwargs)
-        self.syslog_file_path = '/home/volttron/git/volttron/examples/SyslogAgent/syslog/temp'
-        self.topic = 'platform/syslog'
-        self.f = open(self.syslog_file_path, 'r')
-        
+        super(SyslogAgent, self).__init__(identity='syslog')
+        self.syslog_file_path = syslog_file_path
+        self.syslog_topic = syslog_topic
+                
+        with open(self.syslog_file_path, 'r') as f:
+            self.prev_end_position = self.get_end_position(f)
+            
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
-        #TODO: SEEK_END
-        self.f.seek(0,2)
         self.core.spawn(watch_file, self.syslog_file_path, self.read_syslog_file)
         
     def read_syslog_file(self):
         _log.info('loading syslog file %s', self.syslog_file_path)
-        for line in self.f.readlines():
-            self.publish_syslog(line.strip())
+        with open(self.syslog_file_path, 'r') as f:    
+            f.seek(self.prev_end_position)
+            for line in f:
+                self.publish_syslog(line.strip())
+            self.prev_end_position = self.get_end_position(f)
         
     def publish_syslog(self, line):
         print('publishing syslog line {}'.format(line))
         headers = {
                     headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
-                    #headers_mod.DATE: str(self.received_input_datetime),
                 }
         message = {'timestamp':line[:15],
-                    'line': line[15:]}
-        print(message)
-        self.vip.pubsub.publish(peer="pubsub", topic=self.topic,
+                    'line': line[15:].strip()}
+        _log.info(message)
+        self.vip.pubsub.publish(peer="pubsub", topic=self.syslog_topic,
                                 headers=headers, message=message)
+
+    def get_end_position(self, f):
+        f.seek(0,2)
+        return f.tell()
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
