@@ -215,26 +215,25 @@ the same date over again.
 
 from __future__ import absolute_import, print_function
 
-from abc import abstractmethod
-from dateutil.parser import parse
 import logging
-import re
 import sqlite3
+import threading
+import weakref
 from Queue import Queue, Empty
+from abc import abstractmethod
 from collections import defaultdict
 from datetime import datetime, timedelta
-import threading
 from threading import Thread
-import weakref
 
 import pytz
-from zmq.utils import jsonapi
-
+import re
+from dateutil.parser import parse
 from volttron.platform.agent.utils import process_timestamp, \
     fix_sqlite3_datetime, get_aware_utc_now
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
+from zmq.utils import jsonapi
 
 _log = logging.getLogger(__name__)
 
@@ -659,8 +658,10 @@ class BaseHistorianAgent(Agent):
 
     def report_handled(self, record):
         """
-        Call this from :py:meth:`BaseHistorianAgent.publish_to_historian` to report a record or
-        list of records has been successfully published and should be removed from the cache.
+        Call this from :py:meth:`BaseHistorianAgent.publish_to_historian` to
+        report a record or
+        list of records has been successfully published and should be
+        removed from the cache.
 
         :param record: Record or list of records to remove from cache.
         :type record: dict or list
@@ -673,8 +674,10 @@ class BaseHistorianAgent(Agent):
 
     def report_all_handled(self):
         """
-            Call this from :py:meth:`BaseHistorianAgent.publish_to_historian` to report that all records
-             passed to :py:meth:`BaseHistorianAgent.publish_to_historian` have been successfully published
+            Call this from :py:meth:`BaseHistorianAgent.publish_to_historian
+            ` to report that all records
+             passed to :py:meth:`BaseHistorianAgent.publish_to_historian`
+             have been successfully published
              and should be removed from the cache.
         """
         self._successful_published.add(None)
@@ -710,13 +713,18 @@ class BaseHistorianAgent(Agent):
                 ...
             ]
 
-        The contents of `meta` is not consistent. The keys in the meta data values can be different and can
-        change along with the values of the meta data. It is safe to assume that the most recent value of
-        the "meta" dictionary are the only values that are relevant. This is the way the cache
+        The contents of `meta` is not consistent. The keys in the meta data
+        values can be different and can
+        change along with the values of the meta data. It is safe to assume
+        that the most recent value of
+        the "meta" dictionary are the only values that are relevant. This is
+        the way the cache
         treats meta data.
 
-        Once one or more records are published either :py:meth:`BaseHistorianAgent.report_handled` or
-        :py:meth:`BaseHistorianAgent.report_handled` must be called to report records as being published.
+        Once one or more records are published either
+        :py:meth:`BaseHistorianAgent.report_handled` or
+        :py:meth:`BaseHistorianAgent.report_handled` must be called to
+        report records as being published.
         """
 
     def historian_setup(self):
@@ -766,7 +774,6 @@ class BackupDatabase:
                     (SELECT ROWID FROM outstanding
                     ORDER BY ROWID ASC LIMIT 100)''')
 
-
         for item in new_publish_list:
             source = item['source']
             topic = item['topic']
@@ -813,7 +820,8 @@ class BackupDatabase:
         was published.
 
         :param successful_publishes: List of records that was published.
-        :param submit_size: Number of things requested from previous call to :py:meth:`get_outstanding_to_publish`.
+        :param submit_size: Number of things requested from previous call to
+        :py:meth:`get_outstanding_to_publish`.
         :type successful_publishes: list
         :type submit_size: int
         """
@@ -945,11 +953,14 @@ class BaseQueryHistorianAgent(Agent):
         Call this method to query an Historian for time series data.
 
         :param topic: Topic to query for.
-        :param start: Start time of the query. Defaults to None which is the beginning of time.
-        :param end: End time of the query.  Defaults to None which is the end of time.
+        :param start: Start time of the query. Defaults to None which is the
+        beginning of time.
+        :param end: End time of the query.  Defaults to None which is the
+        end of time.
         :param skip: Skip this number of results.
         :param count: Limit results to this value.
-        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
+        :param order: How to order the results, either "FIRST_TO_LAST" or
+        "LAST_TO_FIRST"
         :type topic: str
         :type start: str
         :type end: str
@@ -974,10 +985,13 @@ class BaseQueryHistorianAgent(Agent):
             }
 
         The string arguments can be either the output from
-        :py:func:`volttron.platform.agent.utils.format_timestamp` or the special string "now".
+        :py:func:`volttron.platform.agent.utils.format_timestamp` or the
+        special string "now".
 
-        Times relative to "now" may be specified with a relative time string using
-        the Unix "at"-style specifications. For instance "now -1h" will specify one hour ago.
+        Times relative to "now" may be specified with a relative time string
+        using
+        the Unix "at"-style specifications. For instance "now -1h" will
+        specify one hour ago.
         "now -1d -1h -20m" would specify 25 hours and 20 minutes ago.
 
         """
@@ -1019,7 +1033,8 @@ class BaseQueryHistorianAgent(Agent):
     @abstractmethod
     def query_topic_list(self):
         """
-        This function is called by :py:meth:`BaseQueryHistorianAgent.get_topic_list`
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_topic_list`
         to actually topic list from the data store.
 
         :return: List of topics in the data store.
@@ -1048,14 +1063,16 @@ class BaseQueryHistorianAgent(Agent):
         Timestamps must be strings formatted by
         :py:func:`volttron.platform.agent.utils.format_timestamp`.
 
-        "metadata" is not required. The caller will normalize this to {} for you if it is missing.
+        "metadata" is not required. The caller will normalize this to {} for
+        you if it is missing.
 
         :param topic: Topic to query for.
         :param start: Start of query timestamp as a datetime.
         :param end: End of query timestamp as a datetime.
         :param skip: Skip this number of results.
         :param count: Limit results to this value.
-        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
+        :param order: How to order the results, either "FIRST_TO_LAST" or
+        "LAST_TO_FIRST"
         :type topic: str
         :type start: datetime
         :type end: datetime
@@ -1084,9 +1101,12 @@ class BaseHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
 # intended use.
 import ply.lex as lex
 import ply.yacc as yacc
-from dateutil.tz import gettz, tzlocal
+from dateutil.tz import gettz
+from tzlocal import get_localzone
 
-local = tzlocal()
+# use get_localzone from tzlocal instead of dateutil.tz.tzlocal as dateutil
+# tzlocal does not take into account day light savings time
+local = get_localzone()
 
 
 def now(tzstr='UTC'):
