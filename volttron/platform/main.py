@@ -82,17 +82,18 @@ from . import aip
 from . import __version__
 from . import config
 from . import vip
+from .agent import utils
+from .agent.known_identities import MASTER_WEB
+from .auth import AuthService
+from .control import ControlService
+from .syslog import SyslogAgent
 from .vip.agent import Agent, Core
 from .vip.agent.compat import CompatPubSub
 from .vip.router import *
 from .vip.socket import encode_key, Address
 from .vip.tracking import Tracker
-from .auth import AuthService
-from .control import ControlService
-from .web import MasterWebService
-from .agent import utils
-from .agent.known_identities import MASTER_WEB
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
+from .web import MasterWebService
 
 try:
     import volttron.restricted
