@@ -1,0 +1,5 @@
+This agent example is meant to be run from this directory with:
+
+$ AGENT_CONFIG=config python -m ddsagent.agent
+
+the demo_publish() output can be viewed with the rtishapes demo program.
