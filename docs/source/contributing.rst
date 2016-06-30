@@ -210,3 +210,15 @@ Removing a local branch (cannot be on it when doing this)
     git branch -D branchname
 
 
+Hooking into other services
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The main VOLTTRON repository is hooked into an automated build tool called
+travis-ci.  Your remote repository can be automatically built with the same
+tool by hooking your account into travis-ci's environment.  To do this go to
+https://travis-ci.org and create an account.  You can using your github login
+directly to this service.  Then you will need to enable the syncing of your
+repository through the travis-ci service.  Finally you need to push a new
+change to the repository.  If the build fails you will receive an email
+notifying you of that fact and allowing you to modify the souce code and then
+pushing new changes out.
