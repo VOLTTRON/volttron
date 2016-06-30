@@ -38,7 +38,7 @@ and finally change into the cloned repository.
 NOTE: VOLTTRON uses develop as its main development branch rather than the
 standard master branch (the default).
 
-::
+.. highlight:: sh
     mkdir -p ~/git
     cd ~/git
     git clone https://github.com/<YOUR USERNAME>/volttron.git develop
@@ -55,7 +55,7 @@ repository.  For this example lets assume we have made a change to README.md
 in the root of the volttron directory and add a new file called foo.py.  To
 get those files on the stage we would execute the following commands
 
-::
+.. highlight:: sh
     git add foo.py
     git add README.md
 
@@ -64,14 +64,14 @@ get those files on the stage we would execute the following commands
 
 After adding the files to the stage you can review the staged files by executing
 
-::
+.. highlight:: sh
     git status
 
 Finally in order to commit to the local repository we need to think of what
 change we actually did and be able to document it.  We do that with a commit
 message (the -m parameter) such as the following.
 
-::
+.. highlight:: sh
     git commit -m "Added new foo.py and updated copyright of README.md"
 
 Pushing to the remote repository
@@ -81,7 +81,7 @@ Next we want to be able to share our changes with the world through github.  We
 can do this by pushing the commits from your local repository out to your github
 repository.  This is done by the following command.
 
-::
+.. highlight:: sh
     git push
     # alternative where origin is the name of the remote you are pushing to
     # more on that later.
@@ -128,7 +128,7 @@ button.
 Once your remote is updated you can now pull from your remote repository into
 your local repository through the following command:
 
-::
+.. highlight:: sh
     git pull
 
 The other way to get the changes into your remote repository is to first update
@@ -138,19 +138,19 @@ to first create a second remote entry to go along with the origin.  A remote
 is simply a pointer to the url of a different repository than the current one.
 Type the following command to create a new remote called 'upstream'
 
-::
+.. highlight:: sh
     git remote add upstream https://github.com/VOLTTRON/volttron
 
 To update your local repository from the main VOLTTRON repository then execute
 the following command where upstream is the remote and develop is the branch
 to pull from.
 
-::
+.. highlight:: sh
     git pull upstream develop
 
 Finally to get the changes into your remote repository you can execute
 
-::
+.. highlight:: sh
     git push origin
 
 
@@ -166,25 +166,25 @@ went through
 Viewing what the remotes are in our local repository
 ----------------------------------------------------
 
-::
+.. highlight:: sh
     git remote -v
 
 Stashing changed files so that you can do a merge/pull from a remote
 --------------------------------------------------------------------
 
-::
+.. highlight:: sh
     git stash save 'A commment to be listed'
 
 Applying the last stashed files to the current repository
 ---------------------------------------------------------
 
-::
+.. highlight:: sh
     git stash pop
 
 Finding help about any git command
 ----------------------------------
 
-::
+.. highlight:: sh
     git help
     git help branch
     git help stash
@@ -194,19 +194,19 @@ Finding help about any git command
 Creating a branch from the branch and checking it out
 -----------------------------------------------------
 
-::
+.. highlight:: sh
     git checkout -b newbranchname
 
 Checking out a branch (if not local already will look to the remote to checkout)
 --------------------------------------------------------------------------------
 
-::
+.. highlight:: sh
     git checkout branchname
 
 Removing a local branch (cannot be on it when doing this)
 ---------------------------------------------------------
 
-::
+.. highlight:: sh
     git branch -D branchname
 
 
