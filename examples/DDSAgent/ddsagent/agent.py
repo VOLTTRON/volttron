@@ -87,6 +87,12 @@ class DDSAgent(Agent):
 
     @Core.periodic(1)
     def publish_demo(self):
+        """
+        Publish a square that follows a circular path.
+        Can be visualized by running the *rtishapesdemo*
+        program and subscribing to *square*.
+        """
+
         sample = {"shapesize": 30,
                   "color": "BLUE"}
 
@@ -102,12 +108,27 @@ class DDSAgent(Agent):
 
     @RPC.export
     def read_from_dds(self, typename):
-        reader = self.reader[typename]
+        """ RPC method
 
-        # A data access method must be called before we can
-        # examine `samples` in the vernacular of DDS.
-        # .read() does not modify the reader's receive queue
-        # .take() removes data from reader's receive queue
+        Read samples from the DDS message bus.
+
+        A data access method must be called before we can
+        examine `samples` in the vernacular of DDS. This
+        examples uses read(), which *does not* modify the
+        reader's receive queue. The other option is take(),
+        which *does* remove data from the receive queue.
+
+        :param typename: Name of the type to read.
+        :type typename: str
+        :returns: samples available on the DDS message bus
+        :rtype: list of dictionaries
+
+        .. warning:: Attempting to read a type of **typename**
+                     that was not in the config file will raise
+                     KeyError.
+        """
+
+        reader = self.reader[typename]
         reader.read()
 
         # For this example we'll return all samples we can see
@@ -130,14 +151,22 @@ class DDSAgent(Agent):
 
     @RPC.export
     def write_to_dds(self, typename, sample):
+        """ RPC method
+
+        Write sample to the DDS message bus.
+
+        :param typename: Name of the type to write.
+        :type typename: str
+        :param sample: Data to write to DDS bus.
+        :type sample: dict
+
+        .. warning:: Attempting to write to a type of **typename**
+                     that was not in the config file will raise
+                     KeyError.
+        """
+
         writer = self.writer[typename]
-
-        # We can write an entire dictionary or set
-        # struct fields individually. A dictionary
-        # will be easier in most cases.
         writer.instance.setDictionary(sample)
-
-        # Send the new data to DDS.
         writer.write()
 
 
