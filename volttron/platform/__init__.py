@@ -63,6 +63,8 @@ import os
 
 __version__ = '3.0'
 
+def set_home(home=None):
+    os.environ["VOLTTRON_HOME"] = get_home()
 
 def get_home():
     '''Return the home directory with user and variables expanded.

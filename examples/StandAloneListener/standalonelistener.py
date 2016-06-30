@@ -40,6 +40,7 @@ import gevent
 import logging
 from gevent.core import callback
 
+from volttron.platform import get_home, set_home
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.agent import utils
@@ -51,8 +52,9 @@ from settings import remote_url, topics_prefixes_to_watch, heartbeat_period
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-if "VOLTTRON_HOME" not in os.environ:
-    os.environ["VOLTTRON_HOME"] = '`/.volttron'
+# Agents need access to VOLTTRON_HOME even if running in standalone mode
+# to keep track of keys. This sets a default home.
+set_home()
 
 logging.basicConfig(
                 level=logging.debug,
