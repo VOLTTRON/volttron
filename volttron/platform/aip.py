@@ -276,7 +276,7 @@ class AIPplatform(object):
             raise
         return agent_uuid
 
-    def install_agent(self, agent_wheel):
+    def install_agent(self, agent_wheel, vip_id=None):
         while True:
             agent_uuid = str(uuid.uuid4())
             if agent_uuid in self.agents:
@@ -295,14 +295,14 @@ class AIPplatform(object):
             else:
                 unpack(agent_wheel, dest=agent_path)
 
-            self._setup_agent_vip_id(agent_uuid)
+            self._setup_agent_vip_id(agent_uuid, vip_id=vip_id)
 
         except Exception:
             shutil.rmtree(agent_path)
             raise
         return agent_uuid
 
-    def _setup_agent_vip_id(self, agent_uuid):
+    def _setup_agent_vip_id(self, agent_uuid, vip_id=None):
         agent_path = os.path.join(self.install_dir, agent_uuid)
         name = self.agent_name(agent_uuid)
         pkg = UnpackedPackage(os.path.join(agent_path,  name))
@@ -318,6 +318,9 @@ class AIPplatform(object):
                 name_template = fp.read(64)
 
             rm_id_template = True
+
+        if vip_id is not None:
+            name_template = vip_id
 
         _log.debug('Using name template "' + name_template + '" to generate VIP ID')
 

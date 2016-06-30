@@ -215,7 +215,7 @@ class ControlService(BaseAgent):
         return self._aip.agent_identity(uuid)
 
     @RPC.export
-    def install_agent(self, filename, channel_name):
+    def install_agent(self, filename, channel_name, vip_id=None):
         """ Installs an agent on the instance instance.
 
         The installation of an agent through this method involves sending
@@ -270,7 +270,7 @@ class ControlService(BaseAgent):
                 store.close()
                 channel.close(linger=0)
                 del channel
-            agent_uuid = self._aip.install_agent(path)
+            agent_uuid = self._aip.install_agent(path, vip_id=vip_id)
             _log.debug('AGENT UUID: {}'.format(agent_uuid))
             return agent_uuid #self._aip.install_agent(path)
         finally:
@@ -336,54 +336,54 @@ def filter_agent(agents, pattern, opts):
 
 def install_agent(opts):
     aip = opts.aip
-    for wheel in opts.wheel:
-        try:
-            tag, filename = wheel.split('=', 1)
-        except ValueError:
-            tag, filename = None, wheel
-        try:
-            _log.debug('Creating channel for sending the agent.')
-            channel_name = str(uuid.uuid4())
-            channel = opts.connection.server.vip.channel('control',
-                                                          channel_name)
-            _log.debug('calling control install agent.')
-            agent_uuid = opts.connection.call_no_get('install_agent',
-                                                      filename,
+    filename = opts.wheel
+    tag = opts.tag
+    vip_id = opts.vip_id
+
+    try:
+        _log.debug('Creating channel for sending the agent.')
+        channel_name = str(uuid.uuid4())
+        channel = opts.connection.server.vip.channel('control',
                                                       channel_name)
-            _log.debug('waiting for ready')
-            _log.debug('received {}'.format(channel.recv()))
+        _log.debug('calling control install agent.')
+        agent_uuid = opts.connection.call_no_get('install_agent',
+                                                  filename,
+                                                  channel_name,
+                                                  vip_id=vip_id)
+        _log.debug('waiting for ready')
+        _log.debug('received {}'.format(channel.recv()))
 
-            with open(filename, 'rb') as wheel_file_data:
-                _log.debug('sending wheel to control.')
-                while True:
-                    data = wheel_file_data.read(8125)
+        with open(filename, 'rb') as wheel_file_data:
+            _log.debug('sending wheel to control.')
+            while True:
+                data = wheel_file_data.read(8125)
 
-                    if not data:
-                        break
-                    channel.send(data)
+                if not data:
+                    break
+                channel.send(data)
 
-            _log.debug('sending done message.')
-            channel.send('done')
-            _log.debug('waiting for done')
-            _log.debug('closing channel')
+        _log.debug('sending done message.')
+        channel.send('done')
+        _log.debug('waiting for done')
+        _log.debug('closing channel')
 
-            agent_uuid = agent_uuid.get()
+        agent_uuid = agent_uuid.get()
 
-            channel.close(linger=0)
-            del channel
+        channel.close(linger=0)
+        del channel
 
-            if tag:
-                opts.connection.call('tag_agent',
-                                     agent_uuid,
-                                     tag)
-        except Exception as exc:
-            if opts.debug:
-                traceback.print_exc()
-            _stderr.write(
-                '{}: error: {}: {}\n'.format(opts.command, exc, filename))
-            return 10
-        name = opts.connection.call('agent_name', agent_uuid)
-        _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
+        if tag:
+            opts.connection.call('tag_agent',
+                                 agent_uuid,
+                                 tag)
+    except Exception as exc:
+        if opts.debug:
+            traceback.print_exc()
+        _stderr.write(
+            '{}: error: {}: {}\n'.format(opts.command, exc, filename))
+        return 10
+    name = opts.connection.call('agent_name', agent_uuid)
+    _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
 
 
 def tag_agent(opts):
@@ -1031,10 +1031,12 @@ def main(argv=sys.argv):
         return subparsers.add_parser(*args, **kwargs)
 
     install = add_parser('install', help='install agent from wheel',
-                         epilog='The wheel argument can take the form tag=wheelfile to tag the '
+                         epilog='Optionally you may specify the --tag argument to tag the '
                                 'agent during install without requiring a separate call to '
-                                'the tag command.')
-    install.add_argument('wheel', nargs='+', help='path to agent wheel')
+                                'the tag command. ')
+    install.add_argument('wheel', help='path to agent wheel')
+    install.add_argument('--tag', help='tag for the installed agent')
+    install.add_argument('--vip-id', help='VIP ID for the installed agent')
     if HAVE_RESTRICTED:
         install.add_argument('--verify', action='store_true',
                              dest='verify_agents',
