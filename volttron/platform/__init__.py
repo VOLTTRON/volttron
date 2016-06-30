@@ -64,7 +64,13 @@ import os
 __version__ = '3.0'
 
 def set_home(home=None):
-    os.environ["VOLTTRON_HOME"] = get_home()
+    '''Set the home directory with user and variables expanded.
+
+    If the home is sent in, it used.
+    Otherwise, the default value of '~/.volttron' is used.
+    '''
+    os.environ["VOLTTRON_HOME"] = home or get_home()
+    
 
 def get_home():
     '''Return the home directory with user and variables expanded.
