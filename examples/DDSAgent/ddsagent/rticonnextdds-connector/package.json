@@ -1,0 +1,41 @@
+{
+  "name": "rticonnextdds-connector",
+  "version": "0.1.5",
+  "description": "JavaScript (Node.js) binding for the RTI Connector for Connext DDS",
+  "main": "rticonnextdds-connector.js",
+  "scripts": {
+    "test": "echo \"test\""
+  },
+  "files": [
+    "rticonnextdds-connector.js",
+    "lib",
+    "examples/nodejs",
+    "examples/nodered"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rticommunity/rticonnextdds-connector.git"
+  },
+  "dependencies": {
+    "util": "*",
+    "ffi": "*",
+    "sleep": "*",
+    "events": "*",
+    "socket.io": "*"
+  },
+  "keywords": [
+    "rti",
+    "dds",
+    "connext",
+    "connector",
+    "pub",
+    "sub",
+    "pub-sub"
+  ],
+  "author": "Gianpiero Napoli <gianpiero@rti.com>",
+  "license": "See License File",
+  "bugs": {
+    "url": "https://github.com/rticommunity/rticonnextdds-connector/issues"
+  },
+  "homepage": "https://github.com/rticommunity/rticonnextdds-connector"
+}

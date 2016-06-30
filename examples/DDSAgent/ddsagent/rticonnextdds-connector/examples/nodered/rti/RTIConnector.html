@@ -1,0 +1,77 @@
+<!--
+Copyright (c) 2005-2015 Real-Time Innovations, Inc. All rights reserved.
+Permission to modify and use for internal purposes granted.
+This software is provided "as is", without warranty, express or implied.
+ -->
+
+<script type="text/x-red" data-template-name="RTIConnector">
+   <!-- data-template-name identifies the node type this is for              -->
+
+   <!-- Each of the following divs creates a field in the edit dialog.       -->
+   <!-- Generally, there should be an input for each property of the node.   -->
+   <!-- The for and id attributes identify the corresponding property        -->
+   <!-- (with the 'node-input-' prefix).                                     -->
+   <!-- The available icon classes are defined Twitter Bootstrap glyphicons  -->
+    <div class="form-row">
+        <label for="node-input-xml"><i class="fa fa-tasks"></i>XML File</label>
+        <input type="text" id="node-input-xml" placeholder="Path to the xml file">
+    </div>
+
+    <div class="form-row">
+      <label for="node-input-profile_name"><i class="fa fa-tasks"></i> Profile Name</label>
+      <input type="text" id="node-input-profile_name" placeholder="Profile Name">
+    </div>
+
+
+    <div class="form-row">
+        <label for="node-input-input_name"><i class="fa fa-tasks"></i> Input Name</label>
+        <input type="text" id="node-input-input_name" placeholder="Input Name">
+    </div>
+
+    <br/>
+    <!-- By convention, most nodes have a 'name' property. The following div -->
+    <!-- provides the necessary field. Should always be the last option      -->
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Node Name</label>
+        <input type="text" id="node-input-name" placeholder="Node Name">
+    </div>
+</script>
+
+
+<!-- Next, some simple help text is provided for the node.                   -->
+<script type="text/x-red" data-help-name="RTIConnector">
+   <!-- data-help-name identifies the node type this help is for             -->
+   <!-- This content appears in the Info sidebar when a node is selected     -->
+   <!-- The first <p> is used as the pop-up tool tip when hovering over a    -->
+   <!-- node in the palette.                                                 -->
+   <p>Simple RTISConnector input node. Just sends a single message when it starts up.
+   This is not very useful.</p>
+   <p>Outputs an object called <b>msg</b> containing <b>msg.topic</b> and
+   <b>msg.payload</b>. msg.payload is a String.</p>
+</script>
+
+<!-- Finally, the node type is registered along with all of its properties   -->
+<!-- The example below shows a small subset of the properties that can be set-->
+<script type="text/javascript">
+    RED.nodes.registerType('RTIConnector',{
+        category: 'input',      // the palette category
+        color: '#B6D6FF',
+        defaults: {             // defines the editable properties of the node
+            name: {value:""},   //  along with default values.
+            xml: {value:"", required:true},
+            xml: {value:"", required:true},
+            profile_name: {value:"", required:true},
+            input_name: {value:"", required:true},
+        },
+        inputs:0,               // set the number of inputs - only 0 or 1
+        outputs:1,              // set the number of outputs - 0 to n
+        // set the icon (held in icons dir below where you save the node)
+        icon: "myicon.png",     // saved in  icons/myicon.png
+        label: function() {     // sets the default label contents
+            return this.name||this.topic||"RTIConnector";
+        },
+        labelStyle: function() { // sets the class to apply to the label
+            return this.name?"node_label_italic":"";
+        }
+    });
+</script>

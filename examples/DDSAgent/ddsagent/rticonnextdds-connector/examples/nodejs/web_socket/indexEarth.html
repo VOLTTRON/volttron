@@ -1,0 +1,121 @@
+<html>
+
+<!--
+ (c) 2005-2015 Copyright, Real-Time Innovations, Inc.  All rights reserved.
+ RTI grants Licensee a license to use, modify, compile, and create derivative
+ works of the Software.  Licensee has the right to distribute object form only
+ for use with RTI products.  The Software is provided "as is", with no warranty
+ of any type, including any warranty for fitness for any purpose. RTI is under
+ no obligation to maintain or support the Software.  RTI shall not be liable for
+ any incidental or consequential damages arising out of the use or inability to
+ use the software.
+ -->
+
+<head>
+   <title>placemark_example.html</title>
+   <script src="/socket.io/socket.io.js"></script>
+   <script src="http://www.google.com/jsapi?key=ABQIAAAA5El50zA4PeDTEMlv-sXFfRSsTL4WIgxhMZ0ZK_kHjwHeQuOD4xTdBhxbkZWuzyYTVeclkwYHpb17ZQ"></script>
+
+
+</head>
+<body>
+   <p id="lat"></p>
+   <p id="lon"></p>
+
+<script type="text/javascript">
+   var ge;
+   var singlePM;
+   google.load("earth", "1", {"other_params":"sensor=false"});
+
+   function init() {
+      google.earth.createInstance('map3d', initCB, failureCB);
+   }
+
+   function initCB(instance) {
+
+      ge = instance;
+      ge.getWindow().setVisibility(true);
+      ge.getNavigationControl().setVisibility(ge.VISIBILITY_SHOW);
+
+      singlePM = ge.createPlacemark('');
+      singlePM.setName("shape");
+
+      moveCamera( 37.7544 ,-122.4337);
+
+   }
+
+
+   function setPM(lat, lon) {
+     // Create the placemark.
+     var placemark = singlePM;
+
+     // Set the placemark's location.
+     var point = ge.createPoint('');
+     point.setLatitude(lat);
+     point.setLongitude(lon);
+     placemark.setGeometry(point);
+
+     // Create a style map.
+     var styleMap = ge.createStyleMap('');
+
+     // Create normal style for style map.
+     var normalStyle = ge.createStyle('');
+     var normalIcon = ge.createIcon('');
+     normalIcon.setHref('http://maps.google.com/mapfiles/kml/paddle/red-circle.png');
+     normalStyle.getIconStyle().setIcon(normalIcon);
+
+     // Create highlight style for style map.
+     var highlightStyle = ge.createStyle('');
+     var highlightIcon = ge.createIcon('');
+     highlightIcon.setHref('http://google-maps-icons.googlecode.com/files/girlfriend.png');
+     highlightStyle.getIconStyle().setIcon(highlightIcon);
+     highlightStyle.getIconStyle().setScale(5.0);
+
+     styleMap.setNormalStyle(normalStyle);
+     styleMap.setHighlightStyle(highlightStyle);
+
+     // Apply stylemap to a placemark.
+     placemark.setStyleSelector(styleMap);
+
+     // Add the placemark to Earth.
+     ge.getFeatures().appendChild(placemark);
+
+
+   }
+
+   function moveCamera(lat, lon) {
+     var la = ge.createLookAt('');
+     la.set(lat, lon, 0, ge.ALTITUDE_RELATIVE_TO_GROUND, -8.541, 66.213, 20000);
+     ge.getView().setAbstractView(la);
+   }
+
+   function failureCB(errorCode) {
+   }
+
+   google.setOnLoadCallback(init);
+
+
+
+
+
+
+      var socket = io.connect('http://127.0.0.1:7400');
+      var lat = document.getElementById('lat');
+      var lon = document.getElementById('lon');
+
+      socket.on('shape', function (data) {
+        console.log('Got udpate from the server');
+        console.log('There are ' + data.x + ' users');
+
+        var latToSet = 37.7544   + data.y/2000;
+        var lonToSet = -122.4337 + data.x/2000;
+        lat.innerHTML = latToSet;
+        lon.innerHTML = lonToSet;
+        setPM( latToSet,lonToSet);
+      });
+    </script>
+
+<div id="map3d" style="height:400px; width:600px;"></div>
+
+</body>
+</html>

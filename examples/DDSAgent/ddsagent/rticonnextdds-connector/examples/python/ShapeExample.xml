@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+<!--
+ (c) 2005-2015 Copyright, Real-Time Innovations, Inc.  All rights reserved.
+ RTI grants Licensee a license to use, modify, compile, and create derivative
+ works of the Software.  Licensee has the right to distribute object form only
+ for use with RTI products.  The Software is provided "as is", with no warranty
+ of any type, including any warranty for fitness for any purpose. RTI is under
+ no obligation to maintain or support the Software.  RTI shall not be liable for
+ any incidental or consequential damages arising out of the use or inability to
+ use the software.
+ -->
+
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:noNamespaceSchemaLocation="http://community.rti.com/schema/5.1.0/rti_dds_profiles.xsd" version="5.1.0">
+
+    <!-- Qos Library -->
+	<qos_library name="QosLibrary">
+		<qos_profile name="DefaultProfile" is_default_qos="true">
+			<participant_qos>
+				<transport_builtin>
+				    <mask>UDPV4 | SHMEM</mask>
+				</transport_builtin>
+
+				<!-- Turn on monitoring -->
+				<!-- Begin Monitoring
+				<property>
+					<value>
+						<element>
+							<name>rti.monitor.library</name>
+							<value>rtimonitoring</value>
+						</element>
+						<element>
+							<name>rti.monitor.create_function_ptr</name>
+							<value>$(NDDS_MONITOR)</value>
+						</element>
+					</value>
+				</property>
+				 End Monitoring -->
+			</participant_qos>
+		</qos_profile>
+	</qos_library>
+
+    <!-- types -->
+    <types>
+
+	   	<struct name="ShapeType" extensibility="extensible">
+			<member name="color" stringMaxLength="128" id="0" type="string" key="true"/>
+			<member name="x" id="1" type="long"/>
+			<member name="y" id="2" type="long"/>
+			<member name="shapesize" id="3" type="long"/>
+		</struct>
+		<enum name="ShapeFillKind" extensibility="extensible">
+			<enumerator name="SOLID_FILL" value="0"/>
+			<enumerator name="TRANSPARENT_FILL" value="1"/>
+			<enumerator name="HORIZONTAL_HATCH_FILL" value="2"/>
+			<enumerator name="VERTICAL_HATCH_FILL" value="3"/>
+		</enum>
+		<struct name="ShapeTypeExtended" baseType="ShapeType" extensibility="extensible">
+			<member name="fillKind" id="4" type="nonBasic" nonBasicTypeName="ShapeFillKind"/>
+			<member name="angle" id="5" type="float"/>
+		</struct>
+    </types>
+
+
+    <!-- Domain Library -->
+    <domain_library name="MyDomainLibrary">
+        <domain name="MyDomain" domain_id="0">
+            <register_type name="ShapeType" kind="dynamicData" type_ref="ShapeType" />
+            <topic name="Square"    register_type_ref="ShapeType"/>
+
+        </domain>
+    </domain_library>
+
+
+    <!-- Participant library -->
+    <participant_library name="MyParticipantLibrary">
+      <domain_participant name="Zero" domain_ref="MyDomainLibrary::MyDomain">
+
+        <publisher name="MyPublisher">
+				  <data_writer name="MySquareWriter" topic_ref="Square" />
+        </publisher>
+
+        <subscriber name="MySubscriber">
+          <data_reader name="MySquareReader" topic_ref="Square" />
+        </subscriber>
+
+		  </domain_participant>
+   </participant_library>
+</dds>
