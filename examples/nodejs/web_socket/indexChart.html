@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<!--
+ (c) 2005-2015 Copyright, Real-Time Innovations, Inc.  All rights reserved.
+ RTI grants Licensee a license to use, modify, compile, and create derivative
+ works of the Software.  Licensee has the right to distribute object form only
+ for use with RTI products.  The Software is provided "as is", with no warranty
+ of any type, including any warranty for fitness for any purpose. RTI is under
+ no obligation to maintain or support the Software.  RTI shall not be liable for
+ any incidental or consequential damages arising out of the use or inability to
+ use the software.
+ -->
+
+<style>
+
+svg {
+  font: 10px sans-serif;
+}
+
+.line {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+</style>
+  <head>
+    <meta charset="utf-8" />
+    <title>Socket.IO Example</title>
+  </head>
+  <body>
+
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+<script>
+
+var n = 40,
+    random = d3.random.normal(0, .2),
+    data = d3.range(n).map(random);
+
+var margin = {top: 20, right: 20, bottom: 20, left: 40},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+var x = d3.scale.linear()
+    .domain([0, n - 1])
+    .range([0, width]);
+
+var y = d3.scale.linear()
+    .domain([-1, 250])
+    .range([height, 0]);
+
+var line = d3.svg.line()
+    .x(function(d, i) { return x(i); })
+    .y(function(d, i) { return y(d); });
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+svg.append("defs").append("clipPath")
+    .attr("id", "clip")
+  .append("rect")
+    .attr("width", width)
+    .attr("height", height);
+
+svg.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + y(0) + ")")
+    .call(d3.svg.axis().scale(x).orient("bottom"));
+
+svg.append("g")
+    .attr("class", "y axis")
+    .call(d3.svg.axis().scale(y).orient("left"));
+
+var path = svg.append("g")
+    .attr("clip-path", "url(#clip)")
+  .append("path")
+    .datum(data)
+    .attr("class", "line")
+    .attr("d", line);
+
+tick(0.5);
+
+function tick(number) {
+
+  // push a new data point onto the back
+  //data.push(random());
+  data.push(number);
+
+  // redraw the line, and slide it to the left
+  path
+      .attr("d", line)
+      .attr("transform", null)
+    .transition()
+      .duration(500)
+      .ease("linear")
+      .attr("transform", "translate(" + x(-1) + ",0)")
+      .each("end", null);
+
+  // pop the old data point off the front
+  data.shift();
+
+}
+
+</script>
+
+    <h1>Chart D3 Example</h1>
+    <h2>Current Value</h2>
+    <p id="count"></p>
+    <script src="/socket.io/socket.io.js"></script>
+
+
+
+    <script>
+      var socket = io.connect('http://127.0.0.1:7400');
+      var count = document.getElementById('count');
+      socket.on('shape', function (data) {
+        console.log('Got udpate from the server');
+        console.log('There are ' + data.x + ' users');
+        count.innerHTML = data.x
+        tick(data.x);
+      });
+    </script>
+
+  </body>
+</html>
