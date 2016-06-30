@@ -39,6 +39,7 @@ NOTE: VOLTTRON uses develop as its main development branch rather than the
 standard master branch (the default).
 
 .. code-block:: bash
+
     mkdir -p ~/git
     cd ~/git
     git clone https://github.com/<YOUR USERNAME>/volttron.git develop
