@@ -56,6 +56,7 @@ in the root of the volttron directory and add a new file called foo.py.  To
 get those files on the stage we would execute the following commands
 
 .. code-block:: bash
+
     git add foo.py
     git add README.md
 
@@ -65,6 +66,7 @@ get those files on the stage we would execute the following commands
 After adding the files to the stage you can review the staged files by executing
 
 .. code-block:: bash
+
     git status
 
 Finally in order to commit to the local repository we need to think of what
@@ -72,6 +74,7 @@ change we actually did and be able to document it.  We do that with a commit
 message (the -m parameter) such as the following.
 
 .. code-block:: bash
+
     git commit -m "Added new foo.py and updated copyright of README.md"
 
 Pushing to the remote repository
@@ -82,6 +85,7 @@ can do this by pushing the commits from your local repository out to your github
 repository.  This is done by the following command.
 
 .. code-block:: bash
+
     git push
     # alternative where origin is the name of the remote you are pushing to
     # more on that later.
@@ -129,6 +133,7 @@ Once your remote is updated you can now pull from your remote repository into
 your local repository through the following command:
 
 .. code-block:: bash
+
     git pull
 
 The other way to get the changes into your remote repository is to first update
@@ -139,6 +144,7 @@ is simply a pointer to the url of a different repository than the current one.
 Type the following command to create a new remote called 'upstream'
 
 .. code-block:: bash
+
     git remote add upstream https://github.com/VOLTTRON/volttron
 
 To update your local repository from the main VOLTTRON repository then execute
@@ -146,11 +152,13 @@ the following command where upstream is the remote and develop is the branch
 to pull from.
 
 .. code-block:: bash
+
     git pull upstream develop
 
 Finally to get the changes into your remote repository you can execute
 
 .. code-block:: bash
+
     git push origin
 
 
@@ -167,24 +175,28 @@ Viewing what the remotes are in our local repository
 ----------------------------------------------------
 
 .. code-block:: bash
+
     git remote -v
 
 Stashing changed files so that you can do a merge/pull from a remote
 --------------------------------------------------------------------
 
 .. code-block:: bash
+
     git stash save 'A commment to be listed'
 
 Applying the last stashed files to the current repository
 ---------------------------------------------------------
 
 .. code-block:: bash
+
     git stash pop
 
 Finding help about any git command
 ----------------------------------
 
 .. code-block:: bash
+
     git help
     git help branch
     git help stash
@@ -195,20 +207,29 @@ Creating a branch from the branch and checking it out
 -----------------------------------------------------
 
 .. code-block:: bash
+
     git checkout -b newbranchname
 
 Checking out a branch (if not local already will look to the remote to checkout)
 --------------------------------------------------------------------------------
 
 .. code-block:: bash
+
     git checkout branchname
 
-Removing a local branch (cannot be on it when doing this)
----------------------------------------------------------
+Removing a local branch (cannot be current branch)
+--------------------------------------------------
 
 .. code-block:: bash
+
     git branch -D branchname
 
+Determine the current and show all local branches
+-------------------------------------------------
+
+.. code-block:: bash
+
+    git branch
 
 Hooking into other services
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
