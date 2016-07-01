@@ -94,8 +94,7 @@ class ThresholdDetectionAgent(Agent):
     are greater than the specified threshold. Topics in the
     `watch_min` list trigger alerts when the published data are
     less than the specified threshold. Non-numberic data will be
-    ignored. Alerts are published to alert/TOPIC where TOPIC is the
-    watched topic.
+    ignored.
 
     Example configuration:
 
@@ -136,7 +135,7 @@ class ThresholdDetectionAgent(Agent):
                 return False
 
         def generate_callback(message, threshold, comparator):
-            """generate callback function for pubsub.subscribe"""
+            """Generate callback function for pubsub.subscribe"""
             def callback(peer, sender, bus, topic, headers, data):
                 if is_number(data):
                     if comparator(data, threshold):
