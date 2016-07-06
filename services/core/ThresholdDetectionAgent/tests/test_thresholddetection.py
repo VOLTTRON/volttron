@@ -144,7 +144,7 @@ def test_above_max(threshold_tester_agent):
     publish(threshold_tester_agent, _test_config, lambda x: x+1)
     # Only test1 should alert because test2 is disabled
     check = lambda: threshold_tester_agent.seen_alert_keys == set(['test1'])
-    assert poll_gevent_sleep(1, check)
+    assert poll_gevent_sleep(2, check)
 
 
 @pytest.mark.dev
@@ -168,6 +168,6 @@ def test_below_min(threshold_tester_agent):
     """Should get alert because values below min"""
     publish(threshold_tester_agent, _test_config, lambda x: x-1, to_max=False)
     check = lambda: threshold_tester_agent.seen_alert_keys == set(['test3'])
-    assert poll_gevent_sleep(1, check)
+    assert poll_gevent_sleep(2, check)
 
 
