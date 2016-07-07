@@ -479,8 +479,6 @@ def test_basic_function(volttron_instance, database_client):
     Test basic functionality of sql historian. Inserts three points as part of all topic and checks
     if all three got into the database
     :param volttron_instance: The instance against which the test is run
-    :param mongohistorian: instance of the sql historian tested
-    :param clean: teardown function
     """
     global query_points, db_connection
 

@@ -354,10 +354,16 @@ def publish_test_data(start_time, start_reading, count):
 @pytest.mark.aggregator
 def test_basic_function(volttron_instance, aggregate_agent, query_agent):
     """
-
-    @param aggregate_agent:
-    @param volttron_instance1:
-    @return:
+    Test the basic functionality of mongo historian.
+    1. Publish fake data
+    2. Start aggregator agent with configurtion to collect sum of data in
+    two different intervals.
+    3. Sleep for 4 minutes
+    4. Do an rpc call to historian to verify data
+    @param volttron_instance: volttron instance on which test agents are
+    installed and run
+    @param aggregate_agent: the aggregate historian being test
+    @param query_agent: fake agent used to publish and query historian
     """
     global db_connection
 

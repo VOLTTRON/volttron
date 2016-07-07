@@ -58,14 +58,12 @@ from __future__ import absolute_import, print_function
 import logging
 import sys
 
-import pymongo
 from bson.objectid import ObjectId
-from pymongo import InsertOne, ReplaceOne
+from pymongo import ReplaceOne
 from pymongo.errors import BulkWriteError
-
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
-
+from volttron.platform.dbutils import mongoutils
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '0.1'
@@ -117,41 +115,7 @@ def historian(config_path, **kwargs):
             self._topic_name_map = {}
             self._topic_meta = {}
 
-        def _get_mongo_client(self, connection_params):
 
-            database_name = connection_params['database']
-            hosts = connection_params['host']
-            ports = connection_params['port']
-            user = connection_params['user']
-            passwd = connection_params['passwd']
-
-            if isinstance(hosts, list):
-                if not ports:
-                    hosts = ','.join(hosts)
-                else:
-                    if len(ports) != len(hosts):
-                        raise StandardError(
-                            'port an hosts must have the same number of items'
-                        )
-                    hostports = zip(hosts, ports)
-                    hostports = [str(e[0]) + ':' + str(e[1]) for e in
-                                 hostports]
-                    hosts = ','.join(hostports)
-            else:
-                if isinstance(ports, list):
-                    raise StandardError(
-                        'port cannot be a list if hosts is not also a list.'
-                    )
-                hosts = '{}:{}'.format(hosts, ports)
-
-            params = {'hostsandports': hosts, 'user': user,
-                      'passwd': passwd, 'database': database_name}
-
-            mongo_uri = "mongodb://{user}:{passwd}@{hostsandports}/{database}"
-            mongo_uri = mongo_uri.format(**params)
-            mongoclient = pymongo.MongoClient(mongo_uri)
-
-            return mongoclient
 
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
@@ -246,6 +210,9 @@ def historian(config_path, **kwargs):
             "LAST_TO_FIRST"
             @return: Results of the query
             """
+            collection_name = self._data_collection
+            if agg_type and agg_period:
+                collection_name = agg_type + "_" + agg_period
 
             topic_lower = topic.lower()
             topic_id = self._topic_id_map.get(topic_lower, None)
@@ -274,7 +241,7 @@ def historian(config_path, **kwargs):
             if ts_filter:
                 find_params['ts'] = ts_filter
 
-            cursor = db[self._data_collection].find(find_params)
+            cursor = db[collection_name].find(find_params)
             cursor = cursor.skip(skip_count).limit(count)
             cursor = cursor.sort([("ts", order_by)])
             _log.debug('cursor count is: {}'.format(cursor.count()))
@@ -322,9 +289,11 @@ def historian(config_path, **kwargs):
 
         def historian_setup(self):
             _log.debug("HISTORIAN SETUP")
-            self._client = self._get_mongo_client(
+            self._client = mongoutils.get_mongo_client(
                 connection['params'])
-            self._load_topic_map()
+            self._topic_id_map, self._topic_name_map = \
+                mongoutils.get_topic_map(self._client, self._topic_collection)
+
             self._load_meta_map()
 
     MongodbHistorian.__name__ = 'MongodbHistorian'

@@ -66,9 +66,7 @@ import sys
 
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
-from volttron.platform.aggregation_utils import aggregation_utils
 from volttron.platform.dbutils import sqlutils
-from volttron.platform.vip.agent import Core
 
 _log = logging.getLogger(__name__)
 __version__ = '1.0'
@@ -77,13 +75,13 @@ __version__ = '1.0'
 class SQLAggregateHistorian(AggregateHistorian):
     """
     Agent to aggregate data in historian based on a specific time period.
-    Different instance of this agent is needed to interact with different
-    type of historians.
+    This aggregate historian aggregates data collected by SQLHistorian.
     """
+
 
     def __init__(self, config_path, **kwargs):
         """
-        Validate configuration, create connection to platform historian, create
+        Validate configuration, create connection to historian, create
         aggregate tables if necessary and set up a periodic call to
         aggregate data
         :param config_path: configuration file path
@@ -103,83 +101,29 @@ class SQLAggregateHistorian(AggregateHistorian):
         tables_def = sqlutils.get_table_def(self.config)
         self.dbfuncts = dbfuncts_class(connection['params'], tables_def)
 
-        # 2. load topic name and topic id.
-        self.topic_id_map, name_map = self.dbfuncts.get_topic_map()
 
-    @Core.receiver('onstart')
-    def _on_start(self, sender, **kwargs):
-        for agg_group in self.config['aggregations']:
+    def get_topic_map(self):
+        return self.dbfuncts.get_topic_map()
 
-            # 1. Validate and normalize aggregation period and
-            # initialize use_calendar_periods flag
-            agg_time_period = aggregation_utils.format_aggregation_time_period(
-                agg_group['aggregation_period'])
-            use_calendar_periods = agg_group.get('use_calendar_time_periods',
-                                                 False)
-            # 2. Validate aggregation details in config
-            for data in agg_group['points']:
-                if data['topic_name'] is None or self.topic_id_map[data[
-                        'topic_name'].lower()] is None:
-                    raise ValueError("Invalid topic name " + data[
-                        'topic_name'])
-                if data['aggregation_type'].upper() not in ['AVG', 'MIN',
-                                                            'MAX',
-                                                            'COUNT', 'SUM']:
-                    raise ValueError("Invalid aggregation type {}"
-                                     .format(data['aggregation_type']))
-                if data.get('min_count', 0) < 0:
-                    raise ValueError("Invalid min_count ({}). min_count "
-                                     "should be "
-                                     "an integer grater than 0".
-                                     format(data['min_count']))
-                self.dbfuncts.create_aggregate_store(data['aggregation_type'],
-                                                     agg_time_period)
-            # 3. Call parent method to set up periodic aggregation
-            # collection calls
-            self.setup_periodic_data_collection(agg_time_period,
-                                                use_calendar_periods,
-                                                agg_group['points'])
+    def is_supported_aggregation(self, agg_type):
+        return agg_type.upper() in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM']
 
-    def collect_aggregate_data(self, *args):
-        period = args[0]
-        use_calendar = args[1]
-        points = args[2]
+    def create_aggregate_store(self, agg_type, agg_time_period):
+        self.dbfuncts.create_aggregate_store(agg_type, agg_time_period)
 
-        _log.debug("Time period passed as arg  {} ".format(period))
+    def collect_aggregate(self, topic_id, agg_type, start_time, end_time):
+        return self.dbfuncts.collect_aggregate(
+            topic_id,
+            agg_type,
+            start_time,
+            end_time)
 
-        end_time, start_time = aggregation_utils.compute_aggregation_timeslice(
-            period, use_calendar)
-
-        _log.debug("After  compute period = {} start_time {} end_time {} ".
-                   format(period, start_time, end_time))
-        for data in points:
-            topic_id = self.topic_id_map[data['topic_name'].lower()]
-            agg, count = self.dbfuncts.collect_aggregate(
-                topic_id,
-                data['aggregation_type'],
-                start_time,
-                end_time)
-            if count == 0:
-                _log.warn("No records found for topic {topic} "
-                          "between {start_time} and {end_time}".
-                          format(topic=data['topic_name'],
-                                 start_time=start_time,
-                                 end_time=end_time))
-            elif count < data.get('min_count', 0):
-                _log.warn("Skipping recording of aggregate data for {topic} "
-                          "between {start_time} and {end_time} as number of "
-                          "records is less than minimum allowed("
-                          "{count})".format(topic=data['topic_name'],
-                                            start_time=start_time,
-                                            end_time=end_time,
-                                            count=data.get('min_count', 0)))
-            else:
-                self.dbfuncts.insert_aggregate(data['aggregation_type'],
-                                               period,
-                                               end_time,
-                                               topic_id,
-                                               agg)
-
+    def insert_aggregate(self, agg_type, period, end_time, topic_id, value):
+        self.dbfuncts.insert_aggregate(agg_type,
+                                       period,
+                                       end_time,
+                                       topic_id,
+                                       value)
 
 def main(argv=sys.argv):
     """Main method called by the eggsecutable."""

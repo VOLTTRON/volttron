@@ -64,7 +64,6 @@ from datetime import datetime
 import os
 from basedb import DbDriver
 from volttron.platform.agent import utils
-from volttron.platform.aggregation_utils import aggregation_utils
 from zmq.utils import jsonapi
 
 utils.setup_logging()
@@ -154,8 +153,6 @@ class SqlLiteFuncts(DbDriver):
         """
         table_name = self.data_table
         if agg_type and agg_period:
-            agg_period = aggregation_utils.format_aggregation_time_period(
-                agg_period)
             table_name = agg_type + "_" + agg_period
 
         query = '''SELECT ts, value_string
