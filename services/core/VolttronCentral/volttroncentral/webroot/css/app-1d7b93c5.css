@@ -874,6 +874,14 @@ br + .form__control-help {
     transform: translateY(-2px);
 }
 
+.moveMax {
+    transform: translateY(-8px);
+}
+
+.moveMin {
+    transform: translateY(4px);
+}
+
 .error {
     border: 1px solid #faa;
     background-color: #fee;
