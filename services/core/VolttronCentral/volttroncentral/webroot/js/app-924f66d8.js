@@ -2796,6 +2796,8 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
         state.refreshInterval = this.props.chart.refreshInterval;
         state.pinned = this.props.chart.pinned;
 
+        state.refreshing = false;
+
         return state;
     },
     componentDidMount: function () {
@@ -2808,8 +2810,11 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
     },
     _onStoresChange: function () {
 
+        this.setState({refreshing: false});
+
         if (this.props.chart.data.length > 0)
         {
+
             var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
 
             if (refreshInterval !== this.state.refreshInterval)
@@ -2826,6 +2831,8 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
         
         if (this.props.hasOwnProperty("chart"))
         {
+            this.setState({refreshing: true});
+
             platformChartActionCreators.refreshChart(
                 this.props.chart.series
             );
@@ -2878,13 +2885,36 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
             );
         }
 
+        var refreshingIcon;
+
+        if (this.state.refreshing)
+        {
+            refreshingIcon = React.createElement("span", {className: "refreshIcon"}, React.createElement("i", {className: "fa fa-refresh fa-spin fa-fw"}));
+        } 
+
+        var containerStyle = {
+            width: "100%",
+            textAlign: "center"
+        }
+
+        var innerStyle = {
+            width: (chartData.data[0].name.length > 10 ? chartData.data[0].name.length * 10 : 100) + "px",
+            marginLeft: "auto",
+            marginRight: "auto"
+        }
+
         if (chartData)
         {
             if (chartData.data.length > 0)
             {
                 platformChart = (
                   React.createElement("div", {className: "platform-chart with-3d-shadow with-transitions absolute_anchor"}, 
-                      React.createElement("label", {className: "chart-title"}, chartData.data[0].name), 
+                      React.createElement("div", {style: containerStyle}, 
+                        React.createElement("div", {className: "absolute_anchor", style: innerStyle}, 
+                            React.createElement("label", {className: "chart-title"}, chartData.data[0].name), 
+                            refreshingIcon
+                        )
+                      ), 
                       removeButton, 
                       React.createElement("div", null, 
                           React.createElement("div", {className: "viz"}, 

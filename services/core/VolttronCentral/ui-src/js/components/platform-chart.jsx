@@ -23,6 +23,8 @@ var PlatformChart = React.createClass({
         state.refreshInterval = this.props.chart.refreshInterval;
         state.pinned = this.props.chart.pinned;
 
+        state.refreshing = false;
+
         return state;
     },
     componentDidMount: function () {
@@ -35,8 +37,11 @@ var PlatformChart = React.createClass({
     },
     _onStoresChange: function () {
 
+        this.setState({refreshing: false});
+
         if (this.props.chart.data.length > 0)
         {
+
             var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
 
             if (refreshInterval !== this.state.refreshInterval)
@@ -53,6 +58,8 @@ var PlatformChart = React.createClass({
         
         if (this.props.hasOwnProperty("chart"))
         {
+            this.setState({refreshing: true});
+
             platformChartActionCreators.refreshChart(
                 this.props.chart.series
             );
@@ -105,13 +112,36 @@ var PlatformChart = React.createClass({
             );
         }
 
+        var refreshingIcon;
+
+        if (this.state.refreshing)
+        {
+            refreshingIcon = <span className="refreshIcon"><i className="fa fa-refresh fa-spin fa-fw"></i></span>;
+        } 
+
+        var containerStyle = {
+            width: "100%",
+            textAlign: "center"
+        }
+
+        var innerStyle = {
+            width: (chartData.data[0].name.length > 10 ? chartData.data[0].name.length * 10 : 100) + "px",
+            marginLeft: "auto",
+            marginRight: "auto"
+        }
+
         if (chartData)
         {
             if (chartData.data.length > 0)
             {
                 platformChart = (
                   <div className="platform-chart with-3d-shadow with-transitions absolute_anchor">
-                      <label className="chart-title">{chartData.data[0].name}</label>
+                      <div style={containerStyle}>
+                        <div className="absolute_anchor" style={innerStyle}>
+                            <label className="chart-title">{chartData.data[0].name}</label> 
+                            {refreshingIcon}
+                        </div>
+                      </div>
                       {removeButton}
                       <div>
                           <div className='viz'>        
