@@ -128,7 +128,7 @@ var platformChartActionCreators = {
                     var inSavedChart = savedCharts.find(function (chart) {
                         return chart.chartKey === panelItem.name;
                     });
-
+                    
                     if (inSavedChart)
                     {
                         platformActionCreators.saveCharts(savedCharts);
