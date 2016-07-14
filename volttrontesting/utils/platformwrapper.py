@@ -488,9 +488,9 @@ class PlatformWrapper:
         aip.setup()
         return aip
 
-    def _install_agent(self, wheel_file, start):
+    def _install_agent(self, wheel_file, start, vip_id):
         aip = self._aip()
-        auuid = aip.install_agent(wheel_file)
+        auuid = aip.install_agent(wheel_file, vip_id=vip_id)
         assert auuid is not None
         if start:
             self.logit('STARTING: {}'.format(wheel_file))
@@ -532,7 +532,7 @@ class PlatformWrapper:
         return results
 
     def install_agent(self, agent_wheel=None, agent_dir=None, config_file=None,
-        start=True):
+        start=True, vip_id=None):
         '''Install and optionally start an agent on the platform.
 
             This function allows installation from an agent wheel or an
@@ -571,7 +571,7 @@ class PlatformWrapper:
             wheel_file = self.build_agentpackage(agent_dir, config_file)
             assert wheel_file
 
-        agent_uuid = self._install_agent(wheel_file, start)
+        agent_uuid = self._install_agent(wheel_file, start, vip_id)
 
         assert agent_uuid is not None
 

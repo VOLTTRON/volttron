@@ -277,7 +277,8 @@ def sqlhistorian(request, volttron_instance, query_agent):
     agent_uuid = volttron_instance.install_agent(
         agent_dir="services/core/SQLHistorian",
         config_file=request.param,
-        start=True)
+        start=True,
+        vip_id='platform.historian')
     print("agent id: ", agent_uuid)
     identity = query_agent.vip.rpc.call(
             'control', 'agent_vip_identity',
@@ -322,6 +323,7 @@ def sqlhistorian(request, volttron_instance, query_agent):
             print("closed connection to db")
         if volttron_instance.is_running():
             volttron_instance.stop_agent(agent_uuid)
+        volttron_instance.remove_agent(agent_uuid)
     request.addfinalizer(stop_agent)
     return request.param['agentid']
 
