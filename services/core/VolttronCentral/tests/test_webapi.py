@@ -36,7 +36,7 @@ def web_api_tester(request, vc_instance, pa_instance):
 
 
 @pytest.fixture
-def get_wrappers(request):
+def get_platform_wrappers(request):
     def get_n_wrappers(n, **kwargs):
         get_n_wrappers.count = n
         instances = []
@@ -56,10 +56,10 @@ def get_wrappers(request):
 
 
 @pytest.mark.vc
-def test_autoreg_with_local_platform(get_wrappers):
+def test_autoreg_with_local_platform(get_platform_wrappers):
     # Create a wrapper object that we can install both the VOLTTRON_CENTRAL
     # and the VOLTTRON_CENTRL_PLATFORM on.
-    wrapper = get_wrappers(1)[0]
+    wrapper = get_platform_wrappers(1)[0]
     # Build an http address that we can start serving during platform startup.
     vc_http = get_rand_http_address()
     vc_tcp = get_rand_tcp_address()
@@ -94,13 +94,14 @@ def test_autoreg_with_local_platform(get_wrappers):
     vcpuuid = wrapper.install_agent(agent_dir=VOLTTRON_CENTRAL_PLATFORM_PATH,
                                     config_file={})
     assert vcpuuid
+
+    poll_gevent_sleep(max_seconds=2,
+                      condition=lambda: len(api.list_platforms().json()['result']) == 1)
+
     # Now we should have more than a single result.
     jsonresp = api.list_platforms().json()
     # make sure we get back a valid json-rpc response.
     json_validate_response(jsonresp)
-
-    poll_gevent_sleep(max_seconds=5,
-                      condition=lambda: len(api.list_platforms().json()['result']) == 1)
     # Now we should have an instance running
     assert len(jsonresp['result']) == 1
 
