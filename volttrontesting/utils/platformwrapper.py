@@ -126,11 +126,11 @@ def build_vip_address(dest_wrapper, agent):
 
 class PlatformWrapper:
     def __init__(self, volttron_home=None):
-        '''Initializes a new volttron environment
+        """Initializes a new volttron environment
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory for
         agents that are built.
-        '''
+        """
         if volttron_home is None:
             self.__volttron_home = tempfile.mkdtemp()
 
@@ -158,6 +158,8 @@ class PlatformWrapper:
         self.__volttron_central_serverkey = None
         self.__local_vip_address = None
         self.__control = None
+        self.__use_twistd = False
+        self.__skip_cleanup = False
         self.logit('Creating platform wrapper')
 
     def logit(self, message):
@@ -170,6 +172,14 @@ class PlatformWrapper:
     @property
     def bind_web_address(self):
         return self.__bind_web_address
+
+    @property
+    def use_twistd(self):
+        return self.__use_twistd
+
+    @property
+    def skip_cleanup(self):
+        return self.__skip_cleanup
 
     @bind_web_address.setter
     def bind_web_address(self, value):
@@ -413,9 +423,9 @@ class PlatformWrapper:
         debug_mode = os.environ.get('DEBUG_MODE', False)
         if not debug_mode:
             debug_mode = os.environ.get('DEBUG', False)
-        self.skip_cleanup = os.environ.get('SKIP_CLEANUP', False)
+        self.__skip_cleanup = os.environ.get('SKIP_CLEANUP', False)
         if debug_mode:
-            self.skip_cleanup = True
+            self.__skip_cleanup = True
             enable_logging = True
         self.logit(
             "In start up platform enable_logging is {} ".format(enable_logging))
@@ -516,10 +526,10 @@ class PlatformWrapper:
 
         # # make sure we don't return too quickly.
         gevent.sleep(0.2)
-        self.use_twistd = use_twistd
+        self.__use_twistd = use_twistd
 
         # TODO: Revise this to start twistd with platform.
-        if self.use_twistd:
+        if self.__use_twistd:
             tconfig = os.path.join(self.volttron_home, TMP_SMAP_CONFIG_FILENAME)
 
             with closing(open(tconfig, 'w')) as cfg:
@@ -801,10 +811,10 @@ class PlatformWrapper:
         else:
             self.logit("platform process was null")
 
-        if self.use_twistd and self._t_process != None:
+        if self.__use_twistd and self._t_process != None:
             self._t_process.kill()
             self._t_process.wait()
-        elif self.use_twistd:
+        elif self.__use_twistd:
             self.logit("twistd process was null")
 
         self.logit('CLEANUP IS {} skipcleanup is {}'.format(cleanup,
