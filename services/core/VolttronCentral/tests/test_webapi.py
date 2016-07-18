@@ -4,14 +4,27 @@ import pytest
 from volttron.platform.jsonrpc import json_validate_response
 
 from volttrontesting.utils.platformwrapper import PlatformWrapper
-from volttrontesting.utils.servicepaths import VOLTTRON_CENTRAL_PLATFORM_PATH, \
-    VOLTTRON_CENTRAL_PATH
-from volttrontesting.utils.utils import poll_gevent_sleep, get_rand_http_address, \
-    get_rand_tcp_address
+from volttrontesting.utils.servicepaths import (
+    VOLTTRON_CENTRAL_PLATFORM_PATH, VOLTTRON_CENTRAL_PATH)
+from volttrontesting.utils.utils import (
+    poll_gevent_sleep, get_rand_http_address, get_rand_tcp_address)
 from volttrontesting.utils.webapi import (
     WebAPI, FailedToGetAuthorization, check_multiple_platforms,
     validate_response, authenticate, do_rpc, validate_at_least_one,
     each_result_contains)
+
+# Default configuration dictionary.  To modify make a deep copy of this
+# dictionary and then use that reference rather than modifying here.
+VC_DEFAULT_CONFIG = {
+    "users": {
+        "admin": {
+            "password": hashlib.sha512("admin").hexdigest(),
+            "groups": [
+                "admin"
+            ]
+        }
+    }
+}
 
 
 @pytest.fixture(scope="function")
@@ -51,8 +64,27 @@ def get_platform_wrappers(request):
                 get_n_wrappers.wrappers[i].volttron_home
             ))
             get_n_wrappers.wrappers[i].shutdown_platform()
+
     request.addfinalizer(cleanup)
     return get_n_wrappers
+
+
+def install_volttron_central(wrapper):
+    assert wrapper.is_running()
+    # Install the volttron central agent.
+    vcuuid = wrapper.install_agent(agent_dir=VOLTTRON_CENTRAL_PATH,
+                                   config_file=VC_DEFAULT_CONFIG)
+    assert vcuuid
+    return vcuuid
+
+
+def install_volttron_central_platform(wrapper, config_dict={}):
+    assert wrapper.is_running()
+    # Install the volttron central agent.
+    vcpuuid = wrapper.install_agent(agent_dir=VOLTTRON_CENTRAL_PLATFORM_PATH,
+                                    config_file=config_dict)
+    assert vcpuuid
+    return vcpuuid
 
 
 @pytest.mark.vc
@@ -66,21 +98,8 @@ def test_autoreg_with_local_platform(get_platform_wrappers):
     wrapper.startup_platform(vip_address=vc_tcp, bind_web_address=vc_http,
                              encrypt=True)
 
-    vc_config = {
-        "users": {
-            "admin":{
-                "password": hashlib.sha512("admin").hexdigest(),
-                "groups": [
-                    "admin"
-                ]
-            }
-        }
-    }
-
-    # Install the volttron central agent.
-    vcuuid = wrapper.install_agent(agent_dir=VOLTTRON_CENTRAL_PATH,
-                                   config_file=vc_config)
-    assert vcuuid
+    # Create a volttron central instance.
+    install_volttron_central(wrapper)
 
     api = WebAPI(url="{}/jsonrpc".format(vc_http),
                  username="admin", password="admin")
@@ -90,25 +109,25 @@ def test_autoreg_with_local_platform(get_platform_wrappers):
     # No platforms are registered with vc yet.
     assert len(jsonresp['result']) == 0
 
-    # Install the volttron central platform agent.
-    vcpuuid = wrapper.install_agent(agent_dir=VOLTTRON_CENTRAL_PLATFORM_PATH,
-                                    config_file={})
-    assert vcpuuid
+    install_volttron_central_platform(wrapper)
 
     poll_gevent_sleep(max_seconds=2,
-                      condition=lambda: len(api.list_platforms().json()['result']) == 1)
+                      condition=lambda: len(
+                          api.list_platforms().json()['result']) == 1)
 
     # Now we should have more than a single result.
     jsonresp = api.list_platforms().json()
+
     # make sure we get back a valid json-rpc response.
     json_validate_response(jsonresp)
+
     # Now we should have an instance running
     assert len(jsonresp['result']) == 1
 
 
 @pytest.mark.vc
-def test_auto_register_platform(vc_instance):
-    vc, vcuuid, jsonrpc = vc_instance
+def test_autoreg_remote_platforms(get_platform_wrappers):
+    vc_wrapper, pa_wrapper1, pa_wrapper2 = get_platform_wrappers(3)
 
     adir = VOLTTRON_CENTRAL_PLATFORM_PATH
     print("VCP IS: " + adir)
