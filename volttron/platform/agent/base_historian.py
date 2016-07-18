@@ -368,7 +368,7 @@ class BaseHistorianAgent(Agent):
 
     def _capture_record_data(self, peer, sender, bus, topic, headers,
                              message):
-        _log.debug('Capture record data {}'.format(message))
+        _log.debug('Capture record data {}'.format(topic))
         # Anon the topic if necessary.
         topic = self._get_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
@@ -497,8 +497,6 @@ class BaseHistorianAgent(Agent):
         if timestamp_string is not None:
             timestamp, my_tz = process_timestamp(timestamp_string, topic)
         try:
-            _log.debug(
-                "### In capture_data Actual message {} ".format(message))
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
             if sender == 'pubsub.compat':
