@@ -598,17 +598,6 @@ class AIPplatform(object):
                      ((logging.INFO, line.rstrip('\r\n'))
                       for line in proc.stdout))
 
-    def launch_agent(self, agent_path):
-        while True:
-            agent_uuid = str(uuid.uuid4())
-            if not (agent_uuid in self.agents or
-                    os.path.exists(os.path.join(self.install_dir, agent_uuid))):
-                break
-        if not os.path.exists(agent_path):
-            msg = 'agent not found: {}'.format(agent_path)
-            _log.error(msg)
-            raise ValueError(msg)
-        self._launch_agent(agent_uuid, os.path.abspath(agent_path))
 
     def agent_status(self, agent_uuid):
         execenv = self.agents.get(agent_uuid)
