@@ -30,7 +30,7 @@ class WebAPI(object):
         parsed = urlparse.urlparse(url)
         test_url = '{}://{}'.format(parsed.scheme, parsed.netloc)
         response = requests.get(test_url)
-        if not response.ok():
+        if not response.ok:
             raise ValueError('url not resolvable.')
         self._url = url
         self._username = username
