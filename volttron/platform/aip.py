@@ -523,7 +523,10 @@ class AIPplatform(object):
         _log.warning('missing execution requirements: %s', execreqs_json)
         return {}
 
-    def _launch_agent(self, agent_uuid, agent_path, name=None):
+    def start_agent(self, agent_uuid):
+        name = self.agent_name(agent_uuid)
+        agent_path = os.path.join(self.install_dir, agent_uuid, name)
+
         execenv = self.agents.get(agent_uuid)
         if execenv and execenv.process.poll() is None:
             _log.warning('request to start already running agent %s', agent_path)
@@ -568,6 +571,18 @@ class AIPplatform(object):
         environ['AGENT_UUID'] = agent_uuid
         environ['_LAUNCHED_BY_PLATFORM'] = '1'
 
+        #For backwards compatibility create the identity file if it does not exist.
+        identity_file = os.path.join(self.install_dir, agent_uuid, "IDENTITY")
+        if not os.path.exists(identity_file):
+            _log.debug('IDENTITY FILE MISSING: CREATING IDENTITY FILE WITH VALUE: {}'.format(agent_uuid))
+            with open(identity_file, 'wb') as fp:
+                fp.write(agent_uuid)
+
+        with open(identity_file, 'rb') as fp:
+            agent_vip_identity = fp.read()
+
+        environ['AGENT_VIP_ID'] = agent_vip_identity
+
         module, _, func = module.partition(':')
         if func:
             code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module, func)
@@ -598,17 +613,13 @@ class AIPplatform(object):
                      ((logging.INFO, line.rstrip('\r\n'))
                       for line in proc.stdout))
 
-
     def agent_status(self, agent_uuid):
         execenv = self.agents.get(agent_uuid)
         if execenv is None:
             return (None, None)
         return (execenv.process.pid, execenv.process.poll())
 
-    def start_agent(self, agent_uuid):
-        name = self.agent_name(agent_uuid)
-        self._launch_agent(
-            agent_uuid, os.path.join(self.install_dir, agent_uuid, name), name)
+
 
     def stop_agent(self, agent_uuid):
         try:

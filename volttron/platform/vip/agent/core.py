@@ -68,6 +68,7 @@ import sys
 import threading
 import time
 import urlparse
+import uuid
 
 import gevent.event
 from zmq import green as zmq
@@ -83,6 +84,7 @@ from .. import router
 from .... import platform
 from volttron.platform.keystore import KeyStore
 from volttron.platform.agent import utils
+
 
 __all__ = ['BasicCore', 'Core', 'killing']
 
@@ -420,7 +422,7 @@ class Core(BasicCore):
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
-        self.identity = identity
+        self.identity = os.environ.get('AGENT_VIP_ID', None)
         self.agent_uuid = os.environ.get('AGENT_UUID', None)
 
         # The public and secret keys are obtained by:
@@ -441,29 +443,13 @@ class Core(BasicCore):
         self.publickey = publickey
         self.secretkey = secretkey
 
-        #If we are an installed agent load our identity from the IDENTITY file.
-        #For backwards compatibility create identity file if it
-        #does not exist.
-        if self.agent_uuid:
-            installed_path = os.path.join(
-                os.environ['VOLTTRON_HOME'], 'agents', self.agent_uuid)
-            identity_path = os.path.join(installed_path, 'IDENTITY')
-            if not os.path.exists(identity_path):
-                _log.debug('CREATING IDENTITY FILE')
-                with open(identity_path, 'wb') as fp:
-                    fp.write(self.identity)
+        if self.identity is None:
+            # We didn't get a identity from the environment so try our parameters.
+            if identity is not None:
+                self.identity = identity
             else:
-                _log.debug('IDENTITY FILE EXISTS FOR {}'
-                    .format(self.agent_uuid))
-
-            with open(identity_path, 'rb') as fp:
-                self.identity = fp.read()
-
-        if self.identity is not None:
-            _log.debug('VIP ID SET TO {}'.format(self.identity))
-        else:
-            _log.debug('VIP ID SET BY ROUTER')
-
+                # We didn't get a identity from our parameters either so now we make one up.
+                self.identity = str(uuid.uuid4())
 
         self.socket = None
         self.subsystems = {'error': self.handle_error}
