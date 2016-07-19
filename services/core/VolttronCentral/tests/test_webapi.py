@@ -87,21 +87,30 @@ def install_volttron_central_platform(wrapper, config_dict={}):
     return vcpuuid
 
 
+def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
+                           volttron_central_address=None):
+    assert not wrapper.is_running()
+
+    vc_http = get_rand_http_address() if with_http else None
+    vc_tcp = get_rand_tcp_address() if with_tcp else None
+    wrapper.startup_platform(encrypt=True, vip_address=vc_tcp,
+                             bind_web_address=vc_http,
+                             volttron_central_address=volttron_central_address)
+    assert wrapper.is_running()
+
+
 @pytest.mark.vc
 def test_autoreg_with_local_platform(get_platform_wrappers):
     # Create a wrapper object that we can install both the VOLTTRON_CENTRAL
     # and the VOLTTRON_CENTRL_PLATFORM on.
     wrapper = get_platform_wrappers(1)[0]
-    # Build an http address that we can start serving during platform startup.
-    vc_http = get_rand_http_address()
-    vc_tcp = get_rand_tcp_address()
-    wrapper.startup_platform(vip_address=vc_tcp, bind_web_address=vc_http,
-                             encrypt=True)
+
+    start_wrapper_platform(wrapper, with_http=True, with_tcp=True)
 
     # Create a volttron central instance.
     install_volttron_central(wrapper)
 
-    api = WebAPI(url="{}/jsonrpc".format(vc_http),
+    api = WebAPI(url="{}/jsonrpc".format(wrapper.bind_web_address),
                  username="admin", password="admin")
     jsonresp = api.list_platforms().json()
     # make sure we get back a valid json-rpc response.
