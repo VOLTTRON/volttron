@@ -7,6 +7,8 @@ Description
 
 An aggregate historian computes aggregates of data stored in a given volttron historian's data store. Different implementation of this historian is required for different data store type. It runs periodically to compute aggregate data and store it in new tables/collections in the historian's data store.
 
+.. image:: files/aggregate_historian.jpg
+
 
 Software Interfaces
 ===================
