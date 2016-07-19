@@ -112,7 +112,8 @@ class AlertMonitorAgent(Agent):
         super(AlertMonitorAgent, self).__init__(identity='alert.monitor',
                                                 **kwargs)
 
-    @PubSub.subscribe("pubsub", topics.ALERTS_BASE.format())
+    @PubSub.subscribe("pubsub", topics.ALERTS.format(agent_class='',
+                      agent_uuid=''))
     def onmessage(self, peer, sender, bus, topic, headers, message):
         with open(self._outfile, 'a') as f:
             f.write("headers: {} message: {}\n".format(headers, message))
