@@ -605,7 +605,7 @@ def test_topic_name_case_change(volttron_instance, database_client):
 
 
     finally:
-        volttron_instance.stop_agent(agent_uuid
+        volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
 
 
