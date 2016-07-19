@@ -138,46 +138,60 @@ def test_autoreg_with_local_platform(get_platform_wrappers):
 def test_autoreg_remote_platforms(get_platform_wrappers):
     vc_wrapper, pa_wrapper1, pa_wrapper2 = get_platform_wrappers(3)
 
-    adir = VOLTTRON_CENTRAL_PLATFORM_PATH
-    print("VCP IS: " + adir)
-    pauuid = vc.install_agent(agent_dir=adir, config_file={})
-    assert pauuid
+    # Build an http address that we can start serving during platform startup.
+    vc_http = get_rand_http_address()
+    vc_tcp = get_rand_tcp_address()
+    vc_wrapper.startup_platform(vip_address=vc_tcp, bind_web_address=vc_http,
+                                encrypt=True)
 
-    webtest = WebAPI(jsonrpc)
-    resp = webtest.call('list_platforms').json()
-    assert len(resp['result']) == 1
+    install_volttron_central(vc_wrapper)
 
-    def redo_request():
-        response = webtest.call("list_platforms")
-        print('Response is: {}'.format(response.json()))
-        jsonresp = response.json()
-        if len(jsonresp['result']) > 0:
-            p = jsonresp['result'][0]
-            assert p['uuid']
-            assert p['name'] == 'local'
-            assert isinstance(p['health'], dict)
-            # assert STATUS_GOOD == p['health']['status']
+    # Connect to the web api
+    api = WebAPI(url="{}/jsonrpc".format(vc_http),
+                 username="admin", password="admin")
 
-            return True
-        return len(response.json()['result']) > 0
+    jsonresp = api.list_platforms().json()
+    # make sure we get back a valid json-rpc response.
+    json_validate_response(jsonresp)
+    # No platforms are registered with vc yet.
+    assert len(jsonresp['result']) == 0
 
-    assert poll_gevent_sleep(6, redo_request)
-    response = webtest.call("list_platforms")
-    assert len(response.json()['result']) > 0
-    jsondata = response.json()
-    # Specific platform not the same as vcp on the platform
-    platform_uuid = jsondata['result'][0]['uuid']
-    # Remove the agent.
-    vc.remove_agent(pauuid)
-    assert len(vc.list_agents()) == 1
-    newpauuid = vc.install_agent(agent_dir=adir, config_file=adir + "config")
-    assert newpauuid != pauuid
-    assert poll_gevent_sleep(6, redo_request)
-    response = webtest.call("list_platforms")
-    jsondata = response.json()
-    # Specific platform not the same as vcp on the platform
-    platform_uuid2 = jsondata['result'][0]['uuid']
-    assert platform_uuid == platform_uuid2
+    # Create First Remote Platform
+    start_wrapper_platform(pa_wrapper1,
+                           volttron_central_address=vc_wrapper.bind_web_address)
+    install_volttron_central_platform(pa_wrapper1)
+
+    # Verify we have the first platform registered.
+    poll_gevent_sleep(max_seconds=2,
+                      condition=lambda: len(
+                          api.list_platforms().json()['result']) == 1)
+
+    # Now we should have more than a single result.
+    jsonresp = api.list_platforms().json()
+
+    # make sure we get back a valid json-rpc response.
+    json_validate_response(jsonresp)
+
+    # Now we should have an instance running
+    assert len(jsonresp['result']) == 1
+
+    # Create Second Remote Platform
+    start_wrapper_platform(pa_wrapper2,
+                           volttron_central_address=vc_wrapper.bind_web_address)
+    install_volttron_central_platform(pa_wrapper2)
+
+    poll_gevent_sleep(max_seconds=2,
+                      condition=lambda: len(
+                          api.list_platforms().json()['result']) == 2)
+
+    # Now we should have more than a single result.
+    jsonresp = api.list_platforms().json()
+
+    # make sure we get back a valid json-rpc response.
+    json_validate_response(jsonresp)
+
+    # Now we should have an instance running
+    assert len(jsonresp['result']) == 2
 
 
 @pytest.mark.vc
