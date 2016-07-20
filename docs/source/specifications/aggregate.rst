@@ -5,7 +5,13 @@ Aggregate Historian Agent Specification
 Description
 ===========
 
-An aggregate historian computes aggregates of data stored in a given volttron historian's data store. Different implementation of this historian is required for different data store type. It runs periodically to compute aggregate data and store it in new tables/collections in the historian's data store.
+An aggregate historian computes aggregates of data stored in a given volttron
+historian's data store. It runs periodically to compute aggregate data
+and store it in new tables/collections in the historian's data store. Each
+regular historian ( `BaseHistorian <../apidocs/volttron/volttron.platform.agent.html#module-volttron.platform.agent.base_historian>`_ )
+needs a corresponding aggregate historian to compute and store aggregates of
+the data collected by the regular historian.
+
 
 .. image:: files/aggregate_historian.jpg
 
@@ -13,7 +19,7 @@ An aggregate historian computes aggregates of data stored in a given volttron hi
 Software Interfaces
 ===================
 
-**Data Collection** - Data store that the aggregate historian uses as input source needs to be up. Access to it should be provided using an account that has both read and write access. For example, a MongoAggregateHistorian needs to be able to connect to the mongodb used by MongoHistorian using an account that has read and write access to the db used by the MongoHistorian.
+**Data Collection** - Data store that the aggregate historian uses as input source needs to be up. Access to it should be provided using an account that has create, read, and write privileges. For example, a MongoAggregateHistorian needs to be able to connect to the mongodb used by MongoHistorian using an account that has read and write access to the db used by the MongoHistorian.
 
 **Data retrieval** - Aggregate Historian Agent does not provide api for retrieving the aggregate data collected. Use Historian agent's query interface
 
@@ -49,4 +55,64 @@ Constraints and Limitations
 ===========================
 
 1. Initial implementation of this agent will not support any data filtering for raw data before computing data aggregation
+
+
+
+    **MySQL**
+
+    ================ ==============
+          Name        Description
+    ================ ==============
+    AVG()            Return the average value of the argument
+    BIT_AND()        Return bitwise AND
+    BIT_OR()         Return bitwise OR
+    BIT_XOR()        Return bitwise XOR
+    COUNT()          Return a count of the number of rows returned
+    GROUP_CONCAT()   Return a concatenated string
+    MAX()            Return the maximum value
+    MIN()            Return the minimum value
+    STD()            Return the population standard deviation
+    STDDEV()         Return the population standard deviation
+    STDDEV_POP()     Return the population standard deviation
+    STDDEV_SAMP()    Return the sample standard deviation
+    SUM()            Return the sum
+    VAR_POP()        Return the population standard variance
+    VAR_SAMP()       Return the sample variance
+    VARIANCE()       Return the population standard variance
+    ================ ==============
+
+
+    **SQLite**
+
+    ================ ==============
+          Name        Description
+    ================ ==============
+    AVG()            Return the average value of the argument
+    COUNT()          Return a count of the number of rows returned
+    GROUP_CONCAT()   Return a concatenated string
+    MAX()            Return the maximum value
+    MIN()            Return the minimum value
+    SUM()            Return sum of all non-NULL values in the group. If there are no non-NULL input rows then returns NULL .
+    TOTAL()          Return sum of all non-NULL values in the group.If there are no non-NULL input rows returns 0.0
+    ================ ==============
+
+
+    **MongoDB**
+
+    ================ ==============
+          Name        Description
+    ================ ==============
+    SUM              Returns a sum of numerical values. Ignores non-numeric values
+    AVG              Returns a average of numerical values. Ignores non-numeric values
+    MAX              Returns the highest expression value for each group.
+    MIN              Returns the lowest expression value for each group.
+    FIRST            Returns a value from the first document for each group. Order is only defined if the documents are in a defined order.
+    LAST             Returns a value from the last document for each group. Order is only defined if the documents are in a defined order.
+    PUSH             Returns an array of expression values for each group
+    ADDTOSET         Returns an array of unique expression values for each group. Order of the array elements is undefined.
+    STDDEVPOP        Returns the population standard deviation of the input values
+    STDDEVSAMP       Returns the sample standard deviation of the input values
+    ================ ==============
+
+
 2. Initial implementation should support all aggregation types directly supported by underlying data store. End user input is needed to figure out what additional aggregation methods are to be supported
