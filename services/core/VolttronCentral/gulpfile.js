@@ -79,7 +79,9 @@ function vendor() {
             'node-uuid',
             'react-onclickoutside',
             'nvd3/build/nv.d3.min',
+            'keymirror',
             'react/dist/react.min',
+            'react-dom/dist/react-dom.min',
             'react-router/umd/ReactRouter.min',
         ],
     })
@@ -94,8 +96,9 @@ function vendor() {
             'node-uuid',
             'react-onclickoutside',
             { file: 'nvd3/build/nv.d3.min', expose: 'nvd3' },
+            'keymirror',
             { file: 'react/dist/react.min', expose: 'react' },
-            'react/lib/keyMirror',
+            { file: 'react-dom/dist/react-dom.min', expose: 'react-dom' },
             { file: 'react-router/umd/ReactRouter.min', expose: 'react-router' },
         ])
         .transform(function (file) {

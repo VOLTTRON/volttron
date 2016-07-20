@@ -6491,7 +6491,7 @@ module.exports = StatusIndicator;
 },{"../action-creators/status-indicator-action-creators":10,"../stores/status-indicator-store":61,"react":undefined}],43:[function(require,module,exports){
 'use strict';
 
-var keyMirror = require('react/lib/keyMirror');
+var keyMirror = require('keymirror');
 
 module.exports = keyMirror({
     OPEN_MODAL: null,
@@ -6563,7 +6563,7 @@ module.exports = keyMirror({
 });
 
 
-},{"react/lib/keyMirror":undefined}],44:[function(require,module,exports){
+},{"keymirror":undefined}],44:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
