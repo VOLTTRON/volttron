@@ -62,7 +62,7 @@ React-Router is used to handle loading and unloading of pages within the app. Pa
 
 Compiling the Code
 
-To compile the source code into the runnable application, navigate to the current directory (VolttronCentral) in a terminal window. First install required nodejs packages by running the following command:
+To compile the source code into the runnable application, navigate to the current directory (VolttronCentral) in a terminal window. Make sure nodejs is installed on the system so npm, the nodejs package manager, will be available. Then install the nodejs packages required by VOLTTRON Central using the following command:
 
 	npm install
 
