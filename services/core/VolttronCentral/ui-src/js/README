@@ -1,0 +1,83 @@
+
+The VOLTTRON Central Management Console is an HTML/Javascript web application built on the React JS framework and the Flux architecture. 
+
+The version of React used in VOLTTRON 3.5 is React 0.13.1. The Flux version is 2.0.1.
+
+Following the Flux architecture, the VOLTTRON UI source code is divided into separate folders for components, action-creators, and stores, as well as folders for dispatcher, constants, and libraries:
+
+	ui-src
+		|____css
+		|____fonts
+		|____js
+			|____action-creators
+			|____components
+			|____constants
+			|____dispatcher
+			|____lib
+			|____stores
+
+
+The require() and module() methods of CommonJS are used to facilitate the interaction of modules through importing and exporting.
+
+In conformance to Flux, the VOLTTRON web application in general follows these design principles:
+
+- Components are modules that define pages and objects. 
+- State is kept locally within a component through the React state property and is managed centrally through stores.
+- Actions such as updating a store, making a REST call, or sending a message to another component are handled through action creators.
+- Actions are dispatched to stores using a dispatcher.
+- Actions conform to action types defined in the constants folder.
+- Components listen for change events from stores and, in the event handlers, get updates from the stores.
+- Stores call their emitChange methods to notify components of changes.
+
+The following details describe how the architecture is implemented:
+
+Components
+
+React components are written in JSX files that are translated into regular Javascript during the build process. Components are React classes that conform to the ES6 syntax. 
+
+Action Creators
+
+Action creators are defined in Javascript files that dispatch actions to stores by calling the dispatch method of the local dispatcher.
+
+Dispatcher 
+
+An index.js file that extends the Flux dispatcher.
+
+Stores
+
+Javascript files that define instances of the Store prototype, found in lib/store.js. The prototype implements the EventEmitter class of the Nodejs Events package.
+
+Constants
+
+An action-types.js file that defines action types as keys using React's keyMirror module. Only action types found in this file can be used for dispatching events.
+
+REST calls
+
+Two local libraries -- XHR and RPC -- are used for making RESTful calls to VOLTTRON agents.
+Action creators make calls to remote methods, defined in the VOLTTRON documentation at http://volttron.readthedocs.io/en/develop/core_services/service_agents/central_management/Webservice-API.html, using the RPC-JSON API and the asynchronous Exchange method defined in lib/rpc/exchange.js. 
+
+Routes
+
+React-Router is used to handle loading and unloading of pages within the app. Pages and their paths are defined as routes in app.jsx and can be accessed through React-Router links placed in components.
+
+Compiling the Code
+
+To compile the source code into the runnable application, navigate to the current directory (VolttronCentral) in a terminal window. Make sure nodejs is installed on the system so npm, the nodejs package manager, will be available. Then install the nodejs packages required by VOLTTRON Central using the following command:
+
+	npm install
+
+This command will install the packages listed in the package.json file. 
+
+The build process is defined in the gulpfile.js and is run by the installed Gulp module. To run it, execute the following command:
+
+	./node_modules/gulp/bin/gulp.js
+
+The compiled code is built in the volttroncentral/webroot directory:
+
+	volttroncentral
+		|___webroot
+				|____css
+				|____fonts
+				|____js
+
+In the js folder are two files. The app-....js file is the compiled source code, and the vendor-....js file is the compiled third-party code from installed npm packages. Each build inserts unique identifier strings into the file names and updates the references to the files in volttroncentral/webroot/index.html.
