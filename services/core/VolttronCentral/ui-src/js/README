@@ -3,7 +3,21 @@ The VOLTTRON Central Management Console is an HTML/Javascript web application bu
 
 The version of React used in VOLTTRON 3.5 is React 0.13.1. The Flux version is 2.0.1.
 
-Following the Flux architecture, the VOLTTRON UI source code is divided into separate folders for components, action-creators, and stores, as well as folders for dispatcher, constants, and libraries. The require() and module() methods of CommonJS are used to facilitate the interaction of modules through importing and exporting.
+Following the Flux architecture, the VOLTTRON UI source code is divided into separate folders for components, action-creators, and stores, as well as folders for dispatcher, constants, and libraries:
+
+	ui-src
+		|____css
+		|____fonts
+		|____js
+			|____action-creators
+			|____components
+			|____constants
+			|____dispatcher
+			|____lib
+			|____stores
+
+
+The require() and module() methods of CommonJS are used to facilitate the interaction of modules through importing and exporting.
 
 In conformance to Flux, the VOLTTRON web application in general follows these design principles:
 
@@ -45,3 +59,25 @@ Action creators make calls to remote methods, defined in the VOLTTRON documentat
 Routes
 
 React-Router is used to handle loading and unloading of pages within the app. Pages and their paths are defined as routes in app.jsx and can be accessed through React-Router links placed in components.
+
+Compiling the Code
+
+To compile the source code into the runnable application, navigate to the current directory (VolttronCentral) in a terminal window. First install required nodejs packages by running the following command:
+
+	npm install
+
+This command will install the packages listed in the package.json file. 
+
+The build process is defined in the gulpfile.js and is run by the installed Gulp module. To run it, execute the following command:
+
+	./node_modules/gulp/bin/gulp.js
+
+The compiled code is built in the volttroncentral/webroot directory:
+
+	volttroncentral
+		|___webroot
+				|____css
+				|____fonts
+				|____js
+
+In the js folder are two files. The app-....js file is the compiled source code, and the vendor-....js file is the compiled third-party code from installed npm packages. Each build inserts unique identifier strings into the file names and updates the references to the files in volttroncentral/webroot/index.html.

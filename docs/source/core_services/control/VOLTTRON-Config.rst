@@ -1,6 +1,6 @@
 .. _VOLTTRON-Config:
 VOLTTRON Config
-=====================
+===============
 
 The new volttron-cfg commands allows for the easy configuration of a VOLTTRON platform. This includes
 setting up the platform configuration, historian, VOLTTRON Central UI, and platform agent.

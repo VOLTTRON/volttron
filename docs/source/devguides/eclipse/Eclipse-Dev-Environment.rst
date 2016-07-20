@@ -1,6 +1,6 @@
 .. _Eclipse-Dev-Environment:
 Eclipse Development Environment
-===================================
+===============================
 
 The only thing that is necessary to create a VOLTTRON agent is a text
 editor and the shell. However, we have found the Eclipse Development
@@ -116,7 +116,7 @@ You can do this either through `the shell <#execute-volttron-through-shell>`__ o
 
 .. _Execute-Volttron-From-Shell:
 Execute VOLTTRON Through Shell
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #. Open a console and cd into the root of the volttron repository.
 #. Execute
@@ -129,7 +129,7 @@ You now have a running VOLTTRON logging to standard out. The next step
 to verifying the installation is to `start a listeneragent <#start-a-listeneragent>`__.
 
 Execute VOLTTRON Through Eclipse
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #. Click Run -> Run Configuration from the Eclipse Main Menu
 #. | Click the New Launch Configuration button

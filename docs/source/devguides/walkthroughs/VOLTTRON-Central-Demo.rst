@@ -27,7 +27,7 @@ interface.
 -  `Remove Charts <#remove-charts>`__
 
 Running the Demo
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 After :ref:`building VOLTTRON <Building-VOLTTRON>`, open a shell with the
 current directory the root of the volttron repository. Activate the
@@ -76,7 +76,7 @@ Once the demo is complete you may wish to see the
 details on how to configure the agent for your specific use case.
 
 Log In
------------------
+------
 
 To log in to VOLTTRON Central, navigate in a browser to localhost:8080, 
 and enter the username and password on the login screen.
@@ -84,7 +84,7 @@ and enter the username and password on the login screen.
 |Login Screen|
 
 Log Out
------------------
+-------
 
 To log out of VOLTTRON Central, click the link at the top right
 of the screen.
@@ -92,7 +92,7 @@ of the screen.
 |Logout Button|
 
 Platforms Tree
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
 
 The side panel on the left of the screen can be extended to
 reveal the tree view of registered platforms.
@@ -106,7 +106,7 @@ in the tree to reveal installed agents, devices on buildings, and
 performance statistics about the platform instances. 
 
 Loading the Tree
------------------
+----------------
 
 The initial state of the tree is not loaded. The first time a top-level
 node is expanded is when the items for that platform are loaded.
@@ -117,7 +117,7 @@ After a platform has been loaded in the tree, all the items under a node
 can be quickly expanded by double-clicking on the node.
 
 Health Status
------------------
+-------------
 
 The health status of an item in the tree is indicated by the color  
 and shape next to it. A green triangle means healthy, a red circle
@@ -130,7 +130,7 @@ cursor over the item.
 |Status Tooltips|
 
 Filter the Tree
------------------
+---------------
 
 The tree can be filtered by typing in the search field at the top or 
 clicking on a status button next to the search field.
@@ -146,7 +146,7 @@ or "unknown."
 |Filter Status|
 
 Platforms Screen
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 This screen lists the registered VOLTTRON platforms and allows new
 platforms to be registered by clicking the Register Platform button. 
@@ -157,7 +157,7 @@ to go to the platform management view.
 |Platforms|
 
 Register New Platform
-----------------------
+---------------------
 
 To register a new VOLTTRON platform, click the Register Platform button.
 You'll need to provide a name and the IP address of the platform. Click 
@@ -166,13 +166,13 @@ the Advanced link for additional configuration options.
 |Register Platform Information|
 
 Deregister Platform
-----------------------
+-------------------
 
 To deregister a VOLTTRON Platform, click on the X button for that platform 
 in the list.
 
 Platform View
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
 
 From the platforms screen, click on the name link of a platform to
 manage it. Managing a platform includes installing, starting, stopping, 
@@ -191,7 +191,7 @@ Central agents can't be removed or stopped, but they can be restarted
 if they've been interrupted.
 
 Add Charts
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
 
 Performance statistics and device points can be added to charts either
 from the Charts page or from the platforms tree in the side panel.
@@ -243,7 +243,7 @@ a different option.
 |Chart Type|
 
 Dashboard Charts
-----------------------
+----------------
 
 To pin a chart to the Dashboard, click the Pin Chart button to toggle 
 it. When the pin image is black and upright, the chart is pinned; when 
@@ -257,7 +257,7 @@ and will automatically load when the user logs in to VOLTTRON Central.
 Different users can save their own configurations of dashboard charts.
 
 Remove Charts
-----------------------
+-------------
 
 To remove a chart, uncheck the box next to the item in the tree or click
 the X button next to the chart on the Charts page. Removing a chart 
