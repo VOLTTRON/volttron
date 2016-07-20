@@ -23,8 +23,6 @@ function checkAuth(Component) {
         statics: {
             willTransitionTo: function (transition) {
                 if (transition.path !== '/login') {
-                    // _afterLoginPath = transition.path;
-
                     if (!authorizationStore.getAuthorization()) {
                         transition.redirect('/login');
                     }
