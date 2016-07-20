@@ -80,8 +80,8 @@ function vendor() {
             'react-onclickoutside',
             'nvd3/build/nv.d3.min',
             'keymirror',
-            'react/dist/react.min',
-            'react-dom/dist/react-dom.min',
+            'react/dist/react',
+            'react-dom/dist/react-dom',
             'react-router/umd/ReactRouter.min',
         ],
     })
@@ -97,8 +97,8 @@ function vendor() {
             'react-onclickoutside',
             { file: 'nvd3/build/nv.d3.min', expose: 'nvd3' },
             'keymirror',
-            { file: 'react/dist/react.min', expose: 'react' },
-            { file: 'react-dom/dist/react-dom.min', expose: 'react-dom' },
+            { file: 'react/dist/react', expose: 'react' },
+            { file: 'react-dom/dist/react-dom', expose: 'react-dom' },
             { file: 'react-router/umd/ReactRouter.min', expose: 'react-router' },
         ])
         .transform(function (file) {
