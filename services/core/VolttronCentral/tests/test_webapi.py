@@ -1,5 +1,7 @@
 import hashlib
+
 import pytest
+import requests
 
 from volttron.platform.jsonrpc import json_validate_response
 
@@ -75,6 +77,8 @@ def install_volttron_central(wrapper):
     vcuuid = wrapper.install_agent(agent_dir=VOLTTRON_CENTRAL_PATH,
                                    config_file=VC_DEFAULT_CONFIG)
     assert vcuuid
+    response = requests.get("{}/jsonrpc".format(wrapper.bind_web_address))
+    assert response.ok
     return vcuuid
 
 
@@ -96,6 +100,11 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     wrapper.startup_platform(encrypt=True, vip_address=vc_tcp,
                              bind_web_address=vc_http,
                              volttron_central_address=volttron_central_address)
+    if with_http:
+        discovery = "{}/discovery/".format(vc_http)
+        response = requests.get(discovery)
+        assert response.ok
+
     assert wrapper.is_running()
 
 
