@@ -63,26 +63,42 @@ platformsStore.getVcInstance = function ()
     return vc;
 };
 
-platformsStore.getHistorianRunning = function (platform) {
+platformsStore.getAgentRunning = function (platform, agentType) {
 
-    var historianRunning = false;
+    var agentRunning = false;
 
     if (platform)
     {
         if (platform.hasOwnProperty("agents"))
         {
-            var historian = platform.agents.find(function (agent) {     
-                return agent.name.toLowerCase().indexOf("historian") > -1;
+            var agentToFind = platform.agents.find(function (agent) {     
+                return agent.name.toLowerCase().indexOf(agentType) > -1;
             });
 
-            if (historian)
+            if (agentToFind)
             {
-                historianRunning = ((historian.process_id !== null) && (historian.return_code === null));
+                agentRunning = ((agentToFind.process_id !== null) && (agentToFind.return_code === null));
             }
         }        
     }
 
+    return agentRunning;
+};
+
+platformsStore.getVcHistorianRunning = function () {
+
+    var platform = platformsStore.getVcInstance();    
+    var historianRunning = platformsStore.getAgentRunning(platform, "historian");
+
     return historianRunning;
+};
+
+platformsStore.getForwarderRunning = function (platformUuid) {
+
+    var platform = platformsStore.getPlatform(platformUuid);
+    var forwarderRunning = platformsStore.getAgentRunning(platform, "forwarderagent");
+
+    return forwarderRunning;
 };
 
 platformsStore.dispatchToken = dispatcher.register(function (action) {

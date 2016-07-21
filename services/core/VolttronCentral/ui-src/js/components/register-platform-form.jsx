@@ -10,6 +10,7 @@ var RegisterPlatformForm = React.createClass({
         var state = {};
         
         state.method = 'discovery';
+        state.registering = false;
 
         state.name = state.discovery_address = state.ipaddress = state.serverKey = state.publicKey = state.secretKey = '';
         state.protocol = 'tcp';
@@ -38,10 +39,15 @@ var RegisterPlatformForm = React.createClass({
     _toggleMethod: function (e) {
         this.setState({ method: (this.state.method === "discovery" ? "advanced" : "discovery") });
     },
-    _onCancelClick: modalActionCreators.closeModal,
+    _onCancelClick: function (e) {
+        this.setState({registering: false});
+        modalActionCreators.closeModal();
+    },
     _onSubmit: function (e) {
         e.preventDefault();
         var address = (this.state.method === "discovery" ? this.state.discovery_address : this._formatAddress());
+
+        this.setState({registering: true});
         platformManagerActionCreators.registerPlatform(this.state.name, address, this.state.method);
     },
     _formatAddress: function () {
@@ -72,6 +78,17 @@ var RegisterPlatformForm = React.createClass({
         var registerForm;
 
         var submitMethod;
+
+        var progress;
+
+        if (this.state.registering)
+        {
+            var progressStyle = {
+                textAlign: "center",
+                width: "100%"
+            }
+            progress = <div style={progressStyle}><progress></progress></div>;
+        }
 
         switch (this.state.method)
         {
@@ -104,6 +121,8 @@ var RegisterPlatformForm = React.createClass({
                                 </div>                     
                             </div>  
                         </div> 
+
+                        {progress}
                         
                         <div className="tableDiv">
                             <div className="rowDiv">
@@ -233,6 +252,8 @@ var RegisterPlatformForm = React.createClass({
                                 </div>
                             </div>
                         </div>
+
+                        {progress}
                         
                         <div className="tableDiv">
                             <div className="rowDiv">
@@ -273,7 +294,6 @@ var RegisterPlatformForm = React.createClass({
             <form className="register-platform-form" onSubmit={this._onSubmit}>
                 <h1>Register platform</h1>
                 {registerForm}
-
             </form>
         );
     },
