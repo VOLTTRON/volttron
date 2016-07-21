@@ -39,10 +39,13 @@ module.exports = keyMirror({
     REMOVE_FROM_CHART: null,
     PIN_CHART: null,
     CHANGE_CHART_TYPE: null,
+    CHANGE_CHART_MIN: null,
+    CHANGE_CHART_MAX: null,
     CHANGE_CHART_REFRESH: null,
     REFRESH_CHART: null,
     REMOVE_CHART: null,
     LOAD_CHARTS: null,
+    REMOVE_PLATFORM_CHARTS: null,
 
     EXPAND_ALL: null,
     TOGGLE_ITEM: null,

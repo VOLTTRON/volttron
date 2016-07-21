@@ -42,7 +42,7 @@ All posted JSON payloads will look like the following block:
         "authorization": "server_authorization_token"
     }
 
-As an alternative, the params can be an array as illistrated by the following:
+As an alternative, the params can be an array as illustrated by the following:
 
 .. code-block:: JSON
 

@@ -1,4 +1,4 @@
-# VOLTTRON
+![image](docs/source/images/volttron-webimage.jpg)
 
 Distributed Control System Platform.
 

@@ -20,8 +20,6 @@ function checkAuth(Component) {
         statics: {
             willTransitionTo: function (transition) {
                 if (transition.path !== '/login') {
-                    // _afterLoginPath = transition.path;
-
                     if (!authorizationStore.getAuthorization()) {
                         transition.redirect('/login');
                     }
@@ -81,12 +79,9 @@ router.run(function (Handler) {
     platformsPanelItemsStore.addChangeListener(function () {
         if (platformsPanelItemsStore.getLastCheck() && authorizationStore.getAuthorization())
         {
-            // console.log("current path: " + router.getCurrentPath());
             if (!router.isActive('charts'))
             {
-                // console.log("replace with /platform-charts");
                 router.transitionTo('/platform-charts');
-                // window.location.href = "index.html#/platform-charts";
             }
         }
 

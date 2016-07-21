@@ -4,7 +4,7 @@ pushd ../services/core/MasterDriverAgent
 if [ -z "$VOLTTRON_HOME" ]; then
     export VOLTTRON_HOME=~/.volttron
 fi
-export AGENT_CONFIG=master-driver.agent
+export AGENT_CONFIG=fake-master-driver.agent
 python -m master_driver.agent
 popd
 

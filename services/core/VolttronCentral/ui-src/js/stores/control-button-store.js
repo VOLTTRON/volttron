@@ -67,7 +67,6 @@ controlButtonStore.dispatchToken = dispatcher.register(function (action) {
                 if (_controlButtons[action.name].hasOwnProperty("showTaptip"))
                 {
                     _controlButtons[action.name].showTaptip = false;
-                    // delete _controlButtons[action.name];   
                 }
             }
 
