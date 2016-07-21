@@ -23,6 +23,8 @@ var PlatformChart = React.createClass({
         state.refreshInterval = this.props.chart.refreshInterval;
         state.pinned = this.props.chart.pinned;
 
+        state.refreshing = false;
+
         return state;
     },
     componentDidMount: function () {
@@ -35,8 +37,11 @@ var PlatformChart = React.createClass({
     },
     _onStoresChange: function () {
 
+        this.setState({refreshing: false});
+
         if (this.props.chart.data.length > 0)
         {
+
             var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
 
             if (refreshInterval !== this.state.refreshInterval)
@@ -53,6 +58,8 @@ var PlatformChart = React.createClass({
         
         if (this.props.hasOwnProperty("chart"))
         {
+            this.setState({refreshing: true});
+
             platformChartActionCreators.refreshChart(
                 this.props.chart.series
             );
@@ -88,16 +95,6 @@ var PlatformChart = React.createClass({
                 onConfirm={deleteChart.bind(this)}>
             </ConfirmForm>
         );
-
-        // this.props.chart.series.forEach(function (series) {
-        //     if (series.hasOwnProperty("path"))
-        //     {
-        //         platformsPanelActionCreators.checkItem(series.path, false);
-        //     }
-        // });
-
-        // platformChartActionCreators.removeChart(this.props.chartKey);
-        // platformActionCreators.saveCharts();
     },
     render: function () {
         var chartData = this.props.chart; 
@@ -115,13 +112,36 @@ var PlatformChart = React.createClass({
             );
         }
 
+        var refreshingIcon;
+
+        if (this.state.refreshing)
+        {
+            refreshingIcon = <span className="refreshIcon"><i className="fa fa-refresh fa-spin fa-fw"></i></span>;
+        } 
+
+        var containerStyle = {
+            width: "100%",
+            textAlign: "center"
+        }
+
+        var innerStyle = {
+            width: (chartData.data[0].name.length > 10 ? chartData.data[0].name.length * 10 : 100) + "px",
+            marginLeft: "auto",
+            marginRight: "auto"
+        }
+
         if (chartData)
         {
             if (chartData.data.length > 0)
             {
                 platformChart = (
                   <div className="platform-chart with-3d-shadow with-transitions absolute_anchor">
-                      <label className="chart-title">{chartData.data[0].name}</label>
+                      <div style={containerStyle}>
+                        <div className="absolute_anchor" style={innerStyle}>
+                            <label className="chart-title">{chartData.data[0].name}</label> 
+                            {refreshingIcon}
+                        </div>
+                      </div>
                       {removeButton}
                       <div>
                           <div className='viz'>        
@@ -132,6 +152,8 @@ var PlatformChart = React.createClass({
                                         name={this.props.chartKey}
                                         hideControls={this.props.hideControls}
                                         refreshInterval={this.props.chart.refreshInterval}
+                                        max={chartData.max}
+                                        min={chartData.min}
                                         pinned={this.props.chart.pinned}
                                         chartType={this.props.chart.type} /> : null }
                           </div>
@@ -169,12 +191,17 @@ var GraphLineChart = React.createClass({
       state.showTaptip = false;
       state.taptipX = 0;
       state.taptipY = 0;
+      state.min = (this.props.min ? this.props.min : d3.min(this.props.data, function (d) {return d["1"]}));
+      state.max = (this.props.max ? this.props.max : d3.max(this.props.data, function (d) {return d["1"]}));
 
       return state;
   },
   componentDidMount: function() {
       platformChartStore.addChangeListener(this._onStoresChange);
-      var lineChart = this._drawLineChart(this.state.chartName, this.state.chartType, this._lineData(this._getNested(this.props.data)));
+      var lineChart = this._drawLineChart(this.state.chartName, 
+                                          this.state.chartType, 
+                                          this._lineData(this._getNested(this.props.data)),
+                                          this.state.min, this.state.max);
       this.setState({lineChart: lineChart});
 
       this.chart = React.findDOMNode(this.refs[this.state.chartName]);
@@ -189,12 +216,20 @@ var GraphLineChart = React.createClass({
   componentDidUpdate: function() {
       if (this.state.lineChart)
       {
-          this._updateLineChart(this.state.lineChart, this.state.chartName, this._lineData(this._getNested(this.props.data)));
+          this._updateLineChart(this.state.lineChart, 
+                                this.state.chartName, 
+                                this._lineData(this._getNested(this.props.data)));
       }
   },
   _onStoresChange: function () {
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
       this.setState({chartType: platformChartStore.getType(this.props.name)});
+
+      var min = platformChartStore.getMin(this.props.name);
+      var max = platformChartStore.getMax(this.props.name);
+
+      this.setState({min: (min ? min : d3.min(this.props.data, function (d) {return d["1"]}))});
+      this.setState({max: (max ? max : d3.max(this.props.data, function (d) {return d["1"]}))});
   },
   handleClickOutside: function () {      
       
@@ -211,7 +246,10 @@ var GraphLineChart = React.createClass({
   _onChartChange: function (e) {
       var chartType = e.target.value;
       
-      var lineChart = this._drawLineChart(this.state.chartName, chartType, this._lineData(this._getNested(this.props.data)));
+      var lineChart = this._drawLineChart(this.state.chartName, 
+                                          chartType, 
+                                          this._lineData(this._getNested(this.props.data)),
+                                          this.state.min, this.state.max);
 
       this.setState({lineChart: lineChart});
       this.setState({showTaptip: false});
@@ -233,6 +271,38 @@ var GraphLineChart = React.createClass({
   },
   _onRefreshChange: function (e) {
       platformChartActionCreators.changeRefreshRate(e.target.value, this.props.name);
+
+      if (this.state.pinned)
+      {
+          platformActionCreators.saveCharts();
+      }
+  },
+  _onMinChange: function (e) {
+      var min = e.target.value;
+      var lineChart = this._drawLineChart(this.state.chartName, 
+                                      this.state.chartType, 
+                                      this._lineData(this._getNested(this.props.data)),
+                                      min, this.state.max);
+
+      this.setState({lineChart: lineChart});
+
+      platformChartActionCreators.setMin(min, this.props.name);
+
+      if (this.state.pinned)
+      {
+          platformActionCreators.saveCharts();
+      }
+  },
+  _onMaxChange: function (e) {
+      var max = e.target.value;
+      var lineChart = this._drawLineChart(this.state.chartName, 
+                                      this.state.chartType, 
+                                      this._lineData(this._getNested(this.props.data)),
+                                      this.state.min, max);
+
+      this.setState({lineChart: lineChart});
+
+      platformChartActionCreators.setMax(max, this.props.name);
 
       if (this.state.pinned)
       {
@@ -330,8 +400,8 @@ var GraphLineChart = React.createClass({
                     type="number"
                     onChange={this._onRefreshChange}
                     value={this.props.refreshInterval}
-                    min="250"
-                    step="1"
+                    min="15000"
+                    step="1000"
                     placeholder="disabled"
                 /> (ms)
                 <br/>
@@ -364,6 +434,84 @@ var GraphLineChart = React.createClass({
                 icon={refreshChartIcon}></ControlButton>
         );
 
+        var chartMin = (
+            <div>
+                <input
+                    type="number"
+                    onChange={this._onMinChange}
+                    value={this.state.min}
+                    step="1"
+                />
+            </div>
+        );
+
+        var chartMinTaptip = { 
+            "title": "Y Axis Min", 
+            "content": chartMin,
+            "x": taptipX,
+            "y": taptipY
+        };
+        var chartMinIcon = (
+            <div className="moveMin">
+                <span>&#9644;</span>
+            </div>
+        );
+
+        tooltipX = tooltipX + 20;
+
+        var chartMinTooltip = {
+            "content": "Y Axis Min",
+            "x": tooltipX,
+            "y": tooltipY
+        };
+
+        var chartMinControlButton = (
+            <ControlButton 
+                name={this.state.chartName + "_chartMinControlButton"}
+                taptip={chartMinTaptip}
+                tooltip={chartMinTooltip}
+                icon={chartMinIcon}></ControlButton>
+        );
+
+        var chartMax = (
+            <div>
+                <input
+                    type="number"
+                    onChange={this._onMaxChange}
+                    value={this.state.max}
+                    step="1"
+                />
+            </div>
+        );
+
+        var chartMaxTaptip = { 
+            "title": "Y Axis Max", 
+            "content": chartMax,
+            "x": taptipX,
+            "y": taptipY
+        };
+        var chartMaxIcon = (
+            <div className="moveMax">
+                <span>&#9644;</span>
+            </div>
+        );
+
+        tooltipX = tooltipX + 20;
+
+        var chartMaxTooltip = {
+            "content": "Y Axis Max",
+            "x": tooltipX,
+            "y": tooltipY
+        };
+
+        var chartMaxControlButton = (
+            <ControlButton 
+                name={this.state.chartName + "_chartMaxControlButton"}
+                taptip={chartMaxTaptip}
+                tooltip={chartMaxTooltip}
+                icon={chartMaxIcon}></ControlButton>
+        );
+
         var spaceStyle = {
             width: "20px",
             height: "2px"
@@ -375,6 +523,8 @@ var GraphLineChart = React.createClass({
                 {pinChartControlButton}
                 {chartTypeControlButton}
                 {refreshChartControlButton}
+                {chartMinControlButton}
+                {chartMaxControlButton}
                 <div className="inlineBlock"
                       style={spaceStyle}></div>
             </div>
@@ -390,7 +540,7 @@ var GraphLineChart = React.createClass({
       </div>
     );
   },
-  _drawLineChart: function (elementParent, chartType, data) {
+  _drawLineChart: function (elementParent, chartType, data, yMin, yMax) {
       
       var tickCount = 0;
       // var lineChart;
@@ -445,6 +595,7 @@ var GraphLineChart = React.createClass({
         .staggerLabels(false);
       this.lineChart.yAxis
         .tickFormat(d3.format('.1f'));
+      this.lineChart.forceY([yMin, yMax]);
 
       switch (chartType)
       {        

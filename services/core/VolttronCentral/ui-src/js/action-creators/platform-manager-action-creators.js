@@ -13,7 +13,8 @@ var platformManagerActionCreators = {
     initialize: function () {
         if (!authorizationStore.getAuthorization()) { return; }
 
-        platformManagerActionCreators.loadPlatforms();
+        var reload = false;
+        platformManagerActionCreators.loadPlatforms(reload);
     },
     requestAuthorization: function (username, password) {
         new rpc.Exchange({
@@ -27,6 +28,7 @@ var platformManagerActionCreators = {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_AUTHORIZATION,
                     authorization: result,
+                    name: username
                 });
             })
             .then(platformManagerActionCreators.initialize)
@@ -39,16 +41,16 @@ var platformManagerActionCreators = {
                     message = "Invalid username/password specified.";
                 }
 
-                statusIndicatorActionCreators.openStatusIndicator("error", message); //This is needed because the 401 status will keep the status 
-                handle401(error, error.message);                                    // indicator from being shown. This is the one time we
-            })                                                                      // show bad status for not authorized. Other times, we
-    },                                                                              // just log them out.
+                statusIndicatorActionCreators.openStatusIndicator("error", message, null, "center"); //This is needed because the 401 status  
+                handle401(error, error.message);                                    // will keep the statusindicator from being shown. This is 
+            })                                                                      // the one time we show bad status for not authorized. Other 
+    },                                                                              // times, we just log them out.
     clearAuthorization: function () {
         dispatcher.dispatch({
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     },
-    loadPlatforms: function () {
+    loadPlatforms: function (reload) {
         var authorization = authorizationStore.getAuthorization();
 
         return new rpc.Exchange({
@@ -56,6 +58,16 @@ var platformManagerActionCreators = {
             authorization: authorization,
         }).promise
             .then(function (platforms) {
+
+                platforms = platforms.map(function (platform, index) {
+
+                    if (platform.name === null || platform.name === "" || typeof platform.name === undefined)
+                    {
+                        platform.name = "Unnamed Platform " + (index + 1);
+                    }
+
+                    return platform;
+                });
 
                 var managerPlatforms = JSON.parse(JSON.stringify(platforms));
                 var panelPlatforms = JSON.parse(JSON.stringify(platforms));
@@ -68,12 +80,16 @@ var platformManagerActionCreators = {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
                     platforms: panelPlatforms,
+                    reload: reload
                 });
 
                 managerPlatforms.forEach(function (platform, i) {
                     platformActionCreators.loadAgents(platform);
 
-                    platformActionCreators.loadCharts(platform);
+                    if (!reload)
+                    {
+                        platformActionCreators.loadCharts(platform);
+                    }
                 });
             })
             .catch(rpc.Error, function (error) {
@@ -115,9 +131,10 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
-                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.");
-        
-                platformManagerActionCreators.loadPlatforms();                
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.", name, "center");        
+
+                var reload = true;
+                platformManagerActionCreators.loadPlatforms(reload);
 
             })
             .catch(rpc.Error, function (error) {
@@ -126,22 +143,22 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
-                var message = error.message;
+                var message = "Platform " + name + " was not registered: " + error.message;
+                var orientation;
 
                 switch (error.code)
                 {
                     case -32600:
-                        message = "Platform " + name + " was not registered: Invalid address."
-                        break;
-                    case -32002:
-                        message = "Platform " + name + " was not registered: " + error.message;
+                        message = "Platform " + name + " was not registered: Invalid address.";
+                        orientation = "center"
                         break;
                     case -32000:
                         message = "Platform " + name + " was not registered: An unknown error occurred.";
+                        orientation = "center"
                         break;
                 }
 
-                handle401(error, message);
+                handle401(error, message, name, orientation);
             });
     },
     deregisterPlatform: function (platform) {
@@ -156,25 +173,32 @@ var platformManagerActionCreators = {
                 platform_uuid: platform.uuid
             },
         }).promise
-            .then(function (platform) {
+            .then(function (result) {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
-                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.");
+                platformActionCreators.removeSavedPlatformCharts(platform);
 
-                platformManagerActionCreators.loadPlatforms();
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.", platformName, "center");
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.REMOVE_PLATFORM_CHARTS,
+                    platform: platform
+                });
+
+                var reload = true;
+                platformManagerActionCreators.loadPlatforms(reload);
             })
             .catch(rpc.Error, function (error) { 
                 var message = "Platform " + platformName + " was not deregistered: " + error.message;
 
-                handle401(error, message);
+                handle401(error, message, platformName);
             });
     },
 };
 
-function handle401(error, message) {
-    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
+function handle401(error, message, highlight, orientation) {
+   if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
@@ -182,9 +206,9 @@ function handle401(error, message) {
 
         platformManagerActionCreators.clearAuthorization();
     }
-    else
+    else if (message)
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
 }
 
