@@ -311,7 +311,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         if isinstance(apdu, IAmRequest):
             device_type, device_instance = apdu.iAmDeviceIdentifier
             if device_type != 'device':
-                #Bail with out an error.
+                #Bail without an error.
                 return
 
             _log.debug("Calling IAm callback.")
