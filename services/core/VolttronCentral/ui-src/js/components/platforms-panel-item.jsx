@@ -315,10 +315,15 @@ var PlatformsPanelItem = React.createClass({
                         grandchildren.push(propChild[childString]);
                     });
 
+                    var itemKey = (propChild.hasOwnProperty("uuid") ? propChild.uuid : (propChild.name + this.uuid))
+
                     return (
-                        <PlatformsPanelItem key={propChild.uuid} panelItem={propChild} itemPath={propChild.path} panelChildren={grandchildren}/>
+                        <PlatformsPanelItem key={itemKey} 
+                            panelItem={propChild} 
+                            itemPath={propChild.path} 
+                            panelChildren={grandchildren}/>
                     );
-                }); 
+                }, this.state.panelItem); 
 
             if (children.length > 0)
             {

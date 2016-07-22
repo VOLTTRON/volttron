@@ -2,6 +2,7 @@
 'use strict';
 
 var React = require('react');
+var ReactDOM = require('react-dom');
 var Router = require('react-router');
 
 var authorizationStore = require('./stores/authorization-store');
@@ -66,7 +67,7 @@ var routes = (
 var router = Router.create(routes);
 
 router.run(function (Handler) {
-    React.render(
+    ReactDOM.render(
         React.createElement(Handler, null),
         document.getElementById('app')
     );
@@ -104,7 +105,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/configure-devices":15,"./components/dashboard":24,"./components/devices":28,"./components/login-form":30,"./components/page-not-found":34,"./components/platform":38,"./components/platform-charts":36,"./components/platform-manager":37,"./components/platforms":41,"./stores/authorization-store":54,"./stores/devices-store":57,"./stores/platforms-panel-items-store":60,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/configure-devices":15,"./components/dashboard":24,"./components/devices":28,"./components/login-form":30,"./components/page-not-found":34,"./components/platform":38,"./components/platform-charts":36,"./components/platform-manager":37,"./components/platforms":41,"./stores/authorization-store":54,"./stores/devices-store":57,"./stores/platforms-panel-items-store":60,"react":undefined,"react-dom":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1587,12 +1588,11 @@ module.exports = AgentRow;
 'use strict';
 
 var React = require('react');
+var ReactDOM = require('react-dom');
+var OutsideClick = require('react-click-outside');
 
 var ComboBox = React.createClass({displayName: "ComboBox",
-    mixins: [
-        require('react-onclickoutside')
-    ],
-	getInitialState: function () {
+    getInitialState: function () {
 
         var preppedItems = prepItems(this.props.itemskey, this.props.itemsvalue, this.props.itemslabel, this.props.items);
 
@@ -1614,7 +1614,7 @@ var ComboBox = React.createClass({displayName: "ComboBox",
     componentDidUpdate: function () {
         if (this.forceHide)
         {
-            React.findDOMNode(this.refs.comboInput).blur();
+            ReactDOM.findDOMNode(this.refs.comboInput).blur();
             this.forceHide = false;
         }
         else
@@ -1856,10 +1856,10 @@ function filterItems(filterTerm, itemsList)
 }
 
 
-module.exports = ComboBox;
+module.exports = OutsideClick(ComboBox);
 
 
-},{"react":undefined,"react-onclickoutside":undefined}],13:[function(require,module,exports){
+},{"react":undefined,"react-click-outside":undefined,"react-dom":undefined}],13:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2299,10 +2299,6 @@ var React = require('react');
 var Router = require('react-router');
 
 var platformsStore = require('../stores/platforms-store');
-var DetectDevices = require('./detect-devices');
-var DevicesFound = require('./devices-found');
-var ConfigureDevice = require('./configure-device');
-var ConfigureRegistry = require('./configure-registry');
 var devicesStore = require('../stores/devices-store');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -2421,7 +2417,7 @@ var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
         {
             var proxies = this.state.bacnetProxies.map(function (proxy) {
                 return (
-                    React.createElement("option", {value: proxy.uuid}, proxy.name)
+                    React.createElement("option", {key: proxy.uuid, value: proxy.uuid}, proxy.name)
                 );
             });
 
@@ -2555,7 +2551,7 @@ function getStateFromStores() {
 
 module.exports = ConfigureDevices;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":57,"../stores/platforms-store":62,"./configure-device":14,"./configure-registry":16,"./detect-devices":26,"./devices-found":27,"react":undefined,"react-router":undefined}],16:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":57,"../stores/platforms-store":62,"react":undefined,"react-router":undefined}],16:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3346,13 +3342,11 @@ var React = require('react');
 var Router = require('react-router');
 var controlButtonStore = require('../stores/control-button-store');
 var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
+var OutsideClick = require('react-click-outside');
 
 
 var ControlButton = React.createClass({displayName: "ControlButton",
-    mixins: [
-        require('react-onclickoutside')
-    ],
-	getInitialState: function () {
+    getInitialState: function () {
 		var state = {};
 
 		state.showTaptip = false;
@@ -3613,9 +3607,9 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 
 
 
-module.exports = ControlButton;
+module.exports = OutsideClick(ControlButton);
 
-},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":56,"react":undefined,"react-onclickoutside":undefined,"react-router":undefined}],20:[function(require,module,exports){
+},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":56,"react":undefined,"react-click-outside":undefined,"react-router":undefined}],20:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4028,6 +4022,7 @@ module.exports = FilterPointsButton;
 
 var $ = require('jquery');
 var React = require('react');
+var ReactDOM = require('react-dom');
 
 var Exchange = require('./exchange');
 var consoleStore = require('../stores/console-store');
@@ -4035,7 +4030,7 @@ var consoleStore = require('../stores/console-store');
 var Conversation = React.createClass({displayName: "Conversation",
     getInitialState: getStateFromStores,
     componentDidMount: function () {
-        var $conversation = $(this.refs.conversation.getDOMNode());
+        var $conversation = $(ReactDOM.findDOMNode(this.refs.conversation));
 
         if ($conversation.prop('scrollHeight') > $conversation.height()) {
             $conversation.scrollTop($conversation.prop('scrollHeight'));
@@ -4044,7 +4039,7 @@ var Conversation = React.createClass({displayName: "Conversation",
         consoleStore.addChangeListener(this._onChange);
     },
     componentDidUpdate: function () {
-        var $conversation = $(this.refs.conversation.getDOMNode());
+        var $conversation = $(ReactDOM.findDOMNode(this.refs.conversation));
 
         $conversation.stop().animate({ scrollTop: $conversation.prop('scrollHeight') }, 500);
     },
@@ -4074,7 +4069,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":55,"./exchange":29,"jquery":undefined,"react":undefined}],24:[function(require,module,exports){
+},{"../stores/console-store":55,"./exchange":29,"jquery":undefined,"react":undefined,"react-dom":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4106,7 +4101,7 @@ var Dashboard = React.createClass({displayName: "Dashboard",
         pinnedCharts.forEach(function (pinnedChart) {
             if (pinnedChart.data.length > 0)
             {
-                var platformChart = React.createElement(PlatformChart, {chart: pinnedChart, chartKey: pinnedChart.chartKey, hideControls: true})
+                var platformChart = React.createElement(PlatformChart, {key: pinnedChart.chartKey, chart: pinnedChart, chartKey: pinnedChart.chartKey, hideControls: true})
                 platformCharts.push(platformChart);
             }
         });        
@@ -5052,10 +5047,12 @@ module.exports = PageNotFound;
 'use strict';
 
 var React = require('react');
+var ReactDOM = require('react-dom');
 var Router = require('react-router');
 var d3 = require('d3');
 var nv = require('nvd3');
 var moment = require('moment');
+var OutsideClick = require('react-click-outside');
 
 
 var chartStore = require('../stores/platform-chart-store');
@@ -5224,10 +5221,7 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
 });
 
 
-var GraphLineChart = React.createClass({displayName: "GraphLineChart",
-  mixins: [
-      require('react-onclickoutside')
-  ],
+var GraphLineChart = OutsideClick(React.createClass({
   getInitialState: function () {
       
       var pattern = /[!@#$%^&*()+\-=\[\]{};':"\\|, .<>\/?]/g
@@ -5255,7 +5249,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
                                           this.state.min, this.state.max);
       this.setState({lineChart: lineChart});
 
-      this.chart = React.findDOMNode(this.refs[this.state.chartName]);
+      this.chart = ReactDOM.findDOMNode(this.refs[this.state.chartName]);
   },
   componentWillUnmount: function () {
       platformChartStore.removeChangeListener(this._onStoresChange);
@@ -5713,7 +5707,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
       return lineDataArr;
     }
   
-});
+}));
 
 
 
@@ -5721,7 +5715,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 module.exports = PlatformChart;
 
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":59,"./confirm-form":17,"./control-button":19,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-onclickoutside":undefined,"react-router":undefined}],36:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":59,"./confirm-form":17,"./control-button":19,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-click-outside":undefined,"react-dom":undefined,"react-router":undefined}],36:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5807,6 +5801,7 @@ module.exports = PlatformCharts;
 
 var $ = require('jquery');
 var React = require('react');
+var ReactDOM = require('react-dom');
 var Router = require('react-router');
 
 var authorizationStore = require('../stores/authorization-store');
@@ -5900,7 +5895,7 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
     _doModalBindings: function () {
         if (this.state.modalContent) {
             window.addEventListener('keydown', this._closeModal);
-            this._focusDisabled = $('input,select,textarea,button,a', React.findDOMNode(this.refs.main)).attr('tabIndex', -1);
+            this._focusDisabled = $('input,select,textarea,button,a', ReactDOM.findDOMNode(this.refs.main)).attr('tabIndex', -1);
         } else {
             window.removeEventListener('keydown', this._closeModal);
             if (this._focusDisabled) {
@@ -6017,7 +6012,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"../stores/authorization-store":54,"../stores/console-store":55,"../stores/modal-store":58,"../stores/platforms-panel-store":61,"../stores/status-indicator-store":63,"./console":18,"./modal":31,"./navigation":32,"./platforms-panel":40,"./status-indicator":44,"jquery":undefined,"react":undefined,"react-router":undefined}],38:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"../stores/authorization-store":54,"../stores/console-store":55,"../stores/modal-store":58,"../stores/platforms-panel-store":61,"../stores/status-indicator-store":63,"./console":18,"./modal":31,"./navigation":32,"./platforms-panel":40,"./status-indicator":44,"jquery":undefined,"react":undefined,"react-dom":undefined,"react-router":undefined}],38:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -6477,10 +6472,15 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                         grandchildren.push(propChild[childString]);
                     });
 
+                    var itemKey = (propChild.hasOwnProperty("uuid") ? propChild.uuid : (propChild.name + this.uuid))
+
                     return (
-                        React.createElement(PlatformsPanelItem, {key: propChild.uuid, panelItem: propChild, itemPath: propChild.path, panelChildren: grandchildren})
+                        React.createElement(PlatformsPanelItem, {key: itemKey, 
+                            panelItem: propChild, 
+                            itemPath: propChild.path, 
+                            panelChildren: grandchildren})
                     );
-                }); 
+                }, this.state.panelItem); 
 
             if (children.length > 0)
             {

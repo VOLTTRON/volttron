@@ -1,12 +1,11 @@
 'use strict';
 
 var React = require('react');
+var ReactDOM = require('react-dom');
+var OutsideClick = require('react-click-outside');
 
 var ComboBox = React.createClass({
-    mixins: [
-        require('react-onclickoutside')
-    ],
-	getInitialState: function () {
+    getInitialState: function () {
 
         var preppedItems = prepItems(this.props.itemskey, this.props.itemsvalue, this.props.itemslabel, this.props.items);
 
@@ -28,7 +27,7 @@ var ComboBox = React.createClass({
     componentDidUpdate: function () {
         if (this.forceHide)
         {
-            React.findDOMNode(this.refs.comboInput).blur();
+            ReactDOM.findDOMNode(this.refs.comboInput).blur();
             this.forceHide = false;
         }
         else
@@ -270,4 +269,4 @@ function filterItems(filterTerm, itemsList)
 }
 
 
-module.exports = ComboBox;
+module.exports = OutsideClick(ComboBox);

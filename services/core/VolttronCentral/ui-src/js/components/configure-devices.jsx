@@ -4,10 +4,6 @@ var React = require('react');
 var Router = require('react-router');
 
 var platformsStore = require('../stores/platforms-store');
-var DetectDevices = require('./detect-devices');
-var DevicesFound = require('./devices-found');
-var ConfigureDevice = require('./configure-device');
-var ConfigureRegistry = require('./configure-registry');
 var devicesStore = require('../stores/devices-store');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -126,7 +122,7 @@ var ConfigureDevices = React.createClass({
         {
             var proxies = this.state.bacnetProxies.map(function (proxy) {
                 return (
-                    <option value={proxy.uuid}>{proxy.name}</option>
+                    <option key={proxy.uuid} value={proxy.uuid}>{proxy.name}</option>
                 );
             });
 

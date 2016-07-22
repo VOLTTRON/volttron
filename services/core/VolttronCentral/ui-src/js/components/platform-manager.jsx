@@ -2,6 +2,7 @@
 
 var $ = require('jquery');
 var React = require('react');
+var ReactDOM = require('react-dom');
 var Router = require('react-router');
 
 var authorizationStore = require('../stores/authorization-store');
@@ -95,7 +96,7 @@ var PlatformManager = React.createClass({
     _doModalBindings: function () {
         if (this.state.modalContent) {
             window.addEventListener('keydown', this._closeModal);
-            this._focusDisabled = $('input,select,textarea,button,a', React.findDOMNode(this.refs.main)).attr('tabIndex', -1);
+            this._focusDisabled = $('input,select,textarea,button,a', ReactDOM.findDOMNode(this.refs.main)).attr('tabIndex', -1);
         } else {
             window.removeEventListener('keydown', this._closeModal);
             if (this._focusDisabled) {

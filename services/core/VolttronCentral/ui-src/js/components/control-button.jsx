@@ -4,13 +4,11 @@ var React = require('react');
 var Router = require('react-router');
 var controlButtonStore = require('../stores/control-button-store');
 var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
+var OutsideClick = require('react-click-outside');
 
 
 var ControlButton = React.createClass({
-    mixins: [
-        require('react-onclickoutside')
-    ],
-	getInitialState: function () {
+    getInitialState: function () {
 		var state = {};
 
 		state.showTaptip = false;
@@ -271,4 +269,4 @@ var ControlButton = React.createClass({
 
 
 
-module.exports = ControlButton;
+module.exports = OutsideClick(ControlButton);

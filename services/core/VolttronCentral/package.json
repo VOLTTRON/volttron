@@ -24,8 +24,8 @@
     "normalize.css": "^3.0.2",
     "nvd3": "https://github.com/novus/nvd3#6ab9646366f4052fc2465f53c9a9265f7b5f8c97",
     "react": "^0.14.8",
+    "react-click-outside": "^2.1.0",
     "react-dom": "^0.14.8",
-    "react-onclickoutside": "^0.2.4",
     "react-router": "^0.13.3",
     "through2": "^2.0.0"
   }

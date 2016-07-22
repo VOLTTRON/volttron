@@ -1,6 +1,7 @@
 'use strict';
 
 var React = require('react');
+var ReactDOM = require('react-dom');
 var Router = require('react-router');
 
 var authorizationStore = require('./stores/authorization-store');
@@ -65,7 +66,7 @@ var routes = (
 var router = Router.create(routes);
 
 router.run(function (Handler) {
-    React.render(
+    ReactDOM.render(
         <Handler />,
         document.getElementById('app')
     );
