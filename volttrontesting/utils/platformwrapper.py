@@ -194,7 +194,9 @@ class PlatformWrapper:
         authfile.add(entry)
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
-                    publickey=None, secretkey=None, serverkey=None, **kwargs):
+                    publickey=None, secretkey=None, serverkey=None,
+                    agent_class=Agent,
+                    **kwargs):
         """ Build an agent connnected to the passed bus.
 
         By default the current instance that this class wraps will be the
@@ -206,6 +208,7 @@ class PlatformWrapper:
         :param publickey:
         :param secretkey:
         :param serverkey:
+        :param agent_class: Agent class to build
         :return:
         """
         self.logit("Building generic agent.")
@@ -234,8 +237,9 @@ class PlatformWrapper:
             self.logit('using instance serverkey: {}'.format(self.publickey))
             serverkey = self.publickey
 
-        agent = Agent(address=address, identity=identity, publickey=publickey,
-                      secretkey=secretkey, serverkey=serverkey, **kwargs)
+        agent = agent_class(address=address, identity=identity,
+                            publickey=publickey, secretkey=secretkey,
+                            serverkey=serverkey, **kwargs)
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
 
         # Automatically add agent's credentials to auth.json file

@@ -390,8 +390,15 @@ br + .form__control-help {
     height: 90%;
     float: left;
     background-color: #f8f8f8;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     border-right: 1px #ddd solid;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .platform-link {
@@ -459,6 +466,12 @@ br + .form__control-help {
     width: 100%;
 }
 
+.agents-container {
+    max-height: 50%;
+    width: 100%;
+    overflow: auto;
+}
+
 .extend-panel {
     width: 100%;
     font-size: 15px;
@@ -480,7 +493,7 @@ br + .form__control-help {
 
 .panelItemCheckbox {
     float: left;
-    margin: 5px 5px 5px 0px;    
+    margin: 3px 5px 3px 0px;    
 }
 
 .arrowButton:hover {
@@ -507,6 +520,12 @@ br + .form__control-help {
 
 .loadingSpinner {
     color: #1BCDF5;
+}
+
+.checkboxSpinner {
+    color: #1BCDF5;
+    width: 13px;
+    margin-bottom: 1px;
 }
 
 .cancelLoading {
@@ -847,13 +866,21 @@ br + .form__control-help {
     color: #BABABA;
 }
 
-/*.status-good, .status-bad, .status-unknown {
-    width: 20px;
-    height: 20px;
-    display: inline-block;
-    float: left;
-    margin-right: 10px;
-}*/
+.status-unknown.noRotate {
+    line-height: 14px;
+}
+
+.moveDown {
+    transform: translateY(-2px);
+}
+
+.moveMax {
+    transform: translateY(-8px);
+}
+
+.moveMin {
+    transform: translateY(4px);
+}
 
 .error {
     border: 1px solid #faa;
@@ -910,7 +937,6 @@ br + .form__control-help {
 
 .panel-exterior {
     padding: 1.5em 2.5em;
-    border-top: 1px solid #fff;
     height: 100%;
     float: left;
 }
@@ -1124,6 +1150,23 @@ a.view__item:hover::before {
     position: relative;
 }
 
+.resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 3px;
+    background-color: #ddd;
+    
+    cursor: ew-resize;
+}
+
+.resize-handle:hover {
+    width: 3px;
+    background-color: #C7C7C7;
+}
+
+
 .view--list .view__item + .view__item {
     margin-top: 0.5em;
 }
@@ -1301,6 +1344,9 @@ a.view__item:hover::before {
     position: absolute;
     top: 24px;
     left: 0px;
+
+    cursor: pointer;
+    -moz-user-select: none;
 }
 
 .combobox-item {
@@ -1328,8 +1374,11 @@ a.view__item:hover::before {
     color: #7D7D7D;
 }
 
-.chart-pin {
-    
+.refreshIcon {
+    position: absolute;
+    top: 0px;
+    right: -10px;
+    color: limegreen;
 }
 
 .unpinned-chart {

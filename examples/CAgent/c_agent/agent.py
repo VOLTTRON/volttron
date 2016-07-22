@@ -74,27 +74,24 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 PUBLISH_PERIOD = 1
+SO_FILENAME = "c_agent/libfoo.so"
 
-################################################################################
-
-so_filename = "c_agent/libfoo.so"
-cdll.LoadLibrary(so_filename)
-shared_object = CDLL(so_filename)
-
-get_water_temperature = shared_object.get_water_temperature
-get_water_temperature.restype = c_float
-
-################################################################################
 
 class CAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(CAgent, self).__init__(**kwargs)
 
+        cdll.LoadLibrary(SO_FILENAME)
+        self.shared_object = CDLL(SO_FILENAME)
+
+        self.get_water_temperature = self.shared_object.get_water_temperature
+        self.get_water_temperature.restype = c_float
+
     @Core.periodic(PUBLISH_PERIOD)
     def publish_water_temperature(self):
         '''Call the function from the shared object.
         '''
-        wt = get_water_temperature()
+        wt = self.get_water_temperature()
         _log.debug(wt)
         self.vip.pubsub.publish('pubsub', 'device/WATER_TEMP=' + str(wt))
 

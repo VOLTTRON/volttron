@@ -65,20 +65,16 @@ from csv import DictReader
 
 from master_driver.interfaces import BaseInterface, BaseRegister
 
-################################################################################
 from ctypes import *
 
-so_filename = "libfoo.so"
-cdll.LoadLibrary(so_filename)
-shared_object = CDLL(so_filename)
+SO_FILENAME = "libfoo.so"
 
-water_temperature = shared_object.get_water_temperature
-water_temperature.restype = c_float
-
-def so_lookup_function(function_name):
+def so_lookup_function(shared_object, function_name):
     '''Attempt to find a symbol in the loaded shared object
     or raise an IOerror.
 
+    :param shared_object:
+    :type shared_object: shared object
     :param function_name:
     :type function_name: string
     :returns: function or raises an exception
@@ -89,9 +85,6 @@ def so_lookup_function(function_name):
         raise IOError("No such function in shared object: {}".format(function_name))
 
     return function
-
-################################################################################
-
 
 class CRegister(BaseRegister):
     def __init__(self,read_only, pointName, units, description = ''):
@@ -107,12 +100,16 @@ class Interface(BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
 
+        cdll.LoadLibrary(SO_FILENAME)
+        self.shared_object = CDLL(SO_FILENAME)
+
     def configure(self, config_dict, registry_config_str):
         self.parse_config(registry_config_str)
 
     def get_point(self, point_name):
         register = self.get_register_by_name(point_name)
-        so_get_point = so_lookup_function("get_" + register.point_name)
+        so_get_point = so_lookup_function(self.shared_object,
+                                          "get_" + register.point_name)
 
         return so_get_point()
 
@@ -121,10 +118,9 @@ class Interface(BaseInterface):
         if register.read_only:
             raise  IOError("Trying to write to a point configured read only: "+point_name)
 
-        so_set_point = so_lookup_function("set_" + register.point_name)
+        so_set_point = so_lookup_function(self.shared_object,
+                                          "set_" + register.point_name)
         so_set_point(value)
-
-        return None
 
     def scrape_all(self):
         result = {}
