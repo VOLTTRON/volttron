@@ -138,7 +138,7 @@ def publish(agent, config, operation, to_max=True):
                               operation(entry['threshold']))
 
 
-@pytest.mark.dev
+
 def test_above_max(threshold_tester_agent):
     """Should get alert because values exceed max"""
     publish(threshold_tester_agent, _test_config, lambda x: x+1)
@@ -147,7 +147,7 @@ def test_above_max(threshold_tester_agent):
     assert poll_gevent_sleep(2, check)
 
 
-@pytest.mark.dev
+
 def test_above_min(threshold_tester_agent):
     """Should not get any alerts because values are above min"""
     publish(threshold_tester_agent, _test_config, lambda x: x+1, to_max=False)
@@ -155,7 +155,7 @@ def test_above_min(threshold_tester_agent):
     assert len(threshold_tester_agent.seen_alert_keys) == 0
 
 
-@pytest.mark.dev
+
 def test_below_max(threshold_tester_agent):
     """Should not get any alerts because values are below max"""
     publish(threshold_tester_agent, _test_config, lambda x: x-1)
@@ -163,7 +163,7 @@ def test_below_max(threshold_tester_agent):
     assert len(threshold_tester_agent.seen_alert_keys) == 0
 
 
-@pytest.mark.dev
+
 def test_below_min(threshold_tester_agent):
     """Should get alert because values below min"""
     publish(threshold_tester_agent, _test_config, lambda x: x-1, to_max=False)
