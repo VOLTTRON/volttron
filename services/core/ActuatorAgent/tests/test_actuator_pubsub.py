@@ -359,7 +359,7 @@ def test_schedule_announce(publish_agent, volttron_instance):
     my_actuator_uuid = volttron_instance.install_agent(
         agent_dir="services/core/ActuatorAgent",
         config_file="services/core/ActuatorAgent/tests/actuator2.config",
-        start=True, vip_id=alternate_actuator_vip_id)
+        start=True, vip_identity=alternate_actuator_vip_id)
     try:
         # reset mock to ignore any previous callback
         publish_agent.callback.reset_mock()

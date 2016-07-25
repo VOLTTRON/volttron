@@ -158,7 +158,7 @@ def sqlhistorian(request, volttron_instances):
         agent_dir="services/core/SQLHistorian",
         config_file=sqlite_config,
         start=True,
-        vip_id='platform.historian')
+        vip_identity='platform.historian')
     print("sqlite historian agent id: ", agent_uuid)
 
 

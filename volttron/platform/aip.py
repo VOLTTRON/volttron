@@ -276,7 +276,7 @@ class AIPplatform(object):
             raise
         return agent_uuid
 
-    def install_agent(self, agent_wheel, vip_id=None):
+    def install_agent(self, agent_wheel, vip_identity=None):
         while True:
             agent_uuid = str(uuid.uuid4())
             if agent_uuid in self.agents:
@@ -295,14 +295,14 @@ class AIPplatform(object):
             else:
                 unpack(agent_wheel, dest=agent_path)
 
-            self._setup_agent_vip_id(agent_uuid, vip_id=vip_id)
+            self._setup_agent_vip_id(agent_uuid, vip_identity=vip_identity)
 
         except Exception:
             shutil.rmtree(agent_path)
             raise
         return agent_uuid
 
-    def _setup_agent_vip_id(self, agent_uuid, vip_id=None):
+    def _setup_agent_vip_id(self, agent_uuid, vip_identity=None):
         agent_path = os.path.join(self.install_dir, agent_uuid)
         name = self.agent_name(agent_uuid)
         pkg = UnpackedPackage(os.path.join(agent_path,  name))
@@ -319,8 +319,8 @@ class AIPplatform(object):
 
             rm_id_template = True
 
-        if vip_id is not None:
-            name_template = vip_id
+        if vip_identity is not None:
+            name_template = vip_identity
 
         _log.debug('Using name template "' + name_template + '" to generate VIP ID')
 
@@ -334,8 +334,8 @@ class AIPplatform(object):
         with open(identity_filename, 'wb') as fp:
             fp.write(final_identity)
 
-        _log.info("Agent {uuid} setup to use VIP ID {vip_id}". format(uuid=agent_uuid,
-                                                                      vip_id=final_identity))
+        _log.info("Agent {uuid} setup to use VIP ID {vip_identity}". format(uuid=agent_uuid,
+                                                                      vip_identity=final_identity))
 
         #Cleanup IDENTITY_TEMPLATE file.
         if rm_id_template:
@@ -581,7 +581,7 @@ class AIPplatform(object):
         with open(identity_file, 'rb') as fp:
             agent_vip_identity = fp.read()
 
-        environ['AGENT_VIP_ID'] = agent_vip_identity
+        environ['AGENT_VIP_IDENTITY'] = agent_vip_identity
 
         module, _, func = module.partition(':')
         if func:

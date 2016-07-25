@@ -278,7 +278,7 @@ def sqlhistorian(request, volttron_instance, query_agent):
         agent_dir="services/core/SQLHistorian",
         config_file=request.param,
         start=True,
-        vip_id='platform.historian')
+        vip_identity='platform.historian')
     print("agent id: ", agent_uuid)
     identity = query_agent.vip.rpc.call(
             'control', 'agent_vip_identity',

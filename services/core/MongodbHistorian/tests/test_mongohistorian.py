@@ -70,7 +70,7 @@ def install_historian_agent(volttron_instance, config_file):
             agent_dir="services/core/MongodbHistorian",
             config_file=config_file,
             start=True,
-            vip_id="platform.historian")
+            vip_identity="platform.historian")
     return agent_uuid
 
 
@@ -230,7 +230,7 @@ def publish_minute_data_for_two_hours(agent):
             # Because timestamps in mongo are only concerned with the first
             #  three digits after the decimal we do this to give some
             # randomness here.
-            myint = random.randint(0, 1000)
+            myint = random.randint(0, 999)
             mymicro = str(myint)+'000'
 
             now = datetime(now.year, now.month, now.day, h, m,

@@ -422,7 +422,7 @@ class Core(BasicCore):
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
-        self.identity = os.environ.get('AGENT_VIP_ID', None)
+        self.identity = os.environ.get('AGENT_VIP_IDENTITY', None)
         self.agent_uuid = os.environ.get('AGENT_UUID', None)
 
         # The public and secret keys are obtained by:

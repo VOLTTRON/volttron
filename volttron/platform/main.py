@@ -596,7 +596,7 @@ def main(argv=sys.argv):
 
     #Remove AGENT_VIP_ID if it exists.
     #Otherwise subsystem agents will get messed up if it exists.
-    os.environ.pop("AGENT_VIP_ID", None)
+    os.environ.pop("AGENT_VIP_IDENTITY", None)
 
     # Setup option parser
     parser = config.ArgumentParser(

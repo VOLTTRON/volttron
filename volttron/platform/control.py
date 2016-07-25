@@ -215,7 +215,7 @@ class ControlService(BaseAgent):
         return self._aip.agent_identity(uuid)
 
     @RPC.export
-    def install_agent(self, filename, channel_name, vip_id=None):
+    def install_agent(self, filename, channel_name, vip_identity=None):
         """ Installs an agent on the instance instance.
 
         The installation of an agent through this method involves sending
@@ -270,7 +270,7 @@ class ControlService(BaseAgent):
                 store.close()
                 channel.close(linger=0)
                 del channel
-            agent_uuid = self._aip.install_agent(path, vip_id=vip_id)
+            agent_uuid = self._aip.install_agent(path, vip_identity=vip_identity)
             _log.debug('AGENT UUID: {}'.format(agent_uuid))
             return agent_uuid #self._aip.install_agent(path)
         finally:
@@ -338,7 +338,7 @@ def install_agent(opts):
     aip = opts.aip
     filename = opts.wheel
     tag = opts.tag
-    vip_id = opts.vip_id
+    vip_identity = opts.vip_identity
 
     try:
         _log.debug('Creating channel for sending the agent.')
@@ -349,7 +349,7 @@ def install_agent(opts):
         agent_uuid = opts.connection.call_no_get('install_agent',
                                                   filename,
                                                   channel_name,
-                                                  vip_id=vip_id)
+                                                  vip_identity=vip_identity)
         _log.debug('waiting for ready')
         _log.debug('received {}'.format(channel.recv()))
 
@@ -1036,7 +1036,8 @@ def main(argv=sys.argv):
                                 'the tag command. ')
     install.add_argument('wheel', help='path to agent wheel')
     install.add_argument('--tag', help='tag for the installed agent')
-    install.add_argument('--vip-id', help='VIP ID for the installed agent')
+    install.add_argument('--vip-identity', help='VIP IDENTITY for the installed agent. '
+                         'Overrides any previously configured VIP IDENTITY.')
     if HAVE_RESTRICTED:
         install.add_argument('--verify', action='store_true',
                              dest='verify_agents',
