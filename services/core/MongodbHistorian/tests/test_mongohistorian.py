@@ -230,11 +230,10 @@ def publish_minute_data_for_two_hours(agent):
             # Because timestamps in mongo are only concerned with the first
             #  three digits after the decimal we do this to give some
             # randomness here.
-            myint = random.randint(0, 1000)
-            mymicro = str(myint)+'000'
+            micro = str(random.randint(0, 999999))
 
             now = datetime(now.year, now.month, now.day, h, m,
-                           random.randint(0, 59), int(mymicro))
+                           random.randint(0, 59), int(micro))
             # Make some random readings
             oat_reading = random.uniform(30, 100)
             mixed_reading = oat_reading + random.uniform(-5, 5)
@@ -385,9 +384,9 @@ def test_insert_duplicate(volttron_instance, database_client):
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
 
-
-def publish_data(publisher, topic, message, now=datetime.utcnow()):
-     # now = '2015-12-02T00:00:00'
+def publish_data(publisher, topic, message, now=None):
+    if now is None:
+        now = datetime.now()
     headers = {
         headers_mod.DATE: now.isoformat()
     }
@@ -397,7 +396,6 @@ def publish_data(publisher, topic, message, now=datetime.utcnow()):
             'pubsub', topic, headers, message).get(timeout=10)
 
     gevent.sleep(0.5)
-
     return now
 
 @pytest.mark.historian
@@ -413,7 +411,7 @@ def test_analysis_topic(volttron_instance, database_client):
                        {'FluffyWidgets':
                          {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
-        publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC+'/FluffyWidgets', message)
+        publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC, message)
         gevent.sleep(0.1)
 
         lister = volttron_instance.build_agent()
@@ -435,10 +433,8 @@ def test_analysis_topic(volttron_instance, database_client):
         volttron_instance.remove_agent(agent_uuid)
 
 
-
 @pytest.mark.historian
 @pytest.mark.mongodb
-@pytest.mark.xfail(reason="Fails for some reason on the rpc call though the function above does not fail.")
 def test_get_topic_map(volttron_instance, database_client):
 
     agent_uuid = install_historian_agent(volttron_instance, mongo_agent_config())
@@ -544,7 +540,6 @@ def test_basic_function(volttron_instance, database_client):
         volttron_instance.remove_agent(agent_uuid)
 
 
-@pytest.mark.xfail(reason="fails when all mongohistorian test cases are run.")
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
@@ -562,7 +557,7 @@ def test_topic_name_case_change(volttron_instance, database_client):
                        {'FluffyWidgets':
                          {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
-        publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC+'/FluffyWidgets', message)
+        publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC, message)
         gevent.sleep(0.1)
 
         lister = volttron_instance.build_agent()
@@ -578,14 +573,14 @@ def test_topic_name_case_change(volttron_instance, database_client):
         assert len(result['values']) == 1
         assert isinstance(result['values'], list)
         mongoizetimestamp = publisheddt.isoformat()[:-3]+'000'
+
         assert result['values'][0] == [mongoizetimestamp, oat_reading]
 
         message = [{'Fluffywidgets': oat_reading},
                        {'Fluffywidgets':
                          {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
-
         publisheddt = publish_data(publisher,
-                                   BASE_ANALYSIS_TOPIC+'/Fluffywidgets', message)
+                                   BASE_ANALYSIS_TOPIC, message)
         gevent.sleep(0.1)
         topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
         assert topic_list is not None
