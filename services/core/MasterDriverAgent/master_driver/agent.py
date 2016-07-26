@@ -132,7 +132,7 @@ def master_driver_agent(config_path, **kwargs):
     staggered_start = get_config('staggered_start', None)
     
     return MasterDriverAgent(driver_config_list, scalability_test, scalability_test_iterations, staggered_start,
-                             identity=vip_identity, heartbeat_autostart=True, **kwargs)
+                             heartbeat_autostart=True, **kwargs)
 
 class MasterDriverAgent(Agent):
     def __init__(self, driver_config_list, scalability_test = False,
