@@ -80,7 +80,6 @@ def thresholddetection_agent(config_path, **kwargs):
     """
     config = utils.load_config(config_path)
     vip_identity = 'platform.thresholddetection'
-    kwargs.pop('identity', None)
     return ThresholdDetectionAgent(config, identity=vip_identity)
 
 

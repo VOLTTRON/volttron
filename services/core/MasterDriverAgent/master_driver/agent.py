@@ -124,9 +124,6 @@ def master_driver_agent(config_path, **kwargs):
         _log.info("maximum concurrent driver publishes limited to " + str(max_concurrent_publishes))
     configure_publish_lock(max_concurrent_publishes)
 
-    vip_identity = get_config('vip_identity', 'platform.driver')
-    #pop the uuid based id
-    kwargs.pop('identity', None)
     driver_config_list = get_config('driver_config_list')
     
     scalability_test = get_config('scalability_test', False)
@@ -141,7 +138,7 @@ class MasterDriverAgent(Agent):
     def __init__(self, driver_config_list, scalability_test = False,
                  scalability_test_iterations = 3, staggered_start = None,
                  **kwargs):
-        super(MasterDriverAgent, self).__init__(**kwargs)
+        super(MasterDriverAgent, self).__init__(identity='platform.driver', **kwargs)
         self.instances = {}
         self.scalability_test = scalability_test
         self.scalability_test_iterations = scalability_test_iterations

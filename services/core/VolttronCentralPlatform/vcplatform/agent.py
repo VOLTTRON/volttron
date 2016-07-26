@@ -118,8 +118,6 @@ class VolttronCentralPlatform(Agent):
     __name__ = 'PlatformAgent'
 
     def __init__(self, config_path, **kwargs):
-
-        identity = kwargs.pop('identity', None)
         identity = VOLTTRON_CENTRAL_PLATFORM
         super(VolttronCentralPlatform, self).__init__(
             identity=identity, **kwargs)

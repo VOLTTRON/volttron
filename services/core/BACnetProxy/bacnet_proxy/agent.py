@@ -332,9 +332,6 @@ write_debug_str = "Writing: {target} {type} {instance} {property} (Priority: {pr
 
 def bacnet_proxy_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
-    vip_identity = config.get("vip_identity", "platform.bacnet_proxy")
-    #pop off the uuid based identity
-    kwargs.pop('identity', None)
     
     device_address = config["device_address"]
     max_apdu_len=config.get("max_apdu_length",1024)
@@ -346,7 +343,7 @@ def bacnet_proxy_agent(config_path, **kwargs):
     return BACnetProxyAgent(device_address,
                          max_apdu_len, seg_supported,
                          obj_id, obj_name, ven_id,
-                         heartbeat_autostart=True, identity=vip_identity,**kwargs)
+                         heartbeat_autostart=True,**kwargs)
 
 class BACnetProxyAgent(Agent):
     '''This agent creates a virtual bacnet device that is used by
@@ -356,7 +353,7 @@ class BACnetProxyAgent(Agent):
                  max_apdu_len, seg_supported,
                  obj_id, obj_name, ven_id,
                  **kwargs):
-        super(BACnetProxyAgent, self).__init__(**kwargs)
+        super(BACnetProxyAgent, self).__init__(identity="platform.bacnet_proxy", **kwargs)
         
         async_call = AsyncCall()
 
