@@ -192,6 +192,7 @@ class BasicCore(object):
             return
         del self._owner
         periodics = []
+
         def setup(member):   # pylint: disable=redefined-outer-name
             periodics.extend(
                 periodic.get(member) for periodic in annotations(
