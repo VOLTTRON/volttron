@@ -59,6 +59,7 @@
 from __future__ import absolute_import, print_function
 
 import base64
+import requests
 import tempfile
 from collections import defaultdict
 from copy import deepcopy
@@ -75,6 +76,7 @@ import gevent
 import gevent.event
 import psutil
 
+from volttron.platform import get_home
 from volttron.platform.agent.utils import (
     get_aware_utc_now, format_timestamp, parse_timestamp_string)
 from volttron.platform.messaging.topics import LOGGER
@@ -98,20 +100,19 @@ from volttron.platform.web import (DiscoveryInfo, DiscoveryError,
                                    build_vip_address_string)
 from volttron.utils.persistance import load_create_store
 
-__version__ = '3.5.2'
+__version__ = '3.5.4'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-class CannotConnectError(StandardError):
-    """ Raised if the connection parameters are not set or invalid
-    """
-    pass
+class NotManagedError(StandardError):
+    """ Raised if vcp cannot connect to the vc trying to manage it.
 
+    Some examples of this could be if the serverkey is not valid, if the
+    tcp address is invalid, if the http address is invalid.
 
-class AlreadyManagedError(StandardError):
-    """ Raised when a different volttron central tries to register.n
+    Other examples could be permissions issues from auth.
     """
     pass
 
