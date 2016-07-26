@@ -435,6 +435,7 @@ def test_analysis_topic(volttron_instance, database_client):
 
 @pytest.mark.historian
 @pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_get_topic_map(volttron_instance, database_client):
 
     agent_uuid = install_historian_agent(volttron_instance, mongo_agent_config())

@@ -126,6 +126,7 @@ def threshold_tester_agent(request, volttron_instance, tmpdir):
 
     def stop_agent():
         volttron_instance.stop_agent(threshold_detection_uuid)
+        volttron_instance.remove_agent(threshold_detection_uuid)
         agent.core.stop()
 
     request.addfinalizer(stop_agent)
