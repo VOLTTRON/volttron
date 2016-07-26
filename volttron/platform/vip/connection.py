@@ -59,13 +59,14 @@ import logging
 import urlparse
 
 import gevent
+from volttron.platform.agent.utils import get_aware_utc_now
 
 from volttron.platform.vip.agent import Agent
 from volttron.platform.web import build_vip_address_string
 
 _log = logging.getLogger(__name__)
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 
 
@@ -77,35 +78,85 @@ class Connection(object):
                  secretkey=None, serverkey=None):
         _log.debug("Connection: {}, {}, {}, {}, {}"
                    .format(address, peer, publickey, secretkey, serverkey))
-        self.address = address
-        self.peer = peer
+        self._address = address
+        self._peer = peer
         if peer is None:
             _log.warn('Peer is non so must be passed in call method.')
         if address.startswith('ipc'):
             full_address = address
         else:
             parsed = urlparse.urlparse(address)
-            qs = urlparse.parse_qs(parsed.query)
-            _log.debug('QS IS: {}'.format(qs))
-            # Handle case when the address has all the information in it.
-            if 'serverkey' in qs.keys() and 'publickey' in qs.keys() and \
-                'secretkey' in qs.keys():
+            if parsed.scheme == 'tcp':
+                qs = urlparse.parse_qs(parsed.query)
+                _log.debug('QS IS: {}'.format(qs))
+                if 'serverkey' in qs:
+                    self._serverkey = qs.get('serverkey')
+                else:
+                    self._serverkey = serverkey
+
+                # Handle case when the address has all the information in it.
+                if 'serverkey' in qs.keys() and 'publickey' in qs.keys() and \
+                    'secretkey' in qs.keys():
+                    full_address = address
+                else:
+                    full_address = build_vip_address_string(
+                        vip_root=address, serverkey=serverkey,
+                        publickey=publickey, secretkey=secretkey
+                    )
+            elif parsed.scheme == 'ipc':
                 full_address = address
             else:
-                full_address = build_vip_address_string(
-                    vip_root=address, serverkey=serverkey, publickey=publickey,
-                    secretkey=secretkey
-                )
+                raise AttributeError(
+                    'Invalid address type specified. ipc or tcp accepted.')
         self._server = Agent(address=full_address)
         self._greenlet = None
+        self._connected_since = None
+        self._serverkey = None
+        self._last_publish = None
+        self._last_publish_failed = False
+        self._last_rpc_call = None
+
+    @property
+    def serverkey(self):
+        return self._serverkey
+
+    @property
+    def last_publish_failed(self):
+        return self._last_publish_failed
+
+    @property
+    def connected_since(self):
+        return self._connected_since
+
+    @property
+    def last_publish(self):
+        return self._last_publish
+
+    @property
+    def last_rpc_call(self):
+        return self._last_rpc_call
+
+    @property
+    def address(self):
+        return self._address
+
+    @property
+    def peer(self):
+        return self._peer
 
     @property
     def server(self):
-        _log.debug('Spawning greenlet')
         if self._greenlet is None:
+            _log.debug('Spawning greenlet')
             event = gevent.event.Event()
             self._greenlet = gevent.spawn(self._server.core.run, event)
             event.wait(timeout=30)
+            self._connected_since = get_aware_utc_now()
+            if self.peer not in self._server.vip.peerlist().get(timeout=2):
+                _log.warn('Peer {} not found connected to router.'.format(
+                    self.peer
+                ))
+
         return self._server
 
     def peers(self, timeout=30):
@@ -118,19 +169,15 @@ class Connection(object):
         except gevent.Timeout:
             return False
 
-    def publish(self, topic, header=None, message=None, timeout=None):
-        if timeout:
-            try:
-                timeout = int(timeout)
-                self.server.vip.pubsub.publish(
-                    'pubsub', topic=topic, header=header, message=message
-                ).get(timeout=timeout)
-            except ValueError:
-                _log.debug('Invalid integer passed for timeout.')
-        else:
-            self.server.vip.pubsub.publish(
+    def publish(self, topic, header=None, message=None, timeout=30):
+        if timeout is None:
+            raise ValueError('timeout cannot be None')
+
+        timeout = int(timeout)
+
+        self.server.vip.pubsub.publish(
                 'pubsub', topic=topic, header=header, message=message
-            )
+            ).get(timeout=timeout)
 
     def call(self, method, *args, **kwargs):
         timeout = kwargs.pop('timeout', 30)
