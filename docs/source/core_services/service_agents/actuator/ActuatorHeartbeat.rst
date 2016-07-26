@@ -15,22 +15,5 @@ setting. The ActuatorAgent will automatically set the heartbeat point to
 alternating "1" and "0" values. Changes to the heartbeat point will be
 published like any other value change on a device.
 
-The heartbeat points are specified under "points" section of the
-configuration like so:
-
-::
-
-    "points":
-    {
-        "<path to a device>": 
-        {
-            "heartbeat_point":"<heartbeat point>"
-        }
-        "<path to a device>":
-        {
-            "heartbeat_point":"<heartbeat point>"
-        }
-    }
-
-Note: this requires that the device has been setup with a heartbeat
-support. For Catalyst controllers check with TWT if you're not sure.
+The heartbeat points are specified in the driver configuration file of
+individual devices
