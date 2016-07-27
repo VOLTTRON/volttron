@@ -2,7 +2,19 @@
 
 var React = require('react');
 var ReactDOM = require('react-dom');
-var Router = require('react-router');
+// var ReactRouter = require('react-router');
+
+import { Router, Route, hashHistory, IndexRoute, browserHistory, useRouterHistory, Redirect } from 'react-router';
+// var hashHistory = ReactRouter.hashHistory;
+// var IndexRoute = ReactRouter.IndexRoute;
+
+// var useRouterHistory = ReactRouter.useRouterHistory;
+// var createHashHistory = require('history').createHashHistory;
+
+import {createHashHistory, createHistory} from 'history';
+
+// var Redirect = ReactRouter.Redirect;
+
 
 var authorizationStore = require('./stores/authorization-store');
 var platformsPanelItemsStore = require('./stores/platforms-panel-items-store');
@@ -11,13 +23,27 @@ var Dashboard = require('./components/dashboard');
 var LoginForm = require('./components/login-form');
 var PageNotFound = require('./components/page-not-found');
 var Platform = require('./components/platform');
-var PlatformManager = require('./components/platform-manager');
+import PlatformManager from './components/platform-manager';
 var Platforms = require('./components/platforms');
 var Devices = require('./components/devices');
 var ConfigureDevices = require('./components/configure-devices');
 var PlatformCharts = require('./components/platform-charts');
 
 var _afterLoginPath = '/dashboard';
+
+var MainLayout = React.createClass({
+    render: function() {
+
+        var monkey;
+
+        return (
+            <div>
+                {this.props.children}
+            </div>
+        );
+    }
+});
+
 
 function checkAuth(Component) {
     return React.createClass({
@@ -49,56 +75,80 @@ var AfterLogin = React.createClass({
     render: function () {},
 });
 
+
+// const appHistory = useRouterHistory(createHashHistory)({ queryKey: false});
+
+// let history = createHistory();
+
+
 var routes = (
-    <Router.Route path="/" handler={PlatformManager}>
-        <Router.Route name="login" path="login" handler={checkAuth(LoginForm)} />
-        <Router.Route name="dashboard" path="dashboard" handler={checkAuth(Dashboard)} />
-        <Router.Route name="platforms" path="platforms" handler={checkAuth(Platforms)} />
-        <Router.Route name="platform" path="platforms/:uuid" handler={checkAuth(Platform)} />
-        <Router.Route name="devices" path="devices" handler={checkAuth(Devices)} />
-        <Router.Route name="configure" path="configure-devices" handler={checkAuth(ConfigureDevices)} />
-        <Router.Route name="charts" path="platform-charts" handler={checkAuth(PlatformCharts)} />
-        <Router.NotFoundRoute handler={checkAuth(PageNotFound)} />
-        <Router.DefaultRoute handler={AfterLogin} />
-    </Router.Route>
+    <Router history={browserHistory}>
+        <Route path="/" component={checkAuth(PlatformManager)}> 
+            <Route path="login" component={checkAuth(LoginForm)} />
+            <Route path="dashboard" component={checkAuth(Dashboard)} />
+            <Route path="platforms" component={checkAuth(Platforms)} />
+            <Route path="platform/:uuid" component={checkAuth(Platform)} />
+            <Route path="devices" component={checkAuth(Devices)} />
+            <Route path="configure-devices" component={checkAuth(ConfigureDevices)} />
+            <Route path="charts" component={checkAuth(PlatformCharts)} />
+            <Route path="*" component={PageNotFound}/>
+        </Route>
+        
+    </Router>
 );
 
-var router = Router.create(routes);
+// var routes = (
+//     <Router history={history}>
+//         <Route name="home" path="/" component={MainLayout}> 
+//             <IndexRoute component={checkAuth(PlatformManager)} />
+//             <Route path="login" component={checkAuth(LoginForm)} />
+//             <Route path="dashboard" component={checkAuth(Dashboard)} />
+//             <Route path="platforms" component={checkAuth(Platforms)} />
+//             <Route path="platforms/:uuid" component={checkAuth(Platform)} />
+//             <Route path="devices" component={checkAuth(Devices)} />
+//             <Route path="configure-devices" component={checkAuth(ConfigureDevices)} />
+//             <Route path="platform-charts" component={checkAuth(PlatformCharts)} />
+//             <Route path="*" component={PageNotFound}/>
+//         </Route>
+        
+//     </Router>
+// );
 
-router.run(function (Handler) {
-    ReactDOM.render(
-        <Handler />,
-        document.getElementById('app')
-    );
+// ReactDOM.render(routes, document.getElementById('app'));
 
+
+// ReactDOM.render(routes, document.getElementById('app'));
+
+ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
     authorizationStore.addChangeListener(function () {
-        if (authorizationStore.getAuthorization() && router.isActive('/login')) 
+        if (authorizationStore.getAuthorization() && this.history.isActive('/login')) 
         {
-            router.replaceWith(_afterLoginPath);
+            this.history.replaceState(null, _afterLoginPath);
         } 
-        else if (!authorizationStore.getAuthorization() && !router.isActive('/login')) 
+        else if (!authorizationStore.getAuthorization() && !this.history.isActive('/login')) 
         {
-            router.replaceWith('/login');
+            this.history.replaceState(null, '/login');
         }
-    });
+    }.bind(this));
 
     platformsPanelItemsStore.addChangeListener(function () {
         if (platformsPanelItemsStore.getLastCheck() && authorizationStore.getAuthorization())
         {
-            if (!router.isActive('charts'))
+            if (!this.history.isActive('charts'))
             {
-                router.transitionTo('/platform-charts');
+                this.history.pushState(null, '/charts');
             }
         }
 
-    });
+    }.bind(this));
 
     devicesStore.addChangeListener(function () {        
-        if (!router.isActive('configure'))
+        if (!this.history.isActive('configure'))
         {
-            router.transitionTo('/configure-devices');
+            this.history.pushState(null, '/configure-devices');
         }
-    });
-
-
+    }.bind(this));
 });
+
+
+

@@ -1,7 +1,7 @@
 'use strict';
 
 var $ = require('jquery');
-var React = require('react');
+import React from 'react';
 var ReactDOM = require('react-dom');
 var Router = require('react-router');
 
@@ -19,27 +19,35 @@ var platformsPanelStore = require('../stores/platforms-panel-store');
 var StatusIndicator = require('./status-indicator');
 var statusIndicatorStore = require('../stores/status-indicator-store');
 
-var PlatformManager = React.createClass({
-    mixins: [Router.Navigation, Router.State],
-    getInitialState: function () {
-        var state = getStateFromStores();
+class PlatformManager extends React.Component {
+    constructor(props) {
+        super(props);
+        this._doModalBindings = this._doModalBindings.bind(this);
+        this._onStoreChange = this._onStoreChange.bind(this);
+
+        this.state = getStateFromStores();
 
         this.uninitialized = true;
+    }
+    // getInitialState: function () {
+    //     var state = getStateFromStores();
 
-        return state;
-    },
-    componentWillMount: function () {
+    //     this.uninitialized = true;
+
+    //     return state;
+    // },
+    componentWillMount() {
         platformManagerActionCreators.initialize();
-    },
-    componentDidMount: function () {
+    }
+    componentDidMount() {
         authorizationStore.addChangeListener(this._onStoreChange);
         consoleStore.addChangeListener(this._onStoreChange);
         modalStore.addChangeListener(this._onStoreChange);
         platformsPanelStore.addChangeListener(this._onStoreChange);
         statusIndicatorStore.addChangeListener(this._onStoreChange);
         this._doModalBindings();
-    },
-    componentDidUpdate: function () {
+    }
+    componentDidUpdate() {
         this._doModalBindings();
 
         if (this.state.expanded)
@@ -92,8 +100,8 @@ var PlatformManager = React.createClass({
 
             handle.addEventListener("mousedown", onMouseDown);
         }
-    },
-    _doModalBindings: function () {
+    }
+    _doModalBindings() {
         if (this.state.modalContent) {
             window.addEventListener('keydown', this._closeModal);
             this._focusDisabled = $('input,select,textarea,button,a', ReactDOM.findDOMNode(this.refs.main)).attr('tabIndex', -1);
@@ -104,26 +112,26 @@ var PlatformManager = React.createClass({
                 delete this._focusDisabled;
             }
         }
-    },
-    componentWillUnmount: function () {
+    }
+    componentWillUnmount() {
         authorizationStore.removeChangeListener(this._onStoreChange);
         consoleStore.removeChangeListener(this._onStoreChange);
         modalStore.removeChangeListener(this._onStoreChange);
         statusIndicatorStore.removeChangeListener(this._onStoreChange);
-        this._modalCleanup();
-    },
-    _onStoreChange: function () {
+        // this._modalCleanup();
+    }
+    _onStoreChange() {
         this.setState(getStateFromStores());
-    },
-    _onToggleClick: function () {
+    }
+    _onToggleClick() {
         consoleActionCreators.toggleConsole();
-    },
-    _closeModal: function (e) {
+    }
+    _closeModal(e) {
         if (e.keyCode === 27) {
             modalActionCreators.closeModal();
         }
-    },
-    render: function () {
+    }
+    render() {
         var classes = ['platform-manager'];
         var modal;
         var exteriorClasses = ["panel-exterior"];
@@ -185,7 +193,7 @@ var PlatformManager = React.createClass({
                     <PlatformsPanel/>
                     <div className={exteriorClasses.join(' ')}>
                         {resizeHandle}
-                        <Router.RouteHandler />
+                        {this.props.children}
                     </div>
                 </div>
                 <input
@@ -197,8 +205,12 @@ var PlatformManager = React.createClass({
                 {this.state.consoleShown && <Console className="console" />}
             </div>
         );
-    },
-});
+    }
+}
+
+// PlatformManager.contextTypes = {
+//     router: React.PropTypes.func.isRequired
+// }
 
 function getStateFromStores() {
     return {
@@ -210,4 +222,4 @@ function getStateFromStores() {
     };
 }
 
-module.exports = PlatformManager;
+export default PlatformManager;

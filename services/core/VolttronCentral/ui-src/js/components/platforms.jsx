@@ -72,8 +72,7 @@ var Platforms = React.createClass({
                         >
                             <h3>
                                 <Router.Link
-                                    to="platform"
-                                    params={{uuid: platform.uuid}}
+                                    to={"platform/" + platform.uuid}
                                 >
                                     {platform.name}
                                 </Router.Link>

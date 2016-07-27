@@ -55,7 +55,7 @@ function js() {
         bundleExternal: false,
         entries: './ui-src/js/app',
         extensions: ['.jsx'],
-        transform: ['reactify'],
+        transform: ['babelify'],
     })
         .bundle()
         .pipe(source('app.js'))
@@ -82,7 +82,8 @@ function vendor() {
             'keymirror',
             'react/dist/react',
             'react-dom/dist/react-dom',
-            'react-router/umd/ReactRouter.min',
+            'react-router/umd/ReactRouter',
+            'history/umd/History',
         ],
     })
         .require([
@@ -99,7 +100,8 @@ function vendor() {
             'keymirror',
             { file: 'react/dist/react', expose: 'react' },
             { file: 'react-dom/dist/react-dom', expose: 'react-dom' },
-            { file: 'react-router/umd/ReactRouter.min', expose: 'react-router' },
+            { file: 'react-router/umd/ReactRouter', expose: 'react-router' },
+            { file: 'history/umd/History', expose: 'history' },
         ])
         .transform(function (file) {
             if (file.match('/d3/d3.')) {
