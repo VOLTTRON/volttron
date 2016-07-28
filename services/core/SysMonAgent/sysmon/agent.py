@@ -67,7 +67,7 @@ from volttron.platform.agent import utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.5'
+__version__ = '3.6'
 
 
 def sysmon_agent(config_path, **kwargs):

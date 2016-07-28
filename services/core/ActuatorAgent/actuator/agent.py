@@ -496,7 +496,7 @@ ACTUATOR_COLLECTION = 'actuators'
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-__version__ = "0.3"
+__version__ = "0.4"
 
 
 class LockError(StandardError):

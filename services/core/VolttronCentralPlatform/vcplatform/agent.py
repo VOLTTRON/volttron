@@ -97,7 +97,7 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 from volttron.utils.persistance import load_create_store
 
-__version__ = '3.5.1'
+__version__ = '3.6'
 
 
 class CannotConnectError(StandardError):
