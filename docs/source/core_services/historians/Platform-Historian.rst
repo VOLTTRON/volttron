@@ -1,3 +1,5 @@
+.. _Platform-Historian:
+
 Platform Historian
 ==================
 
@@ -25,33 +27,4 @@ configuration.
         }
     }
 
-The platform historian will publish data about the current environment
-to the following topics. These topics can be pasted into the volttron
-central environment and will be able to be graphed appropriately.
-
-+---------+-----------------------------------------------------------------+
-| Index   | Topic                                                           |
-+=========+=================================================================+
-| 1       | datalogger/log/platform/status/cpu/times\_percent/guest\_nice   |
-+---------+-----------------------------------------------------------------+
-| 2       | datalogger/log/platform/status/cpu/times\_percent/system        |
-+---------+-----------------------------------------------------------------+
-| 3       | datalogger/log/platform/status/cpu/percent                      |
-+---------+-----------------------------------------------------------------+
-| 4       | datalogger/log/platform/status/cpu/times\_percent/irq           |
-+---------+-----------------------------------------------------------------+
-| 5       | datalogger/log/platform/status/cpu/times\_percent/steal         |
-+---------+-----------------------------------------------------------------+
-| 6       | datalogger/log/platform/status/cpu/times\_percent/user          |
-+---------+-----------------------------------------------------------------+
-| 7       | datalogger/log/platform/status/cpu/times\_percent/nice          |
-+---------+-----------------------------------------------------------------+
-| 8       | datalogger/log/platform/status/cpu/times\_percent/iowait        |
-+---------+-----------------------------------------------------------------+
-| 9       | datalogger/log/platform/status/cpu/times\_percent/idle          |
-+---------+-----------------------------------------------------------------+
-| 10      | datalogger/log/platform/status/cpu/times\_percent/guest         |
-+---------+-----------------------------------------------------------------+
-| 11      | datalogger/log/platform/status/cpu/times\_percent/softirq       |
-+---------+-----------------------------------------------------------------+
 

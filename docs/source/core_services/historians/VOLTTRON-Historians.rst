@@ -1,18 +1,26 @@
+.. _VOLTTRON-Historians:
+
 VOLTTRON Historian Framework Introduction
 -----------------------------------------
 
 Historian Agents are the way by which device, actuator, datalogger, and
 analysis are captured and stored in some sort of data store. Historian
-Agents for `sMAP <sMAP-Historian>`__, general support for `SQL based
-database <SQL-Historian>`__ (sqlite and MySql), and an
-`OpenEIS <Analyitics-Historian>`__ stores already exist.
+Agents for :ref:`sMAP <sMAP-Historian>`, general support for :ref:`SQL based
+database <SQL-Historian>` (sqlite and MySql), and an
+:ref:`OpenEIS <Analyitics-Historian>` stores already exist.
 
--  `sMAP Historian <sMAP-Historian>`__
--  `SQL Historian <SQL-Historian>`__
--  `OpenEIS Historian <Analytics-Historian>`__
+<<<<<<< Updated upstream
+-  :ref:`sMAP Historian <sMAP-Historian>`
+-  :ref:`SQL Historian <SQL-Historian>`
+-  :ref:`OpenEIS Historian <Analytics-Historian>`
+=======
+-  `sMAP Historian <sMAP-Historian>`
+-  `SQL Historian <SQL-Historian>`
+-  `OpenEIS Historian <Analytics-Historian>`
+>>>>>>> Stashed changes
 
 Other implementations of historians can be created by following the
-`developing historian agents <Developing-Historian-Agents>`__ section of
+:ref:`developing historian agents <Developing-Historian-Agents>` section of
 the wiki.
 
 Historians are all built upon the BaseHistorian which provides general
@@ -20,7 +28,7 @@ functionality the specific implementations build upon.
 
 | By default the base historian will listen to 4 separate root topics
 (datalogger/*, record/*, actuators/\ *, and device/*. Each of root
-topics has a `specific message syntax <Historian-Topic-Syntax>`__ that
+topics has a :ref:`specific message syntax <Historian-Topic-Syntax>` that
 it is expecting
 | for incoming data. Messages that are published to actuator are assumed
 to be part of the actuation process. Messages published to datalogger
@@ -29,8 +37,8 @@ specific types with the assumption that they have the ability to be
 graphed easily. Messages published to devices are data that comes
 directly from drivers. Finally Messages that are published to record
 will be handled as string data and can be customized to the user
-specific situation. Please consult the `Historian Topic
-Syntax <Historian-Topic-Syntax>`__ page for a specific syntax.
+specific situation. Please consult the :ref:`Historian Topic
+Syntax <Historian-Topic-Syntax>` page for a specific syntax.
 
 | This base historian will cache all received messages to a local
 database

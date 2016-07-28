@@ -64,7 +64,7 @@ from the following platform features:
 - Existing Agents can interact with the device via the Actuator Agent without any code changes.
 - Configuration follows the standard form of other devices. Existing and future tools
     for configuring devices on the platform will work with the new device driver.
-- Historians will automatically capture data published by the Master Driver Agent.
+- Historians will automatically capture data published by the new device driver.
 - Device data can be graphed in VOLTTRON Central in real time.
 - If the device can receive a heartbeat signal the driver framework can be configured to
    automatically send a heartbeat signal.
@@ -395,7 +395,17 @@ class BaseInterface(object):
 
         :param kwargs: Any interface specific parameters.
         """
-    
+
+    def set_multiple_points(self, path, point_names_values, **kwargs):
+        results = {}
+
+        for point_name, value in point_names_values:
+            try:
+                self.set_point(point_name, value, **kwargs)
+            except Exception as e:
+                results[path + '/' + point_name] = repr(e)
+
+        return results
 
 
 class RevertTracker(object):
@@ -641,7 +651,4 @@ class BasicRevert(object):
         _log.debug("Reverting {} to {}".format(point_name, value))
         
         self._set_point(point_name, value)   
-        self._tracker.clear_dirty_point(point_name) 
-        
-        
-        
+        self._tracker.clear_dirty_point(point_name)

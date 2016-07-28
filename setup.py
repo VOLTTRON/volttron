@@ -107,7 +107,7 @@ install_requires = (
 if __name__ == '__main__':
     setup(
         name = 'volttron',
-        version = '3.0.3',
+        version = '3.5.0',
         description = 'Agent Execution Platform',
         author = 'Volttron Team',
         author_email = 'volttron@pnnl.gov',
@@ -119,6 +119,7 @@ if __name__ == '__main__':
                 'volttron = volttron.platform.main:_main',
                 'volttron-ctl = volttron.platform.control:_main',
                 'volttron-pkg = volttron.platform.packaging:_main',
+                'volttron-cfg = volttron.platform.config:_main',
             ]
         },
         zip_safe = False,
