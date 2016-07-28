@@ -88,12 +88,8 @@ class SyslogAgent(Agent):
     def __init__(self, syslog_file_path, syslog_topic):
         """ Configures the `SyslogAgent`
 
-        Validates that the outfile parameter in the config file is specified
-        and sets up the agent.
-
-        @param config_path: path to the configuration file for this agent.
-        @param kwargs:
-        @return:
+        @param syslog_file_path: path to the syslog file.
+        @syslog_topic: topic to publish syslog message on.
         """
         super(SyslogAgent, self).__init__(identity='syslog')
         self.syslog_file_path = syslog_file_path
@@ -104,10 +100,11 @@ class SyslogAgent(Agent):
             
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
+        _log.info("Starting Syslog agent")
         self.core.spawn(watch_file, self.syslog_file_path, self.read_syslog_file)
         
     def read_syslog_file(self):
-        _log.info('loading syslog file %s', self.syslog_file_path)
+        _log.debug('loading syslog file %s', self.syslog_file_path)
         with open(self.syslog_file_path, 'r') as f:    
             f.seek(self.prev_end_position)
             for line in f:
@@ -115,15 +112,12 @@ class SyslogAgent(Agent):
             self.prev_end_position = self.get_end_position(f)
         
     def publish_syslog(self, line):
-        print('publishing syslog line {}'.format(line))
-        headers = {
-                    headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
-                }
+        _log.debug('publishing syslog line {}'.format(line))
         message = {'timestamp':line[:15],
                     'line': line[15:].strip()}
-        _log.info(message)
+        _log.debug(message)
         self.vip.pubsub.publish(peer="pubsub", topic=self.syslog_topic,
-                                headers=headers, message=message)
+                                message=message)
 
     def get_end_position(self, f):
         f.seek(0,2)
