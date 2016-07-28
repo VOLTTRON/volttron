@@ -1,5 +1,4 @@
 .. _Building-VOLTTRON:
-
 Building VOLTTRON
 ==================
 

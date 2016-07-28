@@ -21,8 +21,6 @@ function checkAuth(Component) {
         statics: {
             willTransitionTo: function (transition) {
                 if (transition.path !== '/login') {
-                    // _afterLoginPath = transition.path;
-
                     if (!authorizationStore.getAuthorization()) {
                         transition.redirect('/login');
                     }
@@ -82,12 +80,9 @@ router.run(function (Handler) {
     platformsPanelItemsStore.addChangeListener(function () {
         if (platformsPanelItemsStore.getLastCheck() && authorizationStore.getAuthorization())
         {
-            // console.log("current path: " + router.getCurrentPath());
             if (!router.isActive('charts'))
             {
-                // console.log("replace with /platform-charts");
                 router.transitionTo('/platform-charts');
-                // window.location.href = "index.html#/platform-charts";
             }
         }
 
@@ -97,7 +92,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/dashboard":16,"./components/login-form":19,"./components/page-not-found":22,"./components/platform":26,"./components/platform-charts":24,"./components/platform-manager":25,"./components/platforms":29,"./stores/authorization-store":42,"./stores/platforms-panel-items-store":47,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":17,"./components/login-form":20,"./components/page-not-found":24,"./components/platform":28,"./components/platform-charts":26,"./components/platform-manager":27,"./components/platforms":31,"./stores/authorization-store":44,"./stores/platforms-panel-items-store":49,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -124,7 +119,7 @@ var consoleActionCreators = {
 module.exports = consoleActionCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/rpc/exchange":36}],3:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/rpc/exchange":38}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -150,7 +145,7 @@ var controlButtonActionCreators = {
 module.exports = controlButtonActionCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34}],4:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -173,13 +168,14 @@ var modalActionCreators = {
 module.exports = modalActionCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34}],5:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36}],5:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var platformsStore = require('../stores/platforms-store');
 var platformChartStore = require('../stores/platform-chart-store');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -234,11 +230,11 @@ var platformActionCreators = {
                         });
                     })            
                     .catch(rpc.Error, function (error) {
-                        handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message);
+                        handle401(error);
                     });
             })            
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message);
+                handle401(error);
             });
     },
     startAgent: function (platform, agent) {
@@ -261,7 +257,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                        
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to start agent " + agent.name + ": " + error.message);
+                handle401(error, "Unable to start agent " + agent.name + ": " + error.message, agent.name);
             })
             .finally(function () {
                 agent.actionPending = false;
@@ -292,7 +288,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to stop agent " + agent.name + ": " + error.message);
+                handle401(error, "Unable to stop agent " + agent.name + ": " + error.message, agent.name);
             })
             .finally(function () {
                 agent.actionPending = false;
@@ -328,8 +324,9 @@ var platformActionCreators = {
         }).promise
             .then(function (result) {
                 
-                if (result.error) {
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to remove agent " + agent.name + ": " + result.error);
+                if (result.error) 
+                {
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to remove agent " + agent.name + ": " + result.error, agent.name);
                 }
                 else
                 {
@@ -337,7 +334,7 @@ var platformActionCreators = {
                 }
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to remove agent " + agent.name + ": " + error.message);
+                handle401(error, "Unable to remove agent " + agent.name + ": " + error.message, agent.name);
             });
     },
     installAgents: function (platform, files) {
@@ -359,8 +356,9 @@ var platformActionCreators = {
                     }
                 });
 
-                if (errors.length) {
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to install agents for platform " + platform.name + ": " + errors.join('\n'));
+                if (errors.length) 
+                {
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to install agents for platform " + platform.name + ": " + errors.join('\n'), platform.name);
                 }
 
                 if (errors.length !== files.length) {
@@ -368,107 +366,297 @@ var platformActionCreators = {
                 }
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to install agents for platform " + platform.name + ": " + error.message);
+                handle401(error, "Unable to install agents for platform " + platform.name + ": " + error.message, platform.name);
             });
     },    
-    loadCharts: function (platform) {
+    handleChartsForUser: function (callback) {
+        var authorization = authorizationStore.getAuthorization();
+        var user = authorizationStore.getUsername();
+
+        if (user)
+        {
+            callback(authorization, user);
+        }
+    },
+    loadChartTopics: function () {
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
+            method: 'historian.get_topic_list',
+            authorization: authorization,
+        }).promise
+            .then(function (topics) {
+
+                var filteredTopics = [];
+
+                topics.forEach(function (topic, index) {
+
+                    if (topic.indexOf("datalogger/platform/status") < 0) // ignore -- they're local platform topics that are in
+                    {                                                      // the list twice, also at datalogger/platform/<uuid>
+                        var item = {};
+                        var topicParts = topic.split("/");
+
+                        if (topicParts.length > 2)
+                        {
+                            var name;
+                            var parentPath;
+                            var label;
+
+                            if (topic.indexOf("datalogger/platforms") > -1) // if a platform instance
+                            {
+                                var platformUuid = topicParts[2];
+                                var topicPlatform = platformsStore.getPlatform(platformUuid);
+                                parentPath = (topicPlatform ? topicPlatform.name : "Unknown Platform");
+                                label = topicParts[topicParts.length - 2] + "/" + topicParts[topicParts.length - 1] + " (" + parentPath + ")";
+                                name = topicParts[topicParts.length - 2] + " / " + topicParts[topicParts.length - 1]; // the name is the
+                                                                                                                    // last two path parts
+                            }                                                                                      // ex.: times_percent / idle
+                            else // else a device point
+                            {
+                                parentPath = topicParts[0];
+
+                                for (var i = 1; i < topicParts.length - 1; i++)
+                                {
+                                    parentPath = parentPath + " > " + topicParts[i];
+                                }
+
+                                label = topicParts[topicParts.length - 1] + " (" + parentPath + ")";
+                                name = topicParts[topicParts.length - 1]; // the name is the column name
+
+                                item.path = platformsPanelItemsStore.findTopicInTree(topic);
+                            }
+
+                            item.value = topic;
+                            item.label = label;
+                            item.key = index;
+                            item.name = name;
+                            item.parentPath = parentPath;
+
+                            filteredTopics.push(item);
+                        }
+                    }
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_CHART_TOPICS,
+                    topics: filteredTopics
+                });
+            })
+            .catch(rpc.Error, function (error) {
+
+                var message = error.message;
+
+                if (error.code === -32602)
+                {
+                    if (error.message === "historian unavailable")
+                    {
+                        message = "Charts can't be added. The VOLTTRON Central historian is unavailable."
+                    }
+                }
+                else
+                {
+                    message = "Chart topics can't be loaded. " + error.message;
+                }
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_CHART_TOPICS,
+                    topics: []
+                });
+
+                statusIndicatorActionCreators.openStatusIndicator("error", message);
+                handle401(error);
+            });
+    },
+    loadCharts: function (platform) {
+        
+        var doLoadCharts = function (authorization, user)
+        {
+            new rpc.Exchange({
+                method: 'get_setting_keys',
+                authorization: authorization,
+            }).promise
+                .then(function (valid_keys) {
+                
+                    if (valid_keys.indexOf(user) > -1)
+                    {                    
+                        new rpc.Exchange({
+                            method: 'get_setting',
+                            params: { key: user },
+                            authorization: authorization,
+                        }).promise
+                            .then(function (charts) {
+                            
+                                var notifyRouter = false;
+
+                                dispatcher.dispatch({
+                                    type: ACTION_TYPES.LOAD_CHARTS,
+                                    charts: charts,
+                                });
+                            })
+                            .catch(rpc.Error, function (error) {
+                                handle401(error);
+                            });                            
+                        }
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error);
+                });
+        }.bind(platform);
+
+        platformActionCreators.handleChartsForUser(doLoadCharts);
+    },
+    saveCharts: function (chartsToSave) {
+        
+        var doSaveCharts = function (authorization, user) { 
+            var savedCharts = (this ? this : platformChartStore.getPinnedCharts());
+
+            new rpc.Exchange({
+                method: 'set_setting',
+                params: { key: user, value: savedCharts },
+                authorization: authorization,
+            }).promise
+                .then(function () {
+
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error, "Unable to save charts: " + error.message);
+                });
+        }.bind(chartsToSave);
+
+        platformActionCreators.handleChartsForUser(doSaveCharts);
+    },
+    saveChart: function (newChart) {
+        
+        var doSaveChart = function (authorization, user) { 
+            var newCharts = [this];
+
+            new rpc.Exchange({
+                method: 'set_setting',
+                params: { key: user, value: newCharts },
+                authorization: authorization,
+            }).promise
+                .then(function () {
+
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error, "Unable to save chart: " + error.message);
+                });
+        }.bind(newChart);
+
+        platformActionCreators.handleChartsForUser(doSaveChart);
+    },
+    deleteChart: function (chartToDelete) {
+        
+        var doDeleteChart = function (authorization, user) {
+
+            var savedCharts = platformChartStore.getPinnedCharts();
+
+            var newCharts = savedCharts.filter(function (chart) {
+                return (chart.chartKey !== this);
+            });
+
+            new rpc.Exchange({
+                method: 'set_setting',
+                params: { key: user, value: newCharts },
+                authorization: authorization,
+            }).promise
+                .then(function () {
+
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error, "Unable to delete chart: " + error.message);
+                });
+        }.find(chartToDelete);
+
+        platformActionCreators.handleChartsForUser(doDeleteChart);
+    },
+    removeSavedPlatformCharts: function (platform) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        // first get all the keys (i.e., users) that charts are saved under
+        new rpc.Exchange({
             method: 'get_setting_keys',
-            params: { key: 'charts' },
             authorization: authorization,
         }).promise
             .then(function (valid_keys) {
             
-                if (valid_keys.indexOf("charts") > -1)
-                {                    
+                // then get the charts for each user
+                valid_keys.forEach(function (key) {
+
                     new rpc.Exchange({
                         method: 'get_setting',
-                        params: { key: 'charts' },
+                        params: { key: key },
                         authorization: authorization,
                     }).promise
                         .then(function (charts) {
-                        
-                            var notifyRouter = false;
 
-                            dispatcher.dispatch({
-                                type: ACTION_TYPES.LOAD_CHARTS,
-                                charts: charts,
-                            });
+                            // for each saved chart, keep the chart if it has any series that don't belong
+                            // to the deregistered platform
+                            var filteredCharts = charts.filter(function (chart) {
+
+                                var keeper = true;
+                                var seriesToRemove;
+
+                                var filteredSeries = chart.series.filter(function (series) {
+                                    var seriesToKeep = (series.path.indexOf(this.uuid) < 0);
+
+                                    // also have to remove any data associated with the removed series
+                                    if (!seriesToKeep)
+                                    {
+                                        var filteredData = chart.data.filter(function (datum) {
+                                            return (datum.uuid !== this.uuid);
+                                        }, series);
+
+                                        chart.data = filteredData;
+                                    }
+
+                                    return seriesToKeep;
+                                }, this);
+
+                                // keep the chart if there are any series that don't belong to the deregistered platform,
+                                // but leave out the series that do belong to the deregistered platform
+                                if (filteredSeries.length !== 0)
+                                {
+                                    chart.series = filteredSeries;
+                                }
+                                else
+                                {
+                                    keeper = false;
+                                }
+
+                                return keeper;
+                            }, platform);
+                        
+                            // now save the remaining charts. Even if there are none, do the save, because that's what deletes 
+                            // the rejects.
+                            new rpc.Exchange({
+                                method: 'set_setting',
+                                params: { key: key, value: filteredCharts },
+                                authorization: authorization,
+                            }).promise
+                                .then(function () {
+                                    
+                                })
+                                .catch(rpc.Error, function (error) {
+                                    handle401(error, "Error removing deregistered platform's charts from saved charts (e0): " + error.message);
+                                });
                         })
                         .catch(rpc.Error, function (error) {
-                            handle401(error, "Unable to load charts for platform " + platform.name + ": " + error.message);
+                            handle401(error, "Error removing deregistered platform's charts from saved charts (e1): " + error.message);
                         });
                         
-                    }
+                    
+                });
             })
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to load charts for platform " + platform.name + ": " + error.message);
-            });
-
-
-        
-    },
-    saveCharts: function (chartsToSave) {
-        var authorization = authorizationStore.getAuthorization();
-
-        var savedCharts = (chartsToSave ? chartsToSave : platformChartStore.getPinnedCharts());
-
-        new rpc.Exchange({
-            method: 'set_setting',
-            params: { key: 'charts', value: savedCharts },
-            authorization: authorization,
-        }).promise
-            .then(function () {
-
-            })
-            .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to save charts: " + error.message);
+                handle401(error, "Error removing deregistered platform's charts from saved charts (e2): " + error.message);
             });
     },
-    saveChart: function (newChart) {
-        var authorization = authorizationStore.getAuthorization();
 
-        var newCharts = [newChart];
-
-        new rpc.Exchange({
-            method: 'set_setting',
-            params: { key: 'charts', value: newCharts },
-            authorization: authorization,
-        }).promise
-            .then(function () {
-
-            })
-            .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to save chart: " + error.message);
-            });
-    },
-    deleteChart: function (chartToDelete) {
-        var authorization = authorizationStore.getAuthorization();
-
-        var savedCharts = platformChartStore.getPinnedCharts();
-
-        var newCharts = savedCharts.filter(function (chart) {
-
-            return (chart.chartKey !== chartToDelete);
-        });
-
-        new rpc.Exchange({
-            method: 'set_setting',
-            params: { key: 'charts', value: newCharts },
-            authorization: authorization,
-        }).promise
-            .then(function () {
-
-            })
-            .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to delete chart: " + error.message);
-            });
-    },
 };
 
-function handle401(error, message) {
+function handle401(error, message, highlight, orientation) {
     if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
@@ -479,16 +667,16 @@ function handle401(error, message) {
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     }
-    else
+    else if (message)
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
 }
 
 module.exports = platformActionCreators;
 
 
-},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platform-chart-store":46,"../stores/platforms-store":49}],6:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":35,"../dispatcher":36,"../lib/rpc":39,"../stores/authorization-store":44,"../stores/platform-chart-store":48,"../stores/platforms-panel-items-store":49,"../stores/platforms-store":51}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -496,6 +684,7 @@ var dispatcher = require('../dispatcher');
 var authorizationStore = require('../stores/authorization-store');
 var platformChartStore = require('../stores/platform-chart-store');
 var platformsStore = require('../stores/platforms-store');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
@@ -515,20 +704,34 @@ var platformChartActionCreators = {
 			chartType: chartType
 		});
 	},
-	changeRefreshRate: function (rate, chartKey) {
-		dispatcher.dispatch({
-			type: ACTION_TYPES.CHANGE_CHART_REFRESH,
-			rate: rate,
-			chartKey: chartKey
-		});
-	},
+    changeRefreshRate: function (rate, chartKey) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHANGE_CHART_REFRESH,
+            rate: rate,
+            chartKey: chartKey
+        });
+    },
+    setMin: function (min, chartKey) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHANGE_CHART_MIN,
+            min: min,
+            chartKey: chartKey
+        });
+    },
+    setMax: function (max, chartKey) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHANGE_CHART_MAX,
+            max: max,
+            chartKey: chartKey
+        });
+    },
 	refreshChart: function (series) {
 
 		var authorization = authorizationStore.getAuthorization();
 
 		series.forEach(function (item) {            
             new rpc.Exchange({
-                method: 'platforms.uuid.' + item.parentUuid + '.historian.query',
+                method: 'historian.query',
                 params: {
                     topic: item.topic,
                     count: 20,
@@ -537,41 +740,28 @@ var platformChartActionCreators = {
                 authorization: authorization,
             }).promise
                 .then(function (result) {
-                	item.data = result.values;
 
-                    item.data.forEach(function (datum) {
-                        datum.name = item.name;
-                        datum.parent = item.parentPath;
-                    	datum.uuid = item.uuid;
-                    });
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.REFRESH_CHART,
-                        item: item
-                    });
-                })
-                .catch(rpc.Error, function (error) {
-
-                    var message = "Unable to update chart: " + error.message;
-
-                    if (error.code === -32602)
+                    if (result.hasOwnProperty("values"))
                     {
-                        if (error.message === "historian unavailable")
-                        {
-                            message = "Unable to update chart: The historian agent is unavailable.";
-                        }
+                    	item.data = result.values;
+
+                        item.data.forEach(function (datum) {
+                            datum.name = item.name;
+                            datum.parent = item.parentPath;
+                        	datum.uuid = item.uuid;
+                        });
+                        dispatcher.dispatch({
+                            type: ACTION_TYPES.REFRESH_CHART,
+                            item: item
+                        });
                     }
                     else
                     {
-                        var platform = platformsStore.getPlatform(item.parentUuid);
-                        var historianRunning = platformsStore.getHistorianRunning(platform);
-
-                        if (!historianRunning)
-                        {
-                            message = "Unable to update chart: The historian agent is unavailable.";
-                        }
+                        console.log("chart " + item.name + " isn't being refreshed");
                     }
-
-                    handle401(error, message);
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error);
                 });
 		});
 
@@ -581,7 +771,7 @@ var platformChartActionCreators = {
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
-            method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
+            method: 'historian.query',
             params: {
                 topic: panelItem.topic,
                 count: 20,
@@ -590,59 +780,88 @@ var platformChartActionCreators = {
             authorization: authorization,
         }).promise
             .then(function (result) {
-                panelItem.data = result.values;
 
-                panelItem.data.forEach(function (datum) {
-                    datum.name = panelItem.name;
-                    datum.parent = panelItem.parentPath;
-                    datum.uuid = panelItem.uuid;
-                });
+                if (result.hasOwnProperty("values"))
+                {    
+                    panelItem.data = result.values;
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.SHOW_CHARTS,
-                    emitChange: (emitChange === null || typeof emitChange === "undefined" ? true : emitChange)
-                });
+                    panelItem.data.forEach(function (datum) {
+                        datum.name = panelItem.name;
+                        datum.parent = panelItem.parentPath;
+                        datum.uuid = panelItem.uuid;
+                    });
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.ADD_TO_CHART,
-                    panelItem: panelItem
-                });
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.SHOW_CHARTS,
+                        emitChange: (emitChange === null || typeof emitChange === "undefined" ? true : emitChange)
+                    });
 
-                var savedCharts = platformChartStore.getPinnedCharts();
-                var inSavedChart = savedCharts.find(function (chart) {
-                    return chart.chartKey === panelItem.name;
-                });
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.ADD_TO_CHART,
+                        panelItem: panelItem
+                    });
 
-                if (inSavedChart)
+                    platformsPanelActionCreators.checkItem(panelItem.path, true);
+
+                    var savedCharts = platformChartStore.getPinnedCharts();
+                    var inSavedChart = savedCharts.find(function (chart) {
+                        return chart.chartKey === panelItem.name;
+                    });
+
+                    if (inSavedChart)
+                    {
+                        platformActionCreators.saveCharts(savedCharts);
+                    }
+                }
+                else
                 {
-                    platformActionCreators.saveCharts(savedCharts);
+                    var message = "Unable to load chart: An unknown problem occurred.";
+                    var orientation = "center";
+                    var error = {};
+
+                    if (panelItem.path && panelItem.path.length > 1)
+                    {
+                        var platformUuid = panelItem.path[1];
+                        var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
+
+                        if (!forwarderRunning)
+                        {
+                            message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
+                            orientation = "left";
+                        }             
+                    }
+
+                    platformsPanelActionCreators.checkItem(panelItem.path, false);
+                    handle401(error, message, null, orientation);
                 }
             })
             .catch(rpc.Error, function (error) {
 
                 var message = "Unable to load chart: " + error.message;
+                var orientation;
 
                 if (error.code === -32602)
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Unable to load chart: The historian agent is not available.";
+                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        orientation = "left";
                     }
                 }
                 else
                 {
-                    var platform = platformsStore.getPlatform(panelItem.parentUuid);
-                    var historianRunning = platformsStore.getHistorianRunning(platform);
+                    var historianRunning = platformsStore.getVcHistorianRunning();
 
                     if (!historianRunning)
                     {
-                        message = "Unable to load chart: The historian agent is not available.";
+                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        orientation = "left";
                     }
                 }
 
                 platformsPanelActionCreators.checkItem(panelItem.path, false);
-                handle401(error, message);
-            });
+                handle401(error, message, null, orientation);
+           });
     },
     removeFromChart: function(panelItem) {
 
@@ -655,6 +874,8 @@ var platformChartActionCreators = {
             type: ACTION_TYPES.REMOVE_FROM_CHART,
             panelItem: panelItem
         });        
+
+        platformsPanelActionCreators.checkItem(panelItem.path, false);
 
         if (inSavedChart)
         {
@@ -671,8 +892,8 @@ var platformChartActionCreators = {
     }
 };
 
-function handle401(error, message) {
-    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
+function handle401(error, message, highlight, orientation) {
+   if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
@@ -682,16 +903,16 @@ function handle401(error, message) {
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     }
-    else
+    else if (message)
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
-};
+}
 
 module.exports = platformChartActionCreators;
 
 
-},{"../action-creators/platform-action-creators":5,"../action-creators/platforms-panel-action-creators":8,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platform-chart-store":46,"../stores/platforms-store":49}],7:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../action-creators/platforms-panel-action-creators":8,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":35,"../dispatcher":36,"../lib/rpc":39,"../stores/authorization-store":44,"../stores/platform-chart-store":48,"../stores/platforms-panel-items-store":49,"../stores/platforms-store":51}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -707,7 +928,8 @@ var platformManagerActionCreators = {
     initialize: function () {
         if (!authorizationStore.getAuthorization()) { return; }
 
-        platformManagerActionCreators.loadPlatforms();
+        var reload = false;
+        platformManagerActionCreators.loadPlatforms(reload);
     },
     requestAuthorization: function (username, password) {
         new rpc.Exchange({
@@ -721,6 +943,7 @@ var platformManagerActionCreators = {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_AUTHORIZATION,
                     authorization: result,
+                    name: username
                 });
             })
             .then(platformManagerActionCreators.initialize)
@@ -733,16 +956,16 @@ var platformManagerActionCreators = {
                     message = "Invalid username/password specified.";
                 }
 
-                statusIndicatorActionCreators.openStatusIndicator("error", message); //This is needed because the 401 status will keep the status 
-                handle401(error, error.message);                                    // indicator from being shown. This is the one time we
-            })                                                                      // show bad status for not authorized. Other times, we
-    },                                                                              // just log them out.
+                statusIndicatorActionCreators.openStatusIndicator("error", message, null, "center"); //This is needed because the 401 status  
+                handle401(error, error.message);                                    // will keep the statusindicator from being shown. This is 
+            })                                                                      // the one time we show bad status for not authorized. Other 
+    },                                                                              // times, we just log them out.
     clearAuthorization: function () {
         dispatcher.dispatch({
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     },
-    loadPlatforms: function () {
+    loadPlatforms: function (reload) {
         var authorization = authorizationStore.getAuthorization();
 
         return new rpc.Exchange({
@@ -750,6 +973,16 @@ var platformManagerActionCreators = {
             authorization: authorization,
         }).promise
             .then(function (platforms) {
+
+                platforms = platforms.map(function (platform, index) {
+
+                    if (platform.name === null || platform.name === "" || typeof platform.name === undefined)
+                    {
+                        platform.name = "Unnamed Platform " + (index + 1);
+                    }
+
+                    return platform;
+                });
 
                 var managerPlatforms = JSON.parse(JSON.stringify(platforms));
                 var panelPlatforms = JSON.parse(JSON.stringify(platforms));
@@ -762,12 +995,16 @@ var platformManagerActionCreators = {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
                     platforms: panelPlatforms,
+                    reload: reload
                 });
 
                 managerPlatforms.forEach(function (platform, i) {
                     platformActionCreators.loadAgents(platform);
 
-                    platformActionCreators.loadCharts(platform);
+                    if (!reload)
+                    {
+                        platformActionCreators.loadCharts(platform);
+                    }
                 });
             })
             .catch(rpc.Error, function (error) {
@@ -809,9 +1046,10 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
-                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.");
-        
-                platformManagerActionCreators.loadPlatforms();                
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.", name, "center");        
+
+                var reload = true;
+                platformManagerActionCreators.loadPlatforms(reload);
 
             })
             .catch(rpc.Error, function (error) {
@@ -820,22 +1058,22 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
-                var message = error.message;
+                var message = "Platform " + name + " was not registered: " + error.message;
+                var orientation;
 
                 switch (error.code)
                 {
                     case -32600:
-                        message = "Platform " + name + " was not registered: Invalid address."
-                        break;
-                    case -32002:
-                        message = "Platform " + name + " was not registered: " + error.message;
+                        message = "Platform " + name + " was not registered: Invalid address.";
+                        orientation = "center"
                         break;
                     case -32000:
                         message = "Platform " + name + " was not registered: An unknown error occurred.";
+                        orientation = "center"
                         break;
                 }
 
-                handle401(error, message);
+                handle401(error, message, name, orientation);
             });
     },
     deregisterPlatform: function (platform) {
@@ -850,25 +1088,32 @@ var platformManagerActionCreators = {
                 platform_uuid: platform.uuid
             },
         }).promise
-            .then(function (platform) {
+            .then(function (result) {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
-                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.");
+                platformActionCreators.removeSavedPlatformCharts(platform);
 
-                platformManagerActionCreators.loadPlatforms();
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.", platformName, "center");
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.REMOVE_PLATFORM_CHARTS,
+                    platform: platform
+                });
+
+                var reload = true;
+                platformManagerActionCreators.loadPlatforms(reload);
             })
             .catch(rpc.Error, function (error) { 
                 var message = "Platform " + platformName + " was not deregistered: " + error.message;
 
-                handle401(error, message);
+                handle401(error, message, platformName);
             });
     },
 };
 
-function handle401(error, message) {
-    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
+function handle401(error, message, highlight, orientation) {
+   if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
@@ -876,16 +1121,16 @@ function handle401(error, message) {
 
         platformManagerActionCreators.clearAuthorization();
     }
-    else
+    else if (message)
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
 }
 
 module.exports = platformManagerActionCreators;
 
 
-},{"../action-creators/platform-action-creators":5,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42}],8:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":35,"../dispatcher":36,"../lib/rpc":39,"../stores/authorization-store":44}],8:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -945,7 +1190,7 @@ var platformsPanelActionCreators = {
                 })                     
                 .catch(rpc.Error, function (error) {
                     endLoadingData(platform);
-                    handle401(error, "Unable to load devices for platform " + platform.name + " in side panel: " + error.message);
+                    handle401(error, "Unable to load devices for platform " + platform.name + " in side panel: " + error.message, platform.name);
                 });    
 
         }
@@ -969,7 +1214,7 @@ var platformsPanelActionCreators = {
                 })                     
                 .catch(rpc.Error, function (error) {
                     endLoadingData(platform);
-                    handle401(error, "Unable to load agents for platform " + platform.name + " in side panel: " + error.message);
+                    handle401(error, "Unable to load agents for platform " + platform.name + " in side panel: " + error.message, platform.name);
                 });    
         }       
 
@@ -1029,7 +1274,7 @@ var platformsPanelActionCreators = {
                             }
 
                             endLoadingData(parent);
-                            handle401(error, message);
+                            handle401(error, message, parent.name, "center");
                         });   
             } 
         }
@@ -1078,7 +1323,7 @@ var platformsPanelActionCreators = {
     }    
 }
 
-function handle401(error, message) {
+function handle401(error, message, highlight, orientation) {
     if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
@@ -1089,27 +1334,30 @@ function handle401(error, message) {
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     }
-    else
+    else if (message)
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
-};
+}
 
 module.exports = platformsPanelActionCreators;
 
 
-},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platforms-panel-items-store":47}],9:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":35,"../dispatcher":36,"../lib/rpc":39,"../stores/authorization-store":44,"../stores/platforms-panel-items-store":49}],9:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 
 var actionStatusCreators = {
-	openStatusIndicator: function (status, message) {
+	openStatusIndicator: function (status, message, highlight, align) {
+
 		dispatcher.dispatch({
 			type: ACTION_TYPES.OPEN_STATUS,
 			status: status,
 			message: message,
+			highlight: highlight,
+			align: align
 		});
 	},
 	closeStatusIndicator: function () {
@@ -1122,7 +1370,7 @@ var actionStatusCreators = {
 module.exports = actionStatusCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34}],10:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36}],10:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1232,7 +1480,283 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 module.exports = AgentRow;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"./remove-agent-form":31,"react":undefined}],11:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"./remove-agent-form":33,"react":undefined}],11:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var ComboBox = React.createClass({displayName: "ComboBox",
+    mixins: [
+        require('react-onclickoutside')
+    ],
+	getInitialState: function () {
+
+        var preppedItems = prepItems(this.props.itemskey, this.props.itemsvalue, this.props.itemslabel, this.props.items);
+
+        var state = {
+            selectedKey: "",
+            selectedLabel: "",
+            selectedValue: "",
+            inputValue: "",
+            hideMenu: true,
+            preppedItems: preppedItems,
+            itemsList: preppedItems,
+            focusedIndex: -1
+        };
+
+        this.forceHide = false;
+
+        return state;
+    },
+    componentDidUpdate: function () {
+        if (this.forceHide)
+        {
+            React.findDOMNode(this.refs.comboInput).blur();
+            this.forceHide = false;
+        }
+        else
+        {
+            if (this.state.focusedIndex > -1)
+            {
+                var modal = document.querySelector(".modal__dialog");
+
+                var comboItems = document.querySelectorAll(".combobox-item");
+
+                if (comboItems.length > this.state.focusedIndex)
+                {
+                    var targetItem = comboItems[this.state.focusedIndex];
+
+                    if (targetItem)
+                    {
+                        var menu = targetItem.parentNode;
+
+                        var menuRect = menu.getBoundingClientRect();
+                        var modalRect = modal.getBoundingClientRect();
+                        var targetRect = targetItem.getBoundingClientRect();
+
+                        if (targetRect.bottom > modalRect.bottom || targetRect.top < modalRect.top)
+                        {
+                            var newTop = targetRect.top - menuRect.top;
+
+                            modal.scrollTop = newTop;
+                        }
+                    }
+
+                }
+            }
+        }
+    },
+    handleClickOutside: function () {
+        if (!this.state.hideMenu)
+        {
+            var validValue = this._validateValue(this.state.inputValue);
+            this.props.onselect(validValue);
+            this.setState({hideMenu: true});
+            this.setState({focusedIndex: -1});
+        }
+    },
+    _validateValue: function (inputValue) {
+
+        var validInput = this.props.items.find(function (item) {
+            return item.label === inputValue;
+        });
+
+        var validKey = (validInput ? validInput.key : "");
+        var validValue = (validInput ? validInput.value : "");
+        var validLabel = (validInput ? validInput.label : "");
+        
+        this.setState({selectedKey: validKey});
+        this.setState({selectedValue: validValue});
+        this.setState({selectedLabel: validLabel});
+
+        return validValue;
+    },
+    _onClick: function (e) {
+        this.setState({selectedKey: e.target.dataset.key});
+        this.setState({selectedLabel: e.target.dataset.label});
+        this.setState({selectedValue: e.target.dataset.value});
+        this.setState({inputValue: e.target.dataset.label});
+        this.setState({hideMenu: true});
+
+        this.props.onselect(e.target.dataset.value);
+
+        this.setState({focusedIndex: -1});
+    },
+    _onFocus: function () {
+        this.setState({hideMenu: false});
+    },
+    _onKeyup: function (e) {
+        switch (e.keyCode)
+        {
+            case 13:    //Enter key
+                this.forceHide = true;
+                this.setState({hideMenu: true});
+
+                var inputValue = this.state.inputValue;
+
+                if (this.state.focusedIndex > -1)
+                {
+                    var selectedItem = this.state.itemsList[this.state.focusedIndex];
+                    inputValue = selectedItem.label;
+
+                    this.setState({inputValue: inputValue});
+                    this.setState({selectedKey: selectedItem.key});
+                    this.setState({selectedLabel: selectedItem.label});
+                    this.setState({selectedValue: selectedItem.value});
+                }
+
+                var validValue = this._validateValue(inputValue);
+                this.props.onselect(validValue);
+
+                this.setState({focusedIndex: -1});
+                break;
+        }
+    },
+    _onKeydown: function (e) {
+        switch (e.keyCode)
+        {
+            case 9:    //Tab key
+            case 40:    //Arrow down key
+
+                e.preventDefault();
+
+                var newIndex = 0;
+
+                if (this.state.focusedIndex < this.state.itemsList.length - 1)
+                {
+                    newIndex = this.state.focusedIndex + 1;
+                }
+
+                this.setState({focusedIndex: newIndex});
+                break;
+            case 38:    //Arrow up key
+
+                e.preventDefault();
+
+                var newIndex = this.state.itemsList.length - 1;
+
+                if (this.state.focusedIndex > 0)
+                {
+                    newIndex = this.state.focusedIndex - 1;
+                }                
+
+                this.setState({focusedIndex: newIndex});
+                break;
+        }
+    },
+    _onChange: function (e) {
+
+        var inputValue = e.target.value;
+
+        var itemsList = filterItems(inputValue, this.state.preppedItems);
+
+        this.setState({itemsList: itemsList});
+
+        this.setState({inputValue: inputValue}); 
+                
+    },
+
+	render: function () {
+		
+        var menuStyle = {
+            display: (this.state.hideMenu ? 'none' : 'block')
+        };
+
+        var inputStyle = {
+            width: "390px"
+        };
+
+        var items = this.state.itemsList.map(function (item, index) {
+
+            var highlightStyle = {};
+
+            if (this.state.focusedIndex > -1 && this.state.focusedIndex === index)
+            {
+                highlightStyle.backgroundColor = "#B2C9D1"
+            }
+
+            return (
+                React.createElement("div", {className: "combobox-item", 
+                    style: highlightStyle}, 
+                    React.createElement("div", {
+                        onClick: this._onClick, 
+                        "data-label": item.label, 
+                        "data-value": item.value, 
+                        "data-key": item.key}, item.label)
+                )
+            )
+        }, this);
+
+		return (
+		
+        	React.createElement("div", {className: "combobox-control"}, 
+                React.createElement("input", {
+                    style: inputStyle, 
+                    type: "text", 
+                    onFocus: this._onFocus, 
+                    onChange: this._onChange, 
+                    onKeyUp: this._onKeyup, 
+                    onKeyDown: this._onKeydown, 
+                    ref: "comboInput", 
+                    placeholder: "type here to see topics", 
+                    value: this.state.inputValue}), 
+
+                React.createElement("div", {className: "combobox-menu", style: menuStyle}, 
+				    items
+                )
+			)
+		);
+	},
+});
+
+function prepItems(itemsKey, itemsValue, itemsLabel, itemsList)
+{
+    var props = {
+        itemsKey: itemsKey,
+        itemsValue: itemsValue,
+        itemsLabel: itemsLabel
+    };
+
+    var list = itemsList.map(function (item, index) {
+
+        var preppedItem = {
+            key: (this.itemsKey ? item[this.itemsKey] : index),
+            value: (this.itemsValue ? item[this.itemsValue] : item),
+            label: (this.itemsLabel ? item[this.itemsLabel] : item)
+        };
+
+        return preppedItem;
+    }, props);
+
+    return JSON.parse(JSON.stringify(list));
+}
+
+function filterItems(filterTerm, itemsList)
+{
+    var listCopy = JSON.parse(JSON.stringify(itemsList));
+
+    var filteredItems = listCopy;
+
+    if (filterTerm)
+    {
+        filteredItems = [];
+
+        listCopy.forEach(function (item) {
+            if (item.label.toUpperCase().indexOf(filterTerm.toUpperCase()) > -1)
+            {
+                filteredItems.push(item);
+            }
+        });
+    }
+
+    return filteredItems;
+}
+
+
+module.exports = ComboBox;
+
+
+},{"react":undefined,"react-onclickoutside":undefined}],12:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1302,7 +1826,7 @@ function getStateFromStores() {
 module.exports = Composer;
 
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":43,"react":undefined}],12:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":45,"react":undefined}],13:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1349,7 +1873,7 @@ var ConfirmForm = React.createClass({displayName: "ConfirmForm",
 module.exports = ConfirmForm;
 
 
-},{"../action-creators/modal-action-creators":4,"react":undefined}],13:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"react":undefined}],14:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1371,7 +1895,7 @@ var Console = React.createClass({displayName: "Console",
 module.exports = Console;
 
 
-},{"./composer":11,"./conversation":15,"react":undefined}],14:[function(require,module,exports){
+},{"./composer":12,"./conversation":16,"react":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1571,14 +2095,12 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 		        top: this.state.taptipY + "px"
 		    };
 
-            //TODO: add this to repository
             if (this.props.taptip.styles)
             {
                 this.props.taptip.styles.forEach(function (styleToAdd) {
                     taptipStyle[styleToAdd.key] = styleToAdd.value;
                 });
             }
-            //end TODO
 
 		    var tapTipClasses = "taptip_outer";
 
@@ -1643,7 +2165,7 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 
 module.exports = ControlButton;
 
-},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":44,"react":undefined,"react-onclickoutside":undefined,"react-router":undefined}],15:[function(require,module,exports){
+},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":46,"react":undefined,"react-onclickoutside":undefined,"react-router":undefined}],16:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -1694,7 +2216,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":43,"./exchange":18,"jquery":undefined,"react":undefined}],16:[function(require,module,exports){
+},{"../stores/console-store":45,"./exchange":19,"jquery":undefined,"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1704,7 +2226,10 @@ var platformChartStore = require('../stores/platform-chart-store');
 var PlatformChart = require('./platform-chart');
 
 var Dashboard = React.createClass({displayName: "Dashboard",
-    getInitialState: getStateFromStores,
+    getInitialState: function () {
+        var state = getStateFromStores();
+        return state;
+    },
     componentDidMount: function () {
         platformChartStore.addChangeListener(this._onStoreChange);
     },
@@ -1731,7 +2256,7 @@ var Dashboard = React.createClass({displayName: "Dashboard",
         if (pinnedCharts.length === 0) {
             platformCharts = (
                 React.createElement("p", {className: "empty-help"}, 
-                    "Pin a platform chart to have it appear on the dashboard"
+                    "Pin a chart to have it appear on the dashboard"
                 )
             );
         }
@@ -1755,7 +2280,7 @@ function getStateFromStores() {
 module.exports = Dashboard;
 
 
-},{"../stores/platform-chart-store":46,"./platform-chart":23,"react":undefined,"react-router":undefined}],17:[function(require,module,exports){
+},{"../stores/platform-chart-store":48,"./platform-chart":25,"react":undefined,"react-router":undefined}],18:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1798,7 +2323,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"react":undefined}],18:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"react":undefined}],19:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1851,7 +2376,7 @@ var Exchange = React.createClass({displayName: "Exchange",
 module.exports = Exchange;
 
 
-},{"react":undefined}],19:[function(require,module,exports){
+},{"react":undefined}],20:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1914,7 +2439,7 @@ var LoginForm = React.createClass({displayName: "LoginForm",
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":7,"react":undefined,"react-router":undefined}],20:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":7,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1941,7 +2466,7 @@ var Modal = React.createClass({displayName: "Modal",
 module.exports = Modal;
 
 
-},{"../action-creators/modal-action-creators":4,"react":undefined}],21:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"react":undefined}],22:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1963,8 +2488,6 @@ var Navigation = React.createClass({displayName: "Navigation",
         this.setState(getStateFromStores());
     },
     _onLogOutClick: function () {
-        // platformsPanelActionCreators.closePanel();
-        // platformsPanelActionCreators.resetPanel();
         platformManagerActionCreators.clearAuthorization();
     },
     render: function () {
@@ -2022,7 +2545,221 @@ function getStateFromStores() {
 module.exports = Navigation;
 
 
-},{"../action-creators/platform-manager-action-creators":7,"../action-creators/platforms-panel-action-creators":8,"../stores/authorization-store":42,"react":undefined,"react-router":undefined}],22:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":7,"../action-creators/platforms-panel-action-creators":8,"../stores/authorization-store":44,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var modalActionCreators = require('../action-creators/modal-action-creators');
+var platformActionCreators = require('../action-creators/platform-action-creators');
+var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
+var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
+var chartStore = require('../stores/platform-chart-store');
+var ComboBox = require('./combo-box');
+
+var NewChartForm = React.createClass({displayName: "NewChartForm",
+    getInitialState: function () {
+        var state = {};
+
+        state.refreshInterval = 15000;
+
+        state.topics = chartStore.getChartTopics();
+
+        state.selectedTopic = "";
+
+        return state;
+    },
+    componentDidMount: function () {
+        chartStore.addChangeListener(this._onStoresChange);
+    },
+    componentWillUnmount: function () {
+        chartStore.removeChangeListener(this._onStoresChange);
+    },
+    _onStoresChange: function () {
+        this.setState({ topics: chartStore.getChartTopics()});
+    },
+    _onPropChange: function (e) {
+        var state = {};
+
+        for (key in this.state)
+        {
+            state[key] = this.state[key];
+        }
+
+        var key = e.target.id;
+
+        switch (e.target.type) {
+        case 'checkbox':
+            state[key] = e.target.checked;
+            break;
+        case 'number':
+            state[key] = parseFloat(e.target.value);
+            break;
+        default:
+            state[key] = e.target.value;
+        }
+
+        this.setState(state);
+    },
+    _onTopicChange: function (value) {
+        this.setState({ selectedTopic: value });
+    },
+    _onCancelClick: function () {
+        modalActionCreators.closeModal();
+    },
+    _onSubmit: function (e) {
+
+        e.preventDefault();
+
+        var selectedTopic = this.state.topics.find(function (topic) {
+            return topic.value === this.state.selectedTopic;
+        }, this);
+
+        if (selectedTopic)
+        {
+            selectedTopic.uuid = selectedTopic.value;
+            selectedTopic.topic = selectedTopic.value;
+            selectedTopic.pinned = (this.state.pin ? true : false);
+            selectedTopic.refreshInterval = this.state.refreshInterval;
+            selectedTopic.chartType = this.state.chartType;
+            selectedTopic.path = platformsPanelItemsStore.findTopicInTree(selectedTopic.topic);
+            selectedTopic.max = this.state.max;
+            selectedTopic.min = this.state.min;
+
+            if (selectedTopic.path && selectedTopic.path.length > 1)
+            {
+                selectedTopic.parentUuid = selectedTopic.path[selectedTopic.path.length - 2];
+            }
+        }
+
+        var notifyRouter = false;
+
+        platformChartActionCreators.addToChart(selectedTopic, notifyRouter);
+
+        if (selectedTopic.path)
+        {
+            platformsPanelActionCreators.checkItem(selectedTopic.path, true);
+        }
+
+        modalActionCreators.closeModal();
+    },
+    render: function () {
+        var topicsSelector;
+
+        if (this.state.topics.length)
+        {
+            topicsSelector = (
+                React.createElement(ComboBox, {items: this.state.topics, itemskey: "key", itemsvalue: "value", itemslabel: "label", onselect: this._onTopicChange}
+                )
+            )
+        }
+        else
+        {
+            topicsSelector = React.createElement("div", null, "Loading topics ...")
+        }
+
+        return (
+            React.createElement("form", {className: "edit-chart-form", onSubmit: this._onSubmit}, 
+                React.createElement("h1", null, "Add Chart"), 
+                this.state.error && (
+                    React.createElement("div", {className: "error"}, this.state.error.message)
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", {htmlFor: "topic"}, "Topics"), 
+                    topicsSelector
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", null, "Dashboard"), 
+                    React.createElement("input", {
+                        className: "form__control form__control--inline", 
+                        type: "checkbox", 
+                        id: "pin", 
+                        onChange: this._onPropChange, 
+                        checked: this.state.pin}
+                    ), " ", 
+                    React.createElement("label", {htmlFor: "pin"}, "Pin to dashboard")
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", {htmlFor: "refreshInterval"}, "Refresh interval (ms)"), 
+                    React.createElement("input", {
+                        className: "form__control form__control--inline", 
+                        type: "number", 
+                        id: "refreshInterval", 
+                        onChange: this._onPropChange, 
+                        value: this.state.refreshInterval, 
+                        min: "250", 
+                        step: "1", 
+                        placeholder: "disabled"}
+                    ), 
+                    React.createElement("span", {className: "form__control-help"}, 
+                        "Omit to disable"
+                    )
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", {htmlFor: "chartType"}, "Chart type"), 
+                    React.createElement("select", {
+                        id: "chartType", 
+                        onChange: this._onPropChange, 
+                        value: this.state.chartType, 
+                        autoFocus: true, 
+                        required: true
+                    }, 
+                        React.createElement("option", {value: ""}, "-- Select type --"), 
+                        React.createElement("option", {value: "line"}, "Line"), 
+                        React.createElement("option", {value: "lineWithFocus"}, "Line with View Finder"), 
+                        React.createElement("option", {value: "stackedArea"}, "Stacked Area"), 
+                        React.createElement("option", {value: "cumulativeLine"}, "Cumulative Line")
+                    )
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", null, "Y-axis range"), 
+                    React.createElement("label", {htmlFor: "min"}, "Min:"), " ", 
+                    React.createElement("input", {
+                        className: "form__control form__control--inline", 
+                        type: "number", 
+                        id: "min", 
+                        onChange: this._onPropChange, 
+                        value: this.state.min, 
+                        placeholder: "auto"}
+                    ), " ", 
+                    React.createElement("label", {htmlFor: "max"}, "Max:"), " ", 
+                    React.createElement("input", {
+                        className: "form__control form__control--inline", 
+                        type: "number", 
+                        id: "max", 
+                        onChange: this._onPropChange, 
+                        value: this.state.max, 
+                        placeholder: "auto"}
+                    ), React.createElement("br", null), 
+                    React.createElement("span", {className: "form__control-help"}, 
+                        "Omit either to determine from data"
+                    )
+                ), 
+                React.createElement("div", {className: "form__actions"}, 
+                    React.createElement("button", {
+                        className: "button button--secondary", 
+                        type: "button", 
+                        onClick: this._onCancelClick
+                    }, 
+                        "Cancel"
+                    ), 
+                    React.createElement("button", {
+                        className: "button", 
+                        disabled: !this.state.selectedTopic || !this.state.chartType
+                    }, 
+                        "Load Chart"
+                    )
+                )
+            )
+        );
+    },
+});
+
+module.exports = NewChartForm;
+
+
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platform-chart-store":48,"../stores/platforms-panel-items-store":49,"./combo-box":11,"react":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2040,7 +2777,7 @@ var PageNotFound = React.createClass({displayName: "PageNotFound",
 module.exports = PageNotFound;
 
 
-},{"react":undefined}],23:[function(require,module,exports){
+},{"react":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2066,6 +2803,8 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
         state.refreshInterval = this.props.chart.refreshInterval;
         state.pinned = this.props.chart.pinned;
 
+        state.refreshing = false;
+
         return state;
     },
     componentDidMount: function () {
@@ -2078,8 +2817,11 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
     },
     _onStoresChange: function () {
 
+        this.setState({refreshing: false});
+
         if (this.props.chart.data.length > 0)
         {
+
             var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
 
             if (refreshInterval !== this.state.refreshInterval)
@@ -2096,6 +2838,8 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
         
         if (this.props.hasOwnProperty("chart"))
         {
+            this.setState({refreshing: true});
+
             platformChartActionCreators.refreshChart(
                 this.props.chart.series
             );
@@ -2131,16 +2875,6 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
                 onConfirm: deleteChart.bind(this)}
             )
         );
-
-        // this.props.chart.series.forEach(function (series) {
-        //     if (series.hasOwnProperty("path"))
-        //     {
-        //         platformsPanelActionCreators.checkItem(series.path, false);
-        //     }
-        // });
-
-        // platformChartActionCreators.removeChart(this.props.chartKey);
-        // platformActionCreators.saveCharts();
     },
     render: function () {
         var chartData = this.props.chart; 
@@ -2158,13 +2892,36 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
             );
         }
 
+        var refreshingIcon;
+
+        if (this.state.refreshing)
+        {
+            refreshingIcon = React.createElement("span", {className: "refreshIcon"}, React.createElement("i", {className: "fa fa-refresh fa-spin fa-fw"}));
+        } 
+
+        var containerStyle = {
+            width: "100%",
+            textAlign: "center"
+        }
+
+        var innerStyle = {
+            width: (chartData.data[0].name.length > 10 ? chartData.data[0].name.length * 10 : 100) + "px",
+            marginLeft: "auto",
+            marginRight: "auto"
+        }
+
         if (chartData)
         {
             if (chartData.data.length > 0)
             {
                 platformChart = (
                   React.createElement("div", {className: "platform-chart with-3d-shadow with-transitions absolute_anchor"}, 
-                      React.createElement("label", {className: "chart-title"}, chartData.data[0].name), 
+                      React.createElement("div", {style: containerStyle}, 
+                        React.createElement("div", {className: "absolute_anchor", style: innerStyle}, 
+                            React.createElement("label", {className: "chart-title"}, chartData.data[0].name), 
+                            refreshingIcon
+                        )
+                      ), 
                       removeButton, 
                       React.createElement("div", null, 
                           React.createElement("div", {className: "viz"}, 
@@ -2175,6 +2932,8 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
                                         name: this.props.chartKey, 
                                         hideControls: this.props.hideControls, 
                                         refreshInterval: this.props.chart.refreshInterval, 
+                                        max: chartData.max, 
+                                        min: chartData.min, 
                                         pinned: this.props.chart.pinned, 
                                         chartType: this.props.chart.type}) : null
                           ), 
@@ -2212,12 +2971,17 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
       state.showTaptip = false;
       state.taptipX = 0;
       state.taptipY = 0;
+      state.min = (this.props.min ? this.props.min : d3.min(this.props.data, function (d) {return d["1"]}));
+      state.max = (this.props.max ? this.props.max : d3.max(this.props.data, function (d) {return d["1"]}));
 
       return state;
   },
   componentDidMount: function() {
       platformChartStore.addChangeListener(this._onStoresChange);
-      var lineChart = this._drawLineChart(this.state.chartName, this.state.chartType, this._lineData(this._getNested(this.props.data)));
+      var lineChart = this._drawLineChart(this.state.chartName, 
+                                          this.state.chartType, 
+                                          this._lineData(this._getNested(this.props.data)),
+                                          this.state.min, this.state.max);
       this.setState({lineChart: lineChart});
 
       this.chart = React.findDOMNode(this.refs[this.state.chartName]);
@@ -2232,12 +2996,20 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
   componentDidUpdate: function() {
       if (this.state.lineChart)
       {
-          this._updateLineChart(this.state.lineChart, this.state.chartName, this._lineData(this._getNested(this.props.data)));
+          this._updateLineChart(this.state.lineChart, 
+                                this.state.chartName, 
+                                this._lineData(this._getNested(this.props.data)));
       }
   },
   _onStoresChange: function () {
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
       this.setState({chartType: platformChartStore.getType(this.props.name)});
+
+      var min = platformChartStore.getMin(this.props.name);
+      var max = platformChartStore.getMax(this.props.name);
+
+      this.setState({min: (min ? min : d3.min(this.props.data, function (d) {return d["1"]}))});
+      this.setState({max: (max ? max : d3.max(this.props.data, function (d) {return d["1"]}))});
   },
   handleClickOutside: function () {      
       
@@ -2254,7 +3026,10 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
   _onChartChange: function (e) {
       var chartType = e.target.value;
       
-      var lineChart = this._drawLineChart(this.state.chartName, chartType, this._lineData(this._getNested(this.props.data)));
+      var lineChart = this._drawLineChart(this.state.chartName, 
+                                          chartType, 
+                                          this._lineData(this._getNested(this.props.data)),
+                                          this.state.min, this.state.max);
 
       this.setState({lineChart: lineChart});
       this.setState({showTaptip: false});
@@ -2276,6 +3051,38 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
   },
   _onRefreshChange: function (e) {
       platformChartActionCreators.changeRefreshRate(e.target.value, this.props.name);
+
+      if (this.state.pinned)
+      {
+          platformActionCreators.saveCharts();
+      }
+  },
+  _onMinChange: function (e) {
+      var min = e.target.value;
+      var lineChart = this._drawLineChart(this.state.chartName, 
+                                      this.state.chartType, 
+                                      this._lineData(this._getNested(this.props.data)),
+                                      min, this.state.max);
+
+      this.setState({lineChart: lineChart});
+
+      platformChartActionCreators.setMin(min, this.props.name);
+
+      if (this.state.pinned)
+      {
+          platformActionCreators.saveCharts();
+      }
+  },
+  _onMaxChange: function (e) {
+      var max = e.target.value;
+      var lineChart = this._drawLineChart(this.state.chartName, 
+                                      this.state.chartType, 
+                                      this._lineData(this._getNested(this.props.data)),
+                                      this.state.min, max);
+
+      this.setState({lineChart: lineChart});
+
+      platformChartActionCreators.setMax(max, this.props.name);
 
       if (this.state.pinned)
       {
@@ -2373,8 +3180,8 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
                     type: "number", 
                     onChange: this._onRefreshChange, 
                     value: this.props.refreshInterval, 
-                    min: "250", 
-                    step: "1", 
+                    min: "15000", 
+                    step: "1000", 
                     placeholder: "disabled"}
                 ), " (ms)", 
                 React.createElement("br", null), 
@@ -2407,6 +3214,84 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
                 icon: refreshChartIcon})
         );
 
+        var chartMin = (
+            React.createElement("div", null, 
+                React.createElement("input", {
+                    type: "number", 
+                    onChange: this._onMinChange, 
+                    value: this.state.min, 
+                    step: "1"}
+                )
+            )
+        );
+
+        var chartMinTaptip = { 
+            "title": "Y Axis Min", 
+            "content": chartMin,
+            "x": taptipX,
+            "y": taptipY
+        };
+        var chartMinIcon = (
+            React.createElement("div", {className: "moveMin"}, 
+                React.createElement("span", null, "▬")
+            )
+        );
+
+        tooltipX = tooltipX + 20;
+
+        var chartMinTooltip = {
+            "content": "Y Axis Min",
+            "x": tooltipX,
+            "y": tooltipY
+        };
+
+        var chartMinControlButton = (
+            React.createElement(ControlButton, {
+                name: this.state.chartName + "_chartMinControlButton", 
+                taptip: chartMinTaptip, 
+                tooltip: chartMinTooltip, 
+                icon: chartMinIcon})
+        );
+
+        var chartMax = (
+            React.createElement("div", null, 
+                React.createElement("input", {
+                    type: "number", 
+                    onChange: this._onMaxChange, 
+                    value: this.state.max, 
+                    step: "1"}
+                )
+            )
+        );
+
+        var chartMaxTaptip = { 
+            "title": "Y Axis Max", 
+            "content": chartMax,
+            "x": taptipX,
+            "y": taptipY
+        };
+        var chartMaxIcon = (
+            React.createElement("div", {className: "moveMax"}, 
+                React.createElement("span", null, "▬")
+            )
+        );
+
+        tooltipX = tooltipX + 20;
+
+        var chartMaxTooltip = {
+            "content": "Y Axis Max",
+            "x": tooltipX,
+            "y": tooltipY
+        };
+
+        var chartMaxControlButton = (
+            React.createElement(ControlButton, {
+                name: this.state.chartName + "_chartMaxControlButton", 
+                taptip: chartMaxTaptip, 
+                tooltip: chartMaxTooltip, 
+                icon: chartMaxIcon})
+        );
+
         var spaceStyle = {
             width: "20px",
             height: "2px"
@@ -2418,6 +3303,8 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
                 pinChartControlButton, 
                 chartTypeControlButton, 
                 refreshChartControlButton, 
+                chartMinControlButton, 
+                chartMaxControlButton, 
                 React.createElement("div", {className: "inlineBlock", 
                       style: spaceStyle})
             )
@@ -2433,7 +3320,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
       )
     );
   },
-  _drawLineChart: function (elementParent, chartType, data) {
+  _drawLineChart: function (elementParent, chartType, data, yMin, yMax) {
       
       var tickCount = 0;
       // var lineChart;
@@ -2488,6 +3375,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
         .staggerLabels(false);
       this.lineChart.yAxis
         .tickFormat(d3.format('.1f'));
+      this.lineChart.forceY([yMin, yMax]);
 
       switch (chartType)
       {        
@@ -2562,14 +3450,14 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 module.exports = PlatformChart;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platform-chart-store":46,"./confirm-form":12,"./control-button":14,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-onclickoutside":undefined,"react-router":undefined}],24:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platform-chart-store":48,"./confirm-form":13,"./control-button":15,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-onclickoutside":undefined,"react-router":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var PlatformChart = require('./platform-chart');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
-var platformsStore = require('../stores/platforms-store');
+var NewChartForm = require('./new-chart-form');
 var chartStore = require('../stores/platform-chart-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
@@ -2577,48 +3465,25 @@ var platformManagerActionCreators = require('../action-creators/platform-manager
 var PlatformCharts = React.createClass({displayName: "PlatformCharts",
     getInitialState: function () {
 
-        var vc = platformsStore.getVcInstance();
-
         var state = {
-            platform: vc,
-            chartData: chartStore.getData(),
-            historianRunning: platformsStore.getHistorianRunning(vc),
-            modalContent: null
+            chartData: chartStore.getData()
         };
 
         return state;
     },
     componentDidMount: function () {
         chartStore.addChangeListener(this._onChartStoreChange);
-        platformsStore.addChangeListener(this._onPlatformStoreChange);
-
-        if (!this.state.platform)
-        {
-            platformManagerActionCreators.loadPlatforms();
-        }
     },
     componentWillUnmount: function () {
         chartStore.removeChangeListener(this._onChartStoreChange);
-        platformsStore.removeChangeListener(this._onPlatformStoreChange);
     },
     _onChartStoreChange: function () {
         this.setState({chartData: chartStore.getData()});
     },
-    _onPlatformStoreChange: function () {
+    _onAddChartClick: function () {
 
-        var platform = this.state.platform;
-
-        if (!platform)
-        {
-            platform = platformsStore.getVcInstance();
-
-            if (platform)
-            {
-                this.setState({platform: platform});
-            }
-        }
-
-        this.setState({historianRunning: platformsStore.getHistorianRunning(platform)});
+        platformActionCreators.loadChartTopics();
+        modalActionCreators.openModal(React.createElement(NewChartForm, null));
     },
     render: function () {
 
@@ -2630,7 +3495,10 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
         {
             if (chartData[key].data.length > 0)
             {
-                var platformChart = React.createElement(PlatformChart, {key: key, chart: chartData[key], chartKey: key, hideControls: false})
+                var platformChart = (React.createElement(PlatformChart, {key: key, 
+                                        chart: chartData[key], 
+                                        chartKey: key, 
+                                        hideControls: false}));
                 platformCharts.push(platformChart);
             }
         }
@@ -2644,7 +3512,13 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
         return (
             React.createElement("div", {className: "view"}, 
                 React.createElement("div", {className: "absolute_anchor"}, 
-                    React.createElement("div", {className: "view__actions"}
+                    React.createElement("div", {className: "view__actions"}, 
+                        React.createElement("button", {
+                            className: "button", 
+                            onClick: this._onAddChartClick
+                        }, 
+                            "Add Chart"
+                        )
                     ), 
                     React.createElement("h2", null, "Charts"), 
                     platformCharts
@@ -2657,7 +3531,7 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
 module.exports = PlatformCharts;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../stores/platform-chart-store":46,"../stores/platforms-store":49,"./platform-chart":23,"react":undefined}],25:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../stores/platform-chart-store":48,"./new-chart-form":23,"./platform-chart":25,"react":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -2683,6 +3557,8 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
     getInitialState: function () {
         var state = getStateFromStores();
 
+        this.uninitialized = true;
+
         return state;
     },
     componentWillMount: function () {
@@ -2698,6 +3574,57 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
     },
     componentDidUpdate: function () {
         this._doModalBindings();
+
+        if (this.state.expanded)
+        {               
+            this.uninitialized = false;
+
+            var handle = document.querySelector(".resize-handle");
+
+            var onMouseDown = function (evt)
+            {
+                var exteriorPanel = this.parentNode;
+                var children = exteriorPanel.parentNode.childNodes;
+                var platformsPanel;
+
+                for (var i = 0; i < children.length; i++)
+                {
+                    if (children[i].classList.contains("platform-statuses"))
+                    {
+                        platformsPanel = children[i];
+                        break;
+                    }
+                }
+
+                var target = (evt.target.setCapture ? evt.target : document);
+
+                if (target.setCapture)
+                {
+                    target.setCapture();
+                }
+
+                var onMouseMove = function (evt)
+                {               
+                    var newWidth = Math.min(window.innerWidth, evt.clientX);
+                    
+                    platformsPanel.style.width = newWidth + "px";
+                    exteriorPanel.style.width = (window.innerWidth - newWidth - 100) + "px";
+                };                    
+
+                var onMouseUp = function (evt)
+                {
+                    target.removeEventListener("mousemove", onMouseMove);
+                    target.removeEventListener("mouseup", onMouseUp);
+                };                  
+
+                target.addEventListener("mousemove", onMouseMove);
+                target.addEventListener("mouseup", onMouseUp);
+
+                evt.preventDefault();
+            }
+
+            handle.addEventListener("mousedown", onMouseDown);
+        }
     },
     _doModalBindings: function () {
         if (this.state.modalContent) {
@@ -2771,6 +3698,17 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
             );
         }
 
+        var resizeHandle;
+
+        if (this.state.expanded === true)
+        {
+            resizeHandle = (
+                React.createElement("div", {className: "resize-handle"})
+            );
+
+            exteriorClasses.push("absolute_anchor");
+        }
+
         return (
             React.createElement("div", {className: classes.join(' ')}, 
                 statusIndicator, 
@@ -2779,6 +3717,7 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
                     React.createElement(Navigation, null), 
                     React.createElement(PlatformsPanel, null), 
                     React.createElement("div", {className: exteriorClasses.join(' ')}, 
+                        resizeHandle, 
                         React.createElement(Router.RouteHandler, null)
                     )
                 ), 
@@ -2800,15 +3739,14 @@ function getStateFromStores() {
         loggedIn: !!authorizationStore.getAuthorization(),
         modalContent: modalStore.getModalContent(),
         expanded: platformsPanelStore.getExpanded(),
-        status: statusIndicatorStore.getStatus(),
-        statusMessage: statusIndicatorStore.getStatusMessage(),
+        status: statusIndicatorStore.getStatus()
     };
 }
 
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/authorization-store":42,"../stores/console-store":43,"../stores/modal-store":45,"../stores/platforms-panel-store":48,"../stores/status-indicator-store":50,"./console":13,"./modal":20,"./navigation":21,"./platforms-panel":28,"./status-indicator":32,"jquery":undefined,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/authorization-store":44,"../stores/console-store":45,"../stores/modal-store":47,"../stores/platforms-panel-store":50,"../stores/status-indicator-store":52,"./console":14,"./modal":21,"./navigation":22,"./platforms-panel":30,"./status-indicator":34,"jquery":undefined,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2891,7 +3829,7 @@ var Platform = React.createClass({displayName: "Platform",
                 React.createElement("table", null, 
                     React.createElement("thead", null, 
                         React.createElement("tr", null, 
-                            React.createElement("th", null, "Tag"), 
+                            React.createElement("th", null, "Name"), 
                             React.createElement("th", null, "UUID"), 
                             React.createElement("th", null, "Status"), 
                             React.createElement("th", null, "Action")
@@ -2930,7 +3868,9 @@ var Platform = React.createClass({displayName: "Platform",
                 React.createElement("br", null), 
                 React.createElement("br", null), 
                 React.createElement("h3", null, "Agents"), 
-                agents, 
+                React.createElement("div", {className: "agents-container"}, 
+                    agents
+                ), 
                 React.createElement("h3", null, "Install agents"), 
                 React.createElement("input", {type: "file", multiple: true, onChange: this._onFileChange})
             )
@@ -2948,7 +3888,7 @@ function getStateFromStores(component) {
 module.exports = Platform;
 
 
-},{"../action-creators/platform-action-creators":5,"../action-creators/status-indicator-action-creators":9,"../stores/platforms-store":49,"./agent-row":10,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../action-creators/status-indicator-action-creators":9,"../stores/platforms-store":51,"./agent-row":10,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3065,16 +4005,14 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         var checked = e.target.checked;
 
-        platformsPanelActionCreators.checkItem(this.props.itemPath, checked);
-
-        this.setState({checked: checked});
-
         if (checked)
         {
+            this.setState({checked: null});
             platformChartActionCreators.addToChart(this.props.panelItem);
         }
         else
         {
+            this.setState({checked: null});
             platformChartActionCreators.removeFromChart(this.props.panelItem);
         }
     },
@@ -3107,6 +4045,10 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         var childClass;
         var arrowClasses = [ "arrowButton", "noRotate" ];
+        var arrowContent;
+        var arrowContentStyle = {
+            width: "14px"
+        }
 
         if (this.state.hasOwnProperty("loading"))
         {
@@ -3124,10 +4066,21 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         if (["point"].indexOf(panelItem.type) > -1)
         {
-            ChartCheckbox = (React.createElement("input", {className: "panelItemCheckbox", 
+            if (this.state.checked !== null)
+            {
+                ChartCheckbox = (React.createElement("input", {className: "panelItemCheckbox", 
                                     type: "checkbox", 
                                     onChange: this._checkItem, 
                                     checked: this.state.checked}));
+            }
+            else
+            {
+                ChartCheckbox = (
+                    React.createElement("div", {className: "checkboxSpinner arrowButton"}, 
+                        React.createElement("span", {style: arrowContentStyle}, React.createElement("i", {className: "fa fa-circle-o-notch fa-spin fa-fw"}))
+                    )
+                )
+            }
         }
 
         var tooltipStyle = {
@@ -3144,11 +4097,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
-        }
-
-        var arrowContent;
-        var arrowContentStyle = {
-            width: "14px"
         }
 
         if (this.state.cancelButton)
@@ -3193,7 +4141,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                     });
 
                     return (
-                        React.createElement(PlatformsPanelItem, {panelItem: propChild, itemPath: propChild.path, panelChildren: grandchildren})
+                        React.createElement(PlatformsPanelItem, {key: propChild.uuid, panelItem: propChild, itemPath: propChild.path, panelChildren: grandchildren})
                     );
                 }); 
 
@@ -3275,7 +4223,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 module.exports = PlatformsPanelItem;
 
 
-},{"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":47,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
+},{"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":49,"react":undefined,"react-router":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3301,6 +4249,18 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     componentDidMount: function () {
         platformsPanelStore.addChangeListener(this._onPanelStoreChange);
         platformsPanelItemsStore.addChangeListener(this._onPanelItemsStoreChange);
+
+        this.exteriorPanel = document.querySelector(".panel-exterior");
+        var children = this.exteriorPanel.parentNode.childNodes;
+        
+        for (var i = 0; i < children.length; i++)
+        {
+            if (children[i].classList.contains("platform-statuses"))
+            {
+                this.platformsPanel = children[i];
+                break;
+            }
+        }
     },
     componentWillUnmount: function () {
         platformsPanelStore.removeChangeListener(this._onPanelStoreChange);
@@ -3316,6 +4276,12 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         
         if (expanded !== null)
         {
+            if (expanded === false)
+            {
+                this.platformsPanel.style.width = "";
+                this.exteriorPanel.style.width = "";
+            }
+
             var platformsList = platformsPanelItemsStore.getChildren("platforms", null);
             this.setState({platforms: platformsList});
         }
@@ -3323,6 +4289,8 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         {
             this.setState({filterValue: ""});
             this.setState({filterStatus: ""});
+            this.platformsPanel.style.width = "";
+            this.exteriorPanel.style.width = "";
         }
     },
     _onPanelItemsStoreChange: function () {
@@ -3363,15 +4331,15 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         var platforms;
         
         var classes = (this.state.expanded === null ? 
-                        "platform-statuses platform-collapsed" : 
+                        ["platform-statuses", "platform-collapsed"] : 
                         (this.state.expanded ? 
-                            "platform-statuses slow-open platform-expanded" :
-                            "platform-statuses slow-shut platform-collapsed")
+                            ["platform-statuses", "slow-open", "platform-expanded"] :
+                            ["platform-statuses", "slow-shut", "platform-collapsed"])
                         );
 
         var contentsStyle = { 
             display: (this.state.expanded ? "block" : "none"),
-            padding: "0px 20px 20px 10px",
+            padding: "0px 0px 20px 10px",
             clear: "right",
             width: "100%"
         };
@@ -3438,7 +4406,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         );
 
         var filterUnknownIcon = (
-            React.createElement("div", {className: "status-unknown"}, 
+            React.createElement("div", {className: "status-unknown moveDown"}, 
                 React.createElement("span", null, "▬")
             )
         );
@@ -3491,13 +4459,13 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                 })
                 .map(function (platform) {
                     return (
-                        React.createElement(PlatformsPanelItem, {panelItem: platform, itemPath: platform.path})
+                        React.createElement(PlatformsPanelItem, {key: platform.uuid, panelItem: platform, itemPath: platform.path})
                     );
                 });
         }
 
         return (
-            React.createElement("div", {className: classes}, 
+            React.createElement("div", {className: classes.join(" ")}, 
                 React.createElement("div", {className: "extend-panel", 
                     onClick: this._togglePanel},  this.state.expanded ? '\u25c0' : '\u25b6'), 
                 React.createElement("div", {style: contentsStyle}, 
@@ -3529,7 +4497,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
 module.exports = PlatformsPanel;
 
 
-},{"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":47,"../stores/platforms-panel-store":48,"./control-button":14,"./platforms-panel-item":27,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":49,"../stores/platforms-panel-store":50,"./control-button":15,"./platforms-panel-item":29,"react":undefined,"react-router":undefined}],31:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3651,7 +4619,7 @@ function getStateFromStores() {
 module.exports = Platforms;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/status-indicator-action-creators":9,"../components/deregister-platform-confirmation":17,"../components/register-platform-form":30,"../components/status-indicator":32,"../stores/platforms-store":49,"react":undefined,"react-router":undefined}],30:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/status-indicator-action-creators":9,"../components/deregister-platform-confirmation":18,"../components/register-platform-form":32,"../components/status-indicator":34,"../stores/platforms-store":51,"react":undefined,"react-router":undefined}],32:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3664,6 +4632,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
         var state = {};
         
         state.method = 'discovery';
+        state.registering = false;
 
         state.name = state.discovery_address = state.ipaddress = state.serverKey = state.publicKey = state.secretKey = '';
         state.protocol = 'tcp';
@@ -3692,10 +4661,15 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
     _toggleMethod: function (e) {
         this.setState({ method: (this.state.method === "discovery" ? "advanced" : "discovery") });
     },
-    _onCancelClick: modalActionCreators.closeModal,
+    _onCancelClick: function (e) {
+        this.setState({registering: false});
+        modalActionCreators.closeModal();
+    },
     _onSubmit: function (e) {
         e.preventDefault();
         var address = (this.state.method === "discovery" ? this.state.discovery_address : this._formatAddress());
+
+        this.setState({registering: true});
         platformManagerActionCreators.registerPlatform(this.state.name, address, this.state.method);
     },
     _formatAddress: function () {
@@ -3726,6 +4700,17 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
         var registerForm;
 
         var submitMethod;
+
+        var progress;
+
+        if (this.state.registering)
+        {
+            var progressStyle = {
+                textAlign: "center",
+                width: "100%"
+            }
+            progress = React.createElement("div", {style: progressStyle}, React.createElement("progress", null));
+        }
 
         switch (this.state.method)
         {
@@ -3758,6 +4743,8 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 )
                             )
                         ), 
+
+                        progress, 
                         
                         React.createElement("div", {className: "tableDiv"}, 
                             React.createElement("div", {className: "rowDiv"}, 
@@ -3887,6 +4874,8 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 )
                             )
                         ), 
+
+                        progress, 
                         
                         React.createElement("div", {className: "tableDiv"}, 
                             React.createElement("div", {className: "rowDiv"}, 
@@ -3927,7 +4916,6 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
             React.createElement("form", {className: "register-platform-form", onSubmit: this._onSubmit}, 
                 React.createElement("h1", null, "Register platform"), 
                 registerForm
-
             )
         );
     },
@@ -3936,7 +4924,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"react":undefined}],31:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"react":undefined}],33:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3996,7 +4984,7 @@ var RemoveAgentForm = React.createClass({displayName: "RemoveAgentForm",
 module.exports = RemoveAgentForm;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"react":undefined}],32:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"react":undefined}],34:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4007,7 +4995,7 @@ var statusIndicatorStore = require('../stores/status-indicator-store');
 var StatusIndicator = React.createClass({displayName: "StatusIndicator",
 
 	getInitialState: function () {
-        var state = getStateFromStores();
+        var state = statusIndicatorStore.getStatusMessage();
 
         state.errors = (state.status === "error");
         state.fadeOut = false;
@@ -4090,9 +5078,40 @@ var StatusIndicator = React.createClass({displayName: "StatusIndicator",
 			height: "2rem"
 		}
 
-        var textStyle = {
-            fontWeight: "bold"
+        var messageStyle = {
+            padding: "0px 20px"
         }
+
+        var statusMessage = (React.createElement("b", null, this.state.statusMessage));
+
+        if (this.state.hasOwnProperty("highlight"))
+        {
+            var highlight = this.state.highlight;
+            var wholeMessage = this.state.statusMessage;
+
+            var startIndex = wholeMessage.indexOf(highlight);
+
+            if (startIndex > -1)
+            {
+                var newMessage = [];
+
+                if (startIndex === 0)
+                {
+                    newMessage.push(React.createElement("b", null, wholeMessage.substring(0, highlight.length)));
+                    newMessage.push(React.createElement("span", null, wholeMessage.substring(highlight.length)));
+                }
+                else
+                {
+                    newMessage.push(React.createElement("span", null, wholeMessage.substring(0, startIndex)));
+                    newMessage.push(React.createElement("b", null, wholeMessage.substring(startIndex, startIndex + highlight.length)));
+                    newMessage.push(React.createElement("span", null, wholeMessage.substring(startIndex + highlight.length)));
+                }
+
+                statusMessage = newMessage;
+            }
+        }
+
+        messageStyle.textAlign = (this.state.hasOwnProperty("align") ? this.state.align : "left");
 
 		return (
 		
@@ -4102,7 +5121,7 @@ var StatusIndicator = React.createClass({displayName: "StatusIndicator",
         	}, 
 				React.createElement("div", {style: colorStyle}), 
 				React.createElement("br", null), 
-				React.createElement("span", {style: textStyle}, this.state.statusMessage), 
+				React.createElement("div", {style: messageStyle}, statusMessage), 
                 React.createElement("div", {style: spacerStyle}), 
                 React.createElement("div", {style: buttonDivStyle}, 
 	                React.createElement("button", {
@@ -4113,24 +5132,17 @@ var StatusIndicator = React.createClass({displayName: "StatusIndicator",
 	                    "Close"
 	                )
                 )
-			)
-        
+			)       
 			
 		);
 	},
 });
 
-function getStateFromStores() {
-    return {
-        status: statusIndicatorStore.getStatus(),
-        statusMessage: statusIndicatorStore.getStatusMessage(),
-    };
-}
 
 module.exports = StatusIndicator;
 
 
-},{"../action-creators/status-indicator-action-creators":9,"../stores/status-indicator-store":50,"react":undefined}],33:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":9,"../stores/status-indicator-store":52,"react":undefined}],35:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -4172,10 +5184,13 @@ module.exports = keyMirror({
     REMOVE_FROM_CHART: null,
     PIN_CHART: null,
     CHANGE_CHART_TYPE: null,
+    CHANGE_CHART_MIN: null,
+    CHANGE_CHART_MAX: null,
     CHANGE_CHART_REFRESH: null,
     REFRESH_CHART: null,
     REMOVE_CHART: null,
     LOAD_CHARTS: null,
+    REMOVE_PLATFORM_CHARTS: null,
 
     EXPAND_ALL: null,
     TOGGLE_ITEM: null,
@@ -4191,7 +5206,7 @@ module.exports = keyMirror({
 });
 
 
-},{"react/lib/keyMirror":undefined}],34:[function(require,module,exports){
+},{"react/lib/keyMirror":undefined}],36:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -4211,7 +5226,7 @@ dispatcher.dispatch = function (action) {
 module.exports = dispatcher;
 
 
-},{"../constants/action-types":33,"flux":undefined}],35:[function(require,module,exports){
+},{"../constants/action-types":35,"flux":undefined}],37:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -4227,7 +5242,7 @@ RpcError.prototype.constructor = RpcError;
 module.exports = RpcError;
 
 
-},{}],36:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -4315,7 +5330,7 @@ function RpcExchange(request, redactedParams) {
 module.exports = RpcExchange;
 
 
-},{"../../constants/action-types":33,"../../dispatcher":34,"../xhr":40,"./error":35,"node-uuid":undefined}],37:[function(require,module,exports){
+},{"../../constants/action-types":35,"../../dispatcher":36,"../xhr":42,"./error":37,"node-uuid":undefined}],39:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -4324,7 +5339,7 @@ module.exports = {
 };
 
 
-},{"./error":35,"./exchange":36}],38:[function(require,module,exports){
+},{"./error":37,"./exchange":38}],40:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -4352,7 +5367,7 @@ Store.prototype.removeChangeListener = function (callback) {
 module.exports = Store;
 
 
-},{"events":undefined}],39:[function(require,module,exports){
+},{"events":undefined}],41:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -4366,7 +5381,7 @@ XhrError.prototype.constructor = XhrError;
 module.exports = XhrError;
 
 
-},{}],40:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -4375,7 +5390,7 @@ module.exports = {
 };
 
 
-},{"./error":39,"./request":41}],41:[function(require,module,exports){
+},{"./error":41,"./request":43}],43:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -4406,7 +5421,7 @@ function XhrRequest(opts) {
 module.exports = XhrRequest;
 
 
-},{"./error":39,"bluebird":undefined,"jquery":undefined}],42:[function(require,module,exports){
+},{"./error":41,"bluebird":undefined,"jquery":undefined}],44:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4414,6 +5429,7 @@ var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
 var _authorization = sessionStorage.getItem('authorization');
+var _username = sessionStorage.getItem('username');
 
 var authorizationStore = new Store();
 
@@ -4421,11 +5437,17 @@ authorizationStore.getAuthorization = function () {
     return _authorization;
 };
 
+authorizationStore.getUsername = function () {
+    return _username;
+};
+
 authorizationStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
         case ACTION_TYPES.RECEIVE_AUTHORIZATION:
             _authorization = action.authorization;
+            _username = action.name;
             sessionStorage.setItem('authorization', _authorization);
+            sessionStorage.setItem('username', _username);
             authorizationStore.emitChange();
             break;
 
@@ -4435,7 +5457,9 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.CLEAR_AUTHORIZATION:
             _authorization = null;
+            _username = null;
             sessionStorage.removeItem('authorization');
+            sessionStorage.removeItem('username');
             authorizationStore.emitChange();
             break;
     }
@@ -4444,7 +5468,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = authorizationStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],43:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40}],45:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4537,7 +5561,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = consoleStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/authorization-store":42}],44:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40,"../stores/authorization-store":44}],46:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4607,7 +5631,6 @@ controlButtonStore.dispatchToken = dispatcher.register(function (action) {
                 if (_controlButtons[action.name].hasOwnProperty("showTaptip"))
                 {
                     _controlButtons[action.name].showTaptip = false;
-                    // delete _controlButtons[action.name];   
                 }
             }
 
@@ -4625,7 +5648,7 @@ controlButtonStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = controlButtonStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/authorization-store":42}],45:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40,"../stores/authorization-store":44}],47:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4658,23 +5681,28 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = modalStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],46:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40}],48:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
+var platformsStore = require('./platforms-store.js')
 
 
 var _chartData = {};
 var _showCharts = false;
-var _chartTopics = {};
+var _chartTopics = {
+    platforms: []
+};
 
 var chartStore = new Store();
 
 chartStore.getPinnedCharts = function () {
     var pinnedCharts = [];
+
+    var user = authorizationStore.getUsername();
 
     for (var key in _chartData)
     {
@@ -4709,6 +5737,34 @@ chartStore.getType = function (chartKey) {
     return type;
 }
 
+chartStore.getMin = function (chartKey) {
+    var min;
+
+    if (_chartData.hasOwnProperty(chartKey))
+    {
+        if (_chartData[chartKey].hasOwnProperty("min"))
+        {
+            min = _chartData[chartKey].min;
+        }
+    }
+
+    return min;
+}
+
+chartStore.getMax = function (chartKey) {
+    var max;
+
+    if (_chartData.hasOwnProperty(chartKey))
+    {
+        if (_chartData[chartKey].hasOwnProperty("max"))
+        {
+            max = _chartData[chartKey].max;
+        }
+    }
+
+    return max;
+}
+
 chartStore.getRefreshRate = function (chartKey) {
     return (_chartData.hasOwnProperty(chartKey) ? _chartData[chartKey].refreshInterval : null);
 }
@@ -4722,13 +5778,13 @@ chartStore.showCharts = function () {
     return showCharts;
 }
 
-chartStore.getChartTopics = function (parentUuid) {
+chartStore.getChartTopics = function () {
     
     var topics = [];
 
-    if (_chartTopics.hasOwnProperty(parentUuid))
+    if (_chartTopics.hasOwnProperty("platforms"))
     {
-        topics = JSON.parse(JSON.stringify(_chartTopics[parentUuid]));
+        topics = JSON.parse(JSON.stringify(_chartTopics.platforms));
 
         if (topics.length)
         {    
@@ -4742,7 +5798,7 @@ chartStore.getChartTopics = function (parentUuid) {
                     if (_chartData.hasOwnProperty(topic.name))
                     {
                         var path = _chartData[topic.name].series.find(function (item) {
-                            return item.topic === topic.path;
+                            return item.topic === topic.value;
                         });
 
                         topicInChart = (path ? true : false);
@@ -4751,6 +5807,22 @@ chartStore.getChartTopics = function (parentUuid) {
                     return !topicInChart;
                 });
             }
+
+            // Filter out any orphan chart topics not associated with registered platforms
+            var platformUuids = platformsStore.getPlatforms().map(function (platform) {
+                return platform.uuid;
+            });
+
+            topics = topics.filter(function (topic) {
+                
+                // This filter will keep platform topics of known platforms and any topic that
+                // looks like a device topic
+                var platformTopic = platformUuids.filter(function (uuid) {
+                    return ((topic.value.indexOf(uuid) > -1) || (topic.value.indexOf("datalogger/platform") < 0));
+                });
+
+                return (platformTopic.length ? true : false);
+            });
         }
     }
 
@@ -4788,14 +5860,14 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             {
                 if (action.panelItem.hasOwnProperty("data"))
                 {
-                    // _chartData[action.panelItem.name] = JSON.parse(JSON.stringify(action.panelItem.data));
-                    
                     var chartObj = {
                         refreshInterval: (action.panelItem.hasOwnProperty("refreshInterval") ? action.panelItem.refreshInterval :15000),
                         pinned: (action.panelItem.hasOwnProperty("pinned") ? action.panelItem.pinned : false),
                         type: (action.panelItem.hasOwnProperty("chartType") ? action.panelItem.chartType : "line"),
                         data: convertTimeToSeconds(action.panelItem.data),
                         chartKey: action.panelItem.name,
+                        min: (action.panelItem.hasOwnProperty("min") ? action.panelItem.min : null),
+                        max: (action.panelItem.hasOwnProperty("max") ? action.panelItem.max : null),
                         series: [ setChartItem(action.panelItem) ]
                     };
 
@@ -4856,6 +5928,22 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             break;
 
+        case ACTION_TYPES.CHANGE_CHART_MIN:
+
+            _chartData[action.chartKey].min = action.min;
+
+            chartStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.CHANGE_CHART_MAX:
+
+            _chartData[action.chartKey].max = action.max;
+
+            chartStore.emitChange();
+
+            break;
+
         case ACTION_TYPES.PIN_CHART:
 
             if (_chartData[action.chartKey].hasOwnProperty("pinned"))
@@ -4897,7 +5985,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             var chartTopics = JSON.parse(JSON.stringify(action.topics));
 
-            _chartTopics[action.platform.uuid] = chartTopics;            
+            _chartTopics.platforms = chartTopics;            
 
             chartStore.emitChange();
             break;
@@ -4913,6 +6001,45 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
                 chartStore.emitChange();
             }
+
+            break;
+
+        case ACTION_TYPES.REMOVE_PLATFORM_CHARTS:
+
+            var seriesToCut = [];
+
+            for (var name in _chartData)
+            {
+                _chartData[name].series.forEach(function (series) {
+
+                    if (series.path.indexOf(this.uuid) > -1)
+                    {
+                        seriesToCut.push({name: series.name, uuid: series.uuid});
+                    }
+
+                }, action.platform);
+            }
+
+            seriesToCut.forEach(function (series) {
+                removeSeries(series.name, series.uuid);
+
+                if (_chartData[series.name].series.length === 0)
+                {
+                    delete _chartData[series.name];
+                }
+
+            }, action.platform);
+
+            if (seriesToCut.length)
+            {
+                chartStore.emitChange();
+            }
+
+            break;
+
+        case ACTION_TYPES.CLEAR_AUTHORIZATION: 
+
+            _chartData = {};
 
             break;
     }
@@ -4992,7 +6119,6 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                 if (skey === "0" && typeof value === 'string' &&
                     Date.parse(value + 'Z')) {
                     value = Date.parse(value + 'Z');
-                    // initialState.xDates = true;
                 }
 
                 newItem[skey] = value;    
@@ -5011,7 +6137,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = chartStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/authorization-store":42}],47:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40,"../stores/authorization-store":44,"./platforms-store.js":51}],49:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -5057,8 +6183,6 @@ platformsPanelItemsStore.findTopicInTree = function (topic)
         {
             if (key === topicParts[2])
             {
-                // path = ["platforms", uuid];
-
                 if (_items.platforms[key].hasOwnProperty("points"))
                 {
                     _items.platforms[key].points.children.find(function (point) {
@@ -5083,8 +6207,7 @@ platformsPanelItemsStore.findTopicInTree = function (topic)
         var buildingName = topicParts[1];
 
         for (var key in _items.platforms)
-        { //_items.platforms.children.find(function (platform) {
-
+        { 
             var platform = _items.platforms[key];       
             var foundPlatform = false;
 
@@ -5168,22 +6291,30 @@ platformsPanelItemsStore.getItem = function (itemPath)
 platformsPanelItemsStore.getChildren = function (parent, parentPath) {
 
     var itemsList = [];
-    var item = _items;
+    var item = _items;    
 
     if (parentPath !== null) // for everything but the top level, drill down to the parent
     {
+        var validPath = true;
+
         for (var i = 0; i < parentPath.length; i++)
         {
             if (item.hasOwnProperty(parentPath[i]))
             {
                 item = item[parentPath[i]];
             }
+            else
+            {
+                validPath = false;
+            }
         }
-    
-          
-        for (var i = 0; i < item.children.length; i++)
-        {           
-            itemsList.push(item[item.children[i]]);
+              
+        if (validPath)
+        {
+            for (var i = 0; i < item.children.length; i++)
+            {           
+                itemsList.push(item[item.children[i]]);            
+            }
         }
             
     }
@@ -5409,23 +6540,22 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             var platforms = action.platforms;
 
             platforms.forEach(function (platform)
-            {
-                _items["platforms"][platform.uuid] = platform; 
-                
-                var platformItem = _items["platforms"][platform.uuid];
-                platformItem.path = ["platforms", platform.uuid];
+            {   
+                if (!action.reload || !_items["platforms"].hasOwnProperty(platform.uuid))
+                {
+                    _items["platforms"][platform.uuid] = platform;
 
-                platformItem.status = platform.health.status.toUpperCase();
-                platformItem.statusLabel = getStatusLabel(platformItem.status);
-                platformItem.context = platform.health.context;
-                platformItem.children = [];
-                platformItem.type = "platform";
-                platformItem.visible = true;
-                platformItem.expanded = null;
-                // platformItem.name = (platform.name === null ? platform.uuid : platform.name);
+                    var platformItem = _items["platforms"][platform.uuid];
 
-                // loadAgents(platform);                
-                // loadDevices(platform);
+                    platformItem.path = ["platforms", platform.uuid];
+                    platformItem.status = platform.health.status.toUpperCase();
+                    platformItem.statusLabel = getStatusLabel(platformItem.status);
+                    platformItem.context = platform.health.context;
+                    platformItem.children = [];
+                    platformItem.type = "platform";
+                    platformItem.visible = true;
+                    platformItem.expanded = null;
+                }
             });
 
             var platformsToRemove = [];
@@ -5444,7 +6574,9 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             platformsToRemove.forEach(function (uuid) {
                 delete _items.platforms[uuid];
-            });            
+            });       
+
+            _lastCheck = false;
             
             platformsPanelItemsStore.emitChange();
             break;
@@ -5457,7 +6589,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 insertAgents(platform, action.agents);
             }
 
-            // platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_DEVICE_STATUSES:
 
@@ -5468,7 +6599,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 insertDevices(platform, action.devices);
             }
 
-            // platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_PERFORMANCE_STATS:
             
@@ -5500,8 +6630,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                         action.points.forEach(function (point)
                         {
-                            //TODO: add UUID to points rpc?
-
                             var pointProps = point;
                             pointProps.expanded = false;
                             pointProps.visible = true;
@@ -5638,11 +6766,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             buildingProps.devices.children = [];
             buildingProps.devices.type = "type";
             buildingProps.devices.sortOrder = _devicesOrder;
-
-
-            //TODO: add building points
-            // buildingProps.children.push("points");
-            // buildingProps.points = [];
 
             platform.buildings.children.push(buildingProps.uuid);
             platform.buildings[buildingProps.uuid] = buildingProps;            
@@ -6050,7 +7173,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelItemsStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/platform-chart-store":46}],48:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40,"../stores/platform-chart-store":48}],50:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6083,7 +7206,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],49:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40}],51:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6149,26 +7272,42 @@ platformsStore.getVcInstance = function ()
     return vc;
 };
 
-platformsStore.getHistorianRunning = function (platform) {
+platformsStore.getAgentRunning = function (platform, agentType) {
 
-    var historianRunning = false;
+    var agentRunning = false;
 
     if (platform)
     {
         if (platform.hasOwnProperty("agents"))
         {
-            var historian = platform.agents.find(function (agent) {     
-                return agent.name.toLowerCase().indexOf("historian") > -1;
+            var agentToFind = platform.agents.find(function (agent) {     
+                return agent.name.toLowerCase().indexOf(agentType) > -1;
             });
 
-            if (historian)
+            if (agentToFind)
             {
-                historianRunning = ((historian.process_id !== null) && (historian.return_code === null));
+                agentRunning = ((agentToFind.process_id !== null) && (agentToFind.return_code === null));
             }
         }        
     }
 
+    return agentRunning;
+};
+
+platformsStore.getVcHistorianRunning = function () {
+
+    var platform = platformsStore.getVcInstance();    
+    var historianRunning = platformsStore.getAgentRunning(platform, "historian");
+
     return historianRunning;
+};
+
+platformsStore.getForwarderRunning = function (platformUuid) {
+
+    var platform = platformsStore.getPlatform(platformUuid);
+    var forwarderRunning = platformsStore.getAgentRunning(platform, "forwarderagent");
+
+    return forwarderRunning;
 };
 
 platformsStore.dispatchToken = dispatcher.register(function (action) {
@@ -6193,7 +7332,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"./authorization-store":42}],50:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40,"./authorization-store":44}],52:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6202,11 +7341,29 @@ var Store = require('../lib/store');
 
 var _statusMessage = null;
 var _status = null;
+var _highlight = null;
+var _align = null;
 
 var statusIndicatorStore = new Store();
 
 statusIndicatorStore.getStatusMessage = function () {
-    return _statusMessage;
+
+    var status = {
+        statusMessage: _statusMessage,
+        status: _status
+    };
+
+    if (_highlight)
+    {
+        status.highlight = _highlight;
+    }
+
+    if (_align)
+    {
+        status.align = _align;
+    }
+
+    return status;
 };
 
 statusIndicatorStore.getStatus = function () {
@@ -6218,12 +7375,14 @@ statusIndicatorStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.OPEN_STATUS:
             _statusMessage = action.message;
             _status = action.status;
+            _highlight = action.highlight;
+            _align = action.align;
 
             statusIndicatorStore.emitChange();
             break;
 
         case ACTION_TYPES.CLOSE_STATUS:
-            _statusMessage = null;
+            _statusMessage = {};
             _status = null;
             statusIndicatorStore.emitChange();
             break;
@@ -6233,4 +7392,4 @@ statusIndicatorStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = statusIndicatorStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}]},{},[1]);
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40}]},{},[1]);

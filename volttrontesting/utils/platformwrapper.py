@@ -31,6 +31,7 @@ from volttron.platform.aip import AIPplatform
 #from volttron.platform.control import client, server
 from volttron.platform import packaging
 from volttron.platform.agent import utils
+from volttron.platform.keystore import KeyStore
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -152,7 +153,7 @@ class PlatformWrapper:
 
         self._p_process = None
         self._t_process = None
-        self.__publickey = self.generate_key()
+        self.__publickey = KeyStore().public()
         self._started_pids = []
         self.__local_vip_address = None
         self.__vip_address = None
@@ -194,7 +195,9 @@ class PlatformWrapper:
         authfile.add(entry)
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
-                    publickey=None, secretkey=None, serverkey=None, **kwargs):
+                    publickey=None, secretkey=None, serverkey=None,
+                    agent_class=Agent,
+                    **kwargs):
         """ Build an agent connnected to the passed bus.
 
         By default the current instance that this class wraps will be the
@@ -206,6 +209,7 @@ class PlatformWrapper:
         :param publickey:
         :param secretkey:
         :param serverkey:
+        :param agent_class: Agent class to build
         :return:
         """
         self.logit("Building generic agent.")
@@ -234,8 +238,9 @@ class PlatformWrapper:
             self.logit('using instance serverkey: {}'.format(self.publickey))
             serverkey = self.publickey
 
-        agent = Agent(address=address, identity=identity, publickey=publickey,
-                      secretkey=secretkey, serverkey=serverkey, **kwargs)
+        agent = agent_class(address=address, identity=identity,
+                            publickey=publickey, secretkey=secretkey,
+                            serverkey=serverkey, **kwargs)
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
 
         # Automatically add agent's credentials to auth.json file
@@ -255,12 +260,6 @@ class PlatformWrapper:
             self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
         return agent
-
-    def generate_key(self):
-        key = ''.join(zmq.curve_keypair())
-        with open(os.path.join(self.volttron_home, 'curve.key'), 'w') as fd:
-            fd.write(key)
-        return encode_key(key[:40]) # public key
 
     def _read_auth_file(self):
         auth_path = os.path.join(self.volttron_home, 'auth.json')
@@ -330,11 +329,6 @@ class PlatformWrapper:
             '@' if sys.platform.startswith('linux') else '',
             self.volttron_home)
         self.local_vip_address = ipc + 'vip.socket'
-        if not encrypt:
-            # Remove connection encryption
-            with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
-                pass
-
         self.set_auth_dict(auth_dict)
 
         self.opts = {'verify_agents': False,
