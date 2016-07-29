@@ -742,16 +742,20 @@ class VolttronCentralAgent(Agent):
             self.register_platform(address, display_name=display_name)
 
     def _handle_list_platforms(self):
-        def get_status(platform_uuid):
-            cn = self._pa_agents.get(platform_uuid)
+        _log.debug('PA AGENTS: {}'.format(self._platform_connections))
+
+        def get_status(address, instance_uuid):
+            _log.debug('Getting status from platform at address: {}'.format(
+                address))
+            cn = self._build_connected_agent(address)
             if cn is None:
                 _log.debug('cn is NONE so status is BAD for uuid {}'
-                           .format(platform_uuid))
+                           .format(instance_uuid))
                 return Status.build(BAD_STATUS,
                                     "Platform Unreachable.").as_dict()
             try:
-                _log.debug('TRYING TO REACH {}'.format(platform_uuid))
-                health = cn.call('get_health')
+                _log.debug('TRYING TO REACH address: {}'.format(address))
+                health = cn.call('health.get_status')
             except Unreachable:
                 health = Status.build(BAD_STATUS,
                                       "Platform Unreachable.").as_dict()
@@ -759,8 +763,8 @@ class VolttronCentralAgent(Agent):
 
         _log.debug(
             'Listing platforms: {}'.format(self._registered_platforms))
-        return [dict(uuid=x['platform_uuid'], name=x['display_name'],
-                     health=get_status(x['platform_uuid']))
+        return [dict(uuid=x['instance_uuid'], name=x['display_name'],
+                     health=get_status(x['address'], x['instance_uuid']))
                 for x in self._registered_platforms.values()]
 
     def _register_instance(self, discovery_address, display_name=None):
@@ -926,15 +930,15 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(id, error['code'], error['message'])
         return jsonrpc.json_result(id, result_or_error)
 
-    def _get_agents(self, platform_uuid, groups):
+    def _get_agents(self, instance_uuid, groups):
         """ Retrieve the list of agents on a specific platform.
 
-        :param platform_uuid:
+        :param instance_uuid:
         :param groups:
         :return:
         """
         _log.debug('_get_agents')
-        connected_to_pa = self._pa_agents[platform_uuid]
+        connected_to_pa = self._platform_connections[instance_uuid]
 
         agents = connected_to_pa.agent.vip.rpc.call(
             'platform.agent', 'list_agents').get(timeout=30)
@@ -1038,28 +1042,28 @@ class VolttronCentralAgent(Agent):
     def _sync_connected_platforms(self):
         """ Sync the registry entries with the connections to vcp agents
         """
-        _log.debug("len pa_agents {}".format(len(self._pa_agents)))
-        pakeys = set(self._pa_agents.keys())
+        _log.debug("len pa_agents {}".format(len(self._platform_connections)))
+        pakeys = set(self._platform_connections.keys())
         _log.debug("Syncing with {}".format(pakeys))
         for p in self._registry.get_platforms():
-            if p.platform_uuid in pakeys:
-                pakeys.remove(p.platform_uuid)
+            if p.instance_uuid in pakeys:
+                pakeys.remove(p.instance_uuid)
 
         for k in pakeys:
             _log.debug('Removing {} from pa_agents'.format(k))
-            if k in self._pa_agents.keys():
-                if self._pa_agents[k]:
-                    self._pa_agents[k].disconnect()
-                del self._pa_agents[k]
+            if k in self._platform_connections.keys():
+                if self._platform_connections[k]:
+                    self._platform_connections[k].disconnect()
+                del self._platform_connections[k]
 
     @Core.receiver('onstop')
     def _stopping(self, sender, **kwargs):
         """ Clean up the  agent code before the agent is killed
         """
-        for v in self._pa_agents.values():
+        for v in self._platform_connections.values():
             v.kill()
 
-        self._pa_agents.clear()
+        self._platform_connections.clear()
 
         self.vip.rpc.call(MASTER_WEB, 'unregister_all_agent_routes',
                           self.core.identity).get(timeout=30)
@@ -1077,7 +1081,7 @@ class VolttronCentralAgent(Agent):
                 self._sync_connected_platforms()
                 unreachable = []
                 # Loop over the connections to the registered agent platforms.
-                for k, v in self._pa_agents.items():
+                for k, v in self._platform_connections.items():
                     _log.debug('updating for {}'.format(k))
                     # Only attempt update if we have a connection to the
                     # agent instance.
@@ -1121,9 +1125,9 @@ class VolttronCentralAgent(Agent):
                                     .format(k))
                             unreachable.append(k)
                 for k in unreachable:
-                    if self._pa_agents[k]:
-                        self._pa_agents[k].disconnect()
-                    del self._pa_agents[k]
+                    if self._platform_connections[k]:
+                        self._platform_connections[k].disconnect()
+                    del self._platform_connections[k]
 
         finally:
             self._flag_updating_deviceregistry = False
