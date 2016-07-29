@@ -471,47 +471,6 @@ class VolttronCentralAgent(Agent):
 
         return platform
 
-    # @Core.periodic(15)
-    def _auto_register_peer(self):
-        """ Auto register a volttron central platform.
-
-        This should only happen if there isn't already a peer registered and
-        then only if there hasn't been a local platform registered already.
-        """
-        pass
-        # if not self._peer_platform:
-        #     for p in self._registry.get_platforms():
-        #         if p.is_local:
-        #             _log.debug("Reconfiguring local to use: {}".format(
-        #                 p.platform_uuid))
-        #             self.vip.rpc.call(
-        #                 VOLTTRON_CENTRAL_PLATFORM, 'reconfigure',
-        #                 platform_uuid=p.platform_uuid
-        #             )
-        #             return
-        #
-        #     peers = self.vip.peerlist().get(timeout=30)
-        #     if 'platform.agent' in peers:
-        #         _log.debug('Auto connecting platform.agent on vc')
-        #         # the _peer_platform is set to self because we don't need
-        #         # another agent to connect to the bus instead we just use
-        #         # this agent.
-        #         self._peer_platform = self
-        #         local_entry = PlatformRegistry.build_entry(
-        #             None, None, None, is_local=True, display_name='local')
-        #
-        #         self._registry.register(local_entry)
-        #         self._pa_agents[local_entry.platform_uuid] = self
-        #         _log.debug("Reconfiguring local to use: {}".format(
-        #             local_entry.platform_uuid))
-        #         self.vip.rpc.call(
-        #             VOLTTRON_CENTRAL_PLATFORM, 'reconfigure',
-        #             platform_uuid=local_entry.platform_uuid
-        #         )
-
-    def _disconnect_peer_platform(self, sender, **kwargs):
-        _log.debug("disconnecting peer_platform")
-        self._peer_platform = None
     #
     # @RPC.export
     # def list_platform_details(self):
