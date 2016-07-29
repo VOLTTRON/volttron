@@ -106,7 +106,7 @@ from volttron.platform.jsonrpc import (
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
     UNABLE_TO_REGISTER_INSTANCE, DISCOVERY_ERROR,
     UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM, INVALID_PARAMS,
-    UNAVAILABLE_AGENT)
+    UNAVAILABLE_AGENT, json_error)
 from volttron.platform.messaging.health import UNKNOWN_STATUS, Status, \
     BAD_STATUS
 from volttron.platform.vip.agent import Agent, RPC, PubSub, Core, Unreachable
@@ -123,81 +123,6 @@ _log = logging.getLogger(__name__)
 # Web root is going to be relative to the volttron central agents
 # current agent's installed path
 DEFAULT_WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot/'))
-
-
-class Connected(object):
-    __metaclass__ = ABCMeta
-
-    @property
-    def agent(self):
-        raise NotImplementedError('Class must implment this property')
-
-    def is_connected(self):
-        raise NotImplementedError('Class must implment is_connected function')
-
-
-class ConnectedLocalPlatform(Connected):
-    def __init__(self, agent):
-        super(ConnectedLocalPlatform, self).__init__()
-        self._connected_agent = agent
-
-    @property
-    def agent(self):
-        return self._connected_agent
-
-    def is_connected(self):
-        try:
-            resp = self._connected_agent.vip.ping(
-                VOLTTRON_CENTRAL_PLATFORM).get(timeout=15)
-            return True
-        except gevent.Timeout, Unreachable:
-            _log.debug("Timeout ping address {} for agent."
-                       .format(self._address))
-            return False
-
-    def disconnect(self):
-        self._connected_agent = None
-
-
-class ConnectedPlatform(Connected):
-    def __init__(self, address, serverkey, publickey, secretkey):
-        super(ConnectedPlatform, self).__init__()
-        self._address = address
-        self._serverkey = serverkey
-        self._publickey = publickey
-        self._secretkey = secretkey
-        self._connected_agent = None
-
-    def connect(self):
-        _log.info('Connecting {}'.format(self._address))
-        self._connected_agent = build_agent(
-            address=self._address, serverkey=self._serverkey,
-            secretkey=self._secretkey, publickey=self._publickey
-        )
-
-    def disconnect(self):
-        _log.info('Disconnecting {}'.format(self._address))
-        if self._connected_agent:
-            self._connected_agent.core.stop()
-            self._connected_agent = False
-
-    @property
-    def agent(self):
-        if not self.is_connected():
-            self.connect()
-        return self._connected_agent
-
-    def is_connected(self):
-        if self._connected_agent:
-            try:
-                resp = self._connected_agent.vip.ping(
-                    VOLTTRON_CENTRAL_PLATFORM).get(timeout=15)
-            except gevent.Timeout:
-                _log.debug("Timeout ping address {} for agent."
-                           .format(self._address))
-                self._connected_agent = None
-
-        return self._connected_agent
 
 
 class VolttronCentralAgent(Agent):
@@ -263,12 +188,8 @@ class VolttronCentralAgent(Agent):
         # connected to the vip-address of the registered platform.  If the
         # registered platform is None then that means we were unable to
         # connect to the platform the last time it was tried.
-        self._pa_agents = {}
+        self._platform_connections = {}
         self._address_to_uuid = {}
-
-        # if there is a volttron central agent on this instance then this
-        # will be resolved.
-        self._peer_platform = None
 
         # An object that allows the checking of currently authenticated
         # sessions.
@@ -281,6 +202,8 @@ class VolttronCentralAgent(Agent):
         # time which could cause unpredicatable results.
         self._flag_updating_deviceregistry = False
 
+        # A dictionary of the connections to platforms.
+        self._connections_by_address = {}
         _log.debug('Creating setting store')
         self._setting_store = load_create_store(
             os.path.join(os.environ['VOLTTRON_HOME'],
@@ -289,10 +212,6 @@ class VolttronCentralAgent(Agent):
         self._request_store = load_create_store(
             os.path.join(os.environ['VOLTTRON_HOME'],
                          'data', 'volttron.central.requeststore'))
-
-    @RPC.export
-    def echo(self, data):
-        return data
 
     # # @Core.periodic(60)
     # def _reconnect_to_platforms(self):
@@ -529,8 +448,10 @@ class VolttronCentralAgent(Agent):
             'last_published_utc': format_timestamp(get_aware_utc_now())
         }
 
-        # self._registry.update_performance(platform_uuid=platform_uuid,
-        #                                   performance=stats)
+        platform = self._registered_platforms[platform_uuid]
+        platform['stats_point_list'] = stats
+        self._registered_platforms[platform_uuid] = platform
+        self._registered_platforms.sync()
 
     @RPC.export
     def get_platforms(self):
