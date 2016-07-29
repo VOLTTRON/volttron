@@ -504,6 +504,72 @@ class VolttronCentralAgent(Agent):
             return {'error': {'code': UNABLE_TO_UNREGISTER_INSTANCE,
                               'message': msg}}
 
+    def _build_connected_agent(self, address):
+        _log.debug('Building or returning connection to address: {}'.format(
+            address))
+        cn = self._platform_connections.get(address)
+        if cn and cn.is_connected():
+            return cn
+
+        uuid = self._address_to_uuid.get(address)
+        uuid or _log.debug('UUID is None from address to uuid.')
+        assert uuid
+        entry = self._registered_platforms.get(uuid)
+        entry or _log.debug('Platform registry is empty for uuid {}'
+                            .format(uuid))
+        assert entry
+
+        cn = Connection(address, peer=VOLTTRON_CENTRAL_PLATFORM,
+                        serverkey=entry['serverkey'],
+                        secretkey=self.core.secretkey,
+                        publickey=self.core.publickey)
+        return cn
+
+    def _build_connection(self, address, serverkey=None):
+        """ Creates a Connection object instance if one doesn't exist for the
+        passed address.
+
+        :param address:
+        :param serverkey:
+        :return:
+        """
+        cn = self._connections_by_address.get(address)
+        if cn is not None and cn.serverkey != serverkey:
+            cn.kill()
+            del self._connections_by_address[address]
+            cn = None
+
+        if cn is None:
+            parsed = urlparse(address)
+            if parsed.scheme == 'tcp':
+                cn = Connection(address=address, serverkey=serverkey,
+                                publickey=self.core.publickey,
+                                secretkey=self.core.secretkey,
+                                peer=VOLTTRON_CENTRAL_PLATFORM)
+            else:
+                cn = Connection(address=address, peer=VOLTTRON_CENTRAL_PLATFORM)
+
+        assert cn.is_connected(), "Connection unavailable for address {}"\
+            .format(address)
+        self._connections_by_address[address] = cn
+        return cn
+
+    def _get_connection(self, platform_uuid):
+        cn = self._platform_connections.get(platform_uuid)
+
+        if cn is None:
+            if self._registered_platforms.get(platform_uuid) is None:
+                raise ValueError('Invalid platform_uuid specified {}'
+                                 .format(platform_uuid))
+
+            cn = self._build_connected_agent(
+                self._registered_platforms[platform_uuid]['address']
+            )
+
+            self._platform_connections[platform_uuid] = cn
+
+        return cn
+
     def register_platform(self, address, serverkey=None, display_name=None):
         """ Allows an volttron central platform (vcp) to register with vc
 
