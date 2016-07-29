@@ -169,14 +169,14 @@ class Connection(object):
         except gevent.Timeout:
             return False
 
-    def publish(self, topic, header=None, message=None, timeout=30):
+    def publish(self, topic, headers=None, message=None, timeout=30):
         if timeout is None:
             raise ValueError('timeout cannot be None')
 
         timeout = int(timeout)
 
         self.server.vip.pubsub.publish(
-                'pubsub', topic=topic, header=header, message=message
+                'pubsub', topic=topic, headers=headers, message=message
             ).get(timeout=timeout)
 
     def call(self, method, *args, **kwargs):
