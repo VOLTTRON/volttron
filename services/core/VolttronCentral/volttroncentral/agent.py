@@ -1127,6 +1127,20 @@ class VolttronCentralAgent(Agent):
         finally:
             self._flag_updating_deviceregistry = False
 
+    def _handle_list_performance(self):
+        _log.debug('Listing performance topics from vc')
+        _log.debug(str(self._registered_platforms))
+
+        return [{'platform.uuid': x['instance_uuid'],
+                 'performance': x['stats_point_list'],
+                 } for x in self._registered_platforms.values()]
+
+    def _handle_list_devices(self):
+        _log.debug('Listing devices from vc')
+        return [{'platform.uuid': x.instance_uuid,
+                 'devices': x.get("devices", [])}
+                for x in self._registered_platforms.values()
+                if len(x.get("devices"))]
 
     def _route_request(self, session_user, id, method, params):
         '''Route request to either a registered platform or handle here.'''
