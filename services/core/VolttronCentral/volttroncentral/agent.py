@@ -1148,7 +1148,16 @@ class VolttronCentralAgent(Agent):
                 if len(x.get("devices"))]
 
     def _route_request(self, session_user, id, method, params):
-        '''Route request to either a registered platform or handle here.'''
+        """ Handle the methods volttron central can or pass off to platforms.
+
+        :param session_user:
+            The authenticated user's session info.
+        :param id:
+            JSON-RPC id field.
+        :param method:
+        :param params:
+        :return:
+        """
         _log.debug(
             'inside _route_request {}, {}, {}'.format(id, method, params))
 
@@ -1156,8 +1165,6 @@ class VolttronCentralAgent(Agent):
             return {'error': {'code': code, 'message': message}}
 
         if method == 'register_instance':
-            _log.debug('Inside register_instance')
-            _log.debug('Logs {}'.format(params))
             if isinstance(params, list):
                 return self._register_instance(*params)
             else:
@@ -1165,11 +1172,12 @@ class VolttronCentralAgent(Agent):
         elif method == 'list_deivces':
             return self._handle_list_devices()
         elif method == 'list_performance':
+            print(self._handle_list_performance())
             return self._handle_list_performance()
         elif method == 'list_platforms':
             return self._handle_list_platforms()
         elif method == 'unregister_platform':
-            return self.unregister_platform(params['platform_uuid'])
+            return self.unregister_platform(params['instance_uuid'])
         elif method == 'get_setting':
             if 'key' not in params or not params['key']:
                 return err('Invalid parameter key not set',
@@ -1216,14 +1224,14 @@ class VolttronCentralAgent(Agent):
         fields = method.split('.')
         if len(fields) < 3:
             return err('Unknown method {}'.format(method))
-        platform_uuid = fields[2]
-        platform = self._registered_platforms.get(platform_uuid)
+        instance_uuid = fields[2]
+        platform = self._registered_platforms.get(instance_uuid)
         if not platform:
-            return err('Unknown platform {}'.format(platform_uuid))
+            return err('Unknown platform {}'.format(instance_uuid))
         platform_method = '.'.join(fields[3:])
-        _log.debug(platform_uuid)
+        _log.debug(instance_uuid)
         # Get a connection object associated with the platform uuid.
-        cn = self._pa_agents.get(platform_uuid)
+        cn = self._platform_connections.get(instance_uuid)
         if not cn:
             return jsonrpc.json_error(id,
                                       UNAVAILABLE_PLATFORM,
@@ -1239,12 +1247,11 @@ class VolttronCentralAgent(Agent):
 
         if platform_method == 'list_agents':
             _log.debug('Callling list_agents')
-            connection = self._pa_agents.get(platform_uuid)
-            agents = connection.call('list_agents')
+            agents = cn.call('list_agents')
 
             if agents is None:
-                _log.warn('No agents found for platform_uuid {}'.format(
-                    platform_uuid
+                _log.warn('No agents found for instance_uuid {}'.format(
+                    instance_uuid
                 ))
                 agents = []
 
@@ -1262,12 +1269,10 @@ class VolttronCentralAgent(Agent):
             return agents
         else:
             try:
-                return cn.agent.vip.rpc.call(
-                    VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,
-                    platform_method,
-                    params).get(timeout=30)
+                _log.debug('Routing request {} {} {}'.format(id, platform_method, params))
+                return cn.call('route_request', id, platform_method, params)
             except (Unreachable, gevent.Timeout) as e:
-                del self._pa_agents[platform_uuid]
+                del self._platform_connections[instance_uuid]
                 return err("Can't route to platform",
                            UNAVAILABLE_PLATFORM)
 
