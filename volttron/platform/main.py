@@ -594,7 +594,7 @@ def main(argv=sys.argv):
         os.environ.get('VOLTTRON_HOME', '~/.volttron')))
     os.environ['VOLTTRON_HOME'] = volttron_home
 
-    #Remove AGENT_VIP_ID if it exists.
+    #Remove AGENT_VIP_IDENTITY if it exists.
     #Otherwise subsystem agents will get messed up if it exists.
     os.environ.pop("AGENT_VIP_IDENTITY", None)
 
