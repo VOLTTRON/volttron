@@ -354,7 +354,7 @@ class VolttronCentralPlatform(Agent):
     @RPC.export
     def get_health(self):
         _log.debug("Getting health: {}".format(self.vip.health.get_status()))
-        return Status.from_json(self.vip.health.get_status()).as_dict()
+        return Status.from_json(self.vip.health.get_status_json())
 
     @RPC.export
     def get_instance_uuid(self):

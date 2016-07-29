@@ -13,6 +13,7 @@ subscription_results = {}
 
 def onmessage(peer, sender, bus, topic, headers, message):
     global subscription_results
+    print("THE MESSAGE IS: {}".format(message))
     subscription_results[topic] = {'headers': headers, 'message': message}
     print("subscription_results[{}] = {}".format(topic, subscription_results[topic]))
 
@@ -31,7 +32,7 @@ def test_can_set_status(volttron_instance1):
     subscription_results.clear()
     new_agent = volttron_instance1.build_agent(identity='test_status')
     new_agent.vip.heartbeat.start()
-    orig_status = Status.from_json(new_agent.vip.health.get_status())
+    orig_status = Status.from_json(new_agent.vip.health.get_status_json())
     assert orig_status.status == STATUS_GOOD
     assert orig_status.context is None
     assert orig_status.last_updated is not None
@@ -45,7 +46,7 @@ def test_can_set_status(volttron_instance1):
     new_agent.vip.health.set_status(STATUS_BAD, new_context)
     poll_gevent_sleep(2, lambda: messages_contains_prefix(agent_prefix,
                                                           subscription_results))
-    new_status = Status.from_json(new_agent.vip.health.get_status())
+    new_status = Status.from_json(new_agent.vip.health.get_status_json())
     print('new status: {}'.format(new_status.as_json()))
     assert new_status.status == STATUS_BAD
     assert new_status.context == new_context
@@ -70,7 +71,7 @@ def test_invalid_status(volttron_instance1):
     subscription_results.clear()
     new_agent = volttron_instance1.build_agent()
     new_agent.vip.heartbeat.start()
-    orig_status = Status.from_json(new_agent.vip.health.get_status())
+    orig_status = Status.from_json(new_agent.vip.health.get_status_json())
     assert orig_status.status == STATUS_GOOD
     with pytest.raises(ValueError):
         new_agent.vip.health.set_status('Bogus')
@@ -89,7 +90,7 @@ def test_heartbeat_sending_status(volttron_instance1):
     subscription_results.clear()
     agent_prefix = 'heartbeat/Agent'
     new_agent = volttron_instance1.build_agent(identity='test3')
-    orig_status = Status.from_json(new_agent.vip.health.get_status())
+    orig_status = Status.from_json(new_agent.vip.health.get_status_json())
     new_agent.vip.pubsub.subscribe(peer='pubsub',
                                    prefix=agent_prefix, callback=onmessage)
     new_agent.vip.heartbeat.start()
@@ -97,7 +98,7 @@ def test_heartbeat_sending_status(volttron_instance1):
                                                           subscription_results))
     message = subscription_results[agent_prefix]['message']
     headers = subscription_results[agent_prefix]['headers']
-    d = Status.from_json(message)
+    d = Status.from_json(jsonapi.dumps(message))
     assert headers[DATE] is not None
     assert d.last_updated is not None
     assert orig_status.status == d.status
