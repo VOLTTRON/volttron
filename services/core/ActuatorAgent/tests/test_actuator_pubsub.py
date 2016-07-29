@@ -231,6 +231,9 @@ def publish_agent(request, volttron_instance):
         print("In teardown method of module")
         volttron_instance.stop_agent(actuator_uuid)
         volttron_instance.stop_agent(master_uuid)
+        volttron_instance.remove_agent(actuator_uuid)
+        volttron_instance.remove_agent(master_uuid)
+        gevent.sleep(2)
         fake_publish_agent.core.stop()
 
     request.addfinalizer(stop_agent)
@@ -347,12 +350,16 @@ def test_schedule_announce(publish_agent, volttron_instance):
 
     if publish_agent_v2 is not None:
         pytest.skip('No difference between 2.0 and 3.0 agent. Skip for 2.0')
+
+    alternate_actuator_vip_id = "my_actuator"
     # Use a actuator that publishes frequently
+    print("Stopping original actuator")
     volttron_instance.stop_agent(actuator_uuid)
-    actuator_uuid = volttron_instance.install_agent(
+    gevent.sleep(2)
+    my_actuator_uuid = volttron_instance.install_agent(
         agent_dir="services/core/ActuatorAgent",
         config_file="services/core/ActuatorAgent/tests/actuator2.config",
-        start=True)
+        start=True, vip_identity=alternate_actuator_vip_id)
     try:
         # reset mock to ignore any previous callback
         publish_agent.callback.reset_mock()
@@ -371,7 +378,7 @@ def test_schedule_announce(publish_agent, volttron_instance):
         ]
 
         result = publish_agent.vip.rpc.call(
-            'platform.actuator',
+            alternate_actuator_vip_id,
             REQUEST_NEW_SCHEDULE,
             TEST_AGENT,
             'task_schedule_announce',
@@ -386,7 +393,7 @@ def test_schedule_announce(publish_agent, volttron_instance):
         assert publish_agent.actuate0.call_count == 2
         args_list1 = publish_agent.actuate0.call_args_list[0][0]
         args_list2 = publish_agent.actuate0.call_args_list[1][0]
-        assert args_list1[1] == args_list2[1] == 'platform.actuator'
+        assert args_list1[1] == args_list2[1] == alternate_actuator_vip_id
         assert args_list1[3] == args_list2[
             3] == 'devices/actuators/schedule/announce/fakedriver0'
         assert args_list1[4]['taskID'] == args_list2[4][
@@ -401,7 +408,7 @@ def test_schedule_announce(publish_agent, volttron_instance):
         # Test message on schedule/result
         assert publish_agent.callback.call_count == 1
         print('call args ', publish_agent.callback.call_args[0][1])
-        assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
+        assert publish_agent.callback.call_args[0][1] == alternate_actuator_vip_id
         assert publish_agent.callback.call_args[0][3] == \
             topics.ACTUATOR_SCHEDULE_RESULT
         result_header = publish_agent.callback.call_args[0][4]
@@ -414,16 +421,14 @@ def test_schedule_announce(publish_agent, volttron_instance):
     finally:
         # cancel so fakedriver0 can be used by other tests
         publish_agent.vip.rpc.call(
-            'platform.actuator',
+            alternate_actuator_vip_id,
             REQUEST_CANCEL_SCHEDULE,
             TEST_AGENT,
             'task_schedule_announce').get(timeout=10)
-        volttron_instance.stop_agent(actuator_uuid)
-        print("creating instance of actuator with larger publish frequency")
-        actuator_uuid = volttron_instance.install_agent(
-            agent_dir="services/core/ActuatorAgent",
-            config_file="services/core/ActuatorAgent/tests/actuator.config",
-            start=True)
+        volttron_instance.stop_agent(my_actuator_uuid)
+        volttron_instance.remove_agent(my_actuator_uuid)
+        print("Restarting original actuator")
+        volttron_instance.start_agent(actuator_uuid)
 
 
 @pytest.mark.actuator_pubsub

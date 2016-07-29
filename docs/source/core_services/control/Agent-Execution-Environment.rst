@@ -2,9 +2,6 @@
 Used Environmental Variables
 ============================
 
-| VOLTTRON\_VIP\_ADDR - The router address an agent is/will attempt to
-connect to.
-| AGENT\_CONFIG - The path to a configuration file to use during agent
-launch
-| VOLTTRON\_HOME - The home directory where the volttron instances is
-located.
+- **AGENT_VIP_IDENTITY** - The router address an agent will attempt to connect to.
+- **AGENT_CONFIG** - The path to a configuration file to use during agent launch.
+- **VOLTTRON_HOME** - The home directory where the volttron instances is located.
