@@ -810,7 +810,6 @@ class VolttronCentralAgent(Agent):
         assert pa_vip_address
 
         self.register_platform(pa_vip_address, pa_instance_serverkey)
-        # _log.debug('connecting to pa_instance')
 
         if pa_vip_address not in self._address_to_uuid.keys():
             return {'status': 'FAILURE',
@@ -819,7 +818,6 @@ class VolttronCentralAgent(Agent):
 
         return {'status': 'SUCCESS',
                 'context': 'Registered instance {}'.format(display_name)}
-        # Add the pa's public key so it can connect back to us.
 
     def _store_registry(self):
         self._store('registry', self._registry.package())
