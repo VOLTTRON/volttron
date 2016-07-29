@@ -115,49 +115,52 @@ class NotManagedError(StandardError):
 
 
 class VolttronCentralPlatform(Agent):
-    __name__ = 'PlatformAgent'
+    __name__ = 'VolttronCentralPlatform'
 
     def __init__(self, config_path, **kwargs):
-
         identity = kwargs.pop('identity', None)
         identity = VOLTTRON_CENTRAL_PLATFORM
         super(VolttronCentralPlatform, self).__init__(
             identity=identity, **kwargs)
+        self._local_instance_name = None
+        self._local_instance_uuid = None
+        self._local_serverkey = None
+        self._local_bind_web_address = None
+        self._external_addresses = None
 
-        self._config = utils.load_config(config_path)
-        # specified either via main platform config file or via the agent config
-        # file.  Agent config file should win if specified in both locations.
-        self._volttron_central_address = self._config.get('volttron-central-address')
-        self._platform_name = self._config.get('platform-name')
-        self._vc_bind_web_address = None
-        self._vc_serverkey = None
-        self._serverkey = None
-        self._bind_web_address = None
-        self._vc_connection = None
-        self._agent_connected_to_vc = None
-        self._vc_info = None
+        self._volttron_central_http_address = None
+        self._volttron_central_tcp_address = None
+        self._volttron_central_ipc_address = None
+        self._volttron_central_serverkey = None
+        self._volttron_central_publickey = None
+
+        self._volttron_central_connection = None
+        self._control_connection = None
+
+        settings_path = os.path.join(get_home(), "data/vcp.settings")
+        self._settings = load_create_store(settings_path)
+        config = utils.load_config(config_path)
+        self.reconfigure(**config)
+
+        # Flag set after the platform has a guaranteed connection to the router.
+        self._agent_started = False
+        self._is_registering = False
+        self._is_registered = False
         self._was_unmanaged = False
-        self._managed = False
-        self._external_addresses = []
 
-        store_dir = os.path.join(os.environ['VOLTTRON_HOME'], 'data')
-        if not os.path.exists(store_dir):
-            os.makedirs(store_dir)
-        self._vcp_store = load_create_store(
-            os.path.join(store_dir, 'vcp.settings'))
-
-        # This is set from the volttron central instance (NOTE:this is not
-        # the same as the installed uuid on this volttron instance0).
-        self._platform_uuid = self._vcp_store.get("platform_uuid")
-
-        # A dictionary of devices that are published by the platform.
         self._devices = {}
+        self._device_topic_hashes = {}
 
-        self._stats_publish_interval = 30
+        self._topic_replace_map = {}
+
+        # Default publish interval to 20 seconds.
+        self._stats_publish_interval = 20
         self._stats_publisher = None
+        if config.get('stats-publish-interval') is None:
+            config['stats-publish-interval'] = self._stats_publish_interval
+        self._topic_replace_list = config.get("topic_replace_list", [])
+        self.reconfigure(**config)
 
-        self._agent_list_publish_interval = 30
-        self._agent_list_publisher = None
 
         self._control = None
 
