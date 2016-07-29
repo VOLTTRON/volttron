@@ -25,6 +25,7 @@ ALERT_KEY = "alert_key"
 
 _log = logging.getLogger(__name__)
 
+
 class Status(object):
     """
     The `Status` objects wraps the context status and last reported into a
