@@ -193,7 +193,8 @@ var ComboBox = React.createClass({
 
             return (
                 <div className="combobox-item"
-                    style={highlightStyle}>
+                    style={highlightStyle}
+                    key={item.key}>
                     <div 
                         onClick={this._onClick}
                         data-label={item.label}

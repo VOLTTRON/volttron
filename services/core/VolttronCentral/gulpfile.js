@@ -83,7 +83,7 @@ function vendor() {
             'react/dist/react',
             'react-dom/dist/react-dom',
             'react-router/umd/ReactRouter',
-            'history/umd/History',
+            'history/umd/history',
         ],
     })
         .require([
@@ -101,7 +101,7 @@ function vendor() {
             { file: 'react/dist/react', expose: 'react' },
             { file: 'react-dom/dist/react-dom', expose: 'react-dom' },
             { file: 'react-router/umd/ReactRouter', expose: 'react-router' },
-            { file: 'history/umd/History', expose: 'history' },
+            { file: 'history/umd/history', expose: 'history' },
         ])
         .transform(function (file) {
             if (file.match('/d3/d3.')) {
