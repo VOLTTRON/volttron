@@ -30,14 +30,14 @@ An Agent may have it's VIP IDENTITY configured when it is packaged. The packaged
 
 The packaged VIP IDENTITY may be overridden at installation time. This overrides any preferred VIP IDENTITY of the agent. This will cause the packaged agent wheel to include an instruction to set the VIP IDENTITY at installation time.
 
-To specify the VIP IDENTITY when packaging use the *--vip-id* option when running "volttron-pkg package".
+To specify the VIP IDENTITY when packaging use the *--vip-identity* option when running "volttron-pkg package".
 
 Installation
 ------------
 
 An agent may have it's VIP IDENTITY configured when it is installed. This overrides any VIP IDENTITY specified when the agent was packaged.
 
-To specify the VIP IDENTITY when packaging use the *--vip-id* option when running "volttron-ctl install".
+To specify the VIP IDENTITY when packaging use the *--vip-identity* option when running "volttron-ctl install".
 
 Installation Default VIP IDENTITY
 *********************************
