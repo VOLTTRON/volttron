@@ -147,4 +147,20 @@ class Health(SubsystemBase):
             }
 
         """
+        return self._statusobj.as_dict() #.as_json()
+
+    def get_status_json(self):
+        """"RPC method
+
+        Returns the last updated status from the object with the context.
+
+        The minimum output from the status would be:
+
+            {
+                "status": "GOOD",
+                "context": None,
+                "utc_last_update": "2016-03-31T15:40:32.685138+0000"
+            }
+
+        """
         return self._statusobj.as_json()
