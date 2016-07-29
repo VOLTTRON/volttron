@@ -258,7 +258,7 @@ class Router(BaseRouter):
     def __init__(self, local_address, addresses=(),
                  context=None, secretkey=None, publickey=None,
                  default_user_id=None, monitor=False, tracker=None,
-                 volttron_central_address=None, platform_name=None,
+                 volttron_central_address=None, instance_name=None,
                  bind_web_address=None, volttron_central_serverkey=None):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
@@ -277,7 +277,7 @@ class Router(BaseRouter):
             parsed = urlparse(self._volttron_central_address)
 
         self._volttron_central_serverkey = volttron_central_serverkey
-        self._platform_name = platform_name
+        self._instance_name = instance_name
         self._bind_web_address = bind_web_address
 
     def setup(self):
@@ -352,8 +352,9 @@ class Router(BaseRouter):
                     value = self._volttron_central_address
                 elif name == b'volttron-central-serverkey':
                     value = self._volttron_central_serverkey
-                elif name == b'platform-name':
-                    value = self._platform_name
+                elif name == b'instance-name':
+                    # TODO: Rename local to instance_name instead.
+                    value = self._instance_name
                 elif name == b'bind-web-address':
                     value = self._bind_web_address
                 else:
@@ -436,17 +437,22 @@ def start_volttron_process(opts):
         error = configure_logging(opts.log_config)
         if error:
             parser.error('{}: {}'.format(*error))
-    platform_name = None
-    _log.debug('')
+    instance_name = None
+
     if opts.volttron_central_address:
         if '|' in opts.volttron_central_address:
-            platform_name, opts.volttron_central_address = \
+            instance_name, opts.volttron_central_address = \
                 opts.volttron_central_address.split('|')
-    opts.platform_name = platform_name
+
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
+    if opts.instance_name is None:
+        if instance_name is not None:
+            opts.instance_name = instance_name
+        elif len(opts.vip_address) > 0:
+            opts.instance_name = opts.vip_address[0]
     import urlparse
     if opts.bind_web_address:
         parsed = urlparse.urlparse(opts.bind_web_address)
@@ -555,7 +561,7 @@ def start_volttron_process(opts):
                    default_user_id=b'vip.service', monitor=opts.monitor,
                    tracker=tracker,
                    volttron_central_address=opts.volttron_central_address,
-                   platform_name=opts.platform_name,
+                   instance_name=opts.instance_name,
                    bind_web_address=opts.bind_web_address).run()
 
         except Exception:
@@ -714,6 +720,10 @@ def main(argv=sys.argv):
         '--volttron-central-address', metavar='VOLTTRONCENTRAL',
         default=None,
         help='The web address of a volttron central install instance.')
+    agents.add_argument(
+        '--instance-name', default=None,
+        help='The name of the instance that will be reported to '
+             'VOLTTRON central.')
 
     # XXX: re-implement control options
     #on
@@ -787,7 +797,7 @@ def main(argv=sys.argv):
         # platform agent.
         volttron_central_address=None,
         volttron_central_serverkey=None,
-        platform_name=None,
+        instace_name=None,
         #allow_root=False,
         #allow_users=None,
         #allow_groups=None,
