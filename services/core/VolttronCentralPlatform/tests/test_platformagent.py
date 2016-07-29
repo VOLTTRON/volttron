@@ -7,6 +7,7 @@ import tempfile
 
 import pytest
 import gevent
+from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform.vip.connection import Connection
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 from zmq.utils import jsonapi
@@ -113,66 +114,6 @@ def test_listagents(pa_instance):
 
 
 @pytest.mark.pa
-def test_pa_autoregister_same_platform(vc_instance):
-    vc_wrapper, vc_uuid, rpc_instance = vc_instance
-    # Connection to vc instance through server.
-    vc_conn = vc_wrapper.build_connection(VOLTTRON_CENTRAL)
-    before_starting_platform = len(vc_conn.call('get_platforms'))
-    print('Before starting platform len: {}'.format(before_starting_platform))
-    pa_uuid = vc_wrapper.install_agent(
-        agent_dir='services/core/VolttronCentralPlatform'
-    )
-
-    registered_platforms = vc_conn.call('get_platforms')
-    assert vc_wrapper.is_agent_running(pa_uuid)
-    assert before_starting_platform + 1 == len(registered_platforms)
-    found = False
-    for p in registered_platforms:
-        if p['address'] == vc_wrapper.local_vip_address:
-            assert p['display_name'] == 'local'
-            assert p['serverkey'] is None
-            assert p['registered_time_utc'] is not None
-            found = True
-            break
-    assert found
-
-
-@pytest.mark.pa
-def test_pa_autoregister_through_call_to_vc(vc_instance):
-    vc_wrapper, vc_uuid, rpc_instance = vc_instance
-    # Connection to vc instance through server.
-    vc_conn = vc_wrapper.build_connection(VOLTTRON_CENTRAL)
-    before_starting_platform = len(vc_conn.call('get_platforms'))
-
-    pa_wrapper = PlatformWrapper()
-    display_name = get_rand_ip_and_port()
-    pa_vip = "tcp://{}".format(display_name)
-    # Note only using the web address in this scenario.
-    pa_wrapper.startup_platform(
-        vip_address=pa_vip, encrypt=True,
-        volttron_central_address=vc_wrapper.bind_web_address)
-
-    pa_uuid = pa_wrapper.install_agent(
-        agent_dir='services/core/VolttronCentralPlatform'
-    )
-    assert pa_vip == pa_wrapper.vip_address
-    registered_platforms = vc_conn.call('get_platforms')
-    assert pa_wrapper.is_agent_running(pa_uuid)
-    assert before_starting_platform + 1 == len(registered_platforms)
-    found = False
-    for p in registered_platforms:
-        if p['address'] == pa_vip:
-            assert pa_vip == p['display_name']
-            assert p['serverkey'] is not None
-            assert p['registered_time_utc'] is not None
-            found = True
-            break
-    assert found
-    pa_conn = pa_wrapper.build_connection(VOLTTRON_CENTRAL_PLATFORM)
-    assert pa_conn.call('get_platform_uuid') is not None
-
-
-@pytest.mark.pa
 def test_manage_agent(pa_instance):
     """ Test that we can manage a `VolttronCentralPlatform`.
 
@@ -233,6 +174,7 @@ def test_can_get_agentlist(pa_instance):
     # make sure can stop is determined to be false
     assert retagent['permissions']['can_stop'] == False
 
+
 @pytest.mark.pa
 def test_agent_can_be_managed(pa_instance):
     wrapper = pa_instance[0]
@@ -262,8 +204,8 @@ def test_reconfigure_agent(pa_instance):
     connection = wrapper.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
     auuid = str(uuid.uuid4())
     assert connection.is_connected()
-    connection.call('reconfigure', platform_uuid=auuid)
-    assert auuid == connection.call('get_platform_uuid')
+    connection.call('reconfigure', **{'instance-uuid': auuid})
+    assert auuid == connection.call('get_instance_uuid')
 
 
 @pytest.mark.pa
@@ -273,11 +215,9 @@ def test_status_good_when_agent_starts(pa_instance):
 
     assert connection.is_connected()
     status = connection.call('health.get_status')
-    jsonstatus = jsonapi.loads(status)
-
-    assert isinstance(jsonstatus, dict)
+    assert isinstance(status, dict)
     assert status
-
+    assert STATUS_GOOD == status['status']
 
 
 # @pytest.mark.pa

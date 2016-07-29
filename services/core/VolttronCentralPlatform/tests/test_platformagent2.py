@@ -24,6 +24,19 @@ def pa_wrapper(request):
 
 
 @pytest.mark.pa
+def test_can_listagents(pa_wrapper):
+    platform = pa_wrapper.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
+    agents = platform.call('list_agents')
+    assert len(agents) > 0
+    padict = None
+    for a in agents:
+        if a['name'].startswith('vcplatformagent'):
+            padict = a
+            break
+    assert isinstance(padict, dict)
+    
+
+@pytest.mark.pa
 def test_can_pa_install_start_stop_restart_listener(pa_wrapper):
     whl_path = pa_wrapper.build_wheel(agent_dir="examples/ListenerAgent")
 
@@ -61,8 +74,6 @@ def test_can_pa_install_start_stop_restart_listener(pa_wrapper):
     for k in keys:
         assert k in status.keys()
 
-    #assert status['return_code'] == 0
-    #pid = status['process_id']
     print('status is: {}'.format(status))
     assert len(status) == 2
 
@@ -71,21 +82,6 @@ def test_can_pa_install_start_stop_restart_listener(pa_wrapper):
         assert k in status.keys()
 
     print('status is: {}'.format(status))
-    # assert status['return_code'] == 0
     pid2 = status['process_id']
-    #assert len(status) == 2
     assert pid != pid2
 
-
-    #platform.inst
-    #auuid = pa_wrapper.install_agent(agent_dir="examples/ListenerAgent",
-    #                                 start=False)
-
-    # platform = pa_wrapper.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
-    # agent_list = platform.call('route_request', 'foo', 'list_agents', None)
-    #
-    # print('AGENT LIST: {}'.format(agent_list))
-    #
-    # print("WRAPPER IS: {}".format(pa_wrapper.vip_address))
-    # assert pa_wrapper.vip_address
-    # assert pa_wrapper.is_running()
