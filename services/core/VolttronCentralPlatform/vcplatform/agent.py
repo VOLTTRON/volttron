@@ -161,27 +161,43 @@ class VolttronCentralPlatform(Agent):
         self._topic_replace_list = config.get("topic_replace_list", [])
         self.reconfigure(**config)
 
+    @RPC.export
+    def reconfigure(self, **kwargs):
+        instance_name = kwargs.get('instance-name')
+        instance_uuid = kwargs.get('instance-uuid')
+        vc_address = kwargs.get('volttron-central-address')
+        vc_serverkey = kwargs.get('volttron-central-serverkey')
+        new_publish_interval = kwargs.get('stats-publish-interval')
 
-        self._control = None
+        if instance_name:
+            self._local_instance_name = instance_name
 
-        # Search and replace for topics
-        # The difference between the list and the map is that the list
-        # specifies the search and replaces that should be done on all of the
-        # incoming topics.  Once all of the search and replaces are done then
-        # the mapping from the original to the final is stored in the map.
-        self._topic_replace_list = self._config.get('topic_replace_list', [])
-        self._topic_replace_map = defaultdict(str)
-        _log.debug('Topic replace list: {}'.format(self._topic_replace_list))
+        if instance_uuid:
+            self._local_instance_uuid = instance_uuid
 
-    @PubSub.subscribe('pubsub', 'devices')
-    def _on_device_message(self, peer, sender, bus, topic, headers, message):
-        # only deal with agents that have not been forwarded.
-        if headers.get('X-Forwarded', None):
-            return
+        if vc_address:
+            parsed = urlparse.urlparse(vc_address)
+            if parsed.scheme in ('http', 'https'):
+                self._volttron_central_http_address = vc_address
+            elif parsed.scheme == 'tcp':
+                self._volttron_central_tcp_address = vc_address
+            elif parsed.scheme == 'ipc':
+                self._volttron_central_ipc_address = vc_address
+            else:
+                raise ValueError('Invalid volttron central address.')
 
-        # only listen to the ending all message.
-        if not re.match('.*/all$', topic):
-            return
+        if vc_serverkey:
+            if self._volttron_central_tcp_address:
+                self._volttron_central_serverkey = vc_serverkey
+            else:
+                raise ValueError('Invalid volttron central tcp address.')
+
+        if new_publish_interval is not None:
+            if int(self._stats_publish_interval) < 20:
+                raise ValueError(
+                    "stats publishing must be greater than 20 seconds.")
+            self._stats_publish_interval = new_publish_interval
+            self._start_stats_publisher()
 
         topicsplit = topic.split('/')
 
