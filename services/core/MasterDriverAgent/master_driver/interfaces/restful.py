@@ -128,6 +128,9 @@ class Interface(BasicRevert, BaseInterface):
             units = regDef['Units']
             description = regDef.get('Notes', '')
             point_name = regDef['Point Name']
+            default = regDef.get('Default')
+            if not read_only and default is not None:
+                self.set_default(point_name, default)
 
             register = Register(
                 read_only,
