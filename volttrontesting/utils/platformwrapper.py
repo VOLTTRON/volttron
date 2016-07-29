@@ -258,10 +258,8 @@ class PlatformWrapper:
                                            publickey, secretkey)
 
         # Add properties on for testing environment.
-        connection = Connection(address, peer=peer)
-        connection.publickey = publickey
-        connection.secretkey = secretkey
-        connection.serverkey = self.publickey
+        connection = Connection(address, peer=peer, publickey=publickey,
+                                secretkey=secretkey, serverkey=self.publickey)
 
         return connection
 
