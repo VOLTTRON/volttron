@@ -341,6 +341,15 @@ class VolttronCentralPlatform(Agent):
         self._start_stats_publisher()
 
     def _start_stats_publisher(self):
+        if not self._agent_started:
+            return
+
+        if self._stats_publisher:
+            self._stats_publisher.kill()
+        # The stats publisher publishes both to the local bus and the vc
+        # bus the platform specific topics.
+        self._stats_publisher = self.core.periodic(
+            self._stats_publish_interval, self._publish_stats)
 
     @RPC.export
     def get_health(self):
