@@ -199,74 +199,99 @@ class VolttronCentralPlatform(Agent):
             self._stats_publish_interval = new_publish_interval
             self._start_stats_publisher()
 
-        topicsplit = topic.split('/')
+    @Core.periodic(period=5)
+    def _periodic_attempt_registration(self):
+        if self._vc_connection() is not None:
+            if not self._is_registering and not self._is_registered and \
+                    not self._was_unmanaged:
+                _log.debug("Starting the registration process from vcp.")
+                _log.debug('LOCAL INSTANCE: {}'.format(
+                    self._local_instance_name))
+                self._vc_connection().call(
+                    "register_instance", address=self._external_addresses[0],
+                    display_name=self._local_instance_name,
+                    serverkey=self._local_serverkey,
+                    vcpagentkey=self.core.publickey
+                )
 
-        # For devices we use everything between devices/../all as a unique
-        # key for determining the last time it was seen.
-        key = '/'.join(topicsplit[1: -1])
+    def _vc_connection(self):
+        """ Attempt to connect to volttron central management console.
 
-        anon_topic = self._topic_replace_map[key]
+        The attempts will be done in the following order.
 
-        if not anon_topic:
-            anon_topic = key
+        1. if peer is vc register with it.
+        2. volttron-central-tcp and serverkey
+        2. volttron-central-http (looks up tcp and serverkey)
+        3. volttron-central-ipc
 
-            for sr in self._topic_replace_list:
-                _log.debug(
-                    'anon replacing {}->{}'.format(sr['from'], sr['to']))
-                anon_topic = anon_topic.replace(sr['from'],
-                                                sr['to'])
-            _log.debug('anon after replacing {}'.format(anon_topic))
-            _log.debug('Anon topic is: {}'.format(anon_topic))
-            self._topic_replace_map[key] = anon_topic
-        _log.debug('DEVICES ON PLATFORM ARE: {}'.format(self._devices))
-        self._devices[anon_topic] = {
-            'points': message[0].keys(),
-            'last_published_utc': format_timestamp(get_aware_utc_now())
-        }
+        :param sender:
+        :param kwargs:
+        :return:
+        """
 
-    @RPC.export
-    #@RPC.allow("manager")
-    def reconfigure(self, **kwargs):
-        _log.debug('Reconfiguring: {}'.format(kwargs))
-        new_uuid = kwargs.get('platform_uuid')
-        _log.debug('new_uuid is {}'.format(new_uuid))
-        new_stats_interval = kwargs.get('stats_publish_interval')
-        new_agent_list_interval = kwargs.get('agent_list_publish_interval')
+        assert self._agent_started, "Function cannot be called before onstart signal"
 
-        if new_uuid and new_uuid != self._platform_uuid:
-            _log.debug('storing new_uuid: {}'.format(new_uuid))
-            self._platform_uuid = new_uuid
-            self._vcp_store['platform_uuid'] = self._platform_uuid
-            self._vcp_store.sync()
+        if self._volttron_central_connection:
+            return self._volttron_central_connection
 
-        if new_agent_list_interval:
-            if not isinstance(new_agent_list_interval, int) or \
-                            new_agent_list_interval < 20:
-                raise ValueError('Invlaid interval, must be int > 20 sec.')
+        # First check to see if there is a peer with a volttron.central
+        # identity, if there is use it as the manager of the platform.
+        peers = self.vip.peerlist().get(timeout=5)
+        if VOLTTRON_CENTRAL in peers:
+            _log.debug('VC is a local peer.')
+            self._volttron_central_connection = Connection(
+                self.core.address, VOLTTRON_CENTRAL
+            )
+            return self._volttron_central_connection
 
-            self._agent_list_publish_interval = new_agent_list_interval
+        # If we have an http address for volttron central, but haven't
+        # looked up the address yet, then look up and set the address from
+        # volttron central discovery.
+        if self._volttron_central_http_address is not None and \
+                self._volttron_central_tcp_address is None and \
+                self._volttron_central_serverkey is None:
 
-            if self._agent_list_publisher:
-                self._agent_list_publisher.kill()
-
-            self._agent_list_publisher = self.core.periodic(
-                self._agent_list_publish_interval,
-                self._publish_agent_list_to_vc
+            _log.debug('Using discovery to lookup tcp connection')
+            response = requests.get(
+                "{}/discovery/".format(self._volttron_central_http_address)
             )
 
-        if new_stats_interval:
-            if not isinstance(new_stats_interval, int) or \
-                    new_stats_interval < 20:
-                raise ValueError('Invlaid interval, must be int > 20 sec.')
+            if response.ok:
+                jsonresp = response.json()
+                self._volttron_central_tcp_address = jsonresp['vip-address']
+                self._volttron_central_serverkey = jsonresp['serverkey']
 
-            self._stats_publish_interval = new_stats_interval
+        # First see if we are able to connect via tcp with the serverkey.
+        if self._volttron_central_tcp_address is not None and \
+                self._volttron_central_serverkey is not None:
+            _log.debug('Connecting to volttron central using tcp.')
+            self._volttron_central_connection = Connection(
+                address=self._volttron_central_tcp_address,
+                peer=VOLTTRON_CENTRAL,
+                serverkey=self._volttron_central_serverkey,
+                publickey=self.core.publickey,
+                secretkey=self.core.secretkey
+            )
 
-            if self._stats_publisher:
-                self._stats_publisher.kill()
-            # The stats publisher publishes both to the local bus and the vc
-            # bus the platform specific topics.
-            self._stats_publisher = self.core.periodic(
-                self._stats_publish_interval, self._publish_stats)
+            if self._volttron_central_publickey:
+                # Add the vcpublickey to the auth file.
+                entry = AuthEntry(
+                    credentials="CURVE:{}".format(
+                        self._volttron_central_publickey),
+                    capabilities=['manager'])
+                authfile = AuthFile()
+                authfile.add(entry)
+
+            return self._volttron_central_connection
+
+        # Next see if we have a valid ipc address (Not Local though)
+        if self._volttron_central_ipc_address is not None:
+            self._volttron_central_connection = Connection(
+                address=self._volttron_central_ipc_address,
+                peer=VOLTTRON_CENTRAL
+            )
+            return self._volttron_central_connection
+
 
     def _publish_agent_list_to_vc(self):
         pass
