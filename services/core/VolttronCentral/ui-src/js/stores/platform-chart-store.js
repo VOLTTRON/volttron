@@ -53,6 +53,34 @@ chartStore.getType = function (chartKey) {
     return type;
 }
 
+chartStore.getMin = function (chartKey) {
+    var min;
+
+    if (_chartData.hasOwnProperty(chartKey))
+    {
+        if (_chartData[chartKey].hasOwnProperty("min"))
+        {
+            min = _chartData[chartKey].min;
+        }
+    }
+
+    return min;
+}
+
+chartStore.getMax = function (chartKey) {
+    var max;
+
+    if (_chartData.hasOwnProperty(chartKey))
+    {
+        if (_chartData[chartKey].hasOwnProperty("max"))
+        {
+            max = _chartData[chartKey].max;
+        }
+    }
+
+    return max;
+}
+
 chartStore.getRefreshRate = function (chartKey) {
     return (_chartData.hasOwnProperty(chartKey) ? _chartData[chartKey].refreshInterval : null);
 }
@@ -154,6 +182,8 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                         type: (action.panelItem.hasOwnProperty("chartType") ? action.panelItem.chartType : "line"),
                         data: convertTimeToSeconds(action.panelItem.data),
                         chartKey: action.panelItem.name,
+                        min: (action.panelItem.hasOwnProperty("min") ? action.panelItem.min : null),
+                        max: (action.panelItem.hasOwnProperty("max") ? action.panelItem.max : null),
                         series: [ setChartItem(action.panelItem) ]
                     };
 
@@ -209,6 +239,22 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             {
                 _chartData[action.chartKey].refreshInterval = action.rate;
             }
+
+            chartStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.CHANGE_CHART_MIN:
+
+            _chartData[action.chartKey].min = action.min;
+
+            chartStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.CHANGE_CHART_MAX:
+
+            _chartData[action.chartKey].max = action.max;
 
             chartStore.emitChange();
 

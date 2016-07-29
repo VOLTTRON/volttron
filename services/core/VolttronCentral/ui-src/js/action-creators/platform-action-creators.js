@@ -59,11 +59,11 @@ var platformActionCreators = {
                         });
                     })            
                     .catch(rpc.Error, function (error) {
-                        handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message, platform.name);
+                        handle401(error);
                     });
             })            
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message, platform.name);
+                handle401(error);
             });
     },
     startAgent: function (platform, agent) {
@@ -323,12 +323,12 @@ var platformActionCreators = {
                                 });
                             })
                             .catch(rpc.Error, function (error) {
-                                handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message, this.name);
+                                handle401(error);
                             });                            
                         }
                 })
                 .catch(rpc.Error, function (error) {
-                    handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message, this.name);
+                    handle401(error);
                 });
         }.bind(platform);
 
@@ -496,7 +496,7 @@ function handle401(error, message, highlight, orientation) {
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     }
-    else
+    else if (message)
     {
         statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }

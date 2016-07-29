@@ -206,7 +206,7 @@ function handle401(error, message, highlight, orientation) {
 
         platformManagerActionCreators.clearAuthorization();
     }
-    else
+    else if (message)
     {
         statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
