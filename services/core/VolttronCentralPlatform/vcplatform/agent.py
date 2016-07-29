@@ -357,19 +357,16 @@ class VolttronCentralPlatform(Agent):
         return Status.from_json(self.vip.health.get_status()).as_dict()
 
     @RPC.export
-    def get_publickey(self):
-        _log.debug('Returning publickey: {}'.format(self.core.publickey))
-        return self.core.publickey
+    def get_instance_uuid(self):
+        return self._local_instance_uuid
 
     @RPC.export
-    def is_managed(self):
-        return self._vc or 'volttron.central' in self.vip.peerlist().get()
+    def get_manager_key(self):
+        return self._volttron_central_publickey
 
     @RPC.export
-    def set_setting(self, key, value):
-        _log.debug("Setting key: {} to value: {}".format(key, value))
-        self._settings[key] = value
-        self._store_settings()
+    def manage(self, address, vcserverkey=None, vcpublickey=None):
+        """ Allows the `VolttronCentralPlatform` to be managed.
 
     @RPC.export
     def get_setting(self, key):
