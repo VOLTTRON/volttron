@@ -292,55 +292,55 @@ class VolttronCentralPlatform(Agent):
             )
             return self._volttron_central_connection
 
+    @Core.receiver('onstart')
+    def _started(self, sender, **kwargs):
 
-    def _publish_agent_list_to_vc(self):
-        pass
-        # if self._platform_uuid:
-        #     _log.info('Publishing new agent list.')
-        #     if self._agent_connected_to_vc:
-        #         self._agent_connected_to_vc.vip.pubsub.publish(
-        #             'pubsub',
-        #             topic="platforms/{}/update_agent_list".format(
-        #                 self._platform_uuid),
-        #             message=self.list_agents()
-        #         )
-        #     else:
-        #         _log.debug("Agent not connected to vc so not publishing list")
-        # else:
-        #     _log.info('Not publishing new agent list '
-        #               '(no paltform_uuid specified')
+        self._agent_started = True
 
-    @RPC.export
-    def get_devices(self):
-        cp = deepcopy(self._devices)
-        foundbad = False
+        # Created a link to the control agent on this platform.
+        self._control_connection = Connection(self.core.address, 'control')
 
-        for k, v in cp.items():
-            dt = parse_timestamp_string(v['last_published_utc'])
-            dtnow = get_aware_utc_now()
-            if dt+datetime.timedelta(minutes=5) < dtnow:
-                v['health'] = Status.build(
-                    BAD_STATUS,
-                    'Too long between publishes for {}'.format(k)).as_dict()
-                foundbad = True
-            else:
-                v['health'] = Status.build(GOOD_STATUS).as_dict()
+        _log.debug('Querying router for addresses and serverkey.')
+        q = Query(self.core)
+        self._external_addresses = q.query('addresses').get(timeout=2)
+        _log.debug('External addresses are: {}'.format(
+            self._external_addresses))
 
-        if len(cp):
-            if foundbad:
-                self.vip.health.set_status(
-                    BAD_STATUS,
-                    'At least one device has not published in 5 minutes')
-            else:
-                self.vip.health.set_status(
-                    GOOD_STATUS,
-                    'All devices publishing normally.'
+        self._local_serverkey = q.query('serverkey').get(timeout=2)
+        _log.debug('serverkey is: {}'.format(self._local_serverkey))
+
+        address = q.query('volttron-central-address').get(timeout=2)
+        _log.debug('vc address is {}'.format(address))
+
+        self._local_instance_name = q.query('instance-name').get(timeout=2)
+        _log.debug('instance-name is {}'.format(self._local_instance_name))
+
+        if address is not None:
+            parsed = urlparse.urlparse(address)
+            if parsed.scheme in ('https', 'http'):
+                self._volttron_central_http_address = address
+            elif parsed.scheme == 'ipc':
+                self._volttron_central_ipc_address = address
+            elif parsed.scheme == 'tcp':
+                self._volttron_central_tcp_address = address
+                vc_serverkey = q.query('volttron-central-serverkey').get(
+                    timeout=2
                 )
-        return cp
+                if vc_serverkey is None:
+                    raise ValueError(
+                        'volttron-central-serverkey is not set with tcp address'
+                    )
+                self._volttron_central_serverkey = vc_serverkey
+            else:
+                raise ValueError(
+                    'invalid scheme for volttron-central-address'
+                )
+            # Start connection process
+            self._vc_connection()
 
-    @RPC.export
-    def get_platform_uuid(self):
-        return self._platform_uuid
+        self._start_stats_publisher()
+
+    def _start_stats_publisher(self):
 
     @RPC.export
     def get_health(self):
