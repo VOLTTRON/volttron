@@ -6,6 +6,7 @@ var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
 var _platforms = null;
+var _initialized = false;
 
 var platformsStore = new Store();
 
@@ -134,12 +135,20 @@ platformsStore.getForwarderRunning = function (platformUuid) {
     return forwarderRunning;
 };
 
+platformsStore.getInitialized = function () {
+    return _initialized;
+};
+
 platformsStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
     switch (action.type) {
         case ACTION_TYPES.CLEAR_AUTHORIZATION:
             _platforms = null;
+            break;
+
+        case ACTION_TYPES.WILL_INITIALIZE_PLATFORMS:
+            _initialized = true;
             break;
 
         case ACTION_TYPES.RECEIVE_PLATFORMS:

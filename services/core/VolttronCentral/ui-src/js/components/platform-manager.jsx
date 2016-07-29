@@ -18,6 +18,7 @@ var PlatformsPanel = require('./platforms-panel');
 var platformsPanelStore = require('../stores/platforms-panel-store');
 var StatusIndicator = require('./status-indicator');
 var statusIndicatorStore = require('../stores/status-indicator-store');
+var platformsStore = require('../stores/platforms-store');
 
 class PlatformManager extends React.Component {
     constructor(props) {
@@ -26,24 +27,19 @@ class PlatformManager extends React.Component {
         this._onStoreChange = this._onStoreChange.bind(this);
 
         this.state = getStateFromStores();
-
-        this.uninitialized = true;
     }
-    // getInitialState: function () {
-    //     var state = getStateFromStores();
-
-    //     this.uninitialized = true;
-
-    //     return state;
-    // },
     componentWillMount() {
-        platformManagerActionCreators.initialize();
+        if (!this.state.initialized)
+        {
+            platformManagerActionCreators.initialize();
+        }
     }
     componentDidMount() {
         authorizationStore.addChangeListener(this._onStoreChange);
         consoleStore.addChangeListener(this._onStoreChange);
         modalStore.addChangeListener(this._onStoreChange);
         platformsPanelStore.addChangeListener(this._onStoreChange);
+        platformsStore.addChangeListener(this._onStoreChange);
         statusIndicatorStore.addChangeListener(this._onStoreChange);
         this._doModalBindings();
     }
@@ -52,8 +48,6 @@ class PlatformManager extends React.Component {
 
         if (this.state.expanded)
         {               
-            this.uninitialized = false;
-
             var handle = document.querySelector(".resize-handle");
 
             var onMouseDown = function (evt)
@@ -117,8 +111,9 @@ class PlatformManager extends React.Component {
         authorizationStore.removeChangeListener(this._onStoreChange);
         consoleStore.removeChangeListener(this._onStoreChange);
         modalStore.removeChangeListener(this._onStoreChange);
+        platformsPanelStore.removeChangeListener(this._onStoreChange);
+        platformsStore.removeChangeListener(this._onStoreChange);
         statusIndicatorStore.removeChangeListener(this._onStoreChange);
-        // this._modalCleanup();
     }
     _onStoreChange() {
         this.setState(getStateFromStores());
@@ -154,14 +149,14 @@ class PlatformManager extends React.Component {
         var statusIndicator;
 
         if (this.state.consoleShown) {
-            classes.push('platform-manager--console-open');
+            classes.push('console-open');
         }
 
         classes.push(this.state.loggedIn ?
-            'platform-manager--logged-in' : 'platform-manager--not-logged-in');
+            'logged-in' : 'not-logged-in');
 
         if (this.state.modalContent) {
-            classes.push('platform-manager--modal-open');
+            classes.push('modal-open');
             modal = (
                 <Modal>{this.state.modalContent}</Modal>
             );
@@ -208,17 +203,14 @@ class PlatformManager extends React.Component {
     }
 }
 
-// PlatformManager.contextTypes = {
-//     router: React.PropTypes.func.isRequired
-// }
-
 function getStateFromStores() {
     return {
         consoleShown: consoleStore.getConsoleShown(),
         loggedIn: !!authorizationStore.getAuthorization(),
         modalContent: modalStore.getModalContent(),
         expanded: platformsPanelStore.getExpanded(),
-        status: statusIndicatorStore.getStatus()
+        status: statusIndicatorStore.getStatus(),
+        initialized: platformsStore.getInitialized()
     };
 }
 

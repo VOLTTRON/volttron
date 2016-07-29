@@ -171,7 +171,7 @@ br + .form__control-help {
     margin-left: 1em;
 }
 
-.platform-manager {
+.platform-manager, .public-exterior {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -190,7 +190,7 @@ br + .form__control-help {
     text-align: center;
 }
 
-.platform-manager--console-open .modal__overlay {
+.console-open .modal__overlay {
     bottom: 50%;
 }
 
@@ -262,16 +262,16 @@ br + .form__control-help {
     background-color: #f8f8f8;
 }
 
-.platform-manager--console-open .main {
+.console-open .main {
     height: 50%;
     z-index: 3;
 }
 
-.platform-manager--modal-open .main {
+.modal-open .main {
     overflow: hidden;
 }
 
-.platform-manager--modal-open .main > * {
+.modal-open .main > * {
     -webkit-filter: blur(0.25rem) saturate(0);
     filter: blur(0.25rem) saturate(0);
 }
@@ -283,7 +283,7 @@ br + .form__control-help {
     border-bottom: 1px solid #ddd;
 }
 
-.platform-manager--not-logged-in .navigation {
+.not-logged-in .navigation {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -314,19 +314,19 @@ br + .form__control-help {
     color: #999;
 }
 
-.platform-manager--not-logged-in .logo__tm {
+.not-logged-in .logo__tm {
     position: absolute;
     margin: 0.3em 0 0 0.15em;
 }
 
-.platform-manager--logged-in .logo__tm {
+.logged-in .logo__tm {
     vertical-align: top;
     position: relative;
     top: 0.3em;
     left: 0.15em;
 }
 
-.platform-manager--not-logged-in .logo__central {
+.not-logged-in .logo__central {
     margin: 0 0 0 0.35em;
 }
 
@@ -347,11 +347,11 @@ br + .form__control-help {
     color: #bbb;
 }
 
-.platform-manager--not-logged-in .logo__beta {
+.not-logged-in .logo__beta {
     display: block;
 }
 
-.platform-manager--logged-in .logo__beta::before {
+.logged-in .logo__beta::before {
     content: " ";
 }
 
@@ -377,7 +377,7 @@ br + .form__control-help {
     border-color: #45b;
 }
 
-.platform-manager--not-logged-in .logo {
+.not-logged-in .logo {
     width: 100%;
     text-align: center;
     position: absolute;
@@ -1280,7 +1280,7 @@ a.view__item:hover::before {
     padding: 0.25em 0.75em 0.25em;
 }
 
-.platform-manager--console-open .toggle {
+.console-open .toggle {
     top: 50%;
     bottom: auto;
     border-radius: 0 0 0.3333rem 0.3333rem;
