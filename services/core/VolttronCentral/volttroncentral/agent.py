@@ -183,6 +183,7 @@ class VolttronCentralAgent(Agent):
         platforms_file = os.path.join(os.environ['VOLTTRON_HOME'],
                                       'data/platforms.json')
         self._registered_platforms = load_create_store(platforms_file)
+        self._hash_to_topic = {}
 
         # This has a dictionary mapping the platform_uuid to an agent
         # connected to the vip-address of the registered platform.  If the
@@ -204,6 +205,7 @@ class VolttronCentralAgent(Agent):
 
         # A dictionary of the connections to platforms.
         self._connections_by_address = {}
+
         _log.debug('Creating setting store')
         self._setting_store = load_create_store(
             os.path.join(os.environ['VOLTTRON_HOME'],
@@ -212,7 +214,6 @@ class VolttronCentralAgent(Agent):
         self._request_store = load_create_store(
             os.path.join(os.environ['VOLTTRON_HOME'],
                          'data', 'volttron.central.requeststore'))
-
     # # @Core.periodic(60)
     # def _reconnect_to_platforms(self):
     #     """ Attempt to reconnect to all the registered platforms.
@@ -265,6 +266,7 @@ class VolttronCentralAgent(Agent):
     def _on_platform_heartbeat(self, peer, sender, bus, topic, headers,
                                message):
         _log.debug('Got Heartbeat from: {}'.format(topic))
+        _log.debug('Heartbeat message: {}'.format(message))
 
     # def _handle_pubsub_register(self, message):
     #     # register the platform if a local platform otherwise put it
@@ -380,7 +382,7 @@ class VolttronCentralAgent(Agent):
     @PubSub.subscribe("pubsub", "platforms")
     def _on_platforms_messsage(self, peer, sender, bus, topic, headers,
                                message):
-        """ This method subscribes to the platforms topic.
+        """ Callback function for vcp agent to publish to.
 
         Platforms that are being managed should publish to this topic with
         the agent_list and other interesting things that the volttron
@@ -391,31 +393,49 @@ class VolttronCentralAgent(Agent):
             _log.error('Invalid topic length published to volttron central')
             return
 
-        if topicsplit[1] == 'register':
-            self._handle_pubsub_register(message)
+        # Topic is platforms/<platform_uuid>/otherdata
+        topicsplit = topic.split('/')
+
+        if len(topicsplit) < 3:
+            _log.warn("Invalid topic length no operation or datatype.")
             return
 
-        if topicsplit[1] == 'unregister':
-            pass
-
-        platform_uuid = topicsplit[1]
+        _, platform_uuid, op_or_datatype, other = topicsplit[0], \
+                                                  topicsplit[1], \
+                                                  topicsplit[2], topicsplit[3:]
 
         if len(platform_uuid) != 36:
             _log.error('Invalid platform id detected {}'
                        .format(platform_uuid))
             return
 
-        if not self._registered_platforms.get(platform_uuid):
+        platform = self._registered_platforms.get(platform_uuid)
+        if platform is None:
             _log.warn('Platform {} is not registered but sent message {}'
                       .format(platform_uuid, message))
             return
 
-        if len(topicsplit) < 3:
-            _log.warn("Invalid topic length no operation specified.")
+        _log.debug('Doing operation: {}'.format(op_or_datatype))
+        _log.debug('Topic was: {}'.format(topic))
+        _log.debug('Message was: {}'.format(message))
 
-        _log.debug('Doing operation: {}'.format(topicsplit[2]))
-
-        #self._registry.update_agent_list(platform_uuid, message)
+        if op_or_datatype == 'devices':
+            md5hash = message.get('md5hash')
+            if md5hash is None:
+                _log.error('Invalid topic for devices datatype.  Must contain '
+                           'md5hash in message.')
+            if message['md5hash'] not in self._hash_to_topic:
+                devices = platform.get("devices", {})
+                lookup_topic = '/'.join(other)
+                _log.debug("Lookup topic is: {}".format(lookup_topic))
+                vcp = self._get_connection(platform_uuid)
+                device_node = vcp.call("get_device", lookup_topic)
+                if device_node is not None:
+                    devices[lookup_topic] = device_node
+                    self._hash_to_topic[md5hash] = lookup_topic
+                else:
+                    _log.error("Couldn't retrive device topic {} from platform "
+                               "{}".format(lookup_topic, platform_uuid))
 
     @PubSub.subscribe("pubsub", "datalogger/platforms")
     def _on_platform_log_message(self, peer, sender, bus, topic, headers,
@@ -425,8 +445,9 @@ class VolttronCentralAgent(Agent):
         This method is called with stats from the registered platform agents.
 
         """
-        _log.debug('Got topic: {}'.format(topic))
-        _log.debug('Got message: {}'.format(message))
+        _log.debug('Got datalogger/platforms message (topic): {}'.format(topic))
+        _log.debug('Got datalogger/platforms message (message): {}'.format(
+            message))
 
         topicsplit = topic.split('/')
         platform_uuid = topicsplit[2]
@@ -434,7 +455,6 @@ class VolttronCentralAgent(Agent):
         # For devices we use everything between devices/../all as a unique
         # key for determining the last time it was seen.
         key = '/'.join(topicsplit[:])
-        _log.debug("key is: {}".format(key))
         uuid = topicsplit[2]
 
         point_list = []
@@ -483,7 +503,7 @@ class VolttronCentralAgent(Agent):
 
         platform = self._registered_platforms.get(platform_uuid)
         if platform:
-            connected = self._pa_agents.get(platform_uuid)
+            connected = self._platform_connections.get(platform_uuid)
             if connected is not None:
                 connected.call('unmanage')
                 connected.kill()
@@ -494,7 +514,7 @@ class VolttronCentralAgent(Agent):
                     break
             if address:
                 del self._address_to_uuid[address]
-            del self._pa_agents[platform_uuid]
+            del self._platform_connections[platform_uuid]
             del self._registered_platforms[platform_uuid]
             self._registered_platforms.sync()
             context = 'Unregistered platform {}'.format(platform_uuid)
