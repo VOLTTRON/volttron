@@ -27,11 +27,11 @@ class WebAPI(object):
         :param username:
         :param password:
         """
-        parsed = urlparse.urlparse(url)
-        test_url = '{}://{}'.format(parsed.scheme, parsed.netloc)
-        response = requests.get(test_url)
+        response = requests.get(url)
+        print('RESPONSE CODE IS: {}'.format(response.status_code))
         if not response.ok:
-            raise ValueError('url not resolvable.')
+            raise ValueError(
+                'url not resolvable. Are you sure vc is installed?')
         self._url = url
         self._username = username
         self._password = password
@@ -89,8 +89,11 @@ class WebAPI(object):
                            'inspect'.format(platform_uuid, agent_uuid))
 
     def register_instance(self, addr, name=None):
-        return self.call('register_instance', discovery_address=addr,
-                           display_name=name)
+        resp = self.call('register_instance', discovery_address=addr,
+                         display_name=name)
+        assert resp.ok, "Must have a 200 response code."
+        validate_response(resp)
+        return resp.json()
 
     def list_platforms(self):
         return self.call('list_platforms')
