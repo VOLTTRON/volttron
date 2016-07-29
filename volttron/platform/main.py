@@ -437,21 +437,13 @@ def start_volttron_process(opts):
         error = configure_logging(opts.log_config)
         if error:
             parser.error('{}: {}'.format(*error))
-    instance_name = None
-
-    if opts.volttron_central_address:
-        if '|' in opts.volttron_central_address:
-            instance_name, opts.volttron_central_address = \
-                opts.volttron_central_address.split('|')
 
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
     if opts.instance_name is None:
-        if instance_name is not None:
-            opts.instance_name = instance_name
-        elif len(opts.vip_address) > 0:
+        if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
     import urlparse
     if opts.bind_web_address:
