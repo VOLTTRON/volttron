@@ -597,60 +597,87 @@ class VolttronCentralAgent(Agent):
             An address or resolvable domain name with port.
         @param: serverkey: str:
             The router publickey for the vcp attempting to register.
+        @param: display_name: str:
+            The name to be shown in volttron central.
         """
         _log.info('Attempting registration of vcp at address: '
-                  '{} display_name: {}'.format(address, display_name))
+                  '{} display_name: {}, serverkey: {}'.format(address,
+                                                              display_name,
+                                                              serverkey))
+        parsed = urlparse(address)
+        if parsed.scheme not in ('tcp', 'ipc'):
+            raise ValueError(
+                'Only ipc and tpc addresses can be used in the '
+                'register_platform method.')
         try:
+            connection = self._build_connection(address, serverkey)
+        except gevent.Timeout:
+            _log.error("Initial building of connection not found")
+            raise
 
-            parsed = urlparse(address)
-            _log.debug('Connecting to remote platform.agent')
+        try:
+            if connection is None:
+                raise ValueError("Connection was not able to be found")
+            manager_key = connection.call('get_manager_key')
+        except gevent.Timeout:
+            _log.error("Couldn't retrieve managment key from platform")
+            raise
+
+        try:
+            if manager_key is not None:
+                if manager_key == self.core.publickey:
+                    _log.debug('Platform is already managed and connected.')
+                    return
+                else:
+                    _log.warn(
+                        'Platform is registered with a different vc key.'
+                        'This could be expected.')
+
             if parsed.scheme == 'tcp':
-                connected = Connection(
-                    address, VOLTTRON_CENTRAL_PLATFORM, serverkey=serverkey,
-                    secretkey=self.core.secretkey,
-                    publickey=self.core.publickey)
-                _log.debug('Attempting to manage platform at {}'.format(
-                    address))
-                pk = connected.call(
+                _log.debug('TCP calling manage.')
+                pk = connection.call(
                     'manage', self._external_addresses[0], self._serverkey,
                     self.core.publickey)
-                if not display_name:
-                    display_name = address
-            elif parsed.scheme == 'ipc':
-                if address == self.core.address:
-                    _log.debug("Registering local address")
-                    if not display_name:
-                        display_name = "local"
-
-                connected = Connection(
-                    address, VOLTTRON_CENTRAL_PLATFORM)
-                pk = connected.call('manage', self.core.address)
-
-            assert connected is not None and connected.is_connected()
-            _log.debug('Response from platform.agent was: {}'.format(pk))
-            newuuid = self._address_to_uuid.get(address, str(uuid.uuid4()))
-            connected.call('reconfigure', platform_uuid=newuuid)
-            _log.debug('Assigning new or reused uuid: {}'.format(newuuid))
-            if address in self._pa_agents.keys():
-                _log.debug('Removing key to agent key')
-                del self._pa_agents[address]
-            self._pa_agents[address] = connected
-            if not display_name:
-                _log.debug(
-                    "Display name now set to address since it wasn't specified")
-                display_name = address
             else:
-                _log.debug('Display name was passed as: {}'.format(
-                    display_name))
-
-            self._registered_platforms[newuuid] = dict(
-                address=address, serverkey=serverkey, display_name=display_name,
-                registered_time_utc=format_timestamp(get_aware_utc_now()),
-                platform_uuid=newuuid
-            )
-            self._registered_platforms.sync()
+                pk = connection.call('manage', self.core.address)
         except gevent.Timeout:
-            _log.error("Couldn't connect to address: {}".format(address))
+            _log.error('RPC call to manage did not return in a timely manner.')
+            raise
+
+        # If we were successful in calling manage then we can add it to
+        # our list of managed platforms.
+        if pk is not None and len(pk) == 43:
+            try:
+                address_uuid = self._address_to_uuid.get(address)
+                time_now = format_timestamp(get_aware_utc_now())
+
+                if address_uuid is not None:
+                    current_uuid = connection.call('get_instance_uuid')
+                    if current_uuid != address_uuid:
+                        connection.call('reconfigure',
+                                        **{'instance-uuid': address_uuid})
+                else:
+                    _log.debug("New platform with uuid: {}".format(
+                        address_uuid))
+                    address_uuid = str(uuid.uuid4())
+                    connection.call('reconfigure',
+                                    **{'instance-uuid': address_uuid})
+                    self._address_to_uuid[address] = address_uuid
+                    if display_name is None:
+                        display_name = address
+                    self._registered_platforms[address_uuid] = dict(
+                        address=address, serverkey=serverkey,
+                        display_name=display_name,
+                        registered_time_utc=time_now,
+                        instance_uuid=address_uuid
+                    )
+                    self._platform_connections[address_uuid] = connection
+
+            except gevent.Timeout:
+                _log.error(
+                    'Call to reconfigure did not return in a timely manner.')
+                raise
+
 
     @RPC.export
     def register_instance(self, address, display_name=None, serverkey=None,
@@ -707,6 +734,9 @@ class VolttronCentralAgent(Agent):
             self._register_instance(address,
                                     display_name=display_name)
         elif parsed.scheme == 'tcp':
+            if not serverkey or len(serverkey) != 43: # valid publickey length
+                raise ValueError(
+                    "tcp addresses must have valid serverkey provided")
             self.register_platform(address, serverkey, display_name)
         elif parsed.scheme == 'ipc':
             self.register_platform(address, display_name=display_name)
@@ -733,8 +763,7 @@ class VolttronCentralAgent(Agent):
                      health=get_status(x['platform_uuid']))
                 for x in self._registered_platforms.values()]
 
-    def _register_instance(self, discovery_address, display_name=None,
-                           provisional=False):
+    def _register_instance(self, discovery_address, display_name=None):
         """ Register an instance with VOLTTRON Central based on jsonrpc.
 
         NOTE: This method is meant to be called from the jsonrpc method.
@@ -774,78 +803,19 @@ class VolttronCentralAgent(Agent):
         pa_vip_address = discovery_response.vip_address
 
         assert pa_instance_serverkey
-        _log.debug('connecting to pa_instance')
-        try:
-            connected_to_pa = Connection(
-                peer=VOLTTRON_CENTRAL_PLATFORM, address=pa_vip_address,
-                serverkey=pa_instance_serverkey, secretkey=self.core.secretkey,
-                publickey=self.core.publickey
-            )
+        assert pa_vip_address
 
-            if not connected_to_pa.is_connected(timeout=5):
-                return {
-                    'error': {
-                        'code': UNABLE_TO_REGISTER_INSTANCE,
-                        'message': 'Could not connect to {}'
-                            .format(pa_vip_address)
-                    }}
-        except gevent.Timeout:
-            return {
-                'error': {
-                    'code': UNABLE_TO_REGISTER_INSTANCE,
-                    'message': 'Could not connect to {}'
-                        .format(pa_vip_address)
-                }}
-        except Exception as ex:
-            return {'error': {'code': UNHANDLED_EXCEPTION,
-                              'message': ex.message
-                              }}
+        self.register_platform(pa_vip_address, pa_instance_serverkey)
+        # _log.debug('connecting to pa_instance')
 
-        assert connected_to_pa
-        assert connected_to_pa.is_connected()
-        _log.debug('Connected to address starting to manage external platform.')
+        if pa_vip_address not in self._address_to_uuid.keys():
+            return {'status': 'FAILURE',
+                    'context': "Couldn't register address: {}".format(
+                        pa_vip_address)}
 
-        # The call to manage should return a public key for that agent
-        result = connected_to_pa.call(
-            'manage', self.core.address, vcserverkey=self._serverkey,
-            vcpublickey=self.core.publickey)
-
-        _log.debug("Result of manage is {}".format(result))
-
-        # Magic number 43 is the length of a encoded public key.
-        if len(result) != 43:
-            return {'error': {'code': UNABLE_TO_REGISTER_INSTANCE,
-                              'message': 'Invalid publickey returned from {}'
-                                  .format(VOLTTRON_CENTRAL_PLATFORM)
-                              }}
-
+        return {'status': 'SUCCESS',
+                'context': 'Registered instance {}'.format(display_name)}
         # Add the pa's public key so it can connect back to us.
-        auth_file = AuthFile()
-        auth_entry = AuthEntry(
-            credentials="CURVE:{}".format(result), capabilities=['managing']
-        )
-        auth_file.add(auth_entry)
-        _log.debug('Auth entry added to AuthFile')
-        newuuid = self._address_to_uuid.get(pa_vip_address, str(uuid.uuid4()))
-
-        if self._pa_agents.get(newuuid) is not None:
-            self._pa_agents[newuuid].kill()
-            del self._pa_agents[newuuid]
-
-        self._registered_platforms[newuuid] = dict(
-            address=pa_vip_address, serverkey=pa_instance_serverkey,
-            display_name=display_name,
-            registered_time_utc=format_timestamp(get_aware_utc_now()),
-            platform_uuid=newuuid
-        )
-
-        self._pa_agents[newuuid] = connected_to_pa
-        _log.debug("Adding {}".format(newuuid))
-        instance_name = display_name if display_name else pa_vip_address
-        context = 'Registered instance {}'.format(instance_name)
-        connected_to_pa.call('reconfigure', platform_uuid=newuuid)
-
-        return {'status': 'SUCCESS', 'context': context}
 
     def _store_registry(self):
         self._store('registry', self._registry.package())
