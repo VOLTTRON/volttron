@@ -140,11 +140,23 @@ def _install_agents(install_vc, install_platform, install_historian):
 #         df.write(address_port)
 
 
-def _is_volttron_running():
-    for proc in psutil.process_iter():
-        if proc.name() == 'volttron':
-            return True
-    return False
+def _is_instance_running():
+
+    instance_running = False
+    if _os.path.exists(get_home()):
+        # Create a UDS socket
+        context = zmq.Context()
+        dealer_sck = context.socket(zmq.DEALER)
+
+        ipc_address = "ipc://@{}/run/vip.socket".format(get_home())
+        try:
+            dealer_sck.bind(ipc_address)
+        except zmq.ZMQError:
+            instance_running = True
+        finally:
+            dealer_sck.close()
+
+    return instance_running
 
 
 def _start_platform():
@@ -260,12 +272,14 @@ def setup_instance():
     The function interactively sets up the instance for working with volttron
     central and the discovery service.
     """
-    if _is_volttron_running():
+    if _is_instance_running():
         print("""
-Please shutdown all local volttron instances before attempting to configure a
-volttron instance.  During the configuration process we will start your instance
-of volttron in order to install agents.  We don't want any current volttron
-instances to be confused by this.
+The current instance is running.  In order to configure an instance it cannot
+be running.  Please execute:
+
+    volttron-ctl shutdown --platform
+
+to stop the instance.
 """)
         return
 
