@@ -102,7 +102,7 @@ def prompt_response(inputs):
         resp = raw_input(inputs[0])
         if resp == '' and len(inputs) == 3:
             return inputs[2]
-        # No validation or tthe response was in the list of values.
+        # No validation or the response was in the list of values.
         if len(inputs) == 1 or inputs[1] is None or resp in inputs[1]:
             return resp
         else:
@@ -117,7 +117,7 @@ def _cmd(cmdargs):
         A list of arguments that should be passed to Popen.
     """
     print(cmdargs)
-    process = Popen(cmdargs, env=_os.environ, stdout=subprocess.PIPE,
+    process = Popen(cmdargs, env=os.environ, stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
     process.wait()
 
@@ -157,7 +157,7 @@ def _install_agents(install_vc, install_platform, install_historian):
 #     Puts the port and binding ip address that should be bound to in the root
 #     directory of VOLTTRON_HOME.
 #     """
-#     discovery_file = _os.path.join(_os.environ['VOLTTRON_HOME'], 'DISCOVERY')
+#     discovery_file = os.path.join(os.environ['VOLTTRON_HOME'], 'DISCOVERY')
 #     with open(discovery_file, 'w') as df:
 #         df.write(address_port)
 
@@ -165,7 +165,7 @@ def _install_agents(install_vc, install_platform, install_historian):
 def _is_instance_running():
 
     instance_running = False
-    if _os.path.exists(get_home()):
+    if os.path.exists(get_home()):
         # Create a UDS socket
         context = zmq.Context()
         dealer_sck = context.socket(zmq.DEALER)
@@ -184,7 +184,7 @@ def _is_instance_running():
 def _start_platform():
     cmd = ['volttron', '--developer-mode']
 
-    pid = Popen(cmd, env=_os.environ.copy(), stdout=subprocess.PIPE,
+    pid = Popen(cmd, env=os.environ.copy(), stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
     print('Configuring instance...')
     return pid
@@ -206,7 +206,7 @@ def _make_configuration(external_uri, bind_web_address,
     if volttron_central:
         config.set('volttron', 'volttron-central-address',
                    volttron_central)
-    cfgfile = _os.path.join(get_home(), 'config')
+    cfgfile = os.path.join(get_home(), 'config')
     with open(cfgfile, 'w') as cf:
         config.write(cf)
 
@@ -266,7 +266,7 @@ def _install_vcp(autostart):
 
 
 def _install_platform_historian(autostart):
-    datafile = _os.path.join(get_home(), "data", "platform.historian.sqlite")
+    datafile = os.path.join(get_home(), "data", "platform.historian.sqlite")
     config = {
         "agentid": "sqlhistorian-sqlite",
         "identity": "platform.historian",
