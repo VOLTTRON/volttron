@@ -257,6 +257,14 @@ def _install_vc(autostart):
     _install_agent(autostart, "services/core/VolttronCentral", config, 'vc')
 
 
+def _install_vcp(autostart):
+    config = {}
+
+    print("Installing volttron central platform(VCP)")
+    _install_agent(autostart, "services/core/VolttronCentralPlatform", config,
+                   'vcp')
+
+
 def _install_platform_historian(autostart):
     datafile = _os.path.join(get_home(), "data", "platform.historian.sqlite")
     config = {
@@ -347,6 +355,120 @@ def do_vip():
     _install_config_file()
 
 
+def do_vc():
+    global config_opts
+
+    # Install volttron central?
+    t = ('Is this instance a volttron central? [N]: ', y_or_n, 'N')
+    is_vc = prompt_response(t) in y
+
+    if not is_vc:
+        return False
+
+    # Full implies that it will have a port on it as well.  Though if it's
+    # not in the address that means that we haven't set it up before.
+    full_bind_web_address = config_opts.get(
+        'bind-web-address', "http://127.0.0.1")
+
+    parsed = urlparse.urlparse(full_bind_web_address)
+
+    address_only = full_bind_web_address
+    port_only = None
+    if parsed.port is not None:
+        address_only = parsed.scheme + "://" + parsed.hostname
+        port_only = parsed.port
+    else:
+        port_only = 8080
+
+
+    prompt = '''
+    In order for external clients to connect to volttron central or the instance
+    itself, the instance must bind to a tcp address.  If testing this can be an
+    internal address such as 127.0.0.1.
+
+    Note: the assumption is that the discovery address for volttron central and
+          the vip address will be the same.  If not one can change the address
+          in the config file after competing this configuration.
+
+'''
+    print(prompt)
+    valid_address = False
+    external_ip = None
+    while not valid_address:
+        prompt = "Please enter the external ipv4 address for this instance? "
+        prompt += "[{}]: ".format(address_only)
+        t = (prompt, None, address_only)
+        new_external_ip = prompt_response(t)
+        valid_address = is_valid_url(new_external_ip, ["http", "https"])
+        if valid_address:
+            external_ip = new_external_ip
+
+    valid_port = False
+    vc_port = None
+    while not valid_port:
+        vc_port = None
+
+        prompt = 'What is the port for volttron central? [{}]: '.format(
+            port_only
+        )
+        t = (prompt, None, port_only)
+        new_vc_port = prompt_response(t)
+        valid_port = is_valid_port(new_vc_port)
+        if valid_port:
+            vc_port = new_vc_port
+
+    while external_ip.endswith("/"):
+        external_ip = external_ip[:-1]
+
+    config_opts['bind-web-address'] = "{}:{}".format(external_ip, vc_port)
+
+    # TODO Add protecction of vc here.
+
+    return False, _install_vc
+
+
+def do_vcp():
+    global config_opts
+
+    prompt = "Will this instance be controlled by volttron central? [Y]: "
+    resp = prompt_response((prompt, y_or_n, 'Y'))
+    has_vcp = resp in y
+    if not has_vcp:
+        return
+
+    # Default instance name to the vip address.
+    instance_name = config_opts.get("instance-name",
+                                    config_opts.get('vip-address'))
+
+    valid_name = False
+    while not valid_name:
+        prompt = 'Enter the name of this instance. [{}]: '.format(
+            instance_name
+        )
+        t = (prompt, None, instance_name)
+        new_instance_name = prompt_response(t)
+        if new_instance_name:
+            valid_name = True
+            instance_name = new_instance_name
+    config_opts['instance-name'] = instance_name
+
+    vc_address = config_opts.get("volttron-central-address",
+                                 config_opts.get("bind-web-address"))
+
+    valid_vc = False
+    while not valid_vc:
+        prompt = "Enter volttron central's web address [{}]: ".format(
+            vc_address
+        )
+        new_vc_address = prompt_response((prompt, None, vc_address))
+        valid_vc = is_valid_url(new_vc_address, ['http', 'https'])
+        if valid_vc:
+            vc_address = new_vc_address
+    config_opts['volttron-central-address'] = vc_address
+
+    return False, _install_vcp
+
+    # TODO Add protecction of vc here.
 
 def _explain_discoverable():
     discoverability = """
