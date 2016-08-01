@@ -318,6 +318,15 @@ def is_valid_port(test):
     return test > 0 and test < 65535
 
 
+def do_platform_historian():
+    prompt = "Would you like to install a platform historian? [N]: "
+    resp = prompt_response((prompt, y_or_n, 'N'))
+
+    if resp in n:
+        return False
+    return False, _install_platform_historian
+
+
 def do_vip():
     global config_opts
 
@@ -330,30 +339,38 @@ def do_vip():
         vip_address = "tcp://127.0.0.1"
         vip_port = 22916
 
-    valid_address = False
-    while not valid_address:
-        prompt = 'What is the external instance ipv4 address? [{}]: '.format(
-            vip_address
-        )
+    available = False
+    while not available:
+        valid_address = False
+        while not valid_address:
+            prompt = 'What is the external instance ipv4 address? '
+            prompt += '[{}]: '.format(
+                vip_address
+            )
 
-        new_vip_address = prompt_response((prompt, None, vip_address))
-        valid_address = is_valid_url(new_vip_address, ['tcp'])
-        if valid_address:
-            vip_address = new_vip_address
+            new_vip_address = prompt_response((prompt, None, vip_address))
+            valid_address = is_valid_url(new_vip_address, ['tcp'])
+            if valid_address:
+                vip_address = new_vip_address
 
-    valid_port = False
-    while not valid_port:
-        prompt = 'What is the instance port for the vip address? [{}]: '.format(
-            vip_port
-        )
-        new_vip_port = prompt_response((prompt, None, vip_port))
-        valid_port = is_valid_port(new_vip_port)
-        if valid_port:
-            vip_port = new_vip_port
+        valid_port = False
+        while not valid_port:
+            prompt = 'What is the instance port for the vip address? [{}]: '.format(
+                vip_port
+            )
+            new_vip_port = prompt_response((prompt, None, vip_port))
+            valid_port = is_valid_port(new_vip_port)
+            if valid_port:
+                vip_port = new_vip_port
 
-    while vip_address.endswith("/"):
-        vip_address = vip_address[:-1]
+        while vip_address.endswith("/"):
+            vip_address = vip_address[:-1]
 
+        attempted_address = "{}:{}".format(vip_address, vip_port)
+        if not _is_bound_already(attempted_address):
+            available = True
+        else:
+            print('\nERROR: That address has already been bound to.')
     config_opts['vip-address'] = "{}:{}".format(vip_address, vip_port)
     _install_config_file()
 
@@ -521,32 +538,44 @@ to stop the instance.
         return
 
     os.environ['VOLTTRON_HOME'] = volttron_home
+    first_time = False
     if not os.path.exists(volttron_home):
+        first_time = True
         os.makedirs(volttron_home, 0o755)
 
-    # no installation required with vip so just do the setup of that
-    # address first.
-    do_vip()
 
-    # Returns either a function or False
-    vc_response = do_vc()
+#     prompt = """
+# volttron-cfg has two modes a wizard mode that walks you through settup of an
+# instance or a menu mode where you can pick what to install on the instance.
+# """
+#     p = "Would you like to go through the setup wizard? [Y]: "
+#     wizardmode = prompt_response(p, y_or_n, 'Y')
 
-    # Function or False
-    vcp_response = do_vcp()
+    wizardmode = 'Y'
+    if wizardmode in y:
+        # no installation required with vip so just do the setup of that
+        # address first.
+        do_vip()
 
-    stack = [vc_response, vcp_response]
+        # Returns either a function or False
+        vc_response = do_vc()
 
-    _install_config_file()
-    _start_platform()
-    # Loop over the returned values and call them one by one.
-    for function in stack:
-        if function:
-            # All functions are should have a autostart as the only parameter
-            # to install.
-            function[1](function[0])
-    _shutdown_platform()
+        # Function or False
+        vcp_response = do_vcp()
 
+        historian_response = do_platform_historian()
 
+        stack = [vc_response, vcp_response, historian_response]
+
+        _install_config_file()
+        _start_platform()
+        # Loop over the returned values and call them one by one.
+        for function in stack:
+            if function:
+                # All functions are should have a autostart as the only
+                # parameter to install.
+                function[1](function[0])
+        _shutdown_platform()
     print('Finished configuration\n')
     print('You can now start you volttron instance.\n')
     print('If you need to change the instance configuration you can edit')
