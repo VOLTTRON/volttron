@@ -269,5 +269,4 @@ function filterItems(filterTerm, itemsList)
     return filteredItems;
 }
 
-
 module.exports = OutsideClick(ComboBox);

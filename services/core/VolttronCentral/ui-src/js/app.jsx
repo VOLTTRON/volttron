@@ -22,7 +22,6 @@ var Navigation = require('./components/navigation');
 var _afterLoginPath = '/dashboard';
 
 
-
 const checkAuth = AuthComponent => class extends React.Component {
     componentWillMount() {
 

@@ -47,7 +47,7 @@ class PlatformManager extends React.Component {
         this._doModalBindings();
 
         if (this.state.expanded)
-        {               
+        {    
             var handle = document.querySelector(".resize-handle");
 
             var onMouseDown = function (evt)

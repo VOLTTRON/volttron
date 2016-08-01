@@ -32,7 +32,7 @@ var platformManagerActionCreators = {
 
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_AUTHORIZATION,
-                    authorization: result, 
+                    authorization: result,
                     name: username
                 });
             })

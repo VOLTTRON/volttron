@@ -7,7 +7,6 @@ ALL_TOPIC = "{}/all".format(BASE_DEVICE_TOPIC)
 
 mongo_platform = {
     "agentid": "mongodb-historian",
-    "identity": "platform.historian",
     "connection": {
         "type": "mongodb",
         "params": {

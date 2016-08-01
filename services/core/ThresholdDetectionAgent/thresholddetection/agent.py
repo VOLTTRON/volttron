@@ -66,7 +66,7 @@ from volttron.platform.messaging.health import Status, STATUS_BAD
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.5'
+__version__ = '3.6'
 
 
 def thresholddetection_agent(config_path, **kwargs):
@@ -80,7 +80,6 @@ def thresholddetection_agent(config_path, **kwargs):
     """
     config = utils.load_config(config_path)
     vip_identity = 'platform.thresholddetection'
-    kwargs.pop('identity', None)
     return ThresholdDetectionAgent(config, identity=vip_identity)
 
 
@@ -94,8 +93,7 @@ class ThresholdDetectionAgent(Agent):
     are greater than the specified threshold. Topics in the
     `watch_min` list trigger alerts when the published data are
     less than the specified threshold. Non-numberic data will be
-    ignored. Alerts are published to alert/TOPIC where TOPIC is the
-    watched topic.
+    ignored.
 
     Example configuration:
 
@@ -136,7 +134,7 @@ class ThresholdDetectionAgent(Agent):
                 return False
 
         def generate_callback(message, threshold, comparator):
-            """generate callback function for pubsub.subscribe"""
+            """Generate callback function for pubsub.subscribe"""
             def callback(peer, sender, bus, topic, headers, data):
                 if is_number(data):
                     if comparator(data, threshold):

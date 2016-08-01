@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,30 +53,83 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 #}}}
 
+"""
+Pytest test cases for SysMonAgent
+"""
 
-'''Core package.'''
+import json
+import pytest
+
+import gevent
+
+from volttrontesting.utils.utils import poll_gevent_sleep
+
+_test_config = {
+    "base_topic": "test1/sysmon",
+    "cpu_check_interval": 1,
+    "memory_check_interval": 1,
+    "disk_check_interval": 1,
+    "disk_path": "/"
+}
 
 
-import os
+@pytest.fixture()
+def sysmon_tester_agent(request, volttron_instance, tmpdir):
+    """
+    Fixture used for setting up SysMonAgent and tester agent
+    """
+    config = tmpdir.mkdir('config').join('config')
+    config.write(json.dumps(_test_config))
 
-__version__ = '3.0'
+    sysmon_uuid = volttron_instance.install_agent(
+        agent_dir='services/core/SysMonAgent',
+        config_file=str(config),
+        start=True)
 
-def set_home(home=None):
-    '''Set the home directory with user and variables expanded.
+    agent = volttron_instance.build_agent()
 
-    If the home is sent in, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    '''
-    os.environ["VOLTTRON_HOME"] = home or get_home()
-    
+    def stop_agent():
+        volttron_instance.stop_agent(sysmon_uuid)
+        volttron_instance.remove_agent(sysmon_uuid)
+        agent.core.stop()
 
-def get_home():
-    '''Return the home directory with user and variables expanded.
+    request.addfinalizer(stop_agent)
+    return agent
 
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    '''
-    return os.path.normpath(os.path.expanduser(os.path.expandvars(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron'))))
+
+def listen(agent, config):
+    """Assert all SysMonAgent topics have been heard"""
+    base_topic = config['base_topic']
+    short_topics = ['cpu_percent', 'memory_percent', 'disk_percent']
+    topics = [base_topic + '/' + x for x in short_topics]
+    seen_topics = set()
+
+    def add_topic(peer, sender, bus, topic, headers, messages):
+        seen_topics.add(topic)
+
+    agent.vip.pubsub.subscribe('pubsub', base_topic,
+                               callback=add_topic)
+
+    max_wait = 1 + max([value for key, value in _test_config.items()
+                        if key.endswith('_interval')])
+
+    all_topics_seen = lambda: set(topics) <= seen_topics
+
+    assert poll_gevent_sleep(max_wait, all_topics_seen)
+
+
+def test_listen(sysmon_tester_agent):
+    """Test that data is published to expected topics"""
+    listen(sysmon_tester_agent, _test_config)
+
+
+def test_reconfigure_then_listen(sysmon_tester_agent):
+    """Test that the topic can be reconfigured"""
+    new_config = _test_config.copy()
+    new_config['base_topic'] = 'test2/sysmon'
+    sysmon_tester_agent.vip.rpc.call('platform.sysmon', 'reconfigure',
+                                     **new_config)
+    listen(sysmon_tester_agent, new_config)
