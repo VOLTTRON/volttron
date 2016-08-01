@@ -150,16 +150,19 @@ def _install_agents(install_vc, install_platform, install_historian):
         if install_historian[1]:
             _cmd(['volttron-ctl', 'enable', '--tag', 'historian'])
 
-#
-# def _enable_discovery(address_port):
-#     """ Enable discovery will autostart when the volttron instance starts.
-#
-#     Puts the port and binding ip address that should be bound to in the root
-#     directory of VOLTTRON_HOME.
-#     """
-#     discovery_file = os.path.join(os.environ['VOLTTRON_HOME'], 'DISCOVERY')
-#     with open(discovery_file, 'w') as df:
-#         df.write(address_port)
+
+def _is_bound_already(address):
+    # Create a UDS socket
+    context = zmq.Context()
+    dealer_sck = context.socket(zmq.DEALER)
+    already_bound = False
+    try:
+        dealer_sck.bind(address)
+    except zmq.ZMQError:
+        already_bound = True
+    finally:
+        dealer_sck.close()
+    return already_bound
 
 
 def _is_instance_running():
