@@ -93,6 +93,7 @@ var routes = React.createElement(
     React.createElement(
         _reactRouter.Route,
         { path: '/', component: checkAuth(_platformManager2.default) },
+        React.createElement(_reactRouter.IndexRedirect, { to: 'dashboard' }),
         React.createElement(_reactRouter.Route, { path: 'dashboard', component: checkAuth(Dashboard) }),
         React.createElement(_reactRouter.Route, { path: 'platforms', component: checkAuth(Platforms) }),
         React.createElement(_reactRouter.Route, { path: 'platform/:uuid', component: checkAuth(Platform) }),
@@ -447,8 +448,6 @@ var platformActionCreators = {
         });
     },
     installAgents: function installAgents(platform, files) {
-        platformActionCreators.clearPlatformError(platform);
-
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
@@ -8022,28 +8021,28 @@ var StatusIndicator = React.createClass({
                 if (startIndex === 0) {
                     newMessage.push(React.createElement(
                         'b',
-                        null,
+                        { key: 'b1' },
                         wholeMessage.substring(0, highlight.length)
                     ));
                     newMessage.push(React.createElement(
                         'span',
-                        null,
+                        { key: 'span1' },
                         wholeMessage.substring(highlight.length)
                     ));
                 } else {
                     newMessage.push(React.createElement(
                         'span',
-                        null,
+                        { key: 'span1' },
                         wholeMessage.substring(0, startIndex)
                     ));
                     newMessage.push(React.createElement(
                         'b',
-                        null,
+                        { key: 'b1' },
                         wholeMessage.substring(startIndex, startIndex + highlight.length)
                     ));
                     newMessage.push(React.createElement(
                         'span',
-                        null,
+                        { key: 'span2' },
                         wholeMessage.substring(startIndex + highlight.length)
                     ));
                 }

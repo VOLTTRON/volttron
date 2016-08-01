@@ -110,14 +110,14 @@ var StatusIndicator = React.createClass({
 
                 if (startIndex === 0)
                 {
-                    newMessage.push(<b>{wholeMessage.substring(0, highlight.length)}</b>);
-                    newMessage.push(<span>{wholeMessage.substring(highlight.length)}</span>);
+                    newMessage.push(<b key="b1">{wholeMessage.substring(0, highlight.length)}</b>);
+                    newMessage.push(<span key="span1">{wholeMessage.substring(highlight.length)}</span>);
                 }
                 else
                 {
-                    newMessage.push(<span>{wholeMessage.substring(0, startIndex)}</span>);
-                    newMessage.push(<b>{wholeMessage.substring(startIndex, startIndex + highlight.length)}</b>);
-                    newMessage.push(<span>{wholeMessage.substring(startIndex + highlight.length)}</span>);
+                    newMessage.push(<span key="span1">{wholeMessage.substring(0, startIndex)}</span>);
+                    newMessage.push(<b key="b1">{wholeMessage.substring(startIndex, startIndex + highlight.length)}</b>);
+                    newMessage.push(<span key="span2">{wholeMessage.substring(startIndex + highlight.length)}</span>);
                 }
 
                 statusMessage = newMessage;

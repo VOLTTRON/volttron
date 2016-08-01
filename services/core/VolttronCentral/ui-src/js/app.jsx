@@ -3,7 +3,7 @@
 var React = require('react');
 var ReactDOM = require('react-dom');
 
-import { Router, Route, hashHistory } from 'react-router';
+import { Router, Route, IndexRedirect, hashHistory } from 'react-router';
 
 var authorizationStore = require('./stores/authorization-store');
 var platformsPanelItemsStore = require('./stores/platforms-panel-items-store');
@@ -58,6 +58,7 @@ var PublicExterior = React.createClass({
 var routes = (
     <Router history={hashHistory}>
         <Route path="/" component={checkAuth(PlatformManager)} > 
+            <IndexRedirect to="dashboard" />
             <Route path="dashboard" component={checkAuth(Dashboard)} />
             <Route path="platforms" component={checkAuth(Platforms)} />
             <Route path="platform/:uuid" component={checkAuth(Platform)} />
