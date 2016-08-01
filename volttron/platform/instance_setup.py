@@ -307,6 +307,46 @@ def is_valid_port(test):
     return test > 0 and test < 65535
 
 
+def do_vip():
+    global config_opts
+
+    parsed = urlparse.urlparse(config_opts.get("volttron", "vip-address"))
+    vip_address = None
+    if parsed.hostname is not None and parsed.scheme is not None:
+        vip_address = parsed.scheme + "://" + parsed.hostname
+        vip_port = parsed.port
+    else:
+        vip_address = "tcp://127.0.0.1"
+        vip_port = 22916
+
+    valid_address = False
+    while not valid_address:
+        prompt = 'What is the external instance ipv4 address? [{}]: '.format(
+            vip_address
+        )
+
+        new_vip_address = prompt_response((prompt, None, vip_address))
+        valid_address = is_valid_url(new_vip_address, ['tcp'])
+        if valid_address:
+            vip_address = new_vip_address
+
+    valid_port = False
+    while not valid_port:
+        prompt = 'What is the instance port for the vip address? [{}]: '.format(
+            vip_port
+        )
+        new_vip_port = prompt_response((prompt, None, vip_port))
+        valid_port = is_valid_port(new_vip_port)
+        if valid_port:
+            vip_port = new_vip_port
+
+    while vip_address.endswith("/"):
+        vip_address = vip_address[:-1]
+
+    config_opts['vip-address'] = "{}:{}".format(vip_address, vip_port)
+    _install_config_file()
+
+
 
 def _explain_discoverable():
     discoverability = """
