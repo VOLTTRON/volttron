@@ -54,18 +54,40 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
-import os as _os
+from ConfigParser import ConfigParser
 import hashlib
+import os as os
+import urlparse
 import tempfile
 
-import psutil
 from gevent import subprocess
 from gevent.subprocess import Popen, check_call
 from zmq.utils import jsonapi
+from zmq import green as zmq
 
 from . import get_home
 from volttron.platform.auth import AuthEntry, AuthFile
+
+# Global configuration options.  Must be key=value strings.  No cascading
+# structure so that we can easily create/load from the volttron config file
+# if it exists.
+config_opts = {}
+
+# Yes or no answers to questions.
+y_or_n = ('Y', 'N', 'y', 'n')
+y = ('Y', 'y')
+n = ('N', 'n')
+
+
+def _load_config():
+    """ Loads the config file if the path exists.  """
+    path = os.path.join(get_home(), "config")
+    if os.path.exists(path):
+        parser = ConfigParser()
+        parser.read(path)
+        options = parser.options("volttron")
+        for option in options:
+            config_opts[option] = parser.get("volttron", option)
 
 
 def prompt_response(inputs):
@@ -249,6 +271,19 @@ def _install_platform_historian(autostart):
     }
     _install_agent(autostart, "services/core/SQLHistorian", config,
                    "platform_historian")
+
+
+def _install_config_file():
+    path = os.path.join(get_home(), "config")
+
+    config = ConfigParser()
+    config.add_section("volttron")
+
+    for k, v in config_opts.items():
+        config.set('volttron', k, v)
+
+    with open(path, 'w') as configfile:
+        config.write(configfile)
 
 
 
