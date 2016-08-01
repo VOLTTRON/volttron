@@ -286,6 +286,27 @@ def _install_config_file():
         config.write(configfile)
 
 
+def is_valid_url(test, accepted_schemes):
+    if test is None:
+        return False
+    parsed = urlparse.urlparse(test)
+    if parsed.scheme not in accepted_schemes:
+        return False
+    if not parsed.hostname:
+        return False
+
+    return True
+
+
+def is_valid_port(test):
+    try:
+        value = int(test)
+    except ValueError:
+        return False
+
+    return test > 0 and test < 65535
+
+
 
 def _explain_discoverable():
     discoverability = """
