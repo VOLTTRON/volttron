@@ -115,6 +115,7 @@ class Connection(object):
         self._last_publish = None
         self._last_publish_failed = False
         self._last_rpc_call = None
+        self.is_connected(5)
 
     @property
     def serverkey(self):
@@ -156,7 +157,6 @@ class Connection(object):
                 _log.warn('Peer {} not found connected to router.'.format(
                     self.peer
                 ))
-
         return self._server
 
     def peers(self, timeout=30):
@@ -167,6 +167,7 @@ class Connection(object):
             self.server.vip.ping('').get(timeout=timeout)
             return True
         except gevent.Timeout:
+            _log.error('Timeout occured pinging server.')
             return False
 
     def publish(self, topic, headers=None, message=None, timeout=30):
