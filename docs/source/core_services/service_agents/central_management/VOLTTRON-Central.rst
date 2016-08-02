@@ -1,3 +1,4 @@
+.. _VOLTTRON-Central:
 VOLTTRON Central Management Agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -8,10 +9,8 @@ The VOLTTRON Central Agent (VCM) is responsible for controlling multiple
 VOLTTRON instances through a single interfaces.  The VOLTTRON instances
 can be either local or remote.  VCM leverages an internal VOLTTRON web server
 providing a interface to our JSON-RPC based web api.  Both the web api and
-the interface are served through the VCM agent. There is a `VOLTTRON
-Central Demo <VOLTTRON-Central-Demo>`__ that will allow you to quickly
-setup and see the current offerings of the interface. VOLTTRON Central
-will allow you to
+the interface are served through the VCM agent. There is a :ref:`VOLTTRON Central Demo <VOLTTRON-Central-Demo>` that will allow you to quickly setup and see the current offerings of the interface. 
+VOLTTRON Central will allow you to
 
 -  See a list of platforms being managed.
 -  Add and remove platforms.
@@ -24,8 +23,7 @@ Instance Configuration
 
 In order for any web agent to be enabled, there must be a port configured to
 serve the content.  The easiest way to do this is to create a config file in
-the root of your VOLTTRON_HOME directory. (to do this automatically see :ref:`
-VOLTTRON Config<VOLTTRON-Config>`)
+the root of your VOLTTRON_HOME directory. ( to do this automatically see :ref:`VOLTTRON Config <VOLTTRON-Config>` )
 
 The following is an example of the configuration file
 
@@ -94,8 +92,8 @@ The following is the default configuration file for VOLTTRON Central
 Agent Execution
 ===============
 
-To start VOLTTRON Central first make sure the `VOLTTRON instance is
-running <Eclipse-Dev-Environment#execute-volttron-platform-from-shell>`__.
+To start VOLTTRON Central first make sure the 
+`VOLTTRON instance is running <../../../devguides/eclipse/Eclipse-Dev-Environment.html#execute-volttron-through-shell>`__
 Next create/choose the config file to use. Finally from an activated
 shell in the root of the VOLTTRON repository execute
 

@@ -3,6 +3,8 @@ import pytest
 from random import randint
 import socket
 from volttrontesting.utils.platformwrapper import PlatformWrapper
+from volttrontesting.utils.utils import get_rand_vip, get_rand_ip_and_port, \
+    get_rand_port
 
 PRINT_LOG_ON_SHUTDOWN = False
 
@@ -17,28 +19,6 @@ def print_log(volttron_home):
                 print('NO LOG FILE AVAILABLE.')
 
 
-def get_rand_ip_and_port():
-    ip = "127.0.0.{}".format(randint(1, 254))
-    port = get_rand_port(ip)
-    return ip + ":{}".format(port)
-
-
-def get_rand_port(ip=None):
-    port = randint(5000, 6000)
-    if ip:
-        while is_port_open(ip, port):
-            port = randint(5000, 6000)
-    return port
-
-
-def is_port_open(ip, port):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    result = sock.connect_ex((ip, port))
-    return result == 0
-
-
-def get_rand_vip():
-    return "tcp://{}".format(get_rand_ip_and_port())
 
 
 @pytest.fixture(scope="module")
@@ -69,7 +49,7 @@ def cleanup_wrapper(wrapper):
 
 @pytest.fixture(scope="module")
 def volttron_instance1(request, instance1_config):
-    wrapper = build_wrapper(instance1_config['vip-address'])
+    wrapper = build_wrapper(instance1_config['vip-address'], encrypt=True)
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -194,7 +174,7 @@ def get_volttron_instances(request):
     for testing.
     """
 
-    def get_n_volttron_instances(n):
+    def get_n_volttron_instances(n, **kwargs):
         get_n_volttron_instances.count = n
         instances = []
         for i in range(0, n):
@@ -202,9 +182,9 @@ def get_volttron_instances(request):
             wrapper = None
             if request.param == 'encrypted':
                 print("building instance  (using encryption)")
-                wrapper = build_wrapper(address, encrypt=True)
+                wrapper = build_wrapper(address, encrypt=True, **kwargs)
             else:
-                wrapper = build_wrapper(address)
+                wrapper = build_wrapper(address, **kwargs)
             instances.append(wrapper)
         get_n_volttron_instances.instances = instances
         return instances

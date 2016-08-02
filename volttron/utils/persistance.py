@@ -2,9 +2,14 @@
 # http://code.activestate.com/recipes/576642-persistent-dict-with-multiple-standard-file-format/
 import pickle, json, csv, os, shutil, shelve
 
+
 def load_create_store(filename):
+    parent = os.path.dirname(os.path.abspath(filename))
+    if not os.path.exists(parent):
+        os.makedirs(parent)
     persist = PersistentDict(filename=filename, flag='c', format='json')
     return shelve.Shelf(persist)
+
 
 class PersistentDict(dict):
     """ Persistent dictionary with an API compatible with shelve and anydbm.

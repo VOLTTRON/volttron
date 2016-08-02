@@ -278,7 +278,7 @@ def historian(config_path, **kwargs):
 
             if timeout_occurred:
                 _log.debug('Sending alert from the ForwardHistorian')
-                status = Status.from_json(self.vip.health.get_status())
+                status = Status.from_json(self.vip.health.get_status_json())
                 self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                            status)
 
@@ -296,7 +296,7 @@ def historian(config_path, **kwargs):
             except gevent.Timeout:
                 self.vip.health.set_status(
                     STATUS_BAD, "Timeout in setup of agent")
-                status = Status.from_json(self.vip.health.get_status())
+                status = Status.from_json(self.vip.health.get_status_json())
                 self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                            status)
 
