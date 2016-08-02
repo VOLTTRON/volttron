@@ -353,7 +353,6 @@ class Router(BaseRouter):
                 elif name == b'volttron-central-serverkey':
                     value = self._volttron_central_serverkey
                 elif name == b'instance-name':
-                    # TODO: Rename local to instance_name instead.
                     value = self._instance_name
                 elif name == b'bind-web-address':
                     value = self._bind_web_address

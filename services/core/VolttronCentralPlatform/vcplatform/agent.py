@@ -734,7 +734,7 @@ class VolttronCentralPlatform(Agent):
     def list_agent_methods(self, method, params, id, agent_uuid):
         return jsonrpc.json_error(ident=id, code=INTERNAL_ERROR,
                                   message='Not implemented')
- 
+
     def _publish_stats(self):
         """
         Publish the platform statistics to the local bus as well as to the

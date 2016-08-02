@@ -452,13 +452,11 @@ class Core(BasicCore):
             # urlparse automatically adds '?', but we need to add the '&'s
             return '{}{}={}'.format('&' if query_str else '', key, value)
 
-        _log.debug('URL BEFORE: {}'.format(self.address))
         url = list(urlparse.urlsplit(self.address))
         if url[0] == 'tcp':
             url[3] += add_param(url[3], 'publickey', publickey)
             url[3] += add_param(url[3], 'secretkey', secretkey)
             url[3] += add_param(url[3], 'serverkey', serverkey)
-            _log.debug('URL: {}'.format(url))
             self.address = urlparse.urlunsplit(url)
 
     def _get_keys(self):
@@ -486,8 +484,6 @@ class Core(BasicCore):
             return None, None
         keystore_path = os.path.join(keystore_dir, 'keystore.json')
         keystore = KeyStore(keystore_path)
-        _log.debug('FROM KEYSTORE: {} {}'.format(keystore.public(),
-                                                 keystore.secret()))
         return keystore.public(), keystore.secret()
 
     def _get_keys_from_addr(self):
@@ -557,8 +553,6 @@ class Core(BasicCore):
 
         if self.address[:4] in ['tcp:', 'ipc:']:
             self.spawn(monitor).join(0)
-        _log.debug("Address is type: {}".format(type(self.address)))
-        _log.debug("Address is: {}".format(self.address))
         self.socket.connect(self.address)
         if self.address.startswith('inproc:'):
             hello()

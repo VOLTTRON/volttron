@@ -557,7 +557,6 @@ class AIPplatform(object):
         return (execenv.process.pid, execenv.process.poll())
 
     def start_agent(self, agent_uuid):
-        _log.debug('Start Agent')
         name = self.agent_name(agent_uuid)
         self._launch_agent(
             agent_uuid, os.path.join(self.install_dir, agent_uuid, name), name)
@@ -567,24 +566,20 @@ class AIPplatform(object):
             execenv = self.agents[agent_uuid]
         except KeyError:
             return
-        _log.debug("ExecEnv: {}".format(execenv))
         if execenv.process.poll() is None:
             # pylint: disable=catching-non-exception
             execenv.process.send_signal(signal.SIGINT)
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
-                _log.warn("First timeout")
                 execenv.process.terminate()
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
-                _log.warn("2nd timeout")
                 execenv.process.kill()
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
-                _log.error("last timeout")
                 raise ValueError('process is unresponsive')
         return execenv.process.poll()
 

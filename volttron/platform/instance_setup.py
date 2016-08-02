@@ -255,7 +255,7 @@ def _install_vc(autostart):
         password = prompt_response(t)
         if not password:
             print("ERROR: Invalid password")
-            
+
     config = {
         "users": {
             username: {

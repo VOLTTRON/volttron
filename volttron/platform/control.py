@@ -277,7 +277,7 @@ class ControlService(BaseAgent):
                 del channel
             agent_uuid = self._aip.install_agent(path)
             _log.debug('AGENT UUID: {}'.format(agent_uuid))
-            return agent_uuid #self._aip.install_agent(path)
+            return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -825,30 +825,6 @@ def update_auth(opts):
         _stderr.write('ERROR: %s\n' % err.msg)
 
 
-# XXX: reimplement over VIP
-# def send_agent(opts):
-#    _log.debug("send_agent: "+ str(opts))
-#    ssh_dir = os.path.join(opts.volttron_home, 'ssh')
-#    _log.debug('ssh_dir: ' + ssh_dir)
-#    try:
-#        host_key, client = comms.client(ssh_dir, opts.host, opts.port)
-#    except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
-#        if opts.debug:
-#            traceback.print_exc()
-#        _stderr.write('{}: error: {}\n'.format(opts.command, exc))
-#        if isinstance(exc, OSError):
-#            return os.EX_OSERR
-#        if isinstance(exc, IOError):
-#            return os.EX_IOERR
-#        return os.EX_SOFTWARE
-#    if host_key is None:
-#        _stderr.write('warning: no public key found for remote host\n')
-#    with client:
-#        for wheel in opts.wheel:
-#            with open(wheel) as file:
-#                client.send_and_start_agent(file)
-
-
 class ControlConnection(object):
     def __init__(self, address, peer='control', publickey=None,
                  secretkey=None,
@@ -869,7 +845,6 @@ class ControlConnection(object):
         return self._server
 
     def call(self, method, *args, **kwargs):
-        print('METHOD IS: {}'.format(method))
         return self.server.vip.rpc.call(
             self.peer, method, *args, **kwargs).get()
 
@@ -902,11 +877,13 @@ def get_keys(opts):
     return {'publickey': publickey, 'secretkey': secretkey,
             'serverkey': serverkey}
 
+
 def show_serverkey(opts):
     q = Query(opts.connection.server.core)
     pk = q.query('serverkey').get(timeout=2)
     del q
     return pk
+
 
 def main(argv=sys.argv):
     # Refuse to run as root
