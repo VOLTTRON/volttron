@@ -344,6 +344,7 @@ class VolttronCentralPlatform(Agent):
 
         _log.debug('Querying router for addresses and serverkey.')
         q = Query(self.core)
+
         self._external_addresses = q.query('addresses').get(timeout=2)
         _log.debug('External addresses are: {}'.format(
             self._external_addresses))
@@ -733,15 +734,7 @@ class VolttronCentralPlatform(Agent):
     def list_agent_methods(self, method, params, id, agent_uuid):
         return jsonrpc.json_error(ident=id, code=INTERNAL_ERROR,
                                   message='Not implemented')
-#
-#     @RPC.export
-#     def unmanage(self):
-#         if self._vc_connection:
-#             self._vc_connection.kill()
-#         self._vc_connection = None
-#         self._was_unmanaged = True
-#
-
+ 
     def _publish_stats(self):
         """
         Publish the platform statistics to the local bus as well as to the
@@ -785,7 +778,7 @@ class VolttronCentralPlatform(Agent):
             self._control_connection = None
         self._is_registered = False
         self._is_registering = False
-#
+    #
     def _get_agent_list(self):
         """ Retrieve a list of agents on the platform.
 
