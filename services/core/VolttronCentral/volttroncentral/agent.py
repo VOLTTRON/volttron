@@ -529,22 +529,31 @@ class VolttronCentralAgent(Agent):
     def _build_connected_agent(self, address):
         _log.debug('Building or returning connection to address: {}'.format(
             address))
-        cn = self._platform_connections.get(address)
-        if cn and cn.is_connected():
-            return cn
 
-        uuid = self._address_to_uuid.get(address)
-        uuid or _log.debug('UUID is None from address to uuid.')
-        assert uuid
-        entry = self._registered_platforms.get(uuid)
-        entry or _log.debug('Platform registry is empty for uuid {}'
-                            .format(uuid))
-        assert entry
+        cn_uuid = self._address_to_uuid.get(address)
+        if not cn_uuid:
+            raise ValueError("Can't connect to address: {}".format(
+                address
+            ))
 
-        cn = Connection(address, peer=VOLTTRON_CENTRAL_PLATFORM,
-                        serverkey=entry['serverkey'],
-                        secretkey=self.core.secretkey,
-                        publickey=self.core.publickey)
+        cn = self._platform_connections.get(cn_uuid)
+        if cn is not None:
+            if not cn.is_connected():
+                cn.kill()
+                cn = None
+
+        if cn is None:
+            entry = self._registered_platforms.get(cn_uuid)
+            entry or _log.debug('Platform registry is empty for uuid {}'
+                                .format(cn_uuid))
+            assert entry
+
+            cn = Connection(address, peer=VOLTTRON_CENTRAL_PLATFORM,
+                            serverkey=entry['serverkey'],
+                            secretkey=self.core.secretkey,
+                            publickey=self.core.publickey)
+
+            self._platform_connections[cn_uuid] = cn
         return cn
 
     def _build_connection(self, address, serverkey=None):
@@ -555,11 +564,14 @@ class VolttronCentralAgent(Agent):
         :param serverkey:
         :return:
         """
-        cn = self._connections_by_address.get(address)
-        if cn is not None and cn.serverkey != serverkey:
-            cn.kill()
-            del self._connections_by_address[address]
-            cn = None
+        cn_uuid = self._address_to_uuid.get(address)
+        cn = None
+        if cn_uuid is not None:
+            cn = self._platform_connections.get(cn_uuid)
+            if cn is not None and cn.serverkey != serverkey:
+                cn.kill()
+                del self._platform_connections[cn_uuid]
+                cn = None
 
         if cn is None:
             parsed = urlparse(address)
@@ -573,7 +585,10 @@ class VolttronCentralAgent(Agent):
 
         assert cn.is_connected(), "Connection unavailable for address {}"\
             .format(address)
-        self._connections_by_address[address] = cn
+        if cn_uuid is None:
+            cn_uuid = str(uuid.uuid4())
+            self._address_to_uuid[address] = cn_uuid
+        self._platform_connections[cn_uuid] = cn
         return cn
 
     def _get_connection(self, platform_uuid):
