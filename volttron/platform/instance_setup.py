@@ -55,6 +55,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 from ConfigParser import ConfigParser
+from collections import defaultdict
 import hashlib
 import os as os
 import urlparse
@@ -72,6 +73,7 @@ from volttron.platform.auth import AuthEntry, AuthFile
 # structure so that we can easily create/load from the volttron config file
 # if it exists.
 config_opts = {}
+agent_config_opts = defaultdict(dict)
 
 # Yes or no answers to questions.
 y_or_n = ('Y', 'N', 'y', 'n')
