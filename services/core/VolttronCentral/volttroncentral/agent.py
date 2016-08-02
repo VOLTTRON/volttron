@@ -191,6 +191,11 @@ class VolttronCentralAgent(Agent):
         # connect to the platform the last time it was tried.
         self._platform_connections = {}
         self._address_to_uuid = {}
+        for cn_uuid, platform_data in self._registered_platforms.items():
+            _log.debug("{}".format(platform_data))
+            _log.debug('address is {}'.format(platform_data['address']))
+            self._address_to_uuid[platform_data['address']] = cn_uuid
+            self._platform_connections[cn_uuid] = None
 
         # An object that allows the checking of currently authenticated
         # sessions.
@@ -202,9 +207,6 @@ class VolttronCentralAgent(Agent):
         # This will allow us to not have multiple periodic calls at the same
         # time which could cause unpredicatable results.
         self._flag_updating_deviceregistry = False
-
-        # A dictionary of the connections to platforms.
-        self._connections_by_address = {}
 
         _log.debug('Creating setting store')
         self._setting_store = load_create_store(
@@ -468,7 +470,7 @@ class VolttronCentralAgent(Agent):
             'last_published_utc': format_timestamp(get_aware_utc_now())
         }
 
-        platform = self._registered_platforms[platform_uuid]
+        platform = self._registered_platforms.get(platform_uuid)
         platform['stats_point_list'] = stats
         self._registered_platforms[platform_uuid] = platform
         self._registered_platforms.sync()
