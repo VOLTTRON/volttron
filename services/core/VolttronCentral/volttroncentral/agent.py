@@ -660,7 +660,6 @@ class VolttronCentralAgent(Agent):
         except gevent.Timeout:
             _log.error('RPC call to manage did not return in a timely manner.')
             raise
-
         # If we were successful in calling manage then we can add it to
         # our list of managed platforms.
         if pk is not None and len(pk) == 43:
@@ -669,7 +668,10 @@ class VolttronCentralAgent(Agent):
                 time_now = format_timestamp(get_aware_utc_now())
 
                 if address_uuid is not None:
+                    _log.debug('Attempting to get instance id to reconfigure '
+                               'the agent on the remote instance.')
                     current_uuid = connection.call('get_instance_uuid')
+
                     if current_uuid != address_uuid:
                         _log.debug('Reconfiguring with new uuid. {}'.format(
                             address_uuid
@@ -700,7 +702,6 @@ class VolttronCentralAgent(Agent):
                     )
                     self._platform_connections[address_uuid] = connection
                 self._registered_platforms.sync()
-
             except gevent.Timeout:
                 _log.error(
                     'Call to reconfigure did not return in a timely manner.')
@@ -762,7 +763,7 @@ class VolttronCentralAgent(Agent):
             self._register_instance(address,
                                     display_name=display_name)
         elif parsed.scheme == 'tcp':
-            if not serverkey or len(serverkey) != 43: # valid publickey length
+            if not serverkey or len(serverkey) != 43:  # valid publickey length
                 raise ValueError(
                     "tcp addresses must have valid serverkey provided")
             self.register_platform(address, serverkey, display_name)
@@ -770,7 +771,6 @@ class VolttronCentralAgent(Agent):
             self.register_platform(address, display_name=display_name)
 
     def _handle_list_platforms(self):
-        _log.debug('PA AGENTS: {}'.format(self._platform_connections))
 
         def get_status(address, instance_uuid):
             _log.debug('Getting status from platform at address: {}'.format(

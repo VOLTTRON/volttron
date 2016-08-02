@@ -158,6 +158,8 @@ class VolttronCentralPlatform(Agent):
         self._stats_publisher = None
         if config.get('stats-publish-interval') is None:
             config['stats-publish-interval'] = self._stats_publish_interval
+        if self._settings.get('instance-uuid'):
+            config['instance-uuid'] = self._settings.get('instance-uuid')
         self._topic_replace_list = config.get("topic_replace_list", [])
         self.reconfigure(**config)
 
