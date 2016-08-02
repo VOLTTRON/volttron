@@ -671,12 +671,22 @@ class VolttronCentralAgent(Agent):
                 if address_uuid is not None:
                     current_uuid = connection.call('get_instance_uuid')
                     if current_uuid != address_uuid:
+                        _log.debug('Reconfiguring with new uuid. {}'.format(
+                            address_uuid
+                        ))
                         connection.call('reconfigure',
                                         **{'instance-uuid': address_uuid})
+                    if self._registered_platforms.get(address_uuid) is None:
+                        self._registered_platforms[address_uuid] = dict(
+                            address=address, serverkey=serverkey,
+                            display_name=display_name,
+                            registered_time_utc=time_now,
+                            instance_uuid=address_uuid
+                        )
                 else:
+                    address_uuid = str(uuid.uuid4())
                     _log.debug("New platform with uuid: {}".format(
                         address_uuid))
-                    address_uuid = str(uuid.uuid4())
                     connection.call('reconfigure',
                                     **{'instance-uuid': address_uuid})
                     self._address_to_uuid[address] = address_uuid
@@ -689,6 +699,7 @@ class VolttronCentralAgent(Agent):
                         instance_uuid=address_uuid
                     )
                     self._platform_connections[address_uuid] = connection
+                self._registered_platforms.sync()
 
             except gevent.Timeout:
                 _log.error(
