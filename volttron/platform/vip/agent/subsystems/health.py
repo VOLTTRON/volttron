@@ -62,7 +62,7 @@ from volttron.platform.messaging.health import *
 from .base import SubsystemBase
 
 __docformat__ = 'reStructuredText'
-__version__ = '1.0'
+__version__ = '1.1'
 
 """
 The health subsystem allows an agent to store it's health in a non-intrusive
@@ -77,7 +77,11 @@ class Health(SubsystemBase):
         self._core = weakref.ref(core)
         self._rpc = weakref.ref(rpc)
         self._statusobj = Status.build(
-            STATUS_GOOD, status_changed_callback=self._status_changed)
+            STATUS_STARTING, status_changed_callback=self._status_changed)
+
+        def onstart(sender, **kwargs):
+            if self._statusobj.status == STATUS_STARTING:
+                self.set_status(STATUS_GOOD)
 
         def onsetup(sender, **kwargs):
             rpc.export(self.set_status, 'health.set_status')
@@ -85,6 +89,7 @@ class Health(SubsystemBase):
             rpc.export(self.send_alert, 'health.send_alert')
 
         core.onsetup.connect(onsetup, self)
+        core.onstart.connect(onstart, self)
 
     def send_alert(self, alert_key, statusobj):
         """
@@ -129,6 +134,22 @@ class Health(SubsystemBase):
         self._statusobj.update_status(status, context)
 
     def get_status(self):
+        """"RPC method
+
+        Returns the last updated status from the object with the context.
+
+        The minimum output from the status would be:
+
+            {
+                "status": "GOOD",
+                "context": None,
+                "utc_last_update": "2016-03-31T15:40:32.685138+0000"
+            }
+
+        """
+        return self._statusobj.as_dict() #.as_json()
+
+    def get_status_json(self):
         """"RPC method
 
         Returns the last updated status from the object with the context.

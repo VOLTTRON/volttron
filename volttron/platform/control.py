@@ -76,6 +76,7 @@ import gevent.event
 from .agent import utils
 from .agent.known_identities import CONTROL_CONNECTION
 from .vip.agent import Agent as BaseAgent, Core, RPC
+from .vip.agent.subsystems.query import Query
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
@@ -115,6 +116,13 @@ class ControlService(BaseAgent):
         self.vip.rpc.export(lambda: self._tracker.stats, 'stats.get')
 
     @RPC.export
+    def serverkey(self):
+        q = Query(self.core)
+        pk = q.query('serverkey').get(timeout=1)
+        del q
+        return pk
+
+    @RPC.export
     def clear_status(self, clear_all=False):
         self._aip.clear_status(clear_all)
 
@@ -131,6 +139,7 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def start_agent(self, uuid):
+        _log.debug('Start Agent')
         if not isinstance(uuid, basestring):
             raise TypeError("expected a string for 'uuid'; got {!r}".format(
                 type(uuid).__name__))
@@ -141,14 +150,18 @@ class ControlService(BaseAgent):
         if not isinstance(uuid, basestring):
             raise TypeError("expected a string for 'uuid'; got {!r}".format(
                 type(uuid).__name__))
-        self._aip.stop_agent(uuid)
+        try:
+            self._aip.stop_agent(uuid)
+        except:
+            pass
 
     @RPC.export
     def restart_agent(self, uuid):
         if not isinstance(uuid, basestring):
             raise TypeError("expected a string for 'uuid'; got {!r}".format(
                 type(uuid).__name__))
-        self._aip.restart_agent(uuid)
+        self.stop_agent(uuid)
+        self.start_agent(uuid)
 
     @RPC.export
     def shutdown(self):
@@ -264,7 +277,7 @@ class ControlService(BaseAgent):
                 del channel
             agent_uuid = self._aip.install_agent(path)
             _log.debug('AGENT UUID: {}'.format(agent_uuid))
-            return agent_uuid #self._aip.install_agent(path)
+            return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -812,31 +825,7 @@ def update_auth(opts):
         _stderr.write('ERROR: %s\n' % err.msg)
 
 
-# XXX: reimplement over VIP
-# def send_agent(opts):
-#    _log.debug("send_agent: "+ str(opts))
-#    ssh_dir = os.path.join(opts.volttron_home, 'ssh')
-#    _log.debug('ssh_dir: ' + ssh_dir)
-#    try:
-#        host_key, client = comms.client(ssh_dir, opts.host, opts.port)
-#    except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
-#        if opts.debug:
-#            traceback.print_exc()
-#        _stderr.write('{}: error: {}\n'.format(opts.command, exc))
-#        if isinstance(exc, OSError):
-#            return os.EX_OSERR
-#        if isinstance(exc, IOError):
-#            return os.EX_IOERR
-#        return os.EX_SOFTWARE
-#    if host_key is None:
-#        _stderr.write('warning: no public key found for remote host\n')
-#    with client:
-#        for wheel in opts.wheel:
-#            with open(wheel) as file:
-#                client.send_and_start_agent(file)
-
-
-class Connection(object):
+class ControlConnection(object):
     def __init__(self, address, peer='control', publickey=None,
                  secretkey=None,
                  serverkey=None):
@@ -887,6 +876,13 @@ def get_keys(opts):
         secretkey = key_store.secret()
     return {'publickey': publickey, 'secretkey': secretkey,
             'serverkey': serverkey}
+
+
+def show_serverkey(opts):
+    q = Query(opts.connection.server.core)
+    pk = q.query('serverkey').get(timeout=2)
+    del q
+    return pk
 
 
 def main(argv=sys.argv):
@@ -1104,6 +1100,9 @@ def main(argv=sys.argv):
         nargs='?')
     stats.set_defaults(func=do_stats, op='status')
 
+    serverkey = add_parser('serverkey',
+                           help="show the serverkey for the instance")
+    serverkey.set_defaults(func=show_serverkey)
     auth_list = add_parser('auth-list', help='list authentication records')
     auth_list.set_defaults(func=list_auth)
 
@@ -1137,7 +1136,6 @@ def main(argv=sys.argv):
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
         args = ['--config', conf] + args
     opts = parser.parse_args(args)
-
     if opts.log:
         opts.log = config.expandall(opts.log)
     if opts.log_config:
@@ -1165,7 +1163,7 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = Connection(opts.vip_address, **get_keys(opts))
+    opts.connection = ControlConnection(opts.vip_address, **get_keys(opts))
 
     try:
         with gevent.Timeout(opts.timeout):

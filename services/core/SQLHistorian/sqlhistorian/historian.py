@@ -166,15 +166,15 @@ def historian(config_path, **kwargs):
             self.topic_id_map.update(topic_id_map)
             self.topic_name_map.update(topic_name_map)
 
-            if self.core.identity == 'platform.historian':
-                if 'platform.agent' in self.vip.peerlist().get(timeout=2):
-                    _log.info(
-                        'Registering with platform.agent as a  service.'
-                    )
-                    self.vip.rpc.call('platform.agent', 'register_service',
-                                      self.core.identity).get(timeout=2)
-                else:
-                    _log.info('No platform.agent available to register with.')
+            # if self.core.identity == 'platform.historian':
+            #     if 'platform.agent' in self.vip.peerlist().get(timeout=2):
+            #         _log.info(
+            #             'Registering with platform.agent as a  service.'
+            #         )
+            #         self.vip.rpc.call('platform.agent', 'register_service',
+            #                           self.core.identity).get(timeout=2)
+            #     else:
+            #         _log.info('No platform.agent available to register with.')
 
         def publish_to_historian(self, to_publish_list):
             thread_name = threading.currentThread().getName()
