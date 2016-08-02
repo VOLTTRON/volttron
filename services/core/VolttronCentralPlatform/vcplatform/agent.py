@@ -203,18 +203,32 @@ class VolttronCentralPlatform(Agent):
 
     @Core.periodic(period=5)
     def _periodic_attempt_registration(self):
-        if self._vc_connection() is not None:
-            if not self._is_registering and not self._is_registered and \
-                    not self._was_unmanaged:
-                _log.debug("Starting the registration process from vcp.")
-                _log.debug('LOCAL INSTANCE: {}'.format(
-                    self._local_instance_name))
-                self._vc_connection().call(
-                    "register_instance", address=self._external_addresses[0],
-                    display_name=self._local_instance_name,
-                    serverkey=self._local_serverkey,
-                    vcpagentkey=self.core.publickey
-                )
+        try:
+            vc = self._vc_connection()
+            if vc.is_connected():
+                if not self._is_registering and not self._is_registered and \
+                        not self._was_unmanaged:
+                    _log.debug("Starting the registration process from vcp. "
+                               "Instance is named: "
+                               "{}".format(self._local_instance_name
+                    ))
+                    try:
+                        if self._vc_connection().is_connected():
+                            self._vc_connection().call(
+                                "register_instance",
+                                address=self._external_addresses[0],
+                                display_name=self._local_instance_name,
+                                serverkey=self._local_serverkey,
+                                vcpagentkey=self.core.publickey
+                            )
+                        else:
+                            _log.debug("Not connected to volttron central.")
+                    except Exception as e:
+                        _log.debug(str(e))
+                        _log.error("Registration failure!")
+        except Exception as e:
+            _log.debug('Unhandled exception was thrown.')
+            _log.error(str(e))
 
     def _vc_connection(self):
         """ Attempt to connect to volttron central management console.
