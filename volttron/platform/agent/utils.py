@@ -269,6 +269,45 @@ class AgentFormatter(logging.Formatter):
         return super(AgentFormatter, self).format(record)
 
 
+def format_timestamp(time_stamp):
+    """Create a consistent datetime string representation based on ISO 8601 format.
+
+    YYYY-MM-DDTHH:MM:SS.mmmmmm for unaware datetime objects.
+    YYYY-MM-DDTHH:MM:SS.mmmmmm+HH:MM for aware datetime objects
+
+    :param time_stamp: value to convert
+    :type time_stamp: datetime
+    :returns: datetime in string format
+    :rtype: str
+    """
+
+    time_str = time_stamp.strftime("%Y-%m-%dT%H:%M:%S.%f")
+
+    if time_stamp.tzinfo is not None:
+        sign = '+'
+        td = time_stamp.tzinfo.utcoffset(time_stamp)
+        if td.days < 0:
+            sign = '-'
+            td = -td
+
+        seconds = td.seconds
+        minutes, seconds = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        time_str += "{sign}{HH:02}:{MM:02}".format(sign=sign, HH=hours, MM=minutes)
+
+    return time_str
+
+def parse_timestamp_string(time_stamp_str):
+    """Create a datetime object from the supplied date/time string.
+    Uses dateutil.parse with no extra parameters.
+
+    :param time_stamp: value to convert
+    :type time_stamp: str
+    :returns: datetime object
+    :rtype: datetime
+    """
+    return parse(time_stamp_str)
+
 def setup_logging(level=logging.DEBUG):
     root = logging.getLogger()
     if not root.handlers:
@@ -283,60 +322,21 @@ def setup_logging(level=logging.DEBUG):
         root.addHandler(handler)
     root.setLevel(level)
 
-def format_timestamp(time_stamp):
-    """Create a consistent datetime string representation based on ISO 8601 format.
-    
-    YYYY-MM-DDTHH:MM:SS.mmmmmm for unaware datetime objects.
-    YYYY-MM-DDTHH:MM:SS.mmmmmm+HH:MM for aware datetime objects
-    
-    :param time_stamp: value to convert
-    :type time_stamp: datetime
-    :returns: datetime in string format
-    :rtype: str
-    """
-    
-    time_str = time_stamp.strftime("%Y-%m-%dT%H:%M:%S.%f")
-    
-    if time_stamp.tzinfo is not None:
-        sign = '+'
-        td = time_stamp.tzinfo.utcoffset(time_stamp)
-        if td.days < 0:
-            sign = '-'
-            td = -td
-            
-        seconds = td.seconds
-        minutes, seconds = divmod(seconds, 60)
-        hours, minutes = divmod(minutes, 60)
-        time_str += "{sign}{HH:02}:{MM:02}".format(sign=sign, HH=hours, MM=minutes)
-    
-    return time_str
-
-def parse_timestamp_string(time_stamp_str):
-    """Create a datetime object from the supplied date/time string.
-    Uses dateutil.parse with no extra parameters.
-    
-    :param time_stamp: value to convert
-    :type time_stamp: str
-    :returns: datetime object
-    :rtype: datetime
-    """
-    return parse(time_stamp_str)
-
 def get_aware_utc_now():
     """Create a timezone aware UTC datetime object from the system time.
-    
+
     :returns: an aware UTC datetime object
     :rtype: datetime
     """
     utcnow = datetime.utcnow()
     utcnow = pytz.UTC.localize(utcnow)
     return utcnow
-    
+
 def process_timestamp(timestamp_string, topic=''):
     if timestamp_string is None:
         _log.error("message for {topic} missing timetamp".format(topic=topic))
         return
-    
+
     try:
         timestamp = parse(timestamp_string)
     except (ValueError, TypeError) as e:

@@ -25,13 +25,27 @@ var platformChartActionCreators = {
 			chartType: chartType
 		});
 	},
-	changeRefreshRate: function (rate, chartKey) {
-		dispatcher.dispatch({
-			type: ACTION_TYPES.CHANGE_CHART_REFRESH,
-			rate: rate,
-			chartKey: chartKey
-		});
-	},
+    changeRefreshRate: function (rate, chartKey) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHANGE_CHART_REFRESH,
+            rate: rate,
+            chartKey: chartKey
+        });
+    },
+    setMin: function (min, chartKey) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHANGE_CHART_MIN,
+            min: min,
+            chartKey: chartKey
+        });
+    },
+    setMax: function (max, chartKey) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHANGE_CHART_MAX,
+            max: max,
+            chartKey: chartKey
+        });
+    },
 	refreshChart: function (series) {
 
 		var authorization = authorizationStore.getAuthorization();
@@ -114,7 +128,7 @@ var platformChartActionCreators = {
                     var inSavedChart = savedCharts.find(function (chart) {
                         return chart.chartKey === panelItem.name;
                     });
-
+                    
                     if (inSavedChart)
                     {
                         platformActionCreators.saveCharts(savedCharts);

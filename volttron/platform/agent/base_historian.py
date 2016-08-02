@@ -1019,7 +1019,8 @@ class BaseQueryHistorianAgent(Agent):
     @abstractmethod
     def query_topic_list(self):
         """
-        This function is called by :py:meth:`BaseQueryHistorianAgent.get_topic_list`
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_topic_list`
         to actually topic list from the data store.
 
         :return: List of topics in the data store.

@@ -116,6 +116,25 @@ def test_broker(): #broker_test():
     pub.send_multipart(['topic1', 'Hello world1'])
     time.sleep(2)
     pub.send_multipart(['platform/shutdown', 'Goodbye'])
+    pub.close()
+    pull.close()
+
+
+@pytest.mark.zmq
+def test_cannot_bind_ipc_twice():
+    success = False
+    try:
+        sck = zmq.Socket(ctx, zmq.REP)
+        sck2 = zmq.Socket(ctx, zmq.REP)
+        sck.bind('ipc://@/tmp/volttron-platform-agent-subscribe')
+        sck2.bind('ipc://@/tmp/volttron-platform-agent-subscribe')
+    except zmq.ZMQError:
+        success = True
+    finally:
+        sck.close()
+        sck2.close()
+
+    assert success
 
 if __name__ == '__main__':
     test_broker()

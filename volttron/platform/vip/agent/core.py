@@ -192,6 +192,7 @@ class BasicCore(object):
             return
         del self._owner
         periodics = []
+
         def setup(member):   # pylint: disable=redefined-outer-name
             periodics.extend(
                 periodic.get(member) for periodic in annotations(
@@ -466,6 +467,7 @@ class Core(BasicCore):
 
     def _get_keys_from_keystore(self):
         '''Returns agent's public and secret key from keystore'''
+        _log.debug('Getting keys from keystore.')
         if self.agent_uuid:
             # this is an installed agent
             keystore_dir = os.curdir

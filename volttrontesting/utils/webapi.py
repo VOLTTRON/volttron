@@ -1,4 +1,9 @@
+import urlparse
+import uuid
+
 import requests
+
+from volttron.platform.jsonrpc import json_method
 
 from zmq.utils import jsonapi
 
@@ -7,7 +12,14 @@ class FailedToGetAuthorization(Exception):
     pass
 
 
-class APITester(object):
+class WebAPI(object):
+    """
+    The WebAPI class allows the test to invoke all of the volttron central
+    WebAPI through methods that will invoke the json call to volttron central.
+
+    The construction of the url allows the passing of the correct url to
+    post messages to.
+    """
     def __init__(self, url, username='admin', password='admin'):
         """
         :param url:string:
@@ -15,10 +27,40 @@ class APITester(object):
         :param username:
         :param password:
         """
+        response = requests.get(url)
+        print('RESPONSE CODE IS: {}'.format(response.status_code))
+        if not response.ok:
+            raise ValueError(
+                'url not resolvable. Are you sure vc is installed?')
         self._url = url
         self._username = username
         self._password = password
         self._auth_token = self.get_auth_token()
+
+    def call(self, method, *params, **kwparams):
+        """ Call the web rpc method.
+
+        According to the json-rpc specification one can have either argument
+        based parameters or keyword arguments.
+
+        :param method:string:
+            The method to call on volttron central.
+        :param params:list:
+        :param kwparams:
+        :return:
+        """
+        print(params)
+        print(kwparams)
+        if params and kwparams:
+            raise ValueError('jsonrpc requires either args or kwargs not both!')
+        if params:
+            data = json_method(str(uuid.uuid4()), method, params, None)
+        else:
+            data = json_method(str(uuid.uuid4()), method, None, kwparams)
+
+        if method != 'get_authorization':
+            data['authorization'] = self._auth_token
+        return requests.post(self._url, json=data)
 
     def do_rpc(self, method, use_auth_token=True, **params):
         data = {
@@ -47,17 +89,21 @@ class APITester(object):
                            'inspect'.format(platform_uuid, agent_uuid))
 
     def register_instance(self, addr, name=None):
-        return self.do_rpc('register_instance', discovery_address=addr,
-                           display_name=name)
+        resp = self.call('register_instance', discovery_address=addr,
+                         display_name=name)
+        assert resp.ok, "Must have a 200 response code."
+        validate_response(resp)
+        return resp.json()
 
     def list_platforms(self):
-        return self.do_rpc('list_platforms')
+        return self.call('list_platforms')
 
     def list_agents(self, platform_uuid):
-        return self.do_rpc('platforms.uuid.' + platform_uuid + '.list_agents')
+        return self.call('platforms.uuid.' + platform_uuid + '.list_agents')
 
     def unregister_platform(self, platform_uuid):
-        return self.do_rpc('unregister_platform', platform_uuid=platform_uuid)
+        return self.call('unregister_platform', platform_uuid=platform_uuid)
+
 
 def do_rpc(method, params=None, auth_token=None, rpc_root=None):
     """ A utility method for calling json rpc based funnctions.
@@ -77,6 +123,7 @@ def do_rpc(method, params=None, auth_token=None, rpc_root=None):
         'method': method,
     }
 
+    print("PARAMS ARE: {}".format(params))
     if auth_token:
         json_package['authorization'] = auth_token
 
@@ -84,6 +131,7 @@ def do_rpc(method, params=None, auth_token=None, rpc_root=None):
         json_package['params'] = params
 
     data = jsonapi.dumps(json_package)
+    print('Posted data is {}'.format(data))
 
     return requests.post(rpc_root, data=data)
 

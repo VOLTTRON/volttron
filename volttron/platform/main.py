@@ -62,6 +62,8 @@ import errno
 import logging
 from logging import handlers
 import logging.config
+from urlparse import urlparse
+
 import os
 import resource
 import stat
@@ -74,6 +76,7 @@ import gevent
 from gevent.fileobject import FileObject
 import zmq
 from zmq import curve_keypair, green
+from zmq import ZMQError
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from zmq.utils import jsonapi
@@ -253,18 +256,29 @@ class Router(BaseRouter):
     '''Concrete VIP router.'''
 
     def __init__(self, local_address, addresses=(),
-                 context=None, secretkey=None, default_user_id=None,
-                 monitor=False, tracker=None):
+                 context=None, secretkey=None, publickey=None,
+                 default_user_id=None, monitor=False, tracker=None,
+                 volttron_central_address=None, instance_name=None,
+                 bind_web_address=None, volttron_central_serverkey=None):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
         self.addresses = addresses = [Address(addr) for addr in addresses]
         self._secretkey = secretkey
+        self._publickey = publickey
         self.logger = logging.getLogger('vip.router')
         if self.logger.level == logging.NOTSET:
             self.logger.setLevel(logging.WARNING)
+            #self.logger.setLevel(logging.DEBUG)
         self._monitor = monitor
         self._tracker = tracker
+        self._volttron_central_address = volttron_central_address
+        if self._volttron_central_address:
+            parsed = urlparse(self._volttron_central_address)
+
+        self._volttron_central_serverkey = volttron_central_serverkey
+        self._instance_name = instance_name
+        self._bind_web_address = bind_web_address
 
     def setup(self):
         sock = self.socket
@@ -279,7 +293,11 @@ class Router(BaseRouter):
             addr.identity = identity
         if not addr.domain:
             addr.domain = 'vip'
-        addr.bind(sock)
+        try:
+            addr.bind(sock)
+        except ZMQError as zmqerr:
+            _log.exception("couldn't bind to address: {}".format(addr.base))
+            raise
         _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:
             if not address.identity:
@@ -327,6 +345,17 @@ class Router(BaseRouter):
                         value = [self.local_address.base]
                 elif name == b'local_address':
                     value = self.local_address.base
+                # Allow the agents to know the serverkey.
+                elif name == b'serverkey':
+                    value = encode_key(self._publickey)
+                elif name == b'volttron-central-address':
+                    value = self._volttron_central_address
+                elif name == b'volttron-central-serverkey':
+                    value = self._volttron_central_serverkey
+                elif name == b'instance-name':
+                    value = self._instance_name
+                elif name == b'bind-web-address':
+                    value = self._bind_web_address
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
@@ -390,28 +419,7 @@ def start_volttron_process(opts):
         opts.log = config.expandall(opts.log)
     if opts.log_config:
         opts.log_config = config.expandall(opts.log_config)
-    opts.publish_address = config.expandall(opts.publish_address)
-    opts.subscribe_address = config.expandall(opts.subscribe_address)
-    opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
-    opts.vip_local_address = config.expandall(opts.vip_local_address)
-    import urlparse
-    if opts.bind_web_address:
-        parsed = urlparse.urlparse(opts.bind_web_address)
-        if not parsed.scheme:
-            raise StandardError(
-                'bind-web-address must begin with http or https.')
-        opts.bind_web_address = config.expandall(opts.bind_web_address)
-    if opts.volttron_central_address:
-        parsed = urlparse.urlparse(opts.volttron_central_address)
-        if not parsed.scheme:
-            raise StandardError(
-                'volttron-central-address must begin with http or https.')
-        opts.volttron_central_address = config.expandall(
-            opts.volttron_central_address)
-    if getattr(opts, 'show_config', False):
-        for name, value in sorted(vars(opts).iteritems()):
-            print(name, repr(value))
-        return
+
     # Configure logging
     level = max(1, opts.verboseness)
     if opts.monitor and level > logging.INFO:
@@ -428,6 +436,33 @@ def start_volttron_process(opts):
         error = configure_logging(opts.log_config)
         if error:
             parser.error('{}: {}'.format(*error))
+
+    opts.publish_address = config.expandall(opts.publish_address)
+    opts.subscribe_address = config.expandall(opts.subscribe_address)
+    opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
+    opts.vip_local_address = config.expandall(opts.vip_local_address)
+    if opts.instance_name is None:
+        if len(opts.vip_address) > 0:
+            opts.instance_name = opts.vip_address[0]
+    import urlparse
+    if opts.bind_web_address:
+        parsed = urlparse.urlparse(opts.bind_web_address)
+        if not parsed.scheme:
+            raise StandardError(
+                'bind-web-address must begin with http or https.')
+        opts.bind_web_address = config.expandall(opts.bind_web_address)
+    if opts.volttron_central_address:
+        parsed = urlparse.urlparse(opts.volttron_central_address)
+        if not parsed.scheme:
+            raise StandardError(
+                'volttron-central-address must begin with http or https.')
+        opts.volttron_central_address = config.expandall(
+            opts.volttron_central_address)
+    opts.volttron_central_serverkey = opts.volttron_central_serverkey
+    if getattr(opts, 'show_config', False):
+        for name, value in sorted(vars(opts).iteritems()):
+            print(name, repr(value))
+        return
 
     # Increase open files resource limit to max or 8192 if unlimited
     try:
@@ -507,12 +542,19 @@ def start_volttron_process(opts):
     zmq.Context.instance()   # DO NOT REMOVE LINE!!
 
     tracker = Tracker()
+
     # Main loops
     def router(stop):
         try:
+            _log.warn("PUBLICKEY: {}".format(publickey))
             Router(opts.vip_local_address, opts.vip_address,
-                   secretkey=secretkey, default_user_id=b'vip.service',
-                   monitor=opts.monitor, tracker=tracker).run()
+                   secretkey=secretkey, publickey=publickey,
+                   default_user_id=b'vip.service', monitor=opts.monitor,
+                   tracker=tracker,
+                   volttron_central_address=opts.volttron_central_address,
+                   instance_name=opts.instance_name,
+                   bind_web_address=opts.bind_web_address).run()
+
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
@@ -547,8 +589,10 @@ def start_volttron_process(opts):
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
-            ControlService(opts.aip, address=address, identity='control', tracker=tracker, heartbeat_autostart=True),
-            PubSubService(protected_topics_file, address=address, identity='pubsub', heartbeat_autostart=True),
+            ControlService(opts.aip, address=address, identity='control',
+                           tracker=tracker, heartbeat_autostart=True),
+            PubSubService(protected_topics_file, address=address,
+                          identity='pubsub', heartbeat_autostart=True),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
@@ -667,6 +711,11 @@ def main(argv=sys.argv):
         '--volttron-central-address', metavar='VOLTTRONCENTRAL',
         default=None,
         help='The web address of a volttron central install instance.')
+    agents.add_argument(
+        '--instance-name', default=None,
+        help='The name of the instance that will be reported to '
+             'VOLTTRON central.')
+
     # XXX: re-implement control options
     #on
     #control.add_argument(
@@ -738,6 +787,8 @@ def main(argv=sys.argv):
         # Used to contact volttron central when registering volttron central
         # platform agent.
         volttron_central_address=None,
+        volttron_central_serverkey=None,
+        instace_name=None,
         #allow_root=False,
         #allow_users=None,
         #allow_groups=None,

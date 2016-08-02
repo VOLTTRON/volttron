@@ -119,6 +119,7 @@ _level_map = {7: logging.DEBUG,      # LOG_DEBUG
               1: logging.CRITICAL,   # LOG_ALERT
               0: logging.CRITICAL,}  # LOG_EMERG
 
+
 def log_entries(name, agent, pid, level, stream):
     log = logging.getLogger(name)
     extra = {'processName': agent, 'process': pid}
@@ -149,6 +150,7 @@ def log_entries(name, agent, pid, level, stream):
         else:
             yield level, line
 
+
 def log_stream(name, agent, pid, path, stream):
     log = logging.getLogger(name)
     extra = {'processName': agent, 'process': pid}
@@ -163,11 +165,14 @@ def log_stream(name, agent, pid, path, stream):
 
 class IgnoreErrno(object):
     ignore = []
+
     def __init__(self, errno, *more):
         self.ignore = [errno]
         self.ignore.extend(more)
+
     def __enter__(self):
         return
+
     def __exit__(self, exc_type, exc_value, traceback):
         try:
             return exc_value.errno in self.ignore
@@ -178,11 +183,11 @@ ignore_enoent = IgnoreErrno(errno.ENOENT)
 
 
 class ExecutionEnvironment(object):
-    '''Environment reserved for agent execution.
+    """Environment reserved for agent execution.
 
     Deleting ExecutionEnvironment objects should cause the process to
     end and all resources to be returned to the system.
-    '''
+    """
     def __init__(self):
         self.process = None
         self.env = None
@@ -191,12 +196,14 @@ class ExecutionEnvironment(object):
         try:
             self.env = kwargs.get('env', None)
             self.process = subprocess.Popen(*args, **kwargs)
+            _log.debug('Process is: {}'.format(self.process))
         except OSError as e:
             if e.filename:
                 raise
             raise OSError(*(e.args + (args[0],)))
 
     def __call__(self, *args, **kwargs):
+        _log.debug('Execution environment.call {} {}'.format(args, kwargs))
         self.execute(*args, **kwargs)
 
 
@@ -300,9 +307,14 @@ class AIPplatform(object):
         return agent_uuid
 
     def remove_agent(self, agent_uuid):
+        _log.debug('REMOVING AGENT')
         if agent_uuid not in os.listdir(self.install_dir):
             raise ValueError('invalid agent')
-        self.stop_agent(agent_uuid)
+        status = self.agent_status(agent_uuid)
+        _log.debug('Status is: {}'.format(status))
+        _log.debug('Status is string?: {}'.format(type(status)))
+        if status[0] is not None:
+            self.stop_agent(agent_uuid)
         self.agents.pop(agent_uuid, None)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
 
@@ -430,7 +442,7 @@ class AIPplatform(object):
         if resmon:
             return self._check_resources(resmon, execreqs, reserve=False)
 
-    def _reserve_resources(self, resmon, execreqs):
+    def _reserve_resources(selHf, resmon, execreqs):
         return self._check_resources(resmon, execreqs, reserve=True)
 
     def get_execreqs(self, agent_uuid):
@@ -560,17 +572,14 @@ class AIPplatform(object):
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
-                _log.warn("First timeout")
                 execenv.process.terminate()
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
-                _log.warn("2nd timeout")
                 execenv.process.kill()
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
-                _log.error("last timeout")
                 raise ValueError('process is unresponsive')
         return execenv.process.poll()
 

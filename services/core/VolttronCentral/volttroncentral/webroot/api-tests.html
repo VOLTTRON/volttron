@@ -6,6 +6,7 @@
             width: 400px;
         }
     </style>
+    <title>Api Test Page</title>
 </head>
 <body>
 <h1>Webservice api exercise</h1>
@@ -128,12 +129,6 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
         if (!topic) {
             alert('Invalid topic!');
         }
-
-        <!--var platform_uuid = $('#agent_platform_uuid').val();-->
-        <!--if (!platform_uuid){-->
-            <!--alert('Invalid platform uuid');-->
-            <!--return;-->
-        <!--}-->
 
         var req_method = 'platform.historian.query';
         var token = $('#token').val();
@@ -274,6 +269,9 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             removeOptions(sel);
             platforms['result'].forEach(function(item, index){
                 var obj = document.createElement('option');
+                if (!item.name) {
+                    item.name = item.uuid;
+                }
                 obj.innerHTML = item.name;
                 obj.value = item.uuid;
                 sel.appendChild(obj);
