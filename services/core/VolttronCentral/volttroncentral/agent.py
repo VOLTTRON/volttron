@@ -933,6 +933,12 @@ class VolttronCentralAgent(Agent):
         except AssertionError:
             return jsonrpc.json_error(
                 'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data))
+        except Unreachable:
+            return jsonrpc.json_error(
+                rpcdata.id, UNAVAILABLE_PLATFORM,
+                "Couldn't reach platform with method {} params: {}"
+                .format(rpcdata.method, rpcdata.params)
+            )
         except Exception as e:
 
             return jsonrpc.json_error(
