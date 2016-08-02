@@ -15,7 +15,7 @@ var Platform = require('./components/platform');
 import PlatformManager from './components/platform-manager';
 var Platforms = require('./components/platforms');
 var Devices = require('./components/devices');
-var ConfigureDevices = require('./components/configure-devices');
+import ConfigureDevices from './components/configure-devices';
 var PlatformCharts = require('./components/platform-charts');
 var Navigation = require('./components/navigation');
 

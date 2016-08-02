@@ -1,38 +1,46 @@
 'use strict';
 
-var React = require('react');
-var Router = require('react-router');
+import React from 'react';
+
+import BaseComponent from './base-component';
 
 var platformsStore = require('../stores/platforms-store');
 var devicesStore = require('../stores/devices-store');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
-var ConfigureDevices = React.createClass({
-    getInitialState: function () {
-        var state = devicesStore.getState();
-    
-        state.bacnetProxies = platformsStore.getRunningBacnetProxies(state.platform.uuid);
-        state.deviceMethod = (state.bacnetProxies.length ? "scanForDevices" : "addDevicesManually");
+class ConfigureDevices extends BaseComponent {
+    constructor(props) {
+        super(props);
+        this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange',
+                    '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onClick',
+                    '_onDeviceStart', '_onDeviceEnd', '_onAddress');
+
+        this.state = devicesStore.getState();
+
+        this.state.bacnetProxies = platformsStore.getRunningBacnetProxies(this.state.platform.uuid);
+        this.state.deviceMethod = (this.state.bacnetProxies.length ? "scanForDevices" : "addDevicesManually");
+
+        this.state.deviceStart = "";
+        this.state.deviceEnd = "";
+        this.state.address = "";
         
-        if (state.deviceMethod === "scanForDevices")
+        if (this.state.deviceMethod === "scanForDevices")
         {
-            state.selectedProxyUuid = state.bacnetProxies[0].uuid;
+            this.state.selectedProxyUuid = this.state.bacnetProxies[0].uuid;
         }
 
-        state.scanning = false;
-
-        return state;
-    },
-    componentDidMount: function () {
+        this.state.scanning = false;
+    }
+    componentDidMount() {
         platformsStore.addChangeListener(this._onPlatformStoresChange);
         devicesStore.addChangeListener(this._onDevicesStoresChange);
-    },
-    componentWillUnmount: function () {
+    }
+    componentWillUnmount() {
         platformsStore.removeChangeListener(this._onPlatformStoresChange);
         devicesStore.removeChangeListener(this._onDevicesStoresChange);
-    },
-    _onPlatformStoresChange: function () {
+    }
+    _onPlatformStoresChange() {
 
         var bacnetProxies = platformsStore.getRunningBacnetProxies(this.state.platform.uuid);
         
@@ -42,8 +50,8 @@ var ConfigureDevices = React.createClass({
         {
             this.setState({ deviceMethod: "addDevicesManually" });
         }
-    },
-    _onDevicesStoresChange: function () {
+    }
+    _onDevicesStoresChange() {
 
         var deviceState = devicesStore.getState();
 
@@ -69,8 +77,8 @@ var ConfigureDevices = React.createClass({
             }
         }
 
-    },
-    _onDeviceMethodChange: function (evt) {
+    }
+    _onDeviceMethodChange(evt) {
 
         var deviceMethod = evt.target.value;
 
@@ -83,15 +91,25 @@ var ConfigureDevices = React.createClass({
             statusIndicatorActionCreators.openStatusIndicator("error", 
                 "Can't scan for devices: A BACNet proxy agent for the platform must be installed and running.", null, "left");
         }
-    },
-    _onProxySelect: function (evt) {
+    }
+    _onProxySelect(evt) {
         var selectedProxyUuid = evt.target.value;
         this.setState({ selectedProxyUuid: selectedProxyUuid });
-    },
-    _onClick: function (evt) {
+    }
+    _onDeviceStart(evt) {
+        this.setState({ deviceStart: evt.target.value });
+    }
+    _onDeviceEnd(evt) {
+        this.setState({ deviceEnd: evt.target.value });
+    }
+    _onAddress(evt) {
+        this.setState({ address: evt.target.value });
+    }
+    _onClick(evt) {
+        devicesActionCreators.scanForDevices(this.state.deviceStart, this.state.deviceEnd, this.state.address);
         this.setState({ scanning: true });
-    },
-    render: function () {
+    }
+    render() {
 
         var view_component;
         var platform = this.state.platform;
@@ -236,8 +254,8 @@ var ConfigureDevices = React.createClass({
                 <div style={scanOptionsStyle}><button style={buttonStyle} onClick={this._onClick}>Go</button></div>
             </div>
         );
-    },
-});
+    }
+};
 
 
 function getStateFromStores() {
@@ -254,4 +272,4 @@ function getStateFromStores() {
     return deviceState;
 }
 
-module.exports = ConfigureDevices;
+export default ConfigureDevices;

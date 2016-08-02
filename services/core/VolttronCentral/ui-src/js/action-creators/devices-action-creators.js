@@ -5,6 +5,8 @@ var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+
 var devicesActionCreators = {
     configureDevices: function (platform, proxies) {
         dispatcher.dispatch({
@@ -19,11 +21,38 @@ var devicesActionCreators = {
             platform: platform
         });
     },
-    scanForDevices: function (platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.SCAN_FOR_DEVICES,
-            platform: platform
-        });
+    scanForDevices: function (low, high, address) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        return new rpc.Exchange({
+            method: 'who_is',
+            authorization: authorization,
+            params: {
+                low_device_id: low,
+                high_device_id: high,
+                target_address: address
+            },
+        }).promise
+            .then(function (result) {
+
+                if (result)
+                {
+                    // dispatcher.dispatch({
+                    //     type: ACTION_TYPES.SCAN_FOR_DEVICES,
+                    //     low_device_id: low,
+                    //     high_device_id: high,
+                    //     target_address: address
+                    // });
+
+                    //TODO: setup socket
+                }
+                
+            })
+            .catch(rpc.Error, function (error) {
+                handle401(error, error.message);
+            });
+        
     },
     cancelScan: function (platform) {
         dispatcher.dispatch({
@@ -84,6 +113,19 @@ var devicesActionCreators = {
     },
 };
 
+function handle401(error, message, highlight, orientation) {
+   if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
+            error: error,
+        });
 
+        platformManagerActionCreators.clearAuthorization();
+    }
+    else if (message)
+    {
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
+    }
+}
 
 module.exports = devicesActionCreators;

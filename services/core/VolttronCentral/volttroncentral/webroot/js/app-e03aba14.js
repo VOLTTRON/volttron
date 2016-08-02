@@ -9,6 +9,10 @@ var _platformManager = require('./components/platform-manager');
 
 var _platformManager2 = _interopRequireDefault(_platformManager);
 
+var _configureDevices = require('./components/configure-devices');
+
+var _configureDevices2 = _interopRequireDefault(_configureDevices);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -30,7 +34,7 @@ var Platform = require('./components/platform');
 
 var Platforms = require('./components/platforms');
 var Devices = require('./components/devices');
-var ConfigureDevices = require('./components/configure-devices');
+
 var PlatformCharts = require('./components/platform-charts');
 var Navigation = require('./components/navigation');
 
@@ -98,7 +102,7 @@ var routes = React.createElement(
         React.createElement(_reactRouter.Route, { path: 'platforms', component: checkAuth(Platforms) }),
         React.createElement(_reactRouter.Route, { path: 'platform/:uuid', component: checkAuth(Platform) }),
         React.createElement(_reactRouter.Route, { path: 'devices', component: checkAuth(Devices) }),
-        React.createElement(_reactRouter.Route, { path: 'configure-devices', component: checkAuth(ConfigureDevices) }),
+        React.createElement(_reactRouter.Route, { path: 'configure-devices', component: checkAuth(_configureDevices2.default) }),
         React.createElement(_reactRouter.Route, { path: 'charts', component: checkAuth(PlatformCharts) })
     ),
     React.createElement(
@@ -133,7 +137,7 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
     }.bind(this));
 });
 
-},{"./components/configure-devices":15,"./components/dashboard":24,"./components/devices":28,"./components/login-form":30,"./components/navigation":32,"./components/page-not-found":34,"./components/platform":38,"./components/platform-charts":36,"./components/platform-manager":37,"./components/platforms":41,"./stores/authorization-store":54,"./stores/devices-store":57,"./stores/platforms-panel-items-store":60,"react":undefined,"react-dom":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/configure-devices":16,"./components/dashboard":25,"./components/devices":29,"./components/login-form":31,"./components/navigation":33,"./components/page-not-found":35,"./components/platform":39,"./components/platform-charts":37,"./components/platform-manager":38,"./components/platforms":42,"./stores/authorization-store":55,"./stores/devices-store":58,"./stores/platforms-panel-items-store":61,"react":undefined,"react-dom":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -159,7 +163,7 @@ var consoleActionCreators = {
 
 module.exports = consoleActionCreators;
 
-},{"../constants/action-types":45,"../dispatcher":46,"../lib/rpc/exchange":48}],3:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47,"../lib/rpc/exchange":49}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -182,13 +186,15 @@ var controlButtonActionCreators = {
 
 module.exports = controlButtonActionCreators;
 
-},{"../constants/action-types":45,"../dispatcher":46}],4:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
+
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
 var devicesActionCreators = {
     configureDevices: function configureDevices(platform, proxies) {
@@ -204,10 +210,32 @@ var devicesActionCreators = {
             platform: platform
         });
     },
-    scanForDevices: function scanForDevices(platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.SCAN_FOR_DEVICES,
-            platform: platform
+    scanForDevices: function scanForDevices(low, high, address) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        return new rpc.Exchange({
+            method: 'who_is',
+            authorization: authorization,
+            params: {
+                low_device_id: low,
+                high_device_id: high,
+                target_address: address
+            }
+        }).promise.then(function (result) {
+
+            if (result) {
+                // dispatcher.dispatch({
+                //     type: ACTION_TYPES.SCAN_FOR_DEVICES,
+                //     low_device_id: low,
+                //     high_device_id: high,
+                //     target_address: address
+                // });
+
+                //TODO: setup socket
+            }
+        }).catch(rpc.Error, function (error) {
+            handle401(error, error.message);
         });
     },
     cancelScan: function cancelScan(platform) {
@@ -269,9 +297,22 @@ var devicesActionCreators = {
     }
 };
 
+function handle401(error, message, highlight, orientation) {
+    if (error.code && error.code === 401 || error.response && error.response.status === 401) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
+            error: error
+        });
+
+        platformManagerActionCreators.clearAuthorization();
+    } else if (message) {
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
+    }
+}
+
 module.exports = devicesActionCreators;
 
-},{"../constants/action-types":45,"../dispatcher":46,"../lib/rpc":49,"../stores/authorization-store":54}],5:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":46,"../dispatcher":47,"../lib/rpc":50,"../stores/authorization-store":55}],5:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -293,7 +334,7 @@ var modalActionCreators = {
 
 module.exports = modalActionCreators;
 
-},{"../constants/action-types":45,"../dispatcher":46}],6:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -645,7 +686,7 @@ var platformActionCreators = {
             }).promise.then(function () {}).catch(rpc.Error, function (error) {
                 handle401(error, "Unable to delete chart: " + error.message);
             });
-        }.find(chartToDelete);
+        }.bind(chartToDelete);
 
         platformActionCreators.handleChartsForUser(doDeleteChart);
     },
@@ -738,7 +779,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = platformActionCreators;
 
-},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":45,"../dispatcher":46,"../lib/rpc":49,"../stores/authorization-store":54,"../stores/platform-chart-store":59,"../stores/platforms-panel-items-store":60,"../stores/platforms-store":62}],7:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":46,"../dispatcher":47,"../lib/rpc":50,"../stores/authorization-store":55,"../stores/platform-chart-store":60,"../stores/platforms-panel-items-store":61,"../stores/platforms-store":63}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -950,7 +991,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = platformChartActionCreators;
 
-},{"../action-creators/platform-action-creators":6,"../action-creators/platforms-panel-action-creators":9,"../action-creators/status-indicator-action-creators":10,"../constants/action-types":45,"../dispatcher":46,"../lib/rpc":49,"../stores/authorization-store":54,"../stores/platform-chart-store":59,"../stores/platforms-panel-items-store":60,"../stores/platforms-store":62}],8:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":6,"../action-creators/platforms-panel-action-creators":9,"../action-creators/status-indicator-action-creators":10,"../constants/action-types":46,"../dispatcher":47,"../lib/rpc":50,"../stores/authorization-store":55,"../stores/platform-chart-store":60,"../stores/platforms-panel-items-store":61,"../stores/platforms-store":63}],8:[function(require,module,exports){
 'use strict';
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
@@ -1159,7 +1200,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = platformManagerActionCreators;
 
-},{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../constants/action-types":45,"../dispatcher":46,"../lib/rpc":49,"../stores/authorization-store":54}],9:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../constants/action-types":46,"../dispatcher":47,"../lib/rpc":50,"../stores/authorization-store":55}],9:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1352,7 +1393,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = platformsPanelActionCreators;
 
-},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":45,"../dispatcher":46,"../lib/rpc":49,"../stores/authorization-store":54,"../stores/platforms-panel-items-store":60}],10:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":46,"../dispatcher":47,"../lib/rpc":50,"../stores/authorization-store":55,"../stores/platforms-panel-items-store":61}],10:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1378,7 +1419,7 @@ var actionStatusCreators = {
 
 module.exports = actionStatusCreators;
 
-},{"../constants/action-types":45,"../dispatcher":46}],11:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47}],11:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1483,7 +1524,57 @@ var AgentRow = React.createClass({
 
 module.exports = AgentRow;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"./remove-agent-form":43,"react":undefined}],12:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"./remove-agent-form":44,"react":undefined}],12:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+	value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var BaseComponent = function (_React$Component) {
+	_inherits(BaseComponent, _React$Component);
+
+	function BaseComponent() {
+		_classCallCheck(this, BaseComponent);
+
+		return _possibleConstructorReturn(this, Object.getPrototypeOf(BaseComponent).apply(this, arguments));
+	}
+
+	_createClass(BaseComponent, [{
+		key: '_bind',
+		value: function _bind() {
+			var _this2 = this;
+
+			for (var _len = arguments.length, methods = Array(_len), _key = 0; _key < _len; _key++) {
+				methods[_key] = arguments[_key];
+			}
+
+			methods.forEach(function (method) {
+				return _this2[method] = _this2[method].bind(_this2);
+			});
+		}
+	}]);
+
+	return BaseComponent;
+}(_react2.default.Component);
+
+exports.default = BaseComponent;
+
+},{"react":undefined}],13:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1746,7 +1837,7 @@ function filterItems(filterTerm, itemsList) {
 
 module.exports = OutsideClick(ComboBox);
 
-},{"react":undefined,"react-click-outside":undefined,"react-dom":undefined}],13:[function(require,module,exports){
+},{"react":undefined,"react-click-outside":undefined,"react-dom":undefined}],14:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1817,7 +1908,7 @@ function getStateFromStores() {
 
 module.exports = Composer;
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":55,"react":undefined}],14:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":56,"react":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2221,336 +2312,402 @@ function parseCsvFile(contents) {
 
 module.exports = ConfigureDevice;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":57,"./confirm-form":17,"babyparse":undefined,"react":undefined,"react-router":undefined}],15:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":58,"./confirm-form":18,"babyparse":undefined,"react":undefined,"react-router":undefined}],16:[function(require,module,exports){
 'use strict';
 
-var React = require('react');
-var Router = require('react-router');
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _baseComponent = require('./base-component');
+
+var _baseComponent2 = _interopRequireDefault(_baseComponent);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var platformsStore = require('../stores/platforms-store');
 var devicesStore = require('../stores/devices-store');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
-var ConfigureDevices = React.createClass({
-    displayName: 'ConfigureDevices',
+var ConfigureDevices = function (_BaseComponent) {
+    _inherits(ConfigureDevices, _BaseComponent);
 
-    getInitialState: function getInitialState() {
-        var state = devicesStore.getState();
+    function ConfigureDevices(props) {
+        _classCallCheck(this, ConfigureDevices);
 
-        state.bacnetProxies = platformsStore.getRunningBacnetProxies(state.platform.uuid);
-        state.deviceMethod = state.bacnetProxies.length ? "scanForDevices" : "addDevicesManually";
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(ConfigureDevices).call(this, props));
 
-        if (state.deviceMethod === "scanForDevices") {
-            state.selectedProxyUuid = state.bacnetProxies[0].uuid;
+        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onClick', '_onDeviceStart', '_onDeviceEnd', '_onAddress');
+
+        _this.state = devicesStore.getState();
+
+        _this.state.bacnetProxies = platformsStore.getRunningBacnetProxies(_this.state.platform.uuid);
+        _this.state.deviceMethod = _this.state.bacnetProxies.length ? "scanForDevices" : "addDevicesManually";
+
+        _this.state.deviceStart = "";
+        _this.state.deviceEnd = "";
+        _this.state.address = "";
+
+        if (_this.state.deviceMethod === "scanForDevices") {
+            _this.state.selectedProxyUuid = _this.state.bacnetProxies[0].uuid;
         }
 
-        state.scanning = false;
+        _this.state.scanning = false;
+        return _this;
+    }
 
-        return state;
-    },
-    componentDidMount: function componentDidMount() {
-        platformsStore.addChangeListener(this._onPlatformStoresChange);
-        devicesStore.addChangeListener(this._onDevicesStoresChange);
-    },
-    componentWillUnmount: function componentWillUnmount() {
-        platformsStore.removeChangeListener(this._onPlatformStoresChange);
-        devicesStore.removeChangeListener(this._onDevicesStoresChange);
-    },
-    _onPlatformStoresChange: function _onPlatformStoresChange() {
-
-        var bacnetProxies = platformsStore.getRunningBacnetProxies(this.state.platform.uuid);
-
-        this.setState({ bacnetProxies: bacnetProxies });
-
-        if (bacnetProxies.length < 1 && this.state.deviceMethod === "scanForDevices") {
-            this.setState({ deviceMethod: "addDevicesManually" });
+    _createClass(ConfigureDevices, [{
+        key: 'componentDidMount',
+        value: function componentDidMount() {
+            platformsStore.addChangeListener(this._onPlatformStoresChange);
+            devicesStore.addChangeListener(this._onDevicesStoresChange);
         }
-    },
-    _onDevicesStoresChange: function _onDevicesStoresChange() {
+    }, {
+        key: 'componentWillUnmount',
+        value: function componentWillUnmount() {
+            platformsStore.removeChangeListener(this._onPlatformStoresChange);
+            devicesStore.removeChangeListener(this._onDevicesStoresChange);
+        }
+    }, {
+        key: '_onPlatformStoresChange',
+        value: function _onPlatformStoresChange() {
 
-        var deviceState = devicesStore.getState();
+            var bacnetProxies = platformsStore.getRunningBacnetProxies(this.state.platform.uuid);
 
-        if (deviceState.platform.uuid !== this.state.platform.uuid) {
-            deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
-            deviceState.deviceMethod = deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually";
+            this.setState({ bacnetProxies: bacnetProxies });
 
-            if (deviceState.deviceMethod === "scanForDevices") {
-                deviceState.selectedProxyUuid = deviceState.bacnetProxies[0].uuid;
-            }
-
-            deviceState.scanning = false;
-
-            this.setState(deviceState);
-        } else {
-            for (key in deviceState) {
-                this.setState({ key: deviceState[key] });
+            if (bacnetProxies.length < 1 && this.state.deviceMethod === "scanForDevices") {
+                this.setState({ deviceMethod: "addDevicesManually" });
             }
         }
-    },
-    _onDeviceMethodChange: function _onDeviceMethodChange(evt) {
+    }, {
+        key: '_onDevicesStoresChange',
+        value: function _onDevicesStoresChange() {
 
-        var deviceMethod = evt.target.value;
+            var deviceState = devicesStore.getState();
 
-        if (this.state.bacnetProxies.length) {
-            this.setState({ deviceMethod: deviceMethod });
-        } else {
-            statusIndicatorActionCreators.openStatusIndicator("error", "Can't scan for devices: A BACNet proxy agent for the platform must be installed and running.", null, "left");
+            if (deviceState.platform.uuid !== this.state.platform.uuid) {
+                deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
+                deviceState.deviceMethod = deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually";
+
+                if (deviceState.deviceMethod === "scanForDevices") {
+                    deviceState.selectedProxyUuid = deviceState.bacnetProxies[0].uuid;
+                }
+
+                deviceState.scanning = false;
+
+                this.setState(deviceState);
+            } else {
+                for (key in deviceState) {
+                    this.setState({ key: deviceState[key] });
+                }
+            }
         }
-    },
-    _onProxySelect: function _onProxySelect(evt) {
-        var selectedProxyUuid = evt.target.value;
-        this.setState({ selectedProxyUuid: selectedProxyUuid });
-    },
-    _onClick: function _onClick(evt) {
-        this.setState({ scanning: true });
-    },
-    render: function render() {
+    }, {
+        key: '_onDeviceMethodChange',
+        value: function _onDeviceMethodChange(evt) {
 
-        var view_component;
-        var platform = this.state.platform;
+            var deviceMethod = evt.target.value;
 
-        var methodSelect = React.createElement(
-            'select',
-            {
-                onChange: this._onDeviceMethodChange,
-                value: this.state.deviceMethod,
-                autoFocus: true,
-                required: true
-            },
-            React.createElement(
-                'option',
-                { value: 'scanForDevices' },
-                'Scan for Devices'
-            ),
-            React.createElement(
-                'option',
-                { value: 'addDevicesManually' },
-                'Add Manually'
-            )
-        );
+            if (this.state.bacnetProxies.length) {
+                this.setState({ deviceMethod: deviceMethod });
+            } else {
+                statusIndicatorActionCreators.openStatusIndicator("error", "Can't scan for devices: A BACNet proxy agent for the platform must be installed and running.", null, "left");
+            }
+        }
+    }, {
+        key: '_onProxySelect',
+        value: function _onProxySelect(evt) {
+            var selectedProxyUuid = evt.target.value;
+            this.setState({ selectedProxyUuid: selectedProxyUuid });
+        }
+    }, {
+        key: '_onDeviceStart',
+        value: function _onDeviceStart(evt) {
+            this.setState({ deviceStart: evt.target.value });
+        }
+    }, {
+        key: '_onDeviceEnd',
+        value: function _onDeviceEnd(evt) {
+            this.setState({ deviceEnd: evt.target.value });
+        }
+    }, {
+        key: '_onAddress',
+        value: function _onAddress(evt) {
+            this.setState({ address: evt.target.value });
+        }
+    }, {
+        key: '_onClick',
+        value: function _onClick(evt) {
+            devicesActionCreators.scanForDevices(this.state.deviceStart, this.state.deviceEnd, this.state.address);
+            this.setState({ scanning: true });
+        }
+    }, {
+        key: 'render',
+        value: function render() {
 
-        var proxySelect;
+            var view_component;
+            var platform = this.state.platform;
 
-        var wideStyle = {
-            width: "100%"
-        };
-
-        var fifthCell = {
-            width: "20px"
-        };
-
-        if (this.state.deviceMethod === "scanForDevices") {
-            var proxies = this.state.bacnetProxies.map(function (proxy) {
-                return React.createElement(
+            var methodSelect = _react2.default.createElement(
+                'select',
+                {
+                    onChange: this._onDeviceMethodChange,
+                    value: this.state.deviceMethod,
+                    autoFocus: true,
+                    required: true
+                },
+                _react2.default.createElement(
                     'option',
-                    { key: proxy.uuid, value: proxy.uuid },
-                    proxy.name
-                );
-            });
-
-            proxySelect = React.createElement(
-                'tr',
-                null,
-                React.createElement(
-                    'td',
-                    { className: 'plain' },
-                    React.createElement(
-                        'b',
-                        null,
-                        'BACNet Proxy Agent: '
-                    )
+                    { value: 'scanForDevices' },
+                    'Scan for Devices'
                 ),
-                React.createElement(
-                    'td',
-                    { className: 'plain',
-                        colSpan: 4 },
-                    React.createElement(
-                        'select',
-                        {
-                            style: wideStyle,
-                            onChange: this._onProxySelect,
-                            value: this.state.selectedProxyUuid,
-                            autoFocus: true,
-                            required: true
-                        },
-                        proxies
-                    )
-                ),
-                React.createElement('td', { className: 'plain', style: fifthCell })
+                _react2.default.createElement(
+                    'option',
+                    { value: 'addDevicesManually' },
+                    'Add Manually'
+                )
             );
-        }
 
-        var buttonStyle = {
-            height: "21px"
-        };
+            var proxySelect;
 
-        var platformNameLength = platform.name.length * 6;
+            var wideStyle = {
+                width: "100%"
+            };
 
-        var platformNameStyle = {
-            width: "25%",
-            minWidth: platformNameLength
-        };
+            var fifthCell = {
+                width: "20px"
+            };
 
-        var deviceRangeStyle = {
-            width: "70px"
-        };
+            if (this.state.deviceMethod === "scanForDevices") {
+                var proxies = this.state.bacnetProxies.map(function (proxy) {
+                    return _react2.default.createElement(
+                        'option',
+                        { key: proxy.uuid, value: proxy.uuid },
+                        proxy.name
+                    );
+                });
 
-        var tdStyle = {
-            minWidth: "120px"
-        };
-
-        var scanOptions = React.createElement(
-            'div',
-            { className: 'detectDevicesContainer' },
-            React.createElement(
-                'div',
-                { className: 'detectDevicesBox' },
-                React.createElement(
-                    'table',
+                proxySelect = _react2.default.createElement(
+                    'tr',
                     null,
-                    React.createElement(
-                        'tbody',
+                    _react2.default.createElement(
+                        'td',
+                        { className: 'plain' },
+                        _react2.default.createElement(
+                            'b',
+                            null,
+                            'BACNet Proxy Agent: '
+                        )
+                    ),
+                    _react2.default.createElement(
+                        'td',
+                        { className: 'plain',
+                            colSpan: 4 },
+                        _react2.default.createElement(
+                            'select',
+                            {
+                                style: wideStyle,
+                                onChange: this._onProxySelect,
+                                value: this.state.selectedProxyUuid,
+                                autoFocus: true,
+                                required: true
+                            },
+                            proxies
+                        )
+                    ),
+                    _react2.default.createElement('td', { className: 'plain', style: fifthCell })
+                );
+            }
+
+            var buttonStyle = {
+                height: "21px"
+            };
+
+            var platformNameLength = platform.name.length * 6;
+
+            var platformNameStyle = {
+                width: "25%",
+                minWidth: platformNameLength
+            };
+
+            var deviceRangeStyle = {
+                width: "70px"
+            };
+
+            var tdStyle = {
+                minWidth: "120px"
+            };
+
+            var scanOptions = _react2.default.createElement(
+                'div',
+                { className: 'detectDevicesContainer' },
+                _react2.default.createElement(
+                    'div',
+                    { className: 'detectDevicesBox' },
+                    _react2.default.createElement(
+                        'table',
                         null,
-                        proxySelect,
-                        React.createElement(
-                            'tr',
+                        _react2.default.createElement(
+                            'tbody',
                             null,
-                            React.createElement(
-                                'td',
-                                { className: 'plain', style: tdStyle },
-                                React.createElement(
-                                    'b',
-                                    null,
-                                    'Device ID Range'
-                                )
-                            ),
-                            React.createElement(
-                                'td',
-                                { className: 'plain' },
-                                'Start:'
-                            ),
-                            React.createElement(
-                                'td',
-                                { className: 'plain' },
-                                React.createElement('input', {
-                                    type: 'number',
-                                    style: deviceRangeStyle,
-                                    onChange: this._onDeviceStart,
-                                    value: this.state.deviceStart })
-                            ),
-                            React.createElement(
-                                'td',
-                                { className: 'plain' },
-                                'End:'
-                            ),
-                            React.createElement(
-                                'td',
-                                { className: 'plain' },
-                                React.createElement('input', {
-                                    type: 'number',
-                                    style: deviceRangeStyle,
-                                    onChange: this._onDeviceEnd,
-                                    value: this.state.deviceEnd })
-                            ),
-                            React.createElement('td', { className: 'plain' })
-                        ),
-                        React.createElement(
-                            'tr',
-                            null,
-                            React.createElement(
-                                'td',
+                            proxySelect,
+                            _react2.default.createElement(
+                                'tr',
                                 null,
-                                React.createElement(
-                                    'b',
+                                _react2.default.createElement(
+                                    'td',
+                                    { className: 'plain', style: tdStyle },
+                                    _react2.default.createElement(
+                                        'b',
+                                        null,
+                                        'Device ID Range'
+                                    )
+                                ),
+                                _react2.default.createElement(
+                                    'td',
+                                    { className: 'plain' },
+                                    'Start:'
+                                ),
+                                _react2.default.createElement(
+                                    'td',
+                                    { className: 'plain' },
+                                    _react2.default.createElement('input', {
+                                        type: 'number',
+                                        style: deviceRangeStyle,
+                                        onChange: this._onDeviceStart,
+                                        value: this.state.deviceStart })
+                                ),
+                                _react2.default.createElement(
+                                    'td',
+                                    { className: 'plain' },
+                                    'End:'
+                                ),
+                                _react2.default.createElement(
+                                    'td',
+                                    { className: 'plain' },
+                                    _react2.default.createElement('input', {
+                                        type: 'number',
+                                        style: deviceRangeStyle,
+                                        onChange: this._onDeviceEnd,
+                                        value: this.state.deviceEnd })
+                                ),
+                                _react2.default.createElement('td', { className: 'plain' })
+                            ),
+                            _react2.default.createElement(
+                                'tr',
+                                null,
+                                _react2.default.createElement(
+                                    'td',
                                     null,
-                                    'Address'
-                                )
-                            ),
-                            React.createElement(
-                                'td',
-                                { className: 'plain',
-                                    colSpan: 4 },
-                                React.createElement('input', {
-                                    style: wideStyle,
-                                    type: 'text',
-                                    onChange: this._onAddress,
-                                    value: this.state.address })
-                            ),
-                            React.createElement('td', { className: 'plain', style: fifthCell })
+                                    _react2.default.createElement(
+                                        'b',
+                                        null,
+                                        'Address'
+                                    )
+                                ),
+                                _react2.default.createElement(
+                                    'td',
+                                    { className: 'plain',
+                                        colSpan: 4 },
+                                    _react2.default.createElement('input', {
+                                        style: wideStyle,
+                                        type: 'text',
+                                        onChange: this._onAddress,
+                                        value: this.state.address })
+                                ),
+                                _react2.default.createElement('td', { className: 'plain', style: fifthCell })
+                            )
                         )
                     )
                 )
-            )
-        );
+            );
 
-        var scanOptionsStyle = {
-            float: "left",
-            marginRight: "10px"
-        };
+            var scanOptionsStyle = {
+                float: "left",
+                marginRight: "10px"
+            };
 
-        var platformNameStyle = {
-            float: "left",
-            width: "100%"
-        };
+            var platformNameStyle = {
+                float: "left",
+                width: "100%"
+            };
 
-        return React.createElement(
-            'div',
-            { className: 'view' },
-            React.createElement(
-                'h2',
-                null,
-                'Install Devices'
-            ),
-            React.createElement(
+            return _react2.default.createElement(
                 'div',
-                { style: platformNameStyle },
-                React.createElement(
+                { className: 'view' },
+                _react2.default.createElement(
+                    'h2',
+                    null,
+                    'Install Devices'
+                ),
+                _react2.default.createElement(
                     'div',
-                    { style: scanOptionsStyle },
-                    React.createElement(
-                        'b',
-                        null,
-                        'Instance: '
+                    { style: platformNameStyle },
+                    _react2.default.createElement(
+                        'div',
+                        { style: scanOptionsStyle },
+                        _react2.default.createElement(
+                            'b',
+                            null,
+                            'Instance: '
+                        )
+                    ),
+                    _react2.default.createElement(
+                        'div',
+                        { style: scanOptionsStyle },
+                        platform.name
                     )
                 ),
-                React.createElement(
+                _react2.default.createElement(
                     'div',
                     { style: scanOptionsStyle },
-                    platform.name
+                    _react2.default.createElement(
+                        'b',
+                        null,
+                        'Method: '
+                    )
+                ),
+                _react2.default.createElement(
+                    'div',
+                    { style: scanOptionsStyle },
+                    methodSelect
+                ),
+                _react2.default.createElement(
+                    'div',
+                    { style: scanOptionsStyle },
+                    scanOptions
+                ),
+                _react2.default.createElement(
+                    'div',
+                    { style: scanOptionsStyle },
+                    _react2.default.createElement(
+                        'button',
+                        { style: buttonStyle, onClick: this._onClick },
+                        'Go'
+                    )
                 )
-            ),
-            React.createElement(
-                'div',
-                { style: scanOptionsStyle },
-                React.createElement(
-                    'b',
-                    null,
-                    'Method: '
-                )
-            ),
-            React.createElement(
-                'div',
-                { style: scanOptionsStyle },
-                methodSelect
-            ),
-            React.createElement(
-                'div',
-                { style: scanOptionsStyle },
-                scanOptions
-            ),
-            React.createElement(
-                'div',
-                { style: scanOptionsStyle },
-                React.createElement(
-                    'button',
-                    { style: buttonStyle, onClick: this._onClick },
-                    'Go'
-                )
-            )
-        );
-    }
-});
+            );
+        }
+    }]);
+
+    return ConfigureDevices;
+}(_baseComponent2.default);
+
+;
 
 function getStateFromStores() {
 
@@ -2565,9 +2722,9 @@ function getStateFromStores() {
     return deviceState;
 }
 
-module.exports = ConfigureDevices;
+exports.default = ConfigureDevices;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":57,"../stores/platforms-store":62,"react":undefined,"react-router":undefined}],16:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":58,"../stores/platforms-store":63,"./base-component":12,"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3277,7 +3434,7 @@ function getRegistryHeader(registryItem) {
 
 module.exports = ConfigureRegistry;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":57,"./confirm-form":17,"./control-button":19,"./control_buttons/cog-select-button":20,"./control_buttons/edit-columns-button":21,"./control_buttons/filter-points-button":22,"react":undefined,"react-router":undefined}],17:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":58,"./confirm-form":18,"./control-button":20,"./control_buttons/cog-select-button":21,"./control_buttons/edit-columns-button":22,"./control_buttons/filter-points-button":23,"react":undefined,"react-router":undefined}],18:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3344,7 +3501,7 @@ var ConfirmForm = React.createClass({
 
 module.exports = ConfirmForm;
 
-},{"../action-creators/modal-action-creators":5,"react":undefined}],18:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"react":undefined}],19:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3367,7 +3524,7 @@ var Console = React.createClass({
 
 module.exports = Console;
 
-},{"./composer":13,"./conversation":23,"react":undefined}],19:[function(require,module,exports){
+},{"./composer":14,"./conversation":24,"react":undefined}],20:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3626,7 +3783,7 @@ var ControlButton = React.createClass({
 
 module.exports = OutsideClick(ControlButton);
 
-},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":56,"react":undefined,"react-click-outside":undefined,"react-router":undefined}],20:[function(require,module,exports){
+},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":57,"react":undefined,"react-click-outside":undefined,"react-router":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3729,7 +3886,7 @@ var CogButton = React.createClass({
 
 module.exports = CogButton;
 
-},{"../../action-creators/control-button-action-creators":3,"../control-button":19,"./edit-columns-button":21,"react":undefined}],21:[function(require,module,exports){
+},{"../../action-creators/control-button-action-creators":3,"../control-button":20,"./edit-columns-button":22,"react":undefined}],22:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3951,7 +4108,7 @@ function getStateFromStores() {
 
 module.exports = EditColumnButton;
 
-},{"../../action-creators/control-button-action-creators":3,"../control-button":19,"react":undefined}],22:[function(require,module,exports){
+},{"../../action-creators/control-button-action-creators":3,"../control-button":20,"react":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4073,7 +4230,7 @@ function getStateFromStores() {
 
 module.exports = FilterPointsButton;
 
-},{"../control-button":19,"react":undefined}],23:[function(require,module,exports){
+},{"../control-button":20,"react":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -4124,7 +4281,7 @@ function getStateFromStores() {
 
 module.exports = Conversation;
 
-},{"../stores/console-store":55,"./exchange":29,"jquery":undefined,"react":undefined,"react-dom":undefined}],24:[function(require,module,exports){
+},{"../stores/console-store":56,"./exchange":30,"jquery":undefined,"react":undefined,"react-dom":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4191,7 +4348,7 @@ function getStateFromStores() {
 
 module.exports = Dashboard;
 
-},{"../stores/platform-chart-store":59,"./platform-chart":35,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
+},{"../stores/platform-chart-store":60,"./platform-chart":36,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4255,7 +4412,7 @@ var RegisterPlatformForm = React.createClass({
 
 module.exports = RegisterPlatformForm;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"react":undefined}],26:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"react":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4593,7 +4750,7 @@ function getStateFromStores() {
 
 module.exports = DetectDevices;
 
-},{"../action-creators/devices-action-creators":4,"../stores/platforms-store":62,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../stores/platforms-store":63,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4696,7 +4853,7 @@ function getStateFromStores(platform) {
 
 module.exports = DevicesFound;
 
-},{"../action-creators/devices-action-creators":4,"../stores/devices-store":57,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../stores/devices-store":58,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4793,7 +4950,7 @@ function getStateFromStores() {
 
 module.exports = Devices;
 
-},{"../stores/devices-store":57,"./configure-device":14,"./configure-registry":16,"./detect-devices":26,"./devices-found":27,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
+},{"../stores/devices-store":58,"./configure-device":15,"./configure-registry":17,"./detect-devices":27,"./devices-found":28,"react":undefined,"react-router":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4867,7 +5024,7 @@ var Exchange = React.createClass({
 
 module.exports = Exchange;
 
-},{"react":undefined}],30:[function(require,module,exports){
+},{"react":undefined}],31:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4928,7 +5085,7 @@ var LoginForm = React.createClass({
 
 module.exports = LoginForm;
 
-},{"../action-creators/platform-manager-action-creators":8,"react":undefined,"react-router":undefined}],31:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":8,"react":undefined,"react-router":undefined}],32:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4958,7 +5115,7 @@ var Modal = React.createClass({
 
 module.exports = Modal;
 
-},{"../action-creators/modal-action-creators":5,"react":undefined}],32:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"react":undefined}],33:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5060,7 +5217,7 @@ function getStateFromStores() {
 
 module.exports = Navigation;
 
-},{"../action-creators/platform-manager-action-creators":8,"../action-creators/platforms-panel-action-creators":9,"../stores/authorization-store":54,"react":undefined,"react-router":undefined}],33:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":8,"../action-creators/platforms-panel-action-creators":9,"../stores/authorization-store":55,"react":undefined,"react-router":undefined}],34:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5354,7 +5511,7 @@ var NewChartForm = React.createClass({
 
 module.exports = NewChartForm;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":59,"../stores/platforms-panel-items-store":60,"./combo-box":12,"react":undefined}],34:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":60,"../stores/platforms-panel-items-store":61,"./combo-box":13,"react":undefined}],35:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5377,7 +5534,7 @@ var PageNotFound = React.createClass({
 
 module.exports = PageNotFound;
 
-},{"react":undefined}],35:[function(require,module,exports){
+},{"react":undefined}],36:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -6031,7 +6188,7 @@ var GraphLineChart = OutsideClick(React.createClass({
 
 module.exports = PlatformChart;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":59,"./confirm-form":17,"./control-button":19,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-click-outside":undefined,"react-dom":undefined,"react-router":undefined}],36:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":60,"./confirm-form":18,"./control-button":20,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-click-outside":undefined,"react-dom":undefined,"react-router":undefined}],37:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -6124,7 +6281,7 @@ var PlatformCharts = React.createClass({
 
 module.exports = PlatformCharts;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-manager-action-creators":8,"../action-creators/status-indicator-action-creators":10,"../stores/platform-chart-store":59,"./new-chart-form":33,"./platform-chart":35,"react":undefined}],37:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-manager-action-creators":8,"../action-creators/status-indicator-action-creators":10,"../stores/platform-chart-store":60,"./new-chart-form":34,"./platform-chart":36,"react":undefined}],38:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -6376,7 +6533,7 @@ function getStateFromStores() {
 
 exports.default = PlatformManager;
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"../stores/authorization-store":54,"../stores/console-store":55,"../stores/modal-store":58,"../stores/platforms-panel-store":61,"../stores/platforms-store":62,"../stores/status-indicator-store":63,"./console":18,"./modal":31,"./navigation":32,"./platforms-panel":40,"./status-indicator":44,"jquery":undefined,"react":undefined,"react-dom":undefined,"react-router":undefined}],38:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"../stores/authorization-store":55,"../stores/console-store":56,"../stores/modal-store":59,"../stores/platforms-panel-store":62,"../stores/platforms-store":63,"../stores/status-indicator-store":64,"./console":19,"./modal":32,"./navigation":33,"./platforms-panel":41,"./status-indicator":45,"jquery":undefined,"react":undefined,"react-dom":undefined,"react-router":undefined}],39:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -6573,7 +6730,7 @@ function getStateFromStores(component) {
 
 module.exports = Platform;
 
-},{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../stores/platforms-store":62,"./agent-row":11,"react":undefined,"react-router":undefined}],39:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../stores/platforms-store":63,"./agent-row":11,"react":undefined,"react-router":undefined}],40:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -6989,7 +7146,7 @@ var PlatformsPanelItem = React.createClass({
 
 module.exports = PlatformsPanelItem;
 
-},{"../action-creators/control-button-action-creators":3,"../action-creators/devices-action-creators":4,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":60,"./control-button":19,"react":undefined,"react-router":undefined}],40:[function(require,module,exports){
+},{"../action-creators/control-button-action-creators":3,"../action-creators/devices-action-creators":4,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":61,"./control-button":20,"react":undefined,"react-router":undefined}],41:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7260,7 +7417,7 @@ var PlatformsPanel = React.createClass({
 
 module.exports = PlatformsPanel;
 
-},{"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":60,"../stores/platforms-panel-store":61,"./control-button":19,"./platforms-panel-item":39,"react":undefined,"react-router":undefined}],41:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":61,"../stores/platforms-panel-store":62,"./control-button":20,"./platforms-panel-item":40,"react":undefined,"react-router":undefined}],42:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7405,7 +7562,7 @@ function getStateFromStores() {
 
 module.exports = Platforms;
 
-},{"../action-creators/modal-action-creators":5,"../components/deregister-platform-confirmation":25,"../components/register-platform-form":42,"../stores/platforms-store":62,"react":undefined,"react-router":undefined}],42:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../components/deregister-platform-confirmation":26,"../components/register-platform-form":43,"../stores/platforms-store":63,"react":undefined,"react-router":undefined}],43:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7839,7 +7996,7 @@ var RegisterPlatformForm = React.createClass({
 
 module.exports = RegisterPlatformForm;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"react":undefined}],43:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"react":undefined}],44:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7909,7 +8066,7 @@ var RemoveAgentForm = React.createClass({
 
 module.exports = RemoveAgentForm;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"react":undefined}],44:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"react":undefined}],45:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -8086,7 +8243,7 @@ var StatusIndicator = React.createClass({
 
 module.exports = StatusIndicator;
 
-},{"../action-creators/status-indicator-action-creators":10,"../stores/status-indicator-store":63,"react":undefined}],45:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":10,"../stores/status-indicator-store":64,"react":undefined}],46:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('keymirror');
@@ -8164,7 +8321,7 @@ module.exports = keyMirror({
     RECEIVE_CHART_TOPICS: null
 });
 
-},{"keymirror":undefined}],46:[function(require,module,exports){
+},{"keymirror":undefined}],47:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -8183,7 +8340,7 @@ dispatcher.dispatch = function (action) {
 
 module.exports = dispatcher;
 
-},{"../constants/action-types":45,"flux":undefined}],47:[function(require,module,exports){
+},{"../constants/action-types":46,"flux":undefined}],48:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -8198,7 +8355,7 @@ RpcError.prototype.constructor = RpcError;
 
 module.exports = RpcError;
 
-},{}],48:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -8282,7 +8439,7 @@ function RpcExchange(request, redactedParams) {
 
 module.exports = RpcExchange;
 
-},{"../../constants/action-types":45,"../../dispatcher":46,"../xhr":52,"./error":47,"node-uuid":undefined}],49:[function(require,module,exports){
+},{"../../constants/action-types":46,"../../dispatcher":47,"../xhr":53,"./error":48,"node-uuid":undefined}],50:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -8290,7 +8447,7 @@ module.exports = {
     Exchange: require('./exchange')
 };
 
-},{"./error":47,"./exchange":48}],50:[function(require,module,exports){
+},{"./error":48,"./exchange":49}],51:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -8317,7 +8474,7 @@ Store.prototype.removeChangeListener = function (callback) {
 
 module.exports = Store;
 
-},{"events":undefined}],51:[function(require,module,exports){
+},{"events":undefined}],52:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -8330,7 +8487,7 @@ XhrError.prototype.constructor = XhrError;
 
 module.exports = XhrError;
 
-},{}],52:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -8338,7 +8495,7 @@ module.exports = {
     Error: require('./error')
 };
 
-},{"./error":51,"./request":53}],53:[function(require,module,exports){
+},{"./error":52,"./request":54}],54:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -8368,7 +8525,7 @@ function XhrRequest(opts) {
 
 module.exports = XhrRequest;
 
-},{"./error":51,"bluebird":undefined,"jquery":undefined}],54:[function(require,module,exports){
+},{"./error":52,"bluebird":undefined,"jquery":undefined}],55:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -8414,7 +8571,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = authorizationStore;
 
-},{"../constants/action-types":45,"../dispatcher":46,"../lib/store":50}],55:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47,"../lib/store":51}],56:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -8506,7 +8663,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = consoleStore;
 
-},{"../constants/action-types":45,"../dispatcher":46,"../lib/store":50,"../stores/authorization-store":54}],56:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47,"../lib/store":51,"../stores/authorization-store":55}],57:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -8574,7 +8731,7 @@ controlButtonStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = controlButtonStore;
 
-},{"../constants/action-types":45,"../dispatcher":46,"../lib/store":50,"../stores/authorization-store":54}],57:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47,"../lib/store":51,"../stores/authorization-store":55}],58:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -8707,7 +8864,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = devicesStore;
 
-},{"../constants/action-types":45,"../dispatcher":46,"../lib/store":50,"../stores/authorization-store":54}],58:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47,"../lib/store":51,"../stores/authorization-store":55}],59:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -8739,7 +8896,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = modalStore;
 
-},{"../constants/action-types":45,"../dispatcher":46,"../lib/store":50}],59:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47,"../lib/store":51}],60:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -9144,7 +9301,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = chartStore;
 
-},{"../constants/action-types":45,"../dispatcher":46,"../lib/store":50,"../stores/authorization-store":54,"./platforms-store.js":62}],60:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47,"../lib/store":51,"../stores/authorization-store":55,"./platforms-store.js":63}],61:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -10060,7 +10217,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = platformsPanelItemsStore;
 
-},{"../constants/action-types":45,"../dispatcher":46,"../lib/store":50,"../stores/platform-chart-store":59}],61:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47,"../lib/store":51,"../stores/platform-chart-store":60}],62:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -10092,7 +10249,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = platformsPanelStore;
 
-},{"../constants/action-types":45,"../dispatcher":46,"../lib/store":50}],62:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47,"../lib/store":51}],63:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -10242,7 +10399,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = platformsStore;
 
-},{"../constants/action-types":45,"../dispatcher":46,"../lib/store":50,"./authorization-store":54}],63:[function(require,module,exports){
+},{"../constants/action-types":46,"../dispatcher":47,"../lib/store":51,"./authorization-store":55}],64:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -10299,4 +10456,4 @@ statusIndicatorStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = statusIndicatorStore;
 
-},{"../constants/action-types":45,"../dispatcher":46,"../lib/store":50}]},{},[1]);
+},{"../constants/action-types":46,"../dispatcher":47,"../lib/store":51}]},{},[1]);
