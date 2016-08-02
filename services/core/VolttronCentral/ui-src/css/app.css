@@ -874,6 +874,14 @@ br + .form__control-help {
     transform: translateY(-2px);
 }
 
+.moveMax {
+    transform: translateY(-8px);
+}
+
+.moveMin {
+    transform: translateY(4px);
+}
+
 .error {
     border: 1px solid #faa;
     background-color: #fee;
@@ -1366,8 +1374,11 @@ a.view__item:hover::before {
     color: #7D7D7D;
 }
 
-.chart-pin {
-    
+.refreshIcon {
+    position: absolute;
+    top: 0px;
+    right: -10px;
+    color: limegreen;
 }
 
 .unpinned-chart {

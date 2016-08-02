@@ -76,6 +76,8 @@ var NewChartForm = React.createClass({
             selectedTopic.refreshInterval = this.state.refreshInterval;
             selectedTopic.chartType = this.state.chartType;
             selectedTopic.path = platformsPanelItemsStore.findTopicInTree(selectedTopic.topic);
+            selectedTopic.max = this.state.max;
+            selectedTopic.min = this.state.min;
 
             if (selectedTopic.path && selectedTopic.path.length > 1)
             {
@@ -95,38 +97,6 @@ var NewChartForm = React.createClass({
         modalActionCreators.closeModal();
     },
     render: function () {
-        var typeOptions;
-
-        switch (this.state.chartType) {
-        case 'line':
-            typeOptions = (
-                <div className="form__control-group">
-                    <label>Y-axis range</label>
-                    <label htmlFor="min">Min:</label>&nbsp;
-                    <input
-                        className="form__control form__control--inline"
-                        type="number"
-                        id="min"
-                        onChange={this._onPropChange}
-                        value={this.state.min}
-                        placeholder="auto"
-                    />&nbsp;
-                    <label htmlFor="max">Max:</label>&nbsp;
-                    <input
-                        className="form__control form__control--inline"
-                        type="number"
-                        id="max"
-                        onChange={this._onPropChange}
-                        value={this.state.max}
-                        placeholder="auto"
-                    /><br />
-                    <span className="form__control-help">
-                        Omit either to determine from data
-                    </span>
-                </div>
-            );
-        }
-
         var topicsSelector;
 
         if (this.state.topics.length)
@@ -194,7 +164,30 @@ var NewChartForm = React.createClass({
                         <option value="cumulativeLine">Cumulative Line</option>
                     </select>
                 </div>
-                {typeOptions}
+                <div className="form__control-group">
+                    <label>Y-axis range</label>
+                    <label htmlFor="min">Min:</label>&nbsp;
+                    <input
+                        className="form__control form__control--inline"
+                        type="number"
+                        id="min"
+                        onChange={this._onPropChange}
+                        value={this.state.min}
+                        placeholder="auto"
+                    />&nbsp;
+                    <label htmlFor="max">Max:</label>&nbsp;
+                    <input
+                        className="form__control form__control--inline"
+                        type="number"
+                        id="max"
+                        onChange={this._onPropChange}
+                        value={this.state.max}
+                        placeholder="auto"
+                    /><br />
+                    <span className="form__control-help">
+                        Omit either to determine from data
+                    </span>
+                </div>
                 <div className="form__actions">
                     <button
                         className="button button--secondary"

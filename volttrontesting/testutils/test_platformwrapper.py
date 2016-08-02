@@ -2,6 +2,7 @@ import gevent
 import pytest
 import time
 
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
 from zmq import curve_keypair
 
 from volttron.platform.vip.agent import Agent, PubSub, Core
@@ -99,18 +100,18 @@ def test_can_ping_pubsub(volttron_instance1):
 
 @pytest.mark.wrapper
 def test_can_call_rpc_method(volttron_instance1):
-    config = dict(agentid="Central Platform", report_status_period=15)
+
     agent_uuid = volttron_instance1.install_agent(
-        agent_dir='services/core/VolttronCentralPlatform',
-        config_file=config,
-        start=True)
+        agent_dir='services/core/VolttronCentralPlatform', start=True)
     assert agent_uuid is not None
     assert volttron_instance1.is_agent_running(agent_uuid)
+    gevent.sleep(1)
 
     agent = volttron_instance1.build_agent()
+    print('PEERLIST: {}'.format(agent.vip.peerlist().get(timeout=4)))
+    agent = volttron_instance1.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
 
-    agent_list = agent.vip.rpc.call('platform.agent',
-                                    method='list_agents').get(timeout=5)
+    agent_list = agent.call('list_agents')
 
     print('The agent list is: {}'.format(agent_list))
     assert agent_list is not None
@@ -131,7 +132,8 @@ def test_can_remove_agent(volttron_instance1):
     assert volttron_instance1.agent_status(agent_uuid) is not None
 
     # Now attempt removal
-    volttron_instance1.remove_agent(agent_uuid)
+    removed = volttron_instance1.remove_agent(agent_uuid)
+    print('REMOVED WAS: {}'.format(removed))
 
     # Confirm that it has been removed.
     assert volttron_instance1.agent_status(agent_uuid) is None
@@ -208,8 +210,8 @@ def test_can_install_listener_on_two_platforms(volttron_instance1,
         agent_dir="examples/ListenerAgent",
         start=True)
     assert auuid2 is not None
-    started2 = volttron_instance2.start_agent(auuid2)
-    print('STARTED: ', started2)
+    assert volttron_instance2.is_agent_running(auuid2)
+    print('STARTED: ', auuid2)
     listening = volttron_instance2.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
                                    prefix='heartbeat/ListenerAgent',
