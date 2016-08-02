@@ -243,10 +243,19 @@ def _install_agent(autostart, agent_dir, config, tag):
 
 
 def _install_vc(autostart):
-    t = ("Enter volttron central admin user name:",)
-    username = prompt_response(t)
-    t = ("Enter volttron central admin password:",)
-    password = prompt_response(t)
+    username = ""
+    while not username:
+        t = ("Enter volttron central admin user name: ",)
+        username = prompt_response(t)
+        if not username:
+            print("ERROR Invalid username")
+    password = ""
+    while not password:
+        t = ("Enter volttron central admin password: ",)
+        password = prompt_response(t)
+        if not password:
+            print("ERROR: Invalid password")
+            
     config = {
         "users": {
             username: {
@@ -404,14 +413,9 @@ def do_vc():
 
 
     prompt = '''
-    In order for external clients to connect to volttron central or the instance
-    itself, the instance must bind to a tcp address.  If testing this can be an
-    internal address such as 127.0.0.1.
-
-    Note: the assumption is that the discovery address for volttron central and
-          the vip address will be the same.  If not one can change the address
-          in the config file after competing this configuration.
-
+In order for external clients to connect to volttron central or the instance
+itself, the instance must bind to a tcp address.  If testing this can be an
+internal address such as 127.0.0.1.
 '''
     print(prompt)
     valid_address = False
@@ -491,6 +495,57 @@ def do_vcp():
     return False, _install_vcp
 
     # TODO Add protecction of vc here.
+#
+#     t = ('Which IP addresses are allowed to discover this instance? '
+#          '[/127.*/] ', None, '/127.*/')
+#     ip_allowed_to_discover = prompt_response(t)
+#     AuthFile().add(AuthEntry(address=external_ip,
+#                              credentials='/CURVE:.*/'))
+#
+# do_vc_autostart = False
+# if is_vc:
+#     t = ('Should volttron central autostart (Y/N)? [Y]: ', y_or_n, 'Y')
+#     do_vc_autostart = prompt_response(t) in y
+#
+# do_platform_autostart = False
+# other_vc_address = None
+# other_vc_port = None
+# if connect_to_vc:
+#     t = ('Should volttron central platform autostart (Y/N)? [Y]: ',
+#          y_or_n, 'Y')
+#     do_platform_autostart = prompt_response(t) in y
+#
+#     if not is_vc:
+#         t = ('Address of the volttron central to connect to? '
+#              '[127.0.0.1]: ',
+#              None, '127.0.0.1')
+#
+#         other_vc_address = prompt_response(t)
+#         should_resolve = True
+#         first = True
+#         t = ('Port of volttron central? [8080]: ', None, '8080')
+#         other_vc_port = prompt_response(t)
+#
+#         while not _resolvable(other_vc_address, other_vc_port) \
+#                 and should_resolve:
+#             print("Couldn't resolve {}:{}".format(other_vc_address,
+#                                                   other_vc_port))
+#             t2 = (
+#                 '\nShould volttron central be resolvable now? [Y]: ',
+#                 y_or_n, 'Y')
+#             if first:
+#                 should_resolve = prompt_response(t2) in ('y', 'Y')
+#                 first = False
+#
+#             if should_resolve:
+#                 t = ('\nAddress of volttron central? []: ',)
+#                 other_vc_address = prompt_response(t)
+#                 t = ('\nPort of volttron central? []: ',)
+#                 other_vc_port = prompt_response(t)
+#
+# external_vip_address = "tcp://{}:{}".format(external_ip,
+#                                             instance_port)
+
 
 def _explain_discoverable():
     discoverability = """
@@ -578,6 +633,53 @@ to stop the instance.
                 # parameter to install.
                 function[1](function[0])
         _shutdown_platform()
+
+
+    # instance_port = prompt_response(t)
+    #
+    #
+    # bind_web_address = None
+    # if is_vc:
+    #     bind_web_address = "http://{}:{}".format(external_ip,
+    #                                              vc_port)
+    #
+    # vc_web_address = None
+    # if connect_to_vc and not is_vc:
+    #     vc_web_address = "http://{}:{}".format(other_vc_address,
+    #                                            other_vc_port)
+    #
+    # with open(os.path.join(volttron_home, 'config'), 'w') as fout:
+    #     fout.write('[volttron]\n')
+    #     fout.write('vip-address={}\n'.format(external_vip_address))
+    #     if is_vc:
+    #         fout.write('bind-web-address={}\n'.format(bind_web_address))
+    #     if connect_to_vc and not is_vc:
+    #         fout.write('volttron-central-address={}|{}\n'.format(
+    #             instance_name,
+    #             vc_web_address
+    #         ))
+    #
+    # _start_platform()
+    #
+    # if is_vc:
+    #     _install_vc(do_vc_autostart)
+    #
+    # if connect_to_vc:
+    #     print('Installing volttron central platform (VCP)')
+    #     _install_agent(do_platform_autostart,
+    #                    'services/core/VolttronCentralPlatform',
+    #                    {"agentid": "volttroncentralplatform"}, "vcp")
+    #
+    # t = ('\nShould install SQLITE platform historian? [N]: ', y_or_n, n)
+    # install_platform_historian = prompt_response(t) in y
+    #
+    # historian_autostart = False
+    # if install_platform_historian:
+    #     t = ('\nShould historian agent autostart(Y/N)? [Y]: ', y_or_n, 'Y')
+    #     historian_autostart = prompt_response(t) in y
+    #     _install_platform_historian(historian_autostart)
+    #
+    # _shutdown_platform()
     print('Finished configuration\n')
     print('You can now start you volttron instance.\n')
     print('If you need to change the instance configuration you can edit')
