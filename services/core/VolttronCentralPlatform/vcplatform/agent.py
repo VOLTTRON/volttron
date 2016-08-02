@@ -245,10 +245,18 @@ class VolttronCentralPlatform(Agent):
         :return:
         """
 
-        assert self._agent_started, "Function cannot be called before onstart signal"
+        assert self._agent_started, "cannot be called before onstart signal"
 
         if self._volttron_central_connection:
-            return self._volttron_central_connection
+            # if connected return the connection.
+            if self._volttron_central_connection.is_connected(5):
+                _log.debug("Connection has been established.")
+                return self._volttron_central_connection
+
+            _log.debug("Resetting connection as the peer wasn't responding.")
+            # reset the connection so we can try it again below.
+            self._volttron_central_connection.kill()
+            self._volttron_central_connection = None
 
         # First check to see if there is a peer with a volttron.central
         # identity, if there is use it as the manager of the platform.
@@ -264,8 +272,8 @@ class VolttronCentralPlatform(Agent):
         # looked up the address yet, then look up and set the address from
         # volttron central discovery.
         if self._volttron_central_http_address is not None and \
-                self._volttron_central_tcp_address is None and \
-                self._volttron_central_serverkey is None:
+                        self._volttron_central_tcp_address is None and \
+                        self._volttron_central_serverkey is None:
 
             _log.debug('Using discovery to lookup tcp connection')
             response = requests.get(
@@ -279,34 +287,52 @@ class VolttronCentralPlatform(Agent):
 
         # First see if we are able to connect via tcp with the serverkey.
         if self._volttron_central_tcp_address is not None and \
-                self._volttron_central_serverkey is not None:
+                        self._volttron_central_serverkey is not None:
             _log.debug('Connecting to volttron central using tcp.')
-            self._volttron_central_connection = Connection(
-                address=self._volttron_central_tcp_address,
-                peer=VOLTTRON_CENTRAL,
-                serverkey=self._volttron_central_serverkey,
-                publickey=self.core.publickey,
-                secretkey=self.core.secretkey
-            )
+            try:
+                self._volttron_central_connection = Connection(
+                    address=self._volttron_central_tcp_address,
+                    peer=VOLTTRON_CENTRAL,
+                    serverkey=self._volttron_central_serverkey,
+                    publickey=self.core.publickey,
+                    secretkey=self.core.secretkey
+                )
 
-            if self._volttron_central_publickey:
-                # Add the vcpublickey to the auth file.
-                entry = AuthEntry(
-                    credentials="CURVE:{}".format(
-                        self._volttron_central_publickey),
-                    capabilities=['manager'])
-                authfile = AuthFile()
-                authfile.add(entry)
+                if not self._volttron_central_connection.is_connected(5):
+                    raise ValueError("Unable to reach via tcp volttron.central")
 
-            return self._volttron_central_connection
+                #TODO Only add a single time for this address.
+                if self._volttron_central_publickey:
+                    # Add the vcpublickey to the auth file.
+                    entry = AuthEntry(
+                        credentials="CURVE:{}".format(
+                            self._volttron_central_publickey),
+                        capabilities=['manager'])
+                    authfile = AuthFile()
+                    authfile.add(entry)
+
+                return self._volttron_central_connection
+
+            except Unreachable:
+                _log.error("Couldn't connect to volttron.central. {}".format(
+                    self._volttron_central_tcp_address
+                ))
+                raise
 
         # Next see if we have a valid ipc address (Not Local though)
         if self._volttron_central_ipc_address is not None:
-            self._volttron_central_connection = Connection(
-                address=self._volttron_central_ipc_address,
-                peer=VOLTTRON_CENTRAL
-            )
-            return self._volttron_central_connection
+            try:
+                self._volttron_central_connection = Connection(
+                    address=self._volttron_central_ipc_address,
+                    peer=VOLTTRON_CENTRAL
+                )
+
+                return self._volttron_central_connection
+            except Unreachable:
+                _log.error("Couldn't connect to volttron.central. {}".format(
+                    self._volttron_central_ipc_address
+                ))
+                raise
 
     @Core.receiver('onstart')
     def _started(self, sender, **kwargs):
