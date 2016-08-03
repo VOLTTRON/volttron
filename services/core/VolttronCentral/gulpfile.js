@@ -84,6 +84,7 @@ function vendor() {
             'react-dom/dist/react-dom',
             'react-router/umd/ReactRouter',
             'history/umd/history',
+            'socket.io/lib/socket'
         ],
     })
         .require([
@@ -102,6 +103,7 @@ function vendor() {
             { file: 'react-dom/dist/react-dom', expose: 'react-dom' },
             { file: 'react-router/umd/ReactRouter', expose: 'react-router' },
             { file: 'history/umd/history', expose: 'history' },
+            { file: 'socket.io/lib/socket', expose: 'socket' },
         ])
         .transform(function (file) {
             if (file.match('/d3/d3.')) {
