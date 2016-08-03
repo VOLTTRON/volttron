@@ -114,7 +114,7 @@ from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 from zmq.utils import jsonapi
 from .registry import PlatformRegistry
 
-__version__ = "3.5.3"
+__version__ = "3.6"
 
 _log = logging.getLogger(__name__)
 
