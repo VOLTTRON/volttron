@@ -5,11 +5,11 @@ How to integrate Matlab application with VOLTTRON to send control commands to de
 Overview:
 =========
 
-    Matlab-Volttron integration allows Matlab application to receive
+    Matlab-VOLTTRON integration allows Matlab application to receive
     data from devices and send control commands to change points on
     those devices.
 
-    DrivenMatlabAgent in Volttron allows this interaction by using zmq
+    DrivenMatlabAgent in VOLTTRON allows this interaction by using zmq
     sockets to communicate with Matlab application.
 
 Data Flow Architecture:
@@ -60,7 +60,7 @@ Assumptions
 Configuration
 -------------
 
-1. Copy applications/pnnl/DrivenMatlabAgent/config\_waterheater.
+1. Copy example configuration file applications/pnnl/DrivenMatlabAgent/config\_waterheater to volltron/config.
 
 2. Change config\_url and data\_url in the new config file to the
    ipaddress of machine running Matlab. Keep the same port numbers.
@@ -80,18 +80,24 @@ Configuration
 Steps to test integration:
 --------------------------
 
-1. Install and run VOLTTRON on same or different system than the one
+1. Install VOLTTRON on a VM or different system than the one
    running Matlab.
 
     Follow link: http://volttron.readthedocs.io/en/develop/install.html
 
-1. Run Actuator
+2. Clone VOLTTRON applications under volttron/applications.
 
-2. Run device drive agent
+    Clone link: https://github.com/VOLTTRON/volttron-applications
 
-3. Run DrivenMatlabAgent with the new config file.
+3. Start VOLTTRON
 
-4. Run example.m
+4. Run Actuator
+
+5. Run device driver agent
+
+6. Run DrivenMatlabAgent with the new config file.
+
+7. Run example.m
 
 Now whenever device driver publish state of devices listed in config
 file of DrivenMatlabAgent, DrivenMatlabAgent will send it to Matlab
