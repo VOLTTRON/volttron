@@ -1,0 +1,8 @@
+export SOURCE=services/core/MasterDriverAgent
+export CONFIG=demo/master-driver/master-driver.agent
+export TAG=demo-driver
+
+./scripts/core/make-agent.sh 
+
+# To set the agent to autostart with the platform, pass "enable" 
+# to make-agent.sh: ./scripts/core/make-agent.sh enable

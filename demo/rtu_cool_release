@@ -1,0 +1,12 @@
+export SOURCE=demo/test-deploy
+export CONFIG=demo/modbus_configs/m2000_configs/m2000_clg_release.config 
+export TAG=release_clg
+
+./scripts/core/make-agent.sh 
+sleep 1
+volttron-ctl stop --tag release_clg
+volttron-ctl remove --tag release_clg
+volttron-ctl clear
+volttron-ctl status
+# To set the agent to autostart with the platform, pass "enable" 
+# to make-agent.sh: ./scripts/core/make-agent.sh enable
