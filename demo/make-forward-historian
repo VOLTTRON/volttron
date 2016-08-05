@@ -1,0 +1,12 @@
+# The following need to be modified to customize for your specific deployment
+
+# The directory where the agent is stored.  Note the current assumes that you
+# are executing this script from the root volttron directory.
+export SOURCE=services/core/ForwardHistorian/ 
+export CONFIG=demo/historian/forward-historian.config 
+export TAG=forwarder 
+
+./scripts/core/make-agent.sh 
+
+# To set the agent to autostart with the platform, pass "enable" 
+# to make-agent.sh: ./scripts/core/make-agent.sh enable

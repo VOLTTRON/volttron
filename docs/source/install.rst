@@ -27,19 +27,13 @@ On **Arch Linux**, the following command will install the dependencies:
 Source Code
 -----------
 
-To work with the latest devlopment code clone from the develop branch by using
-the following git command.
+To work with the tech workshop dode clone from the volttron-3rd-tech-workshop
+branch by using the following git command.
 
 .. code-block:: bash
 
-    git clone https://github.com/VOLTTRON/volttron/ -b develop
+    git clone https://github.com/VOLTTRON/volttron/ -b releases/volttron-3rd-tech-workshop
 
-To work with the latest stable code clone the master branch using the following
-git command.
-
-.. code-block:: bash
-
-    git clone https://github.com/VOLTTRON/volttron/
 
 Bootstrap
 ---------

@@ -1,0 +1,8 @@
+export SOURCE=applications/pnnl/test-deploy
+export CONFIG=config/test.config
+export TAG=test
+
+./scripts/core/make-agent.sh 
+
+# To set the agent to autostart with the platform, pass "enable" 
+# to make-agent.sh: ./scripts/core/make-agent.sh enable

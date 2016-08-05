@@ -1,0 +1,6 @@
+{
+    "agentid": "master_driver",
+    "driver_config_list": [
+        "/home/volttron/volttron/demo/modbus_configs/m2000_rtu.config"
+    ]
+}

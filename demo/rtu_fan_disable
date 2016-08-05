@@ -1,0 +1,13 @@
+export SOURCE=demo/test-deploy
+export CONFIG=demo/modbus_configs/m2000_configs/m2000_fan_disable.config
+export TAG=disable_fan
+
+./scripts/core/make-agent.sh 
+
+sleep 1
+volttron-ctl stop --tag disable_fan
+volttron-ctl remove --tag disable_fan
+volttron-ctl clear
+volttron-ctl status
+# To set the agent to autostart with the platform, pass "enable" 
+# to make-agent.sh: ./scripts/core/make-agent.sh enable
