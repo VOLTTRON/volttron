@@ -546,7 +546,6 @@ def start_volttron_process(opts):
     # Main loops
     def router(stop):
         try:
-            _log.warn("PUBLICKEY: {}".format(publickey))
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, publickey=publickey,
                    default_user_id=b'vip.service', monitor=opts.monitor,
