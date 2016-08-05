@@ -205,6 +205,9 @@ class VolttronCentralPlatform(Agent):
     def _periodic_attempt_registration(self):
         try:
             vc = self._vc_connection()
+            if vc is None:
+                _log.debug("vc not connected")
+                return
             if vc.is_connected():
                 if not self._is_registering and not self._is_registered and \
                         not self._was_unmanaged:
