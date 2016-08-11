@@ -4,11 +4,8 @@ var React = require('react');
 var Router = require('react-router');
 
 var AgentRow = require('./agent-row');
-var Chart = require('./chart');
-var EditChartForm = require('./edit-chart-form');
-var ConfirmForm = require('./confirm-form');
-var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformsStore = require('../stores/platforms-store');
 
 var Platform = React.createClass({
@@ -21,28 +18,9 @@ var Platform = React.createClass({
     },
     componentWillUnmount: function () {
         platformsStore.removeChangeListener(this._onStoresChange);
-        if (this.state.error) {
-            platformActionCreators.clearPlatformError(this.state.platform);
-        }
     },
     _onStoresChange: function () {
         this.setState(getStateFromStores(this));
-    },
-    _onEditChartClick: function (platform, chart) {
-        modalActionCreators.openModal(<EditChartForm platform={platform} chart={chart} />);
-    },
-    _onDeleteChartClick: function (platform, chart) {
-        modalActionCreators.openModal(
-            <ConfirmForm
-                promptTitle="Delete chart"
-                promptText={'Delete ' + chart.type + ' chart for ' + chart.topic + '?'}
-                confirmText="Delete"
-                onConfirm={platformActionCreators.deleteChart.bind(null, platform, chart)}
-            />
-        );
-    },
-    _onAddChartClick: function (platform) {
-        modalActionCreators.openModal(<EditChartForm platform={platform} />);
     },
     _onFileChange: function (e) {
         if (!e.target.files.length) { return; }
@@ -87,41 +65,8 @@ var Platform = React.createClass({
             );
         }
 
-        var charts;
         var agents;
-
-        if (!platform.charts) {
-            charts = (
-                <p>Loading charts...</p>
-            );
-        } else {
-            charts = platform.charts.map(function (chart) {
-                var key = [
-                    platform.uuid,
-                    chart.topic,
-                    chart.type,
-                ].join('::');
-
-                return (
-                    <div key={key} className="view__item view__item--tile chart">
-                        <h4 className="chart__title">{chart.topic}</h4>
-                        <Chart
-                            platform={platform}
-                            chart={chart}
-                        />
-                        <div className="chart__actions">
-                            <a onClick={this._onEditChartClick.bind(this, platform, chart)}>
-                                Edit
-                            </a>
-                            <a onClick={this._onDeleteChartClick.bind(this, platform, chart)}>
-                                Delete
-                            </a>
-                        </div>
-                    </div>
-                );
-            }, this);
-        }
-
+        
         if (!platform.agents) {
             agents = (
                 <p>Loading agents...</p>
@@ -135,7 +80,7 @@ var Platform = React.createClass({
                 <table>
                     <thead>
                         <tr>
-                            <th>Agent</th>
+                            <th>Name</th>
                             <th>UUID</th>
                             <th>Status</th>
                             <th>Action</th>
@@ -163,27 +108,20 @@ var Platform = React.createClass({
         }
 
         return (
-            <div className="view">
-                {this.state.error && (
-                    <div className="view__error error">{this.state.error}</div>
-                )}
+            <div className="platform-view">
                 <h2>
                     <Router.Link to="platforms">Platforms</Router.Link>
                     &nbsp;/&nbsp;
                     {platform.name} ({platform.uuid})
                 </h2>
-                <h3>Charts</h3>
-                {charts}
-                <div>
-                    <button
-                        className="button"
-                        onClick={this._onAddChartClick.bind(null, this.state.platform)}
-                    >
-                        Add chart
-                    </button>
-                </div>
+
+                
+                <br/>
+                <br/>
                 <h3>Agents</h3>
-                {agents}
+                <div className="agents-container">
+                    {agents}
+                </div>
                 <h3>Install agents</h3>
                 <input type="file" multiple onChange={this._onFileChange} />
             </div>
@@ -192,9 +130,9 @@ var Platform = React.createClass({
 });
 
 function getStateFromStores(component) {
+
     return {
-        platform: platformsStore.getPlatform(component.getParams().uuid),
-        error: platformsStore.getLastError(component.getParams().uuid),
+        platform: platformsStore.getPlatform(component.getParams().uuid)
     };
 }
 

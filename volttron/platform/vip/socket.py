@@ -84,6 +84,8 @@ from zmq.utils import z85
 
 __all__ = ['Address', 'ProtocolError', 'Message', 'nonblocking']
 
+BASE64_ENCODED_CURVE_KEY_LEN = 43
+
 
 @contextmanager
 def nonblocking(sock):
@@ -520,7 +522,7 @@ class _Socket(object):
         '''Extended zmq.Socket.bind() to include options in addr.'''
         if not isinstance(addr, Address):
             addr = Address(addr)
-        addr.bind(self, super(_Socket, self).bind) 
+        addr.bind(self, super(_Socket, self).bind)
 
     def connect(self, addr):
         '''Extended zmq.Socket.connect() to include options in addr.'''

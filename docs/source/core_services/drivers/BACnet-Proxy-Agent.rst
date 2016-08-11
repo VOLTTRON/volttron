@@ -1,3 +1,5 @@
+.. _BACnet-Proxy-Agent:
+
 ==================
 BACnet Proxy Agent
 ==================
@@ -21,7 +23,6 @@ The agent configuration sets up the virtual BACnet device.
 .. code-block:: json
 
     {
-        "vip_identity": "platform.bacnet_proxy",
         "device_address": "10.0.2.15",
         "max_apdu_length": 1024,
         "object_id": 599,
@@ -29,11 +30,6 @@ The agent configuration sets up the virtual BACnet device.
         "vendor_id": 15,
         "segmentation_supported": "segmentedBoth"
     }
-
--  **vip_identity** - The VIP identity of the agent. Defaults to
-   *platform.bacnet_proxy*. This should only be changed if multiple
-   Proxies need to be run for communication with multiple BACnet
-   networks. See `Communicating With Multiple BACnet Networks`_.
 
 BACnet device settings
 **********************
@@ -128,12 +124,13 @@ each BACnet network and will need a different VIP identity specified.
 When configuring drivers you will need to specify which proxy to use by
 specifying the VIP identity.
 
+TODO: Add link to docs showing how to specify the VIP IDENTITY when installing an agent.
+
 For example a proxy connected to the default BACnet network
 
 .. code-block:: json
 
     {
-        "vip_identity": "platform.bacnet_proxy_1",
         "device_address": "192.168.1.2/24"
     }
 
@@ -142,7 +139,6 @@ and another on port 47809
 .. code-block:: json
 
     {
-        "vip_identity": "platform.bacnet_proxy_2",
         "device_address": "192.168.1.2/24:47809"
     }
 
@@ -152,7 +148,7 @@ a device one the first network
 
     {
         "driver_config": {"device_address": "1002:12",
-                          "proxy_address": "platform.bacnet_proxy_1" },
+                          "proxy_address": "platform.bacnet_proxy_47808" },
         "campus": "campus",
         "building": "building",
         "unit": "bacnet1",
@@ -169,7 +165,7 @@ and a device on the second network
 
     {
         "driver_config": {"device_address": "12000:5",
-                          "proxy_address": "platform.bacnet_proxy_2" },
+                          "proxy_address": "platform.bacnet_proxy_47809" },
         "campus": "campus",
         "building": "building",
         "unit": "bacnet2",

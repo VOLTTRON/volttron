@@ -1,65 +1,78 @@
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+
+# Copyright (c) 2015, Battelle Memorial Institute
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation
+# are those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD
+# Project.
+#
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization that
+# has cooperated in the development of these materials, makes any
+# warranty, express or implied, or assumes any legal liability or
+# responsibility for the accuracy, completeness, or usefulness or any
+# information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does not
+# necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+# }}}
+
+from __future__ import print_function
+
 """
-Copyright (c) 2015, Battelle Memorial Institute
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official
-policies, either expressed or implied, of the FreeBSD Project.
+Pytest test cases for testing actuator agent using pubsub calls. Tests 3.0
+actuator agent with both 2.0 and 3.0 publish agents
 """
+
 from datetime import datetime, timedelta
 
 import gevent
 import gevent.subprocess as subprocess
 import pytest
+from dateutil.tz import tzutc
 from gevent.subprocess import Popen
 from mock import MagicMock
 from volttron.platform.agent import PublishMixin
-from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
-
-'''
-This material was prepared as an account of work sponsored by an
-agency of the United States Government.  Neither the United States
-Government nor the United States Department of Energy, nor Battelle,
-nor any of their employees, nor any jurisdiction or organization
-that has cooperated in the development of these materials, makes
-any warranty, express or implied, or assumes any legal liability
-or responsibility for the accuracy, completeness, or usefulness or
-any information, apparatus, product, software, or process disclosed,
-or represents that its use would not infringe privately owned rights.
-
-Reference herein to any specific commercial product, process, or
-service by trade name, trademark, manufacturer, or otherwise does
-not necessarily constitute or imply its endorsement, recommendation,
-r favoring by the United States Government or any agency thereof,
-or Battelle Memorial Institute. The views and opinions of authors
-expressed herein do not necessarily state or reflect those of the
-United States Government or any agency thereof.
-
-PACIFIC NORTHWEST NATIONAL LABORATORY
-operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-under Contract DE-AC05-76RL01830
-'''
+from volttron.platform.messaging import topics
 
 FAILURE = 'FAILURE'
 SUCCESS = 'SUCCESS'
@@ -73,6 +86,19 @@ publish_agent_v2 = None
 
 @pytest.fixture(scope="function")
 def cancel_schedules(request, publish_agent):
+    """
+    Fixture used to clean up after every test case.
+    Fixture used to clean up after every test case. Cancels any active
+    schedules used for a test case so that the same device and time slot
+    can
+    be used for the next test case
+    :param request: pytest request object
+    :param publish_agent: instance Agent class for doing the rpc calls
+    :return: Array object that the test methods populates with list of
+    tasks
+    that needs to be cancelled after test. Will contain list of dictionary
+    objects of the format ({'agentid': agentid, 'taskid': taskid})
+    """
     cleanup_parameters = []
 
     def cleanup():
@@ -89,7 +115,7 @@ def cancel_schedules(request, publish_agent):
             # sleep so that the message is sent to pubsub
             # before next test monitors callback method calls
             gevent.sleep(1)
-            print ("result of cancel ", result)
+            print("result of cancel ", result)
 
     request.addfinalizer(cleanup)
     return cleanup_parameters
@@ -97,6 +123,15 @@ def cancel_schedules(request, publish_agent):
 
 @pytest.fixture(scope="function")
 def revert_devices(request, publish_agent):
+    """
+    Cleanup method to revert points on device after test run
+    :param request: pytest request object
+    :param publish_agent: instance Agent class for doing the rpc calls
+    :return: Array object that the test methods populates with list of
+    points
+    that needs to be reverted after test. Will contain list of dictionary
+    objects of the format ({'agentid': agentid, 'device': point_to_revert})
+    """
     cleanup_parameters = []
 
     def cleanup():
@@ -122,22 +157,34 @@ def revert_devices(request, publish_agent):
 # Repeat test for volttron 2.0 agent and volttron 3.0 agents
 @pytest.fixture(scope="module",
                 params=['volttron_2', 'volttron_3'])
-def publish_agent(request, volttron_instance1):
+def publish_agent(request, volttron_instance):
+    """
+    Fixture used for setting up the environment.
+    1. Creates fake driver configs
+    2. Starts the master driver agent with the created fake driver agents
+    3. Starts the actuator agent
+    4. Creates an instance Agent class for publishing and returns it
+
+    :param request: pytest request object
+    :param volttron_instance: instance of volttron in which test cases
+    are run
+    :return: an instance of fake agent used for publishing
+    """
     global actuator_uuid, publish_agent_v2
     # Create master driver config and 4 fake devices each with 6 points
     process = Popen(['python', 'config_builder.py', '--count=4',
                      '--publish-only-depth-all',
                      'fake', 'fake_unit_testing.csv', 'null'],
-                    env=volttron_instance1.env,
+                    env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
-    print result
+    print(result)
     assert result == 0
 
     # Start the master driver agent which would intern start the fake driver
     # using the configs created above
-    master_uuid = volttron_instance1.install_agent(
+    master_uuid = volttron_instance.install_agent(
         agent_dir="services/core/MasterDriverAgent",
         config_file="scripts/scalability-testing/configs/master-driver.agent",
         start=True)
@@ -147,20 +194,20 @@ def publish_agent(request, volttron_instance1):
     # Start the actuator agent through which publish agent should communicate
     # to fake device. Start the master driver agent which would intern start
     # the fake driver using the configs created above
-    actuator_uuid = volttron_instance1.install_agent(
+    actuator_uuid = volttron_instance.install_agent(
         agent_dir="services/core/ActuatorAgent",
         config_file="services/core/ActuatorAgent/tests/actuator.config",
         start=True)
     print("agent id: ", actuator_uuid)
 
-    listener_uuid = volttron_instance1.install_agent(
+    listener_uuid = volttron_instance.install_agent(
         agent_dir="examples/ListenerAgent",
         config_file="examples/ListenerAgent/config",
         start=True)
     print("agent id: ", listener_uuid)
 
     # 3: Start a fake agent to publish to message bus
-    fake_publish_agent = volttron_instance1.build_agent()
+    fake_publish_agent = volttron_instance.build_agent()
     # Mock callback methods attach actuate method to fake_publish_agent as
     # it needs to be a class method for the call back to work
     # fake_publish_agent.callback =
@@ -174,7 +221,7 @@ def publish_agent(request, volttron_instance1):
         callback=fake_publish_agent.callback).get()
     if request.param == 'volttron_2':
         publish_agent_v2 = PublishMixin(
-            volttron_instance1.opts['publish_address'])
+            volttron_instance.opts['publish_address'])
     else:
         publish_agent_v2 = None
 
@@ -182,8 +229,11 @@ def publish_agent(request, volttron_instance1):
     # and the fake agent that published to message bus
     def stop_agent():
         print("In teardown method of module")
-        volttron_instance1.stop_agent(actuator_uuid)
-        volttron_instance1.stop_agent(master_uuid)
+        volttron_instance.stop_agent(actuator_uuid)
+        volttron_instance.stop_agent(master_uuid)
+        volttron_instance.remove_agent(actuator_uuid)
+        volttron_instance.remove_agent(master_uuid)
+        gevent.sleep(2)
         fake_publish_agent.core.stop()
 
     request.addfinalizer(stop_agent)
@@ -191,6 +241,13 @@ def publish_agent(request, volttron_instance1):
 
 
 def publish(publish_agent, topic, header, message):
+    """
+
+    :param publish_agent: 3.0 agent to use for publishing
+    :param topic: topic to publish to
+    :param header: header to publish
+    :param message: message to publish
+    """
     global publish_agent_v2
     if publish_agent_v2 is None:
         publish_agent.vip.pubsub.publish('pubsub',
@@ -222,10 +279,10 @@ def test_schedule_response(publish_agent):
     returns an instance of Agent object used for publishing
     """
     # Mock callback methods
-    print ("\n**** test_schedule_response ****")
+    print("\n**** test_schedule_response ****")
     global publish_agent_v2
-    start = str(datetime.now() + timedelta(seconds=10))
-    end = str(datetime.now() + timedelta(seconds=20))
+    start = str(datetime.now(tz=tzutc()) + timedelta(seconds=10))
+    end = str(datetime.now(tz=tzutc()) + timedelta(seconds=20))
     header = {
         'type': 'NEW_SCHEDULE',
         'requesterID': TEST_AGENT,  # The name of the requesting agent.
@@ -241,10 +298,10 @@ def test_schedule_response(publish_agent):
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
     assert publish_agent.callback.call_count == 1
-    print ('call args ', publish_agent.callback.call_args[0][1])
+    print('call args ', publish_agent.callback.call_args[0][1])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
@@ -264,12 +321,12 @@ def test_schedule_response(publish_agent):
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    print ("after cancel request")
+    print("after cancel request")
     assert publish_agent.callback.call_count == 1
-    print (publish_agent.callback.call_args[0])
+    print(publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['taskID'] == 'task_schedule_response'
@@ -279,26 +336,30 @@ def test_schedule_response(publish_agent):
 
 
 @pytest.mark.actuator_pubsub
-def test_schedule_announce(publish_agent, volttron_instance1):
+def test_schedule_announce(publish_agent, volttron_instance):
     """ Tests the schedule announcements of actuator.
 
     Waits for two announcements and checks if the right parameters
     are sent to call back method.
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
-    :param volttron_instance1: Volttron instance on which test is run
+    :param volttron_instance: Volttron instance on which test is run
     """
-    print ("\n**** test_schedule_announce ****")
+    print("\n**** test_schedule_announce ****")
     global actuator_uuid, publish_agent_v2
 
     if publish_agent_v2 is not None:
         pytest.skip('No difference between 2.0 and 3.0 agent. Skip for 2.0')
+
+    alternate_actuator_vip_id = "my_actuator"
     # Use a actuator that publishes frequently
-    volttron_instance1.stop_agent(actuator_uuid)
-    actuator_uuid = volttron_instance1.install_agent(
+    print("Stopping original actuator")
+    volttron_instance.stop_agent(actuator_uuid)
+    gevent.sleep(2)
+    my_actuator_uuid = volttron_instance.install_agent(
         agent_dir="services/core/ActuatorAgent",
         config_file="services/core/ActuatorAgent/tests/actuator2.config",
-        start=True)
+        start=True, vip_identity=alternate_actuator_vip_id)
     try:
         # reset mock to ignore any previous callback
         publish_agent.callback.reset_mock()
@@ -317,7 +378,7 @@ def test_schedule_announce(publish_agent, volttron_instance1):
         ]
 
         result = publish_agent.vip.rpc.call(
-            'platform.actuator',
+            alternate_actuator_vip_id,
             REQUEST_NEW_SCHEDULE,
             TEST_AGENT,
             'task_schedule_announce',
@@ -332,7 +393,7 @@ def test_schedule_announce(publish_agent, volttron_instance1):
         assert publish_agent.actuate0.call_count == 2
         args_list1 = publish_agent.actuate0.call_args_list[0][0]
         args_list2 = publish_agent.actuate0.call_args_list[1][0]
-        assert args_list1[1] == args_list2[1] == 'platform.actuator'
+        assert args_list1[1] == args_list2[1] == alternate_actuator_vip_id
         assert args_list1[3] == args_list2[
             3] == 'devices/actuators/schedule/announce/fakedriver0'
         assert args_list1[4]['taskID'] == args_list2[4][
@@ -346,10 +407,10 @@ def test_schedule_announce(publish_agent, volttron_instance1):
 
         # Test message on schedule/result
         assert publish_agent.callback.call_count == 1
-        print ('call args ', publish_agent.callback.call_args[0][1])
-        assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
+        print('call args ', publish_agent.callback.call_args[0][1])
+        assert publish_agent.callback.call_args[0][1] == alternate_actuator_vip_id
         assert publish_agent.callback.call_args[0][3] == \
-               topics.ACTUATOR_SCHEDULE_RESULT
+            topics.ACTUATOR_SCHEDULE_RESULT
         result_header = publish_agent.callback.call_args[0][4]
         result_message = publish_agent.callback.call_args[0][5]
         assert result_header['type'] == 'NEW_SCHEDULE'
@@ -360,16 +421,14 @@ def test_schedule_announce(publish_agent, volttron_instance1):
     finally:
         # cancel so fakedriver0 can be used by other tests
         publish_agent.vip.rpc.call(
-            'platform.actuator',
+            alternate_actuator_vip_id,
             REQUEST_CANCEL_SCHEDULE,
             TEST_AGENT,
             'task_schedule_announce').get(timeout=10)
-        volttron_instance1.stop_agent(actuator_uuid)
-        print ("creating instance of actuator with larger publish frequency")
-        actuator_uuid = volttron_instance1.install_agent(
-            agent_dir="services/core/ActuatorAgent",
-            config_file="services/core/ActuatorAgent/tests/actuator.config",
-            start=True)
+        volttron_instance.stop_agent(my_actuator_uuid)
+        volttron_instance.remove_agent(my_actuator_uuid)
+        print("Restarting original actuator")
+        volttron_instance.start_agent(actuator_uuid)
 
 
 @pytest.mark.actuator_pubsub
@@ -379,7 +438,7 @@ def test_schedule_error_int_taskid(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_schedule_int_taskid ****")
+    print("\n**** test_schedule_int_taskid ****")
     taskid = 1234
 
     start = str(datetime.now() + timedelta(seconds=10))
@@ -397,18 +456,18 @@ def test_schedule_error_int_taskid(publish_agent):
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
-    print ("call args list : ", publish_agent.callback.call_args_list)
+    print("call args list : ", publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
     assert result_header['requesterID'] == TEST_AGENT
     assert result_message['result'] == FAILURE
     assert result_message['info'] == \
-           'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'
+        'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'
 
 
 @pytest.mark.actuator_pubsub
@@ -419,7 +478,7 @@ def test_schedule_error_int_agentid(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_schedule_int_agentid ****")
+    print("\n**** test_schedule_int_agentid ****")
     taskid = 'task_schedule_int_agent'
 
     start = str(datetime.now() + timedelta(seconds=10))
@@ -439,19 +498,19 @@ def test_schedule_error_int_agentid(publish_agent):
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
 
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
     assert result_header['taskID'] == taskid
     assert result_message['result'] == FAILURE
     assert result_message['info'] == \
-           'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
+        'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
 
 
 @pytest.mark.actuator_pubsub
@@ -464,7 +523,7 @@ def test_schedule_empty_task(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_empty_task ****")
+    print("\n**** test_schedule_empty_task ****")
     agentid = TEST_AGENT
     taskid = ''
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -485,19 +544,19 @@ def test_schedule_empty_task(publish_agent, cancel_schedules):
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
 
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print (publish_agent.callback.call_args[0])
+    print(publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
     assert result_header['taskID'] == taskid
     assert result_message['result'] == FAILURE
     assert result_message['info'] == \
-           'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'
+        'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'
 
 
 @pytest.mark.actuator_pubsub
@@ -511,7 +570,7 @@ def test_schedule_empty_agent(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_empty_agent ****")
+    print("\n**** test_schedule_empty_agent ****")
     agentid = ''
     taskid = 'task_empty_agent_id'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -532,19 +591,19 @@ def test_schedule_empty_agent(publish_agent, cancel_schedules):
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
 
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print (publish_agent.callback.call_args[0])
+    print(publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
     assert result_header['taskID'] == taskid
     assert result_message['result'] == FAILURE
     assert result_message['info'] == \
-           'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
+        'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
 
 
 @pytest.mark.actuator_pubsub
@@ -555,7 +614,7 @@ def test_schedule_error_none_taskid(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_schedule_error_none_taskid ****")
+    print("\n**** test_schedule_error_none_taskid ****")
 
     start = str(datetime.now() + timedelta(seconds=10))
     end = str(datetime.now() + timedelta(seconds=20))
@@ -570,13 +629,13 @@ def test_schedule_error_none_taskid(publish_agent):
     # reset mock to ignore any previous callback
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     gevent.sleep(1)
     assert publish_agent.callback.call_count == 1
-    print (publish_agent.callback.call_args[0])
+    print(publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
 
@@ -594,7 +653,7 @@ def test_schedule_error_none_agent(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_schedule_error_none_agent ****")
+    print("\n**** test_schedule_error_none_agent ****")
 
     start = str(datetime.now() + timedelta(seconds=10))
     end = str(datetime.now() + timedelta(seconds=20))
@@ -612,12 +671,12 @@ def test_schedule_error_none_agent(publish_agent):
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print (publish_agent.callback.call_args[0])
+    print(publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
@@ -635,7 +694,7 @@ def test_schedule_error_invalid_type(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_schedule_error_invalid_type ****")
+    print("\n**** test_schedule_error_invalid_type ****")
 
     start = str(datetime.now() + timedelta(seconds=10))
     end = str(datetime.now() + timedelta(seconds=20))
@@ -653,11 +712,11 @@ def test_schedule_error_invalid_type(publish_agent):
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE2'
@@ -676,7 +735,7 @@ def test_schedule_error_invalid_priority(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_schedule_error_invalid_type ****")
+    print("\n**** test_schedule_error_invalid_type ****")
 
     start = str(datetime.now() + timedelta(seconds=10))
     end = str(datetime.now() + timedelta(seconds=20))
@@ -695,12 +754,12 @@ def test_schedule_error_invalid_priority(publish_agent):
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
     gevent.sleep(1)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print ('call args ', publish_agent.callback.call_args[0][1])
+    print('call args ', publish_agent.callback.call_args[0][1])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
@@ -719,7 +778,7 @@ def test_schedule_error_empty_message(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_schedule_error_empty_message ****")
+    print("\n**** test_schedule_error_empty_message ****")
 
     header = {
         'type': 'NEW_SCHEDULE',
@@ -734,12 +793,12 @@ def test_schedule_error_empty_message(publish_agent):
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print (publish_agent.callback.call_args[0])
+    print(publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
@@ -758,7 +817,7 @@ def test_schedule_error_multiple_missing_headers(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_schedule_error_multiple_missing_headers ****")
+    print("\n**** test_schedule_error_multiple_missing_headers ****")
 
     header = {
         'type': 'NEW_SCHEDULE',
@@ -774,12 +833,12 @@ def test_schedule_error_multiple_missing_headers(publish_agent):
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
 
     gevent.sleep(1)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print (publish_agent.callback.call_args[0])
+    print(publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
@@ -787,7 +846,7 @@ def test_schedule_error_multiple_missing_headers(publish_agent):
     assert result_header['requesterID'] == TEST_AGENT
     assert result_message['result'] == FAILURE
     assert result_message['info'] == 'MALFORMED_REQUEST_EMPTY' or \
-           result_message['info'] == 'MISSING_PRIORITY'
+        result_message['info'] == 'MISSING_PRIORITY'
 
 
 @pytest.mark.actuator_pubsub
@@ -802,7 +861,7 @@ def test_schedule_error_duplicate_task(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_error_duplicate_task ****")
+    print("\n**** test_schedule_error_duplicate_task ****")
     agentid = TEST_AGENT
     taskid = 'task_duplicate_task'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -822,7 +881,7 @@ def test_schedule_error_duplicate_task(publish_agent, cancel_schedules):
         'LOW',
         msg).get(timeout=10)
     assert result['result'] == 'SUCCESS'
-    print ("Result of schedule through rpc ", result)
+    print("Result of schedule through rpc ", result)
 
     header = {
         'type': 'NEW_SCHEDULE',
@@ -834,13 +893,13 @@ def test_schedule_error_duplicate_task(publish_agent, cancel_schedules):
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
 
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     # once for rpc call and once for publish
     assert publish_agent.callback.call_count == 2
-    print (publish_agent.callback.call_args[0])
+    print(publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
@@ -858,7 +917,7 @@ def test_schedule_error_missing_priority(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_schedule_error_missing_priority ****")
+    print("\n**** test_schedule_error_missing_priority ****")
 
     start = str(datetime.now() + timedelta(seconds=10))
     end = str(datetime.now() + timedelta(seconds=20))
@@ -876,12 +935,12 @@ def test_schedule_error_missing_priority(publish_agent):
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print (publish_agent.callback.call_args[0])
+    print(publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['taskID'] == 'task_missing_priority'
@@ -898,7 +957,7 @@ def test_schedule_error_malformed_request(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_schedule_error_malformed_request ****")
+    print("\n**** test_schedule_error_malformed_request ****")
 
     start = str(datetime.now() + timedelta(seconds=10))
     # end = str(datetime.now() + timedelta(seconds=20))
@@ -916,12 +975,12 @@ def test_schedule_error_malformed_request(publish_agent):
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print (publish_agent.callback.call_args[0])
+    print(publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
@@ -951,7 +1010,7 @@ def test_schedule_preempt_self(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_preempt_self ****")
+    print("\n**** test_schedule_preempt_self ****")
 
     agentid = TEST_AGENT
     taskid = 'task_high_priority'
@@ -983,7 +1042,7 @@ def test_schedule_preempt_self(publish_agent, cancel_schedules):
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    print result
+    print(result)
     assert result['result'] == 'SUCCESS'
     gevent.sleep(1)  # wait for response on pubsub
     # reset as we don't care about the success message sent for above
@@ -994,7 +1053,7 @@ def test_schedule_preempt_self(publish_agent, cancel_schedules):
     # wait for 2 callbacks - success msg for task_high_priority and
     # preempt msg for task_low_priority
     gevent.sleep(5)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 2
 
     # Grab the args of callback and verify
@@ -1007,7 +1066,7 @@ def test_schedule_preempt_self(publish_agent, cancel_schedules):
     # initialize 0 to schedule response and 1 to cancel response
     schedule_header = call_args1[4]
     schedule_message = call_args1[5]
-    print ("call args of 1 ", publish_agent.callback.call_args_list[1])
+    print("call args of 1 ", publish_agent.callback.call_args_list[1])
     cancel_header = call_args2[4]
     cancel_message = call_args2[5]
 
@@ -1055,7 +1114,7 @@ def test_schedule_preempt_other(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_preempt_other ****")
+    print("\n**** test_schedule_preempt_other ****")
 
     agentid = TEST_AGENT
     taskid = 'task_high_priority2'
@@ -1087,7 +1146,7 @@ def test_schedule_preempt_other(publish_agent, cancel_schedules):
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    print result
+    print(result)
     assert result['result'] == 'SUCCESS'
     gevent.sleep(1)  # wait for response on pubsub
 
@@ -1098,7 +1157,7 @@ def test_schedule_preempt_other(publish_agent, cancel_schedules):
     # wait for 2 callbacks - success msg for task_high_priority and
     # preempt msg for task_low_priority
     gevent.sleep(5)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 2
 
     # Grab the args of callback and verify
@@ -1111,7 +1170,7 @@ def test_schedule_preempt_other(publish_agent, cancel_schedules):
     # initialize 0 to schedule response and 1 to cancel response
     schedule_header = call_args1[4]
     schedule_message = call_args1[5]
-    print ("call args of 1 ", publish_agent.callback.call_args_list[1])
+    print("call args of 1 ", publish_agent.callback.call_args_list[1])
     cancel_header = call_args2[4]
     cancel_message = call_args2[5]
 
@@ -1149,7 +1208,7 @@ def test_schedule_conflict(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_conflict ****")
+    print("\n**** test_schedule_conflict ****")
     agentid = TEST_AGENT
     taskid = 'task_conflict1'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -1166,7 +1225,7 @@ def test_schedule_conflict(publish_agent, cancel_schedules):
         taskid,
         'LOW',
         msg).get(timeout=10)
-    print result
+    print(result)
     assert result['result'] == 'SUCCESS'
     gevent.sleep(1)  # wait for above response on callback
 
@@ -1182,11 +1241,11 @@ def test_schedule_conflict(publish_agent, cancel_schedules):
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)  # wait for response on callback
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
@@ -1222,11 +1281,11 @@ def test_schedule_conflict_self(publish_agent):
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)  # wait for response on callback
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
@@ -1246,7 +1305,7 @@ def test_schedule_overlap(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_overlap ****")
+    print("\n**** test_schedule_overlap ****")
     agentid = TEST_AGENT
     taskid = 'task_overlap'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -1270,11 +1329,11 @@ def test_schedule_overlap(publish_agent, cancel_schedules):
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)  # wait for result callback
 
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
@@ -1291,7 +1350,7 @@ def test_cancel_error_invalid_task(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_schedule_error_invalid_task ****")
+    print("\n**** test_schedule_error_invalid_task ****")
 
     start = str(datetime.now() + timedelta(seconds=10))
     end = str(datetime.now() + timedelta(seconds=20))
@@ -1308,11 +1367,11 @@ def test_cancel_error_invalid_task(publish_agent):
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['requesterID'] == TEST_AGENT
@@ -1332,7 +1391,7 @@ def test_cancel_error_taskid_agentid_mismatch(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_cancel_error_taskid_agentid_mismatch ****")
+    print("\n**** test_cancel_error_taskid_agentid_mismatch ****")
     agentid = TEST_AGENT
     taskid = 'task_invalid_cancel'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -1349,7 +1408,7 @@ def test_cancel_error_taskid_agentid_mismatch(publish_agent, cancel_schedules):
         taskid,
         'LOW',
         msg).get(timeout=10)
-    print result
+    print(result)
     assert result['result'] == 'SUCCESS'
     gevent.sleep(1)  # wait for the response of above to hit the pubsub topic
 
@@ -1363,11 +1422,11 @@ def test_cancel_error_taskid_agentid_mismatch(publish_agent, cancel_schedules):
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
     gevent.sleep(1)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
+        topics.ACTUATOR_SCHEDULE_RESULT
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['requesterID'] == 'invalid_agent_for_task'
@@ -1402,7 +1461,7 @@ def test_get_default(publish_agent):
     error_topic = topics.ACTUATOR_ERROR(campus='', building='',
                                         unit='fakedriver1',
                                         point='SampleWritableFloat1')
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -1422,7 +1481,7 @@ def test_get_default(publish_agent):
     gevent.sleep(1)
     print("call args list", publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print ('call args ', publish_agent.callback.call_args[0])
+    print('call args ', publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == value_topic
     result_header = publish_agent.callback.call_args[0][4]
@@ -1447,7 +1506,7 @@ def test_get_value_success(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_get_value_success ****")
+    print("\n**** test_get_value_success ****")
 
     agentid = TEST_AGENT
     taskid = 'task_get_value_success'
@@ -1462,7 +1521,7 @@ def test_get_value_success(publish_agent, cancel_schedules):
     error_topic = topics.ACTUATOR_ERROR(campus='', building='',
                                         unit='fakedriver1',
                                         point='SampleWritableFloat1')
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -1482,7 +1541,7 @@ def test_get_value_success(publish_agent, cancel_schedules):
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    print result
+    print(result)
     assert result['result'] == 'SUCCESS'
 
     # set value
@@ -1497,7 +1556,7 @@ def test_get_value_success(publish_agent, cancel_schedules):
         'fakedriver1/SampleWritableFloat1',  # Point to set
         20.5  # New value
     ).get(timeout=10)
-    print ("result of set", result)
+    print("result of set", result)
     get_topic = topics.ACTUATOR_GET(campus='', building='', unit='fakedriver1',
                                     point='SampleWritableFloat1')
     print("set topic: ", get_topic)
@@ -1506,7 +1565,7 @@ def test_get_value_success(publish_agent, cancel_schedules):
                                      headers=header).get(timeout=10)
     print("call args list", publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print ('call args ', publish_agent.callback.call_args[0])
+    print('call args ', publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == value_topic
     result_header = publish_agent.callback.call_args[0][4]
@@ -1534,7 +1593,7 @@ def test_get_error_invalid_point(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_get_error_invalid_point ****")
+    print("\n**** test_get_error_invalid_point ****")
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback")
     # Subscribe to result of set
@@ -1544,7 +1603,7 @@ def test_get_error_invalid_point(publish_agent):
     error_topic = topics.ACTUATOR_ERROR(campus='', building='',
                                         unit='fakedriver1',
                                         point='SampleWritableFloat12')
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -1564,15 +1623,15 @@ def test_get_error_invalid_point(publish_agent):
     gevent.sleep(1)
     print("call args list", publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print ('call args ', publish_agent.callback.call_args[0])
+    print('call args ', publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == error_topic
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_message['type'] == \
-           'master_driver.interfaces.DriverInterfaceError'
+        'master_driver.interfaces.DriverInterfaceError'
     assert result_message['value'] == \
-           "['Point not configured on device: SampleWritableFloat12']"
+        "['Point not configured on device: SampleWritableFloat12']"
     assert result_header['requesterID'] == TEST_AGENT
 
 
@@ -1592,7 +1651,7 @@ def test_set_value_bool(publish_agent, cancel_schedules, revert_devices):
     test so that other tests can use the same device and time slot
     :param revert_devices: Cleanup method to revert device state
     """
-    print ("\n**** test_set_value_bool ****")
+    print("\n**** test_set_value_bool ****")
     agentid = TEST_AGENT
     taskid = 'task_set_bool_value'
     device = 'fakedriver3'
@@ -1606,7 +1665,7 @@ def test_set_value_bool(publish_agent, cancel_schedules, revert_devices):
                                         point='SampleWritableBool1')
     error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit=device,
                                         point='SampleWritableBool1')
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -1642,7 +1701,7 @@ def test_set_value_bool(publish_agent, cancel_schedules, revert_devices):
                                      message=True).get(timeout=10)
     gevent.sleep(1)
 
-    print ('call args list', publish_agent.callback.call_args_list)
+    print('call args list', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == value_topic
@@ -1675,7 +1734,7 @@ def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
     test so that other tests can use the same device and time slot
     :param revert_devices: Cleanup method to revert device state
     """
-    print ("\n**** test_set_value_array ****")
+    print("\n**** test_set_value_array ****")
     agentid = TEST_AGENT
     taskid = 'task_set_array_value'
     device = 'fakedriver0'
@@ -1689,7 +1748,7 @@ def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
                                         point='SampleWritableFloat1')
     error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit=device,
                                         point='SampleWritableFloat1')
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -1709,7 +1768,7 @@ def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    print result
+    print(result)
     assert result['result'] == 'SUCCESS'
     # set value
     header = {
@@ -1724,7 +1783,7 @@ def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
                                      headers=header,
                                      message=[0.2]).get(timeout=10)
     gevent.sleep(1)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == error_topic
@@ -1733,7 +1792,7 @@ def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
     assert result_header['requesterID'] == agentid
     assert result_message['type'] == 'TypeError'
     assert result_message['value'] == \
-           "['float() argument must be a string or a number']"
+        "['float() argument must be a string or a number']"
 
 
 @pytest.mark.actuator_pubsub
@@ -1760,7 +1819,7 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     test so that other tests can use the same device and time slot
     :param revert_devices: Cleanup method to revert device state
     """
-    print ("\n**** test_set_value_float ****")
+    print("\n**** test_set_value_float ****")
     global publish_agent_v2
     agentid = TEST_AGENT
     taskid = 'task_set_float_value'
@@ -1775,7 +1834,7 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
                                         point='SampleWritableFloat1')
     error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit=device,
                                         point='SampleWritableFloat1')
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -1808,7 +1867,7 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     publish(publish_agent, set_topic, header, 0.2)
     gevent.sleep(1)
 
-    print ('call args list ', publish_agent.callback.call_args_list)
+    print('call args list ', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == value_topic
@@ -1816,6 +1875,7 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['requesterID'] == agentid
     assert result_message == 0.2
+
 
 @pytest.mark.actuator_pubsub
 def test_revert_point(publish_agent, cancel_schedules):
@@ -1840,7 +1900,7 @@ def test_revert_point(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_set_value_float ****")
+    print("\n**** test_set_value_float ****")
     agentid = TEST_AGENT
     taskid = 'task_set_float_value'
     device = 'fakedriver2'
@@ -1854,7 +1914,7 @@ def test_revert_point(publish_agent, cancel_schedules):
                                         point=point)
     reverted_topic = topics.ACTUATOR_REVERTED_POINT(campus='', building='',
                                                     unit=device, point=point)
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -1896,7 +1956,7 @@ def test_revert_point(publish_agent, cancel_schedules):
     assert result == test_value
     gevent.sleep(1)
 
-    print ('call args list ', publish_agent.callback.call_args_list)
+    print('call args list ', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == value_topic
@@ -1920,7 +1980,7 @@ def test_revert_point(publish_agent, cancel_schedules):
                                      headers=header).get(timeout=10)
     gevent.sleep(1)
 
-    print ('call args list ', publish_agent.callback.call_args_list)
+    print('call args list ', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == reverted_topic
@@ -1963,7 +2023,7 @@ def test_revert_device(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_set_value_float ****")
+    print("\n**** test_set_value_float ****")
     agentid = TEST_AGENT
     taskid = 'task_set_float_value'
     device = 'fakedriver2'
@@ -1977,7 +2037,7 @@ def test_revert_device(publish_agent, cancel_schedules):
                                         point=point)
     reverted_topic = topics.ACTUATOR_REVERTED_DEVICE(campus='', building='',
                                                      unit=device)
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -2019,7 +2079,7 @@ def test_revert_device(publish_agent, cancel_schedules):
     assert result == test_value
     gevent.sleep(1)
 
-    print ('call args list ', publish_agent.callback.call_args_list)
+    print('call args list ', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == value_topic
@@ -2043,7 +2103,7 @@ def test_revert_device(publish_agent, cancel_schedules):
                                      headers=header).get(timeout=10)
     gevent.sleep(1)
 
-    print ('call args list ', publish_agent.callback.call_args_list)
+    print('call args list ', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == reverted_topic
@@ -2083,7 +2143,7 @@ def test_set_read_only_point(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_set_read_only_point ****")
+    print("\n**** test_set_read_only_point ****")
     agentid = TEST_AGENT
     taskid = 'task_set_readonly_point'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -2097,7 +2157,7 @@ def test_set_read_only_point(publish_agent, cancel_schedules):
     error_topic = topics.ACTUATOR_ERROR(campus='', building='',
                                         unit='fakedriver0',
                                         point='OutsideAirTemperature1')
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -2138,9 +2198,9 @@ def test_set_read_only_point(publish_agent, cancel_schedules):
         'task_set_read_only_point').get(timeout=10)
     gevent.sleep(1)
 
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print ('call args ', publish_agent.callback.call_args[0])
+    print('call args ', publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == error_topic
     result_header = publish_agent.callback.call_args[0][4]
@@ -2169,7 +2229,7 @@ def test_set_lock_error(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_set_lock_error ****")
+    print("\n**** test_set_lock_error ****")
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback_set_lock_error")
 
@@ -2179,7 +2239,7 @@ def test_set_lock_error(publish_agent):
         'fakedriver1/SampleWritableFloat1'  # point
     ).get(timeout=10)
     current_value = float(current_value)
-    print ("Value of point before set without lock: ", current_value)
+    print("Value of point before set without lock: ", current_value)
 
     # Subscribe to result of set
     value_topic = topics.ACTUATOR_VALUE(campus='', building='',
@@ -2189,7 +2249,7 @@ def test_set_lock_error(publish_agent):
                                         unit='fakedriver1',
                                         point='SampleWritableFloat1')
     print('error topic:', error_topic)
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -2212,9 +2272,9 @@ def test_set_lock_error(publish_agent):
                                      headers=header,
                                      message=set_value).get(timeout=10)
     gevent.sleep(1)
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print ('call args ', publish_agent.callback.call_args[0])
+    print('call args ', publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == error_topic
     result_header = publish_agent.callback.call_args[0][4]
@@ -2222,7 +2282,7 @@ def test_set_lock_error(publish_agent):
     assert result_header['requesterID'] == TEST_AGENT
     assert result_message['type'] == 'LockError'
     assert result_message['value'] == \
-           'caller ({}) does not have this lock'.format(TEST_AGENT)
+        'caller ({}) does not have this lock'.format(TEST_AGENT)
 
     # To test fix for bug #223
     new_value = publish_agent.vip.rpc.call(
@@ -2254,7 +2314,7 @@ def test_set_value_error(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_set_value_error ****")
+    print("\n**** test_set_value_error ****")
 
     agentid = TEST_AGENT
     taskid = 'task_set_value_error'
@@ -2269,7 +2329,7 @@ def test_set_value_error(publish_agent, cancel_schedules):
     error_topic = topics.ACTUATOR_ERROR(campus='', building='',
                                         unit='fakedriver0',
                                         point='SampleWritableFloat1')
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -2289,7 +2349,7 @@ def test_set_value_error(publish_agent, cancel_schedules):
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    print result
+    print(result)
     assert result['result'] == 'SUCCESS'
     # set value
     header = {
@@ -2305,9 +2365,9 @@ def test_set_value_error(publish_agent, cancel_schedules):
                                      message='abcd').get(timeout=10)
     gevent.sleep(1)
 
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print ('call args ', publish_agent.callback.call_args[0])
+    print('call args ', publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == error_topic
     result_header = publish_agent.callback.call_args[0][4]
@@ -2315,7 +2375,7 @@ def test_set_value_error(publish_agent, cancel_schedules):
     assert result_header['requesterID'] == agentid
     assert result_message['type'] == 'ValueError'
     assert result_message['value'] == \
-           "['could not convert string to float: abcd']"
+        "['could not convert string to float: abcd']"
 
 
 @pytest.mark.actuator_pubsub
@@ -2338,7 +2398,7 @@ def test_set_error_none_agent(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_set_error_none_agent ****")
+    print("\n**** test_set_error_none_agent ****")
     agentid = TEST_AGENT
     taskid = 'task_set_none_agent'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -2352,7 +2412,7 @@ def test_set_error_none_agent(publish_agent, cancel_schedules):
     error_topic = topics.ACTUATOR_ERROR(campus='', building='',
                                         unit='fakedriver0',
                                         point='SampleWritableFloat1')
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -2372,7 +2432,7 @@ def test_set_error_none_agent(publish_agent, cancel_schedules):
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    print result
+    print(result)
     assert result['result'] == 'SUCCESS'
     # set value
     header = {
@@ -2388,9 +2448,9 @@ def test_set_error_none_agent(publish_agent, cancel_schedules):
                                      message='abcd').get(timeout=10)
     gevent.sleep(1)
 
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print ('call args ', publish_agent.callback.call_args[0])
+    print('call args ', publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == error_topic
     result_message = publish_agent.callback.call_args[0][5]
@@ -2419,7 +2479,7 @@ def test_set_error_empty_header(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_set_error_empty_header ****")
+    print("\n**** test_set_error_empty_header ****")
     agentid = TEST_AGENT
     taskid = 'task_set_none_agent'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -2433,7 +2493,7 @@ def test_set_error_empty_header(publish_agent, cancel_schedules):
     error_topic = topics.ACTUATOR_ERROR(campus='', building='',
                                         unit='fakedriver0',
                                         point='SampleWritableFloat1')
-    print ('value topic', value_topic)
+    print('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
@@ -2453,7 +2513,7 @@ def test_set_error_empty_header(publish_agent, cancel_schedules):
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    print result
+    print(result)
     assert result['result'] == 'SUCCESS'
     # set value
     header = {
@@ -2468,9 +2528,9 @@ def test_set_error_empty_header(publish_agent, cancel_schedules):
                                      message='abcd').get(timeout=10)
     gevent.sleep(1)
 
-    print ('call args list:', publish_agent.callback.call_args_list)
+    print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
-    print ('call args ', publish_agent.callback.call_args[0])
+    print('call args ', publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == error_topic
     result_message = publish_agent.callback.call_args[0][5]

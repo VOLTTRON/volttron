@@ -1,1 +1,0 @@
-[VIP Enhancements] (VIP Enhancements)

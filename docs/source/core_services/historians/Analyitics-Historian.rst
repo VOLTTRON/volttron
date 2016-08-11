@@ -1,5 +1,7 @@
+.. _Analytics-Historian:
+
 Analytics Historian
-=====
+===================
 
 An Analytics Historian (OpenEIS) has been developed to integrate real
 time data ingestion into the OpenEIS platform. In order for the OpenEIS

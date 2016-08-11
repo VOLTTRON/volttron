@@ -1,6 +1,7 @@
+.. AgentManagement:
 
 Agent Lifecyle Management
-~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The VOLTTRON platform has several commands for controlling the lifecycle
 of agents. This page discusses how to use them, for details of operation

@@ -1,9 +1,68 @@
-# pytest test cases for SQLHistorian
-# For mysql test's to succeed
-# 1. MySql server should be running
-# 2. test database and test user should exist
-# 3. Test user should have all privileges on test database
-# 4. Refer to the dictionary object mysql_platform for the server configuration
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+
+# Copyright (c) 2015, Battelle Memorial Institute
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation
+# are those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD
+# Project.
+#
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization that
+# has cooperated in the development of these materials, makes any
+# warranty, express or implied, or assumes any legal liability or
+# responsibility for the accuracy, completeness, or usefulness or any
+# information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does not
+# necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+
+# }}}
+'''
+pytest test cases for SQLHistorian
+For mysql test's to succeed
+ 1. MySql server should be running
+ 2. test database and test user should exist
+ 3. Test user should have all privileges on test database
+ 4. Refer to the dictionary object mysql_platform for the server configuration
+'''
 import random
 import sqlite3
 from datetime import datetime, timedelta
@@ -21,10 +80,10 @@ from volttron.platform.vip.agent import Agent
 try:
     import mysql.connector as mysql
     from mysql.connector import errorcode
-
     HAS_MYSQL_CONNECTOR = True
 except:
     HAS_MYSQL_CONNECTOR = False
+
 # Module level variables
 ALL_TOPIC = "devices/Building/LAB/Device/all"
 query_points = {
@@ -35,7 +94,6 @@ query_points = {
 # default table_defs
 sqlite_platform1 = {
     "agentid": "sqlhistorian-sqlite-1",
-    "identity": "platform.historian",
     "connection": {
         "type": "sqlite",
         "params": {
@@ -46,7 +104,6 @@ sqlite_platform1 = {
 # table_defs without prefix
 sqlite_platform2 = {
     "agentid": "sqlhistorian-sqlite-2",
-    "identity": "platform.historian",
     "connection": {
         "type": "sqlite",
         "params": {
@@ -63,7 +120,6 @@ sqlite_platform2 = {
 # table_defs with prefix
 sqlite_platform3 = {
     "agentid": "sqlhistorian-sqlite-3",
-    "identity": "platform.historian",
     "connection": {
         "type": "sqlite",
         "params": {
@@ -84,7 +140,6 @@ sqlite_platform3 = {
 # config without table_defs
 mysql_platform1 = {
     "agentid": "sqlhistorian-mysql-1",
-    "identity": "platform.historian",
     "connection": {
         "type": "mysql",
         "params": {
@@ -99,7 +154,6 @@ mysql_platform1 = {
 # table_defs without prefix
 mysql_platform2 = {
     "agentid": "sqlhistorian-mysql-2",
-    "identity": "platform.historian",
     "connection": {
         "type": "mysql",
         "params": {
@@ -120,7 +174,6 @@ mysql_platform2 = {
 # table_defs with prefix
 mysql_platform3 = {
     "agentid": "sqlhistorian-mysql-3",
-    "identity": "platform.historian",
     "connection": {
         "type": "mysql",
         "params": {
@@ -142,6 +195,7 @@ mysql_platform3 = {
 offset = timedelta(seconds=3)
 db_connection = None
 MICROSECOND_SUPPORT = True
+identity = None
 
 # Don't like declaring this global but I am not able to find a way
 # to introspect this using pytest request object in the clean fixture
@@ -149,20 +203,21 @@ data_table = 'data'
 topics_table = 'topics'
 meta_table = 'meta'
 
+
 @pytest.fixture(scope="module",
-                params=['volttron_2','volttron_3'])
-def publish_agent(request, volttron_instance1):
+                params=['volttron_2', 'volttron_3'])
+def publish_agent(request, volttron_instance):
     # 1: Start a fake agent to publish to message bus
     print("**In setup of publish_agent volttron is_running {}".format(
-        volttron_instance1.is_running))
+        volttron_instance.is_running))
     agent = None
     if request.param == 'volttron_2':
-        if agent is None or not isinstance(PublishMixin,agent):
+        if agent is None or not isinstance(PublishMixin, agent):
             agent = PublishMixin(
-                volttron_instance1.opts['publish_address'])
+                volttron_instance.opts['publish_address'])
     else:
-        if agent is None or isinstance(PublishMixin,agent):
-            agent = volttron_instance1.build_agent()
+        if agent is None or isinstance(PublishMixin, agent):
+            agent = volttron_instance.build_agent()
 
     # 2: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
@@ -176,9 +231,9 @@ def publish_agent(request, volttron_instance1):
 
 
 @pytest.fixture(scope="module")
-def query_agent(request, volttron_instance1):
+def query_agent(request, volttron_instance):
     # 1: Start a fake agent to query the sqlhistorian in volttron_instance2
-    agent = volttron_instance1.build_agent()
+    agent = volttron_instance.build_agent()
 
     # 2: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
@@ -206,23 +261,28 @@ def query_agent(request, volttron_instance1):
                     sqlite_platform2,
                     sqlite_platform3
                 ])
-def sqlhistorian(request, volttron_instance1):
+def sqlhistorian(request, volttron_instance, query_agent):
     global db_connection, data_table, \
-        topics_table, meta_table
+        topics_table, meta_table, identity
+    
     print("** Setting up test_sqlhistorian module **")
     # Make database connection
     print("request param", request.param)
     if request.param['connection']['type'] == 'sqlite':
         request.param['connection']['params']['database'] = \
-            volttron_instance1.volttron_home + "/historian.sqlite"
+            volttron_instance.volttron_home + "/historian.sqlite"
 
     # 1: Install historian agent
     # Install and start sqlhistorian agent
-    agent_uuid = volttron_instance1.install_agent(
+    agent_uuid = volttron_instance.install_agent(
         agent_dir="services/core/SQLHistorian",
         config_file=request.param,
-        start=True)
+        start=True,
+        vip_identity='platform.historian')
     print("agent id: ", agent_uuid)
+    identity = query_agent.vip.rpc.call(
+            'control', 'agent_vip_identity',
+            agent_uuid).get(timeout=2)
 
     # figure out table names from config
     # Set this hear so that cleanup fixture can use it
@@ -232,11 +292,11 @@ def sqlhistorian(request, volttron_instance1):
         meta_table = 'meta'
     elif request.param['tables_def']['table_prefix']:
         data_table = request.param['tables_def']['table_prefix'] + "_" + \
-            request.param['tables_def']['data_table']
+                     request.param['tables_def']['data_table']
         topics_table = request.param['tables_def']['table_prefix'] + "_" + \
-            request.param['tables_def']['topics_table']
+                       request.param['tables_def']['topics_table']
         meta_table = request.param['tables_def']['table_prefix'] + "_" + \
-            request.param['tables_def']['meta_table']
+                     request.param['tables_def']['meta_table']
     else:
         data_table = request.param['tables_def']['data_table']
         topics_table = request.param['tables_def']['topics_table']
@@ -261,10 +321,12 @@ def sqlhistorian(request, volttron_instance1):
         if db_connection:
             db_connection.close()
             print("closed connection to db")
-        if volttron_instance1.is_running():
-            volttron_instance1.stop_agent(agent_uuid)
+        if volttron_instance.is_running():
+            volttron_instance.stop_agent(agent_uuid)
+        volttron_instance.remove_agent(agent_uuid)
     request.addfinalizer(stop_agent)
-    return request.param
+    return request.param['agentid']
+
 
 
 def connect_mysql(request):
@@ -371,8 +433,8 @@ def assert_timestamp(result, expected_date, expected_time):
 
 
 def skip_custom_tables(sqlhistorian):
-    print ("agent id is *{}*".format(sqlhistorian['agentid']))
-    if not sqlhistorian['agentid'].endswith("-1"):
+    print ("agent id is *{}*".format(sqlhistorian))
+    if not sqlhistorian.endswith("-1"):
         print "agent id ends with something other than -1"
         pytest.skip(msg="Need not repeat all test cases for custom table "
                         "names")
@@ -387,7 +449,7 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     Expected result:
     Should be able to query data based on topic name. Result should contain
     both data and metadata
-    
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -395,7 +457,9 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     :param clean: teardown function
     """
     global query_points, ALL_TOPIC, db_connection
-    # print('HOME', volttron_instance1.volttron_home)
+    
+
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_basic_function for {}**".format(
         request.keywords.node.name))
 
@@ -431,7 +495,7 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     gevent.sleep(1)
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['oat_point'],
                                       count=20,
@@ -444,7 +508,7 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     assert set(result['metadata'].items()) == set(float_meta.items())
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       count=20,
@@ -457,7 +521,7 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     assert set(result['metadata'].items()) == set(float_meta.items())
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['damper_point'],
                                       count=20,
@@ -469,7 +533,6 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     assert (result['values'][0][1] == damper_reading)
     assert set(result['metadata'].items()) == set(percent_meta.items())
 
-
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_exact_timestamp(request, sqlhistorian, publish_agent, query_agent,
@@ -479,6 +542,7 @@ def test_exact_timestamp(request, sqlhistorian, publish_agent, query_agent,
     of utc time.
     Expected result: record with timestamp == start time
 
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -491,7 +555,7 @@ def test_exact_timestamp(request, sqlhistorian, publish_agent, query_agent,
 
     global query_points, ALL_TOPIC
 
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_exact_timestamp for for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -519,7 +583,7 @@ def test_exact_timestamp(request, sqlhistorian, publish_agent, query_agent,
     gevent.sleep(0.5)
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       start=now,
@@ -544,7 +608,8 @@ def test_exact_timestamp_with_z(request, sqlhistorian, publish_agent,
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
     Expected result: record with timestamp == start time
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -555,7 +620,7 @@ def test_exact_timestamp_with_z(request, sqlhistorian, publish_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_exact_timestamp_with_z for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -585,7 +650,7 @@ def test_exact_timestamp_with_z(request, sqlhistorian, publish_agent,
 
     # pytest.set_trace()
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       start=now,
@@ -600,6 +665,7 @@ def test_exact_timestamp_with_z(request, sqlhistorian, publish_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_query_start_time(request, sqlhistorian, publish_agent, query_agent,
@@ -607,7 +673,8 @@ def test_query_start_time(request, sqlhistorian, publish_agent, query_agent,
     """
     Test query based on start_time alone. Expected result record with
     timestamp>= start_time
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -619,7 +686,7 @@ def test_query_start_time(request, sqlhistorian, publish_agent, query_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_query_start_time for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -650,7 +717,7 @@ def test_query_start_time(request, sqlhistorian, publish_agent, query_agent,
     # pytest.set_trace()
     # pytest.set_trace()
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['oat_point'],
                                       start=time1,
@@ -667,6 +734,7 @@ def test_query_start_time(request, sqlhistorian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], time2_date, time2_time)
     assert (result['values'][0][1] == oat_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_query_start_time_with_z(request, sqlhistorian, publish_agent,
@@ -675,7 +743,8 @@ def test_query_start_time_with_z(request, sqlhistorian, publish_agent,
     """
     Test query based on start_time alone. Expected result record with
     timestamp>= start_time
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -686,7 +755,7 @@ def test_query_start_time_with_z(request, sqlhistorian, publish_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_query_start_time_with_z for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -716,7 +785,7 @@ def test_query_start_time_with_z(request, sqlhistorian, publish_agent,
     gevent.sleep(0.5)
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['oat_point'],
                                       start=time1,
@@ -731,6 +800,7 @@ def test_query_start_time_with_z(request, sqlhistorian, publish_agent,
     assert_timestamp(result['values'][0][0], time2_date, time2_time)
     assert (result['values'][0][1] == oat_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
@@ -738,7 +808,8 @@ def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
     """
     Test query based on end time alone. Expected result record with
     timestamp<= end time
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -749,7 +820,7 @@ def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC, db_connection
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_query_end_time for {}**".format(
         request.keywords.node.name))
 
@@ -783,7 +854,7 @@ def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
 
     # pytest.set_trace()
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       end=time2,
@@ -800,6 +871,7 @@ def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_query_end_time_with_z(request, sqlhistorian, publish_agent,
@@ -808,7 +880,8 @@ def test_query_end_time_with_z(request, sqlhistorian, publish_agent,
     """
     Test query based on end time alone. Expected result record with
     timestamp<= end time
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -819,7 +892,7 @@ def test_query_end_time_with_z(request, sqlhistorian, publish_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_query_end_time_with_z for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -851,7 +924,7 @@ def test_query_end_time_with_z(request, sqlhistorian, publish_agent,
 
     # pytest.set_trace()
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       end=time2,
@@ -870,6 +943,7 @@ def test_query_end_time_with_z(request, sqlhistorian, publish_agent,
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_zero_timestamp(request, sqlhistorian, publish_agent, query_agent,
@@ -878,7 +952,8 @@ def test_zero_timestamp(request, sqlhistorian, publish_agent, query_agent,
     Test query based with timestamp where time is 00:00:00. Test with and
     without Z at the end.
     Expected result: record with timestamp == 00:00:00.000001
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -889,7 +964,7 @@ def test_zero_timestamp(request, sqlhistorian, publish_agent, query_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_zero_timestamp for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -914,7 +989,7 @@ def test_zero_timestamp(request, sqlhistorian, publish_agent, query_agent,
     gevent.sleep(0.5)
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       start=now,
@@ -938,7 +1013,7 @@ def test_zero_timestamp(request, sqlhistorian, publish_agent, query_agent,
     gevent.sleep(0.5)
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       start=now,
@@ -950,6 +1025,7 @@ def test_zero_timestamp(request, sqlhistorian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_topic_name_case_change(request, sqlhistorian, publish_agent,
@@ -958,7 +1034,8 @@ def test_topic_name_case_change(request, sqlhistorian, publish_agent,
     """
     When case of a topic name changes check if they are saved as two topics
     Expected result: query result should be cases sensitive
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -969,7 +1046,7 @@ def test_topic_name_case_change(request, sqlhistorian, publish_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC, db_connection
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_topic_name_case_change for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -1018,7 +1095,7 @@ def test_topic_name_case_change(request, sqlhistorian, publish_agent,
     # Query the historian
     print("query time ", time1)
     result = query_agent.vip.rpc.call(
-        'platform.historian',
+        identity,
         'query',
         topic="Building/LAB/Device/OutsideAirTemperature",
         start=time1,
@@ -1031,13 +1108,15 @@ def test_topic_name_case_change(request, sqlhistorian, publish_agent,
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == oat_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
-def test_invalid_query(request, sqlhistorian, publish_agent, query_agent, \
-                               clean):
+def test_invalid_query(request, sqlhistorian, publish_agent, query_agent,
+                       clean):
     """
     Test query with invalid input
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1048,7 +1127,7 @@ def test_invalid_query(request, sqlhistorian, publish_agent, query_agent, \
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_invalid_query for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -1073,7 +1152,7 @@ def test_invalid_query(request, sqlhistorian, publish_agent, query_agent, \
 
     # Query without topic id
     try:
-        query_agent.vip.rpc.call('platform.historian',
+        query_agent.vip.rpc.call(identity,
                                  'query',
                                  # topic=query_points['mixed_point'],
                                  start=now,
@@ -1095,6 +1174,7 @@ def test_invalid_query(request, sqlhistorian, publish_agent, query_agent, \
         print ("exception: {}".format(error))
         assert "No route to host: platform.historian1" in str(error)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_invalid_time(request, sqlhistorian, publish_agent, query_agent,
@@ -1102,6 +1182,7 @@ def test_invalid_time(request, sqlhistorian, publish_agent, query_agent,
     """
     Test query with invalid input
 
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1112,7 +1193,7 @@ def test_invalid_time(request, sqlhistorian, publish_agent, query_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_invalid_time for {}**".format(
         request.keywords.node.name))
 
@@ -1121,7 +1202,7 @@ def test_invalid_time(request, sqlhistorian, publish_agent, query_agent,
 
     try:
         # query with invalid timestamp
-        query_agent.vip.rpc.call('platform.historian',
+        query_agent.vip.rpc.call(identity,
                                  'query',
                                  topic=query_points['mixed_point'],
                                  start=now,
@@ -1131,6 +1212,7 @@ def test_invalid_time(request, sqlhistorian, publish_agent, query_agent,
         print ("exception: {}".format(error))
         assert 'hour must be in 0..23' == error.message
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_analysis_topic(request, sqlhistorian, publish_agent, query_agent,
@@ -1139,18 +1221,19 @@ def test_analysis_topic(request, sqlhistorian, publish_agent, query_agent,
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
     Expected result: record with timestamp == start time
-    
-    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0 agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
-    :param sqlhistorian: instance of the sql historian tested
+    :param sqlhistorian: instance of the sqlhistorian tested
     :param clean: teardown function
     """
     # skip if this test case need not repeated for this specific sqlhistorian
     skip_custom_tables(sqlhistorian)
 
     global query_points
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_analysis_topic for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -1178,14 +1261,19 @@ def test_analysis_topic(request, sqlhistorian, publish_agent, query_agent,
     headers = {
         headers_mod.DATE: now
     }
+
     # Publish messages
-    publish(publish_agent, 'analysis/Building/LAB/Device/MixedAirTemperature',
+    publish(publish_agent, 'analysis/Building/LAB/Device',
             headers, all_message)
     gevent.sleep(0.5)
-
-    # pytest.set_trace()
+    abc = dict(peer=identity, method='query',
+                                      topic=query_points['mixed_point'],
+                                      start=now,
+                                      end=now,
+                                      count=20,
+                                      order="LAST_TO_FIRST")
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       start=now,
@@ -1200,6 +1288,7 @@ def test_analysis_topic(request, sqlhistorian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_record_topic_query(request, sqlhistorian, publish_agent, query_agent,
@@ -1208,7 +1297,8 @@ def test_record_topic_query(request, sqlhistorian, publish_agent, query_agent,
     Test query based on same start with literal 'Z' at the end of utc time.
     Cannot query based on exact time as timestamp recorded is time of insert
     publish and query record topic
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1218,7 +1308,7 @@ def test_record_topic_query(request, sqlhistorian, publish_agent, query_agent,
     # skip if this test case need not repeated for this specific sqlhistorian
     skip_custom_tables(sqlhistorian)
 
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_exact_timestamp for {}**".format(
         request.keywords.node.name))
     # Publish int data
@@ -1243,7 +1333,7 @@ def test_record_topic_query(request, sqlhistorian, publish_agent, query_agent,
 
     # pytest.set_trace()
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=topics.RECORD,
                                       start=now,
@@ -1255,6 +1345,7 @@ def test_record_topic_query(request, sqlhistorian, publish_agent, query_agent,
     assert (result['values'][1][1] == 'value0')
     assert (result['values'][2][1] == {'key': 'value'})
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_log_topic(request, sqlhistorian, publish_agent, query_agent, clean):
@@ -1263,7 +1354,8 @@ def test_log_topic(request, sqlhistorian, publish_agent, query_agent, clean):
     Expected result:
      Record should get entered into database with current time at time of
      insertion and should ignore timestamp in header
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1274,7 +1366,7 @@ def test_log_topic(request, sqlhistorian, publish_agent, query_agent, clean):
     skip_custom_tables(sqlhistorian)
 
     global query_points
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_log_topic for {}**".format(request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
@@ -1301,7 +1393,7 @@ def test_log_topic(request, sqlhistorian, publish_agent, query_agent, clean):
 
     # Query the historian
     result = query_agent.vip.rpc.call(
-        'platform.historian',
+        identity,
         'query',
         topic="datalogger/Building/LAB/Device/MixedAirTemperature",
         start=current_time,
@@ -1309,6 +1401,7 @@ def test_log_topic(request, sqlhistorian, publish_agent, query_agent, clean):
     print('Query Result', result)
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
+
 
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
@@ -1320,6 +1413,7 @@ def test_log_topic_no_header(request, sqlhistorian, publish_agent, query_agent,
      Record should get entered into database with current time at time of
      insertion and should not complain about header
 
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1330,7 +1424,7 @@ def test_log_topic_no_header(request, sqlhistorian, publish_agent, query_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_log_topic for {}**".format(request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
@@ -1351,7 +1445,7 @@ def test_log_topic_no_header(request, sqlhistorian, publish_agent, query_agent,
 
     # Query the historian
     result = query_agent.vip.rpc.call(
-        'platform.historian',
+        identity,
         'query',
         topic="datalogger/Building/LAB/Device/MixedAirTemperature",
         start=current_time,
@@ -1359,6 +1453,7 @@ def test_log_topic_no_header(request, sqlhistorian, publish_agent, query_agent,
     print('Query Result', result)
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
+
 
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
@@ -1370,6 +1465,7 @@ def test_log_topic_timestamped_readings(request, sqlhistorian, publish_agent,
      Record should get entered into database with the timestamp in
      message and not timestamp in header
 
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1380,7 +1476,7 @@ def test_log_topic_timestamped_readings(request, sqlhistorian, publish_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_log_topic for {}**".format(request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
@@ -1407,7 +1503,7 @@ def test_log_topic_timestamped_readings(request, sqlhistorian, publish_agent,
 
     # Query the historian
     result = query_agent.vip.rpc.call(
-        'platform.historian',
+        identity,
         'query',
         topic="datalogger/Building/LAB/Device/MixedAirTemperature",
         end='2015-12-02T00:00:00',

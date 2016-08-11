@@ -54,21 +54,19 @@ def register_platform(address, identity):
     return do_rpc('register_platform', {'address': address,
                                         'identity': identity});
 
+def register_instance(discovery_address):
+    print "Registering platform instance"
+    return do_rpc(
+        'register_instance', {'discovery_address': discovery_address})
+
+
 if __name__ == '__main__':
     response = do_rpc("get_authorization", {'username': 'admin',
                                            'password': 'admin'})
 
+    response = register_instance("127.0.0.2:8080")
     if response.ok:
-        authentication = json.loads(response.text)['result']
-        print('Authentication successful')
-    else:
-        print('login unsuccessful')
-        sys.exit(0)
-
-    response = register_platform('ipc://@/home/dev/.volttron/run/vip.socket',
-                                 'platform.agent')
-    if response.ok:
-        success = json.loads(response.text)['result']
+        success = response.json()['result']
         if success:
             print('default platform registered')
         else:

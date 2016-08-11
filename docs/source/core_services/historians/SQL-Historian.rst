@@ -1,5 +1,7 @@
+.. _SQL-Historian:
+
 SQL Historian
-=====
+=============
 
 An SQL Historian is available as a core service. The sql historian has
 been programmed to allow for inconsistent network connectivity

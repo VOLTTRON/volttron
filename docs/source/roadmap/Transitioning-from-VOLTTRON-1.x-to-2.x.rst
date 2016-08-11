@@ -1,5 +1,5 @@
 Transitioning from 1.x to 2.x
-====
+=============================
 
 VOLTTRON(tm) 2.0 introduces new features such as agent
 packaging/verification, agent mobility, and agent resource monitoring.
