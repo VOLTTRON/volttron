@@ -263,7 +263,7 @@ class Router(BaseRouter):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
-        self.addresses = addresses = [Address(addr) for addr in addresses]
+        self.addresses = addresses = [Address(addr) for addr in set(addresses)]
         self._secretkey = secretkey
         self._publickey = publickey
         self.logger = logging.getLogger('vip.router')
