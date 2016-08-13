@@ -31,6 +31,7 @@ from volttron.platform.aip import AIPplatform
 #from volttron.platform.control import client, server
 from volttron.platform import packaging
 from volttron.platform.agent import utils
+from volttron.platform.keystore import KeyStore
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -152,7 +153,7 @@ class PlatformWrapper:
 
         self._p_process = None
         self._t_process = None
-        self.__publickey = self.generate_key()
+        self.__publickey = KeyStore().public()
         self._started_pids = []
         self.__local_vip_address = None
         self.__vip_address = None
@@ -260,12 +261,6 @@ class PlatformWrapper:
         agent.publickey = publickey
         return agent
 
-    def generate_key(self):
-        key = ''.join(zmq.curve_keypair())
-        with open(os.path.join(self.volttron_home, 'curve.key'), 'w') as fd:
-            fd.write(key)
-        return encode_key(key[:40]) # public key
-
     def _read_auth_file(self):
         auth_path = os.path.join(self.volttron_home, 'auth.json')
         try:
@@ -334,11 +329,6 @@ class PlatformWrapper:
             '@' if sys.platform.startswith('linux') else '',
             self.volttron_home)
         self.local_vip_address = ipc + 'vip.socket'
-        if not encrypt:
-            # Remove connection encryption
-            with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
-                pass
-
         self.set_auth_dict(auth_dict)
 
         self.opts = {'verify_agents': False,
@@ -492,9 +482,9 @@ class PlatformWrapper:
         aip.setup()
         return aip
 
-    def _install_agent(self, wheel_file, start):
+    def _install_agent(self, wheel_file, start, vip_identity):
         aip = self._aip()
-        auuid = aip.install_agent(wheel_file)
+        auuid = aip.install_agent(wheel_file, vip_identity=vip_identity)
         assert auuid is not None
         if start:
             self.logit('STARTING: {}'.format(wheel_file))
@@ -536,7 +526,7 @@ class PlatformWrapper:
         return results
 
     def install_agent(self, agent_wheel=None, agent_dir=None, config_file=None,
-        start=True):
+        start=True, vip_identity=None):
         '''Install and optionally start an agent on the platform.
 
             This function allows installation from an agent wheel or an
@@ -575,7 +565,7 @@ class PlatformWrapper:
             wheel_file = self.build_agentpackage(agent_dir, config_file)
             assert wheel_file
 
-        agent_uuid = self._install_agent(wheel_file, start)
+        agent_uuid = self._install_agent(wheel_file, start, vip_identity)
 
         assert agent_uuid is not None
 
