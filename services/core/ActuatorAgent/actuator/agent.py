@@ -496,7 +496,7 @@ ACTUATOR_COLLECTION = 'actuators'
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-__version__ = "0.3"
+__version__ = "0.4"
 
 
 class LockError(StandardError):
@@ -522,14 +522,10 @@ def actuator_agent(config_path, **kwargs):
     schedule_state_file = config.get('schedule_state_file')
     preempt_grace_time = config.get('preempt_grace_time', 60)
     driver_vip_identity = config.get('driver_vip_identity', 'platform.driver')
-    vip_identity = config.get('vip_identity', 'platform.actuator')
-    # This agent needs to be named platform.actuator. Pop the uuid id off
-    # the kwargs
-    kwargs.pop('identity', None)
 
     return ActuatorAgent(heartbeat_interval, schedule_publish_interval,
                          schedule_state_file, preempt_grace_time,
-                         driver_vip_identity, identity=vip_identity, **kwargs)
+                         driver_vip_identity, **kwargs)
 
 
 class ActuatorAgent(Agent):
@@ -562,7 +558,7 @@ class ActuatorAgent(Agent):
                  schedule_state_file=None, preempt_grace_time=60,
                  driver_vip_identity='platform.driver', **kwargs):
 
-        super(ActuatorAgent, self).__init__(**kwargs)
+        super(ActuatorAgent, self).__init__(identity='platform.actuator', **kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
         self._update_event = None

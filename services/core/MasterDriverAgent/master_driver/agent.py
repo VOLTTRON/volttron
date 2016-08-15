@@ -68,7 +68,7 @@ from driver_locks import configure_socket_lock, configure_publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '0.1'
+__version__ = '0.2'
 
 def master_driver_agent(config_path, **kwargs):
 
@@ -124,9 +124,6 @@ def master_driver_agent(config_path, **kwargs):
         _log.info("maximum concurrent driver publishes limited to " + str(max_concurrent_publishes))
     configure_publish_lock(max_concurrent_publishes)
 
-    vip_identity = get_config('vip_identity', 'platform.driver')
-    #pop the uuid based id
-    kwargs.pop('identity', None)
     driver_config_list = get_config('driver_config_list')
     
     scalability_test = get_config('scalability_test', False)
@@ -135,13 +132,13 @@ def master_driver_agent(config_path, **kwargs):
     staggered_start = get_config('staggered_start', None)
     
     return MasterDriverAgent(driver_config_list, scalability_test, scalability_test_iterations, staggered_start,
-                             identity=vip_identity, heartbeat_autostart=True, **kwargs)
+                             heartbeat_autostart=True, **kwargs)
 
 class MasterDriverAgent(Agent):
     def __init__(self, driver_config_list, scalability_test = False,
                  scalability_test_iterations = 3, staggered_start = None,
                  **kwargs):
-        super(MasterDriverAgent, self).__init__(**kwargs)
+        super(MasterDriverAgent, self).__init__(identity='platform.driver', **kwargs)
         self.instances = {}
         self.scalability_test = scalability_test
         self.scalability_test_iterations = scalability_test_iterations
