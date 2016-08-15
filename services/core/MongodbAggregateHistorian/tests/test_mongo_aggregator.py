@@ -215,8 +215,8 @@ def publish_test_data(start_time, start_reading, count, fake_agent):
         time = time + timedelta(minutes=1)
 
 
-@pytest.mark.dev
-@pytest.mark.aggregator
+#@pytest.mark.dev
+#@pytest.mark.aggregator
 def test_basic_function(volttron_instance, aggregate_agent, fake_agent,
                         cleanup):
     """

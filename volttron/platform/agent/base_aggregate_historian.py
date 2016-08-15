@@ -62,9 +62,9 @@
 from __future__ import absolute_import
 
 import logging
-from abc import abstractmethod
 from datetime import datetime, timedelta
 
+from abc import abstractmethod
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent import Core
@@ -106,12 +106,12 @@ class AggregateHistorian(Agent):
         params = connection.get('params', None)
         assert params is not None
 
-
     @Core.receiver('onstart')
     def _on_start(self, sender, **kwargs):
         """
-        Converts aggrgation time period into seconds and setups periodic
-        call to collect_aggregate_data method
+        Converts aggregation time period into seconds, validates
+        configuration values and setups periodic call to
+        :py:meth:`AggregateHistorian._collect_aggregate_data` method
         @param sender:
         @param kwargs:
         @return:
@@ -121,37 +121,113 @@ class AggregateHistorian(Agent):
 
             # 1. Validate and normalize aggregation period and
             # initialize use_calendar_periods flag
-            agg_time_period = self.format_aggregation_time_period(
-                agg_group['aggregation_period'])
+            agg_time_period = \
+                AggregateHistorian.format_aggregation_time_period(
+                    agg_group['aggregation_period'])
             use_calendar_periods = agg_group.get('use_calendar_time_periods',
                                                  False)
-            # 2. Validate aggregation details in config
+
+            # 2. Validate aggregation details in under points
             for data in agg_group['points']:
-                if data['topic_name'] is None or self.topic_id_map[data[
-                    'topic_name'].lower()] is None:
-                    raise ValueError("Invalid topic name " + data[
-                        'topic_name'])
-                if not self.is_supported_aggregation(data['aggregation_type']):
+                topic_names = data.get('topic_names', None)
+                topic_pattern = data.get('topic_name_pattern', None)
+                if topic_names is None and topic_pattern is None:
+                    raise ValueError(
+                        "Please provide a valid topic_name or "
+                        "topic_name_pattern for aggregation_period {}"
+                        .format(agg_group['aggregation_period']))
+
+                # Validate aggregation_type
+                if not self.is_supported_aggregation(
+                        data['aggregation_type']):
                     raise ValueError("Invalid aggregation type {}"
                                      .format(data['aggregation_type']))
+
+                # Validate min count
                 if data.get('min_count', 0) < 0:
                     raise ValueError("Invalid min_count ({}). min_count "
                                      "should be "
                                      "an integer grater than 0".
                                      format(data['min_count']))
-                self.create_aggregate_store(data['aggregation_type'],
-                                            agg_time_period)
-            # 3. Call parent method to set up periodic aggregation
+
+                # Validated topic name or pattern and populate topic_ids
+                _log.debug("topic names {}".format(topic_names))
+                topic_ids = []
+                if topic_names is not None:
+                    for name in topic_names:
+                        if self.topic_id_map[name.lower()] is None:
+                            raise ValueError("Invalid topic_name {}".format(
+                                name))
+                        else:
+                            topic_ids.append(self.topic_id_map[name])
+                            _log.debug("topic_ids is {}".format(topic_ids))
+                    data['topic_ids'] = topic_ids
+                else:
+                    # Find if the topic_name patterns result in any topics
+                    # at all. If it does log them as info
+                    topic_map = self.find_topics_by_pattern(topic_pattern)
+                    if topic_map is None or len(topic_map) == 0:
+                        raise ValueError(
+                            "Please provide a valid topic_name or "
+                            "topic_name_pattern for aggregation_period {}. "
+                            "The given topic_name_pattern({}) does not "
+                            "match any existing topic names"
+                            .format(agg_group['aggregation_period'],
+                                    topic_pattern))
+
+                    _log.info("topic_names matching the given pattern {} "
+                              ":\n {}".format(topic_pattern, topic_map.keys()))
+                    data['topic_ids'] = topic_map.values()
+
+                # Aggregating across multiple points. Check if unique topic
+                # name was given for this.
+                _log.debug("topic pattern is {} and topic_ids is {}".format(
+                    topic_pattern,
+                    data['topic_ids']))
+                topic_meta = topic_pattern
+                if topic_pattern is None:
+                    topic_meta = topic_names
+                if topic_pattern or len(data['topic_ids']) > 1:
+                    aggregation_topic_name = data.get(
+                        'aggregation_topic_name', None)
+
+                    if aggregation_topic_name is None:
+                        raise ValueError(
+                            "Please provide a valid aggregation_topic_name "
+                            "when aggregating across multiple points. Update "
+                            "aggregation_topic_name for aggregation_period:{} "
+                            "and topics:{}".format(
+                                agg_group['aggregation_period'],
+                                topic_meta))
+                    # 3. Create data structure for storing aggregate data
+                    # table/collection. Pass additional parameters so that
+                    # topics and metadata table can be updated
+                    agg_id = self.initialize_aggregate_store(
+                        data['aggregation_type'],
+                        agg_time_period,
+                        aggregation_topic_name,
+                        {'configured_topics': topic_meta})
+                    self.topic_id_map[aggregation_topic_name.lower()] = agg_id
+                else:
+                    # 3. Create data structure for storing aggregate data
+                    # table/collection
+                    self.initialize_aggregate_store(
+                        data['aggregation_type'],
+                        agg_time_period,
+                        topic_names[0],
+                        {'configured_topics': topic_meta})
+
+            # 4. Call parent method to set up periodic aggregation
             # collection calls
-            frequency = self.compute_aggregation_frequency_seconds(
-                agg_time_period,
-                use_calendar_periods)
+            frequency = \
+                AggregateHistorian.compute_aggregation_frequency_seconds(
+                    agg_time_period,
+                    use_calendar_periods)
             self.core.periodic(frequency,
                                self._collect_aggregate_data,
                                [agg_time_period, use_calendar_periods,
                                 agg_group['points']]
                                )
-
 
     def _collect_aggregate_data(self, *args):
         """
@@ -166,9 +242,9 @@ class AggregateHistorian(Agent):
         aligned to calendar times
          3. points = list of points for which aggregate data needs to be
          collected. Each element in the list is a dictionary containing
-         topic_name, aggregation_type(ex. sum, avg etc.), and min_count(
-         minimum number of raw data to be present within the given time
-         period for the aggregate to be computed. If count is less
+         topic_names/topic_name_pattern, aggregation_type(ex. sum, avg etc.),
+         and min_count(minimum number of raw data to be present within the
+         given time period for the aggregate to be computed. If count is less
          than minimum no aggregate is computed for that time period)
         """
 
@@ -177,23 +253,36 @@ class AggregateHistorian(Agent):
         points = args[2]
 
         _log.debug("Time period passed as arg  {} ".format(period))
+        _log.debug("points passed as arg  {} ".format(points))
 
-        end_time, start_time = self.compute_aggregation_timeslice(
-            period, use_calendar)
+        end_time, start_time = \
+            AggregateHistorian.compute_aggregation_timeslice(period,
+                                                             use_calendar)
 
         _log.debug("After  compute period = {} start_time {} end_time {} ".
                    format(period, start_time, end_time))
         for data in points:
-            topic_id = self.topic_id_map[data['topic_name'].lower()]
+            topic_ids = data.get('topic_ids', None)
+            _log.debug("topic ids configured {} ".format(topic_ids))
+            aggregate_topic_id = topic_ids[0]
+            topic_pattern = data.get('topic_name_pattern', None)
+            if topic_pattern is not None:
+                # Find topic ids that match the pattern at runtime
+                topic_map = self.find_topics_by_pattern(topic_pattern)
+                _log.debug("Found topics for pattern {}".format(topic_map))
+                if topic_map is not None and len(topic_map) > 0:
+                    topic_ids = topic_map.values()
+                _log.debug("topic ids loaded {} ".format(topic_ids))
+
             agg_value, count = self.collect_aggregate(
-                topic_id,
+                topic_ids,
                 data['aggregation_type'],
                 start_time,
                 end_time)
             if count == 0:
                 _log.warn("No records found for topic {topic} "
                           "between {start_time} and {end_time}".
-                          format(topic=data['topic_name'],
+                          format(topic=data['topic_names'],
                                  start_time=start_time,
                                  end_time=end_time))
             elif count < data.get('min_count', 0):
@@ -201,45 +290,102 @@ class AggregateHistorian(Agent):
                     "Skipping recording of aggregate data for {topic} "
                     "between {start_time} and {end_time} as number of "
                     "records is less than minimum allowed("
-                    "{count})".format(topic=data['topic_name'],
+                    "{count})".format(topic=data['topic_names'],
                                       start_time=start_time,
                                       end_time=end_time,
                                       count=data.get('min_count', 0)))
             else:
-                self.insert_aggregate(data['aggregation_type'],
+
+                if topic_pattern is not None or len(topic_ids) > 1:
+                    aggregate_topic_id = self.topic_id_map[data[
+                        'aggregation_topic_name'].lower()]
+                _log.debug("agg_topic_id {} and topic ids sent to insert {} "
+                           "".format(aggregate_topic_id, topic_ids))
+                self.insert_aggregate(aggregate_topic_id,
+                                      data['aggregation_type'],
                                       period,
                                       end_time,
-                                      topic_id,
-                                      agg_value)
+                                      agg_value,
+                                      topic_ids)
 
     @abstractmethod
     def get_topic_map(self):
         """
         Query the topics table and create a map of topic name to topic id.
         This should be done as part of init
-        @return:
+        @return: Returns a list of topic_map containing
+        {topic_name.lower():id}
         """
         pass
 
     @abstractmethod
-    def create_aggregate_store(self, param, agg_time_period):
+    def find_topics_by_pattern(self, topic_pattern):
+        """ Find the list of topics and its id for a given topic_pattern
+        @return: returns list of dictionary object {topic_name.lower():id}"""
+
+    @abstractmethod
+    def initialize_aggregate_store(self, agg_type, agg_time_period,
+                                   aggregation_topic_name, topics_meta):
+        """
+        Create the data structure (table or collection) that is going to store
+        the aggregate data for the give aggregation type and aggregation
+        time period
+        @param agg_type: The type of aggregation. For example, avg, sum etc.
+        @param agg_time_period: The time period of aggregation
+        @param aggregation_topic_name: Unique topic name for this
+        aggregation. If aggregation is done over multiple points it is a
+        unique name given by user, else it is same as topic_name for which
+        aggregation is done
+        @param topics_meta: String that represents the list of topics across
+        which this aggregation is computed. It could be topic name pattern
+        or list of topics. This information should go into metadata table
+        @:return - Return a aggregation_topic_id after inserting
+        aggregation_topic_name into topics table
+        """
+
+    @abstractmethod
+    def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):
+        """
+        Collects the aggregate data by querying the historian's data store
+        @param topic_ids: list of topic ids for which aggregation should be
+        performed.
+        @param agg_type: type of aggregation
+        @param start_time: start time for query (inclusive)
+        @param end_time:  end time for query (exclusive)
+        @return: a tuple of (aggregated value, count of record over which
+        this aggregation was computed)
+        """
         pass
 
     @abstractmethod
-    def collect_aggregate(self, topic_id, agg_type, start_time, end_time):
+    def insert_aggregate(self, agg_topic_id, agg_type, agg_time_period,
+                         end_time, value, topic_ids):
+        """
+        @param agg_topic_id: If len(topic_ids) is 1. This would be the same
+        as the topic_ids[0]. Else this id corresponds to the unique topic name
+        given by user for this aggregation across multiple points.
+        @param agg_type: type of aggregation
+        @param agg_time_period: The time period of aggregation
+        @param end_time: end time used for query records that got aggregated
+        @param topic_ids: topic ids for which aggregation was computed
+        @param value: aggregation result
+        """
         pass
 
     @abstractmethod
-    def insert_aggregate(self, agg_type, period, end_time, topic_id, value):
-        pass
-
-    @abstractmethod
-    def is_supported_aggregation(self,agg_type):
+    def is_supported_aggregation(self, agg_type):
+        """
+        Checks if the given aggregation is supported by the historian's
+        data store
+        @param agg_type: The type of aggregation to be computed
+        @return: True is supported False otherwise
+        """
         pass
 
     # Utility methods
 
-    def format_aggregation_time_period(self, time_period):
+    @staticmethod
+    def format_aggregation_time_period(time_period):
         """
         Validates and normalizes aggregation time period. For example,
         if aggregation time period is given as 48h it will get converted
@@ -261,8 +407,8 @@ class AggregateHistorian(Agent):
             raise ValueError(
                 "Invalid unit {} provided for aggregation time "
                 "period {}. Valid time periods are m,h,d,w,"
-                "or M (minutes, hours, days, weeks, months".format(unit,
-                                                                   time_period))
+                "or M (minutes, hours, days, weeks, months"
+                .format(unit, time_period))
         if unit == 'm':
             if period >= 60 and period % 60 == 0:
                 period /= 60
@@ -278,7 +424,8 @@ class AggregateHistorian(Agent):
 
         return str(period) + unit
 
-    def compute_aggregation_frequency_seconds(self, agg_period,
+    @staticmethod
+    def compute_aggregation_frequency_seconds(agg_period,
                                               use_calendar_periods):
         """
         Return aggregate collection frequency in seconds. This can be used
@@ -310,7 +457,8 @@ class AggregateHistorian(Agent):
             else:
                 return period_int * 30 * 24 * 60 * 60
 
-    def compute_aggregation_timeslice(self, agg_period,
+    @staticmethod
+    def compute_aggregation_timeslice(agg_period,
                                       use_calender_time_periods):
         """
         Computes the start and end time for querying the historians data table
@@ -376,4 +524,3 @@ class AggregateHistorian(Agent):
                                                 microsecond=0)
 
         return end_time, start_time
-

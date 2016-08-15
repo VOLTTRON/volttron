@@ -119,6 +119,7 @@ def historian(config_path, **kwargs):
             self.topic_id_map = {}
             self.topic_name_map = {}
             self.topic_meta = {}
+            self.agg_topic_id_map = {}
 
         @Core.receiver("onstart")
         def starting(self, sender, **kwargs):
@@ -138,6 +139,7 @@ def historian(config_path, **kwargs):
             topic_id_map, topic_name_map = self.reader.get_topic_map()
             self.topic_id_map.update(topic_id_map)
             self.topic_name_map.update(topic_name_map)
+            self.agg_topic_id_map = self.reader.get_agg_topic_map()
 
             if self.core.identity == 'platform.historian':
                 if 'platform.agent' in self.vip.peerlist().get(timeout=2):
@@ -241,6 +243,16 @@ def historian(config_path, **kwargs):
             results = dict()
             topic_id = self.topic_id_map.get(topic.lower(), None)
 
+            if topic_id is None and not agg_type:
+                return results
+            else:
+                topic_id = self.agg_topic_id_map.get(topic.lower(), None)
+            if topic_id is None:
+                # load agg topic id again as it might be a newly configured
+                # aggregation
+                map = self.reader.get_agg_topic_map()
+                self.agg_topic_id_map.update(map)
+                topic_id = self.agg_topic_id_map.get(topic.lower(), None)
             if topic_id is None:
                 return results
             _log.debug("Querying db reader")

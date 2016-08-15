@@ -68,13 +68,15 @@ _log = logging.getLogger(__name__)
 
 
 class MySqlFuncts(DbDriver):
-    def __init__(self, connect_params, tables_def):
+    def __init__(self, connect_params, tables_def, create_tables=False):
         # kwargs['dbapimodule'] = 'mysql.connector'
         super(MySqlFuncts, self).__init__('mysql.connector', **connect_params)
         self.MICROSECOND_SUPPORT = None
         self.data_table = tables_def['data_table']
         self.topics_table = tables_def['topics_table']
         self.meta_table = tables_def['meta_table']
+        self.agg_topics_table = tables_def.get('agg_topics_table', None)
+        self.agg_meta_table = tables_def.get('agg_meta_table', None)
 
     def init_microsecond_support(self):
         rows = self.select("SELECT version()", None)
@@ -185,7 +187,17 @@ class MySqlFuncts(DbDriver):
         return '''UPDATE ''' + self.topics_table + ''' SET topic_name = %s
             WHERE topic_id = %s'''
 
-    # @property
+    def insert_agg_topic_stmt(self):
+        _log.debug("Insert aggregate topics stmt inserts "
+                   "into {}".format(self.agg_topics_table))
+        return '''INSERT INTO ''' + self.agg_topics_table + '''
+            (agg_topic_name, agg_type, agg_time_period )
+            values (%s, %s, %s)'''
+
+    def insert_agg_meta_stmt(self):
+        return '''REPLACE INTO ''' + self.agg_meta_table + ''' values(%s,
+        %s)'''
+
     def get_topic_map(self):
         _log.debug("in get_topic_map")
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + ";"
@@ -200,25 +212,61 @@ class MySqlFuncts(DbDriver):
         _log.debug(name_map)
         return id_map, name_map
 
+    def get_agg_topic_map(self):
+        _log.debug("in get_agg_topic_map")
+        q = "SELECT agg_topic_id, agg_topic_name FROM " + self.agg_topics_table
+        rows = self.select(q, None)
+        _log.debug("loading agg_topic map from db")
+        id_map = dict()
+        for t, n in rows:
+            id_map[n.lower()] = t
+        return id_map
+
+    def find_topics_by_pattern(self, topic_pattern):
+        q = "SELECT topic_id, topic_name FROM " + self.topics_table + \
+            " WHERE lower(topic_name) REGEXP lower('" + topic_pattern + "');"
+
+        rows = self.select(q, None)
+        _log.debug("loading topic map from db")
+        id_map = dict()
+        for t, n in rows:
+            id_map[n.lower()] = t
+        _log.debug("topics that matched the pattern {} : {}".format(
+            topic_pattern, id_map))
+        return id_map
+
+
     def create_aggregate_store(self, agg_type, period):
         """
-
-        @param agg_type:
-        @param period:
-        @return:
+        Create the data structure (table or collection) that is going to store
+        the aggregate data for the give aggregation type and aggregation
+        time period
+        @param agg_type: The type of aggregation. For example, avg, sum etc.
+        @param agg_time_period: The time period of aggregation
+        @param aggregation_topic_name: Unique topic name for this
+        aggregation. Mandatory if aggregation is done over multiple points
+        @param topics_str: List of topics across which this aggregation is
+        computed. It could be topic name pattern or list of topics. This
+        information should go into metadata table. If aggregation was
+        configured with a topic_name_pattern instead of explicit topic
+        names, this captures the initial list of topics that matched the
+        configured topic_name pattern.
+        @:return - If aggregation_topic_name is given return an topic id
+        after inserting aggregation_topic_name in topics table else return None
         """
         table_name = agg_type + '''_''' + period
         stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
                " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
-               "value_string TEXT NOT NULL, UNIQUE(ts, topic_id)," \
+               "value_string TEXT NOT NULL, topics_list TEXT," \
+               " UNIQUE(ts, topic_id)," \
                "INDEX (ts ASC))"
         return self.execute_stmt(stmt)
 
     def insert_aggregate_stmt(self, table_name):
         return '''REPLACE INTO ''' + table_name + \
-               ''' values(%s, %s, %s)'''
+               ''' values(%s, %s, %s, %s)'''
 
-    def collect_aggregate(self, topic_id, agg_type, start=None, end=None):
+    def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
         """
         This function should return the results of a aggregation query
         @param topic_id:
@@ -234,9 +282,12 @@ class MySqlFuncts(DbDriver):
         query = '''SELECT ''' \
                 + agg_type + '''(value_string), count(value_string) FROM ''' \
                 + self.data_table + ''' {where}'''
-
         where_clauses = ["WHERE topic_id = %s"]
-        args = [topic_id]
+        args = [topic_ids[0]]
+        if len(topic_ids) > 1 :
+            where_clauses = ["WHERE topic_id IN (%s)"]
+            args = topic_ids
+
 
         if start is not None:
             where_clauses.append("ts >= %s")

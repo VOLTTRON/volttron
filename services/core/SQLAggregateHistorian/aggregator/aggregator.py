@@ -78,7 +78,6 @@ class SQLAggregateHistorian(AggregateHistorian):
     This aggregate historian aggregates data collected by SQLHistorian.
     """
 
-
     def __init__(self, config_path, **kwargs):
         """
         Validate configuration, create connection to historian, create
@@ -99,31 +98,43 @@ class SQLAggregateHistorian(AggregateHistorian):
 
         dbfuncts_class = sqlutils.get_dbfuncts_class(database_type)
         tables_def = sqlutils.get_table_def(self.config)
-        self.dbfuncts = dbfuncts_class(connection['params'], tables_def)
-
+        self.dbfuncts = dbfuncts_class(connection['params'], tables_def, False)
 
     def get_topic_map(self):
         return self.dbfuncts.get_topic_map()
 
+    def find_topics_by_pattern(self, topic_pattern):
+        return self.dbfuncts.find_topics_by_pattern(topic_pattern)
+
     def is_supported_aggregation(self, agg_type):
         return agg_type.upper() in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM']
 
-    def create_aggregate_store(self, agg_type, agg_time_period):
+    def initialize_aggregate_store(self, agg_type, agg_time_period,
+                                   aggregation_topic_name, topics_meta):
+        _log.debug("aggregation_topic_name " + aggregation_topic_name)
+        _log.debug("topics_meta {}".format(topics_meta))
         self.dbfuncts.create_aggregate_store(agg_type, agg_time_period)
+        agg_id = self.dbfuncts.insert_agg_topic(aggregation_topic_name,
+                                                agg_type, agg_time_period)
+        self.dbfuncts.insert_agg_meta(agg_id[0], topics_meta)
+        return agg_id[0]
 
-    def collect_aggregate(self, topic_id, agg_type, start_time, end_time):
+    def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):
         return self.dbfuncts.collect_aggregate(
-            topic_id,
+            topic_ids,
             agg_type,
             start_time,
             end_time)
 
-    def insert_aggregate(self, agg_type, period, end_time, topic_id, value):
-        self.dbfuncts.insert_aggregate(agg_type,
+    def insert_aggregate(self, topic_id, agg_type, period, end_time,
+                         value, topic_ids):
+        self.dbfuncts.insert_aggregate(topic_id,
+                                       agg_type,
                                        period,
                                        end_time,
-                                       topic_id,
-                                       value)
+                                       value,
+                                       topic_ids)
+
 
 def main(argv=sys.argv):
     """Main method called by the eggsecutable."""
