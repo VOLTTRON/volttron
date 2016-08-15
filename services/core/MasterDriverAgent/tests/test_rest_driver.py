@@ -139,7 +139,7 @@ def test_restful_get(agent):
     point = agent.vip.rpc.call('platform.driver',
                                'get_point',
                                'campus/building/unit',
-                               'test_point').get(timeout=2)
+                               'test_point').get(timeout=10)
     assert point == 'forty two'
     
 
@@ -149,14 +149,14 @@ def test_restful_set(agent):
                                'set_point',
                                'campus/building/unit',
                                'test_point',
-                               '42').get(timeout=2)
+                               '42').get(timeout=10)
     assert point == '42'
 
     # get point
     point = agent.vip.rpc.call('platform.driver',
                                'get_point',
                                'campus/building/unit',
-                               'test_point').get(timeout=2)
+                               'test_point').get(timeout=10)
     assert point == '42'
 
 def test_restful_revert(agent):
@@ -165,20 +165,20 @@ def test_restful_revert(agent):
                                'set_point',
                                'campus/building/unit',
                                'test_point',
-                               '42').get(timeout=2)
+                               '42').get(timeout=10)
     assert point == '42'
 
     # revert point
     point = agent.vip.rpc.call('platform.driver',
                                'revert_point',
                                'campus/building/unit',
-                               'test_point').get(timeout=2)
+                               'test_point').get(timeout=10)
 
     # get point
     point = agent.vip.rpc.call('platform.driver',
                                'get_point',
                                'campus/building/unit',
-                               'test_point').get(timeout=2)
+                               'test_point').get(timeout=10)
     assert point == 'forty two'
 
     return True
