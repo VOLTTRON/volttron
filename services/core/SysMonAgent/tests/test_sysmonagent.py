@@ -93,6 +93,7 @@ def sysmon_tester_agent(request, volttron_instance, tmpdir):
 
     def stop_agent():
         volttron_instance.stop_agent(sysmon_uuid)
+        volttron_instance.remove_agent(sysmon_uuid)
         agent.core.stop()
 
     request.addfinalizer(stop_agent)

@@ -27,6 +27,7 @@ Contents:
    supporting/index
    scalability/index
    roadmap/index
+   specifications/index
 
    API Documenation <apidocs>
 
