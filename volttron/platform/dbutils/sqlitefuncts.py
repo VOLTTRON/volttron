@@ -57,6 +57,7 @@
 
 import errno
 import logging
+import re
 import sqlite3
 import threading
 from datetime import datetime
@@ -71,7 +72,7 @@ _log = logging.getLogger(__name__)
 
 
 class SqlLiteFuncts(DbDriver):
-    def __init__(self, connect_params, tables_def):
+    def __init__(self, connect_params, tables_def, create_tables=True):
         database = connect_params['database']
         thread_name = threading.currentThread().getName()
         _log.debug(
@@ -98,12 +99,14 @@ class SqlLiteFuncts(DbDriver):
         self.data_table = tables_def['data_table']
         self.topics_table = tables_def['topics_table']
         self.meta_table = tables_def['meta_table']
-
+        self.agg_topics_table = tables_def.get('agg_topics_table', None)
+        self.agg_meta_table = tables_def.get('agg_meta_table', None)
         conn = sqlite3.connect(
             self.__database,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         )
         cursor = conn.cursor()
+
         cursor.execute('''CREATE TABLE IF NOT EXISTS ''' + self.data_table +
                        ''' (ts timestamp NOT NULL,
                        topic_id INTEGER NOT NULL,
@@ -122,6 +125,20 @@ class SqlLiteFuncts(DbDriver):
         cursor.execute('''CREATE TABLE IF NOT EXISTS ''' + self.meta_table +
                        '''(topic_id INTEGER PRIMARY KEY,
                         metadata TEXT NOT NULL)''')
+        _log.debug("Created data topics and meta tables")
+        cursor.execute(
+            'CREATE TABLE IF NOT EXISTS ' + self.agg_topics_table +
+            ' (agg_topic_id INTEGER PRIMARY KEY, \
+               agg_topic_name TEXT NOT NULL, \
+               agg_type TEXT NOT NULL, \
+               agg_time_period TEXT NOT NULL, \
+               UNIQUE(agg_topic_name, agg_type, agg_time_period));')
+
+        cursor.execute(
+            'CREATE TABLE IF NOT EXISTS ' + self.agg_meta_table +
+            '(agg_topic_id INTEGER NOT NULL PRIMARY KEY, \
+              metadata TEXT NOT NULL);')
+        _log.debug("Created aggregate topics and meta tables")
         conn.commit()
         conn.close()
 
@@ -232,6 +249,14 @@ class SqlLiteFuncts(DbDriver):
         return '''UPDATE ''' + self.topics_table + ''' SET topic_name = ?
             WHERE topic_id = ?'''
 
+    def insert_agg_topic_stmt(self):
+        return '''INSERT INTO ''' + self.agg_topics_table + '''
+               (agg_topic_name, agg_type, agg_time_period )
+               values (?, ?, ?)'''
+
+    def insert_agg_meta_stmt(self):
+        return '''REPLACE INTO ''' + self.meta_table + ''' values(?, ?)'''
+
     def get_topic_map(self):
         _log.debug("in get_topic_map")
         q = "SELECT topic_id, topic_name FROM " + self.topics_table
@@ -244,19 +269,66 @@ class SqlLiteFuncts(DbDriver):
             name_map[n.lower()] = n
         return id_map, name_map
 
-    def create_aggregate_store(self, agg_type, period):
-        """
+    def get_agg_topic_map(self):
+        _log.debug("in get_agg_topic_map")
+        q = "SELECT agg_topic_id, agg_topic_name FROM " + self.agg_topics_table
+        rows = self.select(q, None)
+        _log.debug("loading agg_topic map from db")
+        id_map = dict()
+        for t, n in rows:
+            id_map[n.lower()] = t
+        return id_map
 
-        @param agg_type:
-        @param period:
-        @return:
-        """
+    @staticmethod
+    def regexp(expr, item):
+        _log.debug("item {} matched against expr {}".format(item, expr))
+        return re.search(expr, item, re.IGNORECASE) is not None
+
+    def regex_select(self, query, args):
+        conn = sqlite3.connect(
+            self.__database,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+
+        if conn is None:
+            _log.error("Unable to connect to sqlite database {} ".format(
+                self.__database))
+            return []
+
+        conn.create_function("REGEXP", 2, SqlLiteFuncts.regexp)
+        _log.debug(" REGEXP query {}  ARGS: {}".format(query, args))
+        cursor = conn.cursor()
+        if args is not None:
+            cursor.execute(query, args)
+        else:
+            cursor.execute(query)
+        rows = cursor.fetchall()
+        conn.close()
+        return rows
+
+    def find_topics_by_pattern(self, topic_pattern):
+        id_map, name_map = self.get_topic_map()
+        _log.debug("Contents of topics table {}".format(id_map.keys()))
+        q = "SELECT topic_id, topic_name FROM " + self.topics_table + \
+            " WHERE topic_name REGEXP '"+ topic_pattern +"';"
+
+        rows = self.regex_select(q, None)
+        _log.debug("loading topic map from db")
+        id_map = dict()
+        for t, n in rows:
+            id_map[n.lower()] = t
+        _log.debug("topics that matched the pattern {} : {}".format(
+            topic_pattern, id_map))
+        return id_map
+
+    def create_aggregate_store(self, agg_type, period):
+
         table_name = agg_type + '''_''' + period
 
         # period = sqlutils.parse_time_period(period)
         stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
                " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
-               "value_string TEXT NOT NULL, UNIQUE(ts, topic_id)); "
+               "value_string TEXT NOT NULL, topics TEXT, " \
+               "UNIQUE(ts, topic_id)); "
         c = sqlite3.connect(
             self.__database,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
@@ -271,9 +343,9 @@ class SqlLiteFuncts(DbDriver):
 
     def insert_aggregate_stmt(self, table_name):
         return '''INSERT OR REPLACE INTO ''' + table_name + \
-               ''' values(?, ?, ?)'''
+               ''' values(?, ?, ?, ?)'''
 
-    def collect_aggregate(self, topic_id, agg_type, start=None, end=None):
+    def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
         """
         This function should return the results of a aggregation query
         @param topic_id:
@@ -291,7 +363,10 @@ class SqlLiteFuncts(DbDriver):
                 + self.data_table + ''' {where}'''
 
         where_clauses = ["WHERE topic_id = ?"]
-        args = [topic_id]
+        args = [topic_ids[0]]
+        if len(topic_ids) >1 :
+            where_clauses = ["WHERE topic_id IN (?)"]
+            args = topic_ids
 
         if start is not None:
             start_str = start.isoformat(' ')

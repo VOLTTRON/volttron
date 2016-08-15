@@ -52,3 +52,16 @@ def get_topic_map(client,topics):
         topic_name_map[document['topic_name'].lower()] = \
             document['topic_name']
     return topic_id_map, topic_name_map
+
+def find_topics_by_pattern(client, topics_collection, topics_pattern):
+    db = client.get_default_database()
+    pattern = { 'topic_name': '/'+topics_pattern+'/i' }
+    cursor = db[topics_collection].find(pattern)
+    topic_id_map = dict()
+    topic_name_map = dict()
+    for document in cursor:
+        topic_id_map[document['topic_name'].lower()] = document[
+            '_id']
+        topic_name_map[document['topic_name'].lower()] = \
+            document['topic_name']
+    return topic_id_map, topic_name_map

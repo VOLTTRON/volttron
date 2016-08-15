@@ -98,6 +98,8 @@ class MongoAggregateHistorian(AggregateHistorian):
         self._data_collection = 'data'
         self._meta_collection = 'meta'
         self._topic_collection = 'topics'
+        self._agg_meta_collection = 'aggregate_meta'
+        self._agg_topic_collection = 'aggregate_topics'
 
         # 2. load topic name and topic id.
         self.topic_id_map, name_map = self.get_topic_map()
@@ -105,20 +107,34 @@ class MongoAggregateHistorian(AggregateHistorian):
     def get_topic_map(self):
         return mongoutils.get_topic_map(self.dbclient, 'topics')
 
+    def find_topics_by_pattern(self, topic_pattern):
+        return mongoutils.find_topics_by_pattern(self.dbclient, 'topics',
+                                                 topic_pattern)
+
     def is_supported_aggregation(self, agg_type):
         return agg_type.upper() in ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX',
                                     'STDDEVPOP', 'STDDEVSAMP']
 
-    def create_aggregate_store(self, param, agg_time_period):
-        pass
+    def initialize_aggregate_store(self, agg_type, agg_time_period,
+                                   aggregation_topic_name, topics_meta):
 
-    def collect_aggregate(self, topic_id, agg_type, start_time, end_time):
+        db = self.dbclient.get_default_database()
+        row = db[self._agg_topic_collection].insert_one(
+            {'agg_topic_name': aggregation_topic_name,
+             'agg_type': agg_type,
+             'agg_time_period': agg_time_period})
+        agg_id = row.inserted_id
+        db[self._agg_meta_collection].insert_one({'agg_topic_id': agg_id,
+                                                  'meta': topics_meta})
+        return agg_id
+
+    def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):
 
         db = self.dbclient.get_default_database()
         _log.debug("collect_aggregate: params {}, {}, {}, {}".format(
-            topic_id, agg_type, start_time, end_time))
+            topic_ids, agg_type, start_time, end_time))
 
-        match_conditions = [{"topic_id": topic_id}]
+        match_conditions = [{"topic_id": topic_ids}]
         if start_time is not None:
             match_conditions.append({"ts": {"$gte": start_time}})
         if end_time is not None:
@@ -137,12 +153,15 @@ class MongoAggregateHistorian(AggregateHistorian):
         _log.debug("collect_aggregate: got result as {}".format(row))
         return row['aggregate'], row['count']
 
-    def insert_aggregate(self, agg_type, period, end_time, topic_id, value):
+    def insert_aggregate(self, topic_id, agg_type, period, end_time,
+                         value, topic_ids):
+
         db = self.dbclient.get_default_database()
         table_name = agg_type + '''_''' + period
         db[table_name].replace_one(
             {'ts': end_time, 'topic_id': topic_id},
-            {'ts': end_time, 'topic_id': topic_id, 'value': value},
+            {'ts': end_time, 'topic_id': topic_id, 'value': value,
+             'topics_list': topic_ids},
             upsert=True)
 
 

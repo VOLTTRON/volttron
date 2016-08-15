@@ -102,6 +102,10 @@ class DbDriver(object):
         pass
 
     @abstractmethod
+    def find_topics_by_pattern(self, topic_pattern):
+        pass
+
+    @abstractmethod
     def insert_data_query(self):
         pass
 
@@ -115,6 +119,14 @@ class DbDriver(object):
 
     @abstractmethod
     def insert_meta_query(self):
+        pass
+
+    @abstractmethod
+    def insert_agg_topic_stmt(self):
+        pass
+
+    @abstractmethod
+    def insert_agg_meta_stmt(self):
         pass
 
     def insert_meta(self, topic_id, metadata):
@@ -154,6 +166,23 @@ class DbDriver(object):
         self.__cursor.execute(self.update_topic_query(), (topic, topic_id))
 
         return True
+
+    def insert_agg_meta(self, topic_id, metadata):
+        if not self.__connect():
+            return False
+
+        self.__cursor.execute(self.insert_agg_meta_stmt(),
+                              (topic_id, jsonapi.dumps(metadata)))
+        return True
+
+    def insert_agg_topic(self, topic, agg_type, agg_time_period):
+        if not self.__connect():
+            return False
+
+        self.__cursor.execute(self.insert_agg_topic_stmt(),
+                              (topic, agg_type, agg_time_period))
+        row = [self.__cursor.lastrowid]
+        return row
 
     def commit(self):
         successful = False
@@ -236,25 +265,18 @@ class DbDriver(object):
     def insert_aggregate_stmt(self, table_name):
         pass
 
-    def insert_aggregate(self, agg_type, period, ts, topic_id, data):
-        """
+    def insert_aggregate(self, agg_topic_id, agg_type, period, ts,
+                         data, topic_ids):
 
-        @param agg_type:
-        @param period:
-        @param ts:
-        @param topic_id:
-        @param data:
-        @return:
-        """
         if not self.__connect():
             print("connect to database failed.......")
             return False
         table_name = agg_type + '''_''' + period
-        _log.debug("Inserting value {} into aggregate table {}".format(
-            jsonapi.dumps(data), table_name))
+        _log.debug("Inserting id {} {} {} {} into table {}".format(
+            ts, agg_topic_id, jsonapi.dumps(data), topic_ids, table_name))
         self.__cursor.execute(
             self.insert_aggregate_stmt(table_name),
-            (ts, topic_id, jsonapi.dumps(data)))
+            (ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids)))
         self.commit()
         return True
 

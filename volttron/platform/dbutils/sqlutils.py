@@ -73,6 +73,10 @@ def get_table_def(config):
                          "topics_table": "topics",
                          "meta_table": "meta"}
     tables_def = config.get('tables_def', default_table_def)
+    tables_def["agg_topics_table"] = \
+            "aggregate_" + tables_def["topics_table"]
+    tables_def["agg_meta_table"] = "aggregate_" + tables_def["meta_table"]
+
     if tables_def['table_prefix']:
         tables_def['data_table'] = tables_def['table_prefix'] + \
             "_" + tables_def['data_table']
@@ -80,6 +84,13 @@ def get_table_def(config):
             "_" + tables_def['topics_table']
         tables_def['meta_table'] = tables_def['table_prefix'] + \
             "_" + tables_def['meta_table']
+        tables_def['agg_topics_table'] = tables_def['table_prefix'] + \
+                                         "_aggregate_" + \
+                                         tables_def['topics_table']
+        tables_def['agg_meta_table'] = tables_def['table_prefix'] + \
+                                       "_aggregate_" +\
+                                       tables_def['meta_table']
+
     tables_def.pop('table_prefix', None)
     return tables_def
 
