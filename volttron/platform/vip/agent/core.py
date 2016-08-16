@@ -544,8 +544,6 @@ class Core(BasicCore):
             _log.error("No response to hello message after 10 seconds.")
             _log.error("A common reason for this is a conflicting VIP ID.")
             _log.error("Shutting down agent.")
-            if running_event is not None:
-                running_event.set()
             self.stop(timeout=5.0)
 
         def hello():
@@ -554,6 +552,8 @@ class Core(BasicCore):
             self.spawn(self.socket.send_vip,
                        b'', b'hello', [b'hello'], msg_id=ident)
 
+            if running_event is not None:
+                running_event.set()
             self.spawn(connection_failed_check)
 
 
@@ -562,9 +562,6 @@ class Core(BasicCore):
             _log.info("Connected to platform: router: {} version: {} identity: {}".format(router, version, identity))
             _log.debug("Running onstart methods.")
             self.onstart.sendby(self.link_receiver, self)
-
-            if running_event is not None:
-                running_event.set()
 
 
         def monitor():
