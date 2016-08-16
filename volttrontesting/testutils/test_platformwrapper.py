@@ -54,37 +54,14 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+import requests
+
 import gevent
 import pytest
 import time
 
-from zmq import curve_keypair
-
-from volttron.platform.vip.agent import Agent, PubSub, Core
-from volttron.platform.vip.socket import encode_key
-from volttrontesting.utils.platformwrapper import PlatformWrapper
-
-
-@pytest.mark.wrapper
-def test_can_add_vc_to_instance(get_volttron_instances):
-    wrapper = get_volttron_instances(1)[0]
-    agent_count = len(wrapper.list_agents())
-    vc_uuid = wrapper.add_vc()
-    assert vc_uuid
-    assert agent_count+1 == len(wrapper.list_agents())
-    assert wrapper.is_agent_running(vc_uuid)
-
-
-@pytest.mark.wrapper
-def test_can_connect_to_instance(volttron_instance):
-    assert volttron_instance is not None
-    assert volttron_instance.is_running()
-    assert not volttron_instance.list_agents()
-    message = 'Pinging Hello'
-    agent = volttron_instance.build_agent()
-    response = agent.vip.ping('', message).get(timeout=3)
-    agent.core.stop()
-    assert response[0] == message
+from volttrontesting.utils.platformwrapper import start_wrapper_platform, \
+    PlatformWrapper
 
 
 @pytest.mark.wrapper
@@ -164,25 +141,6 @@ def test_can_ping_pubsub(volttron_instance):
 
 
 @pytest.mark.wrapper
-def test_can_call_rpc_method(volttron_instance):
-    config = dict(agentid="Central Platform", report_status_period=15)
-    agent_uuid = volttron_instance.install_agent(
-        agent_dir='services/core/VolttronCentralPlatform',
-        config_file=config,
-        start=True)
-    assert agent_uuid is not None
-    assert volttron_instance.is_agent_running(agent_uuid)
-
-    agent = volttron_instance.build_agent()
-
-    agent_list = agent.vip.rpc.call('platform.agent',
-                                    method='list_agents').get(timeout=5)
-
-    print('The agent list is: {}'.format(agent_list))
-    assert agent_list is not None
-
-
-@pytest.mark.wrapper
 def test_can_remove_agent(volttron_instance):
     """ Confirms that 'volttron-ctl remove' removes agent as expected. """
     assert volttron_instance is not None
@@ -240,7 +198,13 @@ def test_can_publish(volttron_instance):
     assert messages['test/world']['message'] == 'got data'
 
 
-def test_can_ping_router(volttron_instance):
+@pytest.mark.wrapper
+def test_fixture_returns_single_if_one_requested(get_volttron_instances):
+    wrapper = get_volttron_instances(1, False)
+    assert isinstance(wrapper, PlatformWrapper)
+
+
+def test_can_ping_router(get_volttron_instances):
     vi = volttron_instance
     agent = vi.build_agent()
     resp = agent.vip.ping('', 'router?').get(timeout=4)

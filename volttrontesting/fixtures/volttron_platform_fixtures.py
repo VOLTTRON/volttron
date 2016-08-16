@@ -197,10 +197,10 @@ def get_volttron_instances(request):
 
     Example Usage:
 
-    def test_function_that_uses_n_instances(request, get_volttron_instances):
+    def test_function_that_uses_n_instances(get_volttron_instances):
         instance1, instance2, instance3 = get_volttron_instances(3)
 
-        if param != 'encrypted':
+        if get_volttron_instances.param != 'encrypted':
             pytest.skipif('Only available during encrypted round')
 
     @param request: pytest request object
@@ -210,23 +210,34 @@ def get_volttron_instances(request):
         volttron instances for testing.
     """
 
-    def get_n_volttron_instances(n):
+    def get_n_volttron_instances(n, should_start=True):
         get_n_volttron_instances.count = n
         instances = []
         for i in range(0, n):
-            address = "tcp://127.0.0.1:{}".format(get_rand_port())
+            address = get_rand_vip()
             wrapper = None
-            if request.param == 'encrypted':
-                print("building instance  (using encryption)")
-                wrapper = build_wrapper(address, encrypt=True)
+            if should_start:
+                if request.param == 'encrypted':
+                    print("building instance  (using encryption)")
+                    wrapper = build_wrapper(address, encrypt=True)
+                else:
+                    wrapper = build_wrapper(address)
             else:
-                wrapper = build_wrapper(address)
+                wrapper = PlatformWrapper()
             instances.append(wrapper)
         get_n_volttron_instances.param = request.param
+        instances = instances if n > 1 else instances[0]
+        print("instances is: {}".format(instances))
         get_n_volttron_instances.instances = instances
         return instances
 
     def cleanup():
+        if isinstance(get_n_volttron_instances.instances, PlatformWrapper):
+            print('Shutting down instance: {}'.format(
+                get_n_volttron_instances.instances.volttron_home))
+            get_n_volttron_instances.instances.shutdown_platform()
+            return
+
         for i in range(0, get_n_volttron_instances.count):
             print('Shutting down instance: {}'.format(
                 get_n_volttron_instances.instances[i].volttron_home))
