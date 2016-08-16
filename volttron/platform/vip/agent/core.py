@@ -217,7 +217,7 @@ class BasicCore(object):
             del periodics[:]
         self.onstart.connect(start_periodics)
 
-    def loop(self):
+    def loop(self, running_event):
         # pre-setup
         yield
         # pre-start
@@ -271,7 +271,7 @@ class BasicCore(object):
         self._async.start(handle_async)
         current.link(lambda glt: self._async.stop())
 
-        looper = self.loop()
+        looper = self.loop(running_event)
         looper.next()
         self.onsetup.send(self)
 
@@ -283,9 +283,8 @@ class BasicCore(object):
             loop.link(lambda glt: scheduler.kill())
         if not self.delay_onstart_signal:
             self.onstart.sendby(self.link_receiver, self)
-        if running_event:
-            running_event.set()
-            del running_event
+            if running_event is not None:
+                running_event.set()
         try:
             if loop and loop in gevent.wait([loop, stop], count=1):
                 raise RuntimeError('VIP loop ended prematurely')
@@ -527,7 +526,7 @@ class Core(BasicCore):
             error = VIPError.from_errno(*args)
             self.onviperror.send(self, error=error, message=message)
 
-    def loop(self):
+    def loop(self, running_event):
         # pre-setup
         self.socket = vip.Socket(self.context)
         if self.identity:
@@ -545,6 +544,8 @@ class Core(BasicCore):
             _log.error("No response to hello message after 10 seconds.")
             _log.error("A common reason for this is a conflicting VIP ID.")
             _log.error("Shutting down agent.")
+            if running_event is not None:
+                running_event.set()
             self.stop(timeout=5.0)
 
         def hello():
@@ -562,6 +563,8 @@ class Core(BasicCore):
             _log.debug("Running onstart methods.")
             self.onstart.sendby(self.link_receiver, self)
 
+            if running_event is not None:
+                running_event.set()
 
 
         def monitor():
