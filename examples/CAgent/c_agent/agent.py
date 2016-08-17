@@ -59,12 +59,14 @@ from ctypes import *
 from datetime import datetime
 import logging
 import sys
+import os
 
 from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 
 __docformat__ = 'reStructuredText'
+__version__ = 1.0
 
 '''This example agent calls functions from a shared object via
 the ctypes module.
@@ -74,15 +76,15 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 PUBLISH_PERIOD = 1
-SO_FILENAME = "c_agent/libfoo.so"
-
 
 class CAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(CAgent, self).__init__(**kwargs)
 
-        cdll.LoadLibrary(SO_FILENAME)
-        self.shared_object = CDLL(SO_FILENAME)
+        so_filename = __file__.rsplit('/', 1)[0] + '/' + 'libfoo.so'
+
+        cdll.LoadLibrary(so_filename)
+        self.shared_object = CDLL(so_filename)
 
         self.get_water_temperature = self.shared_object.get_water_temperature
         self.get_water_temperature.restype = c_float
@@ -95,9 +97,11 @@ class CAgent(Agent):
         _log.debug(wt)
         self.vip.pubsub.publish('pubsub', 'device/WATER_TEMP=' + str(wt))
 
+def main():
+    utils.vip_main(CAgent)
 
 if __name__ == '__main__':
     try:
-        utils.vip_main(CAgent)
+        main()
     except KeyboardInterrupt:
         pass
