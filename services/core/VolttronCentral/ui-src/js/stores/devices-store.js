@@ -15,6 +15,7 @@ var _backupData = {};
 var _registryFiles = {};
 var _backupFileName = {};
 var _platform;
+var _devices = [];
 
 var _placeHolders = [ [
     {"key": "Point_Name", "value": "", "editable": true},
@@ -65,24 +66,7 @@ devicesStore.getRegistryFile = function (device) {
 };
 
 devicesStore.getDevices = function (platform) {
-    return [
-            [ 
-                { key: "address", label: "Address", value: "Address 192.168.1.42" }, 
-                { key: "deviceId", label: "Device ID", value: "548" }, 
-                { key: "description", label: "Description", value: "Temperature sensor" }, 
-                { key: "vendorId", label: "Vendor ID", value: "18" }, 
-                { key: "vendor", label: "Vendor", value: "Siemens" },
-                { key: "type", label: "Type", value: "BACnet" }
-            ],
-            [ 
-                { key: "address", label: "Address", value: "RemoteStation 1002:11" }, 
-                { key: "deviceId", label: "Device ID", value: "33" }, 
-                { key: "description", label: "Description", value: "Actuator 3-pt for zone control" }, 
-                { key: "vendorId", label: "Vendor ID", value: "12" }, 
-                { key: "vendor", label: "Vendor", value: "Alerton" },
-                { key: "type", label: "Type", value: "BACnet" }
-            ]
-        ];
+    return _devices;
 }
 
 devicesStore.dispatchToken = dispatcher.register(function (action) {
@@ -91,6 +75,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
         case ACTION_TYPES.CONFIGURE_DEVICES:
             _platform = action.platform;
+            _devices = [];
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.ADD_DEVICES:
@@ -104,6 +89,29 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _action = "start_scan";
             _view = "Detect Devices";
             _device = null;
+            devicesStore.emitChange();
+            break;
+        case ACTION_TYPES.LISTEN_FOR_IAMS:
+
+            _devices = [
+                [ 
+                    { key: "address", label: "Address", value: "Address 192.168.1.42" }, 
+                    { key: "deviceId", label: "Device ID", value: "548" }, 
+                    { key: "description", label: "Description", value: "Temperature sensor" }, 
+                    { key: "vendorId", label: "Vendor ID", value: "18" }, 
+                    { key: "vendor", label: "Vendor", value: "Siemens" },
+                    { key: "type", label: "Type", value: "BACnet" }
+                ],
+                [ 
+                    { key: "address", label: "Address", value: "RemoteStation 1002:11" }, 
+                    { key: "deviceId", label: "Device ID", value: "33" }, 
+                    { key: "description", label: "Description", value: "Actuator 3-pt for zone control" }, 
+                    { key: "vendorId", label: "Vendor ID", value: "12" }, 
+                    { key: "vendor", label: "Vendor", value: "Alerton" },
+                    { key: "type", label: "Type", value: "BACnet" }
+                ]
+            ];
+
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.LIST_DETECTED_DEVICES:

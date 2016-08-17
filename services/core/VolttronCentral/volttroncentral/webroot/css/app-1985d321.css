@@ -2217,13 +2217,18 @@ td.plain {
     border-bottom: none;
 }
 
+.device-box {
+    width: 100%;
+    float: left;
+    clear: both;
+}
+
 .detectDevicesContainer {
     width: 450px;
 }
 
 .devicesFoundContainer, .configDeviceContainer {
     width: 800px;
-    margin-left: 80px;
 }
 
 .detectDevicesBox {    
@@ -2231,7 +2236,7 @@ td.plain {
 }
 
 .devicesFoundBox {    
-    padding: 60px 20px;
+    padding: 60px 0px;
     margin-top: 20px;
     margin-bottom: 20px;
     border: 1px solid black;

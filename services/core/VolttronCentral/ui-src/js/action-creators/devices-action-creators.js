@@ -8,11 +8,10 @@ var rpc = require('../lib/rpc');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
 var devicesActionCreators = {
-    configureDevices: function (platform, proxies) {
+    configureDevices: function (platform) {
         dispatcher.dispatch({
             type: ACTION_TYPES.CONFIGURE_DEVICES,
-            platform: platform,
-            bacnetProxies: proxies
+            platform: platform
         });
     },
     addDevices: function (platform) {
@@ -25,33 +24,33 @@ var devicesActionCreators = {
 
         var authorization = authorizationStore.getAuthorization();
 
-        return new rpc.Exchange({
-            method: 'who_is',
-            authorization: authorization,
-            params: {
-                low_device_id: low,
-                high_device_id: high,
-                target_address: address
-            },
-        }).promise
-            .then(function (result) {
+        // return new rpc.Exchange({
+        //     method: 'who_is',
+        //     authorization: authorization,
+        //     params: {
+        //         low_device_id: low,
+        //         high_device_id: high,
+        //         target_address: address
+        //     },
+        // }).promise
+        //     .then(function (result) {
 
-                if (result)
-                {
-                    // dispatcher.dispatch({
-                    //     type: ACTION_TYPES.SCAN_FOR_DEVICES,
-                    //     low_device_id: low,
-                    //     high_device_id: high,
-                    //     target_address: address
-                    // });
+        //         if (result)
+        //         {
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.LISTEN_FOR_IAMS,
+                        low_device_id: low,
+                        high_device_id: high,
+                        target_address: address
+                    });
 
                     //TODO: setup socket
-                }
+            //     }
                 
-            })
-            .catch(rpc.Error, function (error) {
-                handle401(error, error.message);
-            });
+            // })
+            // .catch(rpc.Error, function (error) {
+            //     handle401(error, error.message);
+            // });
         
     },
     cancelScan: function (platform) {

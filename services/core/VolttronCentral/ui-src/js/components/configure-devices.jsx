@@ -1,6 +1,7 @@
 'use strict';
 
 import React from 'react';
+import Socket from 'socket';
 
 import BaseComponent from './base-component';
 
@@ -13,7 +14,7 @@ class ConfigureDevices extends BaseComponent {
     constructor(props) {
         super(props);
         this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange',
-                    '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onClick',
+                    '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onWhoIs',
                     '_onDeviceStart', '_onDeviceEnd', '_onAddress');
 
         this.state = devicesStore.getState();
@@ -71,10 +72,12 @@ class ConfigureDevices extends BaseComponent {
         }
         else
         {
-            for (key in deviceState)
-            {
-                this.setState({ key: deviceState[key] });
-            }
+            this.setState({devices: devicesStore.getDevices()});
+
+            // for (key in deviceState)
+            // {
+            //     this.setState({ key: deviceState[key] });
+            // }
         }
 
     }
@@ -105,9 +108,12 @@ class ConfigureDevices extends BaseComponent {
     _onAddress(evt) {
         this.setState({ address: evt.target.value });
     }
-    _onClick(evt) {
+    _onWhoIs(evt) {
         devicesActionCreators.scanForDevices(this.state.deviceStart, this.state.deviceEnd, this.state.address);
         this.setState({ scanning: true });
+    }
+    _configureDevice (device) {
+        devicesActionCreators.configureDevice(device);
     }
     render() {
 
@@ -238,20 +244,78 @@ class ConfigureDevices extends BaseComponent {
             float: "left",
             width: "100%"
         }
+
+        var devicesContainer;
+
+        if (this.state.hasOwnProperty("devices"))
+        {
+            if (this.state.devices.length)
+            {
+                var devices = this.state.devices.map(function (device) {
+
+                    var buttonStyle = {
+                        height: "24px",
+                        lineHeight: "18px"
+                    }
+
+                    var tds = device.map(function (d) {
+                                    return (<td className="plain">{ d.value }</td>)
+                                });
+                    return (
+                        <tr>
+                            { tds }
+
+                            <td className="plain">
+                                <button 
+                                    onClick={this._configureDevice.bind(this, device)}
+                                    style={buttonStyle}>Configure</button>
+                            </td>
+                        </tr>
+                    );
+
+                }, this); 
+
+
+                var ths = this.state.devices[0].map(function (d) {
+                    return (<th className="plain">{d.label}</th>); 
+                });  
+
+                devicesContainer = (
+                    <div className="devicesFoundContainer">
+                        <div className="devicesFoundBox">
+                            <table>
+                                <tbody>
+                                    <tr>
+                                        { ths }
+                                        <th className="plain"></th>
+                                    </tr>
+                                    {devices}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                );
+            }
+        }
         
         return (
             <div className="view">
                 <h2>Install Devices</h2>
-                <div style={platformNameStyle}>
-                    <div style={scanOptionsStyle}>
-                        <b>Instance: </b>
+                <div className="device-box device-scan">
+                    <div style={platformNameStyle}>
+                        <div style={scanOptionsStyle}>
+                            <b>Instance: </b>
+                        </div>
+                        <div style={scanOptionsStyle}>{platform.name}</div>
                     </div>
-                    <div style={scanOptionsStyle}>{platform.name}</div>
+                    <div style={scanOptionsStyle}><b>Method: </b></div>
+                    <div style={scanOptionsStyle}>{methodSelect}</div>  
+                    <div style={scanOptionsStyle}>{scanOptions}</div>
+                    <div style={scanOptionsStyle}><button style={buttonStyle} onClick={this._onWhoIs}>Go</button></div>
                 </div>
-                <div style={scanOptionsStyle}><b>Method: </b></div>
-                <div style={scanOptionsStyle}>{methodSelect}</div>  
-                <div style={scanOptionsStyle}>{scanOptions}</div>
-                <div style={scanOptionsStyle}><button style={buttonStyle} onClick={this._onClick}>Go</button></div>
+                <div className="device-box device-container">
+                    {devicesContainer}
+                </div>
             </div>
         );
     }

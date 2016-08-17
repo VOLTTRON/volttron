@@ -197,11 +197,10 @@ var rpc = require('../lib/rpc');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
 var devicesActionCreators = {
-    configureDevices: function configureDevices(platform, proxies) {
+    configureDevices: function configureDevices(platform) {
         dispatcher.dispatch({
             type: ACTION_TYPES.CONFIGURE_DEVICES,
-            platform: platform,
-            bacnetProxies: proxies
+            platform: platform
         });
     },
     addDevices: function addDevices(platform) {
@@ -214,29 +213,33 @@ var devicesActionCreators = {
 
         var authorization = authorizationStore.getAuthorization();
 
-        return new rpc.Exchange({
-            method: 'who_is',
-            authorization: authorization,
-            params: {
-                low_device_id: low,
-                high_device_id: high,
-                target_address: address
-            }
-        }).promise.then(function (result) {
+        // return new rpc.Exchange({
+        //     method: 'who_is',
+        //     authorization: authorization,
+        //     params: {
+        //         low_device_id: low,
+        //         high_device_id: high,
+        //         target_address: address
+        //     },
+        // }).promise
+        //     .then(function (result) {
 
-            if (result) {
-                // dispatcher.dispatch({
-                //     type: ACTION_TYPES.SCAN_FOR_DEVICES,
-                //     low_device_id: low,
-                //     high_device_id: high,
-                //     target_address: address
-                // });
-
-                //TODO: setup socket
-            }
-        }).catch(rpc.Error, function (error) {
-            handle401(error, error.message);
+        //         if (result)
+        //         {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.LISTEN_FOR_IAMS,
+            low_device_id: low,
+            high_device_id: high,
+            target_address: address
         });
+
+        //TODO: setup socket
+        //     }
+
+        // })
+        // .catch(rpc.Error, function (error) {
+        //     handle401(error, error.message);
+        // });
     },
     cancelScan: function cancelScan(platform) {
         dispatcher.dispatch({
@@ -2325,6 +2328,10 @@ var _react = require('react');
 
 var _react2 = _interopRequireDefault(_react);
 
+var _socket = require('socket');
+
+var _socket2 = _interopRequireDefault(_socket);
+
 var _baseComponent = require('./base-component');
 
 var _baseComponent2 = _interopRequireDefault(_baseComponent);
@@ -2350,7 +2357,7 @@ var ConfigureDevices = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(ConfigureDevices).call(this, props));
 
-        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onClick', '_onDeviceStart', '_onDeviceEnd', '_onAddress');
+        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onWhoIs', '_onDeviceStart', '_onDeviceEnd', '_onAddress');
 
         _this.state = devicesStore.getState();
 
@@ -2411,9 +2418,12 @@ var ConfigureDevices = function (_BaseComponent) {
 
                 this.setState(deviceState);
             } else {
-                for (key in deviceState) {
-                    this.setState({ key: deviceState[key] });
-                }
+                this.setState({ devices: devicesStore.getDevices() });
+
+                // for (key in deviceState)
+                // {
+                //     this.setState({ key: deviceState[key] });
+                // }
             }
         }
     }, {
@@ -2450,10 +2460,15 @@ var ConfigureDevices = function (_BaseComponent) {
             this.setState({ address: evt.target.value });
         }
     }, {
-        key: '_onClick',
-        value: function _onClick(evt) {
+        key: '_onWhoIs',
+        value: function _onWhoIs(evt) {
             devicesActionCreators.scanForDevices(this.state.deviceStart, this.state.deviceEnd, this.state.address);
             this.setState({ scanning: true });
+        }
+    }, {
+        key: '_configureDevice',
+        value: function _configureDevice(device) {
+            devicesActionCreators.configureDevice(device);
         }
     }, {
         key: 'render',
@@ -2646,6 +2661,76 @@ var ConfigureDevices = function (_BaseComponent) {
                 width: "100%"
             };
 
+            var devicesContainer;
+
+            if (this.state.hasOwnProperty("devices")) {
+                if (this.state.devices.length) {
+                    var devices = this.state.devices.map(function (device) {
+
+                        var buttonStyle = {
+                            height: "24px",
+                            lineHeight: "18px"
+                        };
+
+                        var tds = device.map(function (d) {
+                            return _react2.default.createElement(
+                                'td',
+                                { className: 'plain' },
+                                d.value
+                            );
+                        });
+                        return _react2.default.createElement(
+                            'tr',
+                            null,
+                            tds,
+                            _react2.default.createElement(
+                                'td',
+                                { className: 'plain' },
+                                _react2.default.createElement(
+                                    'button',
+                                    {
+                                        onClick: this._configureDevice.bind(this, device),
+                                        style: buttonStyle },
+                                    'Configure'
+                                )
+                            )
+                        );
+                    }, this);
+
+                    var ths = this.state.devices[0].map(function (d) {
+                        return _react2.default.createElement(
+                            'th',
+                            { className: 'plain' },
+                            d.label
+                        );
+                    });
+
+                    devicesContainer = _react2.default.createElement(
+                        'div',
+                        { className: 'devicesFoundContainer' },
+                        _react2.default.createElement(
+                            'div',
+                            { className: 'devicesFoundBox' },
+                            _react2.default.createElement(
+                                'table',
+                                null,
+                                _react2.default.createElement(
+                                    'tbody',
+                                    null,
+                                    _react2.default.createElement(
+                                        'tr',
+                                        null,
+                                        ths,
+                                        _react2.default.createElement('th', { className: 'plain' })
+                                    ),
+                                    devices
+                                )
+                            )
+                        )
+                    );
+                }
+            }
+
             return _react2.default.createElement(
                 'div',
                 { className: 'view' },
@@ -2656,49 +2741,58 @@ var ConfigureDevices = function (_BaseComponent) {
                 ),
                 _react2.default.createElement(
                     'div',
-                    { style: platformNameStyle },
+                    { className: 'device-box device-scan' },
+                    _react2.default.createElement(
+                        'div',
+                        { style: platformNameStyle },
+                        _react2.default.createElement(
+                            'div',
+                            { style: scanOptionsStyle },
+                            _react2.default.createElement(
+                                'b',
+                                null,
+                                'Instance: '
+                            )
+                        ),
+                        _react2.default.createElement(
+                            'div',
+                            { style: scanOptionsStyle },
+                            platform.name
+                        )
+                    ),
                     _react2.default.createElement(
                         'div',
                         { style: scanOptionsStyle },
                         _react2.default.createElement(
                             'b',
                             null,
-                            'Instance: '
+                            'Method: '
                         )
                     ),
                     _react2.default.createElement(
                         'div',
                         { style: scanOptionsStyle },
-                        platform.name
-                    )
-                ),
-                _react2.default.createElement(
-                    'div',
-                    { style: scanOptionsStyle },
+                        methodSelect
+                    ),
                     _react2.default.createElement(
-                        'b',
-                        null,
-                        'Method: '
-                    )
-                ),
-                _react2.default.createElement(
-                    'div',
-                    { style: scanOptionsStyle },
-                    methodSelect
-                ),
-                _react2.default.createElement(
-                    'div',
-                    { style: scanOptionsStyle },
-                    scanOptions
-                ),
-                _react2.default.createElement(
-                    'div',
-                    { style: scanOptionsStyle },
+                        'div',
+                        { style: scanOptionsStyle },
+                        scanOptions
+                    ),
                     _react2.default.createElement(
-                        'button',
-                        { style: buttonStyle, onClick: this._onClick },
-                        'Go'
+                        'div',
+                        { style: scanOptionsStyle },
+                        _react2.default.createElement(
+                            'button',
+                            { style: buttonStyle, onClick: this._onWhoIs },
+                            'Go'
+                        )
                     )
+                ),
+                _react2.default.createElement(
+                    'div',
+                    { className: 'device-box device-container' },
+                    devicesContainer
                 )
             );
         }
@@ -2724,7 +2818,7 @@ function getStateFromStores() {
 
 exports.default = ConfigureDevices;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":58,"../stores/platforms-store":63,"./base-component":12,"react":undefined}],17:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":58,"../stores/platforms-store":63,"./base-component":12,"react":undefined,"socket":undefined}],17:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -8302,6 +8396,7 @@ module.exports = keyMirror({
     CONFIGURE_DEVICES: null,
     ADD_DEVICES: null,
     SCAN_FOR_DEVICES: null,
+    LISTEN_FOR_IAMS: null,
     CANCEL_SCANNING: null,
     LIST_DETECTED_DEVICES: null,
     CONFIGURE_DEVICE: null,
@@ -8749,6 +8844,7 @@ var _backupData = {};
 var _registryFiles = {};
 var _backupFileName = {};
 var _platform;
+var _devices = [];
 
 var _placeHolders = [[{ "key": "Point_Name", "value": "", "editable": true }, { "key": "Volttron_Point_Name", "value": "" }, { "key": "Units", "value": "" }, { "key": "Units_Details", "value": "" }, { "key": "Writable", "value": "" }, { "key": "Starting_Value", "value": "" }, { "key": "Type", "value": "" }, { "key": "Notes", "value": "" }]];
 
@@ -8782,7 +8878,7 @@ devicesStore.getRegistryFile = function (device) {
 };
 
 devicesStore.getDevices = function (platform) {
-    return [[{ key: "address", label: "Address", value: "Address 192.168.1.42" }, { key: "deviceId", label: "Device ID", value: "548" }, { key: "description", label: "Description", value: "Temperature sensor" }, { key: "vendorId", label: "Vendor ID", value: "18" }, { key: "vendor", label: "Vendor", value: "Siemens" }, { key: "type", label: "Type", value: "BACnet" }], [{ key: "address", label: "Address", value: "RemoteStation 1002:11" }, { key: "deviceId", label: "Device ID", value: "33" }, { key: "description", label: "Description", value: "Actuator 3-pt for zone control" }, { key: "vendorId", label: "Vendor ID", value: "12" }, { key: "vendor", label: "Vendor", value: "Alerton" }, { key: "type", label: "Type", value: "BACnet" }]];
+    return _devices;
 };
 
 devicesStore.dispatchToken = dispatcher.register(function (action) {
@@ -8791,6 +8887,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
         case ACTION_TYPES.CONFIGURE_DEVICES:
             _platform = action.platform;
+            _devices = [];
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.ADD_DEVICES:
@@ -8804,6 +8901,12 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _action = "start_scan";
             _view = "Detect Devices";
             _device = null;
+            devicesStore.emitChange();
+            break;
+        case ACTION_TYPES.LISTEN_FOR_IAMS:
+
+            _devices = [[{ key: "address", label: "Address", value: "Address 192.168.1.42" }, { key: "deviceId", label: "Device ID", value: "548" }, { key: "description", label: "Description", value: "Temperature sensor" }, { key: "vendorId", label: "Vendor ID", value: "18" }, { key: "vendor", label: "Vendor", value: "Siemens" }, { key: "type", label: "Type", value: "BACnet" }], [{ key: "address", label: "Address", value: "RemoteStation 1002:11" }, { key: "deviceId", label: "Device ID", value: "33" }, { key: "description", label: "Description", value: "Actuator 3-pt for zone control" }, { key: "vendorId", label: "Vendor ID", value: "12" }, { key: "vendor", label: "Vendor", value: "Alerton" }, { key: "type", label: "Type", value: "BACnet" }]];
+
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.LIST_DETECTED_DEVICES:
