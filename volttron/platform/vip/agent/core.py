@@ -175,6 +175,7 @@ def findsignal(obj, owner, name):
 class BasicCore(object):
     delay_onstart_signal = False
     delay_running_event_set = False
+
     def __init__(self, owner):
         self.greenlet = None
         self._async = None
@@ -406,6 +407,9 @@ class Core(BasicCore):
     # from the server that we have a connection. We will fire the event when
     # we hear the response to the hello message.
     delay_onstart_signal = True
+
+    # Agents started before the router can set this variable
+    # to false to keep from blocking. AuthService does this.
     delay_running_event_set = True
 
     def __init__(self, owner, address=None, identity=None, context=None,
