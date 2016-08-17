@@ -5,7 +5,7 @@ from random import randint
 import gevent
 
 
-def poll_gevent_sleep(max_seconds, condition=lambda: True):
+def poll_gevent_sleep(max_seconds, condition=lambda: True, sleep_time=0.2):
     """Sleep until condition is true or max_seconds has passed.
 
     :param int max_seconds: max seconds to wait for condition
@@ -16,11 +16,15 @@ def poll_gevent_sleep(max_seconds, condition=lambda: True):
     """
     if max_seconds < 0:
         raise ValueError('max_seconds must be positive number')
+
+    if sleep_time < 0.2:
+        raise ValueError('sleep_time must be > 0.2')
+
     time_start = time.time()
     while True:
         if condition():
             return True
-        gevent.sleep(0.2)
+        gevent.sleep(sleep_time)
         if time.time() > time_start + max_seconds:
             return False
 

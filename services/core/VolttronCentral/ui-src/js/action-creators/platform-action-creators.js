@@ -167,7 +167,6 @@ var platformActionCreators = {
             });
     },
     installAgents: function (platform, files) {
-        platformActionCreators.clearPlatformError(platform);
 
         var authorization = authorizationStore.getAuthorization();
 

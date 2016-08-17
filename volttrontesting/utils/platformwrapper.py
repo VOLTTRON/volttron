@@ -185,6 +185,7 @@ class PlatformWrapper:
         # By default no web server should be started.
         self.bind_web_address = None
         self.discovery_address = None
+        self.jsonrpc_endpoint = None
         self.volttron_central_address = None
         self.instance_name = None
         self.serverkey = None
@@ -208,6 +209,10 @@ class PlatformWrapper:
         # if the environment variable DEBUG is set to a True value then the
         # instance is not cleaned up.
         self.skip_cleanup = False
+
+        # This is used as command line entry replacement.  Especially working
+        # with older 2.0 agents.
+        self.opts = None
 
         keystorefile = os.path.join(self.volttron_home, 'keystore')
         self.keystore = KeyStore(keystorefile)
@@ -240,8 +245,7 @@ class PlatformWrapper:
             secretkey = keys.secret()
 
         conn = Connection(address=address, peer=peer, publickey=publickey,
-                          secretkey=secretkey, serverkey=serverkey,
-                          identity=identity)
+                          secretkey=secretkey, serverkey=serverkey)
         return conn
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
@@ -352,7 +356,7 @@ class PlatformWrapper:
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
         mode=UNRESTRICTED, encrypt=False, bind_web_address=None,
-        volttron_central_address=None):
+        volttron_central_address=None, volttron_central_serverkey=None):
 
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
@@ -365,6 +369,10 @@ class PlatformWrapper:
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
             self.discovery_address = "{}/discovery/".format(
+                self.bind_web_address)
+
+            # Only available if vc is installed!
+            self.jsonrpc_endpoint = "{}/jsonrpc".format(
                 self.bind_web_address)
 
         enable_logging = self.env.get('ENABLE_LOGGING', False)
@@ -385,6 +393,24 @@ class PlatformWrapper:
             self.volttron_home)
         self.local_vip_address = ipc + 'vip.socket'
         self.set_auth_dict(auth_dict)
+
+        self.opts = {'verify_agents': False,
+                     'volttron_home': self.volttron_home,
+                     'vip_address': vip_address,
+                     'vip_local_address': ipc + 'vip.socket',
+                     'publish_address': ipc + 'publish',
+                     'subscribe_address': ipc + 'subscribe',
+                     'bind_web_address': bind_web_address,
+                     'volttron_central_address': volttron_central_address,
+                     'volttron_central_serverkey': volttron_central_serverkey,
+                     'platform_name': None,
+                     'developer_mode': not encrypt,
+                     'log': os.path.join(self.volttron_home, 'volttron.log'),
+                     'log_config': None,
+                     'monitor': True,
+                     'autostart': True,
+                     'log_level': logging.DEBUG,
+                     'verboseness': logging.DEBUG}
 
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
@@ -548,6 +574,21 @@ class PlatformWrapper:
         aip.setup()
         return aip
 
+    # TODO Remove when verified that the other method works properly.
+    # def _install_agent(self, wheel_file, start, vip_identity):
+    #     aip = self._aip()
+    #     auuid = aip.install_agent(wheel_file, vip_identity=vip_identity)
+    #     assert auuid is not None
+    #     if start:
+    #         self.logit('STARTING: {}'.format(wheel_file))
+    #         status = self.start_agent(auuid)
+    #         # aip.start_agent(auuid)
+    #         # status = aip.agent_status(auuid)
+    #         self.logit('STATUS NOW: {}'.format(status))
+    #         assert status > 0
+    #
+    #     return auuid
+
     def _install_agent(self, wheel_file, start, vip_identity):
 
         agent = self.build_agent()
@@ -560,7 +601,8 @@ class PlatformWrapper:
         result = agent.vip.rpc.call('control',
                                     'install_agent',
                                     wheel_file,
-                                    channel_name)
+                                    channel_name,
+                                    vip_identity)
         self.logit('waiting for ready')
         response = channel.recv()
         if response != b'ready':
@@ -660,6 +702,8 @@ class PlatformWrapper:
             elif not config_file:
                 assert os.path.exists(os.path.join(agent_dir, "config"))
                 config_file = os.path.join(agent_dir, "config")
+            elif os.path.exists(config_file):
+                pass  # config_file already set!
             else:
                 raise ValueError("Can't determine correct config file.")
 

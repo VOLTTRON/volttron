@@ -29,7 +29,7 @@ def test_platform_responds_to_discover_endpoint(pa_instance):
     info = DiscoveryInfo.request_discovery_info(wrapper.bind_web_address)
 
     assert wrapper.bind_web_address == info.discovery_address
-    assert wrapper.publickey == info.serverkey
+    assert wrapper.serverkey == info.serverkey
 
 
 @pytest.mark.vc

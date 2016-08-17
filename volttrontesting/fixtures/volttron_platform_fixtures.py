@@ -68,11 +68,13 @@ def build_wrapper(vip_address, **kwargs):
 
 def cleanup_wrapper(wrapper):
     print('Shutting down instance: {}'.format(wrapper.volttron_home))
-    if wrapper.is_running():
-        print_log(wrapper.volttron_home)
-        wrapper.shutdown_platform()
-    else:
-        print('Platform was never started')
+    # Shutdown handles case where the platform hasn't started.
+    wrapper.shutdown_platform()
+
+
+def cleanup_wrappers(platforms):
+    for p in platforms:
+        cleanup_wrapper(p)
 
 
 @pytest.fixture(scope="module")
@@ -209,8 +211,10 @@ def get_volttron_instances(request):
         encrypted or not) and a function that can used to get any number of
         volttron instances for testing.
     """
+    all_instances = []
 
     def get_n_volttron_instances(n, should_start=True):
+        print('GETTING NEW INSTANCES!!!!!', request.param, n)
         get_n_volttron_instances.count = n
         instances = []
         for i in range(0, n):
@@ -227,7 +231,6 @@ def get_volttron_instances(request):
             instances.append(wrapper)
         get_n_volttron_instances.param = request.param
         instances = instances if n > 1 else instances[0]
-        print("instances is: {}".format(instances))
         get_n_volttron_instances.instances = instances
         return instances
 
