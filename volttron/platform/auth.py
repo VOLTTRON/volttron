@@ -105,6 +105,11 @@ class AuthService(Agent):
     def __init__(self, auth_file, aip, *args, **kwargs):
         self.allow_any = kwargs.pop('allow_any', False)
         super(AuthService, self).__init__(*args, **kwargs)
+
+        # This agent is started before the router so we need
+        # to keep it from blocking.
+        self.core.delay_running_event_set = False
+
         self.auth_file_path = os.path.abspath(auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
         self.aip = aip
