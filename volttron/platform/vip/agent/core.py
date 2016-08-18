@@ -174,6 +174,8 @@ def findsignal(obj, owner, name):
 
 class BasicCore(object):
     delay_onstart_signal = False
+    delay_running_event_set = False
+
     def __init__(self, owner):
         self.greenlet = None
         self._async = None
@@ -217,7 +219,7 @@ class BasicCore(object):
             del periodics[:]
         self.onstart.connect(start_periodics)
 
-    def loop(self):
+    def loop(self, running_event):
         # pre-setup
         yield
         # pre-start
@@ -271,7 +273,7 @@ class BasicCore(object):
         self._async.start(handle_async)
         current.link(lambda glt: self._async.stop())
 
-        looper = self.loop()
+        looper = self.loop(running_event)
         looper.next()
         self.onsetup.send(self)
 
@@ -283,9 +285,9 @@ class BasicCore(object):
             loop.link(lambda glt: scheduler.kill())
         if not self.delay_onstart_signal:
             self.onstart.sendby(self.link_receiver, self)
-        if running_event:
-            running_event.set()
-            del running_event
+        if not self.delay_running_event_set:
+            if running_event is not None:
+                running_event.set()
         try:
             if loop and loop in gevent.wait([loop, stop], count=1):
                 raise RuntimeError('VIP loop ended prematurely')
@@ -405,6 +407,10 @@ class Core(BasicCore):
     # from the server that we have a connection. We will fire the event when
     # we hear the response to the hello message.
     delay_onstart_signal = True
+
+    # Agents started before the router can set this variable
+    # to false to keep from blocking. AuthService does this.
+    delay_running_event_set = True
 
     def __init__(self, owner, address=None, identity=None, context=None,
                  publickey=None, secretkey=None, serverkey=None):
@@ -527,7 +533,7 @@ class Core(BasicCore):
             error = VIPError.from_errno(*args)
             self.onviperror.send(self, error=error, message=message)
 
-    def loop(self):
+    def loop(self, running_event):
         # pre-setup
         self.socket = vip.Socket(self.context)
         if self.identity:
@@ -537,32 +543,32 @@ class Core(BasicCore):
         # pre-start
         state = type('HelloState', (), {'count': 0, 'ident': None})
 
+        hello_response_event = gevent.event.Event()
+
         def connection_failed_check():
-            # Print warnings the longer we go without getting a connection.
-            gevent.sleep(10.0)
-            if self.connected:
+            # If we don't have a verified connection after 10.0 seconds shut down.
+            if hello_response_event.wait(10.0):
                 return
             _log.error("No response to hello message after 10 seconds.")
-            _log.error("A common reason for this is a conflicting VIP ID.")
+            _log.error("A common reason for this is a conflicting VIP IDENTITY.")
             _log.error("Shutting down agent.")
             self.stop(timeout=5.0)
 
         def hello():
             state.ident = ident = b'connect.hello.%d' % state.count
             state.count += 1
+            self.spawn(connection_failed_check)
             self.spawn(self.socket.send_vip,
                        b'', b'hello', [b'hello'], msg_id=ident)
-
-            self.spawn(connection_failed_check)
-
 
         def hello_response(sender, version='',
                            router='', identity=''):
             _log.info("Connected to platform: router: {} version: {} identity: {}".format(router, version, identity))
             _log.debug("Running onstart methods.")
+            hello_response_event.set()
             self.onstart.sendby(self.link_receiver, self)
-
-
+            if running_event is not None:
+                running_event.set()
 
         def monitor():
             # Call socket.monitor() directly rather than use
