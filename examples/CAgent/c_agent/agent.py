@@ -69,7 +69,8 @@ __docformat__ = 'reStructuredText'
 __version__ = 1.0
 
 '''This example agent calls functions from a shared object via
-the ctypes module.
+the ctypes module. The shared object must be built with make before
+installing.
 '''
 
 utils.setup_logging()
