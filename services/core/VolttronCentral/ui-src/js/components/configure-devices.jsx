@@ -1,14 +1,13 @@
 'use strict';
 
 import React from 'react';
-import Socket from 'socket';
-
 import BaseComponent from './base-component';
 
 var platformsStore = require('../stores/platforms-store');
 var devicesStore = require('../stores/devices-store');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+import DevicesFound from './devices-found';
 
 class ConfigureDevices extends BaseComponent {
     constructor(props) {
@@ -25,6 +24,8 @@ class ConfigureDevices extends BaseComponent {
         this.state.deviceStart = "";
         this.state.deviceEnd = "";
         this.state.address = "";
+
+        this.state.newScan = true;
         
         if (this.state.deviceMethod === "scanForDevices")
         {
@@ -72,7 +73,8 @@ class ConfigureDevices extends BaseComponent {
         }
         else
         {
-            this.setState({devices: devicesStore.getDevices()});
+            this.setState({scanning: true});
+            // this.setState({devices: devicesStore.getDevices()});
 
             // for (key in deviceState)
             // {
@@ -111,9 +113,6 @@ class ConfigureDevices extends BaseComponent {
     _onWhoIs(evt) {
         devicesActionCreators.scanForDevices(this.state.deviceStart, this.state.deviceEnd, this.state.address);
         this.setState({ scanning: true });
-    }
-    _configureDevice (device) {
-        devicesActionCreators.configureDevice(device);
     }
     render() {
 
@@ -247,55 +246,9 @@ class ConfigureDevices extends BaseComponent {
 
         var devicesContainer;
 
-        if (this.state.hasOwnProperty("devices"))
+        if (this.state.scanning)
         {
-            if (this.state.devices.length)
-            {
-                var devices = this.state.devices.map(function (device) {
-
-                    var buttonStyle = {
-                        height: "24px",
-                        lineHeight: "18px"
-                    }
-
-                    var tds = device.map(function (d) {
-                                    return (<td className="plain">{ d.value }</td>)
-                                });
-                    return (
-                        <tr>
-                            { tds }
-
-                            <td className="plain">
-                                <button 
-                                    onClick={this._configureDevice.bind(this, device)}
-                                    style={buttonStyle}>Configure</button>
-                            </td>
-                        </tr>
-                    );
-
-                }, this); 
-
-
-                var ths = this.state.devices[0].map(function (d) {
-                    return (<th className="plain">{d.label}</th>); 
-                });  
-
-                devicesContainer = (
-                    <div className="devicesFoundContainer">
-                        <div className="devicesFoundBox">
-                            <table>
-                                <tbody>
-                                    <tr>
-                                        { ths }
-                                        <th className="plain"></th>
-                                    </tr>
-                                    {devices}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                );
-            }
+            devicesContainer = <DevicesFound platform={this.state.platform}/>;            
         }
         
         return (

@@ -2328,13 +2328,13 @@ var _react = require('react');
 
 var _react2 = _interopRequireDefault(_react);
 
-var _socket = require('socket');
-
-var _socket2 = _interopRequireDefault(_socket);
-
 var _baseComponent = require('./base-component');
 
 var _baseComponent2 = _interopRequireDefault(_baseComponent);
+
+var _devicesFound = require('./devices-found');
+
+var _devicesFound2 = _interopRequireDefault(_devicesFound);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -2367,6 +2367,8 @@ var ConfigureDevices = function (_BaseComponent) {
         _this.state.deviceStart = "";
         _this.state.deviceEnd = "";
         _this.state.address = "";
+
+        _this.state.newScan = true;
 
         if (_this.state.deviceMethod === "scanForDevices") {
             _this.state.selectedProxyUuid = _this.state.bacnetProxies[0].uuid;
@@ -2418,7 +2420,8 @@ var ConfigureDevices = function (_BaseComponent) {
 
                 this.setState(deviceState);
             } else {
-                this.setState({ devices: devicesStore.getDevices() });
+                this.setState({ scanning: true });
+                // this.setState({devices: devicesStore.getDevices()});
 
                 // for (key in deviceState)
                 // {
@@ -2464,11 +2467,6 @@ var ConfigureDevices = function (_BaseComponent) {
         value: function _onWhoIs(evt) {
             devicesActionCreators.scanForDevices(this.state.deviceStart, this.state.deviceEnd, this.state.address);
             this.setState({ scanning: true });
-        }
-    }, {
-        key: '_configureDevice',
-        value: function _configureDevice(device) {
-            devicesActionCreators.configureDevice(device);
         }
     }, {
         key: 'render',
@@ -2663,72 +2661,8 @@ var ConfigureDevices = function (_BaseComponent) {
 
             var devicesContainer;
 
-            if (this.state.hasOwnProperty("devices")) {
-                if (this.state.devices.length) {
-                    var devices = this.state.devices.map(function (device) {
-
-                        var buttonStyle = {
-                            height: "24px",
-                            lineHeight: "18px"
-                        };
-
-                        var tds = device.map(function (d) {
-                            return _react2.default.createElement(
-                                'td',
-                                { className: 'plain' },
-                                d.value
-                            );
-                        });
-                        return _react2.default.createElement(
-                            'tr',
-                            null,
-                            tds,
-                            _react2.default.createElement(
-                                'td',
-                                { className: 'plain' },
-                                _react2.default.createElement(
-                                    'button',
-                                    {
-                                        onClick: this._configureDevice.bind(this, device),
-                                        style: buttonStyle },
-                                    'Configure'
-                                )
-                            )
-                        );
-                    }, this);
-
-                    var ths = this.state.devices[0].map(function (d) {
-                        return _react2.default.createElement(
-                            'th',
-                            { className: 'plain' },
-                            d.label
-                        );
-                    });
-
-                    devicesContainer = _react2.default.createElement(
-                        'div',
-                        { className: 'devicesFoundContainer' },
-                        _react2.default.createElement(
-                            'div',
-                            { className: 'devicesFoundBox' },
-                            _react2.default.createElement(
-                                'table',
-                                null,
-                                _react2.default.createElement(
-                                    'tbody',
-                                    null,
-                                    _react2.default.createElement(
-                                        'tr',
-                                        null,
-                                        ths,
-                                        _react2.default.createElement('th', { className: 'plain' })
-                                    ),
-                                    devices
-                                )
-                            )
-                        )
-                    );
-                }
+            if (this.state.scanning) {
+                devicesContainer = _react2.default.createElement(_devicesFound2.default, { platform: this.state.platform });
             }
 
             return _react2.default.createElement(
@@ -2818,7 +2752,7 @@ function getStateFromStores() {
 
 exports.default = ConfigureDevices;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":58,"../stores/platforms-store":63,"./base-component":12,"react":undefined,"socket":undefined}],17:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":58,"../stores/platforms-store":63,"./base-component":12,"./devices-found":28,"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4847,97 +4781,151 @@ module.exports = DetectDevices;
 },{"../action-creators/devices-action-creators":4,"../stores/platforms-store":63,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
 'use strict';
 
-var React = require('react');
-var Router = require('react-router');
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _socket = require('socket');
+
+var _socket2 = _interopRequireDefault(_socket);
+
+var _baseComponent = require('./base-component');
+
+var _baseComponent2 = _interopRequireDefault(_baseComponent);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var devicesStore = require('../stores/devices-store');
+var socket = (0, _socket2.default)('http://localhost:8000');
 
-var DevicesFound = React.createClass({
-    displayName: 'DevicesFound',
+var DevicesFound = function (_BaseComponent) {
+    _inherits(DevicesFound, _BaseComponent);
 
-    getInitialState: function getInitialState() {
-        return getStateFromStores(this.props.platform);
-    },
-    componentDidMount: function componentDidMount() {
-        // platformsStore.addChangeListener(this._onStoresChange);
-    },
-    componentWillUnmount: function componentWillUnmount() {
-        // platformsStore.removeChangeListener(this._onStoresChange);
-    },
-    _onStoresChange: function _onStoresChange() {
-        this.setState(getStateFromStores(this.props.platform));
-    },
-    _configureDevice: function _configureDevice(device) {
-        devicesActionCreators.configureDevice(device);
-    },
-    render: function render() {
+    function DevicesFound(props) {
+        _classCallCheck(this, DevicesFound);
 
-        var devices = this.state.devices.map(function (device) {
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DevicesFound).call(this, props));
 
-            var buttonStyle = {
-                height: "24px",
-                lineHeight: "18px"
-            };
+        _this._bind('_onStoresChange');
 
-            var tds = device.map(function (d) {
-                return React.createElement(
-                    'td',
+        _this.state = {};
+        _this.state.devices = devicesStore.getDevices(props.platform);
+
+        if (socket) {
+            socket.on('server:event', function (data) {
+                console.log("data: " + data);
+            });
+        }
+        return _this;
+    }
+
+    _createClass(DevicesFound, [{
+        key: 'componentDidMount',
+        value: function componentDidMount() {
+            // platformsStore.addChangeListener(this._onStoresChange);
+        }
+    }, {
+        key: 'componentWillUnmount',
+        value: function componentWillUnmount() {
+            // platformsStore.removeChangeListener(this._onStoresChange);
+        }
+    }, {
+        key: '_onStoresChange',
+        value: function _onStoresChange() {
+            this.setState({ devices: devicesStore.getDevices(this.props.platform) });
+        }
+    }, {
+        key: '_configureDevice',
+        value: function _configureDevice(device) {
+            devicesActionCreators.configureDevice(device);
+        }
+    }, {
+        key: 'render',
+        value: function render() {
+
+            var devices = this.state.devices.map(function (device) {
+
+                var buttonStyle = {
+                    height: "24px",
+                    lineHeight: "18px"
+                };
+
+                var tds = device.map(function (d) {
+                    return _react2.default.createElement(
+                        'td',
+                        { className: 'plain' },
+                        d.value
+                    );
+                });
+                return _react2.default.createElement(
+                    'tr',
+                    null,
+                    tds,
+                    _react2.default.createElement(
+                        'td',
+                        { className: 'plain' },
+                        _react2.default.createElement(
+                            'button',
+                            {
+                                onClick: this._configureDevice.bind(this, device),
+                                style: buttonStyle },
+                            'Configure'
+                        )
+                    )
+                );
+            }, this);
+
+            var ths = this.state.devices[0].map(function (d) {
+                return _react2.default.createElement(
+                    'th',
                     { className: 'plain' },
-                    d.value
+                    d.label
                 );
             });
-            return React.createElement(
-                'tr',
-                null,
-                tds,
-                React.createElement(
-                    'td',
-                    { className: 'plain' },
-                    React.createElement(
-                        'button',
-                        {
-                            onClick: this._configureDevice.bind(this, device),
-                            style: buttonStyle },
-                        'Configure'
-                    )
-                )
-            );
-        }, this);
 
-        var ths = this.state.devices[0].map(function (d) {
-            return React.createElement(
-                'th',
-                { className: 'plain' },
-                d.label
-            );
-        });
-
-        return React.createElement(
-            'div',
-            { className: 'devicesFoundContainer' },
-            React.createElement(
+            return _react2.default.createElement(
                 'div',
-                { className: 'devicesFoundBox' },
-                React.createElement(
-                    'table',
-                    null,
-                    React.createElement(
-                        'tbody',
+                { className: 'devicesFoundContainer' },
+                _react2.default.createElement(
+                    'div',
+                    { className: 'devicesFoundBox' },
+                    _react2.default.createElement(
+                        'table',
                         null,
-                        React.createElement(
-                            'tr',
+                        _react2.default.createElement(
+                            'tbody',
                             null,
-                            ths,
-                            React.createElement('th', { className: 'plain' })
-                        ),
-                        devices
+                            _react2.default.createElement(
+                                'tr',
+                                null,
+                                ths,
+                                _react2.default.createElement('th', { className: 'plain' })
+                            ),
+                            devices
+                        )
                     )
                 )
-            )
-        );
-    }
-});
+            );
+        }
+    }]);
+
+    return DevicesFound;
+}(_baseComponent2.default);
+
+;
 
 function getStateFromStores(platform) {
     return {
@@ -4945,9 +4933,9 @@ function getStateFromStores(platform) {
     };
 }
 
-module.exports = DevicesFound;
+exports.default = DevicesFound;
 
-},{"../action-creators/devices-action-creators":4,"../stores/devices-store":58,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../stores/devices-store":58,"./base-component":12,"react":undefined,"socket":undefined}],29:[function(require,module,exports){
 'use strict';
 
 var React = require('react');

@@ -1,28 +1,41 @@
 'use strict';
 
-var React = require('react');
-var Router = require('react-router');
+import React from 'react';
+import io from 'socket';
+import BaseComponent from './base-component';
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var devicesStore = require('../stores/devices-store');
+let socket = io('http://localhost:8000');
 
-var DevicesFound = React.createClass({
-    getInitialState: function () {
-        return getStateFromStores(this.props.platform);
-    },
-    componentDidMount: function () {
+class DevicesFound extends BaseComponent {
+    constructor(props) {
+        super(props);
+        this._bind('_onStoresChange');
+
+        this.state = {};
+        this.state.devices = devicesStore.getDevices(props.platform);
+
+        if (socket)
+        {
+            socket.on('server:event', data => {
+                console.log("data: " + data);
+            });
+        }
+    }
+    componentDidMount() {
         // platformsStore.addChangeListener(this._onStoresChange);
-    },
-    componentWillUnmount: function () {
+    }
+    componentWillUnmount() {
         // platformsStore.removeChangeListener(this._onStoresChange);
-    },
-    _onStoresChange: function () {
-        this.setState(getStateFromStores(this.props.platform));
-    },
-    _configureDevice: function (device) {
+    }
+    _onStoresChange() {
+        this.setState({devices: devicesStore.getDevices(this.props.platform)});
+    }
+    _configureDevice(device) {
         devicesActionCreators.configureDevice(device);
-    },
-    render: function () {        
+    }
+    render() {        
         
         var devices = 
             this.state.devices.map(function (device) {
@@ -68,8 +81,8 @@ var DevicesFound = React.createClass({
                 </div>
             </div>
         );
-    },
-});
+    }
+};
 
 function getStateFromStores(platform) {
     return {
@@ -77,4 +90,4 @@ function getStateFromStores(platform) {
     };
 }
 
-module.exports = DevicesFound;
+export default DevicesFound;
