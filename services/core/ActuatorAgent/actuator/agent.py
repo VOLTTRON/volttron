@@ -461,14 +461,13 @@ The frequency of the updates is configurable with the
 "schedule_publish_interval" setting in the configuration.
 """
 
-__docformat__ = 'reStructuredText'
 
 import collections
 import datetime
 import logging
 import sys
 
-from actuator.scheduler import ScheduleManager
+from scheduler import ScheduleManager
 
 from tzlocal import get_localzone
 from volttron.platform.agent import utils
@@ -476,6 +475,8 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.utils import normtopic
 from volttron.platform.vip.agent import Agent, Core, RPC, Unreachable, compat
+
+__docformat__ = 'reStructuredText'
 
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
 REVERT_POINT_RESPONSE_PREFIX = topics.ACTUATOR_REVERTED_POINT()
@@ -537,13 +538,13 @@ class ActuatorAgent(Agent):
     The Actuator Agent also sends out the signal to drivers to trigger
     a device heartbeat.
     
-    :param heartbeat_interval: Interval in seonds to send out a heartbeat 
+    :param heartbeat_interval: Interval in seconds to send out a heartbeat
         to devices. 
-    :param schedule_publish_interval: Interval in seonds to publish the
+    :param schedule_publish_interval: Interval in seconds to publish the
         currently active schedules. 
     :param schedule_state_file: Name of the file to save the current schedule
         state to. This file is updated every time a schedule changes. 
-    :param preempt_grace_time: Time in seconds after a schedule is preemted
+    :param preempt_grace_time: Time in seconds after a schedule is preempted
         before it is actually cancelled. 
     :param driver_vip_identity: VIP identity of the Master Driver Agent. 
 
@@ -558,7 +559,8 @@ class ActuatorAgent(Agent):
                  schedule_state_file=None, preempt_grace_time=60,
                  driver_vip_identity='platform.driver', **kwargs):
 
-        super(ActuatorAgent, self).__init__(identity='platform.actuator', **kwargs)
+        super(ActuatorAgent, self).__init__(identity='platform.actuator',
+                                            **kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
         self._update_event = None
@@ -617,7 +619,8 @@ class ActuatorAgent(Agent):
         _log.debug("_update_device_state_and_schedule")
         # Sanity check now.
         # This is specifically for when this is running in a VM that gets
-        # suspeded and then resumed.
+        # suspended and then resumed.
+        #
         # If we don't make this check a resumed VM will publish one event
         # per minute of
         # time the VM was suspended for. 
