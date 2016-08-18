@@ -80,6 +80,7 @@ class Connection(object):
                    .format(address, peer, publickey, secretkey, serverkey))
         self._address = address
         self._peer = peer
+        self._serverkey = None
         if peer is None:
             _log.warn('Peer is non so must be passed in call method.')
         if address.startswith('ipc'):
@@ -96,7 +97,7 @@ class Connection(object):
 
                 # Handle case when the address has all the information in it.
                 if 'serverkey' in qs.keys() and 'publickey' in qs.keys() and \
-                    'secretkey' in qs.keys():
+                                'secretkey' in qs.keys():
                     full_address = address
                 else:
                     full_address = build_vip_address_string(
@@ -111,7 +112,6 @@ class Connection(object):
         self._server = Agent(address=full_address)
         self._greenlet = None
         self._connected_since = None
-        self._serverkey = None
         self._last_publish = None
         self._last_publish_failed = False
         self._last_rpc_call = None
@@ -163,8 +163,8 @@ class Connection(object):
         return self.server.vip.peerlist().get(timeout=timeout)
 
     def is_connected(self, timeout=30):
+        self.server.vip.ping('').get(timeout=timeout)
         try:
-            self.server.vip.ping('').get(timeout=timeout)
             return True
         except gevent.Timeout:
             _log.error('Timeout occured pinging server.')
@@ -177,8 +177,8 @@ class Connection(object):
         timeout = int(timeout)
 
         self.server.vip.pubsub.publish(
-                'pubsub', topic=topic, headers=headers, message=message
-            ).get(timeout=timeout)
+            'pubsub', topic=topic, headers=headers, message=message
+        ).get(timeout=timeout)
 
     def call(self, method, *args, **kwargs):
         timeout = kwargs.pop('timeout', 30)
