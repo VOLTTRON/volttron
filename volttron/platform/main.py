@@ -274,6 +274,8 @@ class Router(BaseRouter):
         self._volttron_central_address = volttron_central_address
         if self._volttron_central_address:
             parsed = urlparse(self._volttron_central_address)
+            assert parsed.scheme == 'http', \
+                "volttron central address must begin with http(s)"
 
         self._volttron_central_serverkey = volttron_central_serverkey
         self._instance_name = instance_name
@@ -442,15 +444,15 @@ def start_volttron_process(opts):
     import urlparse
     if opts.bind_web_address:
         parsed = urlparse.urlparse(opts.bind_web_address)
-        if not parsed.scheme:
+        if parsed.scheme not in ('http', 'https'):
             raise StandardError(
                 'bind-web-address must begin with http or https.')
         opts.bind_web_address = config.expandall(opts.bind_web_address)
     if opts.volttron_central_address:
         parsed = urlparse.urlparse(opts.volttron_central_address)
-        if not parsed.scheme:
+        if parsed.scheme not in ('http', 'https', 'tcp'):
             raise StandardError(
-                'volttron-central-address must begin with http or https.')
+                'volttron-central-address must begin with tcp, http or https.')
         opts.volttron_central_address = config.expandall(
             opts.volttron_central_address)
     opts.volttron_central_serverkey = opts.volttron_central_serverkey
