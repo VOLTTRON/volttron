@@ -3,13 +3,13 @@ Copyright (c) 2016, Battelle Memorial Institute
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met: 
+modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer. 
+   list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution. 
+   and/or other materials provided with the distribution.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -23,31 +23,38 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies, 
+of the authors and should not be interpreted as representing official policies,
 either expressed or implied, of the FreeBSD Project.
 
-This material was prepared as an account of work sponsored by an 
-agency of the United States Government.  Neither the United States 
-Government nor the United States Department of Energy, nor Battelle,
-nor any of their employees, nor any jurisdiction or organization 
-that has cooperated in the development of these materials, makes 
-any warranty, express or implied, or assumes any legal liability 
-or responsibility for the accuracy, completeness, or usefulness or 
-any information, apparatus, product, software, or process disclosed,
-or represents that its use would not infringe privately owned rights.
+This material was prepared as an account of work sponsored by an agency of the
+United States Government.  Neither the United States Government nor the United
+States Department of Energy, nor Battelle, nor any of their employees, nor any 
+jurisdiction or organization that has cooperated in the development of these 
+materials, makes any warranty, express or implied, or assumes any legal liability
+or responsibility for the accuracy, completeness, or usefulness or any information, 
+apparatus, product, software, or process disclosed, or represents that its use
+would not infringe privately owned rights.
 
-Reference herein to any specific commercial product, process, or 
-service by trade name, trademark, manufacturer, or otherwise does 
-not necessarily constitute or imply its endorsement, recommendation, 
-r favoring by the United States Government or any agency thereof, 
-or Battelle Memorial Institute. The views and opinions of authors 
-expressed herein do not necessarily state or reflect those of the 
+Reference herein to any specific commercial product, process, or service by trade 
+name, trademark, manufacturer, or otherwise does not necessarily constitute or
+imply its endorsement, recommendation, or favoring by the United States Government
+or any agency thereof, or Battelle Memorial Institute. The views and opinions of
+authors expressed herein do not necessarily state or reflect those of the
 United States Government or any agency thereof.
 
 PACIFIC NORTHWEST NATIONAL LABORATORY
 operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
+
+-------------------------------------------------------------------------------
+    History
+-------------------------------------------------------------------------------
 '''
+__author1__   = 'Carl Miller <carl.miller@pnnl.gov>'
+__copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
+__license__   = 'FreeBSD'
+__version__   = '0.0.5'
+
 import random
 from volttron.platform.agent import utils
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
@@ -62,14 +69,9 @@ import sys
 DRIVER_PATH = "/home/volttron/GridAgents/VolttronAgents/Drivers"
 sys.path.insert( 0, DRIVER_PATH )
 from heaters.agent  import HeaterDriver
-#from meters.agent   import MeterDriver
+from meters.agent   import MeterDriver
+from hvac.agent     import ThermostatDriver
 #from vehicles.agent import VehicleDriver
-#from hvac.agent     import ThermostatDriver
-
-__author1__   = 'Carl Miller <carl.miller@pnnl.gov>'
-__copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__   = 'FreeBSD'
-__version__   = '0.0.5'
 
 _log = logging.getLogger(__name__)
 
@@ -91,12 +93,12 @@ class Interface(BasicRevert, BaseInterface):
                 #self.agent = HeaterDriver(DRIVER_PATH+"/heaters/heater.cfg", config_dict['device_id'] )
                 self.agent = HeaterDriver(None, config_dict['device_id'] )
             elif( device_type  == "meter" ):
-                self.agent = MeterDriver(      config_dict['device_id'] )
+                self.agent = MeterDriver( None, config_dict['device_id'] )
+            elif( device_type  == "thermostat" ):
+                self.agent = ThermostatDriver( None, config_dict['device_id'] )
             elif( device_type  == "vehicle" ):
                 self.agent = VehicleDriver( DRIVER_PATH+"/vehicles/vehicles.ini", \
                                                config_dict['device_id'], config_dict['unit_num'] )                             
-            elif( device_type  == "thermostat" ):
-                self.agent = ThermostatDriver( config_dict['device_id'], config_dict['unit_num'] )
             else:
                 _log.fatal("Unsupported Device Type: '{}'".format(self.device_type))
                 sys.exit(-1)
@@ -125,16 +127,13 @@ class Interface(BasicRevert, BaseInterface):
     def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
         if register.read_only:
-            raise IOError("Trying to write to a point configured read only: {}" .format(point_name) )
+            raise IOError("Trying to write to a point configured read only: " + point_name)
 
-        '''
         if( self.agent.SetPoint( register, value ) ):
             register._value = register.reg_type(value)
             self.point_map[point_name]._value = register._value
+
         return register._value
-        '''
-        self.agent.SetPoint( register, value )
-        return value
 
     # this gets called periodically via DriverAgent::periodic_read()
     #    ( on behalf of MasterDriverAgent )
@@ -155,7 +154,7 @@ class Interface(BasicRevert, BaseInterface):
             return
 
         config_str = (utils.strip_comments(reg_config_str).lstrip()).rstrip()
-        #_log.debug('Configuring {} Driver with {} and config_str {}'.format(device_type, config_dict, config_str))
+        _log.debug('Configuring {} Driver with {} and config_str {}'.format(device_type, config_dict, config_str))
          
         f = StringIO(config_str)
         regDict = DictReader(f)
