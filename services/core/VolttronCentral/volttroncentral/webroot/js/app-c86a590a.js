@@ -209,37 +209,36 @@ var devicesActionCreators = {
             platform: platform
         });
     },
-    scanForDevices: function scanForDevices(low, high, address) {
+    scanForDevices: function scanForDevices(platformUuid, bacnetProxyUuid, low, high, address) {
 
         var authorization = authorizationStore.getAuthorization();
 
-        // return new rpc.Exchange({
-        //     method: 'who_is',
-        //     authorization: authorization,
-        //     params: {
-        //         low_device_id: low,
-        //         high_device_id: high,
-        //         target_address: address
-        //     },
-        // }).promise
-        //     .then(function (result) {
+        return new rpc.Exchange({
+            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.methods.who_is',
+            authorization: authorization,
+            params: {
+                low_device_id: low,
+                high_device_id: high,
+                target_address: address
+            }
+        }).promise.then(function (result) {
 
-        //         if (result)
-        //         {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.LISTEN_FOR_IAMS,
-            low_device_id: low,
-            high_device_id: high,
-            target_address: address
+            if (result) {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.LISTEN_FOR_IAMS,
+                    platformUuid: platformUuid,
+                    bacnetProxyUuid: bacnetProxyUuid,
+                    low_device_id: low,
+                    high_device_id: high,
+                    target_address: address
+                });
+            }
+        }).catch(rpc.Error, function (error) {
+
+            error.message = "Unable to scan for devices. " + error.message + ".";
+
+            handle401(error, error.message);
         });
-
-        //TODO: setup socket
-        //     }
-
-        // })
-        // .catch(rpc.Error, function (error) {
-        //     handle401(error, error.message);
-        // });
     },
     cancelScan: function cancelScan(platform) {
         dispatcher.dispatch({
@@ -2357,24 +2356,9 @@ var ConfigureDevices = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(ConfigureDevices).call(this, props));
 
-        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onWhoIs', '_onDeviceStart', '_onDeviceEnd', '_onAddress');
+        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onWhoIs', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_showCancel', '_resumeScan', '_cancelScan');
 
-        _this.state = devicesStore.getState();
-
-        _this.state.bacnetProxies = platformsStore.getRunningBacnetProxies(_this.state.platform.uuid);
-        _this.state.deviceMethod = _this.state.bacnetProxies.length ? "scanForDevices" : "addDevicesManually";
-
-        _this.state.deviceStart = "";
-        _this.state.deviceEnd = "";
-        _this.state.address = "";
-
-        _this.state.newScan = true;
-
-        if (_this.state.deviceMethod === "scanForDevices") {
-            _this.state.selectedProxyUuid = _this.state.bacnetProxies[0].uuid;
-        }
-
-        _this.state.scanning = false;
+        _this.state = getInitialState();
         return _this;
     }
 
@@ -2394,12 +2378,14 @@ var ConfigureDevices = function (_BaseComponent) {
         key: '_onPlatformStoresChange',
         value: function _onPlatformStoresChange() {
 
-            var bacnetProxies = platformsStore.getRunningBacnetProxies(this.state.platform.uuid);
+            if (this.state.platform) {
+                var bacnetProxies = platformsStore.getRunningBacnetProxies(this.state.platform.uuid);
 
-            this.setState({ bacnetProxies: bacnetProxies });
+                this.setState({ bacnetProxies: bacnetProxies });
 
-            if (bacnetProxies.length < 1 && this.state.deviceMethod === "scanForDevices") {
-                this.setState({ deviceMethod: "addDevicesManually" });
+                if (bacnetProxies.length < 1 && this.state.deviceMethod === "scanForDevices") {
+                    this.setState({ deviceMethod: "addDevicesManually" });
+                }
             }
         }
     }, {
@@ -2408,25 +2394,25 @@ var ConfigureDevices = function (_BaseComponent) {
 
             var deviceState = devicesStore.getState();
 
-            if (deviceState.platform.uuid !== this.state.platform.uuid) {
-                deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
-                deviceState.deviceMethod = deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually";
-
-                if (deviceState.deviceMethod === "scanForDevices") {
-                    deviceState.selectedProxyUuid = deviceState.bacnetProxies[0].uuid;
-                }
-
-                deviceState.scanning = false;
-
-                this.setState(deviceState);
+            if (deviceState.action === "get_scan_settings") {
+                this.setState(getInitialState());
             } else {
-                this.setState({ scanning: true });
-                // this.setState({devices: devicesStore.getDevices()});
+                if (deviceState.platform && this.state.platform) {
+                    if (deviceState.platform.uuid !== this.state.platform.uuid) {
+                        deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
+                        deviceState.deviceMethod = deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually";
 
-                // for (key in deviceState)
-                // {
-                //     this.setState({ key: deviceState[key] });
-                // }
+                        if (deviceState.deviceMethod === "scanForDevices") {
+                            deviceState.selectedProxyUuid = deviceState.bacnetProxies[0].uuid;
+                        }
+
+                        deviceState.scanning = false;
+
+                        this.setState(deviceState);
+                    } else {
+                        this.setState({ scanning: true });
+                    }
+                }
             }
         }
     }, {
@@ -2465,215 +2451,269 @@ var ConfigureDevices = function (_BaseComponent) {
     }, {
         key: '_onWhoIs',
         value: function _onWhoIs(evt) {
-            devicesActionCreators.scanForDevices(this.state.deviceStart, this.state.deviceEnd, this.state.address);
+            devicesActionCreators.scanForDevices(this.state.platform.uuid, this.state.selectedProxyUuid, this.state.deviceStart, this.state.deviceEnd, this.state.address);
+
             this.setState({ scanning: true });
+        }
+    }, {
+        key: '_showCancel',
+        value: function _showCancel() {
+
+            if (this.state.scanning) {
+                this.setState({ cancelButton: true });
+            }
+        }
+    }, {
+        key: '_resumeScan',
+        value: function _resumeScan() {
+
+            if (this.state.scanning) {
+                this.setState({ cancelButton: false });
+            }
+        }
+    }, {
+        key: '_cancelScan',
+        value: function _cancelScan() {
+            this.setState({ scanning: false });
         }
     }, {
         key: 'render',
         value: function render() {
 
-            var view_component;
-            var platform = this.state.platform;
+            var deviceContent, defaultMessage;
 
-            var methodSelect = _react2.default.createElement(
-                'select',
-                {
-                    onChange: this._onDeviceMethodChange,
-                    value: this.state.deviceMethod,
-                    autoFocus: true,
-                    required: true
-                },
-                _react2.default.createElement(
-                    'option',
-                    { value: 'scanForDevices' },
-                    'Scan for Devices'
-                ),
-                _react2.default.createElement(
-                    'option',
-                    { value: 'addDevicesManually' },
-                    'Add Manually'
-                )
-            );
+            if (this.state.platform) {
 
-            var proxySelect;
+                var platform = this.state.platform;
 
-            var wideStyle = {
-                width: "100%"
-            };
-
-            var fifthCell = {
-                width: "20px"
-            };
-
-            if (this.state.deviceMethod === "scanForDevices") {
-                var proxies = this.state.bacnetProxies.map(function (proxy) {
-                    return _react2.default.createElement(
+                var methodSelect = _react2.default.createElement(
+                    'select',
+                    {
+                        onChange: this._onDeviceMethodChange,
+                        value: this.state.deviceMethod,
+                        autoFocus: true,
+                        required: true
+                    },
+                    _react2.default.createElement(
                         'option',
-                        { key: proxy.uuid, value: proxy.uuid },
-                        proxy.name
-                    );
-                });
-
-                proxySelect = _react2.default.createElement(
-                    'tr',
-                    null,
-                    _react2.default.createElement(
-                        'td',
-                        { className: 'plain' },
-                        _react2.default.createElement(
-                            'b',
-                            null,
-                            'BACNet Proxy Agent: '
-                        )
+                        { value: 'scanForDevices' },
+                        'Scan for Devices'
                     ),
                     _react2.default.createElement(
-                        'td',
-                        { className: 'plain',
-                            colSpan: 4 },
-                        _react2.default.createElement(
-                            'select',
-                            {
-                                style: wideStyle,
-                                onChange: this._onProxySelect,
-                                value: this.state.selectedProxyUuid,
-                                autoFocus: true,
-                                required: true
-                            },
-                            proxies
-                        )
-                    ),
-                    _react2.default.createElement('td', { className: 'plain', style: fifthCell })
+                        'option',
+                        { value: 'addDevicesManually' },
+                        'Add Manually'
+                    )
                 );
-            }
 
-            var buttonStyle = {
-                height: "21px"
-            };
+                var proxySelect;
 
-            var platformNameLength = platform.name.length * 6;
+                var wideStyle = {
+                    width: "100%"
+                };
 
-            var platformNameStyle = {
-                width: "25%",
-                minWidth: platformNameLength
-            };
+                var fifthCell = {
+                    width: "20px"
+                };
 
-            var deviceRangeStyle = {
-                width: "70px"
-            };
+                if (this.state.deviceMethod === "scanForDevices") {
+                    var proxies = this.state.bacnetProxies.map(function (proxy) {
+                        return _react2.default.createElement(
+                            'option',
+                            { key: proxy.uuid, value: proxy.uuid },
+                            proxy.name
+                        );
+                    });
 
-            var tdStyle = {
-                minWidth: "120px"
-            };
-
-            var scanOptions = _react2.default.createElement(
-                'div',
-                { className: 'detectDevicesContainer' },
-                _react2.default.createElement(
-                    'div',
-                    { className: 'detectDevicesBox' },
-                    _react2.default.createElement(
-                        'table',
+                    proxySelect = _react2.default.createElement(
+                        'tr',
                         null,
                         _react2.default.createElement(
-                            'tbody',
+                            'td',
+                            { className: 'plain' },
+                            _react2.default.createElement(
+                                'b',
+                                null,
+                                'BACNet Proxy Agent: '
+                            )
+                        ),
+                        _react2.default.createElement(
+                            'td',
+                            { className: 'plain',
+                                colSpan: 4 },
+                            _react2.default.createElement(
+                                'select',
+                                {
+                                    style: wideStyle,
+                                    onChange: this._onProxySelect,
+                                    value: this.state.selectedProxyUuid,
+                                    autoFocus: true,
+                                    required: true
+                                },
+                                proxies
+                            )
+                        ),
+                        _react2.default.createElement('td', { className: 'plain', style: fifthCell })
+                    );
+                }
+
+                var buttonStyle = {
+                    height: "21px"
+                };
+
+                var platformNameLength = platform.name.length * 6;
+
+                var platformNameStyle = {
+                    width: "25%",
+                    minWidth: platformNameLength
+                };
+
+                var deviceRangeStyle = {
+                    width: "70px"
+                };
+
+                var tdStyle = {
+                    minWidth: "120px"
+                };
+
+                var scanOptions = _react2.default.createElement(
+                    'div',
+                    { className: 'detectDevicesContainer' },
+                    _react2.default.createElement(
+                        'div',
+                        { className: 'detectDevicesBox' },
+                        _react2.default.createElement(
+                            'table',
                             null,
-                            proxySelect,
                             _react2.default.createElement(
-                                'tr',
+                                'tbody',
                                 null,
+                                proxySelect,
                                 _react2.default.createElement(
-                                    'td',
-                                    { className: 'plain', style: tdStyle },
-                                    _react2.default.createElement(
-                                        'b',
-                                        null,
-                                        'Device ID Range'
-                                    )
-                                ),
-                                _react2.default.createElement(
-                                    'td',
-                                    { className: 'plain' },
-                                    'Start:'
-                                ),
-                                _react2.default.createElement(
-                                    'td',
-                                    { className: 'plain' },
-                                    _react2.default.createElement('input', {
-                                        type: 'number',
-                                        style: deviceRangeStyle,
-                                        onChange: this._onDeviceStart,
-                                        value: this.state.deviceStart })
-                                ),
-                                _react2.default.createElement(
-                                    'td',
-                                    { className: 'plain' },
-                                    'End:'
-                                ),
-                                _react2.default.createElement(
-                                    'td',
-                                    { className: 'plain' },
-                                    _react2.default.createElement('input', {
-                                        type: 'number',
-                                        style: deviceRangeStyle,
-                                        onChange: this._onDeviceEnd,
-                                        value: this.state.deviceEnd })
-                                ),
-                                _react2.default.createElement('td', { className: 'plain' })
-                            ),
-                            _react2.default.createElement(
-                                'tr',
-                                null,
-                                _react2.default.createElement(
-                                    'td',
+                                    'tr',
                                     null,
                                     _react2.default.createElement(
-                                        'b',
-                                        null,
-                                        'Address'
-                                    )
+                                        'td',
+                                        { className: 'plain', style: tdStyle },
+                                        _react2.default.createElement(
+                                            'b',
+                                            null,
+                                            'Device ID Range'
+                                        )
+                                    ),
+                                    _react2.default.createElement(
+                                        'td',
+                                        { className: 'plain' },
+                                        'Start:'
+                                    ),
+                                    _react2.default.createElement(
+                                        'td',
+                                        { className: 'plain' },
+                                        _react2.default.createElement('input', {
+                                            type: 'number',
+                                            style: deviceRangeStyle,
+                                            onChange: this._onDeviceStart,
+                                            value: this.state.deviceStart })
+                                    ),
+                                    _react2.default.createElement(
+                                        'td',
+                                        { className: 'plain' },
+                                        'End:'
+                                    ),
+                                    _react2.default.createElement(
+                                        'td',
+                                        { className: 'plain' },
+                                        _react2.default.createElement('input', {
+                                            type: 'number',
+                                            style: deviceRangeStyle,
+                                            onChange: this._onDeviceEnd,
+                                            value: this.state.deviceEnd })
+                                    ),
+                                    _react2.default.createElement('td', { className: 'plain' })
                                 ),
                                 _react2.default.createElement(
-                                    'td',
-                                    { className: 'plain',
-                                        colSpan: 4 },
-                                    _react2.default.createElement('input', {
-                                        style: wideStyle,
-                                        type: 'text',
-                                        onChange: this._onAddress,
-                                        value: this.state.address })
-                                ),
-                                _react2.default.createElement('td', { className: 'plain', style: fifthCell })
+                                    'tr',
+                                    null,
+                                    _react2.default.createElement(
+                                        'td',
+                                        null,
+                                        _react2.default.createElement(
+                                            'b',
+                                            null,
+                                            'Address'
+                                        )
+                                    ),
+                                    _react2.default.createElement(
+                                        'td',
+                                        { className: 'plain',
+                                            colSpan: 4 },
+                                        _react2.default.createElement('input', {
+                                            style: wideStyle,
+                                            type: 'text',
+                                            onChange: this._onAddress,
+                                            value: this.state.address })
+                                    ),
+                                    _react2.default.createElement('td', { className: 'plain', style: fifthCell })
+                                )
                             )
                         )
                     )
-                )
-            );
+                );
 
-            var scanOptionsStyle = {
-                float: "left",
-                marginRight: "10px"
-            };
+                var scanOptionsStyle = {
+                    float: "left",
+                    marginRight: "10px"
+                };
 
-            var platformNameStyle = {
-                float: "left",
-                width: "100%"
-            };
+                var platformNameStyle = {
+                    float: "left",
+                    width: "100%"
+                };
 
-            var devicesContainer;
+                var devicesContainer;
+                var scanButton;
 
-            if (this.state.scanning) {
-                devicesContainer = _react2.default.createElement(_devicesFound2.default, { platform: this.state.platform });
-            }
+                if (this.state.scanning) {
+                    var spinnerContent;
+                    var spinnerMessage = "Scanning for devices ...";
 
-            return _react2.default.createElement(
-                'div',
-                { className: 'view' },
-                _react2.default.createElement(
-                    'h2',
-                    null,
-                    'Install Devices'
-                ),
-                _react2.default.createElement(
+                    if (this.state.cancelButton) {
+                        spinnerContent = _react2.default.createElement(
+                            'span',
+                            { className: 'cancelScanning' },
+                            _react2.default.createElement('i', { className: 'fa fa-remove' })
+                        );
+                    } else {
+                        spinnerContent = _react2.default.createElement('i', { className: 'fa fa-cog fa-spin fa-2x fa-fw margin-bottom' });
+                    }
+
+                    devicesContainer = _react2.default.createElement(_devicesFound2.default, { platform: this.state.platform });
+                    scanButton = _react2.default.createElement(
+                        'div',
+                        { style: scanOptionsStyle },
+                        _react2.default.createElement(
+                            'div',
+                            { className: 'scanningSpinner',
+                                onClick: this._cancelScan,
+                                onMouseEnter: this._showCancel,
+                                onMouseLeave: this._resumeScan },
+                            spinnerContent,
+                            spinnerMessage
+                        )
+                    );
+                } else {
+                    scanButton = _react2.default.createElement(
+                        'div',
+                        { style: scanOptionsStyle },
+                        _react2.default.createElement(
+                            'button',
+                            { style: buttonStyle, onClick: this._onWhoIs },
+                            'Go'
+                        )
+                    );
+                }
+
+                deviceContent = _react2.default.createElement(
                     'div',
                     { className: 'device-box device-scan' },
                     _react2.default.createElement(
@@ -2713,16 +2753,28 @@ var ConfigureDevices = function (_BaseComponent) {
                         { style: scanOptionsStyle },
                         scanOptions
                     ),
-                    _react2.default.createElement(
-                        'div',
-                        { style: scanOptionsStyle },
-                        _react2.default.createElement(
-                            'button',
-                            { style: buttonStyle, onClick: this._onWhoIs },
-                            'Go'
-                        )
-                    )
+                    scanButton
+                );
+            } else {
+                defaultMessage = _react2.default.createElement(
+                    'div',
+                    null,
+                    'Launch device installation from the side tree by clicking on the ',
+                    _react2.default.createElement('i', { className: 'fa fa-cogs' }),
+                    ' button next to the platform instance.'
+                );
+            }
+
+            return _react2.default.createElement(
+                'div',
+                { className: 'view' },
+                _react2.default.createElement(
+                    'h2',
+                    null,
+                    'Install Devices'
                 ),
+                deviceContent,
+                defaultMessage,
                 _react2.default.createElement(
                     'div',
                     { className: 'device-box device-container' },
@@ -2737,17 +2789,29 @@ var ConfigureDevices = function (_BaseComponent) {
 
 ;
 
-function getStateFromStores() {
+function getInitialState() {
 
-    var deviceState = devicesStore.getState();
+    var state = devicesStore.getState();
 
-    if (deviceState.platform) {
-        deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
+    if (state.platform) {
+        state.bacnetProxies = platformsStore.getRunningBacnetProxies(state.platform.uuid);
+        state.deviceMethod = state.bacnetProxies.length ? "scanForDevices" : "addDevicesManually";
 
-        deviceState.deviceMethod = deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually";
+        state.deviceStart = "";
+        state.deviceEnd = "";
+        state.address = "";
+
+        state.newScan = true;
+
+        if (state.deviceMethod === "scanForDevices") {
+            state.selectedProxyUuid = state.bacnetProxies[0].uuid;
+        }
+
+        state.scanning = false;
+        state.cancelButton = false;
     }
 
-    return deviceState;
+    return state;
 }
 
 exports.default = ConfigureDevices;
@@ -4809,7 +4873,7 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var devicesStore = require('../stores/devices-store');
-var socket = (0, _socket2.default)('http://localhost:8000');
+var socket = (0, _socket2.default)('https://localhost:3000');
 
 var DevicesFound = function (_BaseComponent) {
     _inherits(DevicesFound, _BaseComponent);
@@ -4856,45 +4920,57 @@ var DevicesFound = function (_BaseComponent) {
         key: 'render',
         value: function render() {
 
-            var devices = this.state.devices.map(function (device) {
+            var devices;
+            var ths;
 
-                var buttonStyle = {
-                    height: "24px",
-                    lineHeight: "18px"
-                };
+            if (this.state.devices.length) {
+                devices = this.state.devices.map(function (device) {
 
-                var tds = device.map(function (d) {
+                    var buttonStyle = {
+                        height: "24px",
+                        lineHeight: "18px"
+                    };
+
+                    var deviceId;
+
+                    var tds = device.map(function (d, i) {
+                        if (d.key === "deviceId") {
+                            deviceId = "device-" + d.value;
+                        }
+
+                        return _react2.default.createElement(
+                            'td',
+                            { key: d.key + "-" + i, className: 'plain' },
+                            d.value
+                        );
+                    });
+
                     return _react2.default.createElement(
-                        'td',
-                        { className: 'plain' },
-                        d.value
+                        'tr',
+                        { key: deviceId },
+                        tds,
+                        _react2.default.createElement(
+                            'td',
+                            { className: 'plain' },
+                            _react2.default.createElement(
+                                'button',
+                                {
+                                    onClick: this._configureDevice.bind(this, device),
+                                    style: buttonStyle },
+                                'Configure'
+                            )
+                        )
+                    );
+                }, this);
+
+                ths = this.state.devices[0].map(function (d, i) {
+                    return _react2.default.createElement(
+                        'th',
+                        { key: d.key + "-" + i + "-th", className: 'plain' },
+                        d.label
                     );
                 });
-                return _react2.default.createElement(
-                    'tr',
-                    null,
-                    tds,
-                    _react2.default.createElement(
-                        'td',
-                        { className: 'plain' },
-                        _react2.default.createElement(
-                            'button',
-                            {
-                                onClick: this._configureDevice.bind(this, device),
-                                style: buttonStyle },
-                            'Configure'
-                        )
-                    )
-                );
-            }, this);
-
-            var ths = this.state.devices[0].map(function (d) {
-                return _react2.default.createElement(
-                    'th',
-                    { className: 'plain' },
-                    d.label
-                );
-            });
+            }
 
             return _react2.default.createElement(
                 'div',

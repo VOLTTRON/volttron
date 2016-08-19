@@ -20,37 +20,40 @@ var devicesActionCreators = {
             platform: platform
         });
     },
-    scanForDevices: function (low, high, address) {
+    scanForDevices: function (platformUuid, bacnetProxyUuid, low, high, address) {
 
         var authorization = authorizationStore.getAuthorization();
 
-        // return new rpc.Exchange({
-        //     method: 'who_is',
-        //     authorization: authorization,
-        //     params: {
-        //         low_device_id: low,
-        //         high_device_id: high,
-        //         target_address: address
-        //     },
-        // }).promise
-        //     .then(function (result) {
+        return new rpc.Exchange({
+            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.methods.who_is',
+            authorization: authorization,
+            params: {
+                low_device_id: low,
+                high_device_id: high,
+                target_address: address
+            },
+        }).promise
+            .then(function (result) {
 
-        //         if (result)
-        //         {
+                if (result)
+                {
                     dispatcher.dispatch({
                         type: ACTION_TYPES.LISTEN_FOR_IAMS,
+                        platformUuid: platformUuid,
+                        bacnetProxyUuid: bacnetProxyUuid,
                         low_device_id: low,
                         high_device_id: high,
                         target_address: address
                     });
-
-                    //TODO: setup socket
-            //     }
+                }
                 
-            // })
-            // .catch(rpc.Error, function (error) {
-            //     handle401(error, error.message);
-            // });
+            })
+            .catch(rpc.Error, function (error) {
+
+                error.message = "Unable to scan for devices. " + error.message + ".";
+
+                handle401(error, error.message);
+            });
         
     },
     cancelScan: function (platform) {

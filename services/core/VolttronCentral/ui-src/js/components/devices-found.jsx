@@ -6,7 +6,7 @@ import BaseComponent from './base-component';
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var devicesStore = require('../stores/devices-store');
-let socket = io('http://localhost:8000');
+let socket = io('https://localhost:3000');
 
 class DevicesFound extends BaseComponent {
     constructor(props) {
@@ -37,34 +37,48 @@ class DevicesFound extends BaseComponent {
     }
     render() {        
         
-        var devices = 
-            this.state.devices.map(function (device) {
+        var devices;
+        var ths;
 
-                var buttonStyle = {
-                    height: "24px",
-                    lineHeight: "18px"
-                }
+        if (this.state.devices.length)
+        {
+            devices = 
+                this.state.devices.map(function (device) {
 
-                var tds = device.map(function (d) {
-                                return (<td className="plain">{ d.value }</td>)
-                            });
-                return (
-                    <tr>
-                        { tds }
+                    var buttonStyle = {
+                        height: "24px",
+                        lineHeight: "18px"
+                    }
 
-                        <td className="plain">
-                            <button 
-                                onClick={this._configureDevice.bind(this, device)}
-                                style={buttonStyle}>Configure</button>
-                        </td>
-                    </tr>
-                );
+                    var deviceId;
 
-            }, this); 
+                    var tds = device.map(function (d, i) {
+                            if (d.key === "deviceId")
+                            {
+                                deviceId = "device-" + d.value;
+                            }
 
-        var ths = this.state.devices[0].map(function (d) {
-                        return (<th className="plain">{d.label}</th>); 
-                    });    
+                            return (<td key={d.key + "-" + i} className="plain">{ d.value }</td>)
+                        });
+
+                    return (
+                        <tr key={deviceId}>
+                            { tds }
+
+                            <td className="plain">
+                                <button 
+                                    onClick={this._configureDevice.bind(this, device)}
+                                    style={buttonStyle}>Configure</button>
+                            </td>
+                        </tr>
+                    );
+
+                }, this); 
+
+            ths = this.state.devices[0].map(function (d, i) {
+                            return (<th key={d.key + "-" + i + "-th"} className="plain">{d.label}</th>); 
+                        });    
+        }
 
         return (
             <div className="devicesFoundContainer">
