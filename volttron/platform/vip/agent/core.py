@@ -546,12 +546,17 @@ class Core(BasicCore):
         hello_response_event = gevent.event.Event()
 
         def connection_failed_check():
-            # If we don't have a verified connection after 10.0 seconds shut down.
+            # If we don't have a verified connection after 10.0 seconds
+            # shut down.
             if hello_response_event.wait(10.0):
                 return
             _log.error("No response to hello message after 10 seconds.")
             _log.error("A common reason for this is a conflicting VIP IDENTITY.")
             _log.error("Shutting down agent.")
+            _log.error("Possible conflicting identity is: {}".format(
+                self.socket.identity
+            ))
+
             self.stop(timeout=5.0)
 
         def hello():
@@ -563,7 +568,9 @@ class Core(BasicCore):
 
         def hello_response(sender, version='',
                            router='', identity=''):
-            _log.info("Connected to platform: router: {} version: {} identity: {}".format(router, version, identity))
+            _log.info("Connected to platform: "
+                      "router: {} version: {} identity: {}".format(
+                router, version, identity))
             _log.debug("Running onstart methods.")
             hello_response_event.set()
             self.onstart.sendby(self.link_receiver, self)
