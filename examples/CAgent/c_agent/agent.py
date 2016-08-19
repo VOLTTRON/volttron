@@ -66,12 +66,12 @@ from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 
 __docformat__ = 'reStructuredText'
-__version__ = 1.0
+__version__ = '1.0'
 
-'''This example agent calls functions from a shared object via
+"""This example agent calls functions from a shared object via
 the ctypes module. The shared object must be built with make before
 installing.
-'''
+"""
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -92,8 +92,8 @@ class CAgent(Agent):
 
     @Core.periodic(PUBLISH_PERIOD)
     def publish_water_temperature(self):
-        '''Call the function from the shared object.
-        '''
+        """Call the function from the shared object.
+        """
         wt = self.get_water_temperature()
         _log.debug(wt)
         self.vip.pubsub.publish('pubsub', 'device/WATER_TEMP=' + str(wt))
