@@ -138,7 +138,7 @@ class MasterDriverAgent(Agent):
     def __init__(self, driver_config_list, scalability_test = False,
                  scalability_test_iterations = 3, staggered_start = None,
                  **kwargs):
-        super(MasterDriverAgent, self).__init__(identity='platform.driver', **kwargs)
+        super(MasterDriverAgent, self).__init__(**kwargs)
         self.instances = {}
         self.scalability_test = scalability_test
         self.scalability_test_iterations = scalability_test_iterations
@@ -238,7 +238,7 @@ class MasterDriverAgent(Agent):
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(master_driver_agent)
+    utils.vip_main(master_driver_agent, identity='platform.driver')
 
 
 if __name__ == '__main__':
