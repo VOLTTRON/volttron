@@ -300,8 +300,7 @@ def historian(config_path, **kwargs):
                                            status)
 
     ForwardHistorian.__name__ = 'ForwardHistorian'
-    return ForwardHistorian(identity=identity,
-                            backup_storage_limit_gb=backup_storage_limit_gb,
+    return ForwardHistorian(backup_storage_limit_gb=backup_storage_limit_gb,
                             **kwargs)
 
 
