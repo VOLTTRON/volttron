@@ -236,7 +236,13 @@ class VolttronCentralPlatform(Agent):
 
     def _publish_agent_list_to_vc(self):
 
-        if self._platform_uuid:
+        if not self._platform_uuid:
+            _log.info('Not publishing new agent list '
+                      '(no paltform_uuid specified')
+        elif self._agent_connected_to_vc is None:
+            _log.info('Not publishing new agent list '
+                      '(not connected to Volttron Central)')
+        else:
             _log.info('Publishing new agent list.')
 
             self._agent_connected_to_vc.vip.pubsub.publish(
@@ -245,9 +251,6 @@ class VolttronCentralPlatform(Agent):
                     self._platform_uuid),
                 message=self.list_agents()
             )
-        else:
-            _log.info('Not publishing new agent list '
-                      '(no paltform_uuid specified')
 
 
     @RPC.export
