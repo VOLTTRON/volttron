@@ -609,10 +609,6 @@ def main(argv=sys.argv):
         os.environ.get('VOLTTRON_HOME', '~/.volttron')))
     os.environ['VOLTTRON_HOME'] = volttron_home
 
-    #Remove AGENT_VIP_IDENTITY if it exists.
-    #Otherwise subsystem agents will get messed up if it exists.
-    os.environ.pop("AGENT_VIP_IDENTITY", None)
-
     # Setup option parser
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]), add_help=False,

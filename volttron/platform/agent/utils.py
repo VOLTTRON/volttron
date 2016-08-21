@@ -191,7 +191,7 @@ def default_main(agent_class, description=None, argv=sys.argv,
         pass
 
 
-def vip_main(agent_class, **kwargs):
+def vip_main(agent_class, identity=None, **kwargs):
     """Default main entry point implementation for VIP agents."""
     try:
         # If stdout is a pipe, re-open it line buffered
@@ -206,7 +206,9 @@ def vip_main(agent_class, **kwargs):
         Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt,)
 
         config = os.environ.get('AGENT_CONFIG')
-        agent = agent_class(config_path=config, **kwargs)
+        identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
+
+        agent = agent_class(config_path=config, identity=identity, **kwargs)
         try:
             run = agent.run
         except AttributeError:

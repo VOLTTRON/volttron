@@ -118,10 +118,8 @@ class VolttronCentralPlatform(Agent):
     __name__ = 'VolttronCentralPlatform'
 
     def __init__(self, config_path, **kwargs):
-        identity = kwargs.pop('identity', None)
-        identity = VOLTTRON_CENTRAL_PLATFORM
-        super(VolttronCentralPlatform, self).__init__(
-            identity=identity, **kwargs)
+        super(VolttronCentralPlatform, self).__init__(**kwargs)
+
         self._local_instance_name = None
         self._local_instance_uuid = None
         self._local_serverkey = None
@@ -850,7 +848,7 @@ def main(argv=sys.argv):
     :return:
     """
     # utils.vip_main(platform_agent)
-    utils.vip_main(VolttronCentralPlatform)
+    utils.vip_main(VolttronCentralPlatform, identity = VOLTTRON_CENTRAL_PLATFORM)
 
 
 if __name__ == '__main__':

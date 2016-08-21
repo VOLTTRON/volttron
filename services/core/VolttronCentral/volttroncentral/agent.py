@@ -148,12 +148,7 @@ class VolttronCentralAgent(Agent):
         """
         _log.info("{} constructing...".format(self.__name__))
 
-        # This is a special object so only use it's identity.
-        identity = kwargs.pop("identity", None)
-        identity = VOLTTRON_CENTRAL
-
-        super(VolttronCentralAgent, self).__init__(identity=identity,
-                                                   **kwargs)
+        super(VolttronCentralAgent, self).__init__(**kwargs)
         # Load the configuration into a dictionary
         self._config = utils.load_config(config_path)
 
@@ -1314,7 +1309,7 @@ def main(argv=sys.argv):
     :param argv:
     :return:
     """
-    utils.vip_main(VolttronCentralAgent)
+    utils.vip_main(VolttronCentralAgent, identity=VOLTTRON_CENTRAL)
 
 
 if __name__ == '__main__':

@@ -298,11 +298,11 @@ def log_to_file(file, level=logging.WARNING,
     root.addHandler(handler)
 
 
-Agent = collections.namedtuple('Agent', 'name tag uuid')
+Agent = collections.namedtuple('Agent', 'name tag uuid vip_identity')
 
 
 def _list_agents(aip):
-    return [Agent(name, aip.agent_tag(uuid), uuid)
+    return [Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid))
             for uuid, name in aip.list_agents().iteritems()]
 
 
@@ -469,12 +469,14 @@ def list_agents(opts):
     agents.sort()
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:>3}\n'
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>3}\n'
     _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'TAG', tag_width, 'PRI'))
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width, 'TAG', tag_width, 'PRI'))
     for agent in agents:
         priority = opts.aip.agent_priority(agent.uuid) or ''
         _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
                                  agent.tag or '', tag_width, priority))
 
 
@@ -506,15 +508,17 @@ def status_agents(opts):
         n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:>6}\n'
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
     _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'TAG', tag_width, 'STATUS'))
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width, 'TAG', tag_width, 'STATUS'))
     for agent in agents:
         try:
             pid, stat = status[agent.uuid]
         except KeyError:
             pid = stat = None
         _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
                                  agent.tag or '', tag_width,
                                  ('running [{}]'.format(pid)
                                   if stat is None else str(

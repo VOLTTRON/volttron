@@ -428,7 +428,7 @@ class Core(BasicCore):
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
-        self.identity = os.environ.get('AGENT_VIP_IDENTITY', None)
+        self.identity = str(identity) if identity is not None else str(uuid.uuid4())
         self.agent_uuid = os.environ.get('AGENT_UUID', None)
 
         # The public and secret keys are obtained by:
@@ -448,15 +448,6 @@ class Core(BasicCore):
 
         self.publickey = publickey
         self.secretkey = secretkey
-
-        if self.identity is None:
-            # We didn't get a identity from the environment so try our parameters.
-            if identity is not None:
-                self.identity = identity
-            else:
-                # We didn't get a identity from our parameters either so now we make one up.
-                self.identity = str(uuid.uuid4())
-
         self.socket = None
         self.subsystems = {'error': self.handle_error}
         self.__connected = False
