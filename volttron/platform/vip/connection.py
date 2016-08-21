@@ -57,6 +57,7 @@
 
 import logging
 import urlparse
+import uuid
 
 import gevent
 from volttron.platform.agent.utils import get_aware_utc_now
@@ -68,6 +69,9 @@ _log = logging.getLogger(__name__)
 
 __version__ = '1.0.1'
 __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
+
+
+DEFAULT_TIMEOUT = 30
 
 
 class Connection(object):
@@ -109,13 +113,14 @@ class Connection(object):
             else:
                 raise AttributeError(
                     'Invalid address type specified. ipc or tcp accepted.')
-        self._server = Agent(address=full_address)
+        self._server = Agent(address=full_address, identity=str(uuid.uuid4()))
         self._greenlet = None
         self._connected_since = None
         self._last_publish = None
         self._last_publish_failed = False
         self._last_rpc_call = None
-        self.is_connected(5)
+        # Make the actual attempt to connect to the server.
+        self.is_connected()
 
     @property
     def serverkey(self):
@@ -151,7 +156,7 @@ class Connection(object):
             _log.debug('Spawning greenlet')
             event = gevent.event.Event()
             self._greenlet = gevent.spawn(self._server.core.run, event)
-            event.wait(timeout=30)
+            event.wait(timeout=DEFAULT_TIMEOUT)
             self._connected_since = get_aware_utc_now()
             if self.peer not in self._server.vip.peerlist().get(timeout=2):
                 _log.warn('Peer {} not found connected to router.'.format(
@@ -159,18 +164,22 @@ class Connection(object):
                 ))
         return self._server
 
-    def peers(self, timeout=30):
+    def peers(self, timeout=DEFAULT_TIMEOUT):
         return self.server.vip.peerlist().get(timeout=timeout)
 
-    def is_connected(self, timeout=30):
-        self.server.vip.ping('').get(timeout=timeout)
-        try:
-            return True
-        except gevent.Timeout:
-            _log.error('Timeout occured pinging server.')
-            return False
+    def is_connected(self, timeout=DEFAULT_TIMEOUT):
+        return self.server.core.connected
+        # self.server.vip.ping('').get(timeout=timeout)
+        # try:
+        #     return True
+        # except gevent.Timeout:
+        #     _log.error('Timeout occured pinging server.')
+        #     return False
 
-    def publish(self, topic, headers=None, message=None, timeout=30):
+    def is_peer_connected(self, timeout=DEFAULT_TIMEOUT):
+        return self.peer in self.peers()
+
+    def publish(self, topic, headers=None, message=None, timeout=DEFAULT_TIMEOUT):
         if timeout is None:
             raise ValueError('timeout cannot be None')
 
@@ -181,7 +190,7 @@ class Connection(object):
         ).get(timeout=timeout)
 
     def call(self, method, *args, **kwargs):
-        timeout = kwargs.pop('timeout', 30)
+        timeout = kwargs.pop('timeout', DEFAULT_TIMEOUT)
         peer = kwargs.pop('peer', None)
 
         if peer is not None:

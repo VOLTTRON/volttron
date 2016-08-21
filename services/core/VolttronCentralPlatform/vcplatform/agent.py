@@ -126,6 +126,7 @@ class VolttronCentralPlatform(Agent):
         self._local_bind_web_address = None
         self._external_addresses = None
 
+        self._volttron_central_reconnect_interval = 10
         self._volttron_central_http_address = None
         self._volttron_central_tcp_address = None
         self._volttron_central_ipc_address = None
@@ -158,8 +159,14 @@ class VolttronCentralPlatform(Agent):
             config['stats-publish-interval'] = self._stats_publish_interval
         if self._settings.get('instance-uuid'):
             config['instance-uuid'] = self._settings.get('instance-uuid')
+        if config.get('volttron-central-reconnect-interval') is None:
+            config['volttron-central-reconnect-interval'] = \
+                self._volttron_central_reconnect_interval
         self._topic_replace_list = config.get("topic_replace_list", [])
         self.reconfigure(**config)
+
+        # This is scheduled after first call to the reconnect function
+        self._scheduled_connection_event = None
 
     @RPC.export
     def reconfigure(self, **kwargs):
@@ -168,12 +175,16 @@ class VolttronCentralPlatform(Agent):
         vc_address = kwargs.get('volttron-central-address')
         vc_serverkey = kwargs.get('volttron-central-serverkey')
         new_publish_interval = kwargs.get('stats-publish-interval')
+        reconnect_interval = kwargs.get('volttron-central-reconnect-interval')
 
         if instance_name:
             self._local_instance_name = instance_name
 
         if instance_uuid:
             self._local_instance_uuid = instance_uuid
+
+        if reconnect_interval:
+            self._volttron_central_reconnect_interval = reconnect_interval
 
         if vc_address:
             parsed = urlparse.urlparse(vc_address)
@@ -199,37 +210,50 @@ class VolttronCentralPlatform(Agent):
             self._stats_publish_interval = new_publish_interval
             self._start_stats_publisher()
 
-    @Core.periodic(period=15)
     def _periodic_attempt_registration(self):
+        if not self._started:
+            return
+
+        if self._scheduled_connection_event is not None:
+            # This won't hurt anything if we are canceling ourselves.
+            self._scheduled_connection_event.cancel()
+
         try:
             vc = self._vc_connection()
             if vc is None:
                 _log.debug("vc not connected")
                 return
-            if vc.is_connected():
-                if not self._is_registering and not self._is_registered and \
-                        not self._was_unmanaged:
-                    _log.debug("Starting the registration process from vcp. "
-                               "Instance is named: "
-                               "{}".format(self._local_instance_name
-                    ))
-                    try:
-                        if self._vc_connection().is_connected():
-                            self._vc_connection().call(
-                                "register_instance",
-                                address=self._external_addresses[0],
-                                display_name=self._local_instance_name,
-                                serverkey=self._local_serverkey,
-                                vcpagentkey=self.core.publickey
-                            )
-                        else:
-                            _log.debug("Not connected to volttron central.")
-                    except Exception as e:
-                        _log.debug(str(e))
-                        _log.error("Registration failure!")
+
+            if not self._is_registering and not self._is_registered and \
+                    not self._was_unmanaged:
+                _log.debug("Starting the registration process from vcp. "
+                           "Instance is named: "
+                           "{}".format(self._local_instance_name
+                ))
+                self._vc_connection().call(
+                    "register_instance",
+                    address=self._external_addresses[0],
+                    display_name=self._local_instance_name,
+                    serverkey=self._local_serverkey,
+                    vcpagentkey=self.core.publickey
+                )
+        except Unreachable as e:
+            _log.error("Couldn't connect to volttron.central. {}".format(
+                self._volttron_central_tcp_address
+            ))
+        except ValueError as e:
+            _log.error(e.message)
         except Exception as e:
-            _log.debug('Unhandled exception was thrown.')
-            _log.error(str(e))
+            _log.error("{} found as {}".format(e, e.message))
+        except gevent.Timeout as e:
+            _log.error("timout occured connecting to remote platform.")
+
+        now = get_aware_utc_now()
+        next_update_time = now + datetime.timedelta(
+            seconds=self._volttron_central_reconnect_interval)
+
+        self._scheduled_connection_event = self.core.schedule(
+            next_update_time, self._periodic_attempt_registration)
 
     def _vc_connection(self):
         """ Attempt to connect to volttron central management console.
@@ -251,7 +275,6 @@ class VolttronCentralPlatform(Agent):
         if self._volttron_central_connection:
             # if connected return the connection.
             if self._volttron_central_connection.is_connected(5):
-                _log.debug("Connection has been established.")
                 return self._volttron_central_connection
 
             _log.debug("Resetting connection as the peer wasn't responding.")
@@ -267,6 +290,9 @@ class VolttronCentralPlatform(Agent):
             self._volttron_central_connection = Connection(
                 self.core.address, VOLTTRON_CENTRAL
             )
+            if self._volttron_central_connection.is_connected() and \
+                    self._volttron_central_connection.is_peer_connected():
+                _log.debug("Connection has been established to local peer.")
             return self._volttron_central_connection
 
         # If we have an http address for volttron central, but haven't
@@ -277,71 +303,69 @@ class VolttronCentralPlatform(Agent):
                         self._volttron_central_serverkey is None:
 
             _log.debug('Using discovery to lookup tcp connection')
+
             response = requests.get(
                 "{}/discovery/".format(self._volttron_central_http_address)
             )
 
             if response.ok:
                 jsonresp = response.json()
+                entry = AuthEntry(credentials="/.*/",
+                                  capabilities=['manager']
+                                  #,
+                                  #address=jsonresp['vip-address']
+                                  )
+                authfile = AuthFile(get_home() + "/auth.json")
+                authfile.add(entry)
                 self._volttron_central_tcp_address = jsonresp['vip-address']
                 self._volttron_central_serverkey = jsonresp['serverkey']
 
         # First see if we are able to connect via tcp with the serverkey.
         if self._volttron_central_tcp_address is not None and \
-                        self._volttron_central_serverkey is not None:
+                self._volttron_central_serverkey is not None:
             _log.debug('Connecting to volttron central using tcp.')
-            try:
-                self._volttron_central_connection = Connection(
-                    address=self._volttron_central_tcp_address,
-                    peer=VOLTTRON_CENTRAL,
-                    serverkey=self._volttron_central_serverkey,
-                    publickey=self.core.publickey,
-                    secretkey=self.core.secretkey
-                )
 
-                if not self._volttron_central_connection.is_connected(5):
-                    raise ValueError("Unable to reach via tcp volttron.central")
+            vc_conn = Connection(
+                address=self._volttron_central_tcp_address,
+                peer=VOLTTRON_CENTRAL,
+                serverkey=self._volttron_central_serverkey,
+                publickey=self.core.publickey,
+                secretkey=self.core.secretkey
+            )
 
-                #TODO Only add a single time for this address.
-                if self._volttron_central_publickey:
-                    # Add the vcpublickey to the auth file.
-                    entry = AuthEntry(
-                        credentials="CURVE:{}".format(
-                            self._volttron_central_publickey),
-                        capabilities=['manager'])
-                    authfile = AuthFile()
-                    authfile.add(entry)
+            if not vc_conn.is_connected(5):
+                raise ValueError(
+                    "Unable to connect to remote platform")
 
-                return self._volttron_central_connection
+            if not vc_conn.is_peer_connected(5):
+                raise ValueError(
+                    "Peer: {} unavailable on remote platform.".format(
+                        VOLTTRON_CENTRAL))
 
-            except Unreachable:
-                _log.error("Couldn't connect to volttron.central. {}".format(
-                    self._volttron_central_tcp_address
-                ))
-                raise
+            #TODO Only add a single time for this address.
+            if self._volttron_central_publickey:
+                # Add the vcpublickey to the auth file.
+                entry = AuthEntry(
+                    credentials= self._volttron_central_publickey,
+                    capabilities=['manager'])
+                authfile = AuthFile()
+                authfile.add(entry)
+
+            self._volttron_central_connection = vc_conn
+
+            return self._volttron_central_connection
 
         # Next see if we have a valid ipc address (Not Local though)
         if self._volttron_central_ipc_address is not None:
-            try:
-                self._volttron_central_connection = Connection(
-                    address=self._volttron_central_ipc_address,
-                    peer=VOLTTRON_CENTRAL
-                )
+            self._volttron_central_connection = Connection(
+                address=self._volttron_central_ipc_address,
+                peer=VOLTTRON_CENTRAL
+            )
 
-                return self._volttron_central_connection
-            except Unreachable:
-                _log.error("Couldn't connect to volttron.central. {}".format(
-                    self._volttron_central_ipc_address
-                ))
-                raise
+            return self._volttron_central_connection
 
     @Core.receiver('onstart')
     def _started(self, sender, **kwargs):
-
-        self._agent_started = True
-
-        # Created a link to the control agent on this platform.
-        self._control_connection = Connection(self.core.address, 'control')
 
         _log.debug('Querying router for addresses and serverkey.')
         q = Query(self.core)
@@ -353,20 +377,20 @@ class VolttronCentralPlatform(Agent):
         self._local_serverkey = q.query('serverkey').get(timeout=2)
         _log.debug('serverkey is: {}'.format(self._local_serverkey))
 
-        address = q.query('volttron-central-address').get(timeout=2)
-        _log.debug('vc address is {}'.format(address))
+        vc_http_address = q.query('volttron-central-address').get(timeout=2)
+        _log.debug('vc address is {}'.format(vc_http_address))
 
         self._local_instance_name = q.query('instance-name').get(timeout=2)
         _log.debug('instance-name is {}'.format(self._local_instance_name))
 
-        if address is not None:
-            parsed = urlparse.urlparse(address)
+        if vc_http_address is not None:
+            parsed = urlparse.urlparse(vc_http_address)
             if parsed.scheme in ('https', 'http'):
-                self._volttron_central_http_address = address
+                self._volttron_central_http_address = vc_http_address
             elif parsed.scheme == 'ipc':
-                self._volttron_central_ipc_address = address
+                self._volttron_central_ipc_address = vc_http_address
             elif parsed.scheme == 'tcp':
-                self._volttron_central_tcp_address = address
+                self._volttron_central_tcp_address = vc_http_address
                 vc_serverkey = q.query('volttron-central-serverkey').get(
                     timeout=2
                 )
@@ -379,10 +403,26 @@ class VolttronCentralPlatform(Agent):
                 raise ValueError(
                     'invalid scheme for volttron-central-address'
                 )
-            # Start connection process
-            self._vc_connection()
 
-        self._start_stats_publisher()
+        self._agent_started = True
+
+        # Start the process of attempting registration with a VOLTTRON central.
+        self._periodic_attempt_registration()
+
+        print('AGENT_VIP_IDENTITY: {}'.format(os.environ['AGENT_VIP_IDENTITY']))
+        # Pop the identity off off the environment so that it isns't used
+        # within the subsystems.
+        os.environ.pop('AGENT_VIP_IDENTITY')
+        try:
+            # Created a link to the control agent on this platform.
+            self._control_connection = Connection(address=self.core.address,
+                                                  peer='control')
+
+            self._start_stats_publisher()
+        except ValueError as e:
+            _log.error(e)
+
+
 
     def _start_stats_publisher(self):
         if not self._agent_started:
@@ -398,7 +438,7 @@ class VolttronCentralPlatform(Agent):
     @RPC.export
     def get_health(self):
         _log.debug("Getting health: {}".format(self.vip.health.get_status()))
-        return Status.from_json(self.vip.health.get_status_json())
+        return self.vip.health.get_status()
 
     @RPC.export
     def get_instance_uuid(self):
@@ -440,7 +480,7 @@ class VolttronCentralPlatform(Agent):
 
             # Add the vcpublickey to the auth file.
             entry = AuthEntry(
-                credentials="CURVE:{}".format(vcpublickey),
+                credentials=vcpublickey,
                 capabilities=['manager'])  # , address=parsedaddress.hostname)
             authfile = AuthFile()
             authfile.add(entry)
@@ -761,10 +801,11 @@ class VolttronCentralPlatform(Agent):
 
         points['percent'] = {'Readings': psutil.cpu_percent(),
                              'Units': 'double'}
-
-        if self._vc_connection() is not None and vc_topic is not None:
-            self._vc_connection().publish(vc_topic.format(), message=points)
-        else:
+        try:
+            vc = self._vc_connection()
+            if vc is not None and vc.is_connected() and vc_topic is not None:
+                vc.publish(vc_topic.format(), message=points)
+        except Exception as e:
             _log.info("status not written to volttron central.")
         self.vip.pubsub.publish(peer='pubsub', topic=local_topic.format(),
                                 message=points)
@@ -779,7 +820,7 @@ class VolttronCentralPlatform(Agent):
             self._control_connection = None
         self._is_registered = False
         self._is_registering = False
-    #
+
     def _get_agent_list(self):
         """ Retrieve a list of agents on the platform.
 

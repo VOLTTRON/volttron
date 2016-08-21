@@ -646,7 +646,10 @@ class VolttronCentralAgent(Agent):
                         'This could be expected.')
 
             if parsed.scheme == 'tcp':
-                _log.debug('TCP calling manage.')
+                self.core.publickey
+                _log.debug(
+                    'TCP calling manage. my serverkey: {}, my publickey: {}'.format(
+                        self._serverkey, self.core.publickey))
                 pk = connection.call(
                     'manage', self._external_addresses[0], self._serverkey,
                     self.core.publickey)
@@ -1016,7 +1019,9 @@ class VolttronCentralAgent(Agent):
 
         # self._local_address = q.query('local_address').get(timeout=30)
         # _log.debug('Local address is? {}'.format(self._local_address))
-        _log.debug('Registering jsonrpc and /.* routes')
+        _log.info('Registering jsonrpc and /.* routes with {}'.format(
+            MASTER_WEB
+        ))
 
         self.vip.rpc.call(MASTER_WEB, 'register_agent_route',
                           r'^/jsonrpc.*',
@@ -1028,6 +1033,9 @@ class VolttronCentralAgent(Agent):
 
         self.webaddress = self.vip.rpc.call(
             MASTER_WEB, 'get_bind_web_address').get(timeout=30)
+
+        # Remove so that dynamic agents don't inherit the identity.
+        os.environ.pop('AGENT_VIP_IDENTITY')
 
 
     def __load_persist_data(self):

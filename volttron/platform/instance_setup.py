@@ -187,7 +187,7 @@ def _is_instance_running():
 
 
 def _start_platform():
-    cmd = ['volttron', '--developer-mode']
+    cmd = ['volttron', '--developer-mode', '-vv']
 
     pid = Popen(cmd, env=os.environ.copy(), stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
