@@ -277,6 +277,9 @@ class PlatformWrapper:
         """
         self.logit("Building generic agent.")
 
+        # required now to have the keystore work properly.
+        os.environ['VOLTTRON_HOME'] = self.volttron_home
+
         use_ipc = kwargs.pop('use_ipc', False)
         if self.encrypt:
             if serverkey is None:
@@ -321,6 +324,7 @@ class PlatformWrapper:
             hello = agent.vip.hello().get(timeout=.3)
             self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
+        os.environ.pop('VOLTTRON_HOME')
         return agent
 
     def _read_auth_file(self):
