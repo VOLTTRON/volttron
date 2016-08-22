@@ -163,7 +163,7 @@ The resulting configuration returns when an agent asks for "devices/vav1.config"
 
 Circular references are not allowed. Adding a file that creates a circular reference will cause that file to be rejected by the platform.
 
-If a file is changed in anyway ("NEW", "UPDATE", or "DELETE") and that file is referred to by another file then the platform considers the referring configuration as changed. It
+If a file is changed in anyway ("NEW", "UPDATE", or "DELETE") and that file is referred to by another file then the platform considers the referring configuration as changed. The configuration subsystem on the Agent will call every callback listening to a file or any file referring to that file either directly or indirectly.
 
 Agent Configuration Sub System
 ------------------------------
@@ -231,7 +231,7 @@ list_config() - Get a list of configurations for the agent.
 Methods for Management
 ++++++++++++++++++++++
 
-manage_set_config( identity, config_name, contents, config_type="raw" ) - Change/create a configuration on the platform for an agent with the specified identity
+manage_store_config( identity, config_name, contents, config_type="raw" ) - Change/create a configuration on the platform for an agent with the specified identity
 
 manage_delete_config( identity, config_name ) - Delete a configuration for an agent with the specified identity.
 
@@ -242,4 +242,4 @@ manage_get_config( identity, config_name, raw=True ) - Get the contents of a con
 Command Line Interface
 **********************
 
-The command line interface will consist of a new command for the volttron-ctl program called "config".
+The command line interface will consist of a new commands for the volttron-ctl program called "config" with four sub-commands called "store", "delete", "list", "get". These commands will map directly to the management RPC function in the previous section.
