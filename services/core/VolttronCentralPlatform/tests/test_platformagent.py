@@ -115,6 +115,7 @@ def test_listagents(pa_instance):
 
 
 @pytest.mark.pa
+@pytest.mark.xfail(reason="Need to upgrade")
 def test_manage_agent(pa_instance):
     """ Test that we can manage a `VolttronCentralPlatform`.
 
@@ -139,6 +140,7 @@ def test_manage_agent(pa_instance):
 
 
 @pytest.mark.pa
+@pytest.mark.xfail(reason="Need to upgrade")
 def test_can_get_agentlist(pa_instance):
     """ Test that we can retrieve an agent list from an agent.
 
@@ -177,6 +179,7 @@ def test_can_get_agentlist(pa_instance):
 
 
 @pytest.mark.pa
+@pytest.mark.xfail(reason="Need to upgrade")
 def test_agent_can_be_managed(pa_instance):
     wrapper = pa_instance[0]
     publickey, secretkey = get_new_keypair()
