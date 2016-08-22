@@ -250,12 +250,13 @@ class PlatformWrapper:
             keys.generate()
             publickey = keys.public()
             secretkey = keys.secret()
-
+        os.environ['VOLTTRON_HOME'] = self.volttron_home
         if self.encrypt:
             conn = Connection(address=address, peer=peer, publickey=publickey,
                               secretkey=secretkey, serverkey=serverkey)
         else:
             conn = Connection(address=self.local_vip_address, peer=peer)
+        os.environ.pop('VOLTTRON_HOME')
         return conn
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
@@ -276,6 +277,9 @@ class PlatformWrapper:
         :return:
         """
         self.logit("Building generic agent.")
+
+        # required now to have the keystore work properly.
+        os.environ['VOLTTRON_HOME'] = self.volttron_home
 
         use_ipc = kwargs.pop('use_ipc', False)
         if self.encrypt:
@@ -321,6 +325,7 @@ class PlatformWrapper:
             hello = agent.vip.hello().get(timeout=.3)
             self.logit('Got hello response {}'.format(hello))
         agent.publickey = publickey
+        os.environ.pop('VOLTTRON_HOME')
         return agent
 
     def _read_auth_file(self):
