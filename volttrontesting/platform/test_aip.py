@@ -52,17 +52,17 @@ def aip(request):
     aip.setup()
     return aip
 
-
-@pytest.mark.dev
-def test_can_create(aip):
-    assert aip
-    assert os.path.exists(aip.env.volttron_home)
-
-@pytest.mark.dev
-def test_can_install(aip):
-    pw = PlatformWrapper()
-    wheel = pw.build_wheel(agent_dir="examples/ListenerAgent")
-    assert wheel
-    auuid = aip.install_agent(wheel)
-    assert auuid
+#
+# @pytest.mark.dev
+# def test_can_create(aip):
+#     assert aip
+#     assert os.path.exists(aip.env.volttron_home)
+#
+# @pytest.mark.dev
+# def test_can_install(aip):
+#     pw = PlatformWrapper()
+#     wheel = pw.build_agentpackage(agent_dir="examples/ListenerAgent")
+#     assert wheel
+#     auuid = aip.install_agent(wheel)
+#     assert auuid
 
