@@ -26,6 +26,7 @@ def setup_platform(request, get_volttron_instances):
     if get_volttron_instances.param == "encrypted":
         start_wrapper_platform(vcp, with_http=True)
     else:
+        pytest.skip("Only testing encrypted")
         start_wrapper_platform(vcp, with_http=False, with_tcp=False)
 
     assert vcp
