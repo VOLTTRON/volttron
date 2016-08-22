@@ -93,25 +93,29 @@ def contains_keys(keylist, lookup):
 
 
 @pytest.mark.pa
-@pytest.mark.xfail(reason="Auth requires VOLTTRON_HOME")
 def test_listagents(pa_instance):
-    wrapper, agent_uuid = pa_instance
-    print('LIST AGENTS')
-    agent = Connection(wrapper.local_vip_address, VOLTTRON_CENTRAL_PLATFORM)
-    params = dict(id='foo', method='list_agents')
-    agent_list = agent.call(
-        'route_request', 'foo', 'list_agents', None)
-    assert 1 <= len(agent_list)
-    expected_keys = ['name', 'uuid', 'tag', 'priority', 'process_id', 'health',
-                     'health.status', 'heatlh.context', 'health.last_updated',
-                     'error_code', 'permissions', 'permissions.can_restart',
-                     'permissions.can_remove', 'can_stop', 'can_start']
-    expected_key_set = set(expected_keys)
-    none_key_set = set(['tag', 'priority', 'health.context', 'error_code'])
-    not_none_key_set = expected_key_set.difference(none_key_set)
-    for a in agent_list:
-        assert contains_keys(expected_keys, a)
-        assert values_not_none(not_none_key_set, a)
+    try:
+        wrapper, agent_uuid = pa_instance
+
+        os.environ['VOLTTRON_HOME'] = wrapper.volttron_home
+        agent = Connection(wrapper.local_vip_address, VOLTTRON_CENTRAL_PLATFORM)
+        params = dict(id='foo', method='list_agents')
+        agent_list = agent.call(
+            'route_request', 'foo', 'list_agents', None)
+        assert 1 <= len(agent_list)
+        expected_keys = ['name', 'uuid', 'tag', 'priority', 'process_id', 'health',
+                         'health.status', 'heatlh.context', 'health.last_updated',
+                         'error_code', 'permissions', 'permissions.can_restart',
+                         'permissions.can_remove', 'can_stop', 'can_start']
+        expected_key_set = set(expected_keys)
+        none_key_set = set(['tag', 'priority', 'health.context', 'error_code'])
+        not_none_key_set = expected_key_set.difference(none_key_set)
+        for a in agent_list:
+            assert contains_keys(expected_keys, a)
+            assert values_not_none(not_none_key_set, a)
+    finally:
+        os.environ.pop('VOLTTRON_HOME')
+
 
 
 @pytest.mark.pa
