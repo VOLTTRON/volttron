@@ -259,7 +259,7 @@ class Router(BaseRouter):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
-        self.addresses = addresses = [Address(addr) for addr in addresses]
+        self.addresses = addresses = [Address(addr) for addr in set(addresses)]
         self._secretkey = secretkey
         self.logger = logging.getLogger('vip.router')
         if self.logger.level == logging.NOTSET:
@@ -570,10 +570,6 @@ def main(argv=sys.argv):
     volttron_home = os.path.normpath(config.expandall(
         os.environ.get('VOLTTRON_HOME', '~/.volttron')))
     os.environ['VOLTTRON_HOME'] = volttron_home
-
-    #Remove AGENT_VIP_IDENTITY if it exists.
-    #Otherwise subsystem agents will get messed up if it exists.
-    os.environ.pop("AGENT_VIP_IDENTITY", None)
 
     # Setup option parser
     parser = config.ArgumentParser(

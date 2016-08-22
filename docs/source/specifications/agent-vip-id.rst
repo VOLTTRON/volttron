@@ -6,11 +6,11 @@ This document explains how an agent obtains it's VIP IDENTITY, how the platform 
 Runtime
 -------
 
-The primary interface for obtaining a VIP IDENTITY *at runtime* is via the runtime environment of the agent. At startup an agent shall check for the environment variable **AGENT_VIP_IDENTITY**. If the **AGENT_VIP_IDENTITY** environment variable is not set then the agent may set its own VIP IDENTITY.
+The primary interface for obtaining a VIP IDENTITY *at runtime* is via the runtime environment of the agent. At startup the utility function vip_main shall check for the environment variable **AGENT_VIP_IDENTITY**. If the **AGENT_VIP_IDENTITY** environment variable is not set then the vip_main function will fall back to a supplied identity argument. vip_main will pass the appropriate identity argument to the agent constructor. If no identity is set the Agent class will create a random VIP IDENTITY using python's uuid4 function.
 
-If the **AGENT_VIP_IDENTITY** is available the base Agent class provided by the platform will use it. If one is not available the base Agent will use the 'identity' argument to the __init__ function. If an 'identity' argument was not provided or is None the base Agent will generate a uuid using python's uuid.uuid4 function. An agent that inherits from the platform's base Agent class can get it's current VIP IDENTITY by retrieving the value of self.core.identity.
+An agent that inherits from the platform's base Agent class can get it's current VIP IDENTITY by retrieving the value of self.core.identity.
 
-The primary use of the 'identity' argument to __init__ is for agent development and platform subsystems that are implemented as agents. For development it allows agents to specify a default VIP IDENTITY when run outside the platform. For platform subsystems it is used to provide the VIP IDENTITY to the agents created in the platform process. Using this argument to set the VIP IDENTITY via agent configuration is no longer supported.
+The primary use of the 'identity' argument to vip_main is for agent development. For development it allows agents to specify a default VIP IDENTITY when run outside the platform. As platform Agents are not started via vip_main they will simply receive their VIP IDENTITY via the identity argument when they are instantiated. Using the identity argument of the Agent constructor to set the VIP IDENTITY via agent configuration is no longer supported.
 
 At runtime the platform will set the environment variable **AGENT_VIP_IDENTITY** to the value set at installation time.
 

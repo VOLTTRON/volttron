@@ -161,7 +161,6 @@ def test_register_instance(vc_instance, pa_instance):
 
 
 @pytest.mark.vc
-@pytest.mark.xfail(reason='Hmmmm')
 def test_list_exported_methods(web_api_tester):
     platforms = web_api_tester.list_platforms().json()['result']
     agents = web_api_tester.list_agents(platforms[0]['uuid']).json()['result']

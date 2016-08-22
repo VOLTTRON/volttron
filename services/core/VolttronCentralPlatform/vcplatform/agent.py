@@ -118,9 +118,7 @@ class VolttronCentralPlatform(Agent):
     __name__ = 'PlatformAgent'
 
     def __init__(self, config_path, **kwargs):
-        identity = VOLTTRON_CENTRAL_PLATFORM
-        super(VolttronCentralPlatform, self).__init__(
-            identity=identity, **kwargs)
+        super(VolttronCentralPlatform, self).__init__(**kwargs)
 
         self._config = utils.load_config(config_path)
         self._vc_discovery_address = None
@@ -883,7 +881,7 @@ def main(argv=sys.argv):
     :return:
     """
     # utils.vip_main(platform_agent)
-    utils.vip_main(VolttronCentralPlatform)
+    utils.vip_main(VolttronCentralPlatform, identity = VOLTTRON_CENTRAL_PLATFORM)
 
 
 if __name__ == '__main__':

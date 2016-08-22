@@ -353,7 +353,7 @@ class BACnetProxyAgent(Agent):
                  max_apdu_len, seg_supported,
                  obj_id, obj_name, ven_id,
                  **kwargs):
-        super(BACnetProxyAgent, self).__init__(identity="platform.bacnet_proxy", **kwargs)
+        super(BACnetProxyAgent, self).__init__(**kwargs)
         
         async_call = AsyncCall()
 
@@ -615,7 +615,7 @@ class BACnetProxyAgent(Agent):
     
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(bacnet_proxy_agent)
+    utils.vip_main(bacnet_proxy_agent, identity="platform.bacnet_proxy")
 
 
 if __name__ == '__main__':

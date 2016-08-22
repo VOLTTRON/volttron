@@ -558,7 +558,7 @@ class ActuatorAgent(Agent):
                  schedule_state_file=None, preempt_grace_time=60,
                  driver_vip_identity='platform.driver', **kwargs):
 
-        super(ActuatorAgent, self).__init__(identity='platform.actuator', **kwargs)
+        super(ActuatorAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
         self._update_event = None
@@ -1293,7 +1293,7 @@ class ActuatorAgent(Agent):
 
 def main():
     """Main method called to start the agent."""
-    utils.vip_main(actuator_agent)
+    utils.vip_main(actuator_agent, identity='platform.actuator')
 
 
 if __name__ == '__main__':

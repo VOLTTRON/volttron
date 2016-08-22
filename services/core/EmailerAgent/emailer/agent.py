@@ -96,8 +96,7 @@ class EmailerAgent(Agent):
 
     def __init__(self, config_path, **kwargs):
         kwargs.pop("identity", None)
-        super(EmailerAgent, self).__init__(identity="platform.emailer",
-                                           **kwargs)
+        super(EmailerAgent, self).__init__(**kwargs)
 
         config = utils.load_config(config_path)
         self._smtp = config.get("smtp-address", None)
@@ -205,7 +204,7 @@ class EmailerAgent(Agent):
 # def main(argv=sys.argv):
 #     '''Main method called by the aip.'''
 #     try:
-#         utils.vip_main(EmailerAgent)
+#         utils.vip_main(EmailerAgent, identity="platform.emailer")
 #     except Exception as e:
 #         print(e)
 #         _log.exception('unhandled exception')
