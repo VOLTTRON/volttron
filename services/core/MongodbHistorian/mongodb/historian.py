@@ -60,6 +60,7 @@ import sys
 
 from bson.objectid import ObjectId
 from pymongo import ReplaceOne
+from pymongo import InsertOne
 from pymongo.errors import BulkWriteError
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
@@ -108,13 +109,15 @@ def historian(config_path, **kwargs):
             self._data_collection = 'data'
             self._meta_collection = 'meta'
             self._topic_collection = 'topics'
+            self._agg_topic_collection ='aggregate_topics'
+            self._agg_meta_collection = 'aggregate_meta'
             self._initial_params = connection['params']
             self._client = None
 
             self._topic_id_map = {}
             self._topic_name_map = {}
             self._topic_meta = {}
-
+            self._agg_topic_id_map = {}
 
 
         def publish_to_historian(self, to_publish_list):
@@ -215,12 +218,29 @@ def historian(config_path, **kwargs):
                 collection_name = agg_type + "_" + agg_period
 
             topic_lower = topic.lower()
-            topic_id = self._topic_id_map.get(topic_lower, None)
-
+            topic_id = None
+            if not agg_period and not agg_type:
+                # If this is not an aggregate query find topic if based
+                # on topic table entry
+                topic_id = self._topic_id_map.get(topic_lower, None)
+            else:
+                # else get it from aggregate_topics
+                topic_id = self._agg_topic_id_map.get(
+                    (topic.lower(), agg_type, agg_period),
+                    None)
+                if topic_id is None:
+                    # load agg topic id again as it might be a newly
+                    # configured aggregation
+                    self._agg_topic_id_map = mongoutils.get_agg_topic_map(
+                        self._client, self._agg_topic_collection)
+                    topic_id = self._agg_topic_id_map.get(
+                        (topic.lower(), agg_type, agg_period),
+                        None)
             if not topic_id:
-                _log.debug('Topic id was None for topic: {}'.format(topic))
+                _log.warn('No such topic {}'.format(topic))
                 return {}
-
+            else:
+                _log.debug("Found topic id as {}".format(topic_id))
             db = self._client.get_default_database()
 
             ts_filter = {}
@@ -241,6 +261,7 @@ def historian(config_path, **kwargs):
             if ts_filter:
                 find_params['ts'] = ts_filter
 
+            _log.debug("querying table with params {}".format(find_params))
             cursor = db[collection_name].find(find_params)
             cursor = cursor.skip(skip_count).limit(count)
             cursor = cursor.sort([("ts", order_by)])
@@ -287,13 +308,26 @@ def historian(config_path, **kwargs):
             for document in cursor:
                 self._topic_meta[document['topic_id']] = document['meta']
 
+
+
         def historian_setup(self):
             _log.debug("HISTORIAN SETUP")
             self._client = mongoutils.get_mongo_client(
                 connection['params'])
+
+            db = self._client.get_default_database()
+            db['volttron_metadata'].bulk_write([
+                InsertOne({'table_id':'data', 'table_name':'data',
+                           'table_prefix':''}),
+                InsertOne({'table_id': 'topics', 'table_name': 'topics',
+                           'table_prefix': ''}),
+                InsertOne({'table_id': 'meta', 'table_name': 'meta',
+                           'table_prefix': ''})
+            ])
             self._topic_id_map, self._topic_name_map = \
                 mongoutils.get_topic_map(self._client, self._topic_collection)
-
+            self._agg_topic_id_map = mongoutils.get_agg_topic_map(
+                self._client, self._agg_topic_collection)
             self._load_meta_map()
 
     MongodbHistorian.__name__ = 'MongodbHistorian'

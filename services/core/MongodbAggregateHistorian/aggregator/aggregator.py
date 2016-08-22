@@ -64,6 +64,9 @@ from __future__ import absolute_import
 import logging
 import sys
 
+import bson
+import pymongo
+
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from volttron.platform.dbutils import mongoutils
@@ -73,7 +76,7 @@ _log = logging.getLogger(__name__)
 __version__ = '1.0'
 
 
-class MongoAggregateHistorian(AggregateHistorian):
+class MongodbAggregateHistorian(AggregateHistorian):
     """
     Agent to aggregate data in historian based on a specific time period.
     This aggregegate historian aggregates data collected by mongo historian.
@@ -87,7 +90,7 @@ class MongoAggregateHistorian(AggregateHistorian):
         :param config_path: configuration file path
         :param kwargs:
         """
-        super(MongoAggregateHistorian, self).__init__(config_path, **kwargs)
+        super(MongodbAggregateHistorian, self).__init__(config_path, **kwargs)
 
         connection = self.config.get('connection')
         self.dbclient = mongoutils.get_mongo_client(connection['params'])
@@ -95,38 +98,95 @@ class MongoAggregateHistorian(AggregateHistorian):
         # Why are we not letting users configure data and topic collection
         # names in mongo similar to sqlhistorian
         # tables_def = sqlutils.get_table_def(self.config)
-        self._data_collection = 'data'
-        self._meta_collection = 'meta'
-        self._topic_collection = 'topics'
-        self._agg_meta_collection = 'aggregate_meta'
-        self._agg_topic_collection = 'aggregate_topics'
+
+        db = self.dbclient.get_default_database()
+        cursor = db['volttron_metadata'].find()
+        table_map ={}
+        prefix_map = {}
+        for document in cursor:
+            table_map[document['table_id'].lower()] = document[
+                'table_name']
+            prefix_map[document['table_id'].lower()] = document[
+                'table_prefix'] +"_" if document['table_prefix'] else ''
+
+        self._data_collection = prefix_map.get('data') +  table_map.get(
+            'data','data')
+        self._meta_collection = prefix_map.get('meta') + table_map.get(
+            'meta', 'meta')
+        self._topic_collection = prefix_map.get('topics') + table_map.get(
+            'topics','topics')
+        self._agg_meta_collection = prefix_map.get('meta') + 'aggregate_' \
+                                    + table_map.get('meta', 'meta')
+        self._agg_topic_collection =  prefix_map.get('topics') + 'aggregate_' \
+                                    + table_map.get('topics','topics')
+
+        db[self._agg_topic_collection].create_index(
+            [('agg_topic_name', pymongo.ASCENDING),
+             ('agg_type', pymongo.ASCENDING),
+             ('agg_time_period',pymongo.ASCENDING)],
+            unique=True)
 
         # 2. load topic name and topic id.
         self.topic_id_map, name_map = self.get_topic_map()
 
     def get_topic_map(self):
-        return mongoutils.get_topic_map(self.dbclient, 'topics')
+        return mongoutils.get_topic_map(self.dbclient, self._topic_collection)
 
-    def find_topics_by_pattern(self, topic_pattern):
-        return mongoutils.find_topics_by_pattern(self.dbclient, 'topics',
-                                                 topic_pattern)
+    def get_agg_topic_map(self):
+        return mongoutils.get_agg_topic_map(self.dbclient,
+                                            self._agg_topic_collection)
+
+    def find_topics_by_pattern(self, topics_pattern):
+        db = self.dbclient.get_default_database()
+        topics_pattern = topics_pattern.replace('/', '\/')
+        pattern = {'topic_name': {'$regex': topics_pattern, '$options': 'i'}}
+        cursor = db[self._topic_collection].find(pattern)
+        topic_id_map = dict()
+        for document in cursor:
+            topic_id_map[document['topic_name'].lower()] = document[
+                '_id']
+        return topic_id_map
 
     def is_supported_aggregation(self, agg_type):
-        return agg_type.upper() in ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX',
+        if agg_type:
+            return agg_type.upper() in ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX',
                                     'STDDEVPOP', 'STDDEVSAMP']
+        else:
+            return False
 
-    def initialize_aggregate_store(self, agg_type, agg_time_period,
-                                   aggregation_topic_name, topics_meta):
+    def initialize_aggregate_store(self, aggregation_topic_name, agg_type,
+                                   agg_time_period, topics_meta):
 
         db = self.dbclient.get_default_database()
         row = db[self._agg_topic_collection].insert_one(
             {'agg_topic_name': aggregation_topic_name,
              'agg_type': agg_type,
              'agg_time_period': agg_time_period})
+
         agg_id = row.inserted_id
+        _log.debug("Inserted aggregate topic in {} agg id is{}".format(
+            self._agg_topic_collection, agg_id))
         db[self._agg_meta_collection].insert_one({'agg_topic_id': agg_id,
                                                   'meta': topics_meta})
         return agg_id
+
+    def update_aggregate_store(self, agg_id, aggregation_topic_name,
+                               topic_meta):
+        db = self.dbclient.get_default_database()
+
+        result = db[self._agg_topic_collection].update_one(
+            {'_id':bson.objectid.ObjectId(agg_id)},
+            {'$set':{'agg_topic_name': aggregation_topic_name}})
+        _log.debug("Updated topic name for {} records".format(
+            result.matched_count))
+
+        result = db[self._agg_meta_collection].update_one(
+            {'agg_topic_id': bson.objectid.ObjectId(agg_id)},
+            {'$set':{'meta': topic_meta}})
+
+        _log.debug("Updated meta name for {} records".format(
+            result.matched_count))
+
 
     def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):
 
@@ -134,7 +194,7 @@ class MongoAggregateHistorian(AggregateHistorian):
         _log.debug("collect_aggregate: params {}, {}, {}, {}".format(
             topic_ids, agg_type, start_time, end_time))
 
-        match_conditions = [{"topic_id": topic_ids}]
+        match_conditions = [{"topic_id": {"$in": topic_ids}}]
         if start_time is not None:
             match_conditions.append({"ts": {"$gte": start_time}})
         if end_time is not None:
@@ -148,16 +208,18 @@ class MongoAggregateHistorian(AggregateHistorian):
 
         _log.debug("collect_aggregate: pipeline: {}".format(pipeline))
         cursor = db[self._data_collection].aggregate(pipeline)
-
-        row = cursor.next()
-        _log.debug("collect_aggregate: got result as {}".format(row))
-        return row['aggregate'], row['count']
+        try:
+            row = cursor.next()
+            _log.debug("collect_aggregate: got result as {}".format(row))
+            return row['aggregate'], row['count']
+        except StopIteration:
+            return 0, 0
 
     def insert_aggregate(self, topic_id, agg_type, period, end_time,
                          value, topic_ids):
 
         db = self.dbclient.get_default_database()
-        table_name = agg_type + '''_''' + period
+        table_name = agg_type + '_' + period
         db[table_name].replace_one(
             {'ts': end_time, 'topic_id': topic_id},
             {'ts': end_time, 'topic_id': topic_id, 'value': value,
@@ -168,7 +230,7 @@ class MongoAggregateHistorian(AggregateHistorian):
 def main(argv=sys.argv):
     """Main method called by the eggsecutable."""
     try:
-        utils.vip_main(MongoAggregateHistorian)
+        utils.vip_main(MongodbAggregateHistorian)
     except Exception as e:
         _log.exception('unhandled exception' + e.message)
 

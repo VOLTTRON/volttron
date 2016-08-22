@@ -103,20 +103,35 @@ class SQLAggregateHistorian(AggregateHistorian):
     def get_topic_map(self):
         return self.dbfuncts.get_topic_map()
 
+    def get_agg_topic_map(self):
+        return self.dbfuncts.get_agg_topic_map()
+
     def find_topics_by_pattern(self, topic_pattern):
         return self.dbfuncts.find_topics_by_pattern(topic_pattern)
 
     def is_supported_aggregation(self, agg_type):
-        return agg_type.upper() in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM']
+        if agg_type:
+            return self.dbfuncts.is_supported_aggregation(agg_type)
+        else:
+            return False
 
-    def initialize_aggregate_store(self, agg_type, agg_time_period,
-                                   aggregation_topic_name, topics_meta):
+    def initialize_aggregate_store(self, aggregation_topic_name, agg_type,
+                                   agg_time_period, topics_meta):
         _log.debug("aggregation_topic_name " + aggregation_topic_name)
         _log.debug("topics_meta {}".format(topics_meta))
         self.dbfuncts.create_aggregate_store(agg_type, agg_time_period)
         agg_id = self.dbfuncts.insert_agg_topic(aggregation_topic_name,
                                                 agg_type, agg_time_period)
         self.dbfuncts.insert_agg_meta(agg_id[0], topics_meta)
+        return agg_id[0]
+
+    def update_aggregate_store(self, agg_id, aggregation_topic_name,
+                               topic_meta):
+        _log.debug("aggregation_topic_name " + aggregation_topic_name)
+        _log.debug("topic_meta {}".format(topic_meta))
+
+        self.dbfuncts.update_agg_topic(agg_id, aggregation_topic_name)
+        self.dbfuncts.insert_agg_meta(agg_id[0], topic_meta)
         return agg_id[0]
 
     def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):

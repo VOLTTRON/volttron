@@ -1,8 +1,10 @@
+import re
 
 import pymongo
-from bson.objectid import ObjectId
-from pymongo import InsertOne, ReplaceOne
-from pymongo.errors import BulkWriteError
+import logging
+
+_log = logging.getLogger(__name__)
+__version__ = '0.1'
 
 def get_mongo_client(connection_params):
 
@@ -41,9 +43,9 @@ def get_mongo_client(connection_params):
             return mongoclient
 
 
-def get_topic_map(client,topics):
+def get_topic_map(client, topics_collection):
     db = client.get_default_database()
-    cursor = db[topics].find()
+    cursor = db[topics_collection].find()
     topic_id_map = dict()
     topic_name_map = dict()
     for document in cursor:
@@ -53,15 +55,16 @@ def get_topic_map(client,topics):
             document['topic_name']
     return topic_id_map, topic_name_map
 
-def find_topics_by_pattern(client, topics_collection, topics_pattern):
-    db = client.get_default_database()
-    pattern = { 'topic_name': '/'+topics_pattern+'/i' }
-    cursor = db[topics_collection].find(pattern)
+
+def get_agg_topic_map(client, agg_topics_collection):
+    _log.debug('loading agg topic map')
     topic_id_map = dict()
-    topic_name_map = dict()
+    db = client.get_default_database()
+    cursor = db[agg_topics_collection].find()
+
     for document in cursor:
-        topic_id_map[document['topic_name'].lower()] = document[
-            '_id']
-        topic_name_map[document['topic_name'].lower()] = \
-            document['topic_name']
-    return topic_id_map, topic_name_map
+        topic_id_map[
+            (document['agg_topic_name'].lower(),
+             document['agg_type'],
+             document['agg_time_period'])] = document['_id']
+    return topic_id_map

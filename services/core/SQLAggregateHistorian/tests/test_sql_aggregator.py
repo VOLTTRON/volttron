@@ -12,12 +12,36 @@ import pytest
 import re
 from volttron.platform.messaging import headers as headers_mod
 
+
+
 try:
     import mysql.connector as mysql
 
     HAS_MYSQL_CONNECTOR = True
 except:
     HAS_MYSQL_CONNECTOR = False
+
+
+aggregations = [
+    {
+        "aggregation_period": "2m", "use_calendar_time_periods": True,
+        "points": [
+            {"topic_names": ["device1/out_temp"],
+                "aggregation_type": "sum", "min_count": 2},
+            {"topic_names": ["device1/in_temp"],
+                "aggregation_type": "sum", "min_count": 2}
+        ]
+    },
+    {
+        "aggregation_period": "3m", "use_calendar_time_periods": False,
+        "points": [
+            {"topic_names": ["device1/out_temp"],
+               "aggregation_type": "sum", "min_count": 2},
+            {"topic_names": ["device1/in_temp"],
+               "aggregation_type": "sum", "min_count": 2}
+        ]
+    }
+    ]
 
 # table_defs with prefix
 sqlite_aggregator = {
@@ -35,38 +59,7 @@ sqlite_aggregator = {
         "topics_table": "topics",
         "meta_table": "meta"
     },
-    "aggregations": [
-        {"aggregation_period": "2m",
-         "use_calendar_time_periods": True,
-         "points": [
-             {
-                 "topic_names": ["device1/out_temp"],
-                 "aggregation_type": "sum",
-                 "min_count": 2
-             },
-             {
-                 "topic_names": ["device1/in_temp"],
-                 "aggregation_type": "sum",
-                 "min_count": 2
-             }
-         ]
-         },
-        {"aggregation_period": "3m",
-         "use_calendar_time_periods": False,
-         "points": [
-             {
-                 "topic_names": ["device1/out_temp"],
-                 "aggregation_type": "sum",
-                 "min_count": 2
-             },
-             {
-                 "topic_names": ["device1/in_temp"],
-                 "aggregation_type": "sum",
-                 "min_count": 2
-             }
-         ]
-         }
-    ]
+    "aggregations": aggregations
 }
 
 # Create a database "historian", create user "historian" with passwd
@@ -92,38 +85,7 @@ mysql_aggregator = {
         "topics_table": "topics",
         "meta_table": "meta",
     },
-    "aggregations": [
-        {"aggregation_period": "2m",
-         "use_calendar_time_periods": True,
-         "points": [
-             {
-                 "topic_names": ["device1/out_temp"],
-                 "aggregation_type": "sum",
-                 "min_count": 2
-             },
-             {
-                 "topic_names": ["device1/in_temp"],
-                 "aggregation_type": "sum",
-                 "min_count": 2
-             }
-         ]
-         },
-        {"aggregation_period": "3m",
-         "use_calendar_time_periods": False,
-         "points": [
-             {
-                 "topic_names": ["device1/out_temp"],
-                 "aggregation_type": "sum",
-                 "min_count": 2
-             },
-             {
-                 "topic_names": ["device1/in_temp"],
-                 "aggregation_type": "sum",
-                 "min_count": 2
-             }
-         ]
-         }
-    ]
+    "aggregations": aggregations
 }
 
 offset = timedelta(seconds=3)
@@ -136,7 +98,7 @@ truncate_tables = []
 
 
 @pytest.fixture(scope="module")
-def publish_agent(request, volttron_instance):
+def agent(request, volttron_instance):
     # 1: Start a fake fake_agent to query the sqlhistorian in volttron_instance
     fake_agent = volttron_instance.build_agent()
 
@@ -200,8 +162,7 @@ def aggregate_agent(request, volttron_instance):
         agg_meta_table = "aggregate_" + \
             request.param['tables_def']['meta_table']
 
-    truncate_tables = [data_table, topics_table, meta_table,
-                       agg_topics_table, agg_meta_table]
+    truncate_tables.append(data_table)
 
     # 2: Open db connection that can be used for row deletes after
     # each test method. Create tables and insert test topics in topics table
@@ -221,7 +182,7 @@ def aggregate_agent(request, volttron_instance):
     config['agentid'] = 'sqlhistorian'
     config['identity'] = 'platform.historian'
     config['connection'] = request.param['connection']
-    config['tables_def'] = request.param['tables_def']
+    config['tables_def'] = request.param.get('tables_def', None)
 
     sql_historian_uuid = volttron_instance.install_agent(
         agent_dir="services/core/SQLHistorian",
@@ -244,15 +205,18 @@ def aggregate_agent(request, volttron_instance):
 
 
 @pytest.fixture
-def clean():
+def cleanup():
     global db_connection, truncate_tables
-    # cursor = db_connection.cursor()
-    # if HAS_MYSQL_CONNECTOR and isinstance(
-    #         db_connection, mysql.connection.MySQLConnection):
-    #     for table in truncate_tables:
-    #         cursor.execute("DELETE FROM " + table)
-    #
-    #     db_connection.commit()
+    cleanup_parameters = []
+    cursor = db_connection.cursor()
+
+    for table in truncate_tables:
+        cursor.execute("DELETE FROM " + table)
+    for table in cleanup_parameters:
+        cursor.execute("DELETE FROM " + table)
+
+    db_connection.commit()
+    return cleanup_parameters
 
 
 def connect_mysql(request, data_table, topics_table, meta_table,
@@ -372,9 +336,10 @@ def publish_test_data(publish_agent, start_time, start_reading, count):
         time = time + timedelta(minutes=1)
 
 
+@pytest.mark.sql_aggregator
 @pytest.mark.aggregator
-def test_basic_single_topic(volttron_instance, aggregate_agent,
-                            publish_agent, clean):
+def test_single_topic(volttron_instance, aggregate_agent,
+                            agent, cleanup):
     """
     Test the basic functionality of aggregate historian when aggregating a
     single topic
@@ -394,24 +359,22 @@ def test_basic_single_topic(volttron_instance, aggregate_agent,
     installed and run
     @param aggregate_agent: the aggregate historian configuration
     @param publish_agent: fake agent used to publish to and query historian
-    @param clean: clean up method that is called at the end of each test case
+    @param cleanup: clean up method that is called at the end of each test case
     """
-    global truncate_tables
     # Publish fake data.
     start_time = datetime.utcnow() - timedelta(minutes=2)
-    publish_test_data(publish_agent, start_time, 0, 5)
+    publish_test_data(agent, start_time, 0, 5)
     gevent.sleep(0.5)
     agent_uuid = None
     try:
         agent_uuid = volttron_instance.install_agent(
             agent_dir="services/core/SQLAggregateHistorian",
             config_file=aggregate_agent,
-            start=False)
+            start=True)
         print("agent id: ", agent_uuid)
-        volttron_instance.start_agent(agent_uuid)
         gevent.sleep(5 * 60)  # sleep till we see two rows in aggregate table
-
-        result1 = publish_agent.vip.rpc.call(
+        #gevent.sleep(60)
+        result1 = agent.vip.rpc.call(
             'platform.historian',
             'query',
             topic='device1/out_temp',
@@ -422,11 +385,11 @@ def test_basic_single_topic(volttron_instance, aggregate_agent,
 
         print(result1)
         assert (result1['values'][0][1] == 3.0)
-        assert (result1['metadata']) == \
-            {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        # assert (result1['metadata']) == \
+        #     {'units': 'F', 'tz': 'UTC', 'type': 'float'}
         assert (result1['values'][1][1] == 7.0)
 
-        result2 = publish_agent.vip.rpc.call(
+        result2 = agent.vip.rpc.call(
             'platform.historian',
             'query',
             topic='device1/in_temp',
@@ -442,7 +405,7 @@ def test_basic_single_topic(volttron_instance, aggregate_agent,
         assert (result2['values'][0][0] == result1['values'][0][0])
         assert (result2['values'][1][0] == result1['values'][1][0])
 
-        result = publish_agent.vip.rpc.call(
+        result = agent.vip.rpc.call(
             'platform.historian',
             'query',
             topic='device1/in_temp',
@@ -453,7 +416,7 @@ def test_basic_single_topic(volttron_instance, aggregate_agent,
         assert (result['values'][0][1] == 3.0)
         assert (result['values'][1][1] == 7.0)
 
-        result = publish_agent.vip.rpc.call(
+        result = agent.vip.rpc.call(
             'platform.historian',
             'query',
             topic='device1/out_temp',
@@ -465,16 +428,15 @@ def test_basic_single_topic(volttron_instance, aggregate_agent,
         assert (result['values'][0][1] == 3.0)
         assert (result['values'][1][1] == 7.0)
     finally:
-        truncate_tables.append("sum_2m")
-        truncate_tables.append("sum_3m")
+        cleanup.append("sum_2m")
+        cleanup.append("sum_3m")
         if agent_uuid is not None:
             volttron_instance.remove_agent(agent_uuid)
 
-
-@pytest.mark.dev
+@pytest.mark.sql_aggregator
 @pytest.mark.aggregator
-def test_basic_single_topic_pattern(volttron_instance, aggregate_agent,
-                                    agent, clean):
+def test_single_topic_pattern(volttron_instance, aggregate_agent,
+                                    agent, cleanup):
     """
     Test the basic functionality of aggregate historian when aggregating a
     single topic that is identified by topic_name_pattern instead of
@@ -497,7 +459,7 @@ def test_basic_single_topic_pattern(volttron_instance, aggregate_agent,
     @param agent: fake agent used to query historian
     @param clean: clean up method that is called at the end of each test case
     """
-    global truncate_tables
+
     # Publish fake data.
     start_time = datetime.utcnow() - timedelta(minutes=2)
     publish_test_data(agent, start_time, 0, 5)
@@ -559,6 +521,153 @@ def test_basic_single_topic_pattern(volttron_instance, aggregate_agent,
         # be time synchronized
         assert (result2['values'][0][0] == result1['values'][0][0])
     finally:
-        truncate_tables.append("sum_2m")
+        cleanup.append("sum_2m")
         if agent_uuid is not None:
-            volttron_instance.stop_agent(agent_uuid)
+            volttron_instance.remove_agent(agent_uuid)
+
+@pytest.mark.sql_aggregator
+@pytest.mark.aggregator
+def test_multiple_topic_pattern(volttron_instance, aggregate_agent,
+                                    agent, cleanup):
+    """
+    Test aggregate historian when aggregating across multiple topics
+    that are identified by topic_name_pattern instead of explicit topic name
+    1. Publish fake data
+    2. Start aggregator agent with configurtion to collect sum of data in
+    two different intervals.
+    3. Sleep for 1 minute
+    4. Do an rpc call to historian to verify data
+
+    Expected result:
+    1. Aggregate data should be computed for both 2m for the two configured
+    points.
+    2. timestamp for both points within a single aggregation group should be
+    time synchronized
+
+    @param volttron_instance: volttron instance on which test agents are
+    installed and run
+    @param aggregate_agent: the aggregate historian configuration
+    @param agent: fake agent used to query historian
+    @param clean: clean up method that is called at the end of each test case
+    """
+
+    # Publish fake data.
+    start_time = datetime.utcnow() - timedelta(minutes=2)
+    publish_test_data(agent, start_time, 0, 5)
+    gevent.sleep(0.5)
+    agent_uuid = None
+    try:
+
+        aggregate_agent['aggregations'] = [
+            {"aggregation_period": "2m",
+             "use_calendar_time_periods": True,
+             "points": [
+                 {
+                     "topic_name_pattern": "device1/*",
+                     "aggregation_topic_name": "device1/all",
+                     "aggregation_type": "sum",
+                     "min_count": 2
+                 }
+             ]
+             }
+        ]
+
+        agent_uuid = volttron_instance.install_agent(
+            agent_dir="services/core/SQLAggregateHistorian",
+            config_file=aggregate_agent,
+            start=False)
+        print("agent id: ", agent_uuid)
+        volttron_instance.start_agent(agent_uuid)
+        gevent.sleep(1 * 60)  # sleep till we see a row in aggregate table
+
+        result1 = agent.vip.rpc.call('platform.historian',
+                                     'query',
+                                     topic='device1/all',
+                                     agg_type='sum',
+                                     agg_period='2m',
+                                     count=20,
+                                     order="FIRST_TO_LAST").get(timeout=100)
+
+        print(result1)
+        assert (result1['values'][0][1] == 6.0)
+        # assert (result1['metadata']) == \
+        #        {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+
+    finally:
+        #cleanup.append("sum_2m")
+        if agent_uuid is not None:
+            volttron_instance.remove_agent(agent_uuid)
+
+
+@pytest.mark.sql_aggregator
+@pytest.mark.aggregator
+def test_multiple_topic_list(volttron_instance, aggregate_agent,
+                                    agent, cleanup):
+    """
+    Test aggregate historian when aggregating across multiple topics
+    that are identified by explicit list of topic names
+    1. Publish fake data
+    2. Start aggregator agent with configurtion to collect sum of data in
+    two different intervals.
+    3. Sleep for 1 minute
+    4. Do an rpc call to historian to verify data
+
+    Expected result:
+    1. Aggregate data should be computed for both 2m for the two configured
+    points.
+    2. timestamp for both points within a single aggregation group should be
+    time synchronized
+
+    @param volttron_instance: volttron instance on which test agents are
+    installed and run
+    @param aggregate_agent: the aggregate historian configuration
+    @param agent: fake agent used to query historian
+    @param clean: clean up method that is called at the end of each test case
+    """
+
+    # Publish fake data.
+    start_time = datetime.utcnow() - timedelta(minutes=2)
+    publish_test_data(agent, start_time, 0, 5)
+    gevent.sleep(0.5)
+    agent_uuid = None
+    try:
+
+        aggregate_agent['aggregations'] = [
+            {"aggregation_period": "2m",
+             "use_calendar_time_periods": True,
+             "points": [
+                 {
+                     "topic_names": ["device1/out_temp", "device1/in_temp"],
+                     "aggregation_topic_name": "device1/all",
+                     "aggregation_type": "sum",
+                     "min_count": 2
+                 }
+             ]
+             }
+        ]
+
+        agent_uuid = volttron_instance.install_agent(
+            agent_dir="services/core/SQLAggregateHistorian",
+            config_file=aggregate_agent,
+            start=False)
+        print("agent id: ", agent_uuid)
+        volttron_instance.start_agent(agent_uuid)
+        gevent.sleep(1 * 60)  # sleep till we see a row in aggregate table
+
+        result1 = agent.vip.rpc.call('platform.historian',
+                                     'query',
+                                     topic='device1/all',
+                                     agg_type='sum',
+                                     agg_period='2m',
+                                     count=20,
+                                     order="FIRST_TO_LAST").get(timeout=100)
+
+        print(result1)
+        assert (result1['values'][0][1] == 6.0)
+        # assert (result1['metadata']) == \
+        #        {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+
+    finally:
+        cleanup.append("sum_2m")
+        if agent_uuid is not None:
+            volttron_instance.remove_agent(agent_uuid)

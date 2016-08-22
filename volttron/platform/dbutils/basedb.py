@@ -122,7 +122,15 @@ class DbDriver(object):
         pass
 
     @abstractmethod
+    def is_supported_aggregation(self, agg_type):
+        pass
+
+    @abstractmethod
     def insert_agg_topic_stmt(self):
+        pass
+
+    @abstractmethod
+    def update_agg_topic_stmt(self):
         pass
 
     @abstractmethod
@@ -171,16 +179,42 @@ class DbDriver(object):
         if not self.__connect():
             return False
 
+        if self.__connection is None:
+            return False
+
+        if not self.__cursor:
+            self.__cursor = self.__connection.cursor()
         self.__cursor.execute(self.insert_agg_meta_stmt(),
                               (topic_id, jsonapi.dumps(metadata)))
         return True
 
-    def insert_agg_topic(self, topic, agg_type, agg_time_period):
+    def insert_agg_topic(self, agg_id, agg_topic_name):
         if not self.__connect():
             return False
 
+        if self.__connection is None:
+            return False
+
+        if not self.__cursor:
+            self.__cursor = self.__connection.cursor()
+
         self.__cursor.execute(self.insert_agg_topic_stmt(),
-                              (topic, agg_type, agg_time_period))
+                              (agg_id, agg_topic_name))
+        row = [self.__cursor.lastrowid]
+        return row
+
+    def update_agg_topic(self, agg_id, agg_topic_name):
+        if not self.__connect():
+            return False
+
+        if self.__connection is None:
+            return False
+
+        if not self.__cursor:
+            self.__cursor = self.__connection.cursor()
+
+        self.__cursor.execute(self.update_agg_topic_stmt(),
+                              (agg_id, agg_topic_name))
         row = [self.__cursor.lastrowid]
         return row
 
@@ -271,7 +305,7 @@ class DbDriver(object):
         if not self.__connect():
             print("connect to database failed.......")
             return False
-        table_name = agg_type + '''_''' + period
+        table_name = agg_type + '_' + period
         _log.debug("Inserting id {} {} {} {} into table {}".format(
             ts, agg_topic_id, jsonapi.dumps(data), topic_ids, table_name))
         self.__cursor.execute(

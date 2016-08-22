@@ -249,10 +249,70 @@ class SqlLiteFuncts(DbDriver):
         return '''UPDATE ''' + self.topics_table + ''' SET topic_name = ?
             WHERE topic_id = ?'''
 
+    def is_supported_aggregation(self, agg_type):
+        return agg_type.upper() in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM',
+                                    'TOTAL', 'GROUP_CONCAT']
+
+    def insert_agg_topic(self, topic, agg_type, agg_time_period):
+        _log.debug("In sqlitefuncts insert aggregate topic")
+        conn = sqlite3.connect(
+            self.__database,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+
+        cursor.execute(self.insert_agg_topic_stmt(),
+                              (topic, agg_type, agg_time_period))
+        row = [cursor.lastrowid]
+        conn.commit()
+        conn.close()
+        return row
+
     def insert_agg_topic_stmt(self):
         return '''INSERT INTO ''' + self.agg_topics_table + '''
                (agg_topic_name, agg_type, agg_time_period )
                values (?, ?, ?)'''
+
+    def update_agg_topic(self, agg_id, agg_topic_name):
+        _log.debug("In sqlitefuncts update aggregate topic")
+        conn = sqlite3.connect(
+            self.__database,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+
+        cursor.execute(self.update_agg_topic_stmt(),
+                              (agg_id, agg_topic_name))
+        row = [cursor.lastrowid]
+        conn.commit()
+        conn.close()
+        return row
+
+    def update_agg_topic_stmt(self):
+        return '''UPDATE ''' + self.agg_topics_table + ''' SET
+        agg_topic_name = ? WHERE agg_topic_id = ? '''
+
+    def insert_agg_meta(self, topic_id, metadata):
+        _log.debug("In sqlitefuncts insert aggregate meta")
+        conn = sqlite3.connect(
+            self.__database,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+
+        if conn is None:
+            return False
+
+        cursor = conn.cursor()
+        cursor.execute(self.insert_agg_meta_stmt(),
+                              (topic_id, jsonapi.dumps(metadata)))
+        conn.commit()
+        conn.close()
+        return True
 
     def insert_agg_meta_stmt(self):
         return '''REPLACE INTO ''' + self.meta_table + ''' values(?, ?)'''
@@ -271,12 +331,14 @@ class SqlLiteFuncts(DbDriver):
 
     def get_agg_topic_map(self):
         _log.debug("in get_agg_topic_map")
-        q = "SELECT agg_topic_id, agg_topic_name FROM " + self.agg_topics_table
+        q = "SELECT agg_topic_id, agg_topic_name, agg_type, agg_time_period " \
+            "FROM " + self.agg_topics_table
         rows = self.select(q, None)
         _log.debug("loading agg_topic map from db")
         id_map = dict()
-        for t, n in rows:
-            id_map[n.lower()] = t
+        for row in rows:
+            _log.debug("rows from aggregate_t")
+            id_map[(row[1].lower(), row[2], row[3])] = row[0]
         return id_map
 
     @staticmethod
@@ -345,7 +407,7 @@ class SqlLiteFuncts(DbDriver):
         return '''INSERT OR REPLACE INTO ''' + table_name + \
                ''' values(?, ?, ?, ?)'''
 
-    def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
+    def collect_aggregate(self, topic_ids, agg_type, start, end):
         """
         This function should return the results of a aggregation query
         @param topic_id:
@@ -365,7 +427,12 @@ class SqlLiteFuncts(DbDriver):
         where_clauses = ["WHERE topic_id = ?"]
         args = [topic_ids[0]]
         if len(topic_ids) >1 :
-            where_clauses = ["WHERE topic_id IN (?)"]
+            where_str = "WHERE topic_id IN ("
+            for id in topic_ids:
+                where_str += "?, "
+            where_str = where_str[:-2]  # strip last comma and space
+            where_str += ") "
+            where_clauses = [where_str]
             args = topic_ids
 
         if start is not None:
@@ -392,9 +459,12 @@ class SqlLiteFuncts(DbDriver):
             self.__database,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         cursor = c.execute(real_query, args)
-        (agg, count) = cursor.fetchone()
-        _log.debug("results got {}, {}".format(agg, count))
-        return agg, count
+        results = cursor.fetchone()
+        if results:
+            _log.debug("results got {}, {}".format(results[0], results[1]))
+            return results[0], results[1]
+        else:
+            return 0, 0
 
 
 if __name__ == '__main__':

@@ -241,27 +241,39 @@ def historian(config_path, **kwargs):
                 threading.currentThread().getName())
             )
             results = dict()
-            topic_id = self.topic_id_map.get(topic.lower(), None)
-
-            if topic_id is None and not agg_type:
-                return results
+            topic_id = None
+            topic_lower = topic.lower()
+            if agg_type is None:
+                # If this is not an aggregate query find topic if based
+                # on topic table entry
+                topic_id = self.topic_id_map.get(topic_lower, None)
             else:
-                topic_id = self.agg_topic_id_map.get(topic.lower(), None)
-            if topic_id is None:
-                # load agg topic id again as it might be a newly configured
-                # aggregation
-                map = self.reader.get_agg_topic_map()
-                self.agg_topic_id_map.update(map)
-                topic_id = self.agg_topic_id_map.get(topic.lower(), None)
-            if topic_id is None:
+                agg_type = agg_type.lower()
+                topic_id = self.agg_topic_id_map.get(
+                    (topic_lower, agg_type, agg_period), None)
+                if topic_id is None:
+                    # load agg topic id again as it might be a newly
+                    # configured aggregation
+                    map = self.reader.get_agg_topic_map()
+                    _log.debug(" Agg topic map after loading from db {} "
+                               "".format(map))
+                    self.agg_topic_id_map.update(map)
+                    _log.debug(" Agg topic map after updating {} "
+                               "".format(self.agg_topic_id_map))
+                    topic_id = self.agg_topic_id_map.get(
+                        (topic_lower, agg_type, agg_period), None)
+            if not topic_id:
+                _log.warn('No such topic {}'.format(topic))
                 return results
-            _log.debug("Querying db reader")
+
+            _log.debug("Querying db reader with topic_id {} ".format(topic_id))
             results = self.reader.query(
                 topic_id, start=start, end=end, agg_type=agg_type,
                 agg_period=agg_period, skip=skip, count=count,
                 order=order)
             if len(results.get('values',[])) > 0 :
-                results['metadata'] = self.topic_meta.get(topic_id, {})
+                if not agg_type:
+                    results['metadata'] = self.topic_meta.get(topic_id, {})
             else:
                 results = dict()
             return results

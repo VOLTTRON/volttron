@@ -187,12 +187,24 @@ class MySqlFuncts(DbDriver):
         return '''UPDATE ''' + self.topics_table + ''' SET topic_name = %s
             WHERE topic_id = %s'''
 
+    def is_supported_aggregation(self, agg_type):
+        return agg_type.upper() in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM',
+                                    'BIT_AND', 'BIT_OR', 'BIT_XOR',
+                                    'GROUP_CONCAT', 'STD', 'STDDEV',
+                                    'STDDEV_POP', 'STDDEV_SAMP', 'VAR_POP',
+                                    'VAR_SAMP', 'VARIANCE']
+
+
     def insert_agg_topic_stmt(self):
         _log.debug("Insert aggregate topics stmt inserts "
                    "into {}".format(self.agg_topics_table))
         return '''INSERT INTO ''' + self.agg_topics_table + '''
             (agg_topic_name, agg_type, agg_time_period )
             values (%s, %s, %s)'''
+
+    def update_agg_topic_stmt(self):
+        return '''UPDATE ''' + self.agg_topics_table + ''' SET
+        agg_topic_name = %s WHERE agg_topic_id = %s '''
 
     def insert_agg_meta_stmt(self):
         return '''REPLACE INTO ''' + self.agg_meta_table + ''' values(%s,
@@ -214,12 +226,14 @@ class MySqlFuncts(DbDriver):
 
     def get_agg_topic_map(self):
         _log.debug("in get_agg_topic_map")
-        q = "SELECT agg_topic_id, agg_topic_name FROM " + self.agg_topics_table
+        q = "SELECT agg_topic_id, agg_topic_name, agg_type, agg_time_period " \
+            "FROM " + self.agg_topics_table
         rows = self.select(q, None)
         _log.debug("loading agg_topic map from db")
         id_map = dict()
-        for t, n in rows:
-            id_map[n.lower()] = t
+        for row in rows:
+            _log.debug("rows from aggregate_topics {}".format(row))
+            id_map[(row[1].lower(), row[2], row[3])] = row[0]
         return id_map
 
     def find_topics_by_pattern(self, topic_pattern):
@@ -266,7 +280,7 @@ class MySqlFuncts(DbDriver):
         return '''REPLACE INTO ''' + table_name + \
                ''' values(%s, %s, %s, %s)'''
 
-    def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
+    def collect_aggregate(self, topic_ids, agg_type, start, end):
         """
         This function should return the results of a aggregation query
         @param topic_id:
@@ -285,7 +299,12 @@ class MySqlFuncts(DbDriver):
         where_clauses = ["WHERE topic_id = %s"]
         args = [topic_ids[0]]
         if len(topic_ids) > 1 :
-            where_clauses = ["WHERE topic_id IN (%s)"]
+            where_str = "WHERE topic_id IN ("
+            for id in topic_ids:
+                where_str += "%s, "
+            where_str = where_str[:-2] #strip last comma and space
+            where_str += ") "
+            where_clauses = [where_str]
             args = topic_ids
 
 
@@ -312,4 +331,7 @@ class MySqlFuncts(DbDriver):
         _log.debug("args: " + str(args))
 
         rows = self.select(real_query, args)
-        return rows[0][0], rows[0][1]
+        if rows:
+            return rows[0][0], rows[0][1]
+        else:
+            return 0, 0
