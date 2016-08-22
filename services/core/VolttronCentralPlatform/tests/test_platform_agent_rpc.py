@@ -21,7 +21,12 @@ def setup_platform(request, get_volttron_instances):
     Central Platform.
     """
     global vcp
-    vcp = get_volttron_instances(1)
+    vcp = get_volttron_instances(1, False)
+
+    if get_volttron_instances.param == "encrypted":
+        start_wrapper_platform(vcp, with_http=True)
+    else:
+        start_wrapper_platform(vcp, with_http=False, with_tcp=False)
 
     assert vcp
     assert vcp.is_running()
@@ -73,5 +78,5 @@ def test_can_inspect_agent(setup_platform):
 def test_can_call_rpc_method(setup_platform):
     connection = vcp.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
 
-    health = connection.call('get_health')
+    health = connection.call('get_health', timeout=2)
     assert health['status'] == STATUS_GOOD

@@ -57,12 +57,12 @@ except ImportError:
     auth = None
     certs = None
 
-#Filenames for the config files which are created during setup and then
-#passed on the command line
+# Filenames for the config files which are created during setup and then
+# passed on the command line
 TMP_PLATFORM_CONFIG_FILENAME = "config"
 TMP_SMAP_CONFIG_FILENAME = "test-smap.ini"
 
-#Used to fill in TWISTED_CONFIG template
+# Used to fill in TWISTED_CONFIG template
 TEST_CONFIG_FILE = 'base-platform-test.json'
 
 PLATFORM_CONFIG_UNRESTRICTED = """
@@ -149,7 +149,11 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
 
     vc_http = get_rand_http_address() if with_http else None
     vc_tcp = get_rand_tcp_address() if with_tcp else None
-    wrapper.startup_platform(encrypt=True, vip_address=vc_tcp,
+    if vc_tcp:
+        encrypt = True
+    else:
+        encrypt = False
+    wrapper.startup_platform(encrypt=encrypt, vip_address=vc_tcp,
                              bind_web_address=vc_http,
                              volttron_central_address=volttron_central_address)
     if with_http:
@@ -232,6 +236,9 @@ class PlatformWrapper:
                          publickey=None, secretkey=None, serverkey=None,
                          **kwargs):
 
+        if self.encrypt:
+            self.allow_all_connections()
+
         if address is None:
             address = self.vip_address
             serverkey = self.serverkey
@@ -244,8 +251,11 @@ class PlatformWrapper:
             publickey = keys.public()
             secretkey = keys.secret()
 
-        conn = Connection(address=address, peer=peer, publickey=publickey,
-                          secretkey=secretkey, serverkey=serverkey)
+        if self.encrypt:
+            conn = Connection(address=address, peer=peer, publickey=publickey,
+                              secretkey=secretkey, serverkey=serverkey)
+        else:
+            conn = Connection(address=self.local_vip_address, peer=peer)
         return conn
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
