@@ -82,7 +82,6 @@ def historian(config_path, **kwargs):
     params = connection.get('params', None)
     assert params is not None
 
-    identity = config.get('identity', kwargs.pop('identity', None))
     topic_replacements = config.get('topic_replace_list', None)
     _log.debug('topic_replacements are: {}'.format(topic_replacements))
 
@@ -327,8 +326,7 @@ def historian(config_path, **kwargs):
             self._load_meta_map()
 
     MongodbHistorian.__name__ = 'MongodbHistorian'
-    return MongodbHistorian(
-        identity=identity, topic_replace_list=topic_replacements, **kwargs)
+    return MongodbHistorian(topic_replace_list=topic_replacements, **kwargs)
 
 
 def main(argv=sys.argv):

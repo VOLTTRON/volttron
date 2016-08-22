@@ -84,7 +84,6 @@ def historian(config_path, **kwargs):
     custom_topic_list = config.get('custom_topic_list', [])
     topic_replace_list = config.get('topic_replace_list', [])
     destination_vip = config.get('destination-vip')
-    identity = config.get('identity', kwargs.pop('identity', None))
     include_destination_in_header = config.get(
         'include_destination_in_header',
         False)
@@ -301,8 +300,7 @@ def historian(config_path, **kwargs):
                                            status)
 
     ForwardHistorian.__name__ = 'ForwardHistorian'
-    return ForwardHistorian(identity=identity,
-                            backup_storage_limit_gb=backup_storage_limit_gb,
+    return ForwardHistorian(backup_storage_limit_gb=backup_storage_limit_gb,
                             **kwargs)
 
 

@@ -109,8 +109,7 @@ class AlertMonitorAgent(Agent):
         kwargs.pop('identity')
 
         _log.debug('outfile is {}'.format(os.path.abspath(self._outfile)))
-        super(AlertMonitorAgent, self).__init__(identity='alert.monitor',
-                                                **kwargs)
+        super(AlertMonitorAgent, self).__init__(**kwargs)
 
     @PubSub.subscribe("pubsub", topics.ALERTS_BASE.format())
     def onmessage(self, peer, sender, bus, topic, headers, message):
@@ -120,7 +119,7 @@ class AlertMonitorAgent(Agent):
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(AlertMonitorAgent)
+    utils.vip_main(AlertMonitorAgent, identity='alert.monitor')
 
 
 if __name__ == '__main__':
