@@ -106,6 +106,29 @@ def setup_platform_3(env, home):
     install_fake_masterdriver(env, home)
 
 
+def setup_platform_4(env, home):
+    """ Setup the fourth platform.
+
+    This platform will hold the following agents with identities in ()
+
+    - VOLTTRON Central Platform (platform.agent)
+
+    This platform won't be automatically registered with the volttron-central
+    instances.
+    """
+
+    agents = ["services/core/{}".format(p) for p in ["VolttronCentralPlatform"]]
+    tags = ['vcp']
+    vip = ['platform.agent']
+
+    configs = [
+        {}
+    ]
+
+    for i in range(len(agents)):
+        install_agent(env, agents[i], configs[i], tags[i], vip[i])
+
+
 def install_fake_masterdriver(env, home):
     lines = [
         "Point Name, Volttron Point Name, Units, Units Details, Writable, Starting Value, Type, Notes",
@@ -157,6 +180,7 @@ def install_agent(env, agent_dir, cfgdict, tag, identity=None):
     cmd = ["volttron-pkg", "package", agent_dir]
 
     output = subprocess.check_output(cmd)
+    print(output)
     filename = output.split(":")[1].strip()
 
     cmd = ["volttron-pkg", "configure", filename, cfgfile]
@@ -206,7 +230,8 @@ def main():
 
             pidout.write("{}\n".format(process.pid))
 
-    setup_functions = [setup_platform_1, setup_platform_2, setup_platform_3]
+    setup_functions = [setup_platform_1, setup_platform_2, setup_platform_3,
+                       setup_platform_4]
 
     for i in range(len(setup_functions)):
         setup_functions[i](envs[i], vhomes[i])
