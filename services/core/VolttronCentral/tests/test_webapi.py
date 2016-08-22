@@ -64,8 +64,6 @@ import requests
 
 from volttron.platform.jsonrpc import json_validate_response
 from volttrontesting.utils.platformwrapper import PlatformWrapper
-from volttrontesting.utils.servicepaths import (
-    VOLTTRON_CENTRAL_PLATFORM_PATH, VOLTTRON_CENTRAL_PATH)
 from volttrontesting.utils.utils import (
     poll_gevent_sleep, get_rand_http_address, get_rand_tcp_address)
 from volttrontesting.utils.webapi import (
@@ -168,7 +166,7 @@ def build_webapi(wrapper):
 def install_volttron_central(wrapper):
     assert wrapper.is_running()
     # Install the volttron central agent.
-    vcuuid = wrapper.install_agent(agent_dir=VOLTTRON_CENTRAL_PATH,
+    vcuuid = wrapper.install_agent(agent_dir="services/core/VolttronCentral",
                                    config_file=VC_DEFAULT_CONFIG)
     assert vcuuid
     response = requests.get("{}/jsonrpc".format(wrapper.bind_web_address))
@@ -179,8 +177,9 @@ def install_volttron_central(wrapper):
 def install_volttron_central_platform(wrapper, config_dict={}):
     assert wrapper.is_running()
     # Install the volttron central agent.
-    vcpuuid = wrapper.install_agent(agent_dir=VOLTTRON_CENTRAL_PLATFORM_PATH,
-                                    config_file=config_dict)
+    vcpuuid = wrapper.install_agent(
+        agent_dir="services/core/VolttronCentralPlatform",
+        config_file=config_dict)
     assert vcpuuid
     return vcpuuid
 
