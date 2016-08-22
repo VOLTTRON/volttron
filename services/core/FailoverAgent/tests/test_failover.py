@@ -11,7 +11,6 @@ primary_config = {
     # "remote_vip": "",
     "volttron_ctl_tag": "listener",
     "heartbeat_period": 1,
-    "check_pulse_interval": 1,
     "timeout": 5
 }
 
@@ -21,7 +20,6 @@ secondary_config = {
     # "remote_vip": "",
     "volttron_ctl_tag": "listener",
     "heartbeat_period": 1,
-    "check_pulse_interval": 1,
     "timeout": 5
 }
 

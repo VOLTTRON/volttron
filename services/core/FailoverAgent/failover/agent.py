@@ -33,14 +33,9 @@ class FailoverAgent(Agent):
                           heartbeat_period=self.heartbeat_period)
         heartbeat.__class__.__name__ = self.agent_id
         event = gevent.event.Event()
-        heartbeat.core.onstart.connect(lambda *a, **kw: event.set(), event)
-        gevent.spawn(heartbeat.core.run)
+        gevent.spawn(heartbeat.core.run, event)
         event.wait()
         self.heartbeat = heartbeat
-
-    @Core.receiver('onstart')
-    def onstart(self, sender, **kwargs):
-        self.core.periodic(self.check_pulse_interval, self.check_pulse)
 
     @PubSub.subscribe('pubsub', 'heartbeat')
     def on_match(self, peer, sender, bus, topic, headers, message):
@@ -49,9 +44,10 @@ class FailoverAgent(Agent):
         elif topic.startswith('heartbeat/' + self.remote_id):
             self.remote_timeout = self.timeout
 
+    @Core.periodic(1)
     def check_pulse(self):
-        self.vc_timeout -= self.check_pulse_interval
-        self.remote_timeout -= self.check_pulse_interval
+        self.vc_timeout -= 1
+        self.remote_timeout -= 1
 
         vc_is_up = self.vc_timeout > 0
         remote_is_up = self.remote_timeout > 0

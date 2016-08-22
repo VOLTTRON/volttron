@@ -6,7 +6,6 @@
     "volttron_ctl_tag": "master",
 
     "heartbeat_period": 10,
-    "check_pulse_interval": 10,
 
     "timeout": 120
 }
