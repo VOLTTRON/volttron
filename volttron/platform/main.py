@@ -274,9 +274,12 @@ class Router(BaseRouter):
         self._volttron_central_address = volttron_central_address
         if self._volttron_central_address:
             parsed = urlparse(self._volttron_central_address)
-            assert parsed.scheme == 'http', \
-                "volttron central address must begin with http(s)"
 
+            assert parsed.scheme in ('http', 'https', 'tcp'), \
+                "volttron central address must begin with http(s) or tcp found"
+            if parsed.scheme == 'tcp':
+                assert volttron_central_serverkey, \
+                    "volttron central serverkey must be set if address is tcp."
         self._volttron_central_serverkey = volttron_central_serverkey
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address
@@ -523,6 +526,7 @@ def start_volttron_process(opts):
                    default_user_id=b'vip.service', monitor=opts.monitor,
                    tracker=tracker,
                    volttron_central_address=opts.volttron_central_address,
+                   volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
                    bind_web_address=opts.bind_web_address).run()
 
@@ -679,9 +683,11 @@ def main(argv=sys.argv):
         '--bind-web-address', metavar='BINDWEBADDR', default=None,
         help='Bind a web server to the specified ip:port passed')
     agents.add_argument(
-        '--volttron-central-address', metavar='VOLTTRONCENTRAL',
-        default=None,
+        '--volttron-central-address', default=None,
         help='The web address of a volttron central install instance.')
+    agents.add_argument(
+        '--volttron-central-serverkey', default=None,
+        help='The serverkey of volttron central.')
     agents.add_argument(
         '--instance-name', default=None,
         help='The name of the instance that will be reported to '
@@ -709,10 +715,11 @@ def main(argv=sys.argv):
                 super(RestrictedAction, self).__init__(
                     option_strings, dest=argparse.SUPPRESS, nargs=0,
                     const=const, help=help)
+
             def __call__(self, parser, namespace, values, option_string=None):
                 namespace.verify_agents = self.const
                 namespace.resource_monitor = self.const
-                #namespace.mobility = self.const
+                # namespace.mobility = self.const
         restrict = parser.add_argument_group('restricted options')
         restrict.add_argument(
             '--restricted', action=RestrictedAction, inverse='--no-restricted',
@@ -733,10 +740,10 @@ def main(argv=sys.argv):
         restrict.add_argument(
             '--no-resource-monitor', action='store_false',
             dest='resource_monitor', help=argparse.SUPPRESS)
-        #restrict.add_argument(
+        # restrict.add_argument(
         #    '--mobility', action='store_true', inverse='--no-mobility',
         #    help='enable agent mobility')
-        #restrict.add_argument(
+        # restrict.add_argument(
         #    '--no-mobility', action='store_false', dest='mobility',
         #    help=argparse.SUPPRESS)
 
@@ -760,12 +767,12 @@ def main(argv=sys.argv):
         volttron_central_address=None,
         volttron_central_serverkey=None,
         instace_name=None,
-        #allow_root=False,
-        #allow_users=None,
-        #allow_groups=None,
+        # allow_root=False,
+        # allow_users=None,
+        # allow_groups=None,
         verify_agents=True,
         resource_monitor=True,
-        #mobility=True,
+        # mobility=True,
         developer_mode=False,
     )
 
