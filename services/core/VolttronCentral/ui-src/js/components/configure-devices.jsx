@@ -8,14 +8,16 @@ var devicesStore = require('../stores/devices-store');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 import DevicesFound from './devices-found';
+const scanDuration = 10000; // 10 seconds
+
 
 class ConfigureDevices extends BaseComponent {
     constructor(props) {
         super(props);
         this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange',
-                    '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onWhoIs',
+                    '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan',
                     '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_showCancel', '_resumeScan', 
-                    '_cancelScan');
+                    '_cancelScan', '_onDevicesLoaded', 'componentWillUnmount');
 
         this.state = getInitialState();
     }
@@ -26,6 +28,11 @@ class ConfigureDevices extends BaseComponent {
     componentWillUnmount() {
         platformsStore.removeChangeListener(this._onPlatformStoresChange);
         devicesStore.removeChangeListener(this._onDevicesStoresChange);
+
+        if (this._scanTimeout)
+        {
+            clearTimeout(this._scanTimeout);    
+        }
     }
     _onPlatformStoresChange() {
 
@@ -43,36 +50,45 @@ class ConfigureDevices extends BaseComponent {
     }
     _onDevicesStoresChange() {
 
-        var deviceState = devicesStore.getState();
-
-        if (deviceState.action === "get_scan_settings")
+        if (devicesStore.getNewScan())
         {
             this.setState(getInitialState());
-        }
-        else
-        {        
-            if (deviceState.platform && this.state.platform)
+
+            if (this._scanTimeout)
             {
-                if (deviceState.platform.uuid !== this.state.platform.uuid)
-                {
-                    deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
-                    deviceState.deviceMethod = (deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually");
-                    
-                    if (deviceState.deviceMethod === "scanForDevices")
-                    {
-                        deviceState.selectedProxyUuid = deviceState.bacnetProxies[0].uuid;
-                    }
-
-                    deviceState.scanning = false;
-
-                    this.setState(deviceState);
-                }
-                else
-                {
-                    this.setState({scanning: true});
-                }
+                clearTimeout(this._scanTimeout);    
             }
         }
+        // var deviceState = devicesStore.getState();
+
+        // if (deviceState.action === "get_scan_settings")
+        // {
+        //     this.setState(getInitialState());
+        // }
+        // else
+        // {        
+        //     if (deviceState.platform && this.state.platform)
+        //     {
+        //         if (deviceState.platform.uuid !== this.state.platform.uuid)
+        //         {
+        //             deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
+        //             deviceState.deviceMethod = (deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually");
+                    
+        //             if (deviceState.deviceMethod === "scanForDevices")
+        //             {
+        //                 deviceState.selectedProxyUuid = deviceState.bacnetProxies[0].uuid;
+        //             }
+
+        //             deviceState.scanning = false;
+
+        //             this.setState(deviceState);
+        //         }
+        //         else
+        //         {
+        //             this.setState({scanning: true});
+        //         }
+        //     }
+        // }
 
     }
     _onDeviceMethodChange(evt) {
@@ -102,7 +118,7 @@ class ConfigureDevices extends BaseComponent {
     _onAddress(evt) {
         this.setState({ address: evt.target.value });
     }
-    _onWhoIs(evt) {
+    _onStartScan(evt) {
         devicesActionCreators.scanForDevices(
             this.state.platform.uuid, 
             this.state.selectedProxyUuid,
@@ -112,6 +128,17 @@ class ConfigureDevices extends BaseComponent {
         );
 
         this.setState({ scanning: true });
+        this.setState({ scanStarted: true });
+
+        if (this._scanTimeout)
+        {
+            clearTimeout(this._scanTimeout);    
+        }
+        
+        this._scanTimeout = setTimeout(this._cancelScan, scanDuration);
+    }
+    _onDevicesLoaded(devicesLoaded) {
+        this.setState({devicesLoaded: devicesLoaded});
     }
     _showCancel() {
 
@@ -281,7 +308,6 @@ class ConfigureDevices extends BaseComponent {
                     spinnerContent = <i className="fa fa-cog fa-spin fa-2x fa-fw margin-bottom"></i>;
                 }
 
-                devicesContainer = <DevicesFound platform={this.state.platform}/>;
                 scanButton = (
                     <div style={scanOptionsStyle}>
                         <div className="scanningSpinner"
@@ -296,9 +322,18 @@ class ConfigureDevices extends BaseComponent {
             }
             else
             {
-                scanButton = <div style={scanOptionsStyle}><button style={buttonStyle} onClick={this._onWhoIs}>Go</button></div>;
+                scanButton = <div style={scanOptionsStyle}><button style={buttonStyle} onClick={this._onStartScan}>Go</button></div>;
             }
 
+            if (this.state.devicesLoaded || this.state.scanStarted)
+            {      
+                devicesContainer = (
+                    <DevicesFound 
+                        devicesloaded={this._onDevicesLoaded} 
+                        platform={this.state.platform} 
+                        bacnet={this.state.selectedProxyUuid}/>
+                );
+            }
 
             deviceContent = (
                 <div className="device-box device-scan">
@@ -360,6 +395,8 @@ function getInitialState() {
         }
 
         state.scanning = false;
+        state.devicesLoaded = false;
+        state.scanStarted = false;
         state.cancelButton = false;
     }
 

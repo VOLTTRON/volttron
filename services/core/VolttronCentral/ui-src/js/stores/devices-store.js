@@ -16,6 +16,7 @@ var _registryFiles = {};
 var _backupFileName = {};
 var _platform;
 var _devices = [];
+var _newScan = false;
 
 var _placeHolders = [ [
     {"key": "Point_Name", "value": "", "editable": true},
@@ -65,8 +66,30 @@ devicesStore.getRegistryFile = function (device) {
     
 };
 
-devicesStore.getDevices = function (platform) {
-    return _devices;
+devicesStore.getDevices = function (platform, bacnetUuid) {
+
+    var devices = [];
+
+    for (var key in _devices)
+    {
+        if ((_devices[key].platformUuid === platform.uuid) 
+            && (_devices[key].bacnetProxyUuid === bacnetUuid))
+        {
+            devices.push(_devices[key]);
+        }
+    }
+
+    return JSON.parse(JSON.stringify(devices));
+}
+
+devicesStore.getDevice = function (deviceId) {
+
+    return JSON.parse(JSON.stringify(_devices[deviceId]));
+}
+
+devicesStore.getNewScan = function () {
+
+    return _newScan;
 }
 
 devicesStore.dispatchToken = dispatcher.register(function (action) {
@@ -76,6 +99,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.CONFIGURE_DEVICES:
             _platform = action.platform;
             _devices = [];
+            _newScan = true;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.ADD_DEVICES:
@@ -92,25 +116,37 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.LISTEN_FOR_IAMS:
-
-            _devices = [
-                [ 
-                    { key: "address", label: "Address", value: "Address 192.168.1.42" }, 
-                    { key: "deviceId", label: "Device ID", value: "548" }, 
-                    { key: "description", label: "Description", value: "Temperature sensor" }, 
-                    { key: "vendorId", label: "Vendor ID", value: "18" }, 
-                    { key: "vendor", label: "Vendor", value: "Siemens" },
-                    { key: "type", label: "Type", value: "BACnet" }
-                ],
-                [ 
-                    { key: "address", label: "Address", value: "RemoteStation 1002:11" }, 
-                    { key: "deviceId", label: "Device ID", value: "33" }, 
-                    { key: "description", label: "Description", value: "Actuator 3-pt for zone control" }, 
-                    { key: "vendorId", label: "Vendor ID", value: "12" }, 
-                    { key: "vendor", label: "Vendor", value: "Alerton" },
-                    { key: "type", label: "Type", value: "BACnet" }
-                ]
-            ];
+            _newScan = false;
+            _devices = {
+                "548": {
+                    configuring: false,
+                    platformUuid: action.platformUuid,
+                    bacnetProxyUuid: action.bacnetProxyUuid,
+                    id: "548",
+                    items: [ 
+                        { key: "address", label: "Address", value: "Address 192.168.1.42" }, 
+                        { key: "deviceId", label: "Device ID", value: "548" }, 
+                        { key: "description", label: "Description", value: "Temperature sensor" }, 
+                        { key: "vendorId", label: "Vendor ID", value: "18" }, 
+                        { key: "vendor", label: "Vendor", value: "Siemens" },
+                        { key: "type", label: "Type", value: "BACnet" }
+                    ]
+                },
+                "33": {
+                    configuring: false,
+                    platformUuid: action.platformUuid,
+                    bacnetProxyUuid: action.bacnetProxyUuid,
+                    id: "33",
+                    items: [ 
+                        { key: "address", label: "Address", value: "RemoteStation 1002:11" }, 
+                        { key: "deviceId", label: "Device ID", value: "33" }, 
+                        { key: "description", label: "Description", value: "Actuator 3-pt for zone control" }, 
+                        { key: "vendorId", label: "Vendor ID", value: "12" }, 
+                        { key: "vendor", label: "Vendor", value: "Alerton" },
+                        { key: "type", label: "Type", value: "BACnet" }
+                    ]
+                }
+            };
 
             devicesStore.emitChange();
             break;
@@ -123,7 +159,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.CONFIGURE_DEVICE:
             _action = "configure_device";
             _view = "Configure Device";
-            _device = action.device;
+            _devices[action.device.id] = action.device;
             devicesStore.emitChange();
         case ACTION_TYPES.CANCEL_REGISTRY:
             _action = "configure_device";

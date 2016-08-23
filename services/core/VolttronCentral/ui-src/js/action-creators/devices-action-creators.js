@@ -24,19 +24,21 @@ var devicesActionCreators = {
 
         var authorization = authorizationStore.getAuthorization();
 
-        return new rpc.Exchange({
-            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.methods.who_is',
-            authorization: authorization,
-            params: {
-                low_device_id: low,
-                high_device_id: high,
-                target_address: address
-            },
-        }).promise
-            .then(function (result) {
+        // return new rpc.Exchange({
+        //     method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + 'methods.who_is',
+        //     authorization: authorization,
+        //     params: {
+        //         low_device_id: low,
+        //         high_device_id: high,
+        //         target_address: address
+        //     },
+        // }).promise
+        //     .then(function (result) {
 
-                if (result)
-                {
+        //         if (result)
+        //         {
+        //             console.log(JSON.stringify(result));
+
                     dispatcher.dispatch({
                         type: ACTION_TYPES.LISTEN_FOR_IAMS,
                         platformUuid: platformUuid,
@@ -45,15 +47,15 @@ var devicesActionCreators = {
                         high_device_id: high,
                         target_address: address
                     });
-                }
+            //     }
                 
-            })
-            .catch(rpc.Error, function (error) {
+            // })
+            // .catch(rpc.Error, function (error) {
 
-                error.message = "Unable to scan for devices. " + error.message + ".";
+            //     error.message = "Unable to scan for devices. " + error.message + ".";
 
-                handle401(error, error.message);
-            });
+            //     handle401(error, error.message);
+            // });
         
     },
     cancelScan: function (platform) {

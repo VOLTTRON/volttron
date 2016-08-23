@@ -131,8 +131,10 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
     }.bind(this));
 
     devicesStore.addChangeListener(function () {
-        if (!this.router.isActive('configure')) {
-            this.router.push('/configure-devices');
+        if (devicesStore.getNewScan()) {
+            if (!this.router.isActive('configure-devices')) {
+                this.router.push('/configure-devices');
+            }
         }
     }.bind(this));
 });
@@ -213,32 +215,38 @@ var devicesActionCreators = {
 
         var authorization = authorizationStore.getAuthorization();
 
-        return new rpc.Exchange({
-            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.methods.who_is',
-            authorization: authorization,
-            params: {
-                low_device_id: low,
-                high_device_id: high,
-                target_address: address
-            }
-        }).promise.then(function (result) {
+        // return new rpc.Exchange({
+        //     method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + 'methods.who_is',
+        //     authorization: authorization,
+        //     params: {
+        //         low_device_id: low,
+        //         high_device_id: high,
+        //         target_address: address
+        //     },
+        // }).promise
+        //     .then(function (result) {
 
-            if (result) {
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.LISTEN_FOR_IAMS,
-                    platformUuid: platformUuid,
-                    bacnetProxyUuid: bacnetProxyUuid,
-                    low_device_id: low,
-                    high_device_id: high,
-                    target_address: address
-                });
-            }
-        }).catch(rpc.Error, function (error) {
+        //         if (result)
+        //         {
+        //             console.log(JSON.stringify(result));
 
-            error.message = "Unable to scan for devices. " + error.message + ".";
-
-            handle401(error, error.message);
+        dispatcher.dispatch({
+            type: ACTION_TYPES.LISTEN_FOR_IAMS,
+            platformUuid: platformUuid,
+            bacnetProxyUuid: bacnetProxyUuid,
+            low_device_id: low,
+            high_device_id: high,
+            target_address: address
         });
+        //     }
+
+        // })
+        // .catch(rpc.Error, function (error) {
+
+        //     error.message = "Unable to scan for devices. " + error.message + ".";
+
+        //     handle401(error, error.message);
+        // });
     },
     cancelScan: function cancelScan(platform) {
         dispatcher.dispatch({
@@ -2348,6 +2356,9 @@ var devicesStore = require('../stores/devices-store');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
+var scanDuration = 10000; // 10 seconds
+
+
 var ConfigureDevices = function (_BaseComponent) {
     _inherits(ConfigureDevices, _BaseComponent);
 
@@ -2356,7 +2367,7 @@ var ConfigureDevices = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(ConfigureDevices).call(this, props));
 
-        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onWhoIs', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_showCancel', '_resumeScan', '_cancelScan');
+        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded', 'componentWillUnmount');
 
         _this.state = getInitialState();
         return _this;
@@ -2373,6 +2384,10 @@ var ConfigureDevices = function (_BaseComponent) {
         value: function componentWillUnmount() {
             platformsStore.removeChangeListener(this._onPlatformStoresChange);
             devicesStore.removeChangeListener(this._onDevicesStoresChange);
+
+            if (this._scanTimeout) {
+                clearTimeout(this._scanTimeout);
+            }
         }
     }, {
         key: '_onPlatformStoresChange',
@@ -2392,28 +2407,43 @@ var ConfigureDevices = function (_BaseComponent) {
         key: '_onDevicesStoresChange',
         value: function _onDevicesStoresChange() {
 
-            var deviceState = devicesStore.getState();
-
-            if (deviceState.action === "get_scan_settings") {
+            if (devicesStore.getNewScan()) {
                 this.setState(getInitialState());
-            } else {
-                if (deviceState.platform && this.state.platform) {
-                    if (deviceState.platform.uuid !== this.state.platform.uuid) {
-                        deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
-                        deviceState.deviceMethod = deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually";
 
-                        if (deviceState.deviceMethod === "scanForDevices") {
-                            deviceState.selectedProxyUuid = deviceState.bacnetProxies[0].uuid;
-                        }
-
-                        deviceState.scanning = false;
-
-                        this.setState(deviceState);
-                    } else {
-                        this.setState({ scanning: true });
-                    }
+                if (this._scanTimeout) {
+                    clearTimeout(this._scanTimeout);
                 }
             }
+            // var deviceState = devicesStore.getState();
+
+            // if (deviceState.action === "get_scan_settings")
+            // {
+            //     this.setState(getInitialState());
+            // }
+            // else
+            // {        
+            //     if (deviceState.platform && this.state.platform)
+            //     {
+            //         if (deviceState.platform.uuid !== this.state.platform.uuid)
+            //         {
+            //             deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
+            //             deviceState.deviceMethod = (deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually");
+
+            //             if (deviceState.deviceMethod === "scanForDevices")
+            //             {
+            //                 deviceState.selectedProxyUuid = deviceState.bacnetProxies[0].uuid;
+            //             }
+
+            //             deviceState.scanning = false;
+
+            //             this.setState(deviceState);
+            //         }
+            //         else
+            //         {
+            //             this.setState({scanning: true});
+            //         }
+            //     }
+            // }
         }
     }, {
         key: '_onDeviceMethodChange',
@@ -2449,11 +2479,23 @@ var ConfigureDevices = function (_BaseComponent) {
             this.setState({ address: evt.target.value });
         }
     }, {
-        key: '_onWhoIs',
-        value: function _onWhoIs(evt) {
+        key: '_onStartScan',
+        value: function _onStartScan(evt) {
             devicesActionCreators.scanForDevices(this.state.platform.uuid, this.state.selectedProxyUuid, this.state.deviceStart, this.state.deviceEnd, this.state.address);
 
             this.setState({ scanning: true });
+            this.setState({ scanStarted: true });
+
+            if (this._scanTimeout) {
+                clearTimeout(this._scanTimeout);
+            }
+
+            this._scanTimeout = setTimeout(this._cancelScan, scanDuration);
+        }
+    }, {
+        key: '_onDevicesLoaded',
+        value: function _onDevicesLoaded(devicesLoaded) {
+            this.setState({ devicesLoaded: devicesLoaded });
         }
     }, {
         key: '_showCancel',
@@ -2687,7 +2729,6 @@ var ConfigureDevices = function (_BaseComponent) {
                         spinnerContent = _react2.default.createElement('i', { className: 'fa fa-cog fa-spin fa-2x fa-fw margin-bottom' });
                     }
 
-                    devicesContainer = _react2.default.createElement(_devicesFound2.default, { platform: this.state.platform });
                     scanButton = _react2.default.createElement(
                         'div',
                         { style: scanOptionsStyle },
@@ -2707,10 +2748,17 @@ var ConfigureDevices = function (_BaseComponent) {
                         { style: scanOptionsStyle },
                         _react2.default.createElement(
                             'button',
-                            { style: buttonStyle, onClick: this._onWhoIs },
+                            { style: buttonStyle, onClick: this._onStartScan },
                             'Go'
                         )
                     );
+                }
+
+                if (this.state.devicesLoaded || this.state.scanStarted) {
+                    devicesContainer = _react2.default.createElement(_devicesFound2.default, {
+                        devicesloaded: this._onDevicesLoaded,
+                        platform: this.state.platform,
+                        bacnet: this.state.selectedProxyUuid });
                 }
 
                 deviceContent = _react2.default.createElement(
@@ -2808,6 +2856,8 @@ function getInitialState() {
         }
 
         state.scanning = false;
+        state.devicesLoaded = false;
+        state.scanStarted = false;
         state.cancelButton = false;
     }
 
@@ -4886,7 +4936,7 @@ var DevicesFound = function (_BaseComponent) {
         _this._bind('_onStoresChange');
 
         _this.state = {};
-        _this.state.devices = devicesStore.getDevices(props.platform);
+        _this.state.devices = devicesStore.getDevices(props.platform, props.bacnet);
 
         if (socket) {
             socket.on('server:event', function (data) {
@@ -4899,45 +4949,38 @@ var DevicesFound = function (_BaseComponent) {
     _createClass(DevicesFound, [{
         key: 'componentDidMount',
         value: function componentDidMount() {
-            // platformsStore.addChangeListener(this._onStoresChange);
+            devicesStore.addChangeListener(this._onStoresChange);
         }
     }, {
         key: 'componentWillUnmount',
         value: function componentWillUnmount() {
-            // platformsStore.removeChangeListener(this._onStoresChange);
+            devicesStore.removeChangeListener(this._onStoresChange);
         }
     }, {
         key: '_onStoresChange',
         value: function _onStoresChange() {
-            this.setState({ devices: devicesStore.getDevices(this.props.platform) });
+            var devices = devicesStore.getDevices(this.props.platform, this.props.bacnet);
+            this.props.devicesloaded(devices.length > 0);
+            this.setState({ devices: devices });
         }
     }, {
         key: '_configureDevice',
         value: function _configureDevice(device) {
+
+            device.configuring = !device.configuring;
             devicesActionCreators.configureDevice(device);
         }
     }, {
         key: 'render',
         value: function render() {
 
-            var devices;
-            var ths;
-
+            var devicesContainer;
             if (this.state.devices.length) {
-                devices = this.state.devices.map(function (device) {
+                var devices = this.state.devices.map(function (device) {
 
-                    var buttonStyle = {
-                        height: "24px",
-                        lineHeight: "18px"
-                    };
+                    var deviceId = device.id;
 
-                    var deviceId;
-
-                    var tds = device.map(function (d, i) {
-                        if (d.key === "deviceId") {
-                            deviceId = "device-" + d.value;
-                        }
-
+                    var tds = device.items.map(function (d, i) {
                         return _react2.default.createElement(
                             'td',
                             { key: d.key + "-" + i, className: 'plain' },
@@ -4953,23 +4996,44 @@ var DevicesFound = function (_BaseComponent) {
                             'td',
                             { className: 'plain' },
                             _react2.default.createElement(
-                                'button',
-                                {
-                                    onClick: this._configureDevice.bind(this, device),
-                                    style: buttonStyle },
-                                'Configure'
+                                'div',
+                                { className: device.configuring ? "configure-arrow rotateConfigure" : "configure-arrow",
+                                    onClick: this._configureDevice.bind(this, device) },
+                                '◄'
                             )
                         )
                     );
                 }, this);
 
-                ths = this.state.devices[0].map(function (d, i) {
+                var ths = this.state.devices[0].items.map(function (d, i) {
                     return _react2.default.createElement(
                         'th',
                         { key: d.key + "-" + i + "-th", className: 'plain' },
                         d.label
                     );
                 });
+
+                devicesContainer = _react2.default.createElement(
+                    'table',
+                    null,
+                    _react2.default.createElement(
+                        'tbody',
+                        null,
+                        _react2.default.createElement(
+                            'tr',
+                            null,
+                            ths,
+                            _react2.default.createElement('th', { className: 'plain' })
+                        ),
+                        devices
+                    )
+                );
+            } else {
+                devicesContainer = _react2.default.createElement(
+                    'div',
+                    { className: 'no-devices' },
+                    'No devices have been detected ...'
+                );
             }
 
             return _react2.default.createElement(
@@ -4978,21 +5042,7 @@ var DevicesFound = function (_BaseComponent) {
                 _react2.default.createElement(
                     'div',
                     { className: 'devicesFoundBox' },
-                    _react2.default.createElement(
-                        'table',
-                        null,
-                        _react2.default.createElement(
-                            'tbody',
-                            null,
-                            _react2.default.createElement(
-                                'tr',
-                                null,
-                                ths,
-                                _react2.default.createElement('th', { className: 'plain' })
-                            ),
-                            devices
-                        )
-                    )
+                    devicesContainer
                 )
             );
         }
@@ -5002,12 +5052,6 @@ var DevicesFound = function (_BaseComponent) {
 }(_baseComponent2.default);
 
 ;
-
-function getStateFromStores(platform) {
-    return {
-        devices: devicesStore.getDevices(platform)
-    };
-}
 
 exports.default = DevicesFound;
 
@@ -8909,6 +8953,7 @@ var _registryFiles = {};
 var _backupFileName = {};
 var _platform;
 var _devices = [];
+var _newScan = false;
 
 var _placeHolders = [[{ "key": "Point_Name", "value": "", "editable": true }, { "key": "Volttron_Point_Name", "value": "" }, { "key": "Units", "value": "" }, { "key": "Units_Details", "value": "" }, { "key": "Writable", "value": "" }, { "key": "Starting_Value", "value": "" }, { "key": "Type", "value": "" }, { "key": "Notes", "value": "" }]];
 
@@ -8941,8 +8986,27 @@ devicesStore.getRegistryFile = function (device) {
     return _registryFiles.hasOwnProperty(device.deviceId) && _data.hasOwnProperty(device.deviceId) && _data[device.deviceId].length ? _registryFiles[device.deviceId] : "";
 };
 
-devicesStore.getDevices = function (platform) {
-    return _devices;
+devicesStore.getDevices = function (platform, bacnetUuid) {
+
+    var devices = [];
+
+    for (var key in _devices) {
+        if (_devices[key].platformUuid === platform.uuid && _devices[key].bacnetProxyUuid === bacnetUuid) {
+            devices.push(_devices[key]);
+        }
+    }
+
+    return JSON.parse(JSON.stringify(devices));
+};
+
+devicesStore.getDevice = function (deviceId) {
+
+    return JSON.parse(JSON.stringify(_devices[deviceId]));
+};
+
+devicesStore.getNewScan = function () {
+
+    return _newScan;
 };
 
 devicesStore.dispatchToken = dispatcher.register(function (action) {
@@ -8952,6 +9016,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.CONFIGURE_DEVICES:
             _platform = action.platform;
             _devices = [];
+            _newScan = true;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.ADD_DEVICES:
@@ -8968,8 +9033,23 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.LISTEN_FOR_IAMS:
-
-            _devices = [[{ key: "address", label: "Address", value: "Address 192.168.1.42" }, { key: "deviceId", label: "Device ID", value: "548" }, { key: "description", label: "Description", value: "Temperature sensor" }, { key: "vendorId", label: "Vendor ID", value: "18" }, { key: "vendor", label: "Vendor", value: "Siemens" }, { key: "type", label: "Type", value: "BACnet" }], [{ key: "address", label: "Address", value: "RemoteStation 1002:11" }, { key: "deviceId", label: "Device ID", value: "33" }, { key: "description", label: "Description", value: "Actuator 3-pt for zone control" }, { key: "vendorId", label: "Vendor ID", value: "12" }, { key: "vendor", label: "Vendor", value: "Alerton" }, { key: "type", label: "Type", value: "BACnet" }]];
+            _newScan = false;
+            _devices = {
+                "548": {
+                    configuring: false,
+                    platformUuid: action.platformUuid,
+                    bacnetProxyUuid: action.bacnetProxyUuid,
+                    id: "548",
+                    items: [{ key: "address", label: "Address", value: "Address 192.168.1.42" }, { key: "deviceId", label: "Device ID", value: "548" }, { key: "description", label: "Description", value: "Temperature sensor" }, { key: "vendorId", label: "Vendor ID", value: "18" }, { key: "vendor", label: "Vendor", value: "Siemens" }, { key: "type", label: "Type", value: "BACnet" }]
+                },
+                "33": {
+                    configuring: false,
+                    platformUuid: action.platformUuid,
+                    bacnetProxyUuid: action.bacnetProxyUuid,
+                    id: "33",
+                    items: [{ key: "address", label: "Address", value: "RemoteStation 1002:11" }, { key: "deviceId", label: "Device ID", value: "33" }, { key: "description", label: "Description", value: "Actuator 3-pt for zone control" }, { key: "vendorId", label: "Vendor ID", value: "12" }, { key: "vendor", label: "Vendor", value: "Alerton" }, { key: "type", label: "Type", value: "BACnet" }]
+                }
+            };
 
             devicesStore.emitChange();
             break;
@@ -8982,7 +9062,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.CONFIGURE_DEVICE:
             _action = "configure_device";
             _view = "Configure Device";
-            _device = action.device;
+            _devices[action.device.id] = action.device;
             devicesStore.emitChange();
         case ACTION_TYPES.CANCEL_REGISTRY:
             _action = "configure_device";

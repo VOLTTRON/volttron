@@ -14,7 +14,7 @@ class DevicesFound extends BaseComponent {
         this._bind('_onStoresChange');
 
         this.state = {};
-        this.state.devices = devicesStore.getDevices(props.platform);
+        this.state.devices = devicesStore.getDevices(props.platform, props.bacnet);
 
         if (socket)
         {
@@ -24,40 +24,32 @@ class DevicesFound extends BaseComponent {
         }
     }
     componentDidMount() {
-        // platformsStore.addChangeListener(this._onStoresChange);
+        devicesStore.addChangeListener(this._onStoresChange);
     }
     componentWillUnmount() {
-        // platformsStore.removeChangeListener(this._onStoresChange);
+        devicesStore.removeChangeListener(this._onStoresChange);
     }
     _onStoresChange() {
-        this.setState({devices: devicesStore.getDevices(this.props.platform)});
+        var devices = devicesStore.getDevices(this.props.platform, this.props.bacnet);
+        this.props.devicesloaded(devices.length > 0);
+        this.setState({devices: devices});
     }
     _configureDevice(device) {
+
+        device.configuring = !device.configuring;
         devicesActionCreators.configureDevice(device);
     }
     render() {        
         
-        var devices;
-        var ths;
-
+        var devicesContainer;
         if (this.state.devices.length)
         {
-            devices = 
+            var devices = 
                 this.state.devices.map(function (device) {
 
-                    var buttonStyle = {
-                        height: "24px",
-                        lineHeight: "18px"
-                    }
+                    var deviceId = device.id;
 
-                    var deviceId;
-
-                    var tds = device.map(function (d, i) {
-                            if (d.key === "deviceId")
-                            {
-                                deviceId = "device-" + d.value;
-                            }
-
+                    var tds = device.items.map(function (d, i) {
                             return (<td key={d.key + "-" + i} className="plain">{ d.value }</td>)
                         });
 
@@ -66,42 +58,45 @@ class DevicesFound extends BaseComponent {
                             { tds }
 
                             <td className="plain">
-                                <button 
-                                    onClick={this._configureDevice.bind(this, device)}
-                                    style={buttonStyle}>Configure</button>
+                                <div className={ device.configuring ? "configure-arrow rotateConfigure" : "configure-arrow" }
+                                    onClick={this._configureDevice.bind(this, device)}>
+                                        &#9668;
+                                </div>
                             </td>
                         </tr>
                     );
 
                 }, this); 
 
-            ths = this.state.devices[0].map(function (d, i) {
+            var ths = this.state.devices[0].items.map(function (d, i) {
                             return (<th key={d.key + "-" + i + "-th"} className="plain">{d.label}</th>); 
-                        });    
+                        }); 
+
+            devicesContainer = (
+                <table>
+                    <tbody>
+                        <tr>
+                            { ths }
+                            <th className="plain"></th>
+                        </tr>
+                        {devices}
+                    </tbody>
+                </table>
+            );   
+        }
+        else
+        {
+            devicesContainer = <div className="no-devices">No devices have been detected ...</div>;
         }
 
         return (
             <div className="devicesFoundContainer">
                 <div className="devicesFoundBox">
-                    <table>
-                        <tbody>
-                            <tr>
-                                { ths }
-                                <th className="plain"></th>
-                            </tr>
-                            {devices}
-                        </tbody>
-                    </table>
+                    {devicesContainer}
                 </div>
             </div>
         );
     }
 };
-
-function getStateFromStores(platform) {
-    return {
-        devices: devicesStore.getDevices(platform)
-    };
-}
 
 export default DevicesFound;

@@ -96,10 +96,13 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
 
     }.bind(this));
 
-    devicesStore.addChangeListener(function () {        
-        if (!this.router.isActive('configure'))
+    devicesStore.addChangeListener(function () { 
+        if (devicesStore.getNewScan())       
         {
-            this.router.push('/configure-devices');
+            if (!this.router.isActive('configure-devices'))
+            {
+                this.router.push('/configure-devices');
+            }
         }
     }.bind(this));
 });

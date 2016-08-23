@@ -574,6 +574,27 @@ br + .form__control-help {
     100% { transform: rotate(-1deg) translateX(-1px);}
 }
 
+.configure-arrow {
+    color: gray;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 16px;
+    display: inline-block;
+    width: 16px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.rotateConfigure{
+    animation: arrow-down-from-left .1s;
+    animation-fill-mode: forwards;
+}
+
+@keyframes arrow-down-from-left { 
+    from {transform: rotate(0deg); } 
+    to {transform: rotate(-90deg); } 
+} 
+
 .showItems {
     /*-webkit-animation: agent-reveal 1s;
     animation: agent-reveal 1s;
@@ -2232,6 +2253,10 @@ td.plain {
     clear: both;
 }
 
+.device-scan {
+    margin-bottom: 0px;
+}
+
 .detectDevicesContainer {
     width: 450px;
 }
@@ -2245,10 +2270,31 @@ td.plain {
 }
 
 .devicesFoundBox {    
-    padding: 60px 0px;
+    padding: 10px 0px;
     margin-top: 20px;
     margin-bottom: 20px;
-    border: 1px solid black;
+    background-color: #F0F0F0;
+}
+
+.devicesFoundBox > table > tbody > tr {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    cursor: default;
+}
+
+.devicesFoundBox > table > tbody > tr > td:last-child {
+    padding-right: 0px;
+}
+
+.no-devices {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 0.3333rem;
+    background-color: #fff;
 }
 
 /*.configDeviceBox {    
