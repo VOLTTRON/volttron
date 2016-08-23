@@ -1,6 +1,3 @@
 {
-    "devices/fakedriver0/all": {
-        "temperature": 60,
-        "PowerState": 60
-    }
+    "devices/fakedriver0/all": 90
 }

@@ -61,9 +61,7 @@ import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
 
 ALERT_CONFIG = {
-    "fakedevice": {
-        "point": 5,
-    }
+    "fakedevice": 5
 }
 
 alert_seen = False

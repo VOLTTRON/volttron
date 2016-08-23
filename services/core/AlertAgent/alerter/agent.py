@@ -56,6 +56,7 @@
 # }}}
 
 import logging
+from datetime import datetime
 
 from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
@@ -72,18 +73,13 @@ class AlertAgent(Agent):
         super(AlertAgent, self).__init__(**kwargs)
         config = utils.load_config(config_path)
         self.wait_time = {}
-        self.point_ttl = {}
+        self.topic_ttl = {}
 
-        for device, points in config.iteritems():
-            self.wait_time[device] = {}
-            self.point_ttl[device] = {}
-
-            for point in points:
-                seconds = config[device][point]
-                self.wait_time[device][point] = seconds
-                self.point_ttl[device][point] = seconds
-                _log.debug("Expecting {}({}) every {} seconds"
-                           .format(device, point, seconds))
+        for topic, seconds in config.iteritems():
+            self.wait_time[topic] = seconds
+            self.topic_ttl[topic] = seconds
+            _log.debug("Expecting {} every {} seconds"
+                       .format(topic, seconds))
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
@@ -93,28 +89,22 @@ class AlertAgent(Agent):
                                       callback=self.reset_time)
 
     def reset_time(self, peer, sender, bus, topic, headers, message):
-        received_points = set(message[0].keys())
-        expected_points = self.wait_time[topic].keys()
-        for point in expected_points:
-            if point in received_points:
-                self.point_ttl[topic][point] = self.wait_time[topic][point]
-                _log.debug("Resetting timeout for {}({})".format(topic, point))
+        try:
+            self.topic_ttl[topic] = self.wait_time[topic]
+            _log.debug("Resetting timeout for {}".format(topic))
+        except KeyError:
+            pass
 
     @Core.periodic(1)
     def decrement_ttl(self):
-        devices = self.wait_time.keys()
-        for d in devices:
-            points = self.wait_time[d]
+        for topic in self.wait_time.iterkeys():
+            self.topic_ttl[topic] -= 1
+            if self.topic_ttl[topic] <= 0:
+                self.send_alert(topic)
 
-            for p in points:
-                self.point_ttl[d][p] -= 1
-
-                if self.point_ttl[d][p] == 0:
-                    self.send_alert(d, p)
-
-    def send_alert(self, device, point):
-        alert_key = "Timeout:{}({})".format(device, point)
-        context = "{}({}) not published within time limit".format(device, point)
+    def send_alert(self, device):
+        alert_key = "Timeout:{}".format(device)
+        context = "{} not published within time limit".format(device)
         status = Status.build(STATUS_BAD, context=context)
         self.vip.health.send_alert(alert_key, status)
 
