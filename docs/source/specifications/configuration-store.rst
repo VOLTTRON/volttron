@@ -8,7 +8,7 @@ The configuration store enables users to store agent configurations on the platf
 Compatibility
 -------------
 
-The supporting the configuration store will not be required by Agents going forward, but will be strongly encouraged as it should substantially improve the users experience.
+Supporting the configuration store will not be required by Agents going forward, but will be strongly encouraged as it should substantially improve the users experience.
 
 The previous method for configuring an agent will still be available to agents (and in some cases required). However agents can be created to only work with the configuration store and not support the old method at all.
 
@@ -25,7 +25,7 @@ The canonical name for the main agent configuration is "config".
 Configuration Ownership
 -----------------------
 
-Each configuration belongs to one agent and one agent only. When an agent refers to a configuration file via it's path it does not need to supply any information about its identity to the platform in the file path. The only configurations an agent has direct access to are it's own.
+Each configuration belongs to one agent and one agent only. When an agent refers to a configuration file via it's path it does not need to supply any information about its identity to the platform in the file path. The only configurations an agent has direct access to are it's own. The platform will only inform the owning agent of any configuration changes.
 
 
 Configuration File Types
@@ -242,4 +242,4 @@ manage_get_config( identity, config_name, raw=True ) - Get the contents of a con
 Command Line Interface
 **********************
 
-The command line interface will consist of a new commands for the volttron-ctl program called "config" with four sub-commands called "store", "delete", "list", "get". These commands will map directly to the management RPC function in the previous section.
+The command line interface will consist of a new commands for the volttron-ctl program called "config" with four sub-commands called "store", "delete", "list", "get". These commands will map directly to the management RPC functions in the previous section.
