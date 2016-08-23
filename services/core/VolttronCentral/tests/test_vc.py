@@ -171,4 +171,3 @@ def onmessage(self, peer, sender, bus, topic, headers, message):
     # peers = agent.vip.peerlist().get(timeout=2)
     # assert "volttron.central" in peers
 
-
