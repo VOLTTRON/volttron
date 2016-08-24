@@ -220,13 +220,11 @@ Methods for Agents
 
 Agent methods that change configurations do not trigger any callbacks unless trigger_callback is True.
 
-set_config( config_name, contents, trigger_callback=False ) - Change/create a configuration file on the platform.
+set( config_name, contents, trigger_callback=False ) - Change/create a configuration file on the platform.
 
 get_configs( ) - Get all of the configurations for an Agent.
 
-delete_config( config_name, trigger_callback=False ) - Delete a configuration.
-
-list_config() - Get a list of configurations for the agent.
+delete( config_name, trigger_callback=False ) - Delete a configuration.
 
 Methods for Management
 ++++++++++++++++++++++
