@@ -131,11 +131,14 @@ class AlertAgent(Agent):
                 self.send_alert(topic)
 
             # Send an alert if a point hasn't been seen
-            points = self.point_ttl[topic].keys()
-            for p in points:
-                self.point_ttl[topic][p] -= 1
-                if self.point_ttl[topic][p] <= 0:
-                    self.send_alert(topic, p)
+            try:
+                points = self.point_ttl[topic].keys()
+                for p in points:
+                    self.point_ttl[topic][p] -= 1
+                    if self.point_ttl[topic][p] <= 0:
+                        self.send_alert(topic, p)
+            except KeyError:
+                pass
 
     def send_alert(self, device, point=None):
         if point is not None:
