@@ -586,7 +586,7 @@ br + .form__control-help {
 }
 
 .rotateConfigure{
-    animation: arrow-down-from-left .1s;
+    animation: arrow-down-from-right .1s;
     animation-fill-mode: forwards;
 }
 
@@ -796,6 +796,10 @@ br + .form__control-help {
 
 .fa-cogs:before {
   content: "\f085";
+}
+
+.fa-file:before {
+    content: "\f15b";
 }
 
 .fa-filter:before {
@@ -2350,6 +2354,15 @@ td.buffer_row {
     cursor: pointer;
 }
 
+.fileButton {
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    height: 20px;
+    width: 20px;
+    text-align: center;
+}
+
 .buttonWrapper {
     position: relative;
     cursor: pointer;
@@ -2362,6 +2375,6 @@ td.buffer_row {
     border: 2px outset buttonface;
 }
 
-.buttonWrapper > div {
+.buttonWrapper, .fileButton > div {
     line-height: 20px;
 }

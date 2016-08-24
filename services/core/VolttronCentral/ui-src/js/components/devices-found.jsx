@@ -3,15 +3,18 @@
 import React from 'react';
 import io from 'socket';
 import BaseComponent from './base-component';
+import DeviceConfiguration from './device-configuration';
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
+var modalActionCreators = require('../action-creators/modal-action-creators');
 var devicesStore = require('../stores/devices-store');
 let socket = io('https://localhost:3000');
+var CsvParse = require('babyparse');
 
 class DevicesFound extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind('_onStoresChange');
+        this._bind('_onStoresChange', '_uploadRegistryFile');
 
         this.state = {};
         this.state.devices = devicesStore.getDevices(props.platform, props.bacnet);
@@ -39,6 +42,80 @@ class DevicesFound extends BaseComponent {
         device.configuring = !device.configuring;
         devicesActionCreators.configureDevice(device);
     }
+    _uploadRegistryFile(evt) {
+
+        var csvFile = evt.target.files[0];
+
+        if (!csvFile)
+        {
+            return;
+        }
+
+        var deviceId = evt.target.dataset.key;
+        var device = this.state.devices.find(function (device) {
+            return device.id === deviceId;
+        });
+
+        if (device)
+        {
+            var fileName = evt.target.value;        
+
+            var reader = new FileReader();
+
+            reader.onload = function (e) {
+
+                var contents = e.target.result;
+
+                var results = parseCsvFile(contents);
+
+                if (results.errors.length)
+                {
+                    var errorMsg = "The file wasn't in a valid CSV format.";
+
+                    modalActionCreators.openModal(
+                        <ConfirmForm
+                            promptTitle="Error Reading File"
+                            promptText={ errorMsg }
+                            cancelText="OK"
+                        ></ConfirmForm>
+                    );
+
+                    // this.setState({registry_config: this.state.registry_config});
+                }
+                else 
+                {
+                    if (results.warnings.length)
+                    {    
+                        var warningMsg = results.warnings.map(function (warning) {
+                                    return warning.message;
+                                });                
+
+                        modalActionCreators.openModal(
+                            <ConfirmForm
+                                promptTitle="File Upload Notes"
+                                promptText={ warningMsg }
+                                cancelText="OK"
+                            ></ConfirmForm>
+                        );
+                    }
+
+                    if (!results.meta.aborted)            
+                    {
+                        // this.setState({registry_config: fileName});       
+                        devicesActionCreators.loadRegistry(device, results.data, fileName);
+                        console.log(JSON.stringify(results.data));
+                    }
+                }
+
+            }.bind(this)
+
+            reader.readAsText(csvFile); 
+        }
+        else
+        {
+            alert("Couldn't find device by ID " + deviceId);
+        }               
+    }
     render() {        
         
         var devicesContainer;
@@ -55,12 +132,23 @@ class DevicesFound extends BaseComponent {
 
                     return (
                         <tr key={deviceId}>
-                            { tds }
-
-                            <td className="plain">
+                            <td key={"config-arrow-" + deviceId} className="plain">
                                 <div className={ device.configuring ? "configure-arrow rotateConfigure" : "configure-arrow" }
                                     onClick={this._configureDevice.bind(this, device)}>
-                                        &#9668;
+                                        &#9654;
+                                </div>
+                            </td>
+
+                            { tds }
+
+                            <td key={"file-upload-" + deviceId} className="plain">
+                                <div className="fileButton">
+                                    <div><i className="fa fa-file"></i></div>
+                                    <input 
+                                        className="uploadButton" 
+                                        type="file"
+                                        data-key={deviceId}
+                                        onChange={this._uploadRegistryFile}/>
                                 </div>
                             </td>
                         </tr>
@@ -72,10 +160,37 @@ class DevicesFound extends BaseComponent {
                             return (<th key={d.key + "-" + i + "-th"} className="plain">{d.label}</th>); 
                         }); 
 
+            if (devices.length)
+            {
+                for (var i = devices.length - 1; i >= 0; i--)
+                {
+                    var device = this.state.devices.find(function (dev) {
+                        return dev.id === devices[i].key;
+                    });
+
+                    if (device) {
+                        if (device.registryConfig.length > 0)
+                        {
+                            var deviceConfiguration = (
+                                <tr key={"config-" + device.id}>
+                                    <td colSpan={7}>
+                                        <DeviceConfiguration device={device}/>
+                                    </td>
+                                </tr>
+                            );
+
+                            devices.splice(i, 0, deviceConfiguration);
+                        }
+                    }
+
+                }
+            }
+
             devicesContainer = (
                 <table>
                     <tbody>
                         <tr>
+                            <th className="plain"></th>
                             { ths }
                             <th className="plain"></th>
                         </tr>
@@ -98,5 +213,71 @@ class DevicesFound extends BaseComponent {
         );
     }
 };
+
+var parseCsvFile = (contents) => {
+
+    var results = CsvParse.parse(contents);
+
+    var registryValues = [];
+
+    var header = [];
+
+    var data = results.data;
+
+    results.warnings = [];
+
+    if (data.length)
+    {
+        header = data.slice(0, 1);
+    }
+
+    var template = [];
+
+    if (header[0].length)
+    {
+        header[0].forEach(function (column) {
+            template.push({ "key": column.replace(/ /g, "_"), "value": null, "label": column });
+        });
+
+        var templateLength = template.length;
+
+        if (data.length > 1)
+        {
+            var rows = data.slice(1);
+
+            var rowsCount = rows.length;
+
+            rows.forEach(function (r, num) {
+
+                if ((r.length !== templateLength) && (num !== (rowsCount - 1)))
+                {
+                    results.warnings.push({ message: "Row " +  num + " was omitted for having the wrong number of columns."});
+                }
+                else
+                {
+                    var newTemplate = JSON.parse(JSON.stringify(template));
+
+                    var newRow = [];
+
+                    r.forEach( function (value, i) {
+                        newTemplate[i].value = value;
+
+                        newRow.push(newTemplate[i]);
+                    });
+
+                    registryValues.push(newRow);
+                }
+            });
+        }
+        else
+        {
+            registryValues = template;
+        }
+    }
+
+    results.data = registryValues;
+
+    return results;
+}
 
 export default DevicesFound;

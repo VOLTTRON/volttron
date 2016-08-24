@@ -122,6 +122,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     configuring: false,
                     platformUuid: action.platformUuid,
                     bacnetProxyUuid: action.bacnetProxyUuid,
+                    registryConfig: [],
                     id: "548",
                     items: [ 
                         { key: "address", label: "Address", value: "Address 192.168.1.42" }, 
@@ -136,6 +137,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     configuring: false,
                     platformUuid: action.platformUuid,
                     bacnetProxyUuid: action.bacnetProxyUuid,
+                    registryConfig: [],
                     id: "33",
                     items: [ 
                         { key: "address", label: "Address", value: "RemoteStation 1002:11" }, 
@@ -173,10 +175,11 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _action = "configure_registry";
             _view = "Registry Configuration";
             _device = action.device;
-            _backupData[_device.deviceId] = (_data.hasOwnProperty(_device.deviceId) ? JSON.parse(JSON.stringify(_data[_device.deviceId])) : []);
-            _backupFileName[_device.deviceId] = (_registryFiles.hasOwnProperty(_device.deviceId) ? _registryFiles[_device.deviceId] : "");
-            _data[_device.deviceId] = JSON.parse(JSON.stringify(action.data));
-            _registryFiles[_device.deviceId] = action.file;             
+            _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
+            _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
+            _data[_device.id] = JSON.parse(JSON.stringify(action.data));
+            _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
+            _registryFiles[_device.id] = action.file;             
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.EDIT_REGISTRY:
