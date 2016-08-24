@@ -58,6 +58,7 @@
 from __future__ import absolute_import, print_function
 
 from contextlib import contextmanager
+from datetime import datetime
 from errno import ENOENT
 import heapq
 import inspect
@@ -67,10 +68,12 @@ import sys
 import threading
 import time
 import urlparse
+import uuid
 
 import gevent.event
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN
+from zmq.utils import jsonapi as json
 from zmq.utils.monitor import recv_monitor_message
 
 from .decorators import annotate, annotations, dualmethod
@@ -79,6 +82,8 @@ from .errors import VIPError
 from .. import green as vip
 from .. import router
 from .... import platform
+from volttron.platform.keystore import KeyStore
+from volttron.platform.agent import utils
 
 
 __all__ = ['BasicCore', 'Core', 'killing']
@@ -168,6 +173,9 @@ def findsignal(obj, owner, name):
 
 
 class BasicCore(object):
+    delay_onstart_signal = False
+    delay_running_event_set = False
+
     def __init__(self, owner):
         self.greenlet = None
         self._async = None
@@ -190,6 +198,7 @@ class BasicCore(object):
             return
         del self._owner
         periodics = []
+
         def setup(member):   # pylint: disable=redefined-outer-name
             periodics.extend(
                 periodic.get(member) for periodic in annotations(
@@ -210,7 +219,7 @@ class BasicCore(object):
             del periodics[:]
         self.onstart.connect(start_periodics)
 
-    def loop(self):
+    def loop(self, running_event):
         # pre-setup
         yield
         # pre-start
@@ -219,6 +228,11 @@ class BasicCore(object):
         yield
         # pre-finish
         yield
+
+    def link_receiver(self, receiver, sender, **kwargs):
+        greenlet = gevent.spawn(receiver, sender, **kwargs)
+        self.greenlet.link(lambda glt: greenlet.kill())
+        return greenlet
 
     def run(self, running_event=None):   # pylint: disable=method-hidden
         '''Entry point for running agent.'''
@@ -253,18 +267,13 @@ class BasicCore(object):
                     greenlet = gevent.spawn(callback)
                     cur.link(lambda glt: greenlet.kill())
 
-        def link_receiver(receiver, sender, **kwargs):
-            greenlet = gevent.spawn(receiver, sender, **kwargs)
-            current.link(lambda glt: greenlet.kill())
-            return greenlet
-
         self._stop_event = stop = gevent.event.Event()
         self._schedule_event = gevent.event.Event()
         self._async = gevent.get_hub().loop.async()
         self._async.start(handle_async)
         current.link(lambda glt: self._async.stop())
 
-        looper = self.loop()
+        looper = self.loop(running_event)
         looper.next()
         self.onsetup.send(self)
 
@@ -274,10 +283,11 @@ class BasicCore(object):
         scheduler = gevent.spawn(schedule_loop)
         if loop:
             loop.link(lambda glt: scheduler.kill())
-        self.onstart.sendby(link_receiver, self)
-        if running_event:
-            running_event.set()
-            del running_event
+        if not self.delay_onstart_signal:
+            self.onstart.sendby(self.link_receiver, self)
+        if not self.delay_running_event_set:
+            if running_event is not None:
+                running_event.set()
         try:
             if loop and loop in gevent.wait([loop, stop], count=1):
                 raise RuntimeError('VIP loop ended prematurely')
@@ -286,7 +296,7 @@ class BasicCore(object):
             pass
         scheduler.kill()
         looper.next()
-        receivers = self.onstop.sendby(link_receiver, self)
+        receivers = self.onstop.sendby(self.link_receiver, self)
         gevent.wait(receivers)
         looper.next()
         self.onfinish.send(self)
@@ -308,6 +318,7 @@ class BasicCore(object):
         result = gevent.event.AsyncResult()
         async = result.hub.loop.async()
         results = [None, None]
+
         def receiver():
             async.stop()
             exc, value = results
@@ -316,6 +327,7 @@ class BasicCore(object):
             else:
                 result.set_exception(exc)
         async.start(receiver)
+
         def worker():
             try:
                 results[:] = [None, func(*args, **kwargs)]
@@ -339,6 +351,7 @@ class BasicCore(object):
 
     def spawn_in_thread(self, func, *args, **kwargs):
         result = gevent.event.AsyncResult()
+
         def wrapper():
             try:
                 self.send(result.set, func(*args, **kwargs))
@@ -370,7 +383,8 @@ class BasicCore(object):
     @dualmethod
     def schedule(self, deadline, func, *args, **kwargs):
         if hasattr(deadline, 'timetuple'):
-            deadline = time.mktime(deadline.timetuple())
+            #deadline = time.mktime(deadline.timetuple())
+            deadline = utils.get_utc_seconds_from_epoch(deadline)
         event = ScheduledEvent(func, args, kwargs)
         heapq.heappush(self._schedule, (deadline, event))
         self._schedule_event.set()
@@ -379,7 +393,9 @@ class BasicCore(object):
     @schedule.classmethod
     def schedule(cls, deadline, *args, **kwargs):   # pylint: disable=no-self-argument
         if hasattr(deadline, 'timetuple'):
-            deadline = time.mktime(deadline.timetuple())
+            #deadline = time.mktime(deadline.timetuple())
+            deadline = utils.get_utc_seconds_from_epoch(deadline)
+
         def decorate(method):
             annotate(method, list, 'core.schedule', (deadline, args, kwargs))
             return method
@@ -387,6 +403,15 @@ class BasicCore(object):
 
 
 class Core(BasicCore):
+    #We want to delay the calling of "onstart" methods until we have confirmation
+    # from the server that we have a connection. We will fire the event when
+    # we hear the response to the hello message.
+    delay_onstart_signal = True
+
+    # Agents started before the router can set this variable
+    # to false to keep from blocking. AuthService does this.
+    delay_running_event_set = True
+
     def __init__(self, owner, address=None, identity=None, context=None,
                  publickey=None, secretkey=None, serverkey=None):
         if not address:
@@ -403,10 +428,26 @@ class Core(BasicCore):
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
-        self._add_keys_to_addr(publickey, secretkey, serverkey)
+        self.identity = str(identity) if identity is not None else str(uuid.uuid4())
+        self.agent_uuid = os.environ.get('AGENT_UUID', None)
+
+        # The public and secret keys are obtained by:
+        # 1. publickkey and secretkey parameters to __init__
+        # 2. in the query string of the address parameter to __init__
+        # 3. from the agent's keystore
+
+        if publickey is None or secretkey is None:
+            publickey, secretkey = self._get_keys()
+        if publickey and secretkey and serverkey:
+            self._add_keys_to_addr(publickey, secretkey, serverkey)
+
+        if publickey is None:
+            _log.debug('publickey is None')
+        if secretkey is None:
+            _log.debug('secretkey is None')
+
         self.publickey = publickey
         self.secretkey = secretkey
-        self.identity = identity
         self.socket = None
         self.subsystems = {'error': self.handle_error}
         self.__connected = False
@@ -427,7 +468,41 @@ class Core(BasicCore):
             url[3] += add_param(url[3], 'publickey', publickey)
             url[3] += add_param(url[3], 'secretkey', secretkey)
             url[3] += add_param(url[3], 'serverkey', serverkey)
-            self.address = urlparse.urlunsplit(url)
+            self.address = str(urlparse.urlunsplit(url))
+
+    def _get_keys(self):
+        publickey, secretkey, _ = self._get_keys_from_addr()
+        if not publickey or not secretkey:
+            publickey, secretkey = self._get_keys_from_keystore()
+        return publickey, secretkey
+
+    def _get_keys_from_keystore(self):
+        '''Returns agent's public and secret key from keystore'''
+        if self.agent_uuid:
+            # this is an installed agent
+            keystore_dir = os.curdir
+        elif self.identity:
+            if not os.environ.get('VOLTTRON_HOME'):
+                raise ValueError('VOLTTRON_HOME must be specified.')
+            keystore_dir = os.path.join(
+                os.environ.get('VOLTTRON_HOME'), 'keystores',
+                self.identity)
+            if not os.path.exists(keystore_dir):
+                os.makedirs(keystore_dir)
+        else:
+            # the agent is not installed and its identity was not set
+            return None, None
+        keystore_path = os.path.join(keystore_dir, 'keystore.json')
+        keystore = KeyStore(keystore_path)
+        return keystore.public(), keystore.secret()
+
+    def _get_keys_from_addr(self):
+        url = list(urlparse.urlsplit(self.address))
+        query = urlparse.parse_qs(url[3])
+        publickey = query.get('publickey', None)
+        secretkey = query.get('secretkey', None)
+        serverkey = query.get('serverkey', None)
+        return publickey, secretkey, serverkey
 
     @property
     def connected(self):
@@ -449,7 +524,7 @@ class Core(BasicCore):
             error = VIPError.from_errno(*args)
             self.onviperror.send(self, error=error, message=message)
 
-    def loop(self):
+    def loop(self, running_event):
         # pre-setup
         self.socket = vip.Socket(self.context)
         if self.identity:
@@ -458,11 +533,33 @@ class Core(BasicCore):
 
         # pre-start
         state = type('HelloState', (), {'count': 0, 'ident': None})
+
+        hello_response_event = gevent.event.Event()
+
+        def connection_failed_check():
+            # If we don't have a verified connection after 10.0 seconds shut down.
+            if hello_response_event.wait(10.0):
+                return
+            _log.error("No response to hello message after 10 seconds.")
+            _log.error("A common reason for this is a conflicting VIP IDENTITY.")
+            _log.error("Shutting down agent.")
+            self.stop(timeout=5.0)
+
         def hello():
             state.ident = ident = b'connect.hello.%d' % state.count
             state.count += 1
+            self.spawn(connection_failed_check)
             self.spawn(self.socket.send_vip,
                        b'', b'hello', [b'hello'], msg_id=ident)
+
+        def hello_response(sender, version='',
+                           router='', identity=''):
+            _log.info("Connected to platform: router: {} version: {} identity: {}".format(router, version, identity))
+            _log.debug("Running onstart methods.")
+            hello_response_event.set()
+            self.onstart.sendby(self.link_receiver, self)
+            if running_event is not None:
+                running_event.set()
 
         def monitor():
             # Call socket.monitor() directly rather than use
@@ -485,6 +582,8 @@ class Core(BasicCore):
                         self.ondisconnected.send(self)
             finally:
                 self.socket.monitor(None, 0)
+
+        self.onconnected.connect(hello_response)
 
         if self.address[:4] in ['tcp:', 'ipc:']:
             self.spawn(monitor).join(0)

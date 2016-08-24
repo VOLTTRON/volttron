@@ -1,3 +1,5 @@
+.. _Agent-Development-Cheatsheet:
+
 =============================
 Agent Development Cheat Sheet
 =============================
@@ -174,6 +176,11 @@ Agent Skeleton
         def my_method(self):
             pass
     
+    def main():
+        utils.vip_main(MyAgent)
     
     if __name__ == '__main__':
-        utils.vip_main(MyAgent)
+        try:
+            main()
+        except KeyboardInterrupt:
+            pass

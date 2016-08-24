@@ -167,8 +167,8 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
             '''Download the virtualenv tarball into directory.'''
             if self.version is None:
                 self.get_version()
-            url = ('https://pypi.python.org/packages/source/v/virtualenv/'
-                   'virtualenv-{}.tar.gz'.format(self.version))
+            url = ('https://github.com/pypa/virtualenv/archive/'
+                   '{}.tar.gz'.format(self.version))
             _log.info('Downloading virtualenv %s', self.version)
             tarball = os.path.join(directory, 'virtualenv.tar.gz')
             with contextlib.closing(self._fetch(url)) as response:

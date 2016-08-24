@@ -3,19 +3,13 @@
 var React = require('react');
 var Router = require('react-router');
 
-var loginFormStore = require('../stores/login-form-store');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var LoginForm = React.createClass({
-    getInitialState: getStateFromStores,
-    componentDidMount: function () {
-        loginFormStore.addChangeListener(this._onStoresChange);
-    },
-    componentWillUnmount: function () {
-        loginFormStore.removeChangeListener(this._onStoresChange);
-    },
-    _onStoresChange: function () {
-        this.setState(getStateFromStores());
+    getInitialState: function () {
+        var state = {};
+
+        return state;
     },
     _onUsernameChange: function (e) {
         this.setState({
@@ -58,18 +52,9 @@ var LoginForm = React.createClass({
                     value="Log in"
                     disabled={!this.state.username || !this.state.password}
                 />
-                {this.state.error ? (
-                    <span className="login-form__error error">
-                        {this.state.error.message} ({this.state.error.code})
-                    </span>
-                ) : null }
             </form>
         );
     }
 });
-
-function getStateFromStores() {
-    return { error: loginFormStore.getLastError() };
-}
 
 module.exports = LoginForm;

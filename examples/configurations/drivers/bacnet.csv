@@ -48,7 +48,6 @@ Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Wr
 2400Stevens/FCB.Local Application.PFRESTART-TIME,PreStartTimer,seconds,No limits. (default 60.0),analogValue,presentValue,FALSE,3000176,
 2400Stevens/FCB.Local Application.UNOCC-SATTIME,UnoccupiedSATTIME,seconds,No limits. (default 30.0),analogValue,presentValue,FALSE,3000181,TODO: Figure this out.
 2400Stevens/FCB.Local Application.OCCMODE-BYPASSTIME,OccupiedModeBypassTimer,seconds,No limits. (default 3600.0),analogValue,presentValue,FALSE,3000184,
-2400Stevens/FCB.Local Application.OA-T,OutdoorAirTemperature,noUnits,No limits. (default 72.0),analogValue,presentValue,FALSE,3000187,TODO: Should this be writable?
 2400Stevens/FCB.Local Application.LT-A,LowTemperatureAlarm,Enum,0-1,binaryInput,presentValue,FALSE,3000115,"BinaryPV: 0=inactive, 1=active"
 2400Stevens/FCB.Local Application.RF-S,ReturnFanStatus,Enum,0-1,binaryInput,presentValue,FALSE,3000123,"BinaryPV: 0=inactive, 1=active"
 2400Stevens/FCB.Local Application.SF-S,SupplyFanStatus,Enum,0-1,binaryInput,presentValue,FALSE,3000126,"BinaryPV: 0=inactive, 1=active"

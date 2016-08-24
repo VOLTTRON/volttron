@@ -1,3 +1,5 @@
+.. _Historian-Topic-Syntax:
+
 Historian Topic Syntax
 ======================
 

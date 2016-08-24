@@ -17,7 +17,7 @@ function usage {
       printf "\n   -s setup admin user and test collection after install and startup"
       printf "\n   -d download url. defaults to https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.2.4.tgz"
       printf "\n   -i install_dir. defaults to current_dir/mongo_install"
-      printf "\n   -c config file to be used for mongodb startup."
+      printf "\n   -c config file to be used for mongodb startup. Defaults to default_mongodb.conf in the same directory as this script"
       printf "\n      Any datapath mentioned in the config file should already exist and should have write access to the current user"
       printf "\n   -h print this help message\n"
 
