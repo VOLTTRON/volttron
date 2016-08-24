@@ -3,14 +3,8 @@ import uuid
 from contextlib import closing
 import json
 import logging
-
-from requests.packages.urllib3.connection import ConnectionError
-from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.vip.connection import Connection
-
-import requests
-
 import os
+from os.path import dirname
 import shutil
 import sys
 import tempfile
@@ -20,25 +14,19 @@ import gevent
 from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
+import requests
 from subprocess import CalledProcessError
-from volttron.platform.keystore import KeyStore
+from zmq.utils import jsonapi
 
-from os.path import dirname
-
-import zmq
+from volttron.platform.vip.connection import Connection, DEFAULT_TIMEOUT
 from volttrontesting.utils.utils import get_rand_http_address
 from volttrontesting.utils.utils import get_rand_tcp_address
-from zmq.utils import jsonapi
 
 from agent_additions import add_vc_to_instance
 from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.agent.utils import strip_comments
-from volttron.platform.messaging import topics
-from volttron.platform.main import start_volttron_process
 from volttron.platform.vip.agent import Agent
-from volttron.platform.vip.socket import encode_key
 from volttron.platform.aip import AIPplatform
-#from volttron.platform.control import client, server
 from volttron.platform import packaging
 from volttron.platform.agent import utils
 from volttron.platform.keystore import KeyStore
@@ -47,6 +35,10 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 RESTRICTED_AVAILABLE = False
+
+# Change the connection timeout to default to 5 seconds rather than the default
+# of 30 secondes
+DEFAULT_TIMEOUT = 5
 
 try:
     from volttron.restricted import (auth, certs)
