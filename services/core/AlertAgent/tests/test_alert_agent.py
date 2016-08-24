@@ -57,14 +57,19 @@
 
 import pytest
 import gevent
+import json
 import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
 
 ALERT_CONFIG = {
-    "fakedevice": 5
+    "fakedevice": 5,
+    "fakedevice2": {
+        "seconds": 5,
+        "points": ["point"]
+    }
 }
 
-alert_seen = False
+alert_messages = {}
 
 @pytest.fixture
 def agent(request, volttron_instance1):
@@ -73,12 +78,18 @@ def agent(request, volttron_instance1):
         agent_dir="services/core/AlertAgent",
         config_file=ALERT_CONFIG)
     gevent.sleep(2)
-    
+
     agent = volttron_instance1.build_agent()
 
-    def onmessage(*args):
-        global alert_seen
-        alert_seen = True
+    def onmessage(peer, sender, bus, topic, headers, message):
+        global alert_messages
+
+        alert = json.loads(message)["context"]
+
+        try:
+            alert_messages[alert] += 1
+        except KeyError:
+            alert_messages[alert] = 1
 
     agent.vip.pubsub.subscribe(peer='pubsub',
                                prefix='alert',
@@ -92,13 +103,18 @@ def agent(request, volttron_instance1):
     return agent
 
 def test_alert_agent(agent):
-    global alert_seen
+    global alert_messages
     for _ in range(10):
         agent.vip.pubsub.publish(peer='pubsub',
-                                 topic='fakedevice',
+                                 topic='fakedevice')
+        agent.vip.pubsub.publish(peer='pubsub',
+                                 topic='fakedevice2',
                                  message=[{'point': 'value'}])
         gevent.sleep(1)
 
-    assert not alert_seen
+    assert not alert_messages
     gevent.sleep(6)
-    assert alert_seen
+
+    assert u'fakedevice not published within time limit' in alert_messages
+    assert u'fakedevice2 not published within time limit' in alert_messages
+    assert u'fakedevice2(point) not published within time limit' in alert_messages

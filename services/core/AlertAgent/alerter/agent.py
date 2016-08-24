@@ -74,10 +74,26 @@ class AlertAgent(Agent):
         config = utils.load_config(config_path)
         self.wait_time = {}
         self.topic_ttl = {}
+        self.point_ttl = {}
 
-        for topic, seconds in config.iteritems():
+        for topic in config.iterkeys():
+            # Optional config option with a list of points that
+            # might not be published.
+            if type(config[topic]) is dict:
+                point_config = config[topic]
+                points = point_config["points"]
+                seconds = point_config["seconds"]
+                self.point_ttl[topic] = {}
+                for p in points:
+                    self.point_ttl[topic][p] = seconds
+
+            # Default config option
+            else:
+                seconds = config[topic]
+
             self.wait_time[topic] = seconds
             self.topic_ttl[topic] = seconds
+
             _log.debug("Expecting {} every {} seconds"
                        .format(topic, seconds))
 
@@ -89,22 +105,46 @@ class AlertAgent(Agent):
                                       callback=self.reset_time)
 
     def reset_time(self, peer, sender, bus, topic, headers, message):
-        try:
-            self.topic_ttl[topic] = self.wait_time[topic]
-            _log.debug("Resetting timeout for {}".format(topic))
-        except KeyError:
-            pass
+        if topic not in self.wait_time:
+            return
+
+        _log.debug("Resetting timeout for {}".format(topic))
+
+        # Reset the standard topic timeout
+        self.topic_ttl[topic] = self.wait_time[topic]
+
+        # Reset timeouts on volatile points
+        if topic in self.point_ttl:
+            received_points = set(message[0].keys())
+            expected_points = self.point_ttl[topic].keys()
+            for point in expected_points:
+                if point in received_points:
+                    self.point_ttl[topic][point] = self.wait_time[topic]
 
     @Core.periodic(1)
     def decrement_ttl(self):
         for topic in self.wait_time.iterkeys():
+
+            # Send an alert if a topic hasn't been seen
             self.topic_ttl[topic] -= 1
             if self.topic_ttl[topic] <= 0:
                 self.send_alert(topic)
 
-    def send_alert(self, device):
-        alert_key = "Timeout:{}".format(device)
-        context = "{} not published within time limit".format(device)
+            # Send an alert if a point hasn't been seen
+            points = self.point_ttl[topic].keys()
+            for p in points:
+                self.point_ttl[topic][p] -= 1
+                if self.point_ttl[topic][p] <= 0:
+                    self.send_alert(topic, p)
+
+    def send_alert(self, device, point=None):
+        if point is not None:
+            alert_key = "Timeout:{}({})".format(device, point)
+            context = "{}({}) not published within time limit".format(device, point)
+        else:
+            alert_key = "Timeout:{}".format(device)
+            context = "{} not published within time limit".format(device)
+
         status = Status.build(STATUS_BAD, context=context)
         self.vip.health.send_alert(alert_key, status)
 
