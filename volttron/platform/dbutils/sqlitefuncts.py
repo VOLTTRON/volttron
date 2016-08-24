@@ -345,10 +345,9 @@ class SqlLiteFuncts(DbDriver):
 
         cursor.execute(self.update_agg_topic_stmt(),
                               (agg_id, agg_topic_name))
-        row = [cursor.lastrowid]
         conn.commit()
         conn.close()
-        return row
+
 
     def update_agg_topic_stmt(self):
         return '''UPDATE ''' + self.agg_topics_table + ''' SET

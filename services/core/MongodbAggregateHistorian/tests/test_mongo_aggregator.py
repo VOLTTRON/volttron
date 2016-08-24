@@ -231,7 +231,7 @@ def publish_test_data(publish_agent, start_time, start_reading, count):
         time = time + timedelta(minutes=1)
 
 
-@pytest.mark.dev
+
 @pytest.mark.mongo_aggregator
 @pytest.mark.aggregator
 def test_single_topic(volttron_instance, aggregate_agent, publish_agent,
@@ -408,7 +408,7 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent,
             volttron_instance.remove_agent(agent_uuid)
 
 
-@pytest.mark.dev
+
 @pytest.mark.mongo_aggregator
 @pytest.mark.aggregator
 def test_multi_topic_pattern(volttron_instance, aggregate_agent,

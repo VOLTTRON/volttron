@@ -133,7 +133,7 @@ class SQLAggregateHistorian(AggregateHistorian):
 
         self.dbfuncts.update_agg_topic(agg_id, aggregation_topic_name)
         self.dbfuncts.insert_agg_meta(agg_id, topic_meta)
-        return agg_id[0]
+
 
     def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):
         return self.dbfuncts.collect_aggregate(

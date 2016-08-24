@@ -248,8 +248,7 @@ class DbDriver(object):
 
         self.__cursor.execute(self.update_agg_topic_stmt(),
                               (agg_id, agg_topic_name))
-        row = [self.__cursor.lastrowid]
-        return row
+        self.commit()
 
     def commit(self):
         successful = False
