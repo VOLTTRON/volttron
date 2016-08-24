@@ -58,16 +58,18 @@
 import logging
 import urlparse
 import uuid
+import os
 
 import gevent
-from volttron.platform.agent.utils import get_aware_utc_now
 
+from volttron import platform
+from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.vip.agent import Agent
 from volttron.platform.web import build_vip_address_string
 
 _log = logging.getLogger(__name__)
 
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 
 
@@ -79,7 +81,7 @@ class Connection(object):
 
     """
     def __init__(self, address, peer=None, publickey=None,
-                 secretkey=None, serverkey=None):
+                 secretkey=None, serverkey=None, volttron_home=None):
         _log.debug("Connection: {}, {}, {}, {}, {}"
                    .format(address, peer, publickey, secretkey, serverkey))
         self._address = address
@@ -87,6 +89,11 @@ class Connection(object):
         self._serverkey = None
         if peer is None:
             _log.warn('Peer is non so must be passed in call method.')
+        self.volttron_home = volttron_home
+
+        if self.volttron_home is None:
+            _log.warn('Connection is using default VOLTTRON_HOME')
+            self.volttron_home = os.path.abspath(platform.get_home())
         if address.startswith('ipc'):
             full_address = address
         else:
@@ -113,7 +120,8 @@ class Connection(object):
             else:
                 raise AttributeError(
                     'Invalid address type specified. ipc or tcp accepted.')
-        self._server = Agent(address=full_address, identity=str(uuid.uuid4()))
+        self._server = Agent(address=full_address, identity=str(uuid.uuid4()),
+                             volttron_home=self.volttron_home)
         self._greenlet = None
         self._connected_since = None
         self._last_publish = None
