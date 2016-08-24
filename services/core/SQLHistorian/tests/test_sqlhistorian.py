@@ -382,6 +382,7 @@ def connect_mysql(request):
     # clean up any rows from older runs
     cursor = db_connection.cursor()
     cursor.execute("DELETE FROM data")
+    cursor.execute("DELETE FROM volttron_meta_table")
     db_connection.commit()
 
 
@@ -868,7 +869,6 @@ def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
     # index 0
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == mixed_reading)
-
 
 @pytest.mark.sqlhistorian
 @pytest.mark.historian

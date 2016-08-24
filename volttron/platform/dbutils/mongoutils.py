@@ -49,8 +49,7 @@ def get_topic_map(client, topics_collection):
     topic_id_map = dict()
     topic_name_map = dict()
     for document in cursor:
-        topic_id_map[document['topic_name'].lower()] = document[
-            '_id']
+        topic_id_map[document['topic_name'].lower()] = document['_id']
         topic_name_map[document['topic_name'].lower()] = \
             document['topic_name']
     return topic_id_map, topic_name_map

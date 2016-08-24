@@ -100,25 +100,21 @@ class MongodbAggregateHistorian(AggregateHistorian):
         # tables_def = sqlutils.get_table_def(self.config)
 
         db = self.dbclient.get_default_database()
-        cursor = db['volttron_metadata'].find()
+        cursor = db[self.volttron_meta_table].find()
         table_map ={}
-        prefix_map = {}
+        prefix = ""
         for document in cursor:
             table_map[document['table_id'].lower()] = document[
                 'table_name']
-            prefix_map[document['table_id'].lower()] = document[
-                'table_prefix'] +"_" if document['table_prefix'] else ''
-
-        self._data_collection = prefix_map.get('data') +  table_map.get(
-            'data','data')
-        self._meta_collection = prefix_map.get('meta') + table_map.get(
-            'meta', 'meta')
-        self._topic_collection = prefix_map.get('topics') + table_map.get(
-            'topics','topics')
-        self._agg_meta_collection = prefix_map.get('meta') + 'aggregate_' \
-                                    + table_map.get('meta', 'meta')
-        self._agg_topic_collection =  prefix_map.get('topics') + 'aggregate_' \
-                                    + table_map.get('topics','topics')
+            prefix = document['table_prefix'] + "_" if document[
+                'table_prefix'] else ''
+        self._data_collection = prefix +  table_map.get('data_table','data')
+        self._meta_collection = prefix + table_map.get('meta_table', 'meta')
+        self._topic_collection = prefix + table_map.get('topics_table','topics')
+        self._agg_meta_collection = prefix+ 'aggregate_' \
+                                    + table_map.get('meta_table', 'meta')
+        self._agg_topic_collection =  prefix + 'aggregate_' \
+                                    + table_map.get('topics_table','topics')
 
         db[self._agg_topic_collection].create_index(
             [('agg_topic_name', pymongo.ASCENDING),

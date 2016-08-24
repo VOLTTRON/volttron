@@ -57,6 +57,7 @@
 
 import logging
 
+import mysql
 import pytz
 import re
 from basedb import DbDriver
@@ -68,15 +69,23 @@ _log = logging.getLogger(__name__)
 
 
 class MySqlFuncts(DbDriver):
-    def __init__(self, connect_params, tables_def, create_tables=False):
+    def __init__(self, connect_params, table_names):
         # kwargs['dbapimodule'] = 'mysql.connector'
         super(MySqlFuncts, self).__init__('mysql.connector', **connect_params)
         self.MICROSECOND_SUPPORT = None
-        self.data_table = tables_def['data_table']
-        self.topics_table = tables_def['topics_table']
-        self.meta_table = tables_def['meta_table']
-        self.agg_topics_table = tables_def.get('agg_topics_table', None)
-        self.agg_meta_table = tables_def.get('agg_meta_table', None)
+
+        self.data_table = None
+        self.topics_table = None
+        self.meta_table = None
+        self.agg_topics_table = None
+        self.agg_meta_table = None
+
+        if table_names:
+            self.data_table = table_names['data_table']
+            self.topics_table = table_names['topics_table']
+            self.meta_table = table_names['meta_table']
+            self.agg_topics_table = table_names.get('agg_topics_table', None)
+            self.agg_meta_table = table_names.get('agg_meta_table', None)
 
     def init_microsecond_support(self):
         rows = self.select("SELECT version()", None)
@@ -90,6 +99,116 @@ class MySqlFuncts(DbDriver):
             self.MICROSECOND_SUPPORT = False
         else:
             self.MICROSECOND_SUPPORT = True
+
+    def setup_historian_tables(self):
+        if self.MICROSECOND_SUPPORT is None:
+            self.init_microsecond_support()
+
+        rows = self.select("show tables like %s", [self.data_table])
+        if rows:
+            _log.debug("Found table {}. Historian table exists".format(
+                self.data_table))
+            return
+
+        try:
+            if self.MICROSECOND_SUPPORT:
+                self.execute_stmt(
+                    'CREATE TABLE IF NOT EXISTS ' + self.data_table +
+                    ' (ts timestamp(6) NOT NULL,\
+                     topic_id INTEGER NOT NULL, \
+                     value_string TEXT NOT NULL, \
+                     UNIQUE(ts, topic_id))')
+            else:
+                self.execute_stmt(
+                    'CREATE TABLE IF NOT EXISTS ' + self.data_table +
+                    ' (ts timestamp NOT NULL,\
+                     topic_id INTEGER NOT NULL, \
+                     value_string TEXT NOT NULL, \
+                     UNIQUE(ts, topic_id))')
+
+            self.execute_stmt('''CREATE INDEX IF NOT EXISTS data_idx
+                                    ON ''' + self.data_table + ''' (ts ASC)''')
+            self.execute_stmt('''CREATE TABLE IF NOT EXISTS ''' +
+                              self.topics_table +
+                              ''' (topic_id INTEGER NOT NULL AUTO_INCREMENT,
+                                   topic_name varchar(512) NOT NULL,
+                                   PRIMARY KEY (topic_id),
+                                   UNIQUE(topic_name))''')
+            self.execute_stmt('''CREATE TABLE IF NOT EXISTS '''
+                              + self.meta_table +
+                              '''(topic_id INTEGER NOT NULL,
+                               metadata TEXT NOT NULL,
+                               PRIMARY KEY(topic_id))''')
+            _log.debug("Created data topics and meta tables")
+
+            self.commit()
+        except self.__dbmodule.errors.Error as err:
+            err_msg = "Error creating " \
+                      "historian tables as the configured user. " \
+                      "Please create the tables manually before " \
+                      "restarting historian. Please refer to " \
+                      "mysql-create*.sql files for create " \
+                      "statements"
+            if err.errno == \
+                    self.__dbmodule.errorcode.ER_TABLEACCESS_DENIED_ERROR:
+                err_msg = "Access denied : " + err_msg
+            else:
+                err_msg = err.msg + " : " + err_msg
+            raise RuntimeError(err_msg)
+
+
+    def record_table_definitions(self, tables_def, meta_table_name):
+        _log.debug("In record_table_def {} {}".format(tables_def, meta_table_name))
+        self.execute_stmt(
+            'CREATE TABLE IF NOT EXISTS ' + meta_table_name +
+            ' (table_id varchar(512) PRIMARY KEY, \
+               table_name varchar(512) NOT NULL, \
+               table_prefix varchar(512));')
+
+        table_prefix = tables_def.get('table_prefix', "")
+
+        insert_stmt = 'REPLACE INTO ' + meta_table_name +\
+                      ' VALUES (%s, %s, %s)'
+        self.insert_stmt(insert_stmt,
+                         ('data_table', tables_def['data_table'],
+                          table_prefix))
+        self.insert_stmt(insert_stmt,
+                       ('topics_table', tables_def['topics_table'],
+                        table_prefix))
+        self.insert_stmt(insert_stmt,
+                       ('meta_table', tables_def['meta_table'], table_prefix))
+        self.commit()
+
+
+    def setup_aggregate_historian_tables(self, meta_table_name):
+        table_names = self.read_tablenames_from_db(meta_table_name)
+
+        self.data_table = table_names['data_table']
+        self.topics_table = table_names['topics_table']
+        _log.debug("In setup_aggregate_historian self.topics_table"
+                   " {}".format(self.topics_table))
+        self.meta_table = table_names['meta_table']
+        self.agg_topics_table = table_names.get('agg_topics_table', None)
+        self.agg_meta_table = table_names.get('agg_meta_table', None)
+
+        self.execute_stmt(
+            'CREATE TABLE IF NOT EXISTS ' + self.agg_topics_table +
+            ' (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT, \
+               agg_topic_name varchar(512) NOT NULL, \
+               agg_type varchar(512) NOT NULL, \
+               agg_time_period varchar(512) NOT NULL, \
+               PRIMARY KEY (agg_topic_id), \
+               UNIQUE(agg_topic_name, agg_type, agg_time_period));')
+
+        self.execute_stmt(
+            'CREATE TABLE IF NOT EXISTS ' + self.agg_meta_table +
+            '(agg_topic_id INTEGER NOT NULL, \
+              metadata TEXT NOT NULL, \
+              PRIMARY KEY(agg_topic_id));')
+
+        _log.debug("Created aggregate topics and meta tables")
+
+
 
     def query(self, topic_id, start=None, end=None, skip=0, agg_type=None,
               agg_period=None, count=None, order="FIRST_TO_LAST"):
@@ -180,6 +299,8 @@ class MySqlFuncts(DbDriver):
                '''  values(%s, %s, %s)'''
 
     def insert_topic_query(self):
+        _log.debug("In insert_topic_query - self.topic_table "
+                   "{}".format(self.topics_table))
         return '''INSERT INTO ''' + self.topics_table + ''' (topic_name)
             values (%s)'''
 
@@ -226,15 +347,21 @@ class MySqlFuncts(DbDriver):
 
     def get_agg_topic_map(self):
         _log.debug("in get_agg_topic_map")
-        q = "SELECT agg_topic_id, agg_topic_name, agg_type, agg_time_period " \
-            "FROM " + self.agg_topics_table
-        rows = self.select(q, None)
-        _log.debug("loading agg_topic map from db")
-        id_map = dict()
-        for row in rows:
-            _log.debug("rows from aggregate_topics {}".format(row))
-            id_map[(row[1].lower(), row[2], row[3])] = row[0]
-        return id_map
+        try:
+            q = "SELECT agg_topic_id, agg_topic_name, agg_type, agg_time_period " \
+                "FROM " + self.agg_topics_table
+            rows = self.select(q, None)
+            _log.debug("loading agg_topic map from db")
+            id_map = dict()
+            for row in rows:
+                _log.debug("rows from aggregate_topics {}".format(row))
+                id_map[(row[1].lower(), row[2], row[3])] = row[0]
+            return id_map
+        except mysql.errors.Error as e:
+            if e.errno == mysql.errorcode.ER_NO_SUCH_TABLE:
+                return {}
+            else:
+                raise
 
     def find_topics_by_pattern(self, topic_pattern):
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + \
@@ -269,11 +396,20 @@ class MySqlFuncts(DbDriver):
         after inserting aggregation_topic_name in topics table else return None
         """
         table_name = agg_type + '''_''' + period
+        if self.MICROSECOND_SUPPORT is None:
+            self.init_microsecond_support()
+
         stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
-               " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
+               " (ts timestamp(6) NOT NULL, topic_id INTEGER NOT NULL, " \
                "value_string TEXT NOT NULL, topics_list TEXT," \
                " UNIQUE(ts, topic_id)," \
                "INDEX (ts ASC))"
+        if not self.MICROSECOND_SUPPORT:
+            stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
+                   " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
+                   "value_string TEXT NOT NULL, topics_list TEXT," \
+                   " UNIQUE(ts, topic_id)," \
+                   "INDEX (ts ASC))"
         return self.execute_stmt(stmt)
 
     def insert_aggregate_stmt(self, table_name):

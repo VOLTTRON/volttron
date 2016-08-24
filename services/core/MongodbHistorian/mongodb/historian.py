@@ -85,6 +85,7 @@ def historian(config_path, **kwargs):
     topic_replacements = config.get('topic_replace_list', None)
     _log.debug('topic_replacements are: {}'.format(topic_replacements))
 
+
     class MongodbHistorian(BaseHistorian):
         """This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
@@ -105,12 +106,12 @@ def historian(config_path, **kwargs):
             :return:
             """
             super(MongodbHistorian, self).__init__(**kwargs)
-
-            self._data_collection = 'data'
-            self._meta_collection = 'meta'
-            self._topic_collection = 'topics'
-            self._agg_topic_collection ='aggregate_topics'
-            self._agg_meta_collection = 'aggregate_meta'
+            self.tables_def, table_names = self.parse_table_def(config)
+            self._data_collection = table_names['data_table']
+            self._meta_collection = table_names['meta_table']
+            self._topic_collection = table_names['topics_table']
+            self._agg_topic_collection =table_names['agg_topics_table']
+            self._agg_meta_collection = table_names['agg_meta_table']
             self._initial_params = connection['params']
             self._client = None
 
@@ -219,14 +220,15 @@ def historian(config_path, **kwargs):
 
             topic_lower = topic.lower()
             topic_id = None
-            if not agg_period and not agg_type:
+            if agg_type is None:
                 # If this is not an aggregate query find topic if based
                 # on topic table entry
                 topic_id = self._topic_id_map.get(topic_lower, None)
             else:
+                agg_type = agg_type.lower()
                 # else get it from aggregate_topics
                 topic_id = self._agg_topic_id_map.get(
-                    (topic.lower(), agg_type, agg_period),
+                    (topic_lower, agg_type, agg_period),
                     None)
                 if topic_id is None:
                     # load agg topic id again as it might be a newly
@@ -234,13 +236,14 @@ def historian(config_path, **kwargs):
                     self._agg_topic_id_map = mongoutils.get_agg_topic_map(
                         self._client, self._agg_topic_collection)
                     topic_id = self._agg_topic_id_map.get(
-                        (topic.lower(), agg_type, agg_period),
+                        (topic_lower, agg_type, agg_period),
                         None)
             if not topic_id:
                 _log.warn('No such topic {}'.format(topic))
                 return {}
             else:
-                _log.debug("Found topic id as {}".format(topic_id))
+                _log.debug("Found topic id for {} as {}".format(topic,
+                                                                topic_id))
             db = self._client.get_default_database()
 
             ts_filter = {}
@@ -272,10 +275,13 @@ def historian(config_path, **kwargs):
                       row
                       in cursor]
             if len(values) > 0:
-                return {
-                    'values': values,
-                    'metadata': self._topic_meta.get(topic_id, {})
-                }
+                if not agg_type:
+                    return {
+                        'values': values,
+                        'metadata': self._topic_meta.get(topic_id, {})
+                    }
+                else:
+                    return {'values':values}
             else:
                 return {}
 
@@ -315,21 +321,31 @@ def historian(config_path, **kwargs):
             self._client = mongoutils.get_mongo_client(
                 connection['params'])
 
-            db = self._client.get_default_database()
-            db['volttron_metadata'].bulk_write([
-                InsertOne({'table_id':'data', 'table_name':'data',
-                           'table_prefix':''}),
-                InsertOne({'table_id': 'topics', 'table_name': 'topics',
-                           'table_prefix': ''}),
-                InsertOne({'table_id': 'meta', 'table_name': 'meta',
-                           'table_prefix': ''})
-            ])
             self._topic_id_map, self._topic_name_map = \
                 mongoutils.get_topic_map(self._client, self._topic_collection)
             self._agg_topic_id_map = mongoutils.get_agg_topic_map(
                 self._client, self._agg_topic_collection)
             self._load_meta_map()
 
+        def record_table_definitions(self, meta_table_name):
+            _log.debug("In record_table_def  table:{}".format(
+                meta_table_name))
+
+            db = self._client.get_default_database()
+            db[meta_table_name].bulk_write([
+                ReplaceOne({'table_id': 'data_table'},
+                           {'table_id':'data_table',
+                           'table_name': self._data_collection,
+                           'table_prefix': ''}, upsert=True),
+                ReplaceOne({'table_id': 'topics_table'},
+                           {'table_id': 'topics_table',
+                           'table_name': self._topic_collection,
+                           'table_prefix': ''}, upsert=True),
+                ReplaceOne({'table_id': 'meta_table'},
+                           {'table_id': 'meta_table',
+                           'table_name': self._meta_collection,
+                           'table_prefix': ''}, upsert=True)
+            ])
     MongodbHistorian.__name__ = 'MongodbHistorian'
     return MongodbHistorian(
         identity=identity, topic_replace_list=topic_replacements, **kwargs)

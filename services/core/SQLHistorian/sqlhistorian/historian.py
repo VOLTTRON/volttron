@@ -113,9 +113,11 @@ def historian(config_path, **kwargs):
             """
             super(SQLHistorian, self).__init__(
                 topic_replace_list=topic_replace_list, **kwargs)
-            tables_def = sqlutils.get_table_def(config)
-            self.reader = DbFuncts(connection['params'], tables_def)
-            self.writer = DbFuncts(connection['params'], tables_def)
+            self.tables_def, table_names = self.parse_table_def(config)
+            self.reader = DbFuncts(connection['params'], table_names)
+            self.writer = DbFuncts(connection['params'], table_names)
+            self.reader.setup_historian_tables()
+
             self.topic_id_map = {}
             self.topic_name_map = {}
             self.topic_meta = {}
@@ -150,6 +152,10 @@ def historian(config_path, **kwargs):
                                       self.core.identity).get(timeout=2)
                 else:
                     _log.info('No platform.agent available to register with.')
+
+        def record_table_definitions(self, meta_table_name):
+            self.writer.record_table_definitions(self.tables_def,
+                                                 meta_table_name)
 
         def publish_to_historian(self, to_publish_list):
             thread_name = threading.currentThread().getName()
@@ -263,7 +269,8 @@ def historian(config_path, **kwargs):
                     topic_id = self.agg_topic_id_map.get(
                         (topic_lower, agg_type, agg_period), None)
             if not topic_id:
-                _log.warn('No such topic {}'.format(topic))
+                _log.warn('No such topic for {} as {}'.format(
+                    topic, topic))
                 return results
 
             _log.debug("Querying db reader with topic_id {} ".format(topic_id))

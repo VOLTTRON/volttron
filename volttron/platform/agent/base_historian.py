@@ -289,6 +289,7 @@ class BaseHistorianAgent(Agent):
         _log.info('Topic string replace list: {}'
                   .format(self._topic_replace_list))
 
+        self.volttron_meta_table = 'volttron_meta_table'
         self._backup_storage_limit_gb = backup_storage_limit_gb
         self._started = False
         self._retry_period = retry_period
@@ -345,6 +346,29 @@ class BaseHistorianAgent(Agent):
             # means that the agent didn't start up properly so the pubsub
             # subscriptions never got finished.
             pass
+
+
+    def parse_table_def(self, config):
+        default_table_def = {"table_prefix": "",
+                             "data_table": "data",
+                             "topics_table": "topics",
+                             "meta_table": "meta"}
+        tables_def = config.get('tables_def',None)
+        if not tables_def:
+            tables_def =  default_table_def
+        table_names = dict(tables_def)
+        table_names["agg_topics_table"] = \
+            "aggregate_" + tables_def["topics_table"]
+        table_names["agg_meta_table"] = \
+            "aggregate_" + tables_def["meta_table"]
+
+        table_prefix = tables_def.get('table_prefix',None)
+        table_prefix = table_prefix + "_" if table_prefix else ""
+        if table_prefix:
+            for key, value in table_names.items():
+                table_names[key] = table_prefix + table_names[key]
+
+        return tables_def, table_names
 
     def _get_topic(self, input_topic):
         output_topic = input_topic
@@ -599,6 +623,9 @@ class BaseHistorianAgent(Agent):
         # Sets up the concrete historian
         self.historian_setup()
 
+        # Record the names of data, topics, meta tables in a metadata table
+        self.record_table_definitions(self.volttron_meta_table)
+
         # now that everything is setup we need to make sure that the topics
         # are synchronized between
 
@@ -733,6 +760,17 @@ class BaseHistorianAgent(Agent):
         """Optional setup routine, run in the processing thread before
            main processing loop starts. Gives the Historian a chance to setup
            connections in the publishing thread.
+        """
+
+    def record_table_definitions(self, meta_table_name):
+        """
+        Record the table or collection names in which data, topics and
+        metadata are stored into the metadata table.  This is essentially
+        information from information from configuration item
+        'table_defs'. The metadata table contents will be used by the
+        corresponding aggregate historian(if any)
+        :param meta_table_name: table name into which the table names and
+        table name prefix for data, topics, and meta tables should be inserted
         """
 
 

@@ -84,6 +84,7 @@ class DbDriver(object):
         self.__cursor = None
         self.__connect_params = kwargs
 
+
     def __connect(self):
         try:
             if self.__connection is None:
@@ -96,6 +97,31 @@ class DbDriver(object):
             _log.warning(e.__class__.__name__ + "couldn't connect to database")
 
         return self.__connection is not None
+
+
+    def read_tablenames_from_db(self, meta_table_name):
+        rows = self.select("SELECT table_id, table_name, table_prefix from " +
+                    meta_table_name, None)
+        table_names = dict()
+        table_prefix = ""
+        for row in rows:
+            _log.debug("Records got from db {}".format(row))
+            table_prefix = row[2] + "_" if row[2] else ""
+            table_names[row[0]] = table_prefix + row[1]
+
+        table_names['agg_topics_table'] = table_prefix + 'aggregate_' + \
+                                          table_names['topics_table']
+        table_names['agg_meta_table'] = table_prefix + 'aggregate_' + \
+                                          table_names['meta_table']
+
+        return table_names
+
+    @abstractmethod
+    def setup_historian_tables(self):
+        '''
+        Create historian tables if necessary
+        '''
+        pass
 
     @abstractmethod
     def get_topic_map(self):
@@ -136,6 +162,13 @@ class DbDriver(object):
     @abstractmethod
     def insert_agg_meta_stmt(self):
         pass
+
+    def insert_stmt(self, stmt, args):
+        if not self.__connect():
+            return False
+
+        self.__cursor.execute(stmt, args)
+        return True
 
     def insert_meta(self, topic_id, metadata):
         if not self.__connect():
@@ -188,7 +221,7 @@ class DbDriver(object):
                               (topic_id, jsonapi.dumps(metadata)))
         return True
 
-    def insert_agg_topic(self, agg_id, agg_topic_name):
+    def insert_agg_topic(self, topic, agg_type, agg_time_period):
         if not self.__connect():
             return False
 
@@ -199,7 +232,7 @@ class DbDriver(object):
             self.__cursor = self.__connection.cursor()
 
         self.__cursor.execute(self.insert_agg_topic_stmt(),
-                              (agg_id, agg_topic_name))
+                              (topic, agg_type, agg_time_period))
         row = [self.__cursor.lastrowid]
         return row
 

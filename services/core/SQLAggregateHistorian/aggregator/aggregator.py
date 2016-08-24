@@ -97,8 +97,9 @@ class SQLAggregateHistorian(AggregateHistorian):
         assert params is not None
 
         dbfuncts_class = sqlutils.get_dbfuncts_class(database_type)
-        tables_def = sqlutils.get_table_def(self.config)
-        self.dbfuncts = dbfuncts_class(connection['params'], tables_def, False)
+        self.dbfuncts = dbfuncts_class(connection['params'], None)
+        self.dbfuncts.setup_aggregate_historian_tables(
+            self.volttron_meta_table)
 
     def get_topic_map(self):
         return self.dbfuncts.get_topic_map()
@@ -131,7 +132,7 @@ class SQLAggregateHistorian(AggregateHistorian):
         _log.debug("topic_meta {}".format(topic_meta))
 
         self.dbfuncts.update_agg_topic(agg_id, aggregation_topic_name)
-        self.dbfuncts.insert_agg_meta(agg_id[0], topic_meta)
+        self.dbfuncts.insert_agg_meta(agg_id, topic_meta)
         return agg_id[0]
 
     def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):

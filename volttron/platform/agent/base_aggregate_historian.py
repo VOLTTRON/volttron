@@ -98,6 +98,7 @@ class AggregateHistorian(Agent):
         self._agent_id = self.config['agentid']
         self.topic_id_map = None
         self.aggregate_topic_id_map = None
+        self.volttron_meta_table = 'volttron_meta_table'
 
         # 1. Check connection to db instantiate db functions class
         connection = self.config.get('connection', None)

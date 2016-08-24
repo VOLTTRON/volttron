@@ -115,11 +115,11 @@ def agent(request, volttron_instance):
 # Fixtures for setup and teardown of sqlhistorian agent and aggregation agent
 @pytest.fixture(scope="module",
                 params=[
-                    # pytest.mark.skipif(
-                    #     not HAS_MYSQL_CONNECTOR,
-                    #     reason='No mysql client available.')(
-                    # mysql_aggregator),
-                    sqlite_aggregator
+                    pytest.mark.skipif(
+                        not HAS_MYSQL_CONNECTOR,
+                        reason='No mysql client available.')(
+                    mysql_aggregator),
+                    #sqlite_aggregator
                 ])
 def aggregate_agent(request, volttron_instance):
     global db_connection, truncate_tables
