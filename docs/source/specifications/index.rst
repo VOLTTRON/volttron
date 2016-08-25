@@ -1,6 +1,6 @@
-==============
-Specifications
-==============
+=======================
+Platform Specifications
+=======================
 
 .. toctree::
     :glob:

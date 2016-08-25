@@ -57,7 +57,7 @@ var platformsPanelActionCreators = {
                 })                     
                 .catch(rpc.Error, function (error) {
                     endLoadingData(platform);
-                    handle401(error, "Unable to load devices for platform " + platform.name + " in side panel: " + error.message);
+                    handle401(error, "Unable to load devices for platform " + platform.name + " in side panel: " + error.message, platform.name);
                 });    
 
         }
@@ -81,7 +81,7 @@ var platformsPanelActionCreators = {
                 })                     
                 .catch(rpc.Error, function (error) {
                     endLoadingData(platform);
-                    handle401(error, "Unable to load agents for platform " + platform.name + " in side panel: " + error.message);
+                    handle401(error, "Unable to load agents for platform " + platform.name + " in side panel: " + error.message, platform.name);
                 });    
         }       
 
@@ -141,7 +141,7 @@ var platformsPanelActionCreators = {
                             }
 
                             endLoadingData(parent);
-                            handle401(error, message);
+                            handle401(error, message, parent.name, "center");
                         });   
             } 
         }
@@ -190,7 +190,7 @@ var platformsPanelActionCreators = {
     }    
 }
 
-function handle401(error, message) {
+function handle401(error, message, highlight, orientation) {
     if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
@@ -201,10 +201,10 @@ function handle401(error, message) {
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     }
-    else
+    else if (message)
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
-};
+}
 
 module.exports = platformsPanelActionCreators;

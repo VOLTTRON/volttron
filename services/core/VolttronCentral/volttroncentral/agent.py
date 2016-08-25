@@ -114,7 +114,7 @@ from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 from zmq.utils import jsonapi
 from .registry import PlatformRegistry
 
-__version__ = "3.5.3"
+__version__ = "3.6"
 
 _log = logging.getLogger(__name__)
 
@@ -221,12 +221,7 @@ class VolttronCentralAgent(Agent):
         """
         _log.info("{} constructing...".format(self.__name__))
 
-        # This is a special object so only use it's identity.
-        identity = kwargs.pop("identity", None)
-        identity = VOLTTRON_CENTRAL
-
-        super(VolttronCentralAgent, self).__init__(identity=identity,
-                                                   **kwargs)
+        super(VolttronCentralAgent, self).__init__(**kwargs)
         # Load the configuration into a dictionary
         self._config = utils.load_config(config_path)
 
@@ -1137,7 +1132,7 @@ class VolttronCentralAgent(Agent):
             has_platform_historian = PLATFORM_HISTORIAN in \
                                      self.vip.peerlist().get(timeout=30)
             if not has_platform_historian:
-                return err('Platform historian not found on volttorn central',
+                return err('The VOLTTRON Central platform historian is unavailable.',
                            UNAVAILABLE_AGENT)
             _log.debug('Trapping platform.historian to vc.')
             _log.debug('has_platform_historian: {}'.format(
@@ -1212,7 +1207,7 @@ def main(argv=sys.argv):
     :param argv:
     :return:
     """
-    utils.vip_main(VolttronCentralAgent)
+    utils.vip_main(VolttronCentralAgent, identity=VOLTTRON_CENTRAL)
 
 
 if __name__ == '__main__':

@@ -82,12 +82,6 @@ def historian(config_path, **kwargs):
     params = connection.get('params', None)
     assert params is not None
 
-    # determine if identity is specified in the config file.  If so, then
-    # add it identity to the kwargs.
-    identity = config.get('identity', None)
-    if identity:
-        kwargs['identity'] = identity
-
     topic_replace_list = config.get("topic_replace_list", None)
     if topic_replace_list:
         _log.debug("topic replace list is: {}".format(topic_replace_list))

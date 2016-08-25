@@ -97,7 +97,7 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 from volttron.utils.persistance import load_create_store
 
-__version__ = '3.5.1'
+__version__ = '3.6'
 
 
 class CannotConnectError(StandardError):
@@ -118,11 +118,7 @@ class VolttronCentralPlatform(Agent):
     __name__ = 'PlatformAgent'
 
     def __init__(self, config_path, **kwargs):
-
-        identity = kwargs.pop('identity', None)
-        identity = VOLTTRON_CENTRAL_PLATFORM
-        super(VolttronCentralPlatform, self).__init__(
-            identity=identity, **kwargs)
+        super(VolttronCentralPlatform, self).__init__(**kwargs)
 
         self._config = utils.load_config(config_path)
         self._vc_discovery_address = None
@@ -561,6 +557,7 @@ class VolttronCentralPlatform(Agent):
 
                 path = os.path.join(tmpdir, f['file_name'])
                 with open(path, 'wb') as fout:
+                    #Remove Java script encoding prefix.
                     fout.write(
                         base64.decodestring(f['file'].split('base64,')[1]))
 
@@ -884,7 +881,7 @@ def main(argv=sys.argv):
     :return:
     """
     # utils.vip_main(platform_agent)
-    utils.vip_main(VolttronCentralPlatform)
+    utils.vip_main(VolttronCentralPlatform, identity = VOLTTRON_CENTRAL_PLATFORM)
 
 
 if __name__ == '__main__':

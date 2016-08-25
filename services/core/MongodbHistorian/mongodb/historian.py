@@ -81,7 +81,6 @@ def historian(config_path, **kwargs):
     params = connection.get('params', None)
     assert params is not None
 
-    identity = config.get('identity', kwargs.pop('identity', None))
     topic_replacements = config.get('topic_replace_list', None)
     _log.debug('topic_replacements are: {}'.format(topic_replacements))
 
@@ -300,7 +299,10 @@ def historian(config_path, **kwargs):
             db = self._client.get_default_database()
             cursor = db[self._topic_collection].find()
 
-            for document in cursor:
+            # Hangs when using cursor as iterable.
+            # See https://github.com/VOLTTRON/volttron/issues/643
+            for num in xrange(cursor.count()):
+                document = cursor[num]
                 self._topic_id_map[document['topic_name'].lower()] = document[
                     '_id']
                 self._topic_name_map[document['topic_name'].lower()] = \
@@ -310,8 +312,10 @@ def historian(config_path, **kwargs):
             _log.debug('loading meta map')
             db = self._client.get_default_database()
             cursor = db[self._meta_collection].find()
-
-            for document in cursor:
+            # Hangs when using cursor as iterable.
+            # See https://github.com/VOLTTRON/volttron/issues/643
+            for num in xrange(cursor.count()):
+                document = cursor[num]
                 self._topic_meta[document['topic_id']] = document['meta']
 
 
@@ -347,8 +351,7 @@ def historian(config_path, **kwargs):
                            'table_prefix': ''}, upsert=True)
             ])
     MongodbHistorian.__name__ = 'MongodbHistorian'
-    return MongodbHistorian(
-        identity=identity, topic_replace_list=topic_replacements, **kwargs)
+    return MongodbHistorian(topic_replace_list=topic_replacements, **kwargs)
 
 
 def main(argv=sys.argv):

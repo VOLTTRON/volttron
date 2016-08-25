@@ -129,6 +129,8 @@ def publish_agent(request, volttron_instance1):
         print("In teardown method of module")
         volttron_instance1.stop_agent(actuator_uuid)
         volttron_instance1.stop_agent(master_uuid)
+        volttron_instance1.remove_agent(actuator_uuid)
+        volttron_instance1.remove_agent(master_uuid)
         publish_agent.core.stop()
 
     request.addfinalizer(stop_agent)

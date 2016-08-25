@@ -88,7 +88,6 @@ forwarder_config = {
 }
 sqlite_config = {
     "agentid": "sqlhistorian-sqlite",
-    "identity": "platform.historian",
     "connection": {
         "type": "sqlite",
         "params": {
@@ -172,7 +171,8 @@ def sqlhistorian(request, volttron_instances):
     agent_uuid = volttron_instance2.install_agent(
         agent_dir="services/core/SQLHistorian",
         config_file=sqlite_config,
-        start=True)
+        start=True,
+        vip_identity='platform.historian')
     print("sqlite historian agent id: ", agent_uuid)
 
 
@@ -653,44 +653,52 @@ def test_actuator_topic(publish_agent, query_agent):
         start=True)
     print("agent id: ", listener_uuid)
 
-    # Make query agent running in instance two subscribe to
-    # actuator_schedule_result topic
-    # query_agent.callback = types.MethodType(callback, query_agent)
-    query_agent.callback = MagicMock(name="callback")
-    # subscribe to schedule response topic
-    query_agent.vip.pubsub.subscribe(
-        peer='pubsub',
-        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-        callback=query_agent.callback).get()
+    try:
+        # Make query agent running in instance two subscribe to
+        # actuator_schedule_result topic
+        # query_agent.callback = types.MethodType(callback, query_agent)
+        query_agent.callback = MagicMock(name="callback")
+        # subscribe to schedule response topic
+        query_agent.vip.pubsub.subscribe(
+            peer='pubsub',
+            prefix=topics.ACTUATOR_SCHEDULE_RESULT,
+            callback=query_agent.callback).get()
 
-    # Now publish in volttron_instance1
+        # Now publish in volttron_instance1
 
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=2))
-    header = {
-        'type': 'NEW_SCHEDULE',
-        'requesterID': 'test-agent',  # The name of the requesting agent.
-        'taskID': 'task_schedule_response',
-        'priority': 'LOW'  # ('HIGH, 'LOW', 'LOW_PREEMPT').
-    }
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-    # reset mock to ignore any previous callback
-    publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
-    gevent.sleep(1)  # wait for topic to be forwarded and callback to happen
+        start = str(datetime.now())
+        end = str(datetime.now() + timedelta(seconds=2))
+        header = {
+            'type': 'NEW_SCHEDULE',
+            'requesterID': 'test-agent',  # The name of the requesting agent.
+            'taskID': 'task_schedule_response',
+            'priority': 'LOW'  # ('HIGH, 'LOW', 'LOW_PREEMPT').
+        }
+        msg = [
+            ['fakedriver0', start, end]
+        ]
+        # reset mock to ignore any previous callback
+        publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
+        gevent.sleep(1)  # wait for topic to be forwarded and callback to happen
 
-    # assert query_agent.callback.call_count == 1
-    print ('call args ', query_agent.callback.call_args_list)
-    # assert query_agent.callback.call_args[0][1] == 'platform.actuator'
-    assert query_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
-    result_header = query_agent.callback.call_args[0][4]
-    result_message = query_agent.callback.call_args[0][5]
-    assert result_header['type'] == 'NEW_SCHEDULE'
-    assert result_header['taskID'] == 'task_schedule_response'
-    assert result_header['requesterID'] == 'test-agent'
-    assert result_message['result'] == 'SUCCESS'
+        # assert query_agent.callback.call_count == 1
+        print ('call args ', query_agent.callback.call_args_list)
+        # assert query_agent.callback.call_args[0][1] == 'platform.actuator'
+        assert query_agent.callback.call_args[0][3] == \
+               topics.ACTUATOR_SCHEDULE_RESULT
+        result_header = query_agent.callback.call_args[0][4]
+        result_message = query_agent.callback.call_args[0][5]
+        assert result_header['type'] == 'NEW_SCHEDULE'
+        assert result_header['taskID'] == 'task_schedule_response'
+        assert result_header['requesterID'] == 'test-agent'
+        assert result_message['result'] == 'SUCCESS'
+    finally:
+        volttron_instance1.stop_agent(master_uuid)
+        volttron_instance1.remove_agent(master_uuid)
+        volttron_instance1.stop_agent(actuator_uuid)
+        volttron_instance1.remove_agent(actuator_uuid)
+        volttron_instance2.stop_agent(listener_uuid)
+        volttron_instance2.remove_agent(listener_uuid)
 
 
 @pytest.mark.historian

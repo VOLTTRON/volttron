@@ -69,6 +69,9 @@ import shutil
 import sys
 import tempfile
 import traceback
+import StringIO
+import uuid
+import base64
 
 import gevent
 import gevent.event
@@ -124,6 +127,13 @@ class ControlService(BaseAgent):
             raise TypeError("expected a string for 'uuid'; got {!r}".format(
                 type(uuid).__name__))
         return self._aip.agent_status(uuid)
+
+    @RPC.export
+    def agent_name(self, uuid):
+        if not isinstance(uuid, basestring):
+            raise TypeError("expected a string for 'uuid'; got {!r}".format(
+                type(uuid).__name__))
+        return self._aip.agent_name(uuid)
 
     @RPC.export
     def status_agents(self):
@@ -205,7 +215,7 @@ class ControlService(BaseAgent):
         return self._aip.agent_identity(uuid)
 
     @RPC.export
-    def install_agent(self, filename, channel_name):
+    def install_agent(self, filename, channel_name, vip_identity=None):
         """ Installs an agent on the instance instance.
 
         The installation of an agent through this method involves sending
@@ -249,7 +259,7 @@ class ControlService(BaseAgent):
             try:
                 while True:
                     data = channel.recv()
-                    _log.debug(data)
+                    _log.debug("Received {} bytes of data".format(len(data)))
                     if data == 'done':
                         _log.debug('done receiving data')
                         break
@@ -260,7 +270,7 @@ class ControlService(BaseAgent):
                 store.close()
                 channel.close(linger=0)
                 del channel
-            agent_uuid = self._aip.install_agent(path)
+            agent_uuid = self._aip.install_agent(path, vip_identity=vip_identity)
             _log.debug('AGENT UUID: {}'.format(agent_uuid))
             return agent_uuid #self._aip.install_agent(path)
         finally:
@@ -279,11 +289,11 @@ def log_to_file(file, level=logging.WARNING,
     root.addHandler(handler)
 
 
-Agent = collections.namedtuple('Agent', 'name tag uuid')
+Agent = collections.namedtuple('Agent', 'name tag uuid vip_identity')
 
 
 def _list_agents(aip):
-    return [Agent(name, aip.agent_tag(uuid), uuid)
+    return [Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid))
             for uuid, name in aip.list_agents().iteritems()]
 
 
@@ -326,23 +336,54 @@ def filter_agent(agents, pattern, opts):
 
 def install_agent(opts):
     aip = opts.aip
-    for wheel in opts.wheel:
-        try:
-            tag, filename = wheel.split('=', 1)
-        except ValueError:
-            tag, filename = None, wheel
-        try:
-            uuid = aip.install_agent(filename)
-            if tag:
-                aip.tag_agent(uuid, tag)
-        except Exception as exc:
-            if opts.debug:
-                traceback.print_exc()
-            _stderr.write(
-                '{}: error: {}: {}\n'.format(opts.command, exc, filename))
-            return 10
-        name = aip.agent_name(uuid)
-        _stdout.write('Installed {} as {} {}\n'.format(filename, uuid, name))
+    filename = opts.wheel
+    tag = opts.tag
+    vip_identity = opts.vip_identity
+
+    try:
+        _log.debug('Creating channel for sending the agent.')
+        channel_name = str(uuid.uuid4())
+        channel = opts.connection.server.vip.channel('control',
+                                                      channel_name)
+        _log.debug('calling control install agent.')
+        agent_uuid = opts.connection.call_no_get('install_agent',
+                                                  filename,
+                                                  channel_name,
+                                                  vip_identity=vip_identity)
+        _log.debug('waiting for ready')
+        _log.debug('received {}'.format(channel.recv()))
+
+        with open(filename, 'rb') as wheel_file_data:
+            _log.debug('sending wheel to control.')
+            while True:
+                data = wheel_file_data.read(8125)
+
+                if not data:
+                    break
+                channel.send(data)
+
+        _log.debug('sending done message.')
+        channel.send('done')
+        _log.debug('waiting for done')
+        _log.debug('closing channel')
+
+        agent_uuid = agent_uuid.get()
+
+        channel.close(linger=0)
+        del channel
+
+        if tag:
+            opts.connection.call('tag_agent',
+                                 agent_uuid,
+                                 tag)
+    except Exception as exc:
+        if opts.debug:
+            traceback.print_exc()
+        _stderr.write(
+            '{}: error: {}: {}\n'.format(opts.command, exc, filename))
+        return 10
+    name = opts.connection.call('agent_name', agent_uuid)
+    _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
 
 
 def tag_agent(opts):
@@ -420,12 +461,14 @@ def list_agents(opts):
     agents.sort()
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:>3}\n'
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>3}\n'
     _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'TAG', tag_width, 'PRI'))
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width, 'TAG', tag_width, 'PRI'))
     for agent in agents:
         priority = opts.aip.agent_priority(agent.uuid) or ''
         _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
                                  agent.tag or '', tag_width, priority))
 
 
@@ -457,15 +500,17 @@ def status_agents(opts):
         n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:>6}\n'
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
     _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'TAG', tag_width, 'STATUS'))
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width, 'TAG', tag_width, 'STATUS'))
     for agent in agents:
         try:
             pid, stat = status[agent.uuid]
         except KeyError:
             pid = stat = None
         _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
                                  agent.tag or '', tag_width,
                                  ('running [{}]'.format(pid)
                                   if stat is None else str(
@@ -866,6 +911,10 @@ class Connection(object):
         return self.server.vip.rpc.call(
             self.peer, method, *args, **kwargs).get()
 
+    def call_no_get(self, method, *args, **kwargs):
+        return self.server.vip.rpc.call(
+            self.peer, method, *args, **kwargs)
+
     def notify(self, method, *args, **kwargs):
         return self.server.vip.rpc.notify(
             self.peer, method, *args, **kwargs)
@@ -986,10 +1035,13 @@ def main(argv=sys.argv):
         return subparsers.add_parser(*args, **kwargs)
 
     install = add_parser('install', help='install agent from wheel',
-                         epilog='The wheel argument can take the form tag=wheelfile to tag the '
+                         epilog='Optionally you may specify the --tag argument to tag the '
                                 'agent during install without requiring a separate call to '
-                                'the tag command.')
-    install.add_argument('wheel', nargs='+', help='path to agent wheel')
+                                'the tag command. ')
+    install.add_argument('wheel', help='path to agent wheel')
+    install.add_argument('--tag', help='tag for the installed agent')
+    install.add_argument('--vip-identity', help='VIP IDENTITY for the installed agent. '
+                         'Overrides any previously configured VIP IDENTITY.')
     if HAVE_RESTRICTED:
         install.add_argument('--verify', action='store_true',
                              dest='verify_agents',

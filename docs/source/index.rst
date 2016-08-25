@@ -3,6 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+|VOLTTRON Logo|
+
 Welcome to VOLTTRON's documentation!
 ====================================
 
@@ -26,6 +28,7 @@ Contents:
    scalability/index
    specifications/index
    roadmap/index
+   specifications/index
 
    API Documenation <apidocs>
 
@@ -45,3 +48,5 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+.. |VOLTTRON Logo| image:: images/volttron-webimage.jpg

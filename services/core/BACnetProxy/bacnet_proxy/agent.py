@@ -67,7 +67,7 @@ _log = logging.getLogger(__name__)
 
 bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
-__version__ = '0.1'
+__version__ = '0.2'
 
 import os.path
 import errno
@@ -311,7 +311,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         if isinstance(apdu, IAmRequest):
             device_type, device_instance = apdu.iAmDeviceIdentifier
             if device_type != 'device':
-                #Bail with out an error.
+                #Bail without an error.
                 return
 
             _log.debug("Calling IAm callback.")
@@ -332,9 +332,6 @@ write_debug_str = "Writing: {target} {type} {instance} {property} (Priority: {pr
 
 def bacnet_proxy_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
-    vip_identity = config.get("vip_identity", "platform.bacnet_proxy")
-    #pop off the uuid based identity
-    kwargs.pop('identity', None)
     
     device_address = config["device_address"]
     max_apdu_len=config.get("max_apdu_length",1024)
@@ -346,7 +343,7 @@ def bacnet_proxy_agent(config_path, **kwargs):
     return BACnetProxyAgent(device_address,
                          max_apdu_len, seg_supported,
                          obj_id, obj_name, ven_id,
-                         heartbeat_autostart=True, identity=vip_identity,**kwargs)
+                         heartbeat_autostart=True,**kwargs)
 
 class BACnetProxyAgent(Agent):
     '''This agent creates a virtual bacnet device that is used by
@@ -618,7 +615,7 @@ class BACnetProxyAgent(Agent):
     
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(bacnet_proxy_agent)
+    utils.vip_main(bacnet_proxy_agent, identity="platform.bacnet_proxy")
 
 
 if __name__ == '__main__':
