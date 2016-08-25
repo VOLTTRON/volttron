@@ -233,6 +233,8 @@ manage_store_config( identity, config_name, contents, config_type="raw" ) - Chan
 
 manage_delete_config( identity, config_name ) - Delete a configuration for an agent with the specified identity.
 
+manage_delete_store( identity ) - Delete all configurations for a VIP IDENTITY.
+
 manage_list_config( identity ) - Get a list of configurations for an agent with the specified identity.
 
 manage_get_config( identity, config_name, raw=True ) - Get the contents of a configuration file. If raw is set to True this function will return the original file, otherwise it will return the parsed representation of the file.
