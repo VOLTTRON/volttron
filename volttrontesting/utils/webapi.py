@@ -32,12 +32,16 @@ class WebAPI(object):
         if not response.ok:
             raise ValueError(
                 'url not resolvable. Are you sure vc is installed?')
+        if not url.endswith('jsonrpc'):
+            if not url.endswith('/'):
+                url += '/'
+            url += 'jsonrpc'
         self._url = url
         self._username = username
         self._password = password
         self._auth_token = self.get_auth_token()
 
-    def call(self, method, *params, **kwparams):
+    def call(self, rpcmethod, *params, **kwparams):
         """ Call the web rpc method.
 
         According to the json-rpc specification one can have either argument
@@ -54,18 +58,24 @@ class WebAPI(object):
         if params and kwparams:
             raise ValueError('jsonrpc requires either args or kwargs not both!')
         if params:
-            data = json_method(str(uuid.uuid4()), method, params, None)
+            data = json_method(str(uuid.uuid4()), rpcmethod, params, None)
         else:
-            data = json_method(str(uuid.uuid4()), method, None, kwparams)
+            data = json_method(str(uuid.uuid4()), rpcmethod, None, kwparams)
 
-        if method != 'get_authorization':
+        if rpcmethod != 'get_authorization':
             data['authorization'] = self._auth_token
-        return requests.post(self._url, json=data)
+        resp = requests.post(self._url, json=data)
+        if resp.ok:
+            d = resp.json()
+            if 'result' in d:
+                return d['result']
+            return d['error']
+        return resp
 
-    def do_rpc(self, method, use_auth_token=True, **params):
+    def do_rpc(self, rpcmethod, use_auth_token=True, **params):
         data = {
             'jsonrpc': '2.0',
-            'method': method,
+            'method': rpcmethod,
             'params': params,
             'id': '1'
         }
@@ -105,7 +115,7 @@ class WebAPI(object):
         return self.call('unregister_platform', platform_uuid=platform_uuid)
 
 
-def do_rpc(method, params=None, auth_token=None, rpc_root=None):
+def do_rpc(rpcmethod, params=None, auth_token=None, rpc_root=None):
     """ A utility method for calling json rpc based funnctions.
 
     :param method: The method to call
@@ -120,7 +130,7 @@ def do_rpc(method, params=None, auth_token=None, rpc_root=None):
     json_package = {
         'jsonrpc': '2.0',
         'id': '2503402',
-        'method': method,
+        'method': rpcmethod,
     }
 
     print("PARAMS ARE: {}".format(params))

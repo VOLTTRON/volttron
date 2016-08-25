@@ -126,7 +126,7 @@ class VolttronCentralPlatform(Agent):
         self._local_bind_web_address = None
         self._external_addresses = None
 
-        self._volttron_central_reconnect_interval = 10
+        self._volttron_central_reconnect_interval = 5
         self._volttron_central_http_address = None
         self._volttron_central_tcp_address = None
         self._volttron_central_ipc_address = None
@@ -212,8 +212,9 @@ class VolttronCentralPlatform(Agent):
 
     def _periodic_attempt_registration(self):
         if not self._started:
+            _log.error('NOT STARTED!')
             return
-
+        _log.debug('ATTEMPTING REGISTRATION')
         if self._scheduled_connection_event is not None:
             # This won't hurt anything if we are canceling ourselves.
             self._scheduled_connection_event.cancel()
@@ -230,12 +231,26 @@ class VolttronCentralPlatform(Agent):
                            "Instance is named: "
                            "{}".format(self._local_instance_name
                 ))
-                self._vc_connection().call(
-                    "register_instance",
-                    address=self._external_addresses[0],
-                    display_name=self._local_instance_name,
-                    serverkey=self._local_serverkey,
-                    vcpagentkey=self.core.publickey
+                if vc.address.startswith('ipc'):
+                    self._vc_connection().call(
+                        "register_instance",
+                        address=self.core.address,
+                        display_name=self._local_instance_name,
+                        serverkey=self._local_serverkey,
+                        vcpagentkey=self.core.publickey
+                    )
+                else:
+                    self._vc_connection().call(
+                        "register_instance",
+                        address=self._external_addresses[0],
+                        display_name=self._local_instance_name,
+                        serverkey=self._local_serverkey,
+                        vcpagentkey=self.core.publickey
+                    )
+            else:
+                _log.debug(
+                    "is registering: {}, is_registered: {}, was unmanaged {}").format(
+                    self._is_registering, self._is_registered, self._was_unmanaged
                 )
         except Unreachable as e:
             _log.error("Couldn't connect to volttron.central. {}".format(
@@ -247,13 +262,14 @@ class VolttronCentralPlatform(Agent):
             _log.error("{} found as {}".format(e, e.message))
         except gevent.Timeout as e:
             _log.error("timout occured connecting to remote platform.")
+        finally:
+            _log.debug('Scheduling next periodic call')
+            now = get_aware_utc_now()
+            next_update_time = now + datetime.timedelta(
+                seconds=self._volttron_central_reconnect_interval)
 
-        now = get_aware_utc_now()
-        next_update_time = now + datetime.timedelta(
-            seconds=self._volttron_central_reconnect_interval)
-
-        self._scheduled_connection_event = self.core.schedule(
-            next_update_time, self._periodic_attempt_registration)
+            self._scheduled_connection_event = self.core.schedule(
+                next_update_time, self._periodic_attempt_registration)
 
     def _vc_connection(self):
         """ Attempt to connect to volttron central management console.
@@ -275,6 +291,7 @@ class VolttronCentralPlatform(Agent):
         if self._volttron_central_connection:
             # if connected return the connection.
             if self._volttron_central_connection.is_connected(5):
+                _log.debug('Returning connection')
                 return self._volttron_central_connection
 
             _log.debug("Resetting connection as the peer wasn't responding.")
@@ -367,6 +384,10 @@ class VolttronCentralPlatform(Agent):
     @Core.receiver('onstart')
     def _started(self, sender, **kwargs):
 
+        # Created a link to the control agent on this platform.
+        self._control_connection = Connection(address=self.core.address,
+                                              peer='control')
+
         _log.debug('Querying router for addresses and serverkey.')
         q = Query(self.core)
 
@@ -406,23 +427,15 @@ class VolttronCentralPlatform(Agent):
 
         self._agent_started = True
 
+        _log.debug('Starting the period registration attempts.')
         # Start the process of attempting registration with a VOLTTRON central.
         self._periodic_attempt_registration()
 
-        print('AGENT_VIP_IDENTITY: {}'.format(os.environ['AGENT_VIP_IDENTITY']))
-        # Pop the identity off off the environment so that it isns't used
-        # within the subsystems.
-        os.environ.pop('AGENT_VIP_IDENTITY')
         try:
-            # Created a link to the control agent on this platform.
-            self._control_connection = Connection(address=self.core.address,
-                                                  peer='control')
-
+            _log.debug('Starting stats publisher.')
             self._start_stats_publisher()
         except ValueError as e:
             _log.error(e)
-
-
 
     def _start_stats_publisher(self):
         if not self._agent_started:

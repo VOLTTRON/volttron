@@ -262,13 +262,16 @@ class ControlService(BaseAgent):
             path = os.path.join(tmpdir, os.path.basename(filename))
             store = open(path, 'wb')
             _log.debug('Begining to receive data.')
+            bytecount = 0
             # Send synchronization message to inform peer of readiness
             channel.send('ready')
             try:
                 while True:
                     data = channel.recv()
-                    _log.debug("Received {} bytes of data".format(len(data)))
+                    bytecount += len(data)
                     if data == 'done':
+                        _log.debug("Received {} bytes of data".format(
+                            bytecount))
                         _log.debug('done receiving data')
                         break
                     store.write(data)

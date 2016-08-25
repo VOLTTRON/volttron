@@ -5,7 +5,7 @@ import pickle, json, csv, os, shutil, shelve
 
 def load_create_store(filename):
     persist = PersistentDict(filename=filename, flag='c', format='json')
-    return shelve.Shelf(persist)
+    return persist
 
 
 class PersistentDict(dict):

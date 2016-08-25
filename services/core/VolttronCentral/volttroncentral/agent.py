@@ -1199,18 +1199,20 @@ class VolttronCentralAgent(Agent):
         def err(message, code=METHOD_NOT_FOUND):
             return {'error': {'code': code, 'message': message}}
 
+        method_dict = {
+            'list_deivces': self._handle_list_devices,
+            'list_platforms': self._handle_list_platforms,
+            'list_performance': self._handle_list_performance
+        }
+
+        if method in method_dict.keys():
+            return method_dict[method]()
+
         if method == 'register_instance':
             if isinstance(params, list):
                 return self._register_instance(*params)
             else:
                 return self._register_instance(**params)
-        elif method == 'list_deivces':
-            return self._handle_list_devices()
-        elif method == 'list_performance':
-            print(self._handle_list_performance())
-            return self._handle_list_performance()
-        elif method == 'list_platforms':
-            return self._handle_list_platforms()
         elif method == 'unregister_platform':
             return self.unregister_platform(params['instance_uuid'])
         elif method == 'get_setting':
