@@ -6,7 +6,7 @@ import os
 import psutil
 import shutil
 import sys
-import tempfile
+from time import sleep
 
 
 vc_address = None
@@ -103,7 +103,7 @@ def setup_platform_3(env, home):
     for i in range(len(agents)):
         install_agent(env, agents[i], configs[i], tags[i], vip[i])
 
-    install_fake_masterdriver(env, home)
+#    install_fake_masterdriver(env, home)
 
 
 def setup_platform_4(env, home):
@@ -202,6 +202,7 @@ def main():
     pidfile = os.path.join(os.path.dirname(__file__), "pids")
     with open(pidfile, 'w') as pidout:
         vc_address = "http://127.0.0.1:8080"
+
         for x in range(len(vhomes)):
             i = x+1
             home = vhomes[x]
@@ -211,11 +212,28 @@ def main():
             os.makedirs(home)
             cmd = ["volttron", "-vv", "-l{}/{}".format(home, "volttron.log"),
                    "--vip-address=tcp://127.0.0.{}:22916".format(i)]
-            if i not in (1,4):
-                cmd.append("--volttron-central-address={}".format(vc_address))
+
+            # for instance 1 and 4 we have web support.  instance 1 is where
+            # vc lives as well as the vcp.  instance 4 is available to use
+            # the discovery button through the volttron central interface.
             if i in (1, 4):
                 cmd.append(
                     "--bind-web-address=http://127.0.0.{}:8080".format(i))
+
+            # for instance 2 we use volttron-central-address to auto register
+            # with volttron central.
+            if i == 2:
+                cmd.append("--volttron-central-address={}".format(
+                    vc_address))
+
+            # instance 3 uses the volttron central tcp address and serverkey
+            # to auto register it.
+            if i == 3:
+                cmd.append("--volttron-central-address={}".format(
+                    get_vc_vipaddress(vc_address)))
+                cmd.append("--volttron-central-serverkey={}".format(
+                    get_vc_serverkey(vc_address)
+                ))
 
             cmd.append('--instance-name=volttron-platform-{}'.format(i))
 
@@ -229,12 +247,25 @@ def main():
             assert process.poll() is None
 
             pidout.write("{}\n".format(process.pid))
+            sleep(0.4)
 
     setup_functions = [setup_platform_1, setup_platform_2, setup_platform_3,
                        setup_platform_4]
 
     for i in range(len(setup_functions)):
         setup_functions[i](envs[i], vhomes[i])
+
+
+def get_vc_serverkey(vc_address):
+    resp = requests.get("{}/discovery/".format(vc_address))
+    d = resp.json()
+    return d['serverkey']
+
+
+def get_vc_vipaddress(vc_address):
+    resp = requests.get("{}/discovery/".format(vc_address))
+    d = resp.json()
+    return d['vip-address']
 
 
 def get_destination_address(vc_address):
