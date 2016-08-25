@@ -1,14 +1,10 @@
-import gevent
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
-from volttron.platform.jsonrpc import json_validate_response
 from volttron.platform.messaging.health import STATUS_GOOD
-from volttrontesting.utils.webapi import WebAPI
 
 import pytest
 from volttrontesting.utils.core_service_installs import add_volttron_central, \
-    add_volttron_central_platform
+    add_volttron_central_platform, add_listener
 from volttrontesting.utils.platformwrapper import start_wrapper_platform
-from volttrontesting.utils.utils import poll_gevent_sleep
 
 vcp = None
 
@@ -48,8 +44,16 @@ def test_list_agents(setup_platform):
     assert VOLTTRON_CENTRAL_PLATFORM in connection.peers()
 
     agent_list = connection.call("list_agents")
-
     assert agent_list and len(agent_list) == 1
+
+    try:
+        listener_uuid = add_listener(vcp)
+        agent_list = connection.call("list_agents")
+        assert agent_list and len(agent_list) == 2
+
+    finally:
+        if listener_uuid:
+            vcp.remove_agent(listener_uuid)
 
 
 @pytest.mark.vcp

@@ -99,3 +99,10 @@ def add_emailer(wrapper, config):
         agent_dir="services/core/EmailerAgent"
     )
     return agent_uuid
+
+
+def add_listener(wrapper, config={}):
+    agent_uuid = wrapper.install_agent(
+        config_file=config,
+        agent_dir="examples/ListenerAgent"
+    )
