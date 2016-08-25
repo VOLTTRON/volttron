@@ -34,7 +34,6 @@ primary and secondary configuration files are shown below.
         "volttron_ctl_tag": "master",          |        "volttron_ctl_tag": "master",
                                                |
         "heartbeat_period": 10,                |        "heartbeat_period": 10,
-        "check_pulse_interval": 10,            |        "check_pulse_interval": 10,
                                                |
         "timeout": 120                         |        "timeout": 120
     }                                          |    }
@@ -44,5 +43,4 @@ primary and secondary configuration files are shown below.
 - **remove_vip** - Address where *remote_id* can be reached. Don't forget add keys if you are using encryption.
 - **volttrol_ctl_tag** - The tag of the agent that we want to manage.
 - **heartbeat_period** - Send a message to *remote_id* with this period. Measured in seconds.
-- **check_pulse_interval** - Period to check for remote platform timeouts. Measured in seconds.
 - **timeout** - Consider a platform inactive if a heartbeat has not been received for *timeout* seconds.
