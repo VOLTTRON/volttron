@@ -986,13 +986,80 @@ class BaseQueryHistorianAgent(Agent):
     """
 
     @RPC.export
+    def get_topic_list(self):
+        """RPC call
+
+        :return: List of topics in the data store.
+        :rtype: list
+        """
+        return self.query_topic_list()
+
+    @abstractmethod
+    def query_topic_list(self):
+        """
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_topic_list`
+        to actually topic list from the data store.
+
+        :return: List of topics in the data store.
+        :rtype: list
+        """
+
+    @RPC.export
+    def get_aggregate_topics(self):
+        """RPC call
+
+        :return: List of aggregate topics in the data store. Each list
+        element contains (topic_name, aggregation_type,
+        aggregation_time_period, metadata)
+        :rtype: list
+        """
+        return self.query_aggregate_topics()
+
+    @abstractmethod
+    def query_aggregate_topics(self):
+        """
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_aggregate_topics`
+        to find out the available aggregates in the data store
+
+        :return: List of tuples containing (topic_name, aggregation_type,
+        aggregation_time_period, metadata)
+        :rtype: list
+        """
+
+    @RPC.export
+    def get_topics_metadata(self, topics):
+
+        """RPC call
+        :param topics:
+        :return: List of aggregate topics in the data store. Each list
+        element contains (topic_name, aggregation_type,
+        aggregation_time_period, metadata)
+        :rtype: list
+        """
+        return self.query_aggregate_topics()
+
+    @abstractmethod
+    def query_topics_metadata(self):
+        """
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_topics_metadata`
+        to find out the available aggregates in the data store
+
+        :return: List of tuples containing (topic_name, aggregation_type,
+        aggregation_time_period, metadata)
+        :rtype: list
+        """
+
+    @RPC.export
     def query(self, topic=None, start=None, end=None, agg_type=None,
               agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
         """RPC call
 
         Call this method to query an Historian for time series data.
 
-        :param topic: Topic to query for.
+        :param topic: Topic or topics to query for.
         :param start: Start time of the query. Defaults to None which is the
         beginning of time.
         :param end: End time of the query.  Defaults to None which is the
@@ -1001,7 +1068,7 @@ class BaseQueryHistorianAgent(Agent):
         :param count: Limit results to this value.
         :param order: How to order the results, either "FIRST_TO_LAST" or
         "LAST_TO_FIRST"
-        :type topic: str
+        :type topic: str or list
         :type start: str
         :type end: str
         :param agg_type: If this is a query for aggregate data, the type of
@@ -1043,6 +1110,17 @@ class BaseQueryHistorianAgent(Agent):
         if topic is None:
             raise TypeError('"Topic" required')
 
+        if agg_type:
+            if not agg_period:
+                raise TypeError("You should provide both aggregation type"
+                                "(agg_type) and aggregation time period"
+                                "(agg_period) to query aggregate data")
+        else:
+            if agg_period:
+                raise TypeError("You should provide both aggregation type"
+                                "(agg_type) and aggregation time period"
+                                "(agg_period) to query aggregate data")
+
         if start is not None:
             try:
                 start = parse(start)
@@ -1059,32 +1137,13 @@ class BaseQueryHistorianAgent(Agent):
             _log.debug("start={}".format(start))
 
         results = self.query_historian(topic, start, end, agg_type,
-                                       agg_period,  skip, count, order)
+                                       agg_period, skip, count, order)
         metadata = results.get("metadata", None)
         values = results.get("values", None)
         if values is not None and metadata is None:
             results['metadata'] = {}
         return results
 
-    @RPC.export
-    def get_topic_list(self):
-        """RPC call
-
-        :return: List of topics in the data store.
-        :rtype: list
-        """
-        return self.query_topic_list()
-
-    @abstractmethod
-    def query_topic_list(self):
-        """
-        This function is called by
-        :py:meth:`BaseQueryHistorianAgent.get_topic_list`
-        to actually topic list from the data store.
-
-        :return: List of topics in the data store.
-        :rtype: list
-        """
 
     @abstractmethod
     def query_historian(self, topic, start=None, end=None, agg_type=None,
@@ -1111,7 +1170,7 @@ class BaseQueryHistorianAgent(Agent):
         "metadata" is not required. The caller will normalize this to {} for
         you if it is missing.
 
-        :param topic: Topic to query for.
+        :param topic: Topic or list of topics to query for.
         :param start: Start of query timestamp as a datetime.
         :param end: End of query timestamp as a datetime.
         :param agg_type: If this is a query for aggregate data, the type of
@@ -1122,7 +1181,7 @@ class BaseQueryHistorianAgent(Agent):
         :param count: Limit results to this value.
         :param order: How to order the results, either "FIRST_TO_LAST" or
         "LAST_TO_FIRST"
-        :type topic: str
+        :type topic: str or list
         :type start: datetime
         :type end: datetime
         :type skip: int

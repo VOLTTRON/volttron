@@ -39,39 +39,7 @@ mongo_aggregator = {
             "user": "test",
             "passwd": "test"
         }
-    },
-    "aggregations": [
-        {"aggregation_period": "2m",
-         "use_calendar_time_periods": True,
-         "points": [
-             {
-                 "topic_names": ["Building/LAB/Device/MixedAirTemperature"],
-                 "aggregation_type": "sum",
-                 "min_count": 2
-             },
-             {
-                 "topic_names": ["Building/LAB/Device/OutsideAirTemperature"],
-                 "aggregation_type": "sum",
-                 "min_count": 2
-             }
-         ]
-         },
-        {"aggregation_period": "3m",
-         "use_calendar_time_periods": False,
-         "points": [
-             {
-                 "topic_names": ["Building/LAB/Device/MixedAirTemperature"],
-                 "aggregation_type": "sum",
-                 "min_count": 2
-             },
-             {
-                 "topic_names": ["Building/LAB/Device/OutsideAirTemperature"],
-                 "aggregation_type": "sum",
-                 "min_count": 2
-             }
-         ]
-         }
-    ]
+    }
 }
 
 offset = timedelta(seconds=3)
@@ -186,6 +154,7 @@ def aggregate_agent(request, volttron_instance):
     mongo_historian_uuid = volttron_instance.install_agent(
         agent_dir="services/core/MongodbHistorian",
         config_file=config,
+        vip_identity='platform.historian',
         start=True)
     print("agent id: ", mongo_historian_uuid)
 
@@ -255,13 +224,45 @@ def test_single_topic(volttron_instance, aggregate_agent, publish_agent,
     gevent.sleep(0.5)
     agent_uuid = None
     try:
+        aggregate_agent['aggregations'] = [
+            {"aggregation_period": "2m",
+             "use_calendar_time_periods": True,
+             "points": [
+                 {
+                     "topic_names": ["Building/LAB/Device/MixedAirTemperature"],
+                     "aggregation_type": "sum",
+                     "min_count": 2
+                 },
+                 {
+                     "topic_names": ["Building/LAB/Device/OutsideAirTemperature"],
+                     "aggregation_type": "sum",
+                     "min_count": 2
+                 }
+             ]
+             },
+            {"aggregation_period": "3m",
+             "use_calendar_time_periods": False,
+             "points": [
+                 {
+                     "topic_names": ["Building/LAB/Device/MixedAirTemperature"],
+                     "aggregation_type": "sum",
+                     "min_count": 2
+                 },
+                 {
+                     "topic_names": ["Building/LAB/Device/OutsideAirTemperature"],
+                     "aggregation_type": "sum",
+                     "min_count": 2
+                 }
+             ]
+             }
+        ]
         agent_uuid = volttron_instance.install_agent(
             agent_dir="services/core/MongodbAggregateHistorian",
             config_file=aggregate_agent,
             start=True)
         print("agent id: ", agent_uuid)
-        # gevent.sleep(4 * 60)  # sleep till we see two rows in aggregate table
-        gevent.sleep(60)
+        gevent.sleep(4 * 60)  # sleep till we see two rows in aggregate table
+        #gevent.sleep(60)
         result1 = publish_agent.vip.rpc.call('platform.historian',
                                              'query',
                                              topic=query_points['mixed_point'],
@@ -273,9 +274,7 @@ def test_single_topic(volttron_instance, aggregate_agent, publish_agent,
 
         print(result1)
         assert (result1['values'][0][1] == 3.0)
-        # assert (result1['metadata']) == \
-        #        {'units': 'F', 'tz': 'UTC', 'type': 'float'}
-        # assert (result1['values'][1][1] == 7.0)
+        assert (result1['values'][1][1] == 7.0)
 
         result2 = publish_agent.vip.rpc.call('platform.historian',
                                              'query',
@@ -286,12 +285,12 @@ def test_single_topic(volttron_instance, aggregate_agent, publish_agent,
                                              order="FIRST_TO_LAST").get(
             timeout=100)
         assert (result2['values'][0][1] == 3.0)
-        # assert (result2['values'][1][1] == 7.0)
+        assert (result2['values'][1][1] == 7.0)
 
         # point1 and point2 configured within the same aggregation group should
         # be time synchronized
         assert (result2['values'][0][0] == result1['values'][0][0])
-        # assert (result2['values'][1][0] == result1['values'][1][0])
+        assert (result2['values'][1][0] == result1['values'][1][0])
 
         result = publish_agent.vip.rpc.call(
             'platform.historian',
@@ -302,7 +301,7 @@ def test_single_topic(volttron_instance, aggregate_agent, publish_agent,
             count=20,
             order="FIRST_TO_LAST").get(timeout=100)
         assert (result['values'][0][1] == 3.0)
-        # assert (result['values'][1][1] == 7.0)
+        assert (result['values'][1][1] == 7.0)
 
         result = publish_agent.vip.rpc.call(
             'platform.historian',
@@ -314,7 +313,7 @@ def test_single_topic(volttron_instance, aggregate_agent, publish_agent,
             order="FIRST_TO_LAST").get(timeout=100)
 
         assert (result['values'][0][1] == 3.0)
-        # assert (result['values'][1][1] == 7.0)
+        assert (result['values'][1][1] == 7.0)
     finally:
         cleanup.append("sum_2m")
         cleanup.append("sum_3m")

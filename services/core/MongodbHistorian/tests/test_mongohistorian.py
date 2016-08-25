@@ -505,6 +505,7 @@ def test_basic_function(volttron_instance, database_client):
 
         # Publish data to message bus that should be recorded in the mongo database.
         expected = publish_fake_data(publish_agent)
+        expected = publish_fake_data(publish_agent)
         gevent.sleep(0.5)
 
         # Query the historian
@@ -513,7 +514,6 @@ def test_basic_function(volttron_instance, database_client):
                                             topic=query_points['oat_point'],
                                             count=20,
                                             order="LAST_TO_FIRST").get(timeout=100)
-
         assert expected['datetime'].isoformat()[:-3] + '000' == result['values'][0][0]
         assert result['values'][0][1] == expected['oat_point']
 

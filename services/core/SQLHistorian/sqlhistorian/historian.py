@@ -228,6 +228,13 @@ def historian(config_path, **kwargs):
                 # No topics present.
                 return []
 
+        def query_aggregate_topics(self):
+            map = self.reader.get_agg_topic_map()
+            if map:
+                return map.keys()
+            else:
+                return []
+
         def query_historian(self, topic, start=None, end=None, agg_type=None,
               agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
             """This function should return the results of a query in the form:

@@ -187,7 +187,7 @@ def historian(config_path, **kwargs):
                     _log.error('SOME THINGS DID NOT WORK')
 
         def query_historian(self, topic, start=None, end=None, agg_type=None,
-              agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
+                            agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
             """ Returns the results of the query from the mongo database.
 
             This historian stores data to the nearest second.  It will not
@@ -200,7 +200,7 @@ def historian(config_path, **kwargs):
 
             metadata is not required (The caller will normalize this to {}
             for you)
-            @param topic: Topic to query for
+            @param topic: Topic or topics to query for
             @param start: Start of query timestamp as a datetime
             @param end: End of query timestamp as a datetime
             @param agg_type: If this is a query for aggregate data, the type of
@@ -214,35 +214,47 @@ def historian(config_path, **kwargs):
             @return: Results of the query
             """
             collection_name = self._data_collection
+
             if agg_type and agg_period:
+                #query aggregate data collection instead
                 collection_name = agg_type + "_" + agg_period
 
-            topic_lower = topic.lower()
-            topic_id = None
-            if agg_type is None:
-                # If this is not an aggregate query find topic if based
-                # on topic table entry
-                topic_id = self._topic_id_map.get(topic_lower, None)
-            else:
-                agg_type = agg_type.lower()
-                # else get it from aggregate_topics
-                topic_id = self._agg_topic_id_map.get(
-                    (topic_lower, agg_type, agg_period),
-                    None)
-                if topic_id is None:
-                    # load agg topic id again as it might be a newly
-                    # configured aggregation
-                    self._agg_topic_id_map = mongoutils.get_agg_topic_map(
-                        self._client, self._agg_topic_collection)
-                    topic_id = self._agg_topic_id_map.get(
-                        (topic_lower, agg_type, agg_period),
-                        None)
-            if not topic_id:
-                _log.warn('No such topic {}'.format(topic))
+            topics_list =[]
+            if isinstance(topic, str):
+                topics_list.append(topic)
+            elif isinstance(topic, list):
+                topics_list = topic
+
+            topic_ids = []
+            id_name_map = {}
+            for topic in topics_list:
+                # find topic if based on topic table entry
+                id = self._topic_id_map.get(topic.lower(), None)
+
+                if agg_type:
+                    agg_type = agg_type.lower()
+                    # replace id from aggregate_topics table
+                    id = self._agg_topic_id_map.get(
+                        (topic.lower(), agg_type, agg_period),None)
+                    if id is None:
+                        # load agg topic id again as it might be a newly
+                        # configured aggregation
+                        self._agg_topic_id_map = mongoutils.get_agg_topic_map(
+                            self._client, self._agg_topic_collection)
+                        id = self._agg_topic_id_map.get(
+                            (topic.lower(), agg_type, agg_period), None)
+                if id:
+                    topic_ids.append(id)
+                    id_name_map[ObjectId(id)] = topic
+                else:
+                    _log.warn('No such topic {}'.format(topic))
+
+            if not topic_ids:
                 return {}
             else:
-                _log.debug("Found topic id for {} as {}".format(topic,
-                                                                topic_id))
+                _log.debug("Found topic id for {} as {}".format(topics_list,
+                                                                topic_ids))
+            multi_topic_query = len(topic_ids) > 1
             db = self._client.get_default_database()
 
             ts_filter = {}
@@ -259,26 +271,53 @@ def historian(config_path, **kwargs):
             if skip > 0:
                 skip_count = skip
 
-            find_params = {"topic_id": ObjectId(topic_id)}
+            find_params = {"topic_id": ObjectId(topic_ids[0])}
+            if multi_topic_query:
+                obj_ids = [ObjectId(x) for x in topic_ids]
+                find_params = {"topic_id": {"$in": obj_ids}}
             if ts_filter:
                 find_params['ts'] = ts_filter
 
             _log.debug("querying table with params {}".format(find_params))
             cursor = db[collection_name].find(find_params)
             cursor = cursor.skip(skip_count).limit(count)
-            cursor = cursor.sort([("ts", order_by)])
+            if multi_topic_query:
+                cursor = cursor.sort([("topic_id", order_by),("ts", order_by)])
+            else:
+                cursor = cursor.sort([("ts", order_by)])
             _log.debug('cursor count is: {}'.format(cursor.count()))
 
             # Create list of tuples for return values.
-            values = [(utils.format_timestamp(row['ts']), row['value']) for
-                      row
-                      in cursor]
+            if multi_topic_query:
+                values = [(id_name_map[row['topic_id']],
+                           utils.format_timestamp(row['ts']),
+                           row['value']) for row in cursor]
+            else:
+                values = [(utils.format_timestamp(row['ts']), row['value']) for
+                          row
+                          in cursor]
+
             if len(values) > 0:
-                if not agg_type:
+                #If there are results add metadata if it is a query on a single
+                #topic
+                if len(topic_ids) == 1:
+                    metadata = self._topic_meta.get(topic_ids[0], {})
+                    if agg_type:
+                        # if aggregation is on single topic find the topic id
+                        # in the topics table.
+                        id = self._topic_id_map.get(topic.lower(), None)
+                        if id:
+                            metadata = self._topic_meta.get(topic_ids[0], {})
+                        else:
+                            # if topic name does not have entry in topic_id_map
+                            # it is a user configured aggregation_topic_name
+                            # which denotes aggregation across multiple points
+                            metadata = {}
+
                     return {
-                        'values': values,
-                        'metadata': self._topic_meta.get(topic_id, {})
-                    }
+                            'values': values,
+                            'metadata': metadata
+                           }
                 else:
                     return {'values':values}
             else:
@@ -293,6 +332,15 @@ def historian(config_path, **kwargs):
                 res.append(document['topic_name'])
 
             return res
+
+        def query_aggregate_topics(self):
+            map = mongoutils.get_agg_topic_map(self._client,
+                                               self._agg_topic_collection)
+            if map:
+                return map.keys()
+            else:
+                return []
+
 
         def _load_topic_map(self):
             _log.debug('loading topic map')

@@ -121,7 +121,6 @@ class AggregateHistorian(Agent):
         self.topic_id_map, name_map = self.get_topic_map()
         self.agg_topic_id_map = self.get_agg_topic_map()
 
-        _log.debug("loaded topic_id map {}".format(self.topic_id_map))
         for agg_group in self.config['aggregations']:
 
             # 1. Validate and normalize aggregation period and
@@ -229,12 +228,17 @@ class AggregateHistorian(Agent):
                 (data['aggregation_topic_name'].lower(), agg_type, agg_time_period ),
                 None)
             if agg_id:
-                _log.debug("Found aggregate updating existing rows")
+                _log.debug("Found aggregate updating existing rows for id {} "
+                           " name {} meta {}".format(agg_id,
+                                                data['aggregation_topic_name'],
+                                                topic_meta))
                 self.update_aggregate_store(agg_id,
                                             data['aggregation_topic_name'],
                                             topic_meta)
             else:
-                _log.debug("Inserting new record into aggregate_topics")
+                _log.debug("Inserting new record into aggregate_topics name {} "
+                           "meta {}".format(data['aggregation_topic_name'],
+                                            topic_meta))
                 agg_id = self.initialize_aggregate_store(
                     data['aggregation_topic_name'],
                     data['aggregation_type'],
