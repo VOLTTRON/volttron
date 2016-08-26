@@ -167,6 +167,7 @@ var platformActionCreators = {
             });
     },
     installAgents: function (platform, files) {
+
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({

@@ -57,10 +57,13 @@
 
 from __future__ import absolute_import
 
+import os
+
 from .core import *
 from .errors import *
 from .decorators import *
 from .subsystems import *
+from .... import platform
 
 
 class Agent(object):
@@ -79,10 +82,13 @@ class Agent(object):
 
     def __init__(self, identity=None, address=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
-                 heartbeat_autostart=False, heartbeat_period=60):
+                 heartbeat_autostart=False, heartbeat_period=60,
+                 volttron_home=os.path.abspath(platform.get_home()),
+                 agent_uuid=None):
         self.core = Core(self, identity=identity, address=address,
                          context=context, publickey=publickey,
-                         secretkey=secretkey, serverkey=serverkey)
+                         secretkey=secretkey, serverkey=serverkey,
+                         volttron_home=volttron_home, agent_uuid=agent_uuid)
         self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
                                     heartbeat_period)
         self.core.setup()
