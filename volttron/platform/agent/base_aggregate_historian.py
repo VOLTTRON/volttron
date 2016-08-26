@@ -148,14 +148,16 @@ class AggregateHistorian(Agent):
                                )
 
     def _init_agg_group(self, agg_group, agg_time_period):
+        if 'points' not in agg_group:
+            raise ValueError('Invalid configuration must have points')
         for data in agg_group['points']:
             topic_names = data.get('topic_names', None)
             topic_pattern = data.get('topic_name_pattern', None)
             if topic_names is None and topic_pattern is None:
                 raise ValueError(
                     "Please provide a valid topic_name or "
-                    "topic_name_pattern for aggregation_period {}"
-                        .format(agg_group['aggregation_period']))
+                    "topic_name_pattern for aggregation_period {}".format(
+                        agg_group['aggregation_period']))
 
             # Validate aggregation_type
             agg_type = data.get('aggregation_type', None)
@@ -438,7 +440,6 @@ class AggregateHistorian(Agent):
         pass
 
     # Utility methods
-
     @staticmethod
     def format_aggregation_time_period(time_period):
         """
@@ -449,6 +450,7 @@ class AggregateHistorian(Agent):
         @return: normalized time period
         """
         try:
+            time_period = time_period.strip()
             period = int(time_period[:-1])
         except ValueError:
             raise ValueError(
