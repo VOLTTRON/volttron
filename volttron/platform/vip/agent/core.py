@@ -413,13 +413,11 @@ class Core(BasicCore):
     delay_running_event_set = True
 
     def __init__(self, owner, address=None, identity=None, context=None,
-                 publickey=None, secretkey=None, serverkey=None):
-        if not address:
-            address = os.environ.get('VOLTTRON_VIP_ADDR')
-            if not address:
-                home = os.path.abspath(platform.get_home())
-                abstract = '@' if sys.platform.startswith('linux') else ''
-                address = 'ipc://%s%s/run/vip.socket' % (abstract, home)
+                 publickey=None, secretkey=None, serverkey=None,
+                 volttron_home=os.path.abspath(platform.get_home()),
+                 agent_uuid=None):
+        self.volttron_home = volttron_home
+
         # These signals need to exist before calling super().__init__()
         self.onviperror = Signal()
         self.onsockevent = Signal()
@@ -429,8 +427,7 @@ class Core(BasicCore):
         self.context = context or zmq.Context.instance()
         self.address = address
         self.identity = str(identity) if identity is not None else str(uuid.uuid4())
-        self.agent_uuid = os.environ.get('AGENT_UUID', None)
-
+        self.agent_uuid = agent_uuid
         # The public and secret keys are obtained by:
         # 1. publickkey and secretkey parameters to __init__
         # 2. in the query string of the address parameter to __init__
@@ -482,10 +479,10 @@ class Core(BasicCore):
             # this is an installed agent
             keystore_dir = os.curdir
         elif self.identity:
-            if not os.environ.get('VOLTTRON_HOME'):
+            if not self.volttron_home:
                 raise ValueError('VOLTTRON_HOME must be specified.')
             keystore_dir = os.path.join(
-                os.environ.get('VOLTTRON_HOME'), 'keystores',
+                self.volttron_home, 'keystores',
                 self.identity)
             if not os.path.exists(keystore_dir):
                 os.makedirs(keystore_dir)
@@ -537,12 +534,17 @@ class Core(BasicCore):
         hello_response_event = gevent.event.Event()
 
         def connection_failed_check():
-            # If we don't have a verified connection after 10.0 seconds shut down.
+            # If we don't have a verified connection after 10.0 seconds
+            # shut down.
             if hello_response_event.wait(10.0):
                 return
             _log.error("No response to hello message after 10 seconds.")
             _log.error("A common reason for this is a conflicting VIP IDENTITY.")
             _log.error("Shutting down agent.")
+            _log.error("Possible conflicting identity is: {}".format(
+                self.socket.identity
+            ))
+
             self.stop(timeout=5.0)
 
         def hello():
@@ -554,7 +556,9 @@ class Core(BasicCore):
 
         def hello_response(sender, version='',
                            router='', identity=''):
-            _log.info("Connected to platform: router: {} version: {} identity: {}".format(router, version, identity))
+            _log.info("Connected to platform: "
+                      "router: {} version: {} identity: {}".format(
+                router, version, identity))
             _log.debug("Running onstart methods.")
             hello_response_event.set()
             self.onstart.sendby(self.link_receiver, self)
