@@ -214,7 +214,6 @@ class VolttronCentralPlatform(Agent):
         if not self._started:
             _log.error('NOT STARTED!')
             return
-        _log.debug('ATTEMPTING REGISTRATION')
         if self._scheduled_connection_event is not None:
             # This won't hurt anything if we are canceling ourselves.
             self._scheduled_connection_event.cancel()
@@ -227,10 +226,11 @@ class VolttronCentralPlatform(Agent):
 
             if not self._is_registering and not self._is_registered and \
                     not self._was_unmanaged:
-                _log.debug("Starting the registration process from vcp. "
-                           "Instance is named: "
-                           "{}".format(self._local_instance_name
+                _log.debug("Starting the registration process from vcp.")
+                _log.debug("Instance is named: {}".format(
+                    self._local_instance_name
                 ))
+                _log.debug('vc.address is: {}'.format(vc.address))
                 if vc.address.startswith('ipc'):
                     self._vc_connection().call(
                         "register_instance",
@@ -249,9 +249,11 @@ class VolttronCentralPlatform(Agent):
                     )
             else:
                 _log.debug(
-                    "is registering: {}, is_registered: {}, was unmanaged {}").format(
-                    self._is_registering, self._is_registered, self._was_unmanaged
-                )
+                    "is registering: {}, is_registered: {}, was unmanaged {}"
+                        .format(
+                            self._is_registering, self._is_registered,
+                            self._was_unmanaged
+                ))
         except Unreachable as e:
             _log.error("Couldn't connect to volttron.central. {}".format(
                 self._volttron_central_tcp_address
