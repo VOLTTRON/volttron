@@ -179,7 +179,7 @@ class DevicesFound extends BaseComponent {
                                 </tr>
                             );
 
-                            devices.splice(i, 0, deviceConfiguration);
+                            devices.splice(i + 1, 0, deviceConfiguration);
                         }
                     }
 

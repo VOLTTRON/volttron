@@ -5907,7 +5907,7 @@ var DevicesFound = function (_BaseComponent) {
                                     )
                                 );
 
-                                devices.splice(i, 0, deviceConfiguration);
+                                devices.splice(i + 1, 0, deviceConfiguration);
                             }
                         }
                     }
