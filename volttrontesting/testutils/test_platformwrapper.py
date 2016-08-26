@@ -204,7 +204,7 @@ def test_fixture_returns_single_if_one_requested(get_volttron_instances):
     assert isinstance(wrapper, PlatformWrapper)
 
 
-def test_can_ping_router(get_volttron_instances):
+def test_can_ping_router(volttron_instance):
     vi = volttron_instance
     agent = vi.build_agent()
     resp = agent.vip.ping('', 'router?').get(timeout=4)
