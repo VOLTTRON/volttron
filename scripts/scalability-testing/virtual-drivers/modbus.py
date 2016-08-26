@@ -78,9 +78,13 @@ import argparse
 import struct
 import logging
 
+from utils import createDaemon
+
 parser = argparse.ArgumentParser(description='Run a test pymodbus driver')
 parser.add_argument('config', help='device registry configuration')
+parser.add_argument('interface', help='interface address')
 parser.add_argument('--port', default=5020, type=int, help='port for device to listen on')
+parser.add_argument('--no-daemon', help='do not create a daemon process', action='store_true')
 args = parser.parse_args()
 
 logging.basicConfig()
@@ -219,9 +223,14 @@ identity.ModelName   = 'VOLTTRON Modbus Test Device'
 identity.MajorMinorRevision = '1.0'
 
 abstraction = DeviceAbstraction(args.config)
+
+#Create the deamon as soon as we've loaded the device configuration.
+if not args.no_daemon:
+    createDaemon()
+    
 context = abstraction.get_server_context()
 
 #---------------------------------------------------------------------------# 
 # run the server you want
 #---------------------------------------------------------------------------# 
-StartTcpServer(context, identity=identity, address=("localhost", args.port))
+StartTcpServer(context, identity=identity, address=(args.interface, args.port))

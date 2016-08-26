@@ -37,7 +37,7 @@ DISABLE="$COMMAND disable --tag $TAG $COMMAND_ARGS"
 
 
 
-if [ ! -e "./applications" ]; then
+if [ ! -e "./volttron/platform" ]; then
     echo "Please execute from root of volttron repository."
     exit 0
 fi

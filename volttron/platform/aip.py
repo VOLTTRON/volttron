@@ -185,9 +185,11 @@ class ExecutionEnvironment(object):
     '''
     def __init__(self):
         self.process = None
+        self.env = None
 
     def execute(self, *args, **kwargs):
         try:
+            self.env = kwargs.get('env', None)
             self.process = subprocess.Popen(*args, **kwargs)
         except OSError as e:
             if e.filename:
@@ -206,6 +208,7 @@ class AIPplatform(object):
         self.agents = {}
 
     def setup(self):
+        '''Creates paths for used directories for the instance.'''
         for path in [self.run_dir, self.config_dir, self.install_dir]:
             if not os.path.exists(path):
                 os.makedirs(path, 0o755)
@@ -273,7 +276,7 @@ class AIPplatform(object):
             raise
         return agent_uuid
 
-    def install_agent(self, agent_wheel):
+    def install_agent(self, agent_wheel, vip_identity=None):
         while True:
             agent_uuid = str(uuid.uuid4())
             if agent_uuid in self.agents:
@@ -291,10 +294,82 @@ class AIPplatform(object):
                 unpacker.unpack(dest=agent_path)
             else:
                 unpack(agent_wheel, dest=agent_path)
+
+            self._setup_agent_vip_id(agent_uuid, vip_identity=vip_identity)
+
         except Exception:
             shutil.rmtree(agent_path)
             raise
         return agent_uuid
+
+    def _setup_agent_vip_id(self, agent_uuid, vip_identity=None):
+        agent_path = os.path.join(self.install_dir, agent_uuid)
+        name = self.agent_name(agent_uuid)
+        pkg = UnpackedPackage(os.path.join(agent_path,  name))
+        identity_template_filename = os.path.join(pkg.distinfo, "IDENTITY_TEMPLATE")
+
+        rm_id_template = False
+
+        if not os.path.exists(identity_template_filename):
+            agent_name = self.agent_name(agent_uuid)
+            name_template = agent_name + " #{n}"
+        else:
+            with open(identity_template_filename, 'rb') as fp:
+                name_template = fp.read(64)
+
+            rm_id_template = True
+
+        if vip_identity is not None:
+            name_template = vip_identity
+
+        _log.debug('Using name template "' + name_template + '" to generate VIP ID')
+
+        final_identity = self._get_available_agent_identity(name_template)
+
+        if final_identity is None:
+            raise ValueError("Agent with VIP ID "+name_template+" already installed on platform.")
+
+        identity_filename = os.path.join(agent_path, "IDENTITY")
+
+        with open(identity_filename, 'wb') as fp:
+            fp.write(final_identity)
+
+        _log.info("Agent {uuid} setup to use VIP ID {vip_identity}". format(uuid=agent_uuid,
+                                                                      vip_identity=final_identity))
+
+        #Cleanup IDENTITY_TEMPLATE file.
+        if rm_id_template:
+            os.remove(identity_template_filename)
+            _log.debug('IDENTITY_TEMPLATE file removed.')
+
+
+    def get_all_agent_identities(self):
+        results = set()
+        for agent_uuid in self.list_agents():
+            try:
+                agent_identity = self.agent_identity(agent_uuid)
+            except ValueError:
+                continue
+
+            if agent_identity is not None:
+                results.add(agent_identity)
+
+        return results
+
+    def _get_available_agent_identity(self, name_template):
+        all_agent_identities = self.get_all_agent_identities()
+
+        #Provided name template is static
+        if name_template == name_template.format(n=0):
+            return name_template if name_template not in all_agent_identities else None
+
+        #Find a free ID
+        count = 1
+        while True:
+            test_name = name_template.format(n=count)
+            if test_name not in all_agent_identities:
+                return test_name
+            count += 1
 
     def remove_agent(self, agent_uuid):
         if agent_uuid not in os.listdir(self.install_dir):
@@ -350,6 +425,22 @@ class AIPplatform(object):
         else:
             with open(tag_file, 'w') as file:
                 file.write(tag[:64])
+
+    def agent_identity(self, agent_uuid):
+        """ Return the identity of the agent that is installed.
+
+        The IDENTITY file is written to the agent's install directory the
+        the first time the agent is installed.  This function reads that
+        file and returns the read value.
+
+        @param agent_uuid:
+        @return:
+        """
+        if '/' in agent_uuid or agent_uuid in ['.', '..']:
+            raise ValueError('invalid agent')
+        identity_file = os.path.join(self.install_dir, agent_uuid, 'IDENTITY')
+        with ignore_enoent, open(identity_file, 'r') as file:
+            return file.readline(64)
 
     def agent_tag(self, agent_uuid):
         if '/' in agent_uuid or agent_uuid in ['.', '..']:
@@ -432,7 +523,10 @@ class AIPplatform(object):
         _log.warning('missing execution requirements: %s', execreqs_json)
         return {}
 
-    def _launch_agent(self, agent_uuid, agent_path, name=None):
+    def start_agent(self, agent_uuid):
+        name = self.agent_name(agent_uuid)
+        agent_path = os.path.join(self.install_dir, agent_uuid, name)
+
         execenv = self.agents.get(agent_uuid)
         if execenv and execenv.process.poll() is None:
             _log.warning('request to start already running agent %s', agent_path)
@@ -477,6 +571,18 @@ class AIPplatform(object):
         environ['AGENT_UUID'] = agent_uuid
         environ['_LAUNCHED_BY_PLATFORM'] = '1'
 
+        #For backwards compatibility create the identity file if it does not exist.
+        identity_file = os.path.join(self.install_dir, agent_uuid, "IDENTITY")
+        if not os.path.exists(identity_file):
+            _log.debug('IDENTITY FILE MISSING: CREATING IDENTITY FILE WITH VALUE: {}'.format(agent_uuid))
+            with open(identity_file, 'wb') as fp:
+                fp.write(agent_uuid)
+
+        with open(identity_file, 'rb') as fp:
+            agent_vip_identity = fp.read()
+
+        environ['AGENT_VIP_IDENTITY'] = agent_vip_identity
+
         module, _, func = module.partition(':')
         if func:
             code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module, func)
@@ -507,28 +613,13 @@ class AIPplatform(object):
                      ((logging.INFO, line.rstrip('\r\n'))
                       for line in proc.stdout))
 
-    def launch_agent(self, agent_path):
-        while True:
-            agent_uuid = str(uuid.uuid4())
-            if not (agent_uuid in self.agents or
-                    os.path.exists(os.path.join(self.install_dir, agent_uuid))):
-                break
-        if not os.path.exists(agent_path):
-            msg = 'agent not found: {}'.format(agent_path)
-            _log.error(msg)
-            raise ValueError(msg)
-        self._launch_agent(agent_uuid, os.path.abspath(agent_path))
-
     def agent_status(self, agent_uuid):
         execenv = self.agents.get(agent_uuid)
         if execenv is None:
             return (None, None)
         return (execenv.process.pid, execenv.process.poll())
 
-    def start_agent(self, agent_uuid):
-        name = self.agent_name(agent_uuid)
-        self._launch_agent(
-            agent_uuid, os.path.join(self.install_dir, agent_uuid, name), name)
+
 
     def stop_agent(self, agent_uuid):
         try:
@@ -541,14 +632,17 @@ class AIPplatform(object):
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
+                _log.warn("First timeout")
                 execenv.process.terminate()
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
+                _log.warn("2nd timeout")
                 execenv.process.kill()
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
+                _log.error("last timeout")
                 raise ValueError('process is unresponsive')
         return execenv.process.poll()
 

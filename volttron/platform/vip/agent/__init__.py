@@ -53,30 +53,44 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 from __future__ import absolute_import
+
+import os
 
 from .core import *
 from .errors import *
 from .decorators import *
 from .subsystems import *
+from .... import platform
 
 
 class Agent(object):
     class Subsystems(object):
-        def __init__(self, owner, core):
+        def __init__(self, owner, core, heartbeat_autostart,
+                     heartbeat_period):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner)
             self.hello = Hello(core)
             self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
             self.channel = Channel(core)
+            self.health = Health(owner, core, self.rpc)
+            self.heartbeat = Heartbeat(owner, core, self.rpc, self.pubsub,
+                                       heartbeat_autostart, heartbeat_period)
 
-    def __init__(self, identity=None, address=None, context=None):
-        self.core = Core(
-            self, identity=identity, address=address, context=context)
-        self.vip = Agent.Subsystems(self, self.core)
+    def __init__(self, identity=None, address=None, context=None,
+                 publickey=None, secretkey=None, serverkey=None,
+                 heartbeat_autostart=False, heartbeat_period=60,
+                 volttron_home=os.path.abspath(platform.get_home()),
+                 agent_uuid=None):
+        self.core = Core(self, identity=identity, address=address,
+                         context=context, publickey=publickey,
+                         secretkey=secretkey, serverkey=serverkey,
+                         volttron_home=volttron_home, agent_uuid=agent_uuid)
+        self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
+                                    heartbeat_period)
         self.core.setup()
 
 

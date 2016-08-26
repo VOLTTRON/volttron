@@ -1,6 +1,10 @@
 export SOURCE=examples/ListenerAgent/ 
 export CONFIG=examples/ListenerAgent/config 
-export TAG=listener 
+export TAG=listener
+
+# Uncomment this to set the identity of the agent. Overrides the platform default identity and the agent's
+# preferred identity.
+#export AGENT_VIP_IDENTITY=my_listener
 
 ./scripts/core/make-agent.sh 
 

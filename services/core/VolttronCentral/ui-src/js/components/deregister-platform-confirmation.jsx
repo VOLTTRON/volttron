@@ -4,23 +4,14 @@ var React = require('react');
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-var platformRegistrationStore = require('../stores/platform-registration-store');
 
 var RegisterPlatformForm = React.createClass({
     getInitialState: function () {
-        return getStateFromStores(this);
-    },
-    componentDidMount: function () {
-        platformRegistrationStore.addChangeListener(this._onStoresChange);
-    },
-    componentWillUnmount: function () {
-        platformRegistrationStore.removeChangeListener(this._onStoresChange);
-    },
-    _onStoresChange: function () {
-        this.setState(getStateFromStores());
+        return {};
     },
     _onCancelClick: modalActionCreators.closeModal,
-    _onSubmit: function () {
+    _onSubmit: function (e) {
+        e.preventDefault();
         platformManagerActionCreators.deregisterPlatform(this.props.platform);
     },
     render: function () {
@@ -45,9 +36,5 @@ var RegisterPlatformForm = React.createClass({
         );
     },
 });
-
-function getStateFromStores() {
-    return { error: platformRegistrationStore.getLastDeregisterError() };
-}
 
 module.exports = RegisterPlatformForm;

@@ -235,7 +235,8 @@ def pip(operation, args, verbose=None, upgrade=False, offline=False,
 
 def update(operation, verbose=None, upgrade=False, offline=False, proxy=None):
     '''Install dependencies in setup.py and requirements.txt.'''
-    from setup import (option_requirements, local_requirements)
+    from setup import (option_requirements, local_requirements,
+                       optional_requirements)
     assert operation in ['install', 'wheel']
     wheeling = operation == 'wheel'
     path = os.path.dirname(__file__) or '.'
@@ -252,7 +253,11 @@ def update(operation, verbose=None, upgrade=False, offline=False, proxy=None):
         for opt in options:
             args.extend([build_option, opt])
         args.extend(['--no-deps', requirement])
-        pip(operation, args, verbose, upgrade, offline, proxy)
+        pip(operation, args, verbose, upgrade, offline)
+    # Build the optional requirements that the user specified via the command
+    # line.
+    for requirement in optional_requirements:
+        pip('install', [requirement], verbose, upgrade, offline)
     # Install local packages and remaining dependencies
     args = []
     for _, location in local_requirements:
@@ -322,6 +327,24 @@ def main(argv=sys.argv):
         'in activated environment (default: %(default)s)')
     bs.add_argument('--force-version', help=argparse.SUPPRESS)
 
+    # allows us to look and see if any of the dynamic optional arguments
+    # are on the command line.  We check this during the processing of the args
+    # variable at the end of the block.  If the option is set then it needs
+    # to be passed on.
+    optional_args = []
+    if os.path.exists('optional_requirements.json'):
+        po = parser.add_argument_group('Extra packaging options')
+        with open('optional_requirements.json', 'r') as optional_arguments:
+            data = json.load(optional_arguments)
+            for arg, vals in data.items():
+                optional_args.append(arg)
+                if 'help' in vals.keys():
+                    po.add_argument(arg, action='store_true', default=False,
+                                    help=vals['help'])
+                else:
+                    po.add_argument(arg, action='store_true', default=False)
+
+    # Update options
     up = parser.add_argument_group('update options')
     up.add_argument(
         '--offline', action='store_true', default=False,
@@ -381,8 +404,11 @@ def main(argv=sys.argv):
         args = [env_exe, __file__]
         if options.verbose is not None:
             args.append('--verbose' if options.verbose else '--quiet')
-        if options.proxy is not None:
-            args.extend(['--proxy', options.proxy])
+        # Transfer dynamic properties to the subprocess call 'update'.
+        # Clip off the first two characters expecting long parameter form.
+        for arg in optional_args:
+            if getattr(options, arg[2:]):
+                args.append(arg)
         subprocess.check_call(args)
 
 

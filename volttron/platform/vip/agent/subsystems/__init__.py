@@ -63,6 +63,9 @@ from .peerlist import PeerList
 from .ping import Ping
 from .pubsub import PubSub
 from .rpc import RPC
+from .heartbeat import Heartbeat
+from .health import Health
 
 
-__all__ = ['PeerList', 'Ping', 'RPC', 'Hello', 'PubSub', 'Channel']
+__all__ = ['PeerList', 'Ping', 'RPC', 'Hello', 'PubSub', 'Channel',
+           'Heartbeat', 'Health']

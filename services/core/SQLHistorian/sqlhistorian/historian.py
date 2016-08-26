@@ -7,26 +7,27 @@
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright notice,
 #    this list of conditions and the following disclaimer in the documentation
 #    and/or other materials provided with the distribution.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+# OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
+# The views and conclusions contained in the software and documentation are
+# those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD Project.
 #
 
 # This material was prepared as an account of work sponsored by an
@@ -51,51 +52,47 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 from __future__ import absolute_import, print_function
 
-import datetime
-import errno
+from collections import defaultdict
 import inspect
 import logging
-import os, os.path
-from pprint import pprint
 import sys
-import uuid
+import threading
 
-import gevent
-from zmq.utils import jsonapi
-
-from volttron.platform.vip.agent import *
-from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
-from volttron.platform.messaging import topics, headers as headers_mod
+from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.vip.agent import *
 
-#import sqlhistorian
-#import sqlhistorian.settings
-#import settings
+__version__ = "3.5.0"
 
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-
 def historian(config_path, **kwargs):
 
     config = utils.load_config(config_path)
-    connection = config.get('connection', None);
-
+    connection = config.get('connection', None)
+    default_table_def = {"table_prefix": "",
+                         "data_table": "data",
+                         "topics_table": "topics",
+                         "meta_table": "meta"}
+    tables_def = config.get('tables_def', default_table_def)
     assert connection is not None
-    databaseType = connection.get('type', None)
-    assert databaseType is not None
+    database_type = connection.get('type', None)
+    assert database_type is not None
     params = connection.get('params', None)
     assert params is not None
-    identity = config.get('identity', kwargs.pop('identity', None))
 
-    
-    mod_name = databaseType+"functs"
-    mod_name_path = "sqlhistorian.db."+mod_name
+    topic_replace_list = config.get("topic_replace_list", None)
+    if topic_replace_list:
+        _log.debug("topic replace list is: {}".format(topic_replace_list))
+
+    mod_name = database_type + "functs"
+    mod_name_path = "sqlhistorian.db.{}".format(mod_name)
     loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
     
     for name, cls in inspect.getmembers(loaded_mod):
@@ -104,64 +101,79 @@ def historian(config_path, **kwargs):
             DbFuncts = cls
             break
     try:
-        _log.debug('Historian using module: '+DbFuncts.__name__)
+        _log.debug('Historian using module: ' + DbFuncts.__name__)
     except NameError:
-        functerror = 'Invalid module named '+mod_name_path+ "."
+        functerror = 'Invalid module named ' + mod_name_path + "."
         raise Exception(functerror)
-            
+
     class SQLHistorian(BaseHistorian):
-        '''This is a simple example of a historian agent that writes stuff
+        """This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
         of the BaseHistorianAgent.
-        '''
+        """
+
+        def __init__(self, **kwargs):
+            """ Initialise the historian.
+
+            The historian makes two connections to the data store.  Both of
+            these connections are available across the main and processing
+            thread of the historian.  topic_map and topic_meta are used as
+            cache for the meta data and topic maps.
+
+            :param kwargs:
+            :return:
+            """
+            super(SQLHistorian, self).__init__(
+                topic_replace_list=topic_replace_list, **kwargs)
+
+            if tables_def['table_prefix']:
+                tables_def['data_table'] = tables_def['table_prefix'] + \
+                    "_" + tables_def['data_table']
+                tables_def['topics_table'] = tables_def['table_prefix'] + \
+                                             "_" + tables_def['topics_table']
+                tables_def['meta_table'] = tables_def['table_prefix'] + \
+                                           "_" + tables_def['meta_table']
+
+            tables_def.pop('table_prefix', None)
+            self.reader = DbFuncts(connection['params'], tables_def)
+            self.writer = DbFuncts(connection['params'], tables_def)
+            self.topic_id_map = {}
+            self.topic_name_map = {}
+            self.topic_meta = {}
 
         @Core.receiver("onstart")
         def starting(self, sender, **kwargs):
-            
-            print('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
-            try:
-                self.reader = DbFuncts(**connection['params'])
-            except AttributeError:
-                _log.exception('bad connection parameters')
-                self.core.stop()
-                return
-                        
-            self.topic_map = self.reader.get_topic_map()
+            """ Called right after connections to the Router occured.
+
+            :param sender:
+            :param kwargs:
+            :return:
+            """
+            _log.info("Starting historian with identity: {}".format(
+                self.core.identity
+            ))
+            _log.debug("starting Thread is: {}".format(
+                threading.currentThread().getName())
+            )
+
+            topic_id_map, topic_name_map = self.reader.get_topic_map()
+            self.topic_id_map.update(topic_id_map)
+            self.topic_name_map.update(topic_name_map)
 
             if self.core.identity == 'platform.historian':
-                # Check to see if the platform agent is available, if it isn't then
-                # subscribe to the /platform topic to be notified when the platform
-                # agent becomes available.
-                try:
-                    ping = self.vip.ping('platform.agent',
-                                         'awake?').get(timeout=3)
-                    _log.debug("Ping response was? "+ str(ping))
+                if 'platform.agent' in self.vip.peerlist().get(timeout=2):
+                    _log.info(
+                        'Registering with platform.agent as a  service.'
+                    )
                     self.vip.rpc.call('platform.agent', 'register_service',
-                                      self.core.identity).get(timeout=3)
-                except Unreachable:
-                    _log.debug('Could not register historian service')
-                finally:
-                    self.vip.pubsub.subscribe('pubsub', '/platform',
-                                              self.__platform)
-                    _log.debug("Listening to /platform")
-
-        def __platform(self, peer, sender, bus, topic, headers, message):
-            _log.debug('Platform is now: {}'.format(message))
-            if message == 'available' and \
-                    self.core.identity == 'platform.historian':
-                gevent.spawn(self.vip.rpc.call, 'platform.agent', 'register_service',
-                                   self.core.identity)
-                gevent.sleep(0)
+                                      self.core.identity).get(timeout=2)
+                else:
+                    _log.info('No platform.agent available to register with.')
 
         def publish_to_historian(self, to_publish_list):
-            _log.debug("publish_to_historian number of items: {}"
-                       .format(len(to_publish_list)))
-            
-            # load a topic map if there isn't one yet.
-            try:
-                self.topic_map.items()
-            except:
-                self.topic_map = self.reader.get_topic_map()
+            thread_name = threading.currentThread().getName()
+            _log.debug("publish_to_historian number of items: {} Thread: {}"
+                       .format(len(to_publish_list), thread_name))
 
             try:
                 real_published = []
@@ -169,38 +181,68 @@ def historian(config_path, **kwargs):
                     ts = x['timestamp']
                     topic = x['topic']
                     value = x['value']
-                    # look at the topics that are stored in the database already
-                    # to see if this topic has a value
-                    topic_id = self.topic_map.get(topic, None)
-    
+                    meta = x['meta']
+
+                    # look at the topics that are stored in the database
+                    # already to see if this topic has a value
+                    lowercase_name = topic.lower()
+                    topic_id = self.topic_id_map.get(lowercase_name, None)
+                    db_topic_name = self.topic_name_map.get(lowercase_name,
+                                                           None)
+                    _log.debug('topic is {}, db topic is {}'
+                               .format(topic, db_topic_name))
                     if topic_id is None:
                         _log.debug('Inserting topic: {}'.format(topic))
-                        row  = self.writer.insert_topic(topic)
+                        # Insert topic name as is in db
+                        row = self.writer.insert_topic(topic)
                         topic_id = row[0]
-                        self.topic_map[topic] = topic_id
+                        # user lower case topic name when storing in map
+                        # for case insensitive comparison
+                        self.topic_id_map[lowercase_name] = topic_id
+                        self.topic_name_map[lowercase_name] = topic
                         _log.debug('TopicId: {} => {}'.format(topic_id, topic))
+                    elif db_topic_name != topic:
+                        _log.debug('Updating topic: {}'.format(topic))
+                        self.writer.update_topic(topic,topic_id)
+                        self.topic_name_map[lowercase_name] = topic
+
+                    old_meta = self.topic_meta.get(topic_id, {})
+                    if set(old_meta.items()) != set(meta.items()):
+                        _log.debug('Updating meta for topic: {} {}'.format(
+                            topic, meta
+                        ))
+                        self.writer.insert_meta(topic_id, meta)
+                        self.topic_meta[topic_id] = meta
                     
-                    if self.writer.insert_data(ts,topic_id, value):
-                        #_log.debug('item was inserted')
+                    if self.writer.insert_data(ts, topic_id, value):
+                        # _log.debug('item was inserted')
                         real_published.append(x)
+
                 if len(real_published) > 0:            
                     if self.writer.commit():
-                        _log.debug('published {} data values'.format(len(to_publish_list)))
+                        _log.debug('published {} data values'.format(
+                            len(to_publish_list))
+                        )
                         self.report_all_handled()
                     else:
-                        _log.debug('failed to commit so rolling back {} data values'.format(len(to_publish_list)))
+                        msg = 'commit error. rolling back {} values.'
+                        _log.debug(msg.format(len(to_publish_list)))
                         self.writer.rollback()
                 else:
-                    _log.debug('Unable to publish {}'.format(len(to_publish_list)))
+                    _log.debug('Unable to publish {}'.format(len(
+                        to_publish_list)))
             except:
                 self.writer.rollback()
                 # Raise to the platform so it is logged properly.
                 raise
-                
-                
+
         def query_topic_list(self):
-            if len(self.topic_map) > 0:
-                return self.topic_map.keys()
+
+            _log.debug("query_topic_list Thread is: {}".format(
+                threading.currentThread().getName())
+            )
+            if len(self.topic_name_map) > 0:
+                return self.topic_name_map.values()
             else:
                 # No topics present.
                 return []
@@ -211,31 +253,44 @@ def historian(config_path, **kwargs):
             {"values": [(timestamp1, value1), (timestamp2, value2), ...],
              "metadata": {"key1": value1, "key2": value2, ...}}
 
-             metadata is not required (The caller will normalize this to {} for you)
+             metadata is not required (The caller will normalize this to {}
+             for you)
             """
-            return self.reader.query(topic, start=start, end=end, skip=skip,
-                                     count=count, order=order)
+            _log.debug("query_historian Thread is: {}".format(
+                threading.currentThread().getName())
+            )
+            results = dict()
+            topic_id = self.topic_id_map.get(topic.lower(), None)
+
+            if topic_id is None:
+                return results
+            _log.debug("Querying db reader")
+            results = self.reader.query(
+                topic_id, start=start, end=end, skip=skip, count=count,
+                order=order)
+            if len(results.get('values',[])) > 0 :
+                results['metadata'] = self.topic_meta.get(topic_id, {})
+            else:
+                results = dict()
+            return results
 
         def historian_setup(self):
-            try:
-                self.writer = DbFuncts(**connection['params'])
-            except AttributeError as exc:
-                print(exc)
-                self.core.stop()
+            thread_name = threading.currentThread().getName()
+            _log.debug("historian_setup on Thread: {}".format(thread_name))
 
     SQLHistorian.__name__ = 'SQLHistorian'
-    return SQLHistorian(identity=identity, **kwargs)
-
+    return SQLHistorian(**kwargs)
 
 
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
+    """ Main entry point for the agent.
+
+    :param argv:
+    :return:
+    """
+
     try:
         utils.vip_main(historian)
-        #utils.default_main(historian,
-        #                   description='Historian agent that saves a history to a sqlite db.',
-        #                   argv=argv,
-        #                   no_pub_sub_socket=True)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')

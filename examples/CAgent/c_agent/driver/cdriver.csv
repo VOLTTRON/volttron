@@ -1,0 +1,5 @@
+Point Name,Volttron Point Name,Units,Units Details,Writable,Starting Value,Notes
+WaterTemperature,water_temperature,F,F,FALSE,70,water temperature
+HeatingElementStatus,heating_element_status,On / Off,on/off,FALSE,TRUE,heating element status
+SetTemperature,tgt_temperature,F,F,TRUE,100,target temperature
+ElementThreshold,element_threshold,dF,dF,TRUE,5,+/- temp allowed

@@ -74,7 +74,6 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-
 class DriverAgent(BasicAgent): 
     def __init__(self, parent, config_name, **kwargs):             
         super(DriverAgent, self).__init__(**kwargs)
@@ -96,7 +95,7 @@ class DriverAgent(BasicAgent):
         module = __import__(module_name,globals(),locals(),[], -1)
         sub_module = getattr(module, driver_type)
         klass = getattr(sub_module, "Interface")
-        interface = klass(vip=self.vip)
+        interface = klass(vip=self.vip, core=self.core)
         interface.configure(config_dict, config_string)
         return interface
         
@@ -125,6 +124,11 @@ class DriverAgent(BasicAgent):
         registry_config = self.get_config(config["registry_config"]) 
         
         self.heart_beat_point = config.get("heart_beat_point") 
+        
+        self.publish_depth_first_all = config.get("publish_depth_first_all", True) 
+        self.publish_breadth_first_all = config.get("publish_breadth_first_all", True) 
+        self.publish_depth_first = config.get("publish_depth_first", True) 
+        self.publish_breadth_first = config.get("publish_breadth_first", True) 
                            
         self.interface = self.get_interface(driver_type, driver_config, registry_config)
         self.meta_data = {}
@@ -165,6 +169,8 @@ class DriverAgent(BasicAgent):
     def periodic_read(self):
         _log.debug("scraping device: " + self.device_name)
         
+        self.parent.scrape_starting(self.device_name)
+        
         try:
             results = self.interface.scrape_all()
         except Exception as ex:
@@ -174,41 +180,60 @@ class DriverAgent(BasicAgent):
         # XXX: Does a warning need to be printed?
         if not results:
             return
-
-        now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
+        
+        utcnow = utils.get_aware_utc_now()
+        utcnow_string = utils.format_timestamp(utcnow)
         
         headers = {
-            headers_mod.DATE: now,
+            headers_mod.DATE: utcnow_string,
+            headers_mod.TIMESTAMP: utcnow_string,
         }
+        
             
 
-        for point, value in results.iteritems():
-            topics = self.get_paths_for_point(point)
-            for topic in topics:
-                message = [value, self.meta_data[point]] 
-                self._publish_wrapper(topic, 
-                                      headers=headers, 
-                                      message=message)
+        if self.publish_depth_first or self.publish_breadth_first:
+            for point, value in results.iteritems():
+                depth_first_topic, breadth_first_topic = self.get_paths_for_point(point)
+                message = [value, self.meta_data[point]]
+                   
+                if self.publish_depth_first:  
+                    self._publish_wrapper(depth_first_topic, 
+                                          headers=headers, 
+                                          message=message)
+                
+                if self.publish_breadth_first:
+                    self._publish_wrapper(breadth_first_topic, 
+                                          headers=headers, 
+                                          message=message)
          
         message = [results, self.meta_data] 
-        self._publish_wrapper(self.all_path_depth, 
-                              headers=headers, 
-                              message=message)
-         
-        self._publish_wrapper(self.all_path_breadth, 
-                              headers=headers, 
-                              message=message)
+        if self.publish_depth_first_all:
+            self._publish_wrapper(self.all_path_depth, 
+                                  headers=headers, 
+                                  message=message)
+        
+        if self.publish_breadth_first_all: 
+            self._publish_wrapper(self.all_path_breadth, 
+                                  headers=headers, 
+                                  message=message)
+
+        self.parent.scrape_ending(self.device_name)
         
         
     def _publish_wrapper(self, topic, headers, message):
         while True:
             try:
                 with publish_lock():
+                    _log.debug("publishing: " + topic)
                     self.vip.pubsub.publish('pubsub', 
                                         topic, 
                                         headers=headers, 
                                         message=message).get(timeout=10.0)
                                         
+                    _log.debug("finish publishing: " + topic)
+            except gevent.Timeout:
+                _log.warn("Did not receive confirmation of publish to "+topic)
+                break                           
             except Again:
                 _log.warn("publish delayed: " + topic + " pubsub is busy")
                 gevent.sleep(random.random())
@@ -240,9 +265,20 @@ class DriverAgent(BasicAgent):
          
         return depth_first, breadth_first 
     
-    def get_point(self, point_name):
-        return self.interface.get_point(point_name)
+    def get_point(self, point_name, **kwargs):
+        return self.interface.get_point(point_name, **kwargs)
     
-    def set_point(self, point_name, value):
-        return self.interface.set_point(point_name, value)
+    def set_point(self, point_name, value, **kwargs):
+        return self.interface.set_point(point_name, value, **kwargs)
+
+    def set_multiple_points(self, point_names_values, **kwargs):
+        return self.interface.set_multiple_points(self.device_name,
+                                                  point_names_values,
+                                                  **kwargs)
+    
+    def revert_point(self, point_name, **kwargs):
+        self.interface.revert_point(point_name, **kwargs)
+    
+    def revert_all(self, **kwargs):
+        self.interface.revert_all(**kwargs)
         

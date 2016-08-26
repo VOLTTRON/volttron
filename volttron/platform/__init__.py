@@ -53,22 +53,31 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 
-'''Core package.'''
+""" Core package."""
 
 
 import os
 
-__version__ = '2.0'
+__version__ = '3.0'
 
+
+def set_home(home=None):
+    """ Set the home directory with user and variables expanded.
+
+    If the home is sent in, it used.
+    Otherwise, the default value of '~/.volttron' is used.
+    """
+    os.environ["VOLTTRON_HOME"] = home or get_home()
+    
 
 def get_home():
-    '''Return the home directory with user and variables expanded.
+    """ Return the home directory with user and variables expanded.
 
     If the VOLTTRON_HOME environment variable is set, it used.
     Otherwise, the default value of '~/.volttron' is used.
-    '''
+    """
     return os.path.normpath(os.path.expanduser(os.path.expandvars(
         os.environ.get('VOLTTRON_HOME', '~/.volttron'))))
