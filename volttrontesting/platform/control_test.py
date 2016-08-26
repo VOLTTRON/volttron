@@ -16,7 +16,7 @@ def test_identity_is_uuid(volttron_instance):
     agent = volttron_instance.build_agent()
     identity = agent.vip.rpc.call('control', 'agent_vip_identity',
                                   auuid).get(timeout=2)
-    assert identity == "listeneragent-3.0 #1"
+    assert identity == "listeneragent-3.1 #1"
 
 
 @pytest.mark.control
@@ -27,9 +27,6 @@ def test_can_get_identity(volttron_instance):
     @param volttron_instance:
     @return:
     """
-    if volttron_instance.encrypt:
-        pytest.skip('Must be encrypted in order to use VolttronCentralPlatform')
-
     auuid = volttron_instance.install_agent(
         agent_dir="services/core/VolttronCentralPlatform", start=True)
     assert auuid is not None

@@ -41,6 +41,7 @@ def add_volttron_central(wrapper, config=None):
     if config is not None:
         config_dict = config
 
+    print('Adding vc to {}'.format(wrapper.vip_address))
     agent_uuid = wrapper.install_agent(
         config_file=config_dict,
         agent_dir="services/core/VolttronCentral",
@@ -51,6 +52,7 @@ def add_volttron_central(wrapper, config=None):
 
 
 def add_volttron_central_platform(wrapper):
+    print('Adding vcp to {}'.format(wrapper.vip_address))
     agent_uuid = wrapper.install_agent(
         config_file={},
         agent_dir="services/core/VolttronCentralPlatform",

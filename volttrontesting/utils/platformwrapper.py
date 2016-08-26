@@ -242,7 +242,6 @@ class PlatformWrapper:
             keys.generate()
             publickey = keys.public()
             secretkey = keys.secret()
-
         if self.encrypt:
             conn = Connection(address=address, peer=peer, publickey=publickey,
                               secretkey=secretkey, serverkey=serverkey,
@@ -625,11 +624,15 @@ class PlatformWrapper:
 
         _log.debug('sending done message.')
         channel.send('done')
-        # must do this before channel closes or process will hang.
-        auuid = result.get(timeout=10)
-        _log.debug('closing channel')
-        channel.close(linger=0)
-        del channel
+        try:
+            # must do this before channel closes or process will hang.
+            auuid = result.get(timeout=10)
+            _log.debug('closing channel')
+        except gevent.Timeout:
+            _log.error('Timeout in channel')
+        finally:
+            channel.close(linger=0)
+            del channel
 
         if start:
             self.start_agent(auuid)
