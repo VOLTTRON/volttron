@@ -33,7 +33,6 @@ def test_platform_responds_to_discover_endpoint(pa_instance):
 
 
 @pytest.mark.vc
-@pytest.mark.skipif(reason="Fixing it")
 def test_publickey_retrieval(vc_instance, pa_instance):
     """ This method tests that the /discovery addresses.
 
@@ -50,6 +49,7 @@ def test_publickey_retrieval(vc_instance, pa_instance):
     """
     vc_wrapper, vc_uuid, jsonrpc = vc_instance
     pa_wrapper, pa_uuid = pa_instance
+
     vc_info = DiscoveryInfo.request_discovery_info(
         vc_wrapper.bind_web_address)
     pa_info = DiscoveryInfo.request_discovery_info(
