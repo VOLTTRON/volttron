@@ -54,7 +54,7 @@ def test_can_discover_key(volttron_instance1_web):
     assert res.ok
 
     d = res.json()
-    assert vi.publickey == d['serverkey']
+    assert vi.serverkey == d['serverkey']
     assert d['vip-address']
 
 

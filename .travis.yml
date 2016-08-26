@@ -29,28 +29,4 @@ before_install:
 install:
   - python2 bootstrap.py
 
-script: scripts/run-tests.sh
-
-#notifications:
-#  email:
-#    - craig.allwardt@pnnl.gov
-#    - zachary.beech@pnnl.gov
-#    recipients:
-#      - craig.allwardt@pnnl.gov
-      #- zachary.beech@pnnl.gov
-      #- jereme.haack@pnnl.gov
-      #- kyle.monson@pnnl.gov
-      #- joseph.chapman@pnnl.gov
-      #- poorva.sharma@pnnl.gov
-      #- michael.roup@pnnl.gov
-      #- bora.akyol@pnnl.gov
-      #- robert.lutes@pnnl.gov
-#      on_success: change
-#      on_failure: change
-
-#language: python
-#matrix:
-#  include:
-#    - python: "2.7"
-#      env: TEST_SUITE=suite_2_7
-# script: env/bin/python
+script: ci-integration/run-tests.sh
