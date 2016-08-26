@@ -378,7 +378,7 @@ class ModbusInterface(BaseInterface):
             
             for regDef in configDict:
                 #Skip lines that have no address yet.
-                if not regDef['Point Name']:
+                if not regDef['Volttron Point Name']:
                     continue
                 
                 io_type = regDef['Modbus Register']
