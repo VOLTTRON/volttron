@@ -656,9 +656,14 @@ class VolttronCentralPlatform(Agent):
         _log.debug(
             'platform agent routing request: {}, {}'.format(id, method))
 
+        method_map = {
+            'list_agents': self.list_agents,
+            'get_devices': self.get_devices,
+        }
+
         # First handle the elements that are going to this platform
-        if method == 'list_agents':
-            result = self.list_agents()
+        if method in method_map:
+            result = method_map[method]()
         elif method == 'set_setting':
             result = self.set_setting(**params)
         elif method == 'get_setting':
@@ -724,16 +729,23 @@ class VolttronCentralPlatform(Agent):
                 _log.debug("Calling method {} on agent {}"
                            .format(agent_method, agent_uuid))
                 _log.debug("Params is: {}".format(params))
-
-                result = self.vip.rpc.call(agent_uuid, agent_method,
-                                           **params).get()
+                # find the identity of the agent so we can call it by name.
+                identity = self._control_connection.call('agent_vip_identity', agent_uuid)
+                if params:
+                    if isinstance(params, list):
+                        result = self.vip.rpc.call(identity, agent_method, *params).get(timeout=30)
+                    else:
+                        result = self.vip.rpc.call(identity, agent_method, **params).get(timeout=30)
+                else:
+                    result = self.vip.rpc.call(identity, agent_method).get(timeout=30)
 
         if isinstance(result, dict):
             if 'result' in result:
                 return result['result']
             elif 'code' in result:
                 return result['code']
-
+        elif result is None:
+            return
         return result
 
     def _install_agents(self, agent_files):
