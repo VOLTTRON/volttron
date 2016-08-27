@@ -110,7 +110,7 @@ Only configurations that are parsed by the platform (currently "json" or "csv") 
 
 In a json object the name of a value will never be considered a reference.
 
-A file reference is any value string that starts with "file://". The rest of the string is the path in the config store to that configuration.
+A file reference is any value string that starts with "config://". The rest of the string is the path in the config store to that configuration.
 
 Consider the following configuration files named "devices/vav1.config" and "registries/vav.csv", respectively:
 
@@ -121,7 +121,7 @@ Consider the following configuration files named "devices/vav1.config" and "regi
                           "device_id": 500},
 
         "driver_type": "bacnet",
-        "registry_config":"file://registries/vav.csv",
+        "registry_config":"config://registries/vav.csv",
         "campus": "pnnl",
         "building": "isb1",
         "unit": "vav1"
@@ -231,7 +231,7 @@ Methods for Management
 
 manage_store_config( identity, config_name, contents, config_type="raw" ) - Change/create a configuration on the platform for an agent with the specified identity
 
-manage_delete_config( identity, config_name ) - Delete a configuration for an agent with the specified identity.
+manage_delete_config( identity, config_name ) - Delete a configuration for an agent with the specified identity. Calls the agent's update_config with the action "DELETE_ALL" and no configuration name.
 
 manage_delete_store( identity ) - Delete all configurations for a VIP IDENTITY.
 
