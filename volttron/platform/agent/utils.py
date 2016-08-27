@@ -109,7 +109,11 @@ def strip_comments(string):
 
 def load_config(config_path):
     """Load a JSON-encoded configuration file."""
-    return jsonapi.loads(strip_comments(open(config_path).read()))
+    return parse_json_config(open(config_path).read())
+
+def parse_json_config(config_str):
+    """Parse a JSON-encoded configuration file."""
+    return jsonapi.loads(strip_comments(config_str))
 
 
 def run_agent(cls, subscribe_address=None, publish_address=None,
