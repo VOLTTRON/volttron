@@ -7,4 +7,4 @@ export CI=travis
 #pip install pymongo pytest pytest-bdd pytest-cov
 pip install mock
 pip install pytest pytest-timeout
-py.test -s -v
+py.test -v
