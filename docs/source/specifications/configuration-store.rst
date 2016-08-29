@@ -220,11 +220,11 @@ Methods for Agents
 
 Agent methods that change configurations do not trigger any callbacks unless trigger_callback is True.
 
-set( config_name, contents, trigger_callback=False ) - Change/create a configuration file on the platform.
+set_config( config_name, contents, trigger_callback=False ) - Change/create a configuration file on the platform.
 
 get_configs( ) - Get all of the configurations for an Agent.
 
-delete( config_name, trigger_callback=False ) - Delete a configuration.
+delete_config( config_name, trigger_callback=False ) - Delete a configuration.
 
 Methods for Management
 ++++++++++++++++++++++
@@ -238,6 +238,15 @@ manage_delete_store( identity ) - Delete all configurations for a VIP IDENTITY.
 manage_list_config( identity ) - Get a list of configurations for an agent with the specified identity.
 
 manage_get_config( identity, config_name, raw=True ) - Get the contents of a configuration file. If raw is set to True this function will return the original file, otherwise it will return the parsed representation of the file.
+
+Direct Call Methods
++++++++++++++++++++
+
+Services local to the platform who wish to use the configuration store may use two helper methods on the agent class created for this purpose. This allows the auth service to use the config store before the router is started.
+
+delete(self, identity, config_name, trigger_callback=False) - Same as functionality as delete_config, but the caller must specify the indentity of the config store.
+
+store(self, identity, config_name, contents, trigger_callback=False) - Same functionality as set_config, but the caller must specify the indentity of the config store.
 
 Command Line Interface
 **********************
