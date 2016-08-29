@@ -242,7 +242,7 @@ class ConfigStoreService(Agent):
 
     @RPC.export
     def manage_list_configs(self, identity):
-        return self.store.get(identity, {}).get("configs", {}).keys()
+        return self.store.get(identity, {}).get("store", {}).keys()
 
     @RPC.export
     def manage_list_stores(self, identity):
@@ -266,7 +266,7 @@ class ConfigStoreService(Agent):
         return agent_configs[config_name]
 
     @RPC.export
-    def set(self, config_name, contents, trigger_callback=False):
+    def set_config(self, config_name, contents, trigger_callback=False):
         identity = bytes(self.rpc().context.vip_message.peer)
         self.store(identity, config_name, contents, trigger_callback=trigger_callback)
 
@@ -278,12 +278,12 @@ class ConfigStoreService(Agent):
         return self.store.get(identity, {}).get("configs", {})
 
     @RPC.export
-    def delete(self, config_name, trigger_callback=False):
+    def delete_config(self, config_name, trigger_callback=False):
         """Called by an Agent to delete a configuration."""
         identity = bytes(self.rpc().context.vip_message.peer)
         self.delete(identity, config_name, trigger_callback=trigger_callback)
 
-    #Helper method to allow the local subsystems to delete configs before message bus in online.
+    #Helper method to allow the local services to delete configs before message bus in online.
     def delete(self, identity, config_name, trigger_callback=False):
         agent_store = self.store.get(identity)
         if agent_store is None:
@@ -313,7 +313,7 @@ class ConfigStoreService(Agent):
         if not agent_disk_store:
             self.store.pop(identity)
 
-    # Helper method to allow the local subsystems to store configs before message bus is online.
+    # Helper method to allow the local services to store configs before message bus is online.
     def store(self, identity, config_name, contents, trigger_callback=False):
         config_type = None
         raw_data = None
