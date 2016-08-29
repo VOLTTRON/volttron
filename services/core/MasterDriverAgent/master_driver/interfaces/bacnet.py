@@ -160,8 +160,9 @@ class Interface(BaseInterface):
         write_registers = self.get_registers_by_type("byte", False) 
         for register in read_registers + write_registers:             
             point_map[register.point_name] = [register.object_type, 
-                                              register.instance_number, 
-                                              register.property]
+                                              register.instance_number,
+                                              register.property,
+                                              register.index]
         
         try:
             result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
