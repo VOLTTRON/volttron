@@ -89,9 +89,10 @@ class CompatPubSub(object):
 
     def __init__(self, identity=None, address=None, context=None, peer=PEER,
                  publish_address=PUBLISH_ADDRESS,
-                 subscribe_address=SUBSCRIBE_ADDRESS):
+                 subscribe_address=SUBSCRIBE_ADDRESS, volttron_home=None):
         self.core = Core(
-            self, identity=identity, address=address, context=context)
+            self, identity=identity, address=address, context=context,
+            volttron_home=volttron_home)
         self.rpc = RPC(self.core, self)
         self.peerlist = PeerList(self.core)
         self.pubsub = PubSub(self.core, self.rpc, self.peerlist, self)
