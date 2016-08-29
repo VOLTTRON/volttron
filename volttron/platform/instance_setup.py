@@ -151,8 +151,7 @@ def _install_agents(install_vc, install_platform, install_historian):
           'services/core/SQLHistorian', cfg_file, 'historian'])
         if install_historian[1]:
             _cmd(['volttron-ctl', 'enable', '--tag', 'historian'])
-
-
+        
 def _is_bound_already(address):
     # Create a UDS socket
     context = zmq.Context()
@@ -280,10 +279,10 @@ def _install_vcp(autostart):
 
 
 def _install_platform_historian(autostart):
+    os.environ["AGENT_VIP_IDENTITY"]="platform.historian"
     datafile = os.path.join(get_home(), "data", "platform.historian.sqlite")
     config = {
         "agentid": "sqlhistorian-sqlite",
-        "identity": "platform.historian",
         "connection": {
             "type": "sqlite",
             "params": {
@@ -293,7 +292,7 @@ def _install_platform_historian(autostart):
     }
     _install_agent(autostart, "services/core/SQLHistorian", config,
                    "platform_historian")
-
+    os.environ.pop("AGENT_VIP_IDENTITY")
 
 def _install_config_file():
     path = os.path.join(get_home(), "config")
