@@ -18,7 +18,7 @@ It will be possible to create an agent to use the traditional method for configu
 Configuration Names and Paths
 -----------------------------
 
-Any valid OS file path name is a valid configuration name. Any leading "/" is ignored.
+Any valid OS file path name is a valid configuration name. Any leading or trailing "/", "\" and whitespace is removed by the store.
 
 The canonical name for the main agent configuration is "config".
 
