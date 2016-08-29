@@ -359,6 +359,6 @@ class ConfigStoreService(Agent):
 
         with agent_store_lock:
             try:
-                self.vip.rpc.call(identity, "update_config", action, contents=parsed, trigger_callback=trigger_callback).get(timeout-10.0)
+                self.vip.rpc.call(identity, "update_config", action, contents=parsed, trigger_callback=trigger_callback).get(timeout=10.0)
             except errors.Unreachable:
                 _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
