@@ -16,9 +16,9 @@ def build_agent(platform, identity):
                                           identity + '.keys'))
     keys.generate()
     agent = platform.build_agent(identity=identity,
-                                  serverkey=platform.publickey,
-                                  publickey=keys.public(),
-                                  secretkey=keys.secret())
+                                 serverkey=platform.serverkey,
+                                 publickey=keys.public(),
+                                 secretkey=keys.secret())
     # Make publickey easily accessible for these tests
     agent.publickey = keys.public()
     return agent

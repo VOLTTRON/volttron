@@ -75,6 +75,7 @@ import base64
 
 import gevent
 import gevent.event
+from volttron.platform.vip.agent.subsystems.query import Query
 
 from .agent import utils
 from .agent.known_identities import CONTROL_CONNECTION
@@ -116,6 +117,13 @@ class ControlService(BaseAgent):
         self.vip.rpc.export(self._tracker.enable, 'stats.enable')
         self.vip.rpc.export(self._tracker.disable, 'stats.disable')
         self.vip.rpc.export(lambda: self._tracker.stats, 'stats.get')
+
+    @RPC.export
+    def serverkey(self):
+        q = Query(self.core)
+        pk = q.query('serverkey').get(timeout=1)
+        del q
+        return pk
 
     @RPC.export
     def clear_status(self, clear_all=False):
@@ -249,29 +257,33 @@ class ControlService(BaseAgent):
         """
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         channel = self.vip.channel(peer, channel_name)
-        # Send synchronization message to inform peer of readiness
-        channel.send('ready')
-        tmpdir = tempfile.mkdtemp()
         try:
+            tmpdir = tempfile.mkdtemp()
             path = os.path.join(tmpdir, os.path.basename(filename))
             store = open(path, 'wb')
             _log.debug('Begining to receive data.')
+            bytecount = 0
+            # Send synchronization message to inform peer of readiness
+            channel.send('ready')
             try:
                 while True:
                     data = channel.recv()
-                    _log.debug("Received {} bytes of data".format(len(data)))
+                    bytecount += len(data)
                     if data == 'done':
+                        _log.debug("Received {} bytes of data".format(
+                            bytecount))
                         _log.debug('done receiving data')
                         break
                     store.write(data)
                 # Send done synchronization message
+                _log.debug('Sending done back!')
                 channel.send('done')
             finally:
                 store.close()
+                _log.debug('Closing channel on server')
                 channel.close(linger=0)
                 del channel
             agent_uuid = self._aip.install_agent(path, vip_identity=vip_identity)
-            _log.debug('AGENT UUID: {}'.format(agent_uuid))
             return agent_uuid #self._aip.install_agent(path)
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
@@ -289,11 +301,11 @@ def log_to_file(file, level=logging.WARNING,
     root.addHandler(handler)
 
 
-Agent = collections.namedtuple('Agent', 'name tag uuid')
+Agent = collections.namedtuple('Agent', 'name tag uuid vip_identity')
 
 
 def _list_agents(aip):
-    return [Agent(name, aip.agent_tag(uuid), uuid)
+    return [Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid))
             for uuid, name in aip.list_agents().iteritems()]
 
 
@@ -347,9 +359,9 @@ def install_agent(opts):
                                                       channel_name)
         _log.debug('calling control install agent.')
         agent_uuid = opts.connection.call_no_get('install_agent',
-                                                  filename,
-                                                  channel_name,
-                                                  vip_identity=vip_identity)
+                                                 filename,
+                                                 channel_name,
+                                                 vip_identity=vip_identity)
         _log.debug('waiting for ready')
         _log.debug('received {}'.format(channel.recv()))
 
@@ -364,10 +376,9 @@ def install_agent(opts):
 
         _log.debug('sending done message.')
         channel.send('done')
-        _log.debug('waiting for done')
         _log.debug('closing channel')
 
-        agent_uuid = agent_uuid.get()
+        agent_uuid = agent_uuid.get(timeout=10)
 
         channel.close(linger=0)
         del channel
@@ -461,12 +472,14 @@ def list_agents(opts):
     agents.sort()
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:>3}\n'
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>3}\n'
     _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'TAG', tag_width, 'PRI'))
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width, 'TAG', tag_width, 'PRI'))
     for agent in agents:
         priority = opts.aip.agent_priority(agent.uuid) or ''
         _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
                                  agent.tag or '', tag_width, priority))
 
 
@@ -498,15 +511,17 @@ def status_agents(opts):
         n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:>6}\n'
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
     _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'TAG', tag_width, 'STATUS'))
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width, 'TAG', tag_width, 'STATUS'))
     for agent in agents:
         try:
             pid, stat = status[agent.uuid]
         except KeyError:
             pid = stat = None
         _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
                                  agent.tag or '', tag_width,
                                  ('running [{}]'.format(pid)
                                   if stat is None else str(
@@ -669,6 +684,13 @@ def do_stats(opts):
         call('stats.' + opts.op)
         _stdout.write(
             '%sabled\n' % ('en' if call('stats.enabled') else 'dis'))
+
+
+def show_serverkey(opts):
+    q = Query(opts.connection.server.core)
+    pk = q.query('serverkey').get(timeout=2)
+    del q
+    return pk
 
 
 def _get_auth_file(volttron_home):
@@ -884,7 +906,7 @@ def update_auth(opts):
 #                client.send_and_start_agent(file)
 
 
-class Connection(object):
+class ControlConnection(object):
     def __init__(self, address, peer='control', publickey=None,
                  secretkey=None,
                  serverkey=None):
@@ -1158,6 +1180,9 @@ def main(argv=sys.argv):
         'op', choices=['status', 'enable', 'disable', 'dump', 'pprint'],
         nargs='?')
     stats.set_defaults(func=do_stats, op='status')
+    serverkey = add_parser('serverkey',
+                           help="show the serverkey for the instance")
+    serverkey.set_defaults(func=show_serverkey)
 
     auth_list = add_parser('auth-list', help='list authentication records')
     auth_list.set_defaults(func=list_auth)
@@ -1220,7 +1245,7 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = Connection(opts.vip_address, **get_keys(opts))
+    opts.connection = ControlConnection(opts.vip_address, **get_keys(opts))
 
     try:
         with gevent.Timeout(opts.timeout):
