@@ -112,7 +112,7 @@ class AlertAgent(Agent):
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=topic,
                                   callback=self.reset_time)
-        _log.debug("Expecting {} every {} seconds"
+        _log.info("Expecting {} every {} seconds"
                    .format(topic, timeout))
 
     @RPC.export
@@ -147,7 +147,7 @@ class AlertAgent(Agent):
         :param topic: Topic to remove from the watch list.
         :type topic: str
         """
-        _log.debug("Removing topic {} from watchlist".format(topic))
+        _log.info("Removing topic {} from watchlist".format(topic))
 
         self.vip.pubsub.unsubscribe(peer='pubsub',
                                     prefix=topic,
