@@ -803,49 +803,6 @@ class VolttronCentralPlatform(Agent):
         return jsonrpc.json_error(ident=id, code=INTERNAL_ERROR,
                                   message='Not implemented')
 
-    @RPC.export
-    def manage(self, address, vcserverkey, vcpublickey):
-        """ Allows the `VolttronCentralPlatform` to be managed.
-
-        From the web perspective this should be after the user has specified
-        that a user has blessed an agent to be able to be managed.
-
-        When the user enters a discovery address in `VolttronCentral` it is
-        implied that the user wants to manage a platform.
-
-        :returns publickey of the `VolttronCentralPlatform`
-        """
-        _log.info('Manage request from address: {} serverkey: {}'.format(
-            address, vcserverkey))
-
-        #if self._managed:
-        #    raise AlreadyManagedError()
-
-        parsedaddress = urlparse.urlparse(address)
-
-        if 'ipc://' == address[:6].lower():
-            self._agent_connected_to_vc = self
-        else:
-            # Attempt to connect to the passed address and serverkey.
-            self._agent_connected_to_vc = build_agent(
-                address=address, serverkey=vcserverkey,
-                publickey=self.core.publickey, secretkey=self.core.secretkey)
-
-        version, peer, identity = self._agent_connected_to_vc.vip.hello().get(
-            timeout=30)
-
-        if not self == self._agent_connected_to_vc:
-            # Add the vcpublickey to the auth file.
-            entry = AuthEntry(
-                credentials=vcpublickey,
-                capabilities=['manager'])  # , address=parsedaddress.hostname)
-            authfile = AuthFile()
-            authfile.add(entry)
-        self._managed = True
-        self.core.spawn_later(2, self._publish_agent_list_to_vc)
-        self.core.spawn_later(2, self._publish_stats)
-        return self.core.publickey
-
     def _publish_stats(self):
         """
         Publish the platform statistics to the local bus as well as to the

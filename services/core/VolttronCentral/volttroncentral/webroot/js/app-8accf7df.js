@@ -215,38 +215,30 @@ var devicesActionCreators = {
 
         var authorization = authorizationStore.getAuthorization();
 
-        // return new rpc.Exchange({
-        //     method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + 'methods.who_is',
-        //     authorization: authorization,
-        //     params: {
-        //         low_device_id: low,
-        //         high_device_id: high,
-        //         target_address: address
-        //     },
-        // }).promise
-        //     .then(function (result) {
+        return new rpc.Exchange({
+            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.who_is',
+            authorization: authorization,
+            params: {}
+        }).promise.then(function (result) {
 
-        //         if (result)
-        //         {
-        //             console.log(JSON.stringify(result));
+            if (result) {
+                console.log(JSON.stringify(result));
 
-        dispatcher.dispatch({
-            type: ACTION_TYPES.LISTEN_FOR_IAMS,
-            platformUuid: platformUuid,
-            bacnetProxyUuid: bacnetProxyUuid,
-            low_device_id: low,
-            high_device_id: high,
-            target_address: address
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.LISTEN_FOR_IAMS,
+                    platformUuid: platformUuid,
+                    bacnetProxyUuid: bacnetProxyUuid,
+                    low_device_id: low,
+                    high_device_id: high,
+                    target_address: address
+                });
+            }
+        }).catch(rpc.Error, function (error) {
+
+            error.message = "Unable to scan for devices. " + error.message + ".";
+
+            handle401(error, error.message);
         });
-        //     }
-
-        // })
-        // .catch(rpc.Error, function (error) {
-
-        //     error.message = "Unable to scan for devices. " + error.message + ".";
-
-        //     handle401(error, error.message);
-        // });
     },
     cancelScan: function cancelScan(platform) {
         dispatcher.dispatch({
@@ -499,6 +491,7 @@ var platformActionCreators = {
         });
     },
     installAgents: function installAgents(platform, files) {
+
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
@@ -2414,36 +2407,6 @@ var ConfigureDevices = function (_BaseComponent) {
                     clearTimeout(this._scanTimeout);
                 }
             }
-            // var deviceState = devicesStore.getState();
-
-            // if (deviceState.action === "get_scan_settings")
-            // {
-            //     this.setState(getInitialState());
-            // }
-            // else
-            // {        
-            //     if (deviceState.platform && this.state.platform)
-            //     {
-            //         if (deviceState.platform.uuid !== this.state.platform.uuid)
-            //         {
-            //             deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
-            //             deviceState.deviceMethod = (deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually");
-
-            //             if (deviceState.deviceMethod === "scanForDevices")
-            //             {
-            //                 deviceState.selectedProxyUuid = deviceState.bacnetProxies[0].uuid;
-            //             }
-
-            //             deviceState.scanning = false;
-
-            //             this.setState(deviceState);
-            //         }
-            //         else
-            //         {
-            //             this.setState({scanning: true});
-            //         }
-            //     }
-            // }
         }
     }, {
         key: '_onDeviceMethodChange',
@@ -2485,6 +2448,7 @@ var ConfigureDevices = function (_BaseComponent) {
 
             this.setState({ scanning: true });
             this.setState({ scanStarted: true });
+            this.setState({ canceled: false });
 
             if (this._scanTimeout) {
                 clearTimeout(this._scanTimeout);
@@ -2517,6 +2481,7 @@ var ConfigureDevices = function (_BaseComponent) {
         key: '_cancelScan',
         value: function _cancelScan() {
             this.setState({ scanning: false });
+            this.setState({ canceled: true });
         }
     }, {
         key: 'render',
@@ -2717,7 +2682,6 @@ var ConfigureDevices = function (_BaseComponent) {
 
                 if (this.state.scanning) {
                     var spinnerContent;
-                    var spinnerMessage = "Scanning for devices ...";
 
                     if (this.state.cancelButton) {
                         spinnerContent = _react2.default.createElement(
@@ -2738,8 +2702,7 @@ var ConfigureDevices = function (_BaseComponent) {
                                 onClick: this._cancelScan,
                                 onMouseEnter: this._showCancel,
                                 onMouseLeave: this._resumeScan },
-                            spinnerContent,
-                            spinnerMessage
+                            spinnerContent
                         )
                     );
                 } else {
@@ -2758,6 +2721,7 @@ var ConfigureDevices = function (_BaseComponent) {
                     devicesContainer = _react2.default.createElement(_devicesFound2.default, {
                         devicesloaded: this._onDevicesLoaded,
                         platform: this.state.platform,
+                        canceled: this.state.canceled,
                         bacnet: this.state.selectedProxyUuid });
                 }
 
@@ -2856,6 +2820,7 @@ function getInitialState() {
         }
 
         state.scanning = false;
+        state.canceled = false;
         state.devicesLoaded = false;
         state.scanStarted = false;
         state.cancelButton = false;
@@ -5930,11 +5895,19 @@ var DevicesFound = function (_BaseComponent) {
                     )
                 );
             } else {
-                devicesContainer = _react2.default.createElement(
-                    'div',
-                    { className: 'no-devices' },
-                    'No devices have been detected ...'
-                );
+                if (this.props.canceled) {
+                    devicesContainer = _react2.default.createElement(
+                        'div',
+                        { className: 'no-devices' },
+                        'No devices were detected.'
+                    );
+                } else {
+                    devicesContainer = _react2.default.createElement(
+                        'div',
+                        { className: 'no-devices' },
+                        'Searching for devices ...'
+                    );
+                }
             }
 
             return _react2.default.createElement(

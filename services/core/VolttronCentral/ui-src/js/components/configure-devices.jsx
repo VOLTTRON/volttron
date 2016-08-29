@@ -59,36 +59,7 @@ class ConfigureDevices extends BaseComponent {
                 clearTimeout(this._scanTimeout);    
             }
         }
-        // var deviceState = devicesStore.getState();
 
-        // if (deviceState.action === "get_scan_settings")
-        // {
-        //     this.setState(getInitialState());
-        // }
-        // else
-        // {        
-        //     if (deviceState.platform && this.state.platform)
-        //     {
-        //         if (deviceState.platform.uuid !== this.state.platform.uuid)
-        //         {
-        //             deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
-        //             deviceState.deviceMethod = (deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually");
-                    
-        //             if (deviceState.deviceMethod === "scanForDevices")
-        //             {
-        //                 deviceState.selectedProxyUuid = deviceState.bacnetProxies[0].uuid;
-        //             }
-
-        //             deviceState.scanning = false;
-
-        //             this.setState(deviceState);
-        //         }
-        //         else
-        //         {
-        //             this.setState({scanning: true});
-        //         }
-        //     }
-        // }
 
     }
     _onDeviceMethodChange(evt) {
@@ -129,6 +100,7 @@ class ConfigureDevices extends BaseComponent {
 
         this.setState({ scanning: true });
         this.setState({ scanStarted: true });
+        this.setState({ canceled: false });
 
         if (this._scanTimeout)
         {
@@ -156,6 +128,7 @@ class ConfigureDevices extends BaseComponent {
     }
     _cancelScan() {
         this.setState({scanning: false});
+        this.setState({canceled: true});
     }
     render() {
 
@@ -297,7 +270,6 @@ class ConfigureDevices extends BaseComponent {
             if (this.state.scanning)
             {
                 var spinnerContent;
-                var spinnerMessage = "Scanning for devices ...";
 
                 if (this.state.cancelButton)
                 {
@@ -315,7 +287,6 @@ class ConfigureDevices extends BaseComponent {
                             onMouseEnter={this._showCancel}
                             onMouseLeave={this._resumeScan}>
                             {spinnerContent}
-                            {spinnerMessage}
                         </div>
                     </div>
                 );
@@ -331,6 +302,7 @@ class ConfigureDevices extends BaseComponent {
                     <DevicesFound 
                         devicesloaded={this._onDevicesLoaded} 
                         platform={this.state.platform} 
+                        canceled={this.state.canceled}
                         bacnet={this.state.selectedProxyUuid}/>
                 );
             }
@@ -395,6 +367,7 @@ function getInitialState() {
         }
 
         state.scanning = false;
+        state.canceled = false;
         state.devicesLoaded = false;
         state.scanStarted = false;
         state.cancelButton = false;

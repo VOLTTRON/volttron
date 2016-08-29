@@ -201,7 +201,14 @@ class DevicesFound extends BaseComponent {
         }
         else
         {
-            devicesContainer = <div className="no-devices">No devices have been detected ...</div>;
+            if (this.props.canceled)
+            {
+                devicesContainer = <div className="no-devices">No devices were detected.</div>;
+            }
+            else
+            {
+                devicesContainer = <div className="no-devices">Searching for devices ...</div>;
+            }            
         }
 
         return (
