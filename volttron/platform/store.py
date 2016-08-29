@@ -62,6 +62,7 @@ import glob
 import os
 import os.path
 import errno
+from string import whitespace
 from csv import DictReader
 from StringIO import StringIO
 
@@ -78,8 +79,56 @@ from .vip.agent import Agent, Core, RPC
 _log = logging.getLogger(__name__)
 
 store_ext = ".store"
+link_prefix = "config://"
+
+def strip_config_name(config_name):
+    return config_name.strip(whitespace + r'\/')
+
+def _list_unique_links(config):
+    """Returns a set of config files referenced in this configuration"""
+    results = set()
+    if isinstance(config, dict):
+        values = config.values()
+    elif isinstance(config, list):
+        values = config
+    else:
+        #Raw config has no links
+        return results
 
 
+    for value in values:
+        if isinstance(value, (dict,list)):
+            results.update(list_unique_links(value))
+        elif isinstance(value, str):
+            if value.startswith(link_prefix):
+                config_name = value.replace(link_prefix, '', 1)
+                config_name = strip_config_name(config_name)
+                results.add(config_name)
+
+    return results
+
+
+def check_for_recursion(new_config_name, new_config, existing_configs):
+    return _follow_links(set(), new_config_name, new_config_name, new_config, existing_configs)
+
+def _follow_links(seen, new_config_name, current_config_name, current_config, existing_configs):
+    children = _list_unique_links(current_config)
+
+    if new_config_name in children:
+        return True
+
+    seen.add(current_config_name)
+
+    for child_config_name in children - seen:
+        child_config = existing_configs.get(child_config_name)
+        if child_config is None:
+            #Link to a non-existing config, skip in the future.
+            seen.add(child_config_name)
+            continue
+        if _follow_links(seen, new_config_name, child_config_name, child_config, existing_configs):
+            return True
+
+    return False
 
 
 def process_store(identity, store):
@@ -91,7 +140,10 @@ def process_store(identity, store):
         config_type = config_data["type"]
         config_string = config_data["data"]
         try:
-            results[config_name] = process_raw_config(config_string, config_type)
+            processed_config = process_raw_config(config_string, config_type)
+            if check_for_recursion(config_name, processed_config, results):
+                raise ValueError("Recursive configuration references")
+            results[config_name] = processed_config
         except ValueError as e:
             _log.error("Error processing Agent {} config {}: {}".format(identity, config_name, str(e)))
             sync_store = True
@@ -108,7 +160,10 @@ def process_raw_config(config_string, config_type="raw"):
     if config_type == "raw":
         return config_string
     elif config_type == "json":
-        return parse_json_config(config_string)
+        config = parse_json_config(config_string)
+        if not isinstance(config, (list, dict)):
+            raise ValueError("Configuration must be a list or object.")
+        return config
     elif config_type == "csv":
         f = StringIO(config_string)
         return [x for x in DictReader(f)]
@@ -289,8 +344,13 @@ class ConfigStoreService(Agent):
         agent_disk_store = agent_store["store"]
         agent_store_lock = agent_store["lock"]
 
+        config_name = strip_config_name(config_name)
+
         if config_name not in agent_configs:
             action = "NEW"
+
+        if check_for_recursion(config_name, parsed, agent_configs):
+            raise ValueError("Recursive configuration references")
 
         agent_configs[config_name] = parsed
         agent_disk_store[config_name] = {"type": config_type, "data": raw}
