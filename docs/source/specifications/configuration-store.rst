@@ -239,6 +239,8 @@ manage_list_config( identity ) - Get a list of configurations for an agent with 
 
 manage_get_config( identity, config_name, raw=True ) - Get the contents of a configuration file. If raw is set to True this function will return the original file, otherwise it will return the parsed representation of the file.
 
+manage_list_stores( ) - Get a list of all the agents with configurations.
+
 Direct Call Methods
 +++++++++++++++++++
 
