@@ -90,6 +90,7 @@ from .vip.tracking import Tracker
 from .auth import AuthService
 from .control import ControlService
 from .web import MasterWebService
+from .store import ConfigStoreService
 from .agent import utils
 from .agent.known_identities import MASTER_WEB
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
@@ -498,6 +499,15 @@ def start_volttron_process(opts):
 
     address = 'inproc://vip'
     try:
+
+        # Start the config store before auth so we may one day have auth use it.
+        config_store = ConfigStoreService( address=address, identity='config.store')
+
+        event = gevent.event.Event()
+        config_store_task = gevent.spawn(config_store.core.run, event)
+        event.wait()
+        del event
+
         # Ensure auth service is running before router
         auth_file = os.path.join(opts.volttron_home, 'auth.json')
         auth = AuthService(
@@ -539,6 +549,7 @@ def start_volttron_process(opts):
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
                  for service, event in zip(services, events)]
+        tasks.append(config_store_task)
         tasks.append(auth_task)
         gevent.wait(events)
         del events
