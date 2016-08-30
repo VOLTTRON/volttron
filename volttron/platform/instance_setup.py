@@ -89,9 +89,29 @@ def _load_config():
             config_opts[option] = parser.get("volttron", option)
 
 
+def _install_config_file():
+    home = get_home()
+
+    if not os.path.exists(home):
+        os.makedirs(volttron_home, 0o755)
+
+    path = os.path.join(home, 'config')
+
+    config = ConfigParser()
+    config.add_section('volttron')
+
+    for k, v in config_opts.items():
+        config.set('volttron', k, v)
+
+    with open(path, 'w') as configfile:
+        config.write(configfile)
+
+
 def prompt_response(prompt, valid_answers=None, default=None):
-    """ Prompt the user for answers.
-    """
+
+    if default is not None:
+        prompt += '[{}]: '.format(default)
+
     while True:
         resp = raw_input(prompt)
         if resp == '' and default is not None:
@@ -99,15 +119,15 @@ def prompt_response(prompt, valid_answers=None, default=None):
         if valid_answers is None or resp in valid_answers:
             return resp
         else:
-            print('Invalid response proper responses are: ')
+            print('Invalid response. Proper responses are: ')
             print(valid_answers)
 
 
 def _cmd(cmdargs):
     """ Executes the passed command.
 
-    @:param: list:
-        A list of arguments that should be passed to Popen.
+    :param cmdargs: A list of arguments that should be passed to Popen.
+    :type cmdargs:
     """
     print(cmdargs)
     process = Popen(cmdargs, env=os.environ, stdout=subprocess.PIPE,
@@ -116,7 +136,6 @@ def _cmd(cmdargs):
 
 
 def _is_bound_already(address):
-    # Create a UDS socket
     context = zmq.Context()
     dealer_sck = context.socket(zmq.DEALER)
     already_bound = False
@@ -131,21 +150,13 @@ def _is_bound_already(address):
 
 def _is_instance_running():
 
-    instance_running = False
-    if os.path.exists(get_home()):
-        # Create a UDS socket
-        context = zmq.Context()
-        dealer_sck = context.socket(zmq.DEALER)
+    home = get_home()
+    ipc_address = "ipc://@{}/run/vip.socket".format(home)
 
-        ipc_address = "ipc://@{}/run/vip.socket".format(get_home())
-        try:
-            dealer_sck.bind(ipc_address)
-        except zmq.ZMQError:
-            instance_running = True
-        finally:
-            dealer_sck.close()
+    if os.path.exists(home):
+        return _is_bound_already(ipc_address)
 
-    return instance_running
+    return False
 
 
 def _start_platform():
@@ -175,70 +186,6 @@ def _install_agent(autostart, agent_dir, config, tag):
           agent_dir, config_file, tag])
     if autostart:
          _cmd(['volttron-ctl', 'enable', '--tag', tag])
-
-
-def _install_vc(autostart):
-    username = ""
-    while not username:
-        username = prompt_response("Enter volttron central admin user name: ")
-        if not username:
-            print("ERROR Invalid username")
-    password = ""
-    while not password:
-        password = prompt_response("Enter volttron central admin password: ")
-        if not password:
-            print("ERROR: Invalid password")
-
-    config = {
-        "users": {
-            username: {
-                "password": hashlib.sha512(password).hexdigest(),
-                "groups": [
-                    "admin"
-                ]
-            }
-        }
-    }
-
-    print("Installing volttron central(VC)")
-    _install_agent(autostart, "services/core/VolttronCentral", config, 'vc')
-
-
-def _install_vcp(autostart):
-    config = {}
-
-    print("Installing volttron central platform(VCP)")
-    _install_agent(autostart, "services/core/VolttronCentralPlatform", config,
-                   'vcp')
-
-
-def _install_platform_historian(autostart):
-    os.environ["AGENT_VIP_IDENTITY"]="platform.historian"
-    datafile = os.path.join(get_home(), "data", "platform.historian.sqlite")
-    config = {
-        "agentid": "sqlhistorian-sqlite",
-        "connection": {
-            "type": "sqlite",
-            "params": {
-                "database": datafile
-            }
-        }
-    }
-    _install_agent(autostart, "services/core/SQLHistorian", config,
-                   "platform_historian")
-    os.environ.pop("AGENT_VIP_IDENTITY")
-
-def _install_config_file():
-    path = os.path.join(get_home(), "config")
-
-    config = ConfigParser()
-    config.add_section("volttron")
-
-    for k, v in config_opts.items():
-        config.set('volttron', k, v)
-
-    with open(path, 'w') as configfile:
-        config.write(configfile)
 
 
 def is_valid_url(test, accepted_schemes):
@@ -279,7 +226,6 @@ def do_vip():
         valid_address = False
         while not valid_address:
             prompt = 'What is the external instance ipv4 address? '
-            prompt += '[{}]: '.format(vip_address)
 
             new_vip_address = prompt_response(prompt, default=vip_address)
             valid_address = is_valid_url(new_vip_address, ['tcp'])
@@ -288,9 +234,7 @@ def do_vip():
 
         valid_port = False
         while not valid_port:
-            prompt = 'What is the instance port for the vip address? [{}]: '.format(
-                vip_port
-            )
+            prompt = 'What is the instance port for the vip address? '
             new_vip_port = prompt_response(prompt, default=vip_port)
             valid_port = is_valid_port(new_vip_port)
             if valid_port:
@@ -312,7 +256,7 @@ def do_vc():
     global config_opts
 
     # Install volttron central?
-    prompt = 'Is this instance a volttron central? [N]: '
+    prompt = 'Is this instance a volttron central? '
 
     is_vc = prompt_response(prompt, valid_answers=y_or_n, default='N') in y
 
@@ -321,8 +265,8 @@ def do_vc():
 
     # Full implies that it will have a port on it as well.  Though if it's
     # not in the address that means that we haven't set it up before.
-    full_bind_web_address = config_opts.get(
-        'bind-web-address', "http://127.0.0.1")
+    full_bind_web_address = config_opts.get('bind-web-address',
+                                            "http://127.0.0.1")
 
     parsed = urlparse.urlparse(full_bind_web_address)
 
@@ -334,18 +278,15 @@ def do_vc():
     else:
         port_only = 8080
 
-
-    prompt = '''
+    print('''
 In order for external clients to connect to volttron central or the instance
 itself, the instance must bind to a tcp address.  If testing this can be an
 internal address such as 127.0.0.1.
-'''
-    print(prompt)
+''')
     valid_address = False
     external_ip = None
     while not valid_address:
         prompt = "Please enter the external ipv4 address for this instance? "
-        prompt += "[{}]: ".format(address_only)
         new_external_ip = prompt_response(prompt, default=address_only)
         valid_address = is_valid_url(new_external_ip, ["http", "https"])
         if valid_address:
@@ -356,9 +297,7 @@ internal address such as 127.0.0.1.
     while not valid_port:
         vc_port = None
 
-        prompt = 'What is the port for volttron central? [{}]: '.format(
-            port_only
-        )
+        prompt = 'What is the port for volttron central? '
         new_vc_port = prompt_response(prompt, default=port_only)
         valid_port = is_valid_port(new_vc_port)
         if valid_port:
@@ -369,15 +308,38 @@ internal address such as 127.0.0.1.
 
     config_opts['bind-web-address'] = "{}:{}".format(external_ip, vc_port)
 
-    # TODO Add protecction of vc here.
-
     _install_vc(False)
+
+
+def _install_vc(autostart):
+    username = ""
+    while not username:
+        username = prompt_response("Enter volttron central admin user name: ")
+        if not username:
+            print("ERROR Invalid username")
+    password = ""
+    while not password:
+        password = prompt_response("Enter volttron central admin password: ")
+        if not password:
+            print("ERROR: Invalid password")
+
+    config = {
+        "users": {
+            username: {
+                "password": hashlib.sha512(password).hexdigest(),
+                "groups": ["admin"]
+            }
+        }
+    }
+
+    print("Installing volttron central(VC)")
+    _install_agent(autostart, "services/core/VolttronCentral", config, 'vc')
 
 
 def do_vcp():
     global config_opts
 
-    prompt = "Will this instance be controlled by volttron central? [Y]: "
+    prompt = "Will this instance be controlled by volttron central? "
     resp = prompt_response(prompt, valid_answers=y_or_n, default='Y')
     has_vcp = resp in y
     if not has_vcp:
@@ -389,9 +351,7 @@ def do_vcp():
 
     valid_name = False
     while not valid_name:
-        prompt = 'Enter the name of this instance. [{}]: '.format(
-            instance_name
-        )
+        prompt = 'Enter the name of this instance. '
         new_instance_name = prompt_response(prompt, default=instance_name)
         if new_instance_name:
             valid_name = True
@@ -403,9 +363,7 @@ def do_vcp():
 
     valid_vc = False
     while not valid_vc:
-        prompt = "Enter volttron central's web address [{}]: ".format(
-            vc_address
-        )
+        prompt = "Enter volttron central's web address "
         new_vc_address = prompt_response(prompt, default=vc_address)
         valid_vc = is_valid_url(new_vc_address, ['http', 'https'])
         if valid_vc:
@@ -415,12 +373,37 @@ def do_vcp():
     _install_vcp(False)
 
 
+def _install_vcp(autostart):
+    config = {}
+
+    print("Installing volttron central platform(VCP)")
+    _install_agent(autostart, "services/core/VolttronCentralPlatform", config,
+                   'vcp')
+
+
 def do_platform_historian():
-    prompt = "Would you like to install a platform historian? [N]: "
+    prompt = "Would you like to install a platform historian? "
     resp = prompt_response(prompt, valid_answers=y_or_n, default='N')
 
     if resp in y:
-        _install_platform_historian(false)
+        _install_platform_historian(False)
+
+
+def _install_platform_historian(autostart):
+    os.environ["AGENT_VIP_IDENTITY"] = "platform.historian"
+    datafile = os.path.join(get_home(), "data", "platform.historian.sqlite")
+    config = {
+        "agentid": "sqlhistorian-sqlite",
+        "connection": {
+            "type": "sqlite",
+            "params": {
+                "database": datafile
+            }
+        }
+    }
+    _install_agent(autostart, "services/core/SQLHistorian", config,
+                   "platform_historian")
+    os.environ.pop("AGENT_VIP_IDENTITY")
 
 
 def setup_instance():
@@ -445,20 +428,15 @@ to stop the instance.
     _load_config()
 
     print('\nYour VOLTTRON_HOME currently set to: {}'.format(volttron_home))
-    prompt = '\nIs this the volttron you are attempting to setup? [Y]: '
+    prompt = '\nIs this the volttron you are attempting to setup? '
     if not prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
         print(
             '\nPlease execute with VOLTRON_HOME=/your/path volttron-cfg to '
             'modify VOLTTRON_HOME.\n')
         return
 
-    os.environ['VOLTTRON_HOME'] = volttron_home
-    if not os.path.exists(volttron_home):
-        os.makedirs(volttron_home, 0o755)
-
     do_vip()
 
-    _install_config_file()
     _start_platform()
 
     do_vc()
