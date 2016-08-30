@@ -66,13 +66,11 @@ from volttron.platform.vip.agent import *
 
 __version__ = "3.5.0"
 
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
 def historian(config_path, **kwargs):
-
     config = utils.load_config(config_path)
     connection = config.get('connection', None)
 
@@ -93,7 +91,6 @@ def historian(config_path, **kwargs):
         to a SQLite database. It is designed to test some of the functionality
         of the BaseHistorianAgent.
         """
-
         def __init__(self, **kwargs):
             """ Initialise the historian.
 
@@ -169,7 +166,7 @@ def historian(config_path, **kwargs):
                     lowercase_name = topic.lower()
                     topic_id = self.topic_id_map.get(lowercase_name, None)
                     db_topic_name = self.topic_name_map.get(lowercase_name,
-                                                           None)
+                                                            None)
                     _log.debug('topic is {}, db topic is {}'
                                .format(topic, db_topic_name))
                     if topic_id is None:
@@ -184,7 +181,7 @@ def historian(config_path, **kwargs):
                         _log.debug('TopicId: {} => {}'.format(topic_id, topic))
                     elif db_topic_name != topic:
                         _log.debug('Updating topic: {}'.format(topic))
-                        self.writer.update_topic(topic,topic_id)
+                        self.writer.update_topic(topic, topic_id)
                         self.topic_name_map[lowercase_name] = topic
 
                     old_meta = self.topic_meta.get(topic_id, {})
@@ -194,12 +191,12 @@ def historian(config_path, **kwargs):
                         ))
                         self.writer.insert_meta(topic_id, meta)
                         self.topic_meta[topic_id] = meta
-                    
+
                     if self.writer.insert_data(ts, topic_id, value):
                         # _log.debug('item was inserted')
                         real_published.append(x)
 
-                if len(real_published) > 0:            
+                if len(real_published) > 0:
                     if self.writer.commit():
                         _log.debug('published {} data values'.format(
                             len(to_publish_list))
@@ -228,15 +225,19 @@ def historian(config_path, **kwargs):
                 # No topics present.
                 return []
 
+        def query_topics_metadata(self):
+            pass
+
         def query_aggregate_topics(self):
-            map = self.reader.get_agg_topic_map()
-            if map:
-                return map.keys()
+            topic_map = self.reader.get_agg_topic_map()
+            if topic_map:
+                return topic_map.keys()
             else:
                 return []
 
         def query_historian(self, topic, start=None, end=None, agg_type=None,
-              agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
+                            agg_period=None, skip=0, count=None,
+                            order="FIRST_TO_LAST"):
             """This function should return the results of a query in the form:
             {"values": [(timestamp1, value1), (timestamp2, value2), ...],
              "metadata": {"key1": value1, "key2": value2, ...}}
@@ -270,20 +271,20 @@ def historian(config_path, **kwargs):
             id_name_map = {}
             for topic in topics_list:
                 topic_lower = topic.lower()
-                topic_id = self.topic_id_map.get(topic_lower, None)
+                topic_id = self.topic_id_map.get(topic_lower)
                 if agg_type:
                     agg_type = agg_type.lower()
                     topic_id = self.agg_topic_id_map.get(
-                        (topic_lower, agg_type, agg_period), None)
+                        (topic_lower, agg_type, agg_period))
                     if topic_id is None:
                         # load agg topic id again as it might be a newly
                         # configured aggregation
-                        map = self.reader.get_agg_topic_map()
-                        self.agg_topic_id_map.update(map)
+                        agg_map = self.reader.get_agg_topic_map()
+                        self.agg_topic_id_map.update(agg_map)
                         _log.debug(" Agg topic map after updating {} "
                                    "".format(self.agg_topic_id_map))
                         topic_id = self.agg_topic_id_map.get(
-                            (topic_lower, agg_type, agg_period), None)
+                            (topic_lower, agg_type, agg_period))
                 if topic_id:
                     topic_ids.append(topic_id)
                     id_name_map[topic_id] = topic
@@ -292,8 +293,7 @@ def historian(config_path, **kwargs):
 
             if not topic_ids:
                 _log.warn('No topic ids found for topics{}. Returning '
-                          'empty result'.format(
-                    topics_list))
+                          'empty result'.format(topics_list))
                 return results
 
             _log.debug("Querying db reader with topic_ids {} ".format(
@@ -307,8 +307,8 @@ def historian(config_path, **kwargs):
                 order=order)
 
             values = results.get('values', [])
-            metadata ={}
-            if len(values) > 0 :
+            metadata = {}
+            if len(values) > 0:
                 # If there are results add metadata if it is a query on a
                 # single topic
                 if not multi_topic_query:
@@ -317,8 +317,8 @@ def historian(config_path, **kwargs):
                         # if aggregation is on single topic find the topic id
                         # in the topics table that corresponds to agg_topic_id
                         # so that we can grab the correct metadata
-                        id = self.topic_id_map.get(topic.lower(), None)
-                        if id:
+                        tid = self.topic_id_map.get(topic.lower(), None)
+                        if tid:
                             metadata = self.topic_meta.get(topic_ids[0], {})
                         else:
                             # if topic name does not have entry in topic_id_map

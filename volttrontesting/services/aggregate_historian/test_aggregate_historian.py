@@ -199,6 +199,7 @@ def publish_test_data(publish_agent, start_time, start_reading, count):
         reading += 1
         time = time + timedelta(seconds=30)
 
+
 def get_expected_sum(query_agent, topic, end_time, minutes_delta):
     start_time = parse(end_time) - timedelta(minutes=minutes_delta)
     start_time = start_time.isoformat('T')
@@ -213,7 +214,7 @@ def get_expected_sum(query_agent, topic, end_time, minutes_delta):
     expected_data = 0
     print("data_values {}".format(data_values))
     for d in data_values['values']:
-        if isinstance(topic,list) and len(topic)>1:
+        if isinstance(topic, list) and len(topic) > 1:
             expected_data += int(d[2])
         else:
             expected_data += int(d[1])
@@ -270,12 +271,12 @@ def aggregate_agent(request, volttron_instance):
 
     print ("request.param -- {}".format(request.param))
     # 2. Install agents - sqlhistorian, sqlaggregatehistorian
-    sql_historian_uuid = volttron_instance.install_agent(
+    historian_uuid = volttron_instance.install_agent(
         vip_identity='platform.historian',
         agent_dir=request.param['source_historian'],
         config_file=request.param,
         start=True)
-    print("agent id: ", sql_historian_uuid)
+    print("agent id: ", historian_uuid)
 
     # 3: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
@@ -285,16 +286,18 @@ def aggregate_agent(request, volttron_instance):
         #     db_connection.close()
         #     print("closed connection to db")
         if volttron_instance.is_running():
-            volttron_instance.remove_agent(sql_historian_uuid)
+            volttron_instance.remove_agent(historian_uuid)
 
     request.addfinalizer(stop_agent)
     return request.param
+
 
 def cleanup(connection_type, truncate_tables):
     global db_connection, table_names
     truncate_tables.append(table_names['data_table'])
     cleanup_function = globals()["cleanup_" + connection_type]
     cleanup_function(db_connection, truncate_tables)
+
 
 @pytest.mark.dev
 @pytest.mark.sql_aggregator
@@ -357,39 +360,40 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
         print("agent id: ", agent_uuid)
 
         result1 = query_agent.vip.rpc.call('platform.historian',
-                                     'query',
+                                           'query',
                                            topic='device1/outsidetemp_aggregate',
                                            agg_type='sum',
                                            agg_period='1m',
                                            count=20,
-                                           order="FIRST_TO_LAST").get(timeout=100)
+                                           order="FIRST_TO_LAST").get(
+            timeout=100)
 
         print(result1)
         # assert (result1['metadata']) == \
         #        {'units': 'F', 'tz': 'UTC', 'type': 'float'}
 
         result2 = query_agent.vip.rpc.call('platform.historian',
-                                     'query',
+                                           'query',
                                            topic='device1/intemp_aggregate',
                                            agg_type='sum',
                                            agg_period='1m',
                                            count=20,
-                                           order="FIRST_TO_LAST").get(timeout=100)
-
+                                           order="FIRST_TO_LAST").get(
+            timeout=100)
 
         # point1 and point2 configured within the same aggregation group should
         # be time synchronized
         assert (result2['values'][0][0] == result1['values'][0][0])
-        #Now verify the computed sum
+        # Now verify the computed sum
         expected_sum = get_expected_sum(query_agent,
-                                         'device1/in_temp',
-                                         result2['values'][0][0], 1)
+                                        'device1/in_temp',
+                                        result2['values'][0][0], 1)
         assert (result1['values'][0][1] == expected_sum)
         assert (result2['values'][0][1] == expected_sum)
 
 
     finally:
-        cleanup(aggregate_agent['connection']['type'],['sum_1m'])
+        cleanup(aggregate_agent['connection']['type'], ['sum_1m'])
         if agent_uuid is not None:
             volttron_instance.remove_agent(agent_uuid)
 
@@ -504,7 +508,6 @@ def test_single_topic(request, volttron_instance, aggregate_agent,
             count=20,
             order="FIRST_TO_LAST").get(timeout=100)
 
-
         result2 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
@@ -535,6 +538,7 @@ def test_single_topic(request, volttron_instance, aggregate_agent,
         cleanup(aggregate_agent['connection']['type'], ['sum_1m', 'sum_2m'])
         if agent_uuid is not None:
             volttron_instance.remove_agent(agent_uuid)
+
 
 @pytest.mark.dev
 @pytest.mark.sql_aggregator
@@ -588,13 +592,14 @@ def test_multiple_topic_pattern(request, volttron_instance, aggregate_agent,
             agent_dir=aggregate_agent["source_agg_historian"],
             config_file=aggregate_agent,
             start=True)
-        result1 = query_agent.vip.rpc.call('platform.historian',
-                                     'query',
-                                     topic='device1/all',
-                                     agg_type='sum',
-                                     agg_period='1m',
-                                     count=20,
-                                     order="FIRST_TO_LAST").get(timeout=100)
+        result1 = query_agent.vip.rpc.call(
+            'platform.historian',
+            'query',
+            topic='device1/all',
+            agg_type='sum',
+            agg_period='1m',
+            count=20,
+            order="FIRST_TO_LAST").get(timeout=100)
 
         print(result1)
 
@@ -664,13 +669,14 @@ def test_multiple_topic_list(request, volttron_instance, aggregate_agent,
             config_file=aggregate_agent,
             start=True)
 
-        result1 =   query_agent.vip.rpc.call('platform.historian',
-                                     'query',
-                                     topic='device1/all',
-                                     agg_type='sum',
-                                     agg_period='1m',
-                                     count=20,
-                                     order="FIRST_TO_LAST").get(timeout=100)
+        result1 = query_agent.vip.rpc.call('platform.historian',
+                                           'query',
+                                           topic='device1/all',
+                                           agg_type='sum',
+                                           agg_period='1m',
+                                           count=20,
+                                           order="FIRST_TO_LAST").get(
+            timeout=100)
 
         print(result1)
         # Now verify the computed sum

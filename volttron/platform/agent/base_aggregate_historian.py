@@ -121,7 +121,6 @@ class AggregateHistorian(Agent):
         self.agg_topic_id_map = self.get_agg_topic_map()
 
         for agg_group in self.config['aggregations']:
-
             # 1. Validate and normalize aggregation period and
             # initialize use_calendar_periods flag
             agg_time_period = \
@@ -192,9 +191,9 @@ class AggregateHistorian(Agent):
                         "Please provide a valid topic_name or "
                         "topic_name_pattern for aggregation_period {}. "
                         "The given topic_name_pattern({}) does not "
-                        "match any existing topic names"
-                            .format(agg_group['aggregation_period'],
-                                    topic_pattern))
+                        "match any existing topic names".format(
+                            agg_group['aggregation_period'],
+                            topic_pattern))
 
                 _log.info("topic_names matching the given pattern {} "
                           ":\n {}".format(topic_pattern, topic_map.keys()))
@@ -220,26 +219,28 @@ class AggregateHistorian(Agent):
             else:
                 data['aggregation_topic_name'] = topic_names[0]
 
-
             # Create data structure for storing aggregate data
             # table/collection. Pass additional parameters so that
             # topics and metadata table can be updated
             topic_meta = {'configured_topics': topic_meta}
             agg_id = self.agg_topic_id_map.get(
-                (data['aggregation_topic_name'].lower(), agg_type, agg_time_period ),
+                (data['aggregation_topic_name'].lower(), agg_type,
+                 agg_time_period),
                 None)
             if agg_id:
-                _log.debug("Found aggregate updating existing rows for id {} "
-                           " name {} meta {}".format(agg_id,
-                                                data['aggregation_topic_name'],
-                                                topic_meta))
+                _log.debug(
+                    "Found aggregate updating existing rows for id {} "
+                    " name {} meta {}".format(agg_id,
+                                              data['aggregation_topic_name'],
+                                              topic_meta))
                 self.update_aggregate_store(agg_id,
                                             data['aggregation_topic_name'],
                                             topic_meta)
             else:
-                _log.debug("Inserting new record into aggregate_topics name {} "
-                           "meta {}".format(data['aggregation_topic_name'],
-                                            topic_meta))
+                _log.debug(
+                    "Inserting new record into aggregate_topics name {} "
+                    "meta {}".format(data['aggregation_topic_name'],
+                                     topic_meta))
                 agg_id = self.initialize_aggregate_store(
                     data['aggregation_topic_name'],
                     data['aggregation_type'],
@@ -249,8 +250,6 @@ class AggregateHistorian(Agent):
                 self.agg_topic_id_map[(data['aggregation_topic_name'].lower(),
                                        agg_type, agg_time_period)] = agg_id
 
-
-
     def _collect_aggregate_data(self, *args):
         """
         Method that does the collection and computation of aggregate data based
@@ -258,15 +257,18 @@ class AggregateHistorian(Agent):
         periodically when you call setup_periodic_data_collection.
         @param args: List containing [aggregation_period, use_calendar_periods,
         points ] where
-         1. aggregation_period = time agg_time_period for which data needs to be
+         1. aggregation_period = time agg_time_period for which data needs
+         to be
         collected and aggregated
-         2. use_calendar_periods = flag that indicates if time agg_time_period should be
+         2. use_calendar_periods = flag that indicates if time
+         agg_time_period should be
         aligned to calendar times
          3. points = list of points for which aggregate data needs to be
          collected. Each element in the list is a dictionary containing
          topic_names/topic_name_pattern, aggregation_type(ex. sum, avg etc.),
          and min_count(minimum number of raw data to be present within the
-         given time agg_time_period for the aggregate to be computed. If count is less
+         given time agg_time_period for the aggregate to be computed. If
+         count is less
          than minimum no aggregate is computed for that time agg_time_period)
         """
 
@@ -274,15 +276,17 @@ class AggregateHistorian(Agent):
         use_calendar = args[1]
         points = args[2]
 
-        _log.debug("Time agg_time_period passed as arg  {} ".format(agg_time_period))
+        _log.debug(
+            "Time agg_time_period passed as arg  {} ".format(agg_time_period))
         _log.debug("points passed as arg  {} ".format(points))
 
         end_time, start_time = \
             AggregateHistorian.compute_aggregation_timeslice(agg_time_period,
                                                              use_calendar)
 
-        _log.debug("After  compute agg_time_period = {} start_time {} end_time {} ".
-                   format(agg_time_period, start_time, end_time))
+        _log.debug(
+            "After  compute agg_time_period = {} start_time {} end_time {} ".
+            format(agg_time_period, start_time, end_time))
         for data in points:
             _log.debug("data in loop {}".format(data))
             topic_ids = data.get('topic_ids', None)
@@ -303,7 +307,6 @@ class AggregateHistorian(Agent):
                             start_time=start_time,
                             end_time=end_time))
                     return
-
 
             agg_value, count = self.collect_aggregate(
                 topic_ids,
@@ -327,9 +330,10 @@ class AggregateHistorian(Agent):
                                       count=data.get('min_count', 0)))
             else:
                 aggregate_topic_id = \
-                        self.agg_topic_id_map[data[
-                            'aggregation_topic_name'].lower(),
-                            data['aggregation_type'].lower(), agg_time_period]
+                    self.agg_topic_id_map[
+                        data['aggregation_topic_name'].lower(),
+                        data['aggregation_type'].lower(),
+                        agg_time_period]
                 _log.debug("agg_topic_id {} and topic ids sent to insert {} "
                            "".format(aggregate_topic_id, topic_ids))
                 self.insert_aggregate(aggregate_topic_id,
@@ -386,7 +390,6 @@ class AggregateHistorian(Agent):
         aggregation_topic_name into topics table
         """
 
-
     @abstractmethod
     def update_aggregate_store(self, agg_id, aggregation_topic_name,
                                topic_meta):
@@ -397,7 +400,6 @@ class AggregateHistorian(Agent):
         :param aggregation_topic_name: New aggregation_topic_name
         :param topic_meta: new topic metadata
         """
-
 
     @abstractmethod
     def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):
@@ -463,8 +465,8 @@ class AggregateHistorian(Agent):
             raise ValueError(
                 "Invalid unit {} provided for aggregation time "
                 "period {}. Valid time periods are m,h,d,w,"
-                "or M (minutes, hours, days, weeks, months"
-                .format(unit, time_period))
+                "or M (minutes, hours, days, weeks, months".format(
+                    unit, time_period))
         if unit == 'm':
             if period >= 60 and period % 60 == 0:
                 period /= 60
@@ -580,7 +582,3 @@ class AggregateHistorian(Agent):
                                                 microsecond=0)
 
         return end_time, start_time
-
-
-
-

@@ -66,7 +66,6 @@ import sys
 
 import bson
 import pymongo
-
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from volttron.platform.dbutils import mongoutils
@@ -101,25 +100,26 @@ class MongodbAggregateHistorian(AggregateHistorian):
 
         db = self.dbclient.get_default_database()
         cursor = db[self.volttron_table_defs].find()
-        table_map ={}
+        table_map = {}
         prefix = ""
         for document in cursor:
             table_map[document['table_id'].lower()] = document[
                 'table_name']
             prefix = document['table_prefix'] + "_" if document[
                 'table_prefix'] else ''
-        self._data_collection = prefix +  table_map.get('data_table','data')
+        self._data_collection = prefix + table_map.get('data_table', 'data')
         self._meta_collection = prefix + table_map.get('meta_table', 'meta')
-        self._topic_collection = prefix + table_map.get('topics_table','topics')
-        self._agg_meta_collection = prefix+ 'aggregate_' \
-                                    + table_map.get('meta_table', 'meta')
-        self._agg_topic_collection =  prefix + 'aggregate_' \
-                                    + table_map.get('topics_table','topics')
+        self._topic_collection = prefix + table_map.get('topics_table',
+                                                        'topics')
+        self._agg_meta_collection = prefix + 'aggregate_' \
+            + table_map.get('meta_table', 'meta')
+        self._agg_topic_collection = prefix + 'aggregate_' \
+            + table_map.get('topics_table', 'topics')
 
         db[self._agg_topic_collection].create_index(
             [('agg_topic_name', pymongo.ASCENDING),
              ('agg_type', pymongo.ASCENDING),
-             ('agg_time_period',pymongo.ASCENDING)],
+             ('agg_time_period', pymongo.ASCENDING)],
             unique=True)
 
         # 2. load topic name and topic id.
@@ -146,7 +146,7 @@ class MongodbAggregateHistorian(AggregateHistorian):
     def is_supported_aggregation(self, agg_type):
         if agg_type:
             return agg_type.upper() in ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX',
-                                    'STDDEVPOP', 'STDDEVSAMP']
+                                        'STDDEVPOP', 'STDDEVSAMP']
         else:
             return False
 
@@ -171,18 +171,17 @@ class MongodbAggregateHistorian(AggregateHistorian):
         db = self.dbclient.get_default_database()
 
         result = db[self._agg_topic_collection].update_one(
-            {'_id':bson.objectid.ObjectId(agg_id)},
-            {'$set':{'agg_topic_name': aggregation_topic_name}})
+            {'_id': bson.objectid.ObjectId(agg_id)},
+            {'$set': {'agg_topic_name': aggregation_topic_name}})
         _log.debug("Updated topic name for {} records".format(
             result.matched_count))
 
         result = db[self._agg_meta_collection].update_one(
             {'agg_topic_id': bson.objectid.ObjectId(agg_id)},
-            {'$set':{'meta': topic_meta}})
+            {'$set': {'meta': topic_meta}})
 
         _log.debug("Updated meta name for {} records".format(
             result.matched_count))
-
 
     def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):
 

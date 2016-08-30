@@ -57,12 +57,12 @@
 
 import errno
 import logging
-import re
 import sqlite3
 import threading
 from datetime import datetime
 
 import os
+import re
 from basedb import DbDriver
 from volttron.platform.agent import utils
 from zmq.utils import jsonapi
@@ -145,9 +145,9 @@ class SqlLiteFuncts(DbDriver):
         conn.commit()
         conn.close()
 
-
     def record_table_definitions(self, tables_def, meta_table_name):
-        _log.debug("In record_table_def {} {}".format(tables_def, meta_table_name))
+        _log.debug(
+            "In record_table_def {} {}".format(tables_def, meta_table_name))
         conn = sqlite3.connect(
             self.__database,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
@@ -174,7 +174,6 @@ class SqlLiteFuncts(DbDriver):
                        ['meta_table', tables_def['meta_table'], table_prefix])
 
         conn.commit()
-
 
     def setup_aggregate_historian_tables(self, meta_table_name):
         table_names = self.read_tablenames_from_db(meta_table_name)
@@ -206,7 +205,6 @@ class SqlLiteFuncts(DbDriver):
         conn.commit()
         conn.close()
 
-
     def query(self, topic_ids, id_name_map, start=None, end=None,
               agg_type=None, agg_period=None, skip=0, count=None,
               order="FIRST_TO_LAST"):
@@ -216,14 +214,15 @@ class SqlLiteFuncts(DbDriver):
 
          metadata is not required (The caller will normalize this to {}
          for you)
-         @param order:
-         @param count:
-         @param skip:
-         @param end:
+         @param topic_ids: topic_ids to query data for
+         @param id_name_map: dictionary containing topic_id:topic_name
          @param start:
-         @param topic_ids:
+         @param end:
          @param agg_type:
          @param agg_period:
+         @param skip:
+         @param count:
+         @param order:
         """
         table_name = self.data_table
         if agg_type and agg_period:
@@ -240,7 +239,7 @@ class SqlLiteFuncts(DbDriver):
         args = [topic_ids[0]]
         if len(topic_ids) > 1:
             where_str = "WHERE topic_id IN ("
-            for id in topic_ids:
+            for _ in topic_ids:
                 where_str += "?, "
             where_str = where_str[:-2]  # strip last comma and space
             where_str += ") "
@@ -293,11 +292,11 @@ class SqlLiteFuncts(DbDriver):
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         rows = c.execute(real_query, args)
         if len(topic_ids) > 1:
-            values = [(id_name_map[id], utils.format_timestamp(ts),
-                   jsonapi.loads(value)) for id, ts, value in rows]
+            values = [(id_name_map[topic_id], utils.format_timestamp(ts),
+                       jsonapi.loads(value)) for topic_id, ts, value in rows]
         else:
             values = [(utils.format_timestamp(ts),
-                   jsonapi.loads(value)) for id, ts, value in rows]
+                       jsonapi.loads(value)) for topic_id, ts, value in rows]
 
         _log.debug("QueryResults: " + str(values))
         return {'values': values}
@@ -334,7 +333,7 @@ class SqlLiteFuncts(DbDriver):
         cursor = conn.cursor()
 
         cursor.execute(self.insert_agg_topic_stmt(),
-                              (topic, agg_type, agg_time_period))
+                       (topic, agg_type, agg_time_period))
         row = [cursor.lastrowid]
         conn.commit()
         conn.close()
@@ -357,10 +356,9 @@ class SqlLiteFuncts(DbDriver):
         cursor = conn.cursor()
 
         cursor.execute(self.update_agg_topic_stmt(),
-                              (agg_id, agg_topic_name))
+                       (agg_id, agg_topic_name))
         conn.commit()
         conn.close()
-
 
     def update_agg_topic_stmt(self):
         return '''UPDATE ''' + self.agg_topics_table + ''' SET
@@ -377,7 +375,7 @@ class SqlLiteFuncts(DbDriver):
 
         cursor = conn.cursor()
         cursor.execute(self.insert_agg_meta_stmt(),
-                              (topic_id, jsonapi.dumps(metadata)))
+                       (topic_id, jsonapi.dumps(metadata)))
         conn.commit()
         conn.close()
         return True
@@ -401,7 +399,8 @@ class SqlLiteFuncts(DbDriver):
     def get_agg_topic_map(self):
         try:
             _log.debug("in get_agg_topic_map")
-            q = "SELECT agg_topic_id, agg_topic_name, agg_type, agg_time_period " \
+            q = "SELECT agg_topic_id, agg_topic_name, agg_type, " \
+                "agg_time_period " \
                 "FROM " + self.agg_topics_table
             rows = self.select(q, None)
             _log.debug("loading agg_topic map from db")
@@ -416,7 +415,6 @@ class SqlLiteFuncts(DbDriver):
                 return {}
             else:
                 raise
-
 
     @staticmethod
     def regexp(expr, item):
@@ -448,7 +446,7 @@ class SqlLiteFuncts(DbDriver):
         id_map, name_map = self.get_topic_map()
         _log.debug("Contents of topics table {}".format(id_map.keys()))
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + \
-            " WHERE topic_name REGEXP '"+ topic_pattern +"';"
+            " WHERE topic_name REGEXP '" + topic_pattern + "';"
 
         rows = self.regex_select(q, None)
         _log.debug("loading topic map from db")
@@ -484,10 +482,10 @@ class SqlLiteFuncts(DbDriver):
         return '''INSERT OR REPLACE INTO ''' + table_name + \
                ''' values(?, ?, ?, ?)'''
 
-    def collect_aggregate(self, topic_ids, agg_type, start, end):
+    def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
         """
         This function should return the results of a aggregation query
-        @param topic_id:
+        @param topic_ids:
         @param agg_type:
         @param start:
         @param end:
@@ -503,9 +501,9 @@ class SqlLiteFuncts(DbDriver):
 
         where_clauses = ["WHERE topic_id = ?"]
         args = [topic_ids[0]]
-        if len(topic_ids) >1 :
+        if len(topic_ids) > 1:
             where_str = "WHERE topic_id IN ("
-            for id in topic_ids:
+            for _ in topic_ids:
                 where_str += "?, "
             where_str = where_str[:-2]  # strip last comma and space
             where_str += ") "

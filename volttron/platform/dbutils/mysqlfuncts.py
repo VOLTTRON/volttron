@@ -57,7 +57,8 @@
 
 import logging
 
-import mysql
+from mysql.connector import Error as MysqlError
+from mysql.connector import errorcode as MysqlErrorCodes
 import pytz
 import re
 from basedb import DbDriver
@@ -156,9 +157,9 @@ class MySqlFuncts(DbDriver):
                 err_msg = err.msg + " : " + err_msg
             raise RuntimeError(err_msg)
 
-
     def record_table_definitions(self, tables_def, meta_table_name):
-        _log.debug("In record_table_def {} {}".format(tables_def, meta_table_name))
+        _log.debug(
+            "In record_table_def {} {}".format(tables_def, meta_table_name))
         self.execute_stmt(
             'CREATE TABLE IF NOT EXISTS ' + meta_table_name +
             ' (table_id varchar(512) PRIMARY KEY, \
@@ -167,18 +168,18 @@ class MySqlFuncts(DbDriver):
 
         table_prefix = tables_def.get('table_prefix', "")
 
-        insert_stmt = 'REPLACE INTO ' + meta_table_name +\
+        insert_stmt = 'REPLACE INTO ' + meta_table_name + \
                       ' VALUES (%s, %s, %s)'
         self.insert_stmt(insert_stmt,
                          ('data_table', tables_def['data_table'],
                           table_prefix))
         self.insert_stmt(insert_stmt,
-                       ('topics_table', tables_def['topics_table'],
-                        table_prefix))
-        self.insert_stmt(insert_stmt,
-                       ('meta_table', tables_def['meta_table'], table_prefix))
+                         ('topics_table', tables_def['topics_table'],
+                          table_prefix))
+        self.insert_stmt(
+            insert_stmt,
+            ('meta_table', tables_def['meta_table'], table_prefix))
         self.commit()
-
 
     def setup_aggregate_historian_tables(self, meta_table_name):
         table_names = self.read_tablenames_from_db(meta_table_name)
@@ -208,8 +209,6 @@ class MySqlFuncts(DbDriver):
 
         _log.debug("Created aggregate topics and meta tables")
 
-
-
     def query(self, topic_ids, id_name_map, start=None, end=None, skip=0,
               agg_type=None,
               agg_period=None, count=None, order="FIRST_TO_LAST"):
@@ -238,7 +237,7 @@ class MySqlFuncts(DbDriver):
         args = [topic_ids[0]]
         if len(topic_ids) > 1:
             where_str = "WHERE topic_id IN ("
-            for id in topic_ids:
+            for _ in topic_ids:
                 where_str += "%s, "
             where_str = where_str[:-2]  # strip last comma and space
             where_str += ") "
@@ -293,12 +292,14 @@ class MySqlFuncts(DbDriver):
         rows = self.select(real_query, args)
         if rows:
             if len(topic_ids) > 1:
-                values = [(id_name_map[id],
+                values = [(id_name_map[topic_id],
                            utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
-                           jsonapi.loads(value)) for id, ts, value in rows]
+                           jsonapi.loads(value))
+                          for topic_id, ts, value in rows]
             else:
                 values = [(utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
-                       jsonapi.loads(value)) for id, ts, value in rows]
+                           jsonapi.loads(value))
+                          for topic_id, ts, value in rows]
         else:
             values = {}
         _log.debug("query result values {}".format(values))
@@ -327,7 +328,6 @@ class MySqlFuncts(DbDriver):
                                     'GROUP_CONCAT', 'STD', 'STDDEV',
                                     'STDDEV_POP', 'STDDEV_SAMP', 'VAR_POP',
                                     'VAR_SAMP', 'VARIANCE']
-
 
     def insert_agg_topic_stmt(self):
         _log.debug("Insert aggregate topics stmt inserts "
@@ -361,7 +361,8 @@ class MySqlFuncts(DbDriver):
     def get_agg_topic_map(self):
         _log.debug("in get_agg_topic_map")
         try:
-            q = "SELECT agg_topic_id, agg_topic_name, agg_type, agg_time_period " \
+            q = "SELECT agg_topic_id, agg_topic_name, agg_type, " \
+                "agg_time_period " \
                 "FROM " + self.agg_topics_table
             rows = self.select(q, None)
             _log.debug("loading agg_topic map from db")
@@ -370,8 +371,8 @@ class MySqlFuncts(DbDriver):
                 _log.debug("rows from aggregate_topics {}".format(row))
                 id_map[(row[1].lower(), row[2], row[3])] = row[0]
             return id_map
-        except mysql.errors.Error as e:
-            if e.errno == mysql.errorcode.ER_NO_SUCH_TABLE:
+        except MysqlError as e:
+            if e.errno == MysqlErrorCodes.ER_NO_SUCH_TABLE:
                 return {}
             else:
                 raise
@@ -389,26 +390,17 @@ class MySqlFuncts(DbDriver):
             topic_pattern, id_map))
         return id_map
 
-
-    def create_aggregate_store(self, agg_type, period):
+    def create_aggregate_store(self, agg_type, agg_time_period):
         """
         Create the data structure (table or collection) that is going to store
         the aggregate data for the give aggregation type and aggregation
         time period
         @param agg_type: The type of aggregation. For example, avg, sum etc.
         @param agg_time_period: The time period of aggregation
-        @param aggregation_topic_name: Unique topic name for this
-        aggregation. Mandatory if aggregation is done over multiple points
-        @param topics_str: List of topics across which this aggregation is
-        computed. It could be topic name pattern or list of topics. This
-        information should go into metadata table. If aggregation was
-        configured with a topic_name_pattern instead of explicit topic
-        names, this captures the initial list of topics that matched the
-        configured topic_name pattern.
         @:return - If aggregation_topic_name is given return an topic id
         after inserting aggregation_topic_name in topics table else return None
         """
-        table_name = agg_type + '''_''' + period
+        table_name = agg_type + '''_''' + agg_time_period
         if self.MICROSECOND_SUPPORT is None:
             self.init_microsecond_support()
 
@@ -429,10 +421,10 @@ class MySqlFuncts(DbDriver):
         return '''REPLACE INTO ''' + table_name + \
                ''' values(%s, %s, %s, %s)'''
 
-    def collect_aggregate(self, topic_ids, agg_type, start, end):
+    def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
         """
         This function should return the results of a aggregation query
-        @param topic_id:
+        @param topic_ids:
         @param agg_type:
         @param start:
         @param end:
@@ -447,15 +439,14 @@ class MySqlFuncts(DbDriver):
                 + self.data_table + ''' {where}'''
         where_clauses = ["WHERE topic_id = %s"]
         args = [topic_ids[0]]
-        if len(topic_ids) > 1 :
+        if len(topic_ids) > 1:
             where_str = "WHERE topic_id IN ("
-            for id in topic_ids:
+            for _ in topic_ids:
                 where_str += "%s, "
-            where_str = where_str[:-2] #strip last comma and space
+            where_str = where_str[:-2]  # strip last comma and space
             where_str += ") "
             where_clauses = [where_str]
             args = topic_ids
-
 
         if start is not None:
             where_clauses.append("ts >= %s")

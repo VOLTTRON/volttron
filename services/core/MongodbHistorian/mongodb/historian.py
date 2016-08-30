@@ -60,11 +60,11 @@ import sys
 
 from bson.objectid import ObjectId
 from pymongo import ReplaceOne
-from pymongo import InsertOne
 from pymongo.errors import BulkWriteError
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.dbutils import mongoutils
+
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '0.1'
@@ -84,13 +84,11 @@ def historian(config_path, **kwargs):
     topic_replacements = config.get('topic_replace_list', None)
     _log.debug('topic_replacements are: {}'.format(topic_replacements))
 
-
     class MongodbHistorian(BaseHistorian):
         """This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
         of the BaseHistorianAgent.
         """
-
         def __init__(self, **kwargs):
             """ Initialise the historian.
 
@@ -109,7 +107,7 @@ def historian(config_path, **kwargs):
             self._data_collection = table_names['data_table']
             self._meta_collection = table_names['meta_table']
             self._topic_collection = table_names['topics_table']
-            self._agg_topic_collection =table_names['agg_topics_table']
+            self._agg_topic_collection = table_names['agg_topics_table']
             self._agg_meta_collection = table_names['agg_meta_table']
             self._initial_params = connection['params']
             self._client = None
@@ -118,7 +116,6 @@ def historian(config_path, **kwargs):
             self._topic_name_map = {}
             self._topic_meta = {}
             self._agg_topic_id_map = {}
-
 
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
@@ -170,11 +167,13 @@ def historian(config_path, **kwargs):
                                {'ts': ts, 'topic_id': topic_id,
                                 'value': value}, upsert=True))
 
-            #                bulk_publish.append(InsertOne(
-            #                    {'ts': ts, 'topic_id': topic_id, 'value': value}))
+            # bulk_publish.append(InsertOne(
+            #                    {'ts': ts, 'topic_id': topic_id, 'value':
+            # value}))
 
             try:
-                # http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
+                # http://api.mongodb.org/python/current/api/pymongo
+                # /collection.html#pymongo.collection.Collection.bulk_write
                 result = db[self._data_collection].bulk_write(bulk_publish)
             except BulkWriteError as bwe:
                 _log.error("{}".format(bwe.details))
@@ -183,11 +182,13 @@ def historian(config_path, **kwargs):
                 if not result.bulk_api_result['writeErrors']:
                     self.report_all_handled()
                 else:
-                    # TODO handle when something happens during writing of data.
+                    # TODO handle when something happens during writing of
+                    # data.
                     _log.error('SOME THINGS DID NOT WORK')
 
         def query_historian(self, topic, start=None, end=None, agg_type=None,
-                            agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
+                            agg_period=None, skip=0, count=None,
+                            order="FIRST_TO_LAST"):
             """ Returns the results of the query from the mongo database.
 
             This historian stores data to the nearest second.  It will not
@@ -216,10 +217,10 @@ def historian(config_path, **kwargs):
             collection_name = self._data_collection
 
             if agg_type and agg_period:
-                #query aggregate data collection instead
+                # query aggregate data collection instead
                 collection_name = agg_type + "_" + agg_period
 
-            topics_list =[]
+            topics_list = []
             if isinstance(topic, str):
                 topics_list.append(topic)
             elif isinstance(topic, list):
@@ -229,23 +230,23 @@ def historian(config_path, **kwargs):
             id_name_map = {}
             for topic in topics_list:
                 # find topic if based on topic table entry
-                id = self._topic_id_map.get(topic.lower(), None)
+                topic_id = self._topic_id_map.get(topic.lower(), None)
 
                 if agg_type:
                     agg_type = agg_type.lower()
                     # replace id from aggregate_topics table
-                    id = self._agg_topic_id_map.get(
-                        (topic.lower(), agg_type, agg_period),None)
-                    if id is None:
+                    topic_id = self._agg_topic_id_map.get(
+                        (topic.lower(), agg_type, agg_period), None)
+                    if topic_id is None:
                         # load agg topic id again as it might be a newly
                         # configured aggregation
                         self._agg_topic_id_map = mongoutils.get_agg_topic_map(
                             self._client, self._agg_topic_collection)
-                        id = self._agg_topic_id_map.get(
+                        topic_id = self._agg_topic_id_map.get(
                             (topic.lower(), agg_type, agg_period), None)
-                if id:
-                    topic_ids.append(id)
-                    id_name_map[ObjectId(id)] = topic
+                if topic_id:
+                    topic_ids.append(topic_id)
+                    id_name_map[ObjectId(topic_id)] = topic
                 else:
                     _log.warn('No such topic {}'.format(topic))
 
@@ -282,7 +283,8 @@ def historian(config_path, **kwargs):
             cursor = db[collection_name].find(find_params)
             cursor = cursor.skip(skip_count).limit(count)
             if multi_topic_query:
-                cursor = cursor.sort([("topic_id", order_by),("ts", order_by)])
+                cursor = cursor.sort(
+                    [("topic_id", order_by), ("ts", order_by)])
             else:
                 cursor = cursor.sort([("ts", order_by)])
             _log.debug('cursor count is: {}'.format(cursor.count()))
@@ -298,15 +300,16 @@ def historian(config_path, **kwargs):
                           in cursor]
 
             if len(values) > 0:
-                #If there are results add metadata if it is a query on a single
-                #topic
+                # If there are results add metadata if it is a query on a
+                # single
+                # topic
                 if not multi_topic_query:
                     metadata = self._topic_meta.get(topic_ids[0], {})
                     if agg_type:
                         # if aggregation is on single topic find the topic id
                         # in the topics table.
-                        id = self._topic_id_map.get(topic.lower(), None)
-                        if id:
+                        topic_id = self._topic_id_map.get(topic.lower(), None)
+                        if topic_id:
                             metadata = self._topic_meta.get(topic_ids[0], {})
                         else:
                             # if topic name does not have entry in topic_id_map
@@ -315,11 +318,11 @@ def historian(config_path, **kwargs):
                             metadata = {}
 
                     return {
-                            'values': values,
-                            'metadata': metadata
-                           }
+                        'values': values,
+                        'metadata': metadata
+                    }
                 else:
-                    return {'values':values}
+                    return {'values': values}
             else:
                 return {}
 
@@ -333,14 +336,17 @@ def historian(config_path, **kwargs):
 
             return res
 
+        def query_topics_metadata(self):
+            pass
+
         def query_aggregate_topics(self):
-            map = mongoutils.get_agg_topic_map(self._client,
-                                               self._agg_topic_collection)
-            if map:
-                return map.keys()
+            agg_map = mongoutils.get_agg_topic_map(
+                self._client,
+                self._agg_topic_collection)
+            if agg_map:
+                return agg_map.keys()
             else:
                 return []
-
 
         def _load_topic_map(self):
             _log.debug('loading topic map')
@@ -366,8 +372,6 @@ def historian(config_path, **kwargs):
                 document = cursor[num]
                 self._topic_meta[document['topic_id']] = document['meta']
 
-
-
         def historian_setup(self):
             _log.debug("HISTORIAN SETUP")
             self._client = mongoutils.get_mongo_client(
@@ -386,18 +390,19 @@ def historian(config_path, **kwargs):
             db = self._client.get_default_database()
             db[meta_table_name].bulk_write([
                 ReplaceOne({'table_id': 'data_table'},
-                           {'table_id':'data_table',
-                           'table_name': self._data_collection,
-                           'table_prefix': ''}, upsert=True),
+                           {'table_id': 'data_table',
+                            'table_name': self._data_collection,
+                            'table_prefix': ''}, upsert=True),
                 ReplaceOne({'table_id': 'topics_table'},
                            {'table_id': 'topics_table',
-                           'table_name': self._topic_collection,
-                           'table_prefix': ''}, upsert=True),
+                            'table_name': self._topic_collection,
+                            'table_prefix': ''}, upsert=True),
                 ReplaceOne({'table_id': 'meta_table'},
                            {'table_id': 'meta_table',
-                           'table_name': self._meta_collection,
-                           'table_prefix': ''}, upsert=True)
+                            'table_name': self._meta_collection,
+                            'table_prefix': ''}, upsert=True)
             ])
+
     MongodbHistorian.__name__ = 'MongodbHistorian'
     return MongodbHistorian(topic_replace_list=topic_replacements, **kwargs)
 

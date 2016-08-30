@@ -349,5 +349,5 @@ class DbDriver(object):
         return True
 
     @abstractmethod
-    def collect_aggregate(self, topic_name, agg_type, start=None, end=None):
+    def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
         pass

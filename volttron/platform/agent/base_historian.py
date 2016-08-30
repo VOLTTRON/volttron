@@ -1046,8 +1046,9 @@ class BaseQueryHistorianAgent(Agent):
         :py:meth:`BaseQueryHistorianAgent.get_topics_metadata`
         to find out the available aggregates in the data store
 
-        :return: List of tuples containing (topic_name, aggregation_type,
-        aggregation_time_period, metadata)
+        :return: dictionary of dictionaries, with the format
+        {topic_name: {metadata_key:metadata_value, ...},
+         topic_name: {metadata_key:metadata_value, ...} ...}
         :rtype: list
         """
 
