@@ -7,9 +7,11 @@ from copy import deepcopy
 
 _log = logging.getLogger(__name__)
 
+
 def load_create_store(filename):
     persist = PersistentDict(filename=filename, flag='c', format='json')
-    return shelve.Shelf(persist)
+    return persist
+
 
 class PersistentDict(dict):
     """ Persistent dictionary with an API compatible with shelve and anydbm.
@@ -28,13 +30,14 @@ class PersistentDict(dict):
     _event_queue = Queue()
     _process_thread = None
 
-    def __init__(self, filename, flag='c', mode=None, format='pickle', *args, **kwds):
+    def __init__(self, filename, flag='c', mode=None,
+                 format='pickle', *args, **kwds):
         self.flag = flag                    # r=readonly, c=create, or n=new
         self.mode = mode                    # None or an octal triple like 0644
         self.format = format                # 'csv', 'json', or 'pickle'
         self.filename = filename
         if flag != 'n' and os.access(filename, os.R_OK):
-            fileobj = open(filename, 'rb' if format=='pickle' else 'r')
+            fileobj = open(filename, 'rb' if format == 'pickle' else 'r')
             with fileobj:
                 self._load(fileobj)
 
@@ -54,7 +57,7 @@ class PersistentDict(dict):
 
 
     def sync(self):
-        'Write dict to disk'
+        """ Write dict to disk """
         if self.flag == 'r':
             return
         PersistentDict._update_file(self.filename, self, self.format, self.mode)
@@ -118,7 +121,6 @@ class PersistentDict(dict):
             except Exception:
                 pass
         raise ValueError('File not in a supported format')
-
 
 
 if __name__ == '__main__':
