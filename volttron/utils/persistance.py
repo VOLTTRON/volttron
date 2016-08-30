@@ -48,7 +48,7 @@ class PersistentDict(dict):
     @staticmethod
     def _process_loop():
         while True:
-            filename, contents, format = PersistentDict._event_queue.get()
+            filename, contents, format, mode = PersistentDict._event_queue.get()
 
             PersistentDict._update_file(filename, contents, format, mode)
 
