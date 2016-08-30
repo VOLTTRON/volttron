@@ -72,6 +72,7 @@ from gevent.lock import Semaphore
 from volttron.utils.persistance import PersistentDict
 from volttron.platform.agent.utils import parse_json_config
 from volttron.platform.vip.agent import errors
+from volttron.platform.jsonrpc import RemoteError, MethodNotFound
 
 from .vip.agent import Agent, Core, RPC
 
@@ -98,7 +99,7 @@ def _list_unique_links(config):
 
     for value in values:
         if isinstance(value, (dict,list)):
-            results.update(list_unique_links(value))
+            results.update(_list_unique_links(value))
         elif isinstance(value, str):
             if value.startswith(link_prefix):
                 config_name = value.replace(link_prefix, '', 1)
@@ -175,6 +176,10 @@ class ConfigStoreService(Agent):
     def __init__(self, *args, **kwargs):
         super(ConfigStoreService, self).__init__(*args, **kwargs)
 
+        # This agent is started before the router so we need
+        # to keep it from blocking.
+        self.core.delay_running_event_set = False
+
         self.store = {}
         self.store_path = os.path.join(os.environ['VOLTTRON_HOME'], 'configuration_store')
 
@@ -193,8 +198,9 @@ class ConfigStoreService(Agent):
         config_store_iter = glob.iglob(os.path.join(self.store_path, "*" + store_ext))
 
         for store_path in config_store_iter:
-            root, ext = os.path.splittext(store_path)
+            root, ext = os.path.splitext(store_path)
             agent_identity = os.path.basename(root)
+            _log.info("Processing store for agent {}".format(agent_identity))
             store = PersistentDict(filename=store_path, flag='c', format='json')
             parsed_configs = process_store(agent_identity, store)
             self.store[agent_identity] = {"configs": parsed_configs, "store": store, "lock": Semaphore()}
@@ -230,10 +236,15 @@ class ConfigStoreService(Agent):
 
         with agent_store_lock:
             try:
-                self.vip.rpc.call(identity, "update_config", None, "DELETE_ALL", trigger_callback=trigger_callback).get(
+                self.vip.rpc.call(identity, "update_config", None, "DELETE_ALL", trigger_callback=True).get(
                     timeout=10.0)
             except errors.Unreachable:
                 _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
+            except RemoteError as e:
+                _log.error("Agent {} failure when all configurations: {}".format(identity, e))
+            except MethodNotFound as e:
+                _log.error(
+                    "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
 
         # If the store is still empty (nothing jumped in and added to it while we were informing the agent)
         # then remove it from the global store.
@@ -245,7 +256,7 @@ class ConfigStoreService(Agent):
         return self.store.get(identity, {}).get("store", {}).keys()
 
     @RPC.export
-    def manage_list_stores(self, identity):
+    def manage_list_stores(self):
         return self.store.keys()
 
     @RPC.export
@@ -267,20 +278,20 @@ class ConfigStoreService(Agent):
 
     @RPC.export
     def set_config(self, config_name, contents, trigger_callback=False):
-        identity = bytes(self.rpc().context.vip_message.peer)
-        self.store(identity, config_name, contents, trigger_callback=trigger_callback)
+        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        self.store_config(identity, config_name, contents, trigger_callback=trigger_callback)
 
 
     @RPC.export
     def get_configs(self):
         """Called by an Agent at startup to get the initial configuration state."""
-        identity = bytes(self.rpc().context.vip_message.peer)
+        identity = bytes(self.vip.rpc.context.vip_message.peer)
         return self.store.get(identity, {}).get("configs", {})
 
     @RPC.export
     def delete_config(self, config_name, trigger_callback=False):
         """Called by an Agent to delete a configuration."""
-        identity = bytes(self.rpc().context.vip_message.peer)
+        identity = bytes(self.vip.rpc.context.vip_message.peer)
         self.delete(identity, config_name, trigger_callback=trigger_callback)
 
     #Helper method to allow the local services to delete configs before message bus in online.
@@ -307,6 +318,11 @@ class ConfigStoreService(Agent):
                 self.vip.rpc.call(identity, "update_config", config_name, "DELETE", trigger_callback=trigger_callback).get(timeout=10.0)
             except errors.Unreachable:
                 _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
+            except RemoteError as e:
+                _log.error("Agent {} failure when deleting configuration {}: {}".format(identity, config_name, e))
+            except MethodNotFound as e:
+                _log.error(
+                    "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
 
         #If the store is empty (and nothing jumped in and added to it while we were informing the agent)
         # then remove it from the global store.
@@ -314,7 +330,7 @@ class ConfigStoreService(Agent):
             self.store.pop(identity)
 
     # Helper method to allow the local services to store configs before message bus is online.
-    def store(self, identity, config_name, contents, trigger_callback=False):
+    def store_config(self, identity, config_name, contents, trigger_callback=False):
         config_type = None
         raw_data = None
         if isinstance(contents, (dict, list)):
@@ -339,6 +355,7 @@ class ConfigStoreService(Agent):
             store_path = os.path.join(self.store_path, identity+ store_ext)
             store = PersistentDict(filename=store_path, flag='c', format='json')
             agent_store = {"configs": {}, "store": store, "lock": Semaphore()}
+            self.store[identity] = agent_store
 
         agent_configs = agent_store["configs"]
         agent_disk_store = agent_store["store"]
@@ -350,15 +367,22 @@ class ConfigStoreService(Agent):
             action = "NEW"
 
         if check_for_recursion(config_name, parsed, agent_configs):
-            raise ValueError("Recursive configuration references")
+            raise ValueError("Recursive configuration references detected.")
 
         agent_configs[config_name] = parsed
         agent_disk_store[config_name] = {"type": config_type, "data": raw}
 
         agent_disk_store.async_sync()
 
+        _log.info("Agent {} config {} stored.".format(identity, config_name))
+
         with agent_store_lock:
             try:
                 self.vip.rpc.call(identity, "update_config", action, contents=parsed, trigger_callback=trigger_callback).get(timeout=10.0)
             except errors.Unreachable:
                 _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
+            except RemoteError as e:
+                _log.error("Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
+            except MethodNotFound as e:
+                _log.error(
+                    "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
