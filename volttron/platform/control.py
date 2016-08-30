@@ -76,6 +76,7 @@ import base64
 import gevent
 import gevent.event
 from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.platform import get_home, get_address
 
 from .agent import utils
 from .agent.known_identities import CONTROL_CONNECTION
@@ -970,13 +971,8 @@ def main(argv=sys.argv):
                          'potential damage.\n' % os.path.basename(argv[0]))
         sys.exit(77)
 
-    volttron_home = os.path.normpath(config.expandall(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+    volttron_home = get_home()
     os.environ['VOLTTRON_HOME'] = volttron_home
-
-    vip_path = '$VOLTTRON_HOME/run/vip.socket'
-    if sys.platform.startswith('linux'):
-        vip_path = '@' + vip_path
 
     global_args = config.ArgumentParser(description='global options',
                                         add_help=False)
@@ -998,7 +994,7 @@ def main(argv=sys.argv):
     global_args.add_argument('--known-hosts-file', metavar='FILE',
                              help='get known-host server keys from FILE')
     global_args.set_defaults(
-        vip_address='ipc://' + vip_path,
+        vip_address=get_address(),
         timeout=30,
         keystore_file=os.path.join(volttron_home, 'keystore'),
         known_hosts_file=os.path.join(volttron_home, 'known_hosts')
