@@ -210,12 +210,15 @@ def vip_main(agent_class, identity=None, **kwargs):
         identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
         address = os.environ.get('VOLTTRON_VIP_ADDR')
         agent_uuid = os.environ.get('AGENT_UUID')
+        volttron_home = os.path.abspath(get_home())
+
         if not address:
             abstract = '@' if sys.platform.startswith('linux') else ''
-            address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
+            address = 'ipc://%s%s/run/vip.socket' % (abstract, volttron_home)
 
         agent = agent_class(config_path=config, identity=identity,
-                            address=address, agent_uuid=agent_uuid,  **kwargs)
+                            address=address, agent_uuid=agent_uuid,
+                            volttron_home=volttron_home, **kwargs)
         try:
             run = agent.run
         except AttributeError:
