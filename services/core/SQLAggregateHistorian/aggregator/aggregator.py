@@ -99,7 +99,7 @@ class SQLAggregateHistorian(AggregateHistorian):
         dbfuncts_class = sqlutils.get_dbfuncts_class(database_type)
         self.dbfuncts = dbfuncts_class(connection['params'], None)
         self.dbfuncts.setup_aggregate_historian_tables(
-            self.volttron_meta_table)
+            self.volttron_table_defs)
 
     def get_topic_map(self):
         return self.dbfuncts.get_topic_map()

@@ -100,7 +100,7 @@ class MongodbAggregateHistorian(AggregateHistorian):
         # tables_def = sqlutils.get_table_def(self.config)
 
         db = self.dbclient.get_default_database()
-        cursor = db[self.volttron_meta_table].find()
+        cursor = db[self.volttron_table_defs].find()
         table_map ={}
         prefix = ""
         for document in cursor:

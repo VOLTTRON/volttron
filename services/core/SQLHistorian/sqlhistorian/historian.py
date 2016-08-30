@@ -243,45 +243,92 @@ def historian(config_path, **kwargs):
 
              metadata is not required (The caller will normalize this to {}
              for you)
+             @param topic: Topic or topics to query for
+            @param start: Start of query timestamp as a datetime
+            @param end: End of query timestamp as a datetime
+            @param agg_type: If this is a query for aggregate data, the type of
+            aggregation ( for example, sum, avg)
+            @param agg_period: If this is a query for aggregate data, the time
+            period of aggregation
+            @param skip: Skip this number of results
+            @param count: Limit results to this value
+            @param order: How to order the results, either "FIRST_TO_LAST" or
+            "LAST_TO_FIRST"
+            @return: Results of the query
             """
             _log.debug("query_historian Thread is: {}".format(
                 threading.currentThread().getName())
             )
             results = dict()
-            topic_id = None
-            topic_lower = topic.lower()
-            if agg_type is None:
-                # If this is not an aggregate query find topic if based
-                # on topic table entry
+            topics_list = []
+            if isinstance(topic, str):
+                topics_list.append(topic)
+            elif isinstance(topic, list):
+                topics_list = topic
+
+            topic_ids = []
+            id_name_map = {}
+            for topic in topics_list:
+                topic_lower = topic.lower()
                 topic_id = self.topic_id_map.get(topic_lower, None)
-            else:
-                agg_type = agg_type.lower()
-                topic_id = self.agg_topic_id_map.get(
-                    (topic_lower, agg_type, agg_period), None)
-                if topic_id is None:
-                    # load agg topic id again as it might be a newly
-                    # configured aggregation
-                    map = self.reader.get_agg_topic_map()
-                    _log.debug(" Agg topic map after loading from db {} "
-                               "".format(map))
-                    self.agg_topic_id_map.update(map)
-                    _log.debug(" Agg topic map after updating {} "
-                               "".format(self.agg_topic_id_map))
+                if agg_type:
+                    agg_type = agg_type.lower()
                     topic_id = self.agg_topic_id_map.get(
                         (topic_lower, agg_type, agg_period), None)
-            if not topic_id:
-                _log.warn('No such topic for {} as {}'.format(
-                    topic, topic))
+                    if topic_id is None:
+                        # load agg topic id again as it might be a newly
+                        # configured aggregation
+                        map = self.reader.get_agg_topic_map()
+                        self.agg_topic_id_map.update(map)
+                        _log.debug(" Agg topic map after updating {} "
+                                   "".format(self.agg_topic_id_map))
+                        topic_id = self.agg_topic_id_map.get(
+                            (topic_lower, agg_type, agg_period), None)
+                if topic_id:
+                    topic_ids.append(topic_id)
+                    id_name_map[topic_id] = topic
+                else:
+                    _log.warn('No such topic {}'.format(topic))
+
+            if not topic_ids:
+                _log.warn('No topic ids found for topics{}. Returning '
+                          'empty result'.format(
+                    topics_list))
                 return results
 
-            _log.debug("Querying db reader with topic_id {} ".format(topic_id))
+            _log.debug("Querying db reader with topic_ids {} ".format(
+                topic_ids))
+            multi_topic_query = len(topic_ids) > 1
+
             results = self.reader.query(
-                topic_id, start=start, end=end, agg_type=agg_type,
+                topic_ids, id_name_map, start=start, end=end,
+                agg_type=agg_type,
                 agg_period=agg_period, skip=skip, count=count,
                 order=order)
-            if len(results.get('values',[])) > 0 :
-                if not agg_type:
-                    results['metadata'] = self.topic_meta.get(topic_id, {})
+
+            values = results.get('values', [])
+            metadata ={}
+            if len(values) > 0 :
+                # If there are results add metadata if it is a query on a
+                # single topic
+                if not multi_topic_query:
+                    metadata = self.topic_meta.get(topic_ids[0], {})
+                    if agg_type:
+                        # if aggregation is on single topic find the topic id
+                        # in the topics table that corresponds to agg_topic_id
+                        # so that we can grab the correct metadata
+                        id = self.topic_id_map.get(topic.lower(), None)
+                        if id:
+                            metadata = self.topic_meta.get(topic_ids[0], {})
+                        else:
+                            # if topic name does not have entry in topic_id_map
+                            # it is a user configured aggregation_topic_name
+                            # which denotes aggregation across multiple points
+                            metadata = {}
+                return {
+                    'values': values,
+                    'metadata': metadata
+                }
             else:
                 results = dict()
             return results

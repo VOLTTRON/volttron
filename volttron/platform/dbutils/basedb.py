@@ -104,16 +104,17 @@ class DbDriver(object):
                     meta_table_name, None)
         table_names = dict()
         table_prefix = ""
+        table_map ={}
+
         for row in rows:
-            _log.debug("Records got from db {}".format(row))
+            table_map[row[0].lower()] = row[1]
             table_prefix = row[2] + "_" if row[2] else ""
             table_names[row[0]] = table_prefix + row[1]
 
-        table_names['agg_topics_table'] = table_prefix + 'aggregate_' + \
-                                          table_names['topics_table']
+        table_names['agg_topics_table'] = table_prefix + \
+                    'aggregate_' + table_map['topics_table']
         table_names['agg_meta_table'] = table_prefix + 'aggregate_' + \
-                                          table_names['meta_table']
-
+                                        table_map['meta_table']
         return table_names
 
     @abstractmethod
@@ -312,7 +313,8 @@ class DbDriver(object):
         return True
 
     @abstractmethod
-    def query(self, topic, start=None, end=None, agg_type=None,
+    def query(self, topic_ids, id_name_map,  start=None, end=None,
+              agg_type=None,
               agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],

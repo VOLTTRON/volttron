@@ -300,7 +300,7 @@ def historian(config_path, **kwargs):
             if len(values) > 0:
                 #If there are results add metadata if it is a query on a single
                 #topic
-                if len(topic_ids) == 1:
+                if not multi_topic_query:
                     metadata = self._topic_meta.get(topic_ids[0], {})
                     if agg_type:
                         # if aggregation is on single topic find the topic id

@@ -95,10 +95,9 @@ class AggregateHistorian(Agent):
 
         # Instantiate variables
         self.config = utils.load_config(config_path)
-        self._agent_id = self.config['agentid']
         self.topic_id_map = None
         self.aggregate_topic_id_map = None
-        self.volttron_meta_table = 'volttron_meta_table'
+        self.volttron_table_defs = 'volttron_table_definitions'
 
         # 1. Check connection to db instantiate db functions class
         connection = self.config.get('connection', None)

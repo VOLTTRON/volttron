@@ -384,7 +384,7 @@ def connect_mysql(request):
     # clean up any rows from older runs
     cursor = db_connection.cursor()
     cursor.execute("DELETE FROM data")
-    cursor.execute("DELETE FROM volttron_meta_table")
+    cursor.execute("DELETE FROM volttron_table_definitions")
     db_connection.commit()
 
 

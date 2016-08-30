@@ -207,8 +207,9 @@ class SqlLiteFuncts(DbDriver):
         conn.close()
 
 
-    def query(self, topic_id, start=None, end=None, agg_type=None,
-              agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
+    def query(self, topic_ids, id_name_map, start=None, end=None,
+              agg_type=None, agg_period=None, skip=0, count=None,
+              order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}
@@ -220,7 +221,7 @@ class SqlLiteFuncts(DbDriver):
          @param skip:
          @param end:
          @param start:
-         @param topic_id:
+         @param topic_ids:
          @param agg_type:
          @param agg_period:
         """
@@ -228,7 +229,7 @@ class SqlLiteFuncts(DbDriver):
         if agg_type and agg_period:
             table_name = agg_type + "_" + agg_period
 
-        query = '''SELECT ts, value_string
+        query = '''SELECT topic_id, ts, value_string
                    FROM ''' + table_name + '''
                    {where}
                    {order_by}
@@ -236,7 +237,15 @@ class SqlLiteFuncts(DbDriver):
                    {offset}'''
 
         where_clauses = ["WHERE topic_id = ?"]
-        args = [topic_id]
+        args = [topic_ids[0]]
+        if len(topic_ids) > 1:
+            where_str = "WHERE topic_id IN ("
+            for id in topic_ids:
+                where_str += "?, "
+            where_str = where_str[:-2]  # strip last comma and space
+            where_str += ") "
+            where_clauses = [where_str]
+            args = topic_ids
 
         if start is not None:
             start_str = start.isoformat(' ')
@@ -254,9 +263,9 @@ class SqlLiteFuncts(DbDriver):
 
         where_statement = ' AND '.join(where_clauses)
 
-        order_by = 'ORDER BY ts ASC'
+        order_by = 'ORDER BY topic_id ASC, ts ASC'
         if order == 'LAST_TO_FIRST':
-            order_by = ' ORDER BY ts DESC'
+            order_by = ' ORDER BY topic_id DESC, ts DESC'
 
         # can't have an offset without a limit
         # -1 = no limit and allows the user to
@@ -283,9 +292,13 @@ class SqlLiteFuncts(DbDriver):
             self.__database,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         rows = c.execute(real_query, args)
+        if len(topic_ids) > 1:
+            values = [(id_name_map[id], utils.format_timestamp(ts),
+                   jsonapi.loads(value)) for id, ts, value in rows]
+        else:
+            values = [(utils.format_timestamp(ts),
+                   jsonapi.loads(value)) for id, ts, value in rows]
 
-        values = [(utils.format_timestamp(ts),
-                   jsonapi.loads(value)) for ts, value in rows]
         _log.debug("QueryResults: " + str(values))
         return {'values': values}
 
@@ -370,7 +383,8 @@ class SqlLiteFuncts(DbDriver):
         return True
 
     def insert_agg_meta_stmt(self):
-        return '''INSERT OR REPLACE INTO ''' + self.meta_table + ''' values(?, ?)'''
+        return '''INSERT OR REPLACE INTO ''' + self.agg_meta_table + '''
+        values(?, ?)'''
 
     def get_topic_map(self):
         _log.debug("in get_topic_map")
@@ -398,6 +412,7 @@ class SqlLiteFuncts(DbDriver):
             return id_map
         except sqlite3.Error as e:
             if e.message[0:13] == 'no such table':
+                _log.warn("No such table : {}".format(self.agg_topics_table))
                 return {}
             else:
                 raise

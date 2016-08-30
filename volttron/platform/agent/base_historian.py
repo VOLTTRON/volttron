@@ -289,7 +289,7 @@ class BaseHistorianAgent(Agent):
         _log.info('Topic string replace list: {}'
                   .format(self._topic_replace_list))
 
-        self.volttron_meta_table = 'volttron_meta_table'
+        self.volttron_table_defs = 'volttron_table_definitions'
         self._backup_storage_limit_gb = backup_storage_limit_gb
         self._started = False
         self._retry_period = retry_period
@@ -357,17 +357,16 @@ class BaseHistorianAgent(Agent):
         if not tables_def:
             tables_def =  default_table_def
         table_names = dict(tables_def)
-        table_names["agg_topics_table"] = \
-            "aggregate_" + tables_def["topics_table"]
-        table_names["agg_meta_table"] = \
-            "aggregate_" + tables_def["meta_table"]
 
         table_prefix = tables_def.get('table_prefix',None)
         table_prefix = table_prefix + "_" if table_prefix else ""
         if table_prefix:
             for key, value in table_names.items():
                 table_names[key] = table_prefix + table_names[key]
-
+        table_names["agg_topics_table"] = table_prefix + \
+            "aggregate_" + tables_def["topics_table"]
+        table_names["agg_meta_table"] = table_prefix + \
+            "aggregate_" + tables_def["meta_table"]
         return tables_def, table_names
 
     def _get_topic(self, input_topic):
@@ -624,7 +623,7 @@ class BaseHistorianAgent(Agent):
         self.historian_setup()
 
         # Record the names of data, topics, meta tables in a metadata table
-        self.record_table_definitions(self.volttron_meta_table)
+        self.record_table_definitions(self.volttron_table_defs)
 
         # now that everything is setup we need to make sure that the topics
         # are synchronized between

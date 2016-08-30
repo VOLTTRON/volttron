@@ -210,7 +210,8 @@ class MySqlFuncts(DbDriver):
 
 
 
-    def query(self, topic_id, start=None, end=None, skip=0, agg_type=None,
+    def query(self, topic_ids, id_name_map, start=None, end=None, skip=0,
+              agg_type=None,
               agg_period=None, count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],
@@ -223,7 +224,7 @@ class MySqlFuncts(DbDriver):
         if agg_type and agg_period:
             table_name = agg_type + "_" + agg_period
 
-        query = '''SELECT ts, value_string
+        query = '''SELECT topic_id, ts, value_string
                 FROM ''' + table_name + '''
                 {where}
                 {order_by}
@@ -234,7 +235,15 @@ class MySqlFuncts(DbDriver):
             self.init_microsecond_support()
 
         where_clauses = ["WHERE topic_id = %s"]
-        args = [topic_id]
+        args = [topic_ids[0]]
+        if len(topic_ids) > 1:
+            where_str = "WHERE topic_id IN ("
+            for id in topic_ids:
+                where_str += "%s, "
+            where_str = where_str[:-2]  # strip last comma and space
+            where_str += ") "
+            where_clauses = [where_str]
+            args = topic_ids
 
         if start is not None:
             where_clauses.append("ts >= %s")
@@ -254,9 +263,9 @@ class MySqlFuncts(DbDriver):
 
         where_statement = ' AND '.join(where_clauses)
 
-        order_by = 'ORDER BY ts ASC'
+        order_by = 'ORDER BY topic_id ASC, ts ASC'
         if order == 'LAST_TO_FIRST':
-            order_by = ' ORDER BY ts DESC'
+            order_by = ' ORDER BY topic_id DESC, ts DESC'
 
         # can't have an offset without a limit
         # -1 = no limit and allows the user to
@@ -283,12 +292,16 @@ class MySqlFuncts(DbDriver):
 
         rows = self.select(real_query, args)
         if rows:
-            values = [(utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
-                       jsonapi.loads(
-                           value)) for ts, value in rows]
+            if len(topic_ids) > 1:
+                values = [(id_name_map[id],
+                           utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
+                           jsonapi.loads(value)) for id, ts, value in rows]
+            else:
+                values = [(utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
+                       jsonapi.loads(value)) for id, ts, value in rows]
         else:
             values = {}
-
+        _log.debug("query result values {}".format(values))
         return {'values': values}
 
     def insert_meta_query(self):
