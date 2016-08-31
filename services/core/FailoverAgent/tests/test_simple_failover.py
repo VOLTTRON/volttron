@@ -39,14 +39,15 @@ def tcp_to(instance):
 
     return "{}?serverkey={}&publickey={}&secretkey={}".format(
         instance.vip_address,
-        instance.publickey,
+        instance.serverkey,
         key.public(),
         key.secret())
 
 
 def all_agents_running(instance):
     agents = instance.list_agents()
-    return all([instance.is_agent_running(a) for a in agents])
+    uuids = [a['uuid'] for a in agents]
+    return all([instance.is_agent_running(uuid) for uuid in uuids])
 
 
 @pytest.fixture

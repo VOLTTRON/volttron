@@ -43,14 +43,15 @@ def tcp_to(instance):
 
     return "{}?serverkey={}&publickey={}&secretkey={}".format(
         instance.vip_address,
-        instance.publickey,
+        instance.serverkey,
         key.public(),
         key.secret())
 
 
 def all_agents_running(instance):
     agents = instance.list_agents()
-    return all([instance.is_agent_running(a) for a in agents])
+    uuids = [a['uuid'] for a in agents]
+    return all([instance.is_agent_running(uuid) for uuid in uuids])
 
 
 @pytest.fixture
@@ -122,6 +123,7 @@ def test_baseline(failover):
     assert not all_agents_running(secondary)
 
 
+@pytest.mark.skip(reason='VC coordination posponed for feature/web')
 def test_vc_death_behavior(failover):
     global vc_uuid
     primary, secondary, vc = failover
@@ -136,7 +138,8 @@ def test_vc_death_behavior(failover):
     assert all_agents_running(primary)
     assert not all_agents_running(secondary)
 
-@pytest.mark.xfail(reason='VC coordination posponed for feature/web')
+
+@pytest.mark.skip(reason='VC coordination posponed for feature/web')
 def test_primary_death_behavior(failover):
     global primary_failover
     primary, secondary, vc = failover
@@ -151,7 +154,8 @@ def test_primary_death_behavior(failover):
     assert all_agents_running(vc)
     assert  all_agents_running(secondary)
 
-@pytest.mark.xfail(reason='VC coordination posponed for feature/web')
+
+@pytest.mark.skip(reason='VC coordination posponed for feature/web')
 def test_secondary_death_behavior(failover):
     global secondary_failover
     primary, secondary, vc = failover
