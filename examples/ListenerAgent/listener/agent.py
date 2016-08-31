@@ -68,7 +68,9 @@ from . import settings
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.0'
+__version__ = '3.1'
+DEFAULT_MESSAGE = 'Listener Message'
+DEFAULT_AGENTID = "listener"
 
 class ListenerAgent(Agent):
     '''Listens to everything and publishes a heartbeat according to the
@@ -78,13 +80,13 @@ class ListenerAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(ListenerAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
-        self._agent_id = self.config['agentid']
+        self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
 
     @Core.receiver('onsetup')
     def onsetup(self, sender, **kwargs):
         # Demonstrate accessing a value from the config file
-        _log.info(self.config['message'])
-        self._agent_id = self.config['agentid']
+        _log.info(self.config.get('message', DEFAULT_MESSAGE))
+        self._agent_id = self.config.get('agentid')
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):

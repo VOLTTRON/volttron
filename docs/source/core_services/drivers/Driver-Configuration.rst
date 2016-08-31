@@ -1,8 +1,5 @@
 .. _Driver-Configuration:
-<<<<<<< Updated upstream
 
-=======
->>>>>>> Stashed changes
 ====================
 Driver Configuration
 ====================

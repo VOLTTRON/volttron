@@ -9,15 +9,9 @@ Agents for :ref:`sMAP <sMAP-Historian>`, general support for :ref:`SQL based
 database <SQL-Historian>` (sqlite and MySql), and an
 :ref:`OpenEIS <Analyitics-Historian>` stores already exist.
 
-<<<<<<< Updated upstream
 -  :ref:`sMAP Historian <sMAP-Historian>`
 -  :ref:`SQL Historian <SQL-Historian>`
 -  :ref:`OpenEIS Historian <Analytics-Historian>`
-=======
--  `sMAP Historian <sMAP-Historian>`
--  `SQL Historian <SQL-Historian>`
--  `OpenEIS Historian <Analytics-Historian>`
->>>>>>> Stashed changes
 
 Other implementations of historians can be created by following the
 :ref:`developing historian agents <Developing-Historian-Agents>` section of

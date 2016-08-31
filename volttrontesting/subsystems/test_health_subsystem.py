@@ -18,6 +18,7 @@ def onmessage(peer, sender, bus, topic, headers, message):
 
 
 @pytest.mark.subsystems
+@pytest.mark.xfail(reason="Need to upgrade")
 def test_can_set_status(volttron_instance):
     """ Tests the ability to change a status by sending a different status
     code.
@@ -59,6 +60,7 @@ def test_can_set_status(volttron_instance):
 
 
 @pytest.mark.subsystems
+@pytest.mark.xfail(reason="Need to upgrade")
 def test_invalid_status(volttron_instance):
     """ Tests if a non-known status is sent then the sstatus is set to
     bad.
@@ -79,6 +81,7 @@ def test_invalid_status(volttron_instance):
 
 
 @pytest.mark.subsystems
+@pytest.mark.xfail(reason="Need to upgrade")
 def test_heartbeat_sending_status(volttron_instance):
     """ Tests the heartbeat message that it has the status.
 
@@ -105,6 +108,7 @@ def test_heartbeat_sending_status(volttron_instance):
 
 
 @pytest.mark.subsystems
+@pytest.mark.xfail(reason="Need to upgrade")
 def test_alert_publish(volttron_instance):
     """ Tests the heartbeat message that it has the status.
 
