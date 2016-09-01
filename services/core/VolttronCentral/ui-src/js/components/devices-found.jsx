@@ -5,6 +5,7 @@ import io from 'socket';
 import BaseComponent from './base-component';
 import DeviceConfiguration from './device-configuration';
 
+var ConfirmForm = require('./confirm-form');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var devicesStore = require('../stores/devices-store');
@@ -256,23 +257,37 @@ var parseCsvFile = (contents) => {
 
             rows.forEach(function (r, num) {
 
-                if ((r.length !== templateLength) && (num !== (rowsCount - 1)))
-                {
-                    results.warnings.push({ message: "Row " +  num + " was omitted for having the wrong number of columns."});
-                }
-                else
-                {
-                    var newTemplate = JSON.parse(JSON.stringify(template));
+                if (r.length)
+                {   
+                    if (r.length !== templateLength) 
+                    {                           
+                        if ((num === (rowsCount - 1)) && (r.length === 0 || ((r.length === 1) && (r[0] === "") )))
+                        {
+                            // Suppress the warning message if the out-of-sync row is the last one and it has no elements
+                            // or all it has is an empty point name -- which can happen naturally when reading the csv file
+                        }
+                        else
+                        {
+                            results.warnings.push({ message: "Row " +  num + " was omitted for having the wrong number of columns."});
+                        }
+                    }
+                    else
+                    {
+                        if (r.length === templateLength) // Have to check again, to keep from adding the empty point name
+                        {                                // in the last row
+                            var newTemplate = JSON.parse(JSON.stringify(template));
 
-                    var newRow = [];
+                            var newRow = [];
 
-                    r.forEach( function (value, i) {
-                        newTemplate[i].value = value;
+                            r.forEach( function (value, i) {
+                                newTemplate[i].value = value;
 
-                        newRow.push(newTemplate[i]);
-                    });
+                                newRow.push(newTemplate[i]);
+                            });
 
-                    registryValues.push(newRow);
+                            registryValues.push(newRow);
+                        }
+                    }
                 }
             });
         }

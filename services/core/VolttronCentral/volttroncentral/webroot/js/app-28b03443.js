@@ -213,32 +213,38 @@ var devicesActionCreators = {
     },
     scanForDevices: function scanForDevices(platformUuid, bacnetProxyUuid, low, high, address) {
 
-        var authorization = authorizationStore.getAuthorization();
+        // var authorization = authorizationStore.getAuthorization();
 
-        return new rpc.Exchange({
-            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.who_is',
-            authorization: authorization,
-            params: {}
-        }).promise.then(function (result) {
+        // return new rpc.Exchange({
+        //     method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.who_is',
+        //     authorization: authorization,
+        //     params: {
 
-            if (result) {
-                console.log(JSON.stringify(result));
+        //     },
+        // }).promise
+        //     .then(function (result) {
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.LISTEN_FOR_IAMS,
-                    platformUuid: platformUuid,
-                    bacnetProxyUuid: bacnetProxyUuid,
-                    low_device_id: low,
-                    high_device_id: high,
-                    target_address: address
-                });
-            }
-        }).catch(rpc.Error, function (error) {
+        //         if (result)
+        //         {
+        //             console.log(JSON.stringify(result));
 
-            error.message = "Unable to scan for devices. " + error.message + ".";
-
-            handle401(error, error.message);
+        dispatcher.dispatch({
+            type: ACTION_TYPES.LISTEN_FOR_IAMS,
+            platformUuid: platformUuid,
+            bacnetProxyUuid: bacnetProxyUuid,
+            low_device_id: low,
+            high_device_id: high,
+            target_address: address
         });
+        //     }
+
+        // })
+        // .catch(rpc.Error, function (error) {
+
+        //     error.message = "Unable to scan for devices. " + error.message + ".";
+
+        //     handle401(error, error.message);
+        // });
     },
     cancelScan: function cancelScan(platform) {
         dispatcher.dispatch({
@@ -280,7 +286,9 @@ var devicesActionCreators = {
         dispatcher.dispatch({
             type: ACTION_TYPES.LOAD_REGISTRY,
             device: device,
-            data: csvData,
+            data: csvData.filter(function (row) {
+                return row.length > 0;
+            }),
             file: fileName
         });
     },
@@ -2611,7 +2619,7 @@ var ConfigureDevices = function (_BaseComponent) {
                                     _react2.default.createElement(
                                         'td',
                                         { className: 'plain' },
-                                        'Start:'
+                                        'Min:'
                                     ),
                                     _react2.default.createElement(
                                         'td',
@@ -2625,7 +2633,7 @@ var ConfigureDevices = function (_BaseComponent) {
                                     _react2.default.createElement(
                                         'td',
                                         { className: 'plain' },
-                                        'End:'
+                                        'Max:'
                                     ),
                                     _react2.default.createElement(
                                         'td',
@@ -3568,6 +3576,14 @@ var ConfirmForm = React.createClass({
             );
         }
 
+        var confirmButton = this.props.confirmText ? React.createElement(
+            'button',
+            { className: 'button' },
+            this.props.confirmText
+        ) : "";
+
+        var cancelText = this.props.cancelText ? this.props.cancelText : "Cancel";
+
         return React.createElement(
             'form',
             { className: 'confirmation-form', onSubmit: this._onSubmit },
@@ -3594,13 +3610,9 @@ var ConfirmForm = React.createClass({
                         onClick: this._onCancelClick,
                         autoFocus: true
                     },
-                    'Cancel'
+                    cancelText
                 ),
-                React.createElement(
-                    'button',
-                    { className: 'button' },
-                    this.props.confirmText
-                )
+                confirmButton
             )
         );
     }
@@ -3923,7 +3935,7 @@ var CogButton = React.createClass({
     },
     _onEditColumn: function _onEditColumn() {
         controlButtonActionCreators.hideTaptip("cogControlButton" + this.props.column);
-        controlButtonActionCreators.showTaptip("editControlButton" + this.props.column);
+        controlButtonActionCreators.toggleTaptip("editControlButton" + this.props.column);
     },
     render: function render() {
 
@@ -4202,7 +4214,8 @@ var EditColumnButton = React.createClass({
             taptip: editTaptip,
             tooltip: editTooltip,
             fontAwesomeIcon: 'pencil',
-            controlclass: 'edit_column_button' });
+            controlclass: 'edit_column_button',
+            closeAction: this.props.onhide });
     }
 });
 
@@ -4886,7 +4899,7 @@ var devicesActionCreators = require('../action-creators/devices-action-creators'
 var devicesStore = require('../stores/devices-store');
 var FilterPointsButton = require('./control_buttons/filter-points-button');
 var ControlButton = require('./control-button');
-var CogButton = require('./control_buttons/cog-select-button');
+var EditSelectButton = require('./control_buttons/cog-select-button');
 var EditColumnButton = require('./control_buttons/edit-columns-button');
 
 var ConfirmForm = require('./confirm-form');
@@ -4900,15 +4913,16 @@ var DeviceConfiguration = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DeviceConfiguration).call(this, props));
 
-        _this._bind();
+        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus");
 
         _this.state = {};
 
-        // this.state.registryValues = getPointsFromStore(this.props.device);
-        _this.state.registryValues = _this.props.device.registryConfig;
+        _this.state.registryValues = getPointsFromStore(_this.props.device);
+
         _this.state.registryHeader = [];
         _this.state.columnNames = [];
         _this.state.pointNames = [];
+        _this.state.filteredList = [];
 
         if (_this.state.registryValues.length > 0) {
             _this.state.registryHeader = getRegistryHeader(_this.state.registryValues[0]);
@@ -4927,6 +4941,8 @@ var DeviceConfiguration = function (_BaseComponent) {
         _this.state.selectedCells = [];
         _this.state.selectedCellRow = null;
         _this.state.selectedCellColumn = null;
+
+        _this.state.filterOn = false;
 
         _this.scrollToBottom = false;
         _this.resizeTable = false;
@@ -4966,27 +4982,28 @@ var DeviceConfiguration = function (_BaseComponent) {
                 this.resizeTable = false;
             }
 
-            if (this.state.selectedCellRow) {
+            if (this.state.selectedCellRow !== null) {
                 var focusedCell = document.getElementsByClassName("focusedCell")[0];
                 if (focusedCell) {
                     focusedCell.focus();
                 }
             }
         }
-    }, {
-        key: '_onStoresChange',
-        value: function _onStoresChange() {
-            this.setState({ registryValues: getPointsFromStore(this.props.device) });
-        }
+        // _onStoresChange() {
+        //     this.setState({registryValues: getPointsFromStore(this.props.device) });
+        // }
+
     }, {
         key: '_onFilterBoxChange',
         value: function _onFilterBoxChange(filterValue) {
-            this.setState({ registryValues: getFilteredPoints(this.props.device, filterValue) });
+            this.setState({ filterOn: true });
+            this.setState({ filteredList: getFilteredPoints(this.state.registryValues, filterValue) });
         }
     }, {
         key: '_onClearFilter',
         value: function _onClearFilter() {
-            this.setState({ registryValues: getPointsFromStore(this.props.device) }); //TODO: when filtering, set nonmatches to hidden so they're
+            this.setState({ filterOn: false });
+            // this.setState({registryValues: getPointsFromStore(this.props.device) }); //TODO: when filtering, set nonmatches to hidden so they're
             //still there and we don't lose information in inputs
             //then to clear filter, set all to not hidden
         }
@@ -5249,6 +5266,11 @@ var DeviceConfiguration = function (_BaseComponent) {
             this.setState({ registryValues: newRegistryValues });
         }
     }, {
+        key: '_removeFocus',
+        value: function _removeFocus() {
+            this.setState({ selectedCellRow: null });
+        }
+    }, {
         key: '_onFindNext',
         value: function _onFindNext(findValue, column) {
 
@@ -5500,7 +5522,7 @@ var DeviceConfiguration = function (_BaseComponent) {
 
             registryHeader = this.state.registryHeader.map(function (item, index) {
 
-                var cogButton = _react2.default.createElement(CogButton, {
+                var editSelectButton = _react2.default.createElement(EditSelectButton, {
                     onremove: this._onRemoveColumn,
                     onadd: this._onAddColumn,
                     onclone: this._onCloneColumn,
@@ -5514,7 +5536,8 @@ var DeviceConfiguration = function (_BaseComponent) {
                     replace: this._onReplace,
                     replaceall: this._onReplaceAll,
                     onfilter: this._onFilterBoxChange,
-                    onclear: this._onClearFind });
+                    onclear: this._onClearFind,
+                    onhide: this._removeFocus });
 
                 var firstColumnWidth;
 
@@ -5545,7 +5568,7 @@ var DeviceConfiguration = function (_BaseComponent) {
                         'div',
                         { className: 'th-inner', style: wideCell },
                         item,
-                        cogButton,
+                        editSelectButton,
                         editColumnButton
                     )
                 );
@@ -5631,17 +5654,42 @@ var DeviceConfiguration = function (_BaseComponent) {
 
 ;
 
-function getFilteredPoints(device, filterStr) {
-    return devicesStore.getFilteredRegistryValues(device, filterStr);
+function getFilteredPoints(registryValues, filterStr) {
+
+    return registryValues.map(function (row) {
+        var pointName = row.find(function (cell) {
+            return cell.key === "Volttron_Point_Name";
+        });
+
+        if (pointName) {
+            row.visible = pointName.value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1;
+        }
+    });
 }
 
 function getPointsFromStore(device) {
-    return devicesStore.getRegistryValues(device);
+    return initializeList(devicesStore.getRegistryValues(device));
 }
 
 function getRegistryHeader(registryItem) {
     return registryItem.map(function (item) {
         return item.key.replace(/_/g, " ");
+    });
+}
+
+function initializeList(registryConfig) {
+    return registryConfig.map(function (row) {
+        row.forEach(function (cell) {
+            if (cell.key === "Volttron_Point_Name" || cell.key === "Units" || cell.key === "Writable") {
+                cell.keyProp = true;
+            } else {
+                cell.keyProp = false;
+            }
+
+            row.visible = true;
+        });
+
+        return row;
     });
 }
 
@@ -5680,6 +5728,7 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
+var ConfirmForm = require('./confirm-form');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var devicesStore = require('../stores/devices-store');
@@ -5959,20 +6008,31 @@ var parseCsvFile = function parseCsvFile(contents) {
 
             rows.forEach(function (r, num) {
 
-                if (r.length !== templateLength && num !== rowsCount - 1) {
-                    results.warnings.push({ message: "Row " + num + " was omitted for having the wrong number of columns." });
-                } else {
-                    var newTemplate = JSON.parse(JSON.stringify(template));
+                if (r.length) {
+                    if (r.length !== templateLength) {
+                        if (num === rowsCount - 1 && (r.length === 0 || r.length === 1 && r[0] === "")) {
+                            // Suppress the warning message if the out-of-sync row is the last one and it has no elements
+                            // or all it has is an empty point name -- which can happen naturally when reading the csv file
+                        } else {
+                            results.warnings.push({ message: "Row " + num + " was omitted for having the wrong number of columns." });
+                        }
+                    } else {
+                        if (r.length === templateLength) // Have to check again, to keep from adding the empty point name
+                            {
+                                // in the last row
+                                var newTemplate = JSON.parse(JSON.stringify(template));
 
-                    var newRow = [];
+                                var newRow = [];
 
-                    r.forEach(function (value, i) {
-                        newTemplate[i].value = value;
+                                r.forEach(function (value, i) {
+                                    newTemplate[i].value = value;
 
-                        newRow.push(newTemplate[i]);
-                    });
+                                    newRow.push(newTemplate[i]);
+                                });
 
-                    registryValues.push(newRow);
+                                registryValues.push(newRow);
+                            }
+                    }
                 }
             });
         } else {
@@ -5987,7 +6047,7 @@ var parseCsvFile = function parseCsvFile(contents) {
 
 exports.default = DevicesFound;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":59,"./base-component":12,"./device-configuration":28,"babyparse":undefined,"react":undefined,"socket":undefined}],30:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":59,"./base-component":12,"./confirm-form":18,"./device-configuration":28,"babyparse":undefined,"react":undefined,"socket":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -9893,20 +9953,20 @@ devicesStore.getState = function () {
     return { action: _action, view: _view, device: _device, platform: _platform };
 };
 
-devicesStore.getFilteredRegistryValues = function (device, filterStr) {
+// devicesStore.getFilteredRegistryValues = function (device, filterStr) {
 
-    return _data[device.deviceId].filter(function (item) {
-        var pointName = item.find(function (pair) {
-            return pair.key === "Point_Name";
-        });
+//     return _data[device.deviceId].filter(function (item) {
+//         var pointName = item.find(function (pair) {
+//             return pair.key === "Point_Name";
+//         })
 
-        return pointName ? pointName.value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1 : false;
-    });
-};
+//         return (pointName ? (pointName.value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1) : false);
+//     });
+// }
 
 devicesStore.getRegistryValues = function (device) {
 
-    return _data[device.deviceId].length ? JSON.parse(JSON.stringify(_data[device.deviceId])) : JSON.parse(JSON.stringify(_placeHolders));
+    return _devices[device.id].registryConfig.length ? JSON.parse(JSON.stringify(_devices[device.id].registryConfig)) : JSON.parse(JSON.stringify(_placeHolders));
 };
 
 devicesStore.getDataLoaded = function (device) {
@@ -10010,9 +10070,9 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _action = "configure_registry";
             _view = "Registry Configuration";
             _device = action.device;
-            _backupData[_device.id] = _data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : [];
-            _backupFileName[_device.id] = _registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "";
-            _data[_device.id] = JSON.parse(JSON.stringify(action.data));
+            // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
+            // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
+            // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
             _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
             _registryFiles[_device.id] = action.file;
             devicesStore.emitChange();

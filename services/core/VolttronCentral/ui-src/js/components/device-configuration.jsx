@@ -7,7 +7,7 @@ var devicesActionCreators = require('../action-creators/devices-action-creators'
 var devicesStore = require('../stores/devices-store');
 var FilterPointsButton = require('./control_buttons/filter-points-button');
 var ControlButton = require('./control-button');
-var CogButton = require('./control_buttons/cog-select-button');
+var EditSelectButton = require('./control_buttons/cog-select-button');
 var EditColumnButton = require('./control_buttons/edit-columns-button');
 
 var ConfirmForm = require('./confirm-form');
@@ -16,15 +16,19 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 class DeviceConfiguration extends BaseComponent {    
     constructor(props) {
         super(props);
-        this._bind();
+        this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", 
+            "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn",
+            "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
+            "_saveRegistry", "_removeFocus" );
 
         this.state = {};
 
-        // this.state.registryValues = getPointsFromStore(this.props.device);
-        this.state.registryValues = this.props.device.registryConfig;
+        this.state.registryValues = getPointsFromStore(this.props.device);
+
         this.state.registryHeader = [];
         this.state.columnNames = [];
         this.state.pointNames = [];
+        this.state.filteredList = [];
 
         if (this.state.registryValues.length > 0)
         {
@@ -44,6 +48,8 @@ class DeviceConfiguration extends BaseComponent {
         this.state.selectedCells = [];
         this.state.selectedCellRow = null;
         this.state.selectedCellColumn = null;
+
+        this.state.filterOn = false;
 
         this.scrollToBottom = false;
         this.resizeTable = false;
@@ -77,7 +83,7 @@ class DeviceConfiguration extends BaseComponent {
             this.resizeTable = false;
         }
 
-        if (this.state.selectedCellRow)
+        if (this.state.selectedCellRow !== null)
         {
             var focusedCell = document.getElementsByClassName("focusedCell")[0];
             if (focusedCell)
@@ -87,14 +93,16 @@ class DeviceConfiguration extends BaseComponent {
         }
 
     }
-    _onStoresChange() {
-        this.setState({registryValues: getPointsFromStore(this.props.device) });
-    }
+    // _onStoresChange() {
+    //     this.setState({registryValues: getPointsFromStore(this.props.device) });
+    // }
     _onFilterBoxChange(filterValue) {
-        this.setState({ registryValues: getFilteredPoints(this.props.device, filterValue) });
+        this.setState({ filterOn: true });
+        this.setState({ filteredList: getFilteredPoints(this.state.registryValues, filterValue) });
     }
     _onClearFilter() {
-        this.setState({registryValues: getPointsFromStore(this.props.device) }); //TODO: when filtering, set nonmatches to hidden so they're
+        this.setState({ filterOn: false });
+        // this.setState({registryValues: getPointsFromStore(this.props.device) }); //TODO: when filtering, set nonmatches to hidden so they're
                                                                                 //still there and we don't lose information in inputs
                                                                                 //then to clear filter, set all to not hidden
     }
@@ -359,6 +367,9 @@ class DeviceConfiguration extends BaseComponent {
 
         this.setState({ registryValues: newRegistryValues });
     }
+    _removeFocus() {
+        this.setState({ selectedCellRow: null});
+    }
     _onFindNext(findValue, column) {
 
         var registryValues = this.state.registryValues.slice();
@@ -613,21 +624,22 @@ class DeviceConfiguration extends BaseComponent {
 
         registryHeader = this.state.registryHeader.map(function (item, index) {
 
-            var cogButton = (<CogButton 
-                                onremove={this._onRemoveColumn}
-                                onadd={this._onAddColumn}
-                                onclone={this._onCloneColumn}
-                                column={index}
-                                item={item}/>);
+            var editSelectButton = (<EditSelectButton 
+                                        onremove={this._onRemoveColumn}
+                                        onadd={this._onAddColumn}
+                                        onclone={this._onCloneColumn}
+                                        column={index}
+                                        item={item}/>);
 
-            var editColumnButton = <EditColumnButton 
-                            column={index} 
-                            tooltipMsg="Edit Column"
-                            findnext={this._onFindNext}
-                            replace={this._onReplace}
-                            replaceall={this._onReplaceAll}
-                            onfilter={this._onFilterBoxChange} 
-                            onclear={this._onClearFind}/>
+            var editColumnButton = (<EditColumnButton 
+                                        column={index} 
+                                        tooltipMsg="Edit Column"
+                                        findnext={this._onFindNext}
+                                        replace={this._onReplace}
+                                        replaceall={this._onReplaceAll}
+                                        onfilter={this._onFilterBoxChange} 
+                                        onclear={this._onClearFind}
+                                        onhide={this._removeFocus}/>);
 
             var firstColumnWidth;
 
@@ -647,7 +659,7 @@ class DeviceConfiguration extends BaseComponent {
                                 ( <th>
                                     <div className="th-inner" style={wideCell}>
                                         { item }
-                                        { cogButton }
+                                        { editSelectButton }
                                         { editColumnButton }
                                     </div>
                                 </th> ) );
@@ -698,18 +710,48 @@ class DeviceConfiguration extends BaseComponent {
     }
 };
 
-function getFilteredPoints(device, filterStr) {
-    return devicesStore.getFilteredRegistryValues(device, filterStr);
+function getFilteredPoints(registryValues, filterStr) {
+
+    return registryValues.map(function (row) {
+        var pointName = row.find(function (cell) {
+            return cell.key === "Volttron_Point_Name";
+        })
+
+        if (pointName)
+        {
+            row.visible = (pointName.value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1);
+        }
+    });
 }
 
 function getPointsFromStore(device) {
-    return devicesStore.getRegistryValues(device);
+    return initializeList(devicesStore.getRegistryValues(device));
 }
 
 function getRegistryHeader(registryItem) {
     return registryItem.map(function (item) {
-            return item.key.replace(/_/g, " ");
+        return item.key.replace(/_/g, " ");
+    });
+}
+
+function initializeList(registryConfig)
+{
+    return registryConfig.map(function (row) {
+        row.forEach(function (cell) {
+            if (cell.key === "Volttron_Point_Name" || cell.key === "Units" || cell.key === "Writable")
+            {
+                cell.keyProp = true;
+            }
+            else
+            {
+                cell.keyProp = false;
+            }
+
+            row.visible = true;
         });
+
+        return row;
+    });
 }
 
 

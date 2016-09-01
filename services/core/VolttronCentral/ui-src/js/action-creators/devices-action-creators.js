@@ -22,20 +22,20 @@ var devicesActionCreators = {
     },
     scanForDevices: function (platformUuid, bacnetProxyUuid, low, high, address) {
 
-        var authorization = authorizationStore.getAuthorization();
+        // var authorization = authorizationStore.getAuthorization();
 
-        return new rpc.Exchange({
-            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.who_is',
-            authorization: authorization,
-            params: {
+        // return new rpc.Exchange({
+        //     method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.who_is',
+        //     authorization: authorization,
+        //     params: {
                 
-            },
-        }).promise
-            .then(function (result) {
+        //     },
+        // }).promise
+        //     .then(function (result) {
 
-                if (result)
-                {
-                    console.log(JSON.stringify(result));
+        //         if (result)
+        //         {
+        //             console.log(JSON.stringify(result));
 
                     dispatcher.dispatch({
                         type: ACTION_TYPES.LISTEN_FOR_IAMS,
@@ -45,15 +45,15 @@ var devicesActionCreators = {
                         high_device_id: high,
                         target_address: address
                     });
-                }
+            //     }
                 
-            })
-            .catch(rpc.Error, function (error) {
+            // })
+            // .catch(rpc.Error, function (error) {
 
-                error.message = "Unable to scan for devices. " + error.message + ".";
+            //     error.message = "Unable to scan for devices. " + error.message + ".";
 
-                handle401(error, error.message);
-            });
+            //     handle401(error, error.message);
+            // });
         
     },
     cancelScan: function (platform) {
@@ -96,7 +96,9 @@ var devicesActionCreators = {
         dispatcher.dispatch({
             type: ACTION_TYPES.LOAD_REGISTRY,
             device: device,
-            data: csvData,
+            data: csvData.filter(function (row) {
+                return row.length > 0;
+            }),
             file: fileName
         });
     },

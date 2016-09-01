@@ -31,7 +31,7 @@ var CogButton = React.createClass({
     },
     _onEditColumn: function () {
         controlButtonActionCreators.hideTaptip("cogControlButton" + this.props.column);
-        controlButtonActionCreators.showTaptip("editControlButton" + this.props.column);
+        controlButtonActionCreators.toggleTaptip("editControlButton" + this.props.column);
     },
     render: function () {
 

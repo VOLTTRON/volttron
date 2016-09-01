@@ -218,7 +218,7 @@ class ConfigureDevices extends BaseComponent {
                                 {proxySelect}
                                 <tr>
                                     <td className="plain" style={tdStyle}><b>Device ID Range</b></td>
-                                    <td className="plain">Start:</td>
+                                    <td className="plain">Min:</td>
                                     <td className="plain">
                                         <input
                                             type="number"
@@ -226,7 +226,7 @@ class ConfigureDevices extends BaseComponent {
                                             onChange={this._onDeviceStart}
                                             value={this.state.deviceStart}></input>
                                     </td>
-                                    <td className="plain">End:</td>
+                                    <td className="plain">Max:</td>
                                     <td className="plain">
                                         <input 
                                             type="number"

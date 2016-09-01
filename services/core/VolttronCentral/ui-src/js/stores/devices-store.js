@@ -34,21 +34,21 @@ devicesStore.getState = function () {
     return { action: _action, view: _view, device: _device, platform: _platform };
 };
 
-devicesStore.getFilteredRegistryValues = function (device, filterStr) {
+// devicesStore.getFilteredRegistryValues = function (device, filterStr) {
 
-    return _data[device.deviceId].filter(function (item) {
-        var pointName = item.find(function (pair) {
-            return pair.key === "Point_Name";
-        })
+//     return _data[device.deviceId].filter(function (item) {
+//         var pointName = item.find(function (pair) {
+//             return pair.key === "Point_Name";
+//         })
 
-        return (pointName ? (pointName.value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1) : false);
-    });
-}
+//         return (pointName ? (pointName.value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1) : false);
+//     });
+// }
 
 devicesStore.getRegistryValues = function (device) {
 
-    return (_data[device.deviceId].length ? 
-                JSON.parse(JSON.stringify(_data[device.deviceId])) : 
+    return (_devices[device.id].registryConfig.length ? 
+                JSON.parse(JSON.stringify(_devices[device.id].registryConfig)) : 
                     JSON.parse(JSON.stringify(_placeHolders)));
     
 };
@@ -175,9 +175,9 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _action = "configure_registry";
             _view = "Registry Configuration";
             _device = action.device;
-            _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
-            _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
-            _data[_device.id] = JSON.parse(JSON.stringify(action.data));
+            // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
+            // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
+            // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
             _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
             _registryFiles[_device.id] = action.file;             
             devicesStore.emitChange();
