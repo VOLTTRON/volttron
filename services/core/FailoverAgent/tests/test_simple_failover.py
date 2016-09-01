@@ -24,13 +24,10 @@ simple_secondary_config = {
     "timeout": 5
 }
 
-use_encryption = False
 uuid_primary = None
 
 def tcp_to(instance):
-    global use_encryption
-
-    if not use_encryption:
+    if not instance.encrypt:
         return instance.vip_address
 
     tmp = tempfile.NamedTemporaryFile()
@@ -54,13 +51,11 @@ def all_agents_running(instance):
 def simple_failover(get_volttron_instances):
     global simple_primary_config
     global simple_secondary_config
-    global use_encryption
     global uuid_primary
 
-    [primary, secondary], param = get_volttron_instances(2)
+    primary, secondary = get_volttron_instances(2)
     primary.allow_all_connections()
     secondary.allow_all_connections()
-    use_encryption = bool(param == 'encrypted')
 
     # configure primary
     uuid = primary.install_agent(agent_dir="examples/ListenerAgent", start=False)

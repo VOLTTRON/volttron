@@ -26,15 +26,13 @@ secondary_config = {
 
 SLEEP_TIME = 5
 
-use_encryption = False
 primary_failover = None
 secondary_failover = None
 vc_uuid = None
 
 def tcp_to(instance):
-    global use_encryption
 
-    if not use_encryption:
+    if not instance.encrypt:
         return instance.vip_address
 
     tmp = tempfile.NamedTemporaryFile()
@@ -58,16 +56,14 @@ def all_agents_running(instance):
 def failover(request, get_volttron_instances):
     global primary_config
     global secondary_config
-    global use_encryption
     global primary_failover
     global secondary_failover
     global vc_uuid
 
-    [primary, secondary, vc], param = get_volttron_instances(3)
+    primary, secondary, vc = get_volttron_instances(3)
     primary.allow_all_connections()
     secondary.allow_all_connections()
     vc.allow_all_connections()
-    use_encryption = bool(param == 'encrypted')
 
     # configure vc
     vc_uuid = vc.install_agent(agent_dir="services/core/VolttronCentralPlatform")

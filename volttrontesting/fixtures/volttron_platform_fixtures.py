@@ -232,7 +232,7 @@ def get_volttron_instances(request):
         get_n_volttron_instances.param = request.param
         instances = instances if n > 1 else instances[0]
         get_n_volttron_instances.instances = instances
-        return instances, request.param
+        return instances
 
     def cleanup():
         if isinstance(get_n_volttron_instances.instances, PlatformWrapper):
