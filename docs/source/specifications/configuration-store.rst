@@ -1,7 +1,7 @@
 Agent Configuration Store
 =========================
 
-This document describes the configuration store subsystem feature and explains how an agent uses it.
+This document describes the configuration store feature and explains how an agent uses it.
 
 The configuration store enables users to store agent configurations on the platform and allows the agent to automatically retrieve them during runtime. Users may update the configurations and the agent will automatically be informed of the changes.
 
@@ -172,28 +172,36 @@ The configuration store shall be implemented on the Agent side in the form of a 
 
 The subsystem caches configurations as the platform updates the state to the agent. Changes to the cache triggered by an RPC call from the platform will trigger callbacks in the agent.
 
+No callback methods are called until after the "onstart" phase of agent startup has completed. A new phase to agent startup called "onconfig" will be added to the Core class.
+
+When the "onconfig" phase is triggered the subsystem will retrieve the current configuration state from the platform and call all callbacks registered to a configuration in the store to the "NEW" action. No callbacks are called before this point in agent startup.
+
 Configuration Sub System Agent Methods
 **************************************
 
 These methods are part of the interface available to the Agent.
 
-config.get( config_name="config" ) - Get the contents of a configuration. If no name is provided the contents of the main agent configuration "config" is returned. This may not be called before "ONSTART" methods are called.
+config.get( config_name="config" ) - Get the contents of a configuration. If no name is provided the contents of the main agent configuration "config" is returned. This may not be called before "ONSTART" methods are called. If called during "ONSTART" phase it will trigger the subsystem to initialize early but will not trigger any callbacks.
 
-config.subscribe(callback, action=None, config_name_pattern=None) - Sets up a callback for handling a configuration change. The platform will automatically update the agent when a configuration changes ultimately triggering all callbacks that match the pattern specified. The action argument describes the types of configuration change action that will trigger the callback. Possible actions are "NEW", "UPDATE", and "DELETE". If no action is supplied the callback happens for all changes. A list of actions can be supplied if desired. If no file name pattern is supplied then the callback is called for all configurations. The config name pattern is an regex used match the file name.
+config.subscribe(callback, action=("NEW", "UPDATE", "DELETE"), pattern=None) - Sets up a callback for handling a configuration change. The platform will automatically update the agent when a configuration changes ultimately triggering all callbacks that match the pattern specified. The action argument describes the types of configuration change action that will trigger the callback. Possible actions are "NEW", "UPDATE", and "DELETE" or a tuple of any combination of actions. If no action is supplied the callback happens for all changes. A list of actions can be supplied if desired. If no file name pattern is supplied then the callback is called for all configurations. The pattern is an regex used match the configuration name.
 
 The callback will also be called if any file referenced by a configuration file is changed.
 
  The signature of the callback method is callback(config_name, action, contents) where file_name is the file that triggered the callback, action is the action that triggered the callback, and contents are the new contents of the configuration. Contents will be None on a "DELETE" action. All callbacks registered for "NEW" events will be called at agent startup after all "ONSTART" methods have been called. Unlike pubsub subscriptions, this may be called at any point in an agent's lifetime.
 
-config.unsubscribe(callback=None, config_name_pattern=None) - Unsubscribe from configuration changes. Specifying a callback only will unsubscribe that callback from all config_name_pattern they have been bound to. If a config_name_pattern only is specified then all callbacks bound to that pattern will be removed. Specifying both will remove that callback from that pattern. Calling with no arguments will remove all subscriptions.
+config.unsubscribe(callback=None, config_name_pattern=None) - Unsubscribe from configuration changes. Specifying a callback only will unsubscribe that callback from all config name patterns they have been bound to. If a pattern only is specified then all callbacks bound to that pattern will be removed. Specifying both will remove that callback from that pattern. Calling with no arguments will remove all subscriptions.
 
-config.set( config_name, contents, trigger_callback=False ) - Set the contents of a configuration. This may not be called before "ONSTART" methods are called. This can be used by an agent to store agent state across agent installations. This will *not* trigger any callbacks unless trigger_callback is set to True.
+config.set( config_name, contents, trigger_callback=False ) - Set the contents of a configuration. This may not be called before "ONSTART" methods are called. This can be used by an agent to store agent state across agent installations. This will *not* trigger any callbacks unless trigger_callback is set to True. To prevent deadlock with the platform this method may not be called from a configuration callback function. Doing so will raise a RuntimeError exception.
 
  This will not modify the local configuration cache the Agent maintains. It will send the configuration change to the platform and rely on the subsequent update_config call.
 
-config.remove( config_name, trigger_callback=False ) - Remove the configuration from the store. This will *not* trigger any callbacks unless trigger_callback is True.
+config.delete( config_name, trigger_callback=False ) - Remove the configuration from the store. This will *not* trigger any callbacks unless trigger_callback is True. To prevent deadlock with the platform this method may not be called from a configuration callback function. Doing so will raise a RuntimeError exception.
 
-config.list( ) - Returns a list of configuration file names.
+config.list( ) - Returns a list of configuration names.
+
+config.set_default(config_name, contents, trigger_callback=False) - Set a default value for a configuration. DOES NOT modify the platform's configuration store but creates a default configuration that is used for agent configuration callbacks if the configuration does not exist in the store or the configuration is deleted from the store. The callback will only be triggered if trigger_callback is true and the configuration store subsystem on the agent is not aware of a configuration with that name from the platform store.
+
+ Typically this will be called in the __init__ method of an agent with the parsed contents of the packaged configuration file.
 
 Configuration Sub System RPC Methods
 ************************************
@@ -202,8 +210,12 @@ These methods are made available on each agent to allow the platform to communic
 
 As these methods are not part of the exposed interface they are subject to change.
 
-update_config( config_name, action, contents=None, trigger_callback=True ) - called by the platform when a configuration was changed by some method other than the Agent changing the configuration itself. Trigger callback tells the agent whether or not to call any callbacks associate with the configuration.
+config.update( config_name, action, contents=None, trigger_callback=True ) - called by the platform when a configuration was changed by some method other than the Agent changing the configuration itself. Trigger callback tells the agent whether or not to call any callbacks associate with the configuration.
 
+Notes on trigger_callback
+*************************
+
+As the configuration subsystem calls all callbacks in the "onconfig" phase and none are called beforehand the trigger_callback setting is effectively ignored if an agent sets a configuration or default configuration before the end of the "onstart" phase.
 
 Platform Configuration Store
 ----------------------------
