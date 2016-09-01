@@ -51,7 +51,7 @@
 
 import random
 import datetime
-from math import sin, pi
+from math import sin, pi, tan
 
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from csv import DictReader
@@ -86,11 +86,26 @@ class EKGregister(BaseRegister):
         super(EKGregister, self).__init__("byte", read_only, pointName, units, description='')
         self._value = 1;
 
+        math_functions = ('acos', 'acosh', 'asin', 'asinh', 'atan', 'atan2',
+                          'atanh', 'sin', 'sinh', 'sqrt', 'tan', 'tanh')
+        if default_value in math_functions:
+            default_value = 'math.{}'.format(default_value)
+        else:
+            _log.error('Invalid default_value in EKGregister.')
+            _log.warn('Defaulting to sin(x)')
+            default_value = 'math.sin'
+
+        default_value += '({x})'
+        self._func_template = default_value
+
     @property
     def value(self):
         now = datetime.datetime.now()
         seconds_in_radians = pi * float(now.second) / 30.0
-        return self._value * sin(seconds_in_radians)
+
+        yval = eval(self._func_template.format(dict(x=seconds_in_radians)))
+
+        return self._value * yval
 
     @value.setter
     def value(self, x):
@@ -143,7 +158,7 @@ class Interface(BasicRevert, BaseInterface):
             point_name = regDef['Volttron Point Name']
             description = regDef.get('Notes', '')  
             units = regDef['Units']
-            default_value = regDef.get("Starting Value", '').strip()
+            default_value = regDef.get("Starting Value", 'sin').strip()
             if not default_value:
                 default_value = None
             type_name = regDef.get("Type", 'string')
