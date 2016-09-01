@@ -62,7 +62,7 @@
 import os
 import sys
 
-__version__ = '3.0'
+__version__ = '3.1'
 
 
 def set_home(home=None):
