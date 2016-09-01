@@ -63,6 +63,7 @@ from gevent.subprocess import Popen
 
 from volttron.platform.vip.agent import Agent, Core, PubSub
 from volttron.platform.agent import utils
+from volttron.platform.agent.known_identities import CONTROL
 
 utils.setup_logging()
 _log = logging.getLogger()
@@ -79,9 +80,20 @@ class FailoverAgent(Agent):
 
         self.vc_timeout = 0
         self.remote_timeout = 0
+        self.heartbeat = None
 
         self._state = False, False
         self._state_machine = getattr(self, self.agent_id + '_state_machine')
+
+    @Core.receiver("onstart")
+    def onstart(self, sender, **kwargs):
+        agents = self.vip.rpc.call(CONTROL, 'list_agents').get()
+        uuids = [a['uuid'] for a in agents]
+
+        for uuid in uuids:
+            vip_id = self.vip.rpc.call(CONTROL, 'agent_vip_identity', uuid).get()
+            if vip_id == self.agent_vip_identity:
+                self.agent_uuid = uuid
 
         heartbeat = Agent(address=self.remote_vip,
                           heartbeat_autostart=True,
@@ -109,33 +121,32 @@ class FailoverAgent(Agent):
         current_state = remote_is_up, vc_is_up
 
         if current_state != self._state:
-            self._state_machine(remote_is_up, vc_is_up)
+            self._state_machine(*current_state)
             self._state = current_state
 
     def _agent_control(self, command):
-        p = Popen(['volttron-ctl', command, '--tag', self.volttron_ctl_tag])
-        p.wait()
+        self.vip.rpc.call(CONTROL, command, self.agent_uuid).get()
 
     def primary_state_machine(self, secondary_is_up, vc_is_up):
         if secondary_is_up or vc_is_up:
-            self._agent_control('start')
+            self._agent_control('start_agent')
         else:
-            self._agent_control('stop')
+            self._agent_control('stop_agent')
 
     def secondary_state_machine(self, primary_is_up, vc_is_up):
         if not primary_is_up and vc_is_up:
             pass # verify and start master
         else:
-            self._agent_control('stop')
+            self._agent_control('stop_agent')
 
     def simple_primary_state_machine(self, secondary_is_up, vc_is_up):
-        self._agent_control('start')
+        self._agent_control('start_agent')
 
     def simple_secondary_state_machine(self, primary_is_up, vc_is_up):
         if primary_is_up:
-            self._agent_control('stop')
+            self._agent_control('stop_agent')
         else:
-            self._agent_control('start')
+            self._agent_control('start_agent')
 
 
 def main():

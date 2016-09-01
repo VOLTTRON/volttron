@@ -10,7 +10,7 @@ simple_primary_config = {
     "agent_id": "simple_primary",
     "remote_id": "simple_secondary",
     # "remote_vip": "",
-    "volttron_ctl_tag": "listener",
+    "agent_vip_identity": "listener",
     "heartbeat_period": 1,
     "timeout": 5
 }
@@ -19,7 +19,7 @@ simple_secondary_config = {
     "agent_id": "simple_secondary",
     "remote_id": "simple_primary",
     # "remote_vip": "",
-    "volttron_ctl_tag": "listener",
+    "agent_vip_identity": "listener",
     "heartbeat_period": 1,
     "timeout": 5
 }
@@ -58,18 +58,18 @@ def simple_failover(get_volttron_instances):
     secondary.allow_all_connections()
 
     # configure primary
-    uuid = primary.install_agent(agent_dir="examples/ListenerAgent", start=False)
-    aip = primary._aip()
-    aip.tag_agent(uuid, "listener")
+    uuid = primary.install_agent(agent_dir="examples/ListenerAgent",
+                                 vip_identity="listener",
+                                 start=False)
 
     simple_primary_config["remote_vip"] = tcp_to(secondary)
     uuid_primary = primary.install_agent(agent_dir="services/core/FailoverAgent",
                                          config_file=simple_primary_config)
 
     # configure secondary
-    uuid = secondary.install_agent(agent_dir="examples/ListenerAgent", start=False)
-    aip = secondary._aip()
-    aip.tag_agent(uuid, "listener")
+    uuid = secondary.install_agent(agent_dir="examples/ListenerAgent",
+                                   vip_identity="listener",
+                                   start=False)
 
     simple_secondary_config["remote_vip"] = tcp_to(primary)
     secondary.install_agent(agent_dir="services/core/FailoverAgent",
@@ -78,20 +78,12 @@ def simple_failover(get_volttron_instances):
     return primary, secondary
 
 
-def test_simple_baseline(simple_failover):
-    primary, secondary = simple_failover
-
-    gevent.sleep(5)
-
-    assert all_agents_running(primary)
-    assert not all_agents_running(secondary)
-
-
-def test_simple_pickup(simple_failover):
+def test_simple_failover(simple_failover):
     global uuid_primary
 
     primary, secondary = simple_failover
 
+    # baseline behavior, primary active
     gevent.sleep(5)
     assert all_agents_running(primary)
     assert not all_agents_running(secondary)

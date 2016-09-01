@@ -10,7 +10,7 @@ primary_config = {
     "agent_id": "primary",
     "remote_id": "secondary",
     # "remote_vip": "",
-    "volttron_ctl_tag": "listener",
+    "agent_vip_identity": "listener",
     "heartbeat_period": 1,
     "timeout": 3
 }
@@ -19,7 +19,7 @@ secondary_config = {
     "agent_id": "secondary",
     "remote_id": "primary",
     # "remote_vip": "",
-    "volttron_ctl_tag": "listener",
+    "agent_vip_identity": "listener",
     "heartbeat_period": 1,
     "timeout": 3
 }
@@ -71,9 +71,9 @@ def failover(request, get_volttron_instances):
     # configure primary
     primary_platform = primary.install_agent(agent_dir="services/core/VolttronCentralPlatform")
     # register with vc
-    primary_listener = primary.install_agent(agent_dir="examples/ListenerAgent", start=False)
-    aip = primary._aip()
-    aip.tag_agent(primary_listener, "listener")
+    primary_listener = primary.install_agent(agent_dir="examples/ListenerAgent",
+                                             vip_identity="listener",
+                                             start=False)
 
     primary_config["remote_vip"] = tcp_to(secondary)
     primary_failover = primary.install_agent(agent_dir="services/core/FailoverAgent",
@@ -82,9 +82,9 @@ def failover(request, get_volttron_instances):
     # configure secondary
     secondary_platform = secondary.install_agent(agent_dir="services/core/VolttronCentralPlatform")
     # register with vc
-    secondary_listener = secondary.install_agent(agent_dir="examples/ListenerAgent", start=False)
-    aip = secondary._aip()
-    aip.tag_agent(secondary_listener, "listener")
+    secondary_listener = secondary.install_agent(agent_dir="examples/ListenerAgent",
+                                                 vip_identity="listener",
+                                                 start=False)
 
     secondary_config["remote_vip"] = tcp_to(primary)
     secondary_failover = secondary.install_agent(agent_dir="services/core/FailoverAgent",
