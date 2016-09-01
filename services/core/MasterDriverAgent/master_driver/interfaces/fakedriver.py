@@ -1,52 +1,59 @@
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
 # Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# modification, are permitted provided that the following conditions
+# are met:
 #
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
+# The views and conclusions contained in the software and documentation
+# are those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD
+# Project.
 #
 # This material was prepared as an account of work sponsored by an
 # agency of the United States Government.  Neither the United States
 # Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization
-# that has cooperated in the development of these materials, makes
-# any warranty, express or implied, or assumes any legal liability
-# or responsibility for the accuracy, completeness, or usefulness or
-# any information, apparatus, product, software, or process disclosed,
-# or represents that its use would not infringe privately owned rights.
+# nor any of their employees, nor any jurisdiction or organization that
+# has cooperated in the development of these materials, makes any
+# warranty, express or implied, or assumes any legal liability or
+# responsibility for the accuracy, completeness, or usefulness or any
+# information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights.
 #
 # Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does
-# not necessarily constitute or imply its endorsement, recommendation,
-# r favoring by the United States Government or any agency thereof,
-# or Battelle Memorial Institute. The views and opinions of authors
+# service by trade name, trademark, manufacturer, or otherwise does not
+# necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors
 # expressed herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+# }}}
 
 
 import random
@@ -68,9 +75,11 @@ type_mapping = {"string": str,
 
 
 class FakeRegister(BaseRegister):
-    def __init__(self, read_only, pointName, units, reg_type, default_value=None, description=''):
+    def __init__(self, read_only, pointName, units, reg_type,
+                 default_value=None, description=''):
         #     register_type, read_only, pointName, units, description = ''):
-        super(FakeRegister, self).__init__("byte", read_only, pointName, units, description='')
+        super(FakeRegister, self).__init__("byte", read_only, pointName, units,
+                                           description='')
         self.reg_type = reg_type
 
         if default_value is None:
@@ -81,9 +90,12 @@ class FakeRegister(BaseRegister):
             except ValueError:
                 self.value = self.reg_type()
 
+
 class EKGregister(BaseRegister):
-    def __init__(self, read_only, pointName, units, reg_type, default_value=None, description=''):
-        super(EKGregister, self).__init__("byte", read_only, pointName, units, description='')
+    def __init__(self, read_only, pointName, units, reg_type,
+                 default_value=None, description=''):
+        super(EKGregister, self).__init__("byte", read_only, pointName, units,
+                                          description='')
         self._value = 1;
 
         math_functions = ('acos', 'acosh', 'asin', 'asinh', 'atan', 'atan2',
@@ -127,7 +139,8 @@ class Interface(BasicRevert, BaseInterface):
     def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
         if register.read_only:
-            raise IOError("Trying to write to a point configured read only: " + point_name)
+            raise IOError(
+                "Trying to write to a point configured read only: " + point_name)
 
         register.value = register.reg_type(value)
         return register.value
@@ -156,7 +169,7 @@ class Interface(BasicRevert, BaseInterface):
 
             read_only = regDef['Writable'].lower() != 'true'
             point_name = regDef['Volttron Point Name']
-            description = regDef.get('Notes', '')  
+            description = regDef.get('Notes', '')
             units = regDef['Units']
             default_value = regDef.get("Starting Value", 'sin').strip()
             if not default_value:
@@ -173,7 +186,7 @@ class Interface(BasicRevert, BaseInterface):
                 reg_type,
                 default_value=default_value,
                 description=description)
-            
+
             if default_value is not None:
                 self.set_default(point_name, register.value)
 
