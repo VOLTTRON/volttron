@@ -8,7 +8,7 @@ The configuration store enables users to store agent configurations on the platf
 Compatibility
 -------------
 
-Supporting the configuration store will not be required by Agents going forward, but will be strongly encouraged as it should substantially improve the users experience.
+Supporting the configuration store will *not* be required by Agents, however the usage will be strongly encouraged as it should substantially improve user experience.
 
 The previous method for configuring an agent will still be available to agents (and in some cases required). However agents can be created to only work with the configuration store and not support the old method at all.
 
@@ -25,7 +25,7 @@ The canonical name for the main agent configuration is "config".
 Configuration Ownership
 -----------------------
 
-Each configuration belongs to one agent and one agent only. When an agent refers to a configuration file via it's path it does not need to supply any information about its identity to the platform in the file path. The only configurations an agent has direct access to are it's own. The platform will only inform the owning agent of any configuration changes.
+Each configuration belongs to one agent and one agent only. When an agent refers to a configuration file via it's path it does not need to supply any information about its identity to the platform in the file path. The only configurations an agent has direct access to are it's own. The platform will only inform the owning agent configuration changes.
 
 
 Configuration File Types
@@ -133,7 +133,7 @@ Consider the following configuration files named "devices/vav1.config" and "regi
     ReturnAirCO2,>f,FALSE,1001
     ReturnAirCO2Stpt,>f,TRUE,1011
 
-The resulting configuration returns when an agent asks for "devices/vav1.config" it will receive the following configuration:
+The resulting configuration returns when an agent asks for "devices/vav1.config".  The python object will have the following configuration:
 
 .. code-block:: python
 
@@ -168,7 +168,7 @@ If a file is changed in anyway ("NEW", "UPDATE", or "DELETE") and that file is r
 Agent Configuration Sub System
 ------------------------------
 
-The configuration store shall be implemented on the Agent side in the form of a new subsystem called config.
+The configuration store shall be implemented on the Agent(client) side in the form of a new subsystem called config.
 
 The subsystem caches configurations as the platform updates the state to the agent. Changes to the cache triggered by an RPC call from the platform will trigger callbacks in the agent.
 
