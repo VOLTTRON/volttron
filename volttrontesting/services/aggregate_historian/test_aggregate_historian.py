@@ -299,8 +299,6 @@ def cleanup(connection_type, truncate_tables):
     cleanup_function(db_connection, truncate_tables)
 
 
-@pytest.mark.dev
-@pytest.mark.sql_aggregator
 @pytest.mark.aggregator
 def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
     """
@@ -398,8 +396,6 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
             volttron_instance.remove_agent(agent_uuid)
 
 
-@pytest.mark.dev
-@pytest.mark.sql_aggregator
 @pytest.mark.aggregator
 def test_single_topic(request, volttron_instance, aggregate_agent,
                       query_agent):
@@ -540,8 +536,6 @@ def test_single_topic(request, volttron_instance, aggregate_agent,
             volttron_instance.remove_agent(agent_uuid)
 
 
-@pytest.mark.dev
-@pytest.mark.sql_aggregator
 @pytest.mark.aggregator
 def test_multiple_topic_pattern(request, volttron_instance, aggregate_agent,
                                 query_agent):
@@ -616,8 +610,6 @@ def test_multiple_topic_pattern(request, volttron_instance, aggregate_agent,
             volttron_instance.remove_agent(agent_uuid)
 
 
-@pytest.mark.dev
-@pytest.mark.sql_aggregator
 @pytest.mark.aggregator
 def test_multiple_topic_list(request, volttron_instance, aggregate_agent,
                              query_agent):

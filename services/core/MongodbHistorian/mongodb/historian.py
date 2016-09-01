@@ -58,6 +58,7 @@ from __future__ import absolute_import, print_function
 import logging
 import sys
 
+import pymongo
 from bson.objectid import ObjectId
 from pymongo import ReplaceOne
 from pymongo.errors import BulkWriteError
@@ -376,6 +377,11 @@ def historian(config_path, **kwargs):
             _log.debug("HISTORIAN SETUP")
             self._client = mongoutils.get_mongo_client(
                 connection['params'])
+            db = self._client.get_default_database()
+            db[self._data_collection].create_index(
+                [('ts', pymongo.ASCENDING),
+                 ('topic_id', pymongo.ASCENDING)],
+                unique=True)
 
             self._topic_id_map, self._topic_name_map = \
                 mongoutils.get_topic_map(self._client, self._topic_collection)

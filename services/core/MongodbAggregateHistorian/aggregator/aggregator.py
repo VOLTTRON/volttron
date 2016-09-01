@@ -105,8 +105,8 @@ class MongodbAggregateHistorian(AggregateHistorian):
         for document in cursor:
             table_map[document['table_id'].lower()] = document[
                 'table_name']
-            prefix = document['table_prefix'] + "_" if document[
-                'table_prefix'] else ''
+            prefix = document.get('table_prefix') + "_" if document.get(
+                'table_prefix') else ''
         self._data_collection = prefix + table_map.get('data_table', 'data')
         self._meta_collection = prefix + table_map.get('meta_table', 'meta')
         self._topic_collection = prefix + table_map.get('topics_table',
@@ -154,6 +154,12 @@ class MongodbAggregateHistorian(AggregateHistorian):
                                    agg_time_period, topics_meta):
 
         db = self.dbclient.get_default_database()
+        agg_collection = agg_type + '''_''' + agg_time_period
+        db[agg_collection].create_index(
+            [('ts', pymongo.ASCENDING),
+             ('topic_id', pymongo.ASCENDING)],
+            unique=True)
+
         row = db[self._agg_topic_collection].insert_one(
             {'agg_topic_name': aggregation_topic_name,
              'agg_type': agg_type,
@@ -166,8 +172,8 @@ class MongodbAggregateHistorian(AggregateHistorian):
                                                   'meta': topics_meta})
         return agg_id
 
-    def update_aggregate_store(self, agg_id, aggregation_topic_name,
-                               topic_meta):
+    def update_aggregate(self, agg_id, aggregation_topic_name,
+                         topic_meta):
         db = self.dbclient.get_default_database()
 
         result = db[self._agg_topic_collection].update_one(

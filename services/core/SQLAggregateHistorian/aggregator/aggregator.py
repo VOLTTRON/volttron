@@ -126,8 +126,8 @@ class SQLAggregateHistorian(AggregateHistorian):
         self.dbfuncts.insert_agg_meta(agg_id[0], topics_meta)
         return agg_id[0]
 
-    def update_aggregate_store(self, agg_id, aggregation_topic_name,
-                               topic_meta):
+    def update_aggregate(self, agg_id, aggregation_topic_name,
+                         topic_meta):
         _log.debug("aggregation_topic_name " + aggregation_topic_name)
         _log.debug("topic_meta {}".format(topic_meta))
 

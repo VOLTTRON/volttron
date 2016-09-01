@@ -237,6 +237,7 @@ from volttron.platform.agent.utils import process_timestamp, \
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
+from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from zmq.utils import jsonapi
 
 _log = logging.getLogger(__name__)
@@ -1121,6 +1122,9 @@ class BaseQueryHistorianAgent(Agent):
                                 "(agg_type) and aggregation time period"
                                 "(agg_period) to query aggregate data")
 
+        if agg_period:
+            agg_period = AggregateHistorian.normalize_aggregation_time_period(
+                agg_period)
         if start is not None:
             try:
                 start = parse(start)

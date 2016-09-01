@@ -124,7 +124,7 @@ class AggregateHistorian(Agent):
             # 1. Validate and normalize aggregation period and
             # initialize use_calendar_periods flag
             agg_time_period = \
-                AggregateHistorian.format_aggregation_time_period(
+                AggregateHistorian.normalize_aggregation_time_period(
                     agg_group['aggregation_period'])
             use_calendar_periods = agg_group.get('use_calendar_time_periods',
                                                  False)
@@ -149,8 +149,8 @@ class AggregateHistorian(Agent):
         if 'points' not in agg_group:
             raise ValueError('Invalid configuration must have points')
         for data in agg_group['points']:
-            topic_names = data.get('topic_names', None)
-            topic_pattern = data.get('topic_name_pattern', None)
+            topic_names = data.get('topic_names')
+            topic_pattern = data.get('topic_name_pattern')
             if topic_names is None and topic_pattern is None:
                 raise ValueError(
                     "Please provide a valid topic_name or "
@@ -181,7 +181,7 @@ class AggregateHistorian(Agent):
                     else:
                         topic_ids.append(self.topic_id_map[name.lower()])
                         _log.debug("topic_ids is {}".format(topic_ids))
-                data['topic_ids'] = topic_ids
+                data['topic_ids'] = list(set(topic_ids))
             else:
                 # Find if the topic_name patterns result in any topics
                 # at all. If it does log them as info
@@ -207,7 +207,7 @@ class AggregateHistorian(Agent):
             if topic_pattern is None:
                 topic_meta = topic_names
             if topic_pattern or len(data['topic_ids']) > 1:
-                if not data.get('aggregation_topic_name', None):
+                if not data.get('aggregation_topic_name'):
                     raise ValueError(
                         "Please provide a valid aggregation_topic_name "
                         "when aggregating across multiple points. Update "
@@ -233,9 +233,9 @@ class AggregateHistorian(Agent):
                     " name {} meta {}".format(agg_id,
                                               data['aggregation_topic_name'],
                                               topic_meta))
-                self.update_aggregate_store(agg_id,
-                                            data['aggregation_topic_name'],
-                                            topic_meta)
+                self.update_aggregate(agg_id,
+                                      data['aggregation_topic_name'],
+                                      topic_meta)
             else:
                 _log.debug(
                     "Inserting new record into aggregate_topics name {} "
@@ -391,8 +391,8 @@ class AggregateHistorian(Agent):
         """
 
     @abstractmethod
-    def update_aggregate_store(self, agg_id, aggregation_topic_name,
-                               topic_meta):
+    def update_aggregate(self, agg_id, aggregation_topic_name,
+                         topic_meta):
         """
         Update aggregation_topic_name and topic_meta data for the given
         agg_id.
@@ -442,7 +442,7 @@ class AggregateHistorian(Agent):
 
     # Utility methods
     @staticmethod
-    def format_aggregation_time_period(time_period):
+    def normalize_aggregation_time_period(time_period):
         """
         Validates and normalizes aggregation time period. For example,
         if aggregation time period is given as 48h it will get converted
@@ -481,6 +481,8 @@ class AggregateHistorian(Agent):
                 unit = 'w'
 
         return str(period) + unit
+
+
 
     @staticmethod
     def compute_aggregation_frequency_seconds(agg_period,
