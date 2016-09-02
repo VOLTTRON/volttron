@@ -79,8 +79,7 @@ def thresholddetection_agent(config_path, **kwargs):
     :rtype: ThresholdDetectionAgent
     """
     config = utils.load_config(config_path)
-    vip_identity = 'platform.thresholddetection'
-    return ThresholdDetectionAgent(config, identity=vip_identity)
+    return ThresholdDetectionAgent(config, **kwargs)
 
 
 class ThresholdDetectionAgent(Agent):
@@ -172,7 +171,7 @@ class ThresholdDetectionAgent(Agent):
 
 def main(argv=sys.argv):
     '''Main method called by the platform.'''
-    utils.vip_main(thresholddetection_agent)
+    utils.vip_main(thresholddetection_agent, identity='platform.thresholddetection')
 
 if __name__ == '__main__':
     # Entry point for script

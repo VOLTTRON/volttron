@@ -174,6 +174,8 @@ def findsignal(obj, owner, name):
 
 class BasicCore(object):
     delay_onstart_signal = False
+    delay_running_event_set = False
+
     def __init__(self, owner):
         self.greenlet = None
         self._async = None
@@ -217,7 +219,7 @@ class BasicCore(object):
             del periodics[:]
         self.onstart.connect(start_periodics)
 
-    def loop(self):
+    def loop(self, running_event):
         # pre-setup
         yield
         # pre-start
@@ -271,7 +273,7 @@ class BasicCore(object):
         self._async.start(handle_async)
         current.link(lambda glt: self._async.stop())
 
-        looper = self.loop()
+        looper = self.loop(running_event)
         looper.next()
         self.onsetup.send(self)
 
@@ -283,9 +285,9 @@ class BasicCore(object):
             loop.link(lambda glt: scheduler.kill())
         if not self.delay_onstart_signal:
             self.onstart.sendby(self.link_receiver, self)
-        if running_event:
-            running_event.set()
-            del running_event
+        if not self.delay_running_event_set:
+            if running_event is not None:
+                running_event.set()
         try:
             if loop and loop in gevent.wait([loop, stop], count=1):
                 raise RuntimeError('VIP loop ended prematurely')
@@ -406,14 +408,16 @@ class Core(BasicCore):
     # we hear the response to the hello message.
     delay_onstart_signal = True
 
+    # Agents started before the router can set this variable
+    # to false to keep from blocking. AuthService does this.
+    delay_running_event_set = True
+
     def __init__(self, owner, address=None, identity=None, context=None,
-                 publickey=None, secretkey=None, serverkey=None):
-        if not address:
-            address = os.environ.get('VOLTTRON_VIP_ADDR')
-            if not address:
-                home = os.path.abspath(platform.get_home())
-                abstract = '@' if sys.platform.startswith('linux') else ''
-                address = 'ipc://%s%s/run/vip.socket' % (abstract, home)
+                 publickey=None, secretkey=None, serverkey=None,
+                 volttron_home=os.path.abspath(platform.get_home()),
+                 agent_uuid=None):
+        self.volttron_home = volttron_home
+
         # These signals need to exist before calling super().__init__()
         self.onviperror = Signal()
         self.onsockevent = Signal()
@@ -422,9 +426,8 @@ class Core(BasicCore):
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
-        self.identity = os.environ.get('AGENT_VIP_IDENTITY', None)
-        self.agent_uuid = os.environ.get('AGENT_UUID', None)
-
+        self.identity = str(identity) if identity is not None else str(uuid.uuid4())
+        self.agent_uuid = agent_uuid
         # The public and secret keys are obtained by:
         # 1. publickkey and secretkey parameters to __init__
         # 2. in the query string of the address parameter to __init__
@@ -442,15 +445,6 @@ class Core(BasicCore):
 
         self.publickey = publickey
         self.secretkey = secretkey
-
-        if self.identity is None:
-            # We didn't get a identity from the environment so try our parameters.
-            if identity is not None:
-                self.identity = identity
-            else:
-                # We didn't get a identity from our parameters either so now we make one up.
-                self.identity = str(uuid.uuid4())
-
         self.socket = None
         self.subsystems = {'error': self.handle_error}
         self.__connected = False
@@ -485,10 +479,10 @@ class Core(BasicCore):
             # this is an installed agent
             keystore_dir = os.curdir
         elif self.identity:
-            if not os.environ.get('VOLTTRON_HOME'):
+            if not self.volttron_home:
                 raise ValueError('VOLTTRON_HOME must be specified.')
             keystore_dir = os.path.join(
-                os.environ.get('VOLTTRON_HOME'), 'keystores',
+                self.volttron_home, 'keystores',
                 self.identity)
             if not os.path.exists(keystore_dir):
                 os.makedirs(keystore_dir)
@@ -527,7 +521,7 @@ class Core(BasicCore):
             error = VIPError.from_errno(*args)
             self.onviperror.send(self, error=error, message=message)
 
-    def loop(self):
+    def loop(self, running_event):
         # pre-setup
         self.socket = vip.Socket(self.context)
         if self.identity:
@@ -537,32 +531,39 @@ class Core(BasicCore):
         # pre-start
         state = type('HelloState', (), {'count': 0, 'ident': None})
 
+        hello_response_event = gevent.event.Event()
+
         def connection_failed_check():
-            # Print warnings the longer we go without getting a connection.
-            gevent.sleep(10.0)
-            if self.connected:
+            # If we don't have a verified connection after 10.0 seconds
+            # shut down.
+            if hello_response_event.wait(10.0):
                 return
             _log.error("No response to hello message after 10 seconds.")
-            _log.error("A common reason for this is a conflicting VIP ID.")
+            _log.error("A common reason for this is a conflicting VIP IDENTITY.")
             _log.error("Shutting down agent.")
+            _log.error("Possible conflicting identity is: {}".format(
+                self.socket.identity
+            ))
+
             self.stop(timeout=5.0)
 
         def hello():
             state.ident = ident = b'connect.hello.%d' % state.count
             state.count += 1
+            self.spawn(connection_failed_check)
             self.spawn(self.socket.send_vip,
                        b'', b'hello', [b'hello'], msg_id=ident)
 
-            self.spawn(connection_failed_check)
-
-
         def hello_response(sender, version='',
                            router='', identity=''):
-            _log.info("Connected to platform: router: {} version: {} identity: {}".format(router, version, identity))
+            _log.info("Connected to platform: "
+                      "router: {} version: {} identity: {}".format(
+                router, version, identity))
             _log.debug("Running onstart methods.")
+            hello_response_event.set()
             self.onstart.sendby(self.link_receiver, self)
-
-
+            if running_event is not None:
+                running_event.set()
 
         def monitor():
             # Call socket.monitor() directly rather than use
