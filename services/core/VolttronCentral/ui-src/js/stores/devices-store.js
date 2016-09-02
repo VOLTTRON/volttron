@@ -163,12 +163,15 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _view = "Configure Device";
             _devices[action.device.id] = action.device;
             devicesStore.emitChange();
+            break;
         case ACTION_TYPES.CANCEL_REGISTRY:
             _action = "configure_device";
             _view = "Configure Device";
             _device = action.device;
-            _data[_device.deviceId] = (_backupData.hasOwnProperty(_device.deviceId) ? JSON.parse(JSON.stringify(_backupData[_device.deviceId])) : []);
-            _registryFiles[_device.deviceId] = (_backupFileName.hasOwnProperty(_device.deviceId) ? _backupFileName[_device.deviceId] : "");
+            // _data[_device.deviceId] = (_backupData.hasOwnProperty(_device.deviceId) ? JSON.parse(JSON.stringify(_backupData[_device.deviceId])) : []);
+            // _registryFiles[_device.deviceId] = (_backupFileName.hasOwnProperty(_device.deviceId) ? _backupFileName[_device.deviceId] : "");
+            _devices[_device.id].registryConfig = [];
+            _devices[_device.id].configuring = false;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.LOAD_REGISTRY:
@@ -179,6 +182,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
             // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
             _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
+            _devices[_device.id].configuring = true;
             _registryFiles[_device.id] = action.file;             
             devicesStore.emitChange();
             break;
@@ -203,7 +207,9 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _action = "configure_device";
             _view = "Configure Device";
             _device = action.device;
-            _data[_device.deviceId] = JSON.parse(JSON.stringify(action.data));
+            // _data[_device.deviceId] = JSON.parse(JSON.stringify(action.data));
+            _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
+            _devices[_device.id].configuring = false;
             devicesStore.emitChange();
             break;
     }

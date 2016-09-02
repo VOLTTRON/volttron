@@ -14,7 +14,7 @@ var PageNotFound = require('./components/page-not-found');
 var Platform = require('./components/platform');
 import PlatformManager from './components/platform-manager';
 var Platforms = require('./components/platforms');
-var Devices = require('./components/devices');
+// var Devices = require('./components/devices');
 import ConfigureDevices from './components/configure-devices';
 var PlatformCharts = require('./components/platform-charts');
 var Navigation = require('./components/navigation');
@@ -61,7 +61,6 @@ var routes = (
             <Route path="dashboard" component={checkAuth(Dashboard)} />
             <Route path="platforms" component={checkAuth(Platforms)} />
             <Route path="platform/:uuid" component={checkAuth(Platform)} />
-            <Route path="devices" component={checkAuth(Devices)} />
             <Route path="configure-devices" component={checkAuth(ConfigureDevices)} />
             <Route path="charts" component={checkAuth(PlatformCharts)} />
         </Route>

@@ -7,7 +7,7 @@ var EditColumnButton = require('./edit-columns-button');
 var controlButtonActionCreators = require('../../action-creators/control-button-action-creators');
 // var controlButtonStore = require('../../stores/control-button-store');
 
-var CogButton = React.createClass({
+var EditSelectButton = React.createClass({
     componentDidMount: function () {
         // this.opSelector = document.getElementsByClassName("opSelector")[0];
         // this.opSelector.selectedIndex = -1;
@@ -19,18 +19,18 @@ var CogButton = React.createClass({
     },
     _onCloneColumn: function () {
         this.props.onclone(this.props.column);
-        controlButtonActionCreators.hideTaptip("cogControlButton" + this.props.column);
+        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
     },
     _onAddColumn: function () {
-        this.props.onadd(this.props.item);
-        controlButtonActionCreators.hideTaptip("cogControlButton" + this.props.column);
+        this.props.onadd(this.props.column);
+        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
     },
     _onRemoveColumn: function () {
-        this.props.onremove(this.props.item);
-        controlButtonActionCreators.hideTaptip("cogControlButton" + this.props.column);
+        this.props.onremove(this.props.column);
+        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
     },
     _onEditColumn: function () {
-        controlButtonActionCreators.hideTaptip("cogControlButton" + this.props.column);
+        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
         controlButtonActionCreators.toggleTaptip("editControlButton" + this.props.column);
     },
     render: function () {
@@ -74,7 +74,7 @@ var CogButton = React.createClass({
 
         return (
             <ControlButton
-                name={"cogControlButton" + columnIndex}
+                name={"editSelectButton" + columnIndex}
                 taptip={cogTaptip}
                 controlclass="cog_button"
                 fontAwesomeIcon="pencil"
@@ -83,4 +83,4 @@ var CogButton = React.createClass({
     },
 });
 
-module.exports = CogButton;
+module.exports = EditSelectButton;
