@@ -58,7 +58,8 @@
 
 import random
 import datetime
-from math import sin, pi, tan
+import math
+from math import pi
 
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from csv import DictReader
@@ -101,21 +102,18 @@ class EKGregister(BaseRegister):
         math_functions = ('acos', 'acosh', 'asin', 'asinh', 'atan', 'atan2',
                           'atanh', 'sin', 'sinh', 'sqrt', 'tan', 'tanh')
         if default_value in math_functions:
-            default_value = 'math.{}'.format(default_value)
+            self.math_func = getattr(math, default_value)
         else:
             _log.error('Invalid default_value in EKGregister.')
             _log.warn('Defaulting to sin(x)')
-            default_value = 'math.sin'
-
-        default_value += '({x})'
-        self._func_template = default_value
+            self.math_func = math.sin
 
     @property
     def value(self):
         now = datetime.datetime.now()
         seconds_in_radians = pi * float(now.second) / 30.0
 
-        yval = eval(self._func_template.format(dict(x=seconds_in_radians)))
+        yval = self.math_func(seconds_in_radians)
 
         return self._value * yval
 
@@ -177,7 +175,7 @@ class Interface(BasicRevert, BaseInterface):
             type_name = regDef.get("Type", 'string')
             reg_type = type_mapping.get(type_name, str)
 
-            register_type = FakeRegister if point_name != 'EKG' else EKGregister
+            register_type = FakeRegister if not point_name.startswith('EKG') else EKGregister
 
             register = register_type(
                 read_only,
