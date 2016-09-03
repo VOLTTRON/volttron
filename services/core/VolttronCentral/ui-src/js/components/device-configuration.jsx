@@ -2,6 +2,7 @@
 
 import React from 'react';
 import BaseComponent from './base-component';
+import EditPointForm from './edit-point-form';
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var devicesStore = require('../stores/devices-store');
@@ -9,7 +10,6 @@ var FilterPointsButton = require('./control_buttons/filter-points-button');
 var ControlButton = require('./control-button');
 var EditSelectButton = require('./control_buttons/edit-select-button');
 var EditColumnButton = require('./control_buttons/edit-columns-button');
-
 var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
@@ -19,43 +19,9 @@ class DeviceConfiguration extends BaseComponent {
         this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", 
             "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn",
             "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
-            "_saveRegistry", "_removeFocus", "_resetState" );
+            "_saveRegistry", "_removeFocus", "_resetState", "_showProps" );
 
         this.state = this._resetState(this.props.device);
-
-        // this.state.keyPropsList = ["Volttron_Point_Name", "Units", "Writable"];
-
-        // this.state.registryValues = getPointsFromStore(this.props.device, this.state.keyPropsList);
-
-        // this.state.registryHeader = [];
-        // this.state.columnNames = [];
-        // this.state.pointNames = [];
-        // this.state.filteredList = [];
-
-        // if (this.state.registryValues.length > 0)
-        // {
-        //     this.state.registryHeader = getRegistryHeader(this.state.registryValues[0]);
-        //     this.state.columnNames = this.state.registryValues[0].map(function (columns) {
-        //         return columns.key;
-        //     });
-
-        //     this.state.pointNames = this.state.registryValues.map(function (points) {
-        //         return points[0].value;
-        //     });
-        // }
-
-        // this.state.pointsToDelete = [];
-        // this.state.allSelected = false;
-
-        // this.state.selectedCells = [];
-        // this.state.selectedCellRow = null;
-        // this.state.selectedCellColumn = null;
-
-        // this.state.filterOn = false;
-
-        // this.scrollToBottom = false;
-        // this.resizeTable = false;
-
     }
     componentDidMount() {
         // platformsStore.addChangeListener(this._onStoresChange);
@@ -105,7 +71,8 @@ class DeviceConfiguration extends BaseComponent {
     
         var state = {};    
 
-        state.keyPropsList = ["Volttron_Point_Name", "Units", "Writable"];
+        state.keyPropsList = device.keyProps;
+        state.filterColumn = state.keyPropsList[0];
 
         state.registryValues = getPointsFromStore(device, state.keyPropsList);
 
@@ -142,7 +109,11 @@ class DeviceConfiguration extends BaseComponent {
     }
     _onFilterBoxChange(filterValue) {
         this.setState({ filterOn: true });
-        this.setState({ registryValues: getFilteredPoints(this.state.registryValues, filterValue) });
+        this.setState({ registryValues: getFilteredPoints(
+                                            this.state.registryValues, 
+                                            filterValue,
+                                            this.state.filterColumn
+                                        ) });
     }
     _onClearFilter() {
         this.setState({ filterOn: false });
@@ -397,6 +368,9 @@ class DeviceConfiguration extends BaseComponent {
         modalActionCreators.closeModal();
 
     }
+    _showProps(attributesList) {
+        modalActionCreators.openModal(<EditPointForm device={this.props.device} attributes={attributesList}/>);
+    }
     _updateCell(row, column, e) {
 
         var currentTarget = e.currentTarget;
@@ -589,7 +563,7 @@ class DeviceConfiguration extends BaseComponent {
         }
 
         var filterButton = <FilterPointsButton 
-                                name="filterRegistryPoints" 
+                                name={"filterRegistryPoints"}
                                 tooltipMsg={filterPointsTooltip}
                                 onfilter={this._onFilterBoxChange} 
                                 onclear={this._onClearFilter}/>
@@ -649,6 +623,14 @@ class DeviceConfiguration extends BaseComponent {
                 }
             }, this);
 
+            registryCells.push(
+                <td key={"propsButton-" + rowIndex}>
+                    <div className="propsButton"
+                        onClick={this._showProps.bind(this, attributesList)}>
+                        <i className="fa fa-ellipsis-h"></i>
+                    </div>
+                </td>);
+
             return ( 
                 <tr key={"registry-row-" + rowIndex}>
                     <td key={"checkbox-" + rowIndex}>
@@ -657,7 +639,7 @@ class DeviceConfiguration extends BaseComponent {
                             checked={this.state.pointsToDelete.indexOf(attributesList[0].value) > -1}>
                         </input>
                     </td>
-                    { registryCells }
+                    { registryCells }                    
                 </tr>
             )
         }, this);
@@ -695,7 +677,7 @@ class DeviceConfiguration extends BaseComponent {
 
             var headerCell = (index === 0 ?
                                 ( <th key={"header-" + item + "-" + index} style={firstColumnWidth}>
-                                    <div className="th-inner">
+                                    <div className="th-inner zztop">
                                         { item } { filterButton } { addPointButton } { removePointsButton }
                                     </div>
                                 </th>) :
@@ -789,17 +771,10 @@ class DeviceConfiguration extends BaseComponent {
     }
 };
 
-function getFilteredPoints(registryValues, filterStr) {
+function getFilteredPoints(registryValues, filterStr, filterColumn) {
 
     return registryValues.map(function (row) {
-        var pointName = row.find(function (cell) {
-            return cell.key === "Volttron_Point_Name";
-        })
-
-        if (pointName)
-        {
-            row.visible = (pointName.value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1);
-        }
+        row.visible = (row[filterColumn].value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1);
     });
 }
 

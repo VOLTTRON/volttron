@@ -138,7 +138,7 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
     }.bind(this));
 });
 
-},{"./components/configure-devices":15,"./components/dashboard":23,"./components/login-form":28,"./components/navigation":30,"./components/page-not-found":32,"./components/platform":36,"./components/platform-charts":34,"./components/platform-manager":35,"./components/platforms":39,"./stores/authorization-store":52,"./stores/devices-store":55,"./stores/platforms-panel-items-store":58,"react":undefined,"react-dom":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/configure-devices":15,"./components/dashboard":23,"./components/login-form":29,"./components/navigation":31,"./components/page-not-found":33,"./components/platform":37,"./components/platform-charts":35,"./components/platform-manager":36,"./components/platforms":40,"./stores/authorization-store":53,"./stores/devices-store":56,"./stores/platforms-panel-items-store":59,"react":undefined,"react-dom":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -164,7 +164,7 @@ var consoleActionCreators = {
 
 module.exports = consoleActionCreators;
 
-},{"../constants/action-types":43,"../dispatcher":44,"../lib/rpc/exchange":46}],3:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45,"../lib/rpc/exchange":47}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -187,7 +187,7 @@ var controlButtonActionCreators = {
 
 module.exports = controlButtonActionCreators;
 
-},{"../constants/action-types":43,"../dispatcher":44}],4:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -297,6 +297,13 @@ var devicesActionCreators = {
             device: device
         });
     },
+    updateRegistry: function updateRegistry(device, attributes) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.UPDATE_REGISTRY,
+            device: device,
+            attributes: attributes
+        });
+    },
     saveRegistry: function saveRegistry(device, values) {
         dispatcher.dispatch({
             type: ACTION_TYPES.SAVE_REGISTRY,
@@ -321,7 +328,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = devicesActionCreators;
 
-},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":43,"../dispatcher":44,"../lib/rpc":47,"../stores/authorization-store":52}],5:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":44,"../dispatcher":45,"../lib/rpc":48,"../stores/authorization-store":53}],5:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -343,7 +350,7 @@ var modalActionCreators = {
 
 module.exports = modalActionCreators;
 
-},{"../constants/action-types":43,"../dispatcher":44}],6:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -789,7 +796,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = platformActionCreators;
 
-},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":43,"../dispatcher":44,"../lib/rpc":47,"../stores/authorization-store":52,"../stores/platform-chart-store":57,"../stores/platforms-panel-items-store":58,"../stores/platforms-store":60}],7:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":44,"../dispatcher":45,"../lib/rpc":48,"../stores/authorization-store":53,"../stores/platform-chart-store":58,"../stores/platforms-panel-items-store":59,"../stores/platforms-store":61}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1001,7 +1008,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = platformChartActionCreators;
 
-},{"../action-creators/platform-action-creators":6,"../action-creators/platforms-panel-action-creators":9,"../action-creators/status-indicator-action-creators":10,"../constants/action-types":43,"../dispatcher":44,"../lib/rpc":47,"../stores/authorization-store":52,"../stores/platform-chart-store":57,"../stores/platforms-panel-items-store":58,"../stores/platforms-store":60}],8:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":6,"../action-creators/platforms-panel-action-creators":9,"../action-creators/status-indicator-action-creators":10,"../constants/action-types":44,"../dispatcher":45,"../lib/rpc":48,"../stores/authorization-store":53,"../stores/platform-chart-store":58,"../stores/platforms-panel-items-store":59,"../stores/platforms-store":61}],8:[function(require,module,exports){
 'use strict';
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
@@ -1210,7 +1217,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = platformManagerActionCreators;
 
-},{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../constants/action-types":43,"../dispatcher":44,"../lib/rpc":47,"../stores/authorization-store":52}],9:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../constants/action-types":44,"../dispatcher":45,"../lib/rpc":48,"../stores/authorization-store":53}],9:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1403,7 +1410,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = platformsPanelActionCreators;
 
-},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":43,"../dispatcher":44,"../lib/rpc":47,"../stores/authorization-store":52,"../stores/platforms-panel-items-store":58}],10:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":44,"../dispatcher":45,"../lib/rpc":48,"../stores/authorization-store":53,"../stores/platforms-panel-items-store":59}],10:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1429,7 +1436,7 @@ var actionStatusCreators = {
 
 module.exports = actionStatusCreators;
 
-},{"../constants/action-types":43,"../dispatcher":44}],11:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45}],11:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1534,7 +1541,7 @@ var AgentRow = React.createClass({
 
 module.exports = AgentRow;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"./remove-agent-form":41,"react":undefined}],12:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"./remove-agent-form":42,"react":undefined}],12:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -1918,7 +1925,7 @@ function getStateFromStores() {
 
 module.exports = Composer;
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":53,"react":undefined}],15:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":54,"react":undefined}],15:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2434,7 +2441,7 @@ function getInitialState() {
 
 exports.default = ConfigureDevices;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":55,"../stores/platforms-store":60,"./base-component":12,"./devices-found":26,"react":undefined}],16:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":56,"../stores/platforms-store":61,"./base-component":12,"./devices-found":26,"react":undefined}],16:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2787,7 +2794,7 @@ var ControlButton = React.createClass({
 
 module.exports = OutsideClick(ControlButton);
 
-},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":54,"react":undefined,"react-click-outside":undefined,"react-router":undefined}],19:[function(require,module,exports){
+},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":55,"react":undefined,"react-click-outside":undefined,"react-router":undefined}],19:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3286,7 +3293,7 @@ function getStateFromStores() {
 
 module.exports = Conversation;
 
-},{"../stores/console-store":53,"./exchange":27,"jquery":undefined,"react":undefined,"react-dom":undefined}],23:[function(require,module,exports){
+},{"../stores/console-store":54,"./exchange":28,"jquery":undefined,"react":undefined,"react-dom":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3353,7 +3360,7 @@ function getStateFromStores() {
 
 module.exports = Dashboard;
 
-},{"../stores/platform-chart-store":57,"./platform-chart":33,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
+},{"../stores/platform-chart-store":58,"./platform-chart":34,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3434,6 +3441,10 @@ var _baseComponent = require('./base-component');
 
 var _baseComponent2 = _interopRequireDefault(_baseComponent);
 
+var _editPointForm = require('./edit-point-form');
+
+var _editPointForm2 = _interopRequireDefault(_editPointForm);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -3448,7 +3459,6 @@ var FilterPointsButton = require('./control_buttons/filter-points-button');
 var ControlButton = require('./control-button');
 var EditSelectButton = require('./control_buttons/edit-select-button');
 var EditColumnButton = require('./control_buttons/edit-columns-button');
-
 var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
@@ -3460,43 +3470,9 @@ var DeviceConfiguration = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DeviceConfiguration).call(this, props));
 
-        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState");
+        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_showProps");
 
         _this.state = _this._resetState(_this.props.device);
-
-        // this.state.keyPropsList = ["Volttron_Point_Name", "Units", "Writable"];
-
-        // this.state.registryValues = getPointsFromStore(this.props.device, this.state.keyPropsList);
-
-        // this.state.registryHeader = [];
-        // this.state.columnNames = [];
-        // this.state.pointNames = [];
-        // this.state.filteredList = [];
-
-        // if (this.state.registryValues.length > 0)
-        // {
-        //     this.state.registryHeader = getRegistryHeader(this.state.registryValues[0]);
-        //     this.state.columnNames = this.state.registryValues[0].map(function (columns) {
-        //         return columns.key;
-        //     });
-
-        //     this.state.pointNames = this.state.registryValues.map(function (points) {
-        //         return points[0].value;
-        //     });
-        // }
-
-        // this.state.pointsToDelete = [];
-        // this.state.allSelected = false;
-
-        // this.state.selectedCells = [];
-        // this.state.selectedCellRow = null;
-        // this.state.selectedCellColumn = null;
-
-        // this.state.filterOn = false;
-
-        // this.scrollToBottom = false;
-        // this.resizeTable = false;
-
         return _this;
     }
 
@@ -3554,7 +3530,8 @@ var DeviceConfiguration = function (_BaseComponent) {
 
             var state = {};
 
-            state.keyPropsList = ["Volttron_Point_Name", "Units", "Writable"];
+            state.keyPropsList = device.keyProps;
+            state.filterColumn = state.keyPropsList[0];
 
             state.registryValues = getPointsFromStore(device, state.keyPropsList);
 
@@ -3592,7 +3569,7 @@ var DeviceConfiguration = function (_BaseComponent) {
         key: '_onFilterBoxChange',
         value: function _onFilterBoxChange(filterValue) {
             this.setState({ filterOn: true });
-            this.setState({ registryValues: getFilteredPoints(this.state.registryValues, filterValue) });
+            this.setState({ registryValues: getFilteredPoints(this.state.registryValues, filterValue, this.state.filterColumn) });
         }
     }, {
         key: '_onClearFilter',
@@ -3848,6 +3825,11 @@ var DeviceConfiguration = function (_BaseComponent) {
             modalActionCreators.closeModal();
         }
     }, {
+        key: '_showProps',
+        value: function _showProps(attributesList) {
+            modalActionCreators.openModal(_react2.default.createElement(_editPointForm2.default, { device: this.props.device, attributes: attributesList }));
+        }
+    }, {
         key: '_updateCell',
         value: function _updateCell(row, column, e) {
 
@@ -4032,7 +4014,7 @@ var DeviceConfiguration = function (_BaseComponent) {
             };
 
             var filterButton = _react2.default.createElement(FilterPointsButton, {
-                name: 'filterRegistryPoints',
+                name: "filterRegistryPoints",
                 tooltipMsg: filterPointsTooltip,
                 onfilter: this._onFilterBoxChange,
                 onclear: this._onClearFilter });
@@ -4099,6 +4081,17 @@ var DeviceConfiguration = function (_BaseComponent) {
                     }
                 }, this);
 
+                registryCells.push(_react2.default.createElement(
+                    'td',
+                    { key: "propsButton-" + rowIndex },
+                    _react2.default.createElement(
+                        'div',
+                        { className: 'propsButton',
+                            onClick: this._showProps.bind(this, attributesList) },
+                        _react2.default.createElement('i', { className: 'fa fa-ellipsis-h' })
+                    )
+                ));
+
                 return _react2.default.createElement(
                     'tr',
                     { key: "registry-row-" + rowIndex },
@@ -4148,7 +4141,7 @@ var DeviceConfiguration = function (_BaseComponent) {
                     { key: "header-" + item + "-" + index, style: firstColumnWidth },
                     _react2.default.createElement(
                         'div',
-                        { className: 'th-inner' },
+                        { className: 'th-inner zztop' },
                         item,
                         ' ',
                         filterButton,
@@ -4276,16 +4269,10 @@ var DeviceConfiguration = function (_BaseComponent) {
 
 ;
 
-function getFilteredPoints(registryValues, filterStr) {
+function getFilteredPoints(registryValues, filterStr, filterColumn) {
 
     return registryValues.map(function (row) {
-        var pointName = row.find(function (cell) {
-            return cell.key === "Volttron_Point_Name";
-        });
-
-        if (pointName) {
-            row.visible = pointName.value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1;
-        }
+        row.visible = row[filterColumn].value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1;
     });
 }
 
@@ -4319,7 +4306,7 @@ function initializeList(registryConfig, keyPropsList) {
 
 exports.default = DeviceConfiguration;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":55,"./base-component":12,"./confirm-form":16,"./control-button":18,"./control_buttons/edit-columns-button":19,"./control_buttons/edit-select-button":20,"./control_buttons/filter-points-button":21,"react":undefined}],26:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":56,"./base-component":12,"./confirm-form":16,"./control-button":18,"./control_buttons/edit-columns-button":19,"./control_buttons/edit-select-button":20,"./control_buttons/filter-points-button":21,"./edit-point-form":27,"react":undefined}],26:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -4671,7 +4658,194 @@ var parseCsvFile = function parseCsvFile(contents) {
 
 exports.default = DevicesFound;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":55,"./base-component":12,"./confirm-form":16,"./device-configuration":25,"babyparse":undefined,"react":undefined,"socket":undefined}],27:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":56,"./base-component":12,"./confirm-form":16,"./device-configuration":25,"babyparse":undefined,"react":undefined,"socket":undefined}],27:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _baseComponent = require('./base-component');
+
+var _baseComponent2 = _interopRequireDefault(_baseComponent);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var modalActionCreators = require('../action-creators/modal-action-creators');
+var devicesActionCreators = require('../action-creators/devices-action-creators');
+
+var EditPointForm = function (_BaseComponent) {
+    _inherits(EditPointForm, _BaseComponent);
+
+    function EditPointForm(props) {
+        _classCallCheck(this, EditPointForm);
+
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(EditPointForm).call(this, props));
+
+        _this._bind("_toggleKeyProp", "_updateAttribute", "_onSubmit");
+
+        _this.state = {};
+        _this.state.attributes = _this.props.attributes;
+        return _this;
+    }
+
+    _createClass(EditPointForm, [{
+        key: '_toggleKeyProp',
+        value: function _toggleKeyProp(itemKey) {
+
+            var itemToUpdate = this.state.attributes.find(function (item) {
+                return item.key === itemKey;
+            });
+
+            if (itemToUpdate) {
+                itemToUpdate.keyProp = !itemToUpdate.keyProp;
+            }
+
+            this.setState({ attributes: this.state.attributes });
+        }
+    }, {
+        key: '_updateAttribute',
+        value: function _updateAttribute(e) {
+            var itemKey = e.target.dataset.key;
+
+            var itemToUpdate = this.state.attributes.find(function (item) {
+                return item.key === itemKey;
+            });
+
+            if (itemToUpdate) {
+                itemToUpdate.value = e.target.value;
+            }
+
+            this.setState({ attributes: this.state.attributes });
+        }
+    }, {
+        key: '_onCancelClick',
+        value: function _onCancelClick(e) {
+            modalActionCreators.closeModal();
+        }
+    }, {
+        key: '_onSubmit',
+        value: function _onSubmit(e) {
+            e.preventDefault();
+            devicesActionCreators.updateRegistry(this.props.device, this.state.attributes);
+            modalActionCreators.closeModal();
+        }
+    }, {
+        key: 'render',
+        value: function render() {
+
+            var attributes = this.state.attributes.map(function (item, index) {
+
+                var itemRow = _react2.default.createElement(
+                    'tr',
+                    { key: item.key + "-" + index },
+                    _react2.default.createElement(
+                        'td',
+                        null,
+                        item.label
+                    ),
+                    _react2.default.createElement(
+                        'td',
+                        null,
+                        _react2.default.createElement('input', { type: 'text',
+                            'data-key': item.key,
+                            value: item.value,
+                            onChange: this._updateAttribute })
+                    ),
+                    _react2.default.createElement(
+                        'td',
+                        { className: 'centerContent' },
+                        _react2.default.createElement('input', { type: 'checkbox',
+                            checked: item.keyProp,
+                            onChange: this._toggleKeyProp.bind(this, item.key) })
+                    )
+                );
+
+                return itemRow;
+            }, this);
+
+            return _react2.default.createElement(
+                'form',
+                { className: 'edit-registry-form', onSubmit: this._onSubmit },
+                _react2.default.createElement(
+                    'h1',
+                    null,
+                    attributes[0].value
+                ),
+                _react2.default.createElement(
+                    'table',
+                    null,
+                    _react2.default.createElement(
+                        'thead',
+                        null,
+                        _react2.default.createElement(
+                            'tr',
+                            null,
+                            _react2.default.createElement(
+                                'th',
+                                null,
+                                'Point'
+                            ),
+                            _react2.default.createElement(
+                                'th',
+                                null,
+                                'Value'
+                            ),
+                            _react2.default.createElement(
+                                'th',
+                                null,
+                                'Show in Table'
+                            )
+                        )
+                    ),
+                    _react2.default.createElement(
+                        'tbody',
+                        null,
+                        attributes
+                    )
+                ),
+                _react2.default.createElement(
+                    'div',
+                    { className: 'form__actions' },
+                    _react2.default.createElement(
+                        'button',
+                        {
+                            className: 'button button--secondary',
+                            type: 'button',
+                            onClick: this._onCancelClick
+                        },
+                        'Cancel'
+                    ),
+                    _react2.default.createElement(
+                        'button',
+                        { className: 'button' },
+                        'Save'
+                    )
+                )
+            );
+        }
+    }]);
+
+    return EditPointForm;
+}(_baseComponent2.default);
+
+;
+
+exports.default = EditPointForm;
+
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"./base-component":12,"react":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4745,7 +4919,7 @@ var Exchange = React.createClass({
 
 module.exports = Exchange;
 
-},{"react":undefined}],28:[function(require,module,exports){
+},{"react":undefined}],29:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4806,7 +4980,7 @@ var LoginForm = React.createClass({
 
 module.exports = LoginForm;
 
-},{"../action-creators/platform-manager-action-creators":8,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":8,"react":undefined,"react-router":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4836,7 +5010,7 @@ var Modal = React.createClass({
 
 module.exports = Modal;
 
-},{"../action-creators/modal-action-creators":5,"react":undefined}],30:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"react":undefined}],31:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4938,7 +5112,7 @@ function getStateFromStores() {
 
 module.exports = Navigation;
 
-},{"../action-creators/platform-manager-action-creators":8,"../action-creators/platforms-panel-action-creators":9,"../stores/authorization-store":52,"react":undefined,"react-router":undefined}],31:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":8,"../action-creators/platforms-panel-action-creators":9,"../stores/authorization-store":53,"react":undefined,"react-router":undefined}],32:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5232,7 +5406,7 @@ var NewChartForm = React.createClass({
 
 module.exports = NewChartForm;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":57,"../stores/platforms-panel-items-store":58,"./combo-box":13,"react":undefined}],32:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":58,"../stores/platforms-panel-items-store":59,"./combo-box":13,"react":undefined}],33:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5255,7 +5429,7 @@ var PageNotFound = React.createClass({
 
 module.exports = PageNotFound;
 
-},{"react":undefined}],33:[function(require,module,exports){
+},{"react":undefined}],34:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5909,7 +6083,7 @@ var GraphLineChart = OutsideClick(React.createClass({
 
 module.exports = PlatformChart;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":57,"./confirm-form":16,"./control-button":18,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-click-outside":undefined,"react-dom":undefined,"react-router":undefined}],34:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":58,"./confirm-form":16,"./control-button":18,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-click-outside":undefined,"react-dom":undefined,"react-router":undefined}],35:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -6002,7 +6176,7 @@ var PlatformCharts = React.createClass({
 
 module.exports = PlatformCharts;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-manager-action-creators":8,"../action-creators/status-indicator-action-creators":10,"../stores/platform-chart-store":57,"./new-chart-form":31,"./platform-chart":33,"react":undefined}],35:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-manager-action-creators":8,"../action-creators/status-indicator-action-creators":10,"../stores/platform-chart-store":58,"./new-chart-form":32,"./platform-chart":34,"react":undefined}],36:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -6254,7 +6428,7 @@ function getStateFromStores() {
 
 exports.default = PlatformManager;
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"../stores/authorization-store":52,"../stores/console-store":53,"../stores/modal-store":56,"../stores/platforms-panel-store":59,"../stores/platforms-store":60,"../stores/status-indicator-store":61,"./console":17,"./modal":29,"./navigation":30,"./platforms-panel":38,"./status-indicator":42,"jquery":undefined,"react":undefined,"react-dom":undefined,"react-router":undefined}],36:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"../stores/authorization-store":53,"../stores/console-store":54,"../stores/modal-store":57,"../stores/platforms-panel-store":60,"../stores/platforms-store":61,"../stores/status-indicator-store":62,"./console":17,"./modal":30,"./navigation":31,"./platforms-panel":39,"./status-indicator":43,"jquery":undefined,"react":undefined,"react-dom":undefined,"react-router":undefined}],37:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -6451,7 +6625,7 @@ function getStateFromStores(component) {
 
 module.exports = Platform;
 
-},{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../stores/platforms-store":60,"./agent-row":11,"react":undefined,"react-router":undefined}],37:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../stores/platforms-store":61,"./agent-row":11,"react":undefined,"react-router":undefined}],38:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -6867,7 +7041,7 @@ var PlatformsPanelItem = React.createClass({
 
 module.exports = PlatformsPanelItem;
 
-},{"../action-creators/control-button-action-creators":3,"../action-creators/devices-action-creators":4,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":58,"./control-button":18,"react":undefined,"react-router":undefined}],38:[function(require,module,exports){
+},{"../action-creators/control-button-action-creators":3,"../action-creators/devices-action-creators":4,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":59,"./control-button":18,"react":undefined,"react-router":undefined}],39:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7138,7 +7312,7 @@ var PlatformsPanel = React.createClass({
 
 module.exports = PlatformsPanel;
 
-},{"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":58,"../stores/platforms-panel-store":59,"./control-button":18,"./platforms-panel-item":37,"react":undefined,"react-router":undefined}],39:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":59,"../stores/platforms-panel-store":60,"./control-button":18,"./platforms-panel-item":38,"react":undefined,"react-router":undefined}],40:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7283,7 +7457,7 @@ function getStateFromStores() {
 
 module.exports = Platforms;
 
-},{"../action-creators/modal-action-creators":5,"../components/deregister-platform-confirmation":24,"../components/register-platform-form":40,"../stores/platforms-store":60,"react":undefined,"react-router":undefined}],40:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../components/deregister-platform-confirmation":24,"../components/register-platform-form":41,"../stores/platforms-store":61,"react":undefined,"react-router":undefined}],41:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7717,7 +7891,7 @@ var RegisterPlatformForm = React.createClass({
 
 module.exports = RegisterPlatformForm;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"react":undefined}],41:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"react":undefined}],42:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7787,7 +7961,7 @@ var RemoveAgentForm = React.createClass({
 
 module.exports = RemoveAgentForm;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"react":undefined}],42:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"react":undefined}],43:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7964,7 +8138,7 @@ var StatusIndicator = React.createClass({
 
 module.exports = StatusIndicator;
 
-},{"../action-creators/status-indicator-action-creators":10,"../stores/status-indicator-store":61,"react":undefined}],43:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":10,"../stores/status-indicator-store":62,"react":undefined}],44:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('keymirror');
@@ -8028,6 +8202,7 @@ module.exports = keyMirror({
     LIST_DETECTED_DEVICES: null,
     CONFIGURE_DEVICE: null,
     EDIT_REGISTRY: null,
+    UPDATE_REGISTRY: null,
     LOAD_REGISTRY: null,
     GENERATE_REGISTRY: null,
     CANCEL_REGISTRY: null,
@@ -8043,7 +8218,7 @@ module.exports = keyMirror({
     RECEIVE_CHART_TOPICS: null
 });
 
-},{"keymirror":undefined}],44:[function(require,module,exports){
+},{"keymirror":undefined}],45:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -8062,7 +8237,7 @@ dispatcher.dispatch = function (action) {
 
 module.exports = dispatcher;
 
-},{"../constants/action-types":43,"flux":undefined}],45:[function(require,module,exports){
+},{"../constants/action-types":44,"flux":undefined}],46:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -8077,7 +8252,7 @@ RpcError.prototype.constructor = RpcError;
 
 module.exports = RpcError;
 
-},{}],46:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -8161,7 +8336,7 @@ function RpcExchange(request, redactedParams) {
 
 module.exports = RpcExchange;
 
-},{"../../constants/action-types":43,"../../dispatcher":44,"../xhr":50,"./error":45,"node-uuid":undefined}],47:[function(require,module,exports){
+},{"../../constants/action-types":44,"../../dispatcher":45,"../xhr":51,"./error":46,"node-uuid":undefined}],48:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -8169,7 +8344,7 @@ module.exports = {
     Exchange: require('./exchange')
 };
 
-},{"./error":45,"./exchange":46}],48:[function(require,module,exports){
+},{"./error":46,"./exchange":47}],49:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -8196,7 +8371,7 @@ Store.prototype.removeChangeListener = function (callback) {
 
 module.exports = Store;
 
-},{"events":undefined}],49:[function(require,module,exports){
+},{"events":undefined}],50:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -8209,7 +8384,7 @@ XhrError.prototype.constructor = XhrError;
 
 module.exports = XhrError;
 
-},{}],50:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -8217,7 +8392,7 @@ module.exports = {
     Error: require('./error')
 };
 
-},{"./error":49,"./request":51}],51:[function(require,module,exports){
+},{"./error":50,"./request":52}],52:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -8247,7 +8422,7 @@ function XhrRequest(opts) {
 
 module.exports = XhrRequest;
 
-},{"./error":49,"bluebird":undefined,"jquery":undefined}],52:[function(require,module,exports){
+},{"./error":50,"bluebird":undefined,"jquery":undefined}],53:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -8293,7 +8468,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = authorizationStore;
 
-},{"../constants/action-types":43,"../dispatcher":44,"../lib/store":48}],53:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45,"../lib/store":49}],54:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -8385,7 +8560,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = consoleStore;
 
-},{"../constants/action-types":43,"../dispatcher":44,"../lib/store":48,"../stores/authorization-store":52}],54:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45,"../lib/store":49,"../stores/authorization-store":53}],55:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -8453,7 +8628,7 @@ controlButtonStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = controlButtonStore;
 
-},{"../constants/action-types":43,"../dispatcher":44,"../lib/store":48,"../stores/authorization-store":52}],55:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45,"../lib/store":49,"../stores/authorization-store":53}],56:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -8559,6 +8734,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     platformUuid: action.platformUuid,
                     bacnetProxyUuid: action.bacnetProxyUuid,
                     registryConfig: [],
+                    keyProps: ["Volttron_Point_Name", "Units", "Writable"],
                     id: "548",
                     items: [{ key: "address", label: "Address", value: "Address 192.168.1.42" }, { key: "deviceId", label: "Device ID", value: "548" }, { key: "description", label: "Description", value: "Temperature sensor" }, { key: "vendorId", label: "Vendor ID", value: "18" }, { key: "vendor", label: "Vendor", value: "Siemens" }, { key: "type", label: "Type", value: "BACnet" }]
                 },
@@ -8567,6 +8743,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     platformUuid: action.platformUuid,
                     bacnetProxyUuid: action.bacnetProxyUuid,
                     registryConfig: [],
+                    keyProps: ["Volttron_Point_Name", "Units", "Writable"],
                     id: "33",
                     items: [{ key: "address", label: "Address", value: "RemoteStation 1002:11" }, { key: "deviceId", label: "Device ID", value: "33" }, { key: "description", label: "Description", value: "Actuator 3-pt for zone control" }, { key: "vendorId", label: "Vendor ID", value: "12" }, { key: "vendor", label: "Vendor", value: "Alerton" }, { key: "type", label: "Type", value: "BACnet" }]
                 }
@@ -8608,6 +8785,33 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _registryFiles[_device.id] = action.file;
             devicesStore.emitChange();
             break;
+        case ACTION_TYPES.UPDATE_REGISTRY:
+            _action = "update_registry";
+            _view = "Registry Configuration";
+            _device = action.device;
+            // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
+            // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
+            // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
+
+            var keyProps = [];
+            _devices[_device.id].registryConfig.find(function (attributes) {
+                var match = false;
+                if (attributes[0].value === action.attributes[0].value) {
+                    attributes = action.attributes;
+
+                    attributes.forEach(function (item) {
+                        if (item.keyProp) {
+                            keyProps.push(item.key);
+                        }
+                    });
+
+                    match = true;
+                }
+                return match;
+            });
+            _devices[_device.id].keyProps = keyProps;
+            devicesStore.emitChange();
+            break;
         case ACTION_TYPES.EDIT_REGISTRY:
             _action = "configure_registry";
             _view = "Registry Configuration";
@@ -8639,7 +8843,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = devicesStore;
 
-},{"../constants/action-types":43,"../dispatcher":44,"../lib/store":48,"../stores/authorization-store":52}],56:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45,"../lib/store":49,"../stores/authorization-store":53}],57:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -8671,7 +8875,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = modalStore;
 
-},{"../constants/action-types":43,"../dispatcher":44,"../lib/store":48}],57:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45,"../lib/store":49}],58:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -9076,7 +9280,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = chartStore;
 
-},{"../constants/action-types":43,"../dispatcher":44,"../lib/store":48,"../stores/authorization-store":52,"./platforms-store.js":60}],58:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45,"../lib/store":49,"../stores/authorization-store":53,"./platforms-store.js":61}],59:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -9438,7 +9642,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             var platformsToRemove = [];
 
             for (var key in _items.platforms) {
-                var match = platforms.find(function (platform) {
+                var match = platforms.find(function findPlatform(platform) {
                     return key === platform.uuid;
                 });
 
@@ -9992,7 +10196,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = platformsPanelItemsStore;
 
-},{"../constants/action-types":43,"../dispatcher":44,"../lib/store":48,"../stores/platform-chart-store":57}],59:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45,"../lib/store":49,"../stores/platform-chart-store":58}],60:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -10024,7 +10228,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = platformsPanelStore;
 
-},{"../constants/action-types":43,"../dispatcher":44,"../lib/store":48}],60:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45,"../lib/store":49}],61:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -10174,7 +10378,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = platformsStore;
 
-},{"../constants/action-types":43,"../dispatcher":44,"../lib/store":48,"./authorization-store":52}],61:[function(require,module,exports){
+},{"../constants/action-types":44,"../dispatcher":45,"../lib/store":49,"./authorization-store":53}],62:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -10231,4 +10435,4 @@ statusIndicatorStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = statusIndicatorStore;
 
-},{"../constants/action-types":43,"../dispatcher":44,"../lib/store":48}]},{},[1]);
+},{"../constants/action-types":44,"../dispatcher":45,"../lib/store":49}]},{},[1]);

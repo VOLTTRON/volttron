@@ -123,6 +123,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     platformUuid: action.platformUuid,
                     bacnetProxyUuid: action.bacnetProxyUuid,
                     registryConfig: [],
+                    keyProps: ["Volttron_Point_Name", "Units", "Writable"],
                     id: "548",
                     items: [ 
                         { key: "address", label: "Address", value: "Address 192.168.1.42" }, 
@@ -138,6 +139,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     platformUuid: action.platformUuid,
                     bacnetProxyUuid: action.bacnetProxyUuid,
                     registryConfig: [],
+                    keyProps: ["Volttron_Point_Name", "Units", "Writable"],
                     id: "33",
                     items: [ 
                         { key: "address", label: "Address", value: "RemoteStation 1002:11" }, 
@@ -184,6 +186,35 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
             _devices[_device.id].configuring = true;
             _registryFiles[_device.id] = action.file;             
+            devicesStore.emitChange();
+            break;
+        case ACTION_TYPES.UPDATE_REGISTRY:
+            _action = "update_registry";
+            _view = "Registry Configuration";
+            _device = action.device;
+            // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
+            // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
+            // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
+
+            var keyProps = [];
+            _devices[_device.id].registryConfig.find(function (attributes) {
+                var match = false;
+                if (attributes[0].value === action.attributes[0].value )
+                {
+                    attributes = action.attributes;
+
+                    attributes.forEach(function (item) {
+                        if (item.keyProp)
+                        {
+                            keyProps.push(item.key);
+                        }
+                    });
+
+                    match = true;
+                }
+                return match;
+            });
+            _devices[_device.id].keyProps = keyProps;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.EDIT_REGISTRY:

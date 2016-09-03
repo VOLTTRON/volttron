@@ -422,7 +422,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             for (var key in _items.platforms)
             {
-                var match = platforms.find(function (platform) {
+                var match = platforms.find(function findPlatform(platform) {
                     return key === platform.uuid;
                 });
 

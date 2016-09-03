@@ -61,6 +61,7 @@ module.exports = keyMirror({
     LIST_DETECTED_DEVICES: null,
     CONFIGURE_DEVICE: null,
     EDIT_REGISTRY: null,
+    UPDATE_REGISTRY: null,
     LOAD_REGISTRY: null,
     GENERATE_REGISTRY: null,
     CANCEL_REGISTRY: null,

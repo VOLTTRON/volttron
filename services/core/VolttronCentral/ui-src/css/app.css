@@ -657,6 +657,14 @@ br + .form__control-help {
     font-weight: bold;
 }
 
+.centerContent {
+    text-align: center;
+}
+
+.propsButton {
+    cursor: pointer;
+}
+
 .tooltip_inner, .taptip_inner {
     background-color: rgba(255, 255, 255, .8);
     padding: 10px;
@@ -665,8 +673,6 @@ br + .form__control-help {
     border: 1px black solid;
     box-shadow: 0px 2px 10px 2px #ccc;
 }
-
-
 
 .tooltip_point, .taptip_point {
     /*color: #ffffff;
@@ -789,6 +795,10 @@ br + .form__control-help {
 .fa-save:before,
 .fa-floppy-o:before {
     content: "\f0c7";
+}
+
+.fa-ellipsis-h:before {
+    content: "\f141";
 }
 
 .fa-pencil:before {
@@ -1185,6 +1195,11 @@ br + .form__control-help {
 
 .firstCell {
     width: 30%;
+}
+
+.zztop {
+    z-index: 200;
+    background-color: rgba(255, 255, 255, .7);
 }
 
 .formLabel {
@@ -2192,6 +2207,7 @@ Interactive Layer
     width: 100%;
     overflow-x: hidden;
     overflow-y: auto;
+    margin-top: 2px;
 }
 
 .registryConfigTable > tbody > tr > td > input {
