@@ -83,6 +83,7 @@ except ImportError:
     import json as jsonapi
 
 from . import messaging
+from .agent.utils import is_valid_identity
 from .messaging import topics
 from .packages import UnpackedPackage
 from .vip.agent import Agent
@@ -119,6 +120,7 @@ _level_map = {7: logging.DEBUG,      # LOG_DEBUG
               1: logging.CRITICAL,   # LOG_ALERT
               0: logging.CRITICAL,}  # LOG_EMERG
 
+
 def log_entries(name, agent, pid, level, stream):
     log = logging.getLogger(name)
     extra = {'processName': agent, 'process': pid}
@@ -149,6 +151,7 @@ def log_entries(name, agent, pid, level, stream):
         else:
             yield level, line
 
+
 def log_stream(name, agent, pid, path, stream):
     log = logging.getLogger(name)
     extra = {'processName': agent, 'process': pid}
@@ -163,11 +166,14 @@ def log_stream(name, agent, pid, path, stream):
 
 class IgnoreErrno(object):
     ignore = []
+
     def __init__(self, errno, *more):
         self.ignore = [errno]
         self.ignore.extend(more)
+
     def __enter__(self):
         return
+
     def __exit__(self, exc_type, exc_value, traceback):
         try:
             return exc_value.errno in self.ignore
@@ -322,12 +328,22 @@ class AIPplatform(object):
         if vip_identity is not None:
             name_template = vip_identity
 
-        _log.debug('Using name template "' + name_template + '" to generate VIP ID')
+        _log.debug(
+            'Using name template "' + name_template + '" to generate VIP ID')
 
         final_identity = self._get_available_agent_identity(name_template)
 
         if final_identity is None:
-            raise ValueError("Agent with VIP ID "+name_template+" already installed on platform.")
+            raise ValueError(
+                "Agent with VIP ID {} already installed on platform.".format(
+                    name_template))
+
+        if not is_valid_identity(final_identity):
+            raise ValueError(
+                'Invlaid identity detecated invalid characters: {}'.format(
+                    ','.format(invalid)
+                ))
+
 
         identity_filename = os.path.join(agent_path, "IDENTITY")
 
@@ -359,11 +375,11 @@ class AIPplatform(object):
     def _get_available_agent_identity(self, name_template):
         all_agent_identities = self.get_all_agent_identities()
 
-        #Provided name template is static
+        # Provided name template is static
         if name_template == name_template.format(n=0):
             return name_template if name_template not in all_agent_identities else None
 
-        #Find a free ID
+        # Find a free ID
         count = 1
         while True:
             test_name = name_template.format(n=count)
