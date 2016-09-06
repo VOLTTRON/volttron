@@ -1199,7 +1199,7 @@ br + .form__control-help {
 
 .zztop {
     z-index: 200;
-    background-color: rgba(255, 255, 255, .7);
+    background-color: rgba(248, 248, 248, .7);
 }
 
 .formLabel {
