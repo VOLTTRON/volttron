@@ -357,7 +357,6 @@ class AIPplatform(object):
             os.remove(identity_template_filename)
             _log.debug('IDENTITY_TEMPLATE file removed.')
 
-
     def get_all_agent_identities(self):
         results = set()
         for agent_uuid in self.list_agents():
