@@ -186,6 +186,7 @@ class ModbusByteRegister(ModbusRegisterBase):
         #
         #print ("GSC",response,dir(response),response.registers)
         response_bytes = response.encode()
+        print response_bytes
         ####
         #[line[i:i+n] for i in range(0, len(line), n)]
         return self.parse_struct.unpack(response_bytes[1:])[0]
@@ -211,7 +212,7 @@ class ModbusByteRegister(ModbusRegisterBase):
             value_bytes = self.parse_struct.pack(value)
             n=2
             paired = [value_bytes[i:i+n] for i in range(0, len(value_bytes), n)]
-            register_values = [ PYMODBUS_REGISTER_STRUCT.unpack_from(pair)
+            register_values = [ PYMODBUS_REGISTER_STRUCT.unpack_from(pair)[0]
                                 for pair in paired]
             client.write_registers(self.address, register_values, unit=self.slave_id)
             #print ("WRITTEN")
