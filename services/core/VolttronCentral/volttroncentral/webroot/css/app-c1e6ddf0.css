@@ -2311,8 +2311,12 @@ td.plain {
     width: 450px;
 }
 
-.devicesFoundContainer, .configDeviceContainer {
+.devicesFoundContainer {
     width: 800px;
+}
+
+.configDeviceContainer {
+    width: 600px;
 }
 
 .detectDevicesBox {    
@@ -2354,7 +2358,7 @@ td.plain {
 }*/
 
 .uneditableAttributes {
-    padding: 20px 140px 0px 140px;
+    padding: 0px 140px 0px 140px;
     margin-top: 20px;
 }
 

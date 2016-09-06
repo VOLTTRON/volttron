@@ -66,6 +66,7 @@ module.exports = keyMirror({
     GENERATE_REGISTRY: null,
     CANCEL_REGISTRY: null,
     SAVE_REGISTRY: null,
+    SAVE_CONFIG: null,
 
     // ADD_CONTROL_BUTTON: null,
     // REMOVE_CONTROL_BUTTON: null,

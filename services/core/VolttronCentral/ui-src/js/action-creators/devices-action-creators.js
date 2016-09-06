@@ -122,6 +122,13 @@ var devicesActionCreators = {
             data: values
         });
     },
+    saveConfig: function (device, settings) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.SAVE_CONFIG,
+            device: device,
+            settings: settings
+        });
+    },
 };
 
 function handle401(error, message, highlight, orientation) {

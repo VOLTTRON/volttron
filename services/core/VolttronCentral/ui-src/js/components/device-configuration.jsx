@@ -3,6 +3,7 @@
 import React from 'react';
 import BaseComponent from './base-component';
 import EditPointForm from './edit-point-form';
+import ConfigDeviceForm from './config-device-form';
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var devicesStore = require('../stores/devices-store');
@@ -552,7 +553,10 @@ class DeviceConfiguration extends BaseComponent {
         devicesActionCreators.cancelRegistry(this.props.device);
     }
     _saveRegistry() {
+
+        //TODO: open dialog for device config
         devicesActionCreators.saveRegistry(this.props.device, this.state.registryValues);
+        modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device}/>);
     }
     render() {        
         
