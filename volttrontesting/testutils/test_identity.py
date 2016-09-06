@@ -19,23 +19,3 @@ def test_invalid_idenity_returns_false():
     assert not is_valid_identity("Foo+")
     assert not is_valid_identity("Foo?")
 
-
-@pytest.mark.agent
-def test_start_agent_invalid_identity(volttron_instance):
-
-    with pytest.raises(ValueError):
-        agent = volttron_instance.build_agent(identity='foo#')
-
-    with pytest.raises(ValueError):
-        agent = volttron_instance.build_agent(identity='foo ')
-
-
-@pytest.mark.agent
-def test_start_agent_valid_identity(volttron_instance):
-    valid_identities = ('foo-bar', 'bar_foo', 'woot', 'woo.bah')
-
-    for x in valid_identities:
-        agent = volttron_instance.build_agent(identity=x)
-        assert x == agent.core.identity
-        agent.core.stop()
-
