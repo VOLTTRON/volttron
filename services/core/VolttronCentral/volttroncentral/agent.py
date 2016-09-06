@@ -954,10 +954,11 @@ class VolttronCentralAgent(Agent):
         :param result_or_error:
         :return:
         """
-        if 'error' in result_or_error:
-            error = result_or_error['error']
-            _log.debug("RPC RESPONSE ERROR: {}".format(error))
-            return jsonrpc.json_error(id, error['code'], error['message'])
+        if result_or_error is not None:
+            if 'error' in result_or_error:
+                error = result_or_error['error']
+                _log.debug("RPC RESPONSE ERROR: {}".format(error))
+                return jsonrpc.json_error(id, error['code'], error['message'])
         return jsonrpc.json_result(id, result_or_error)
 
     def _get_agents(self, instance_uuid, groups):
@@ -1272,7 +1273,7 @@ class VolttronCentralAgent(Agent):
         if not cn:
             return jsonrpc.json_error(id,
                                       UNAVAILABLE_PLATFORM,
-                                      "Cannot connect to platform."
+                                      "cannot connect to platform."
                                       )
         _log.debug('Routing to {}'.format(VOLTTRON_CENTRAL_PLATFORM))
 

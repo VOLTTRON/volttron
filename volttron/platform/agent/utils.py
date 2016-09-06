@@ -71,7 +71,7 @@ import os
 import pytz
 import re
 import stat
-from volttron.platform import get_home
+from volttron.platform import get_home, get_address
 from dateutil.parser import parse
 from dateutil.tz import tzutc
 from tzlocal import get_localzone
@@ -110,7 +110,11 @@ def strip_comments(string):
 
 def load_config(config_path):
     """Load a JSON-encoded configuration file."""
-    return jsonapi.loads(strip_comments(open(config_path).read()))
+    return parse_json_config(open(config_path).read())
+
+def parse_json_config(config_str):
+    """Parse a JSON-encoded configuration file."""
+    return jsonapi.loads(strip_comments(config_str))
 
 
 def run_agent(cls, subscribe_address=None, publish_address=None,
@@ -208,14 +212,13 @@ def vip_main(agent_class, identity=None, **kwargs):
 
         config = os.environ.get('AGENT_CONFIG')
         identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
-        address = os.environ.get('VOLTTRON_VIP_ADDR')
+        address = get_address()
         agent_uuid = os.environ.get('AGENT_UUID')
-        if not address:
-            abstract = '@' if sys.platform.startswith('linux') else ''
-            address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
+        volttron_home = get_home()
 
         agent = agent_class(config_path=config, identity=identity,
-                            address=address, agent_uuid=agent_uuid,  **kwargs)
+                            address=address, agent_uuid=agent_uuid,
+                            volttron_home=volttron_home, **kwargs)
         try:
             run = agent.run
         except AttributeError:
