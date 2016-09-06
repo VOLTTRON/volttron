@@ -1,7 +1,13 @@
 Agent VIP IDENTITY Assignment Specification
 =====================================
 
-This document explains how an agent obtains it's VIP IDENTITY, how the platform sets an agent's VIP IDENTITY at startup, and what mechanisms are available to the user to set the VIP IDENTITY for any agent.  An IDENTITY constists of only upper and lowercase ascii characters, and/or .-_.
+This document explains how an agent obtains it's VIP IDENTITY, how the platform sets an agent's VIP IDENTITY at startup, and what mechanisms are available to the user to set the VIP IDENTITY for any agent.
+
+What is a VIP IDENTITY
+----------------------
+
+A VIP IDENTITY is a platform instance unique identifier for agents.  The IDENTITY is used to route messages from one Agent through the VOLTTRON router to the recipiant Agent.  The VIP IDENTITY provides a consistant, user defined, and human readable character set to build a VIP IDENTITY.  VIP IDENTITIES should be composed of both upper and lowercase lettters, numbers and the following special caracters _.-.
+
 
 Runtime
 -------
