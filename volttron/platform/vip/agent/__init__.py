@@ -58,7 +58,7 @@
 from __future__ import absolute_import
 
 import os
-
+import logging as _log
 
 from .core import *
 from .errors import *
@@ -89,7 +89,10 @@ class Agent(object):
                  agent_uuid=None):
 
         if identity is not None and not is_valid_identity(identity):
-            raise ValueError('Invalid identity {} passed.'.format(identity))
+            _log.warn('Deprecation warining')
+            _log.warn(
+                'All characters in {identity} are not in the valid set.'.format(
+                    idenity=identity))
 
         self.core = Core(self, identity=identity, address=address,
                          context=context, publickey=publickey,
