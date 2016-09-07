@@ -69,7 +69,7 @@ from .... import platform
 class Agent(object):
     class Subsystems(object):
         def __init__(self, owner, core, heartbeat_autostart,
-                     heartbeat_period):
+                     heartbeat_period, enable_store):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner)
@@ -79,18 +79,20 @@ class Agent(object):
             self.health = Health(owner, core, self.rpc)
             self.heartbeat = Heartbeat(owner, core, self.rpc, self.pubsub,
                                        heartbeat_autostart, heartbeat_period)
+            if enable_store:
+                self.config = ConfigStore(owner, core, self.rpc)
 
     def __init__(self, identity=None, address=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
                  heartbeat_autostart=False, heartbeat_period=60,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None):
+                 agent_uuid=None, enable_store=True):
         self.core = Core(self, identity=identity, address=address,
                          context=context, publickey=publickey,
                          secretkey=secretkey, serverkey=serverkey,
                          volttron_home=volttron_home, agent_uuid=agent_uuid)
         self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
-                                    heartbeat_period)
+                                    heartbeat_period, enable_store)
         self.core.setup()
 
 
