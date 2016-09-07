@@ -461,7 +461,7 @@ class Core(BasicCore):
             return '{}{}={}'.format('&' if query_str else '', key, value)
 
         url = list(urlparse.urlsplit(self.address))
-        if url[0] == 'tcp':
+        if url[0] in ['tcp', 'ipc']:
             url[3] += add_param(url[3], 'publickey', publickey)
             url[3] += add_param(url[3], 'secretkey', secretkey)
             url[3] += add_param(url[3], 'serverkey', serverkey)
