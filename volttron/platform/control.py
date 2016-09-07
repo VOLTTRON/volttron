@@ -1002,12 +1002,9 @@ def get_keys(opts):
     '''Gets keys from keystore and known-hosts store'''
     hosts = KnownHostsStore(opts.known_hosts_file)
     serverkey = hosts.serverkey(opts.vip_address)
-    publickey = None
-    secretkey = None
-    if opts.keystore:
-        key_store = KeyStore(opts.keystore_file)
-        publickey = key_store.public()
-        secretkey = key_store.secret()
+    key_store = KeyStore(opts.keystore_file)
+    publickey = key_store.public()
+    secretkey = key_store.secret()
     return {'publickey': publickey, 'secretkey': secretkey,
             'serverkey': serverkey}
 
@@ -1035,8 +1032,6 @@ def main(argv=sys.argv):
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
-    global_args.add_argument('-k', '--keystore', action='store_true',
-                             help='use public and secret keys from keystore')
     global_args.add_argument('--keystore-file', metavar='FILE',
                              help='use keystore from FILE')
     global_args.add_argument('--known-hosts-file', metavar='FILE',
