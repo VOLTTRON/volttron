@@ -479,7 +479,6 @@ def main():
         for agent in args.agent:
             if agent not in available_agents:
                 print '"{}" not configurable with this tool'.format(agent)
-                agent_set.remove(agent)
 
         # Configure agents
         for agent in args.agent:
