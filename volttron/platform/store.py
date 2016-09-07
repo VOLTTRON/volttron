@@ -235,7 +235,6 @@ class ConfigStoreService(Agent):
     def get_configs(self):
         """Called by an Agent at startup to trigger initial configuration state push."""
         identity = bytes(self.vip.rpc.context.vip_message.peer)
-        _log.info("get_configs called by {}".format(identity))
 
         #We need to create store and lock if it doesn't exist in case someone tries to add
         # a configuration while we are sending the initial state.
@@ -268,8 +267,6 @@ class ConfigStoreService(Agent):
         # then remove it from the global store.
         if not agent_disk_store:
             self.store.pop(identity, None)
-
-        _log.info("get_configs called by {} returned".format(identity))
 
     @RPC.export
     def delete_config(self, config_name, trigger_callback=False):
