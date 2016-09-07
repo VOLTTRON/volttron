@@ -22,6 +22,8 @@ Any valid OS file path name is a valid configuration name. Any leading or traili
 
 The canonical name for the main agent configuration is "config".
 
+All configuration names are converted to lower case when added to the store.
+
 Configuration Ownership
 -----------------------
 
@@ -110,7 +112,7 @@ Only configurations that are parsed by the platform (currently "json" or "csv") 
 
 In a json object the name of a value will never be considered a reference.
 
-A file reference is any value string that starts with "config://". The rest of the string is the path in the config store to that configuration.
+A file reference is any value string that starts with "config://". The rest of the string is the path in the config store to that configuration. The config store path is converted to lower case for comparison purposes.
 
 Consider the following configuration files named "devices/vav1.config" and "registries/vav.csv", respectively:
 
@@ -189,7 +191,9 @@ The callback will also be called if any file referenced by a configuration file 
 
  The signature of the callback method is callback(config_name, action, contents) where file_name is the file that triggered the callback, action is the action that triggered the callback, and contents are the new contents of the configuration. Contents will be None on a "DELETE" action. All callbacks registered for "NEW" events will be called at agent startup after all "ONSTART" methods have been called. Unlike pubsub subscriptions, this may be called at any point in an agent's lifetime.
 
-config.unsubscribe(callback=None, config_name_pattern=None) - Unsubscribe from configuration changes. Specifying a callback only will unsubscribe that callback from all config name patterns they have been bound to. If a pattern only is specified then all callbacks bound to that pattern will be removed. Specifying both will remove that callback from that pattern. Calling with no arguments will remove all subscriptions.
+config.unsubscribe(callback=None, config_name_pattern=None) - Unsubscribe from configuration changes. Specifying a callback only will unsubscribe that callback from all config name patterns they have been bound to. If a pattern only is specified then all callbacks bound to that pattern will be removed. Specifying both will remove that callback from that pattern. Calling with no arguments will remove all subscriptions. This will not be available in the first version of config store.
+
+config.unsubscribe_all() - Unsubscribe from all configuration changes.
 
 config.set( config_name, contents, trigger_callback=False ) - Set the contents of a configuration. This may not be called before "ONSTART" methods are called. This can be used by an agent to store agent state across agent installations. This will *not* trigger any callbacks unless trigger_callback is set to True. To prevent deadlock with the platform this method may not be called from a configuration callback function. Doing so will raise a RuntimeError exception.
 
@@ -201,7 +205,9 @@ config.list( ) - Returns a list of configuration names.
 
 config.set_default(config_name, contents, trigger_callback=False) - Set a default value for a configuration. DOES NOT modify the platform's configuration store but creates a default configuration that is used for agent configuration callbacks if the configuration does not exist in the store or the configuration is deleted from the store. The callback will only be triggered if trigger_callback is true and the configuration store subsystem on the agent is not aware of a configuration with that name from the platform store.
 
- Typically this will be called in the __init__ method of an agent with the parsed contents of the packaged configuration file.
+ Typically this will be called in the __init__ method of an agent with the parsed contents of the packaged configuration file. This may not be called from a configuration callback. Doing so will raise a RuntimeError.
+
+config.delete_default(config_name, trigger_callback=False) - Delete a default value for a configuration. I have no idea why you would ever call this. It is here for completeness. This may not be called from a configuration callback. Doing so will raise a RuntimeError.
 
 Configuration Sub System RPC Methods
 ************************************
@@ -266,3 +272,8 @@ Command Line Interface
 **********************
 
 The command line interface will consist of a new commands for the volttron-ctl program called "config" with four sub-commands called "store", "delete", "list", "get". These commands will map directly to the management RPC functions in the previous section.
+
+Disabling the Configuration Store
+*********************************
+
+Agents may optionally disable support for the configuration store by passing enable_store=False to the __init__ method of the Agent class. This allows temporary agents to not spin up the subsystem when it is not needed. Platform service agents that do not yet support the configuration store and the temporary agents used by volttron-ctl will set this value.
