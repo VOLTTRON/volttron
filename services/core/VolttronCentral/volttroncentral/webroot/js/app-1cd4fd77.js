@@ -138,7 +138,7 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
     }.bind(this));
 });
 
-},{"./components/configure-devices":16,"./components/dashboard":24,"./components/login-form":30,"./components/navigation":32,"./components/page-not-found":34,"./components/platform":38,"./components/platform-charts":36,"./components/platform-manager":37,"./components/platforms":41,"./stores/authorization-store":54,"./stores/devices-store":57,"./stores/platforms-panel-items-store":60,"react":undefined,"react-dom":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/configure-devices":16,"./components/dashboard":25,"./components/login-form":30,"./components/navigation":32,"./components/page-not-found":34,"./components/platform":38,"./components/platform-charts":36,"./components/platform-manager":37,"./components/platforms":41,"./stores/authorization-store":54,"./stores/devices-store":57,"./stores/platforms-panel-items-store":60,"react":undefined,"react-dom":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -297,10 +297,11 @@ var devicesActionCreators = {
             device: device
         });
     },
-    updateRegistry: function updateRegistry(device, attributes) {
+    updateRegistry: function updateRegistry(device, selectedPoints, attributes) {
         dispatcher.dispatch({
             type: ACTION_TYPES.UPDATE_REGISTRY,
             device: device,
+            selectedPoints: selectedPoints,
             attributes: attributes
         });
     },
@@ -2689,989 +2690,6 @@ exports.default = ConfigureDevices;
 },{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":57,"../stores/platforms-store":62,"./base-component":12,"./devices-found":27,"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
-var React = require('react');
-
-var modalActionCreators = require('../action-creators/modal-action-creators');
-
-var ConfirmForm = React.createClass({
-    displayName: 'ConfirmForm',
-
-    _onCancelClick: modalActionCreators.closeModal,
-    _onSubmit: function _onSubmit(e) {
-        e.preventDefault();
-        this.props.onConfirm();
-    },
-    render: function render() {
-
-        var promptText = this.props.promptText;
-
-        if (this.props.hasOwnProperty("preText") && this.props.hasOwnProperty("postText")) {
-            promptText = React.createElement(
-                'b',
-                null,
-                promptText
-            );
-        }
-
-        var confirmButton = this.props.confirmText ? React.createElement(
-            'button',
-            { className: 'button' },
-            this.props.confirmText
-        ) : "";
-
-        var cancelText = this.props.cancelText ? this.props.cancelText : "Cancel";
-
-        return React.createElement(
-            'form',
-            { className: 'confirmation-form', onSubmit: this._onSubmit },
-            React.createElement(
-                'h1',
-                null,
-                this.props.promptTitle
-            ),
-            React.createElement(
-                'p',
-                null,
-                this.props.preText,
-                promptText,
-                this.props.postText
-            ),
-            React.createElement(
-                'div',
-                { className: 'form__actions' },
-                React.createElement(
-                    'button',
-                    {
-                        className: 'button button--secondary',
-                        type: 'button',
-                        onClick: this._onCancelClick,
-                        autoFocus: true
-                    },
-                    cancelText
-                ),
-                confirmButton
-            )
-        );
-    }
-});
-
-module.exports = ConfirmForm;
-
-},{"../action-creators/modal-action-creators":5,"react":undefined}],18:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var Composer = require('./composer');
-var Conversation = require('./conversation');
-
-var Console = React.createClass({
-    displayName: 'Console',
-
-    render: function render() {
-        return React.createElement(
-            'div',
-            { className: 'console' },
-            React.createElement(Conversation, null),
-            React.createElement(Composer, null)
-        );
-    }
-});
-
-module.exports = Console;
-
-},{"./composer":14,"./conversation":23,"react":undefined}],19:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-var Router = require('react-router');
-var controlButtonStore = require('../stores/control-button-store');
-var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
-var OutsideClick = require('react-click-outside');
-
-var ControlButton = React.createClass({
-    displayName: 'ControlButton',
-
-    getInitialState: function getInitialState() {
-        var state = {};
-
-        state.showTaptip = false;
-        state.showTooltip = false;
-        state.deactivateTooltip = false;
-
-        state.selected = this.props.selected === true;
-
-        state.taptipX = 0;
-        state.taptipY = 0;
-        state.tooltipX = 0;
-        state.tooltipY = 0;
-
-        state.tooltipOffsetX = 0;
-        state.tooltipOffsetY = 0;
-        state.taptipOffsetX = 0;
-        state.taptipOffsetY = 0;
-
-        if (this.props.hasOwnProperty("tooltip")) {
-            if (this.props.tooltip.hasOwnProperty("x")) state.tooltipX = this.props.tooltip.x;
-
-            if (this.props.tooltip.hasOwnProperty("y")) state.tooltipY = this.props.tooltip.y;
-
-            if (this.props.tooltip.hasOwnProperty("xOffset")) state.tooltipOffsetX = this.props.tooltip.xOffset;
-
-            if (this.props.tooltip.hasOwnProperty("yOffset")) state.tooltipOffsetY = this.props.tooltip.yOffset;
-        }
-
-        if (this.props.hasOwnProperty("taptip")) {
-            if (this.props.taptip.hasOwnProperty("x")) state.taptipX = this.props.taptip.x;
-
-            if (this.props.taptip.hasOwnProperty("y")) state.taptipY = this.props.taptip.y;
-
-            if (this.props.taptip.hasOwnProperty("xOffset")) state.taptipOffsetX = this.props.taptip.xOffset;
-
-            if (this.props.taptip.hasOwnProperty("yOffset")) state.taptipOffsetY = this.props.taptip.yOffset;
-        }
-
-        return state;
-    },
-    componentDidMount: function componentDidMount() {
-        controlButtonStore.addChangeListener(this._onStoresChange);
-
-        window.addEventListener('keydown', this._hideTaptip);
-    },
-    componentWillUnmount: function componentWillUnmount() {
-        controlButtonStore.removeChangeListener(this._onStoresChange);
-
-        window.removeEventListener('keydown', this._hideTaptip);
-    },
-    componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
-        this.setState({ selected: nextProps.selected === true });
-
-        if (nextProps.selected === true) {
-            this.setState({ showTooltip: false });
-        }
-    },
-    _onStoresChange: function _onStoresChange() {
-
-        var showTaptip = controlButtonStore.getTaptip(this.props.name);
-
-        if (showTaptip !== null) {
-            if (showTaptip !== this.state.showTaptip) {
-                this.setState({ showTaptip: showTaptip });
-            }
-
-            this.setState({ selected: showTaptip === true });
-
-            if (showTaptip === true) {
-                this.setState({ showTooltip: false });
-            } else {
-                if (typeof this.props.closeAction == 'function') {
-                    this.props.closeAction();
-                }
-            }
-        }
-    },
-    handleClickOutside: function handleClickOutside() {
-        if (this.state.showTaptip) {
-            controlButtonActionCreators.hideTaptip(this.props.name);
-        }
-    },
-    _showTaptip: function _showTaptip(evt) {
-
-        if (!this.state.showTaptip) {
-            if (!(this.props.taptip.hasOwnProperty("x") && this.props.taptip.hasOwnProperty("y"))) {
-                this.setState({ taptipX: evt.clientX - this.state.taptipOffsetX });
-                this.setState({ taptipY: evt.clientY - this.state.taptipOffsetY });
-            }
-        }
-
-        controlButtonActionCreators.toggleTaptip(this.props.name);
-    },
-    _hideTaptip: function _hideTaptip(evt) {
-        if (evt.keyCode === 27) {
-            controlButtonActionCreators.hideTaptip(this.props.name);
-        }
-    },
-    _showTooltip: function _showTooltip(evt) {
-        this.setState({ showTooltip: true });
-
-        if (!(this.props.tooltip.hasOwnProperty("x") && this.props.tooltip.hasOwnProperty("y"))) {
-            this.setState({ tooltipX: evt.clientX - this.state.tooltipOffsetX });
-            this.setState({ tooltipY: evt.clientY - this.state.tooltipOffsetY });
-        }
-    },
-    _hideTooltip: function _hideTooltip() {
-        this.setState({ showTooltip: false });
-    },
-    render: function render() {
-
-        var taptip;
-        var tooltip;
-        var clickAction;
-        var selectedStyle;
-
-        var tooltipShow;
-        var tooltipHide;
-
-        var buttonIcon = this.props.icon ? this.props.icon : this.props.fontAwesomeIcon ? React.createElement('i', { className: "fa fa-" + this.props.fontAwesomeIcon }) : React.createElement(
-            'div',
-            { className: this.props.buttonClass },
-            React.createElement(
-                'span',
-                null,
-                this.props.unicodeIcon
-            )
-        );
-
-        if (this.props.staySelected || this.state.selected === true || this.state.showTaptip === true) {
-            selectedStyle = {
-                backgroundColor: "#ccc"
-            };
-        } else if (this.props.tooltip) {
-            var tooltipStyle = {
-                display: this.state.showTooltip ? "block" : "none",
-                position: "absolute",
-                top: this.state.tooltipY + "px",
-                left: this.state.tooltipX + "px"
-            };
-
-            var toolTipClasses = this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer";
-
-            tooltipShow = this._showTooltip;
-            tooltipHide = this._hideTooltip;
-
-            tooltip = React.createElement(
-                'div',
-                { className: toolTipClasses,
-                    style: tooltipStyle },
-                React.createElement(
-                    'div',
-                    { className: 'tooltip_inner' },
-                    React.createElement(
-                        'div',
-                        { className: 'opaque_inner' },
-                        this.props.tooltip.content
-                    )
-                )
-            );
-        }
-
-        if (this.props.taptip) {
-            var taptipStyle = {
-                display: this.state.showTaptip ? "block" : "none",
-                position: "absolute",
-                left: this.state.taptipX + "px",
-                top: this.state.taptipY + "px"
-            };
-
-            if (this.props.taptip.styles) {
-                this.props.taptip.styles.forEach(function (styleToAdd) {
-                    taptipStyle[styleToAdd.key] = styleToAdd.value;
-                });
-            }
-
-            var tapTipClasses = "taptip_outer";
-
-            var taptipBreak = this.props.taptip.hasOwnProperty("break") ? this.props.taptip.break : React.createElement('br', null);
-            var taptipTitle = this.props.taptip.hasOwnProperty("title") ? React.createElement(
-                'h4',
-                null,
-                this.props.taptip.title
-            ) : "";
-
-            var innerStyle = {};
-
-            if (this.props.taptip.hasOwnProperty("padding")) {
-                innerStyle = {
-                    padding: this.props.taptip.padding
-                };
-            }
-
-            taptip = React.createElement(
-                'div',
-                { className: tapTipClasses,
-                    style: taptipStyle },
-                React.createElement(
-                    'div',
-                    { className: 'taptip_inner',
-                        style: innerStyle },
-                    React.createElement(
-                        'div',
-                        { className: 'opaque_inner' },
-                        taptipTitle,
-                        taptipBreak,
-                        this.props.taptip.content
-                    )
-                )
-            );
-
-            clickAction = this.props.taptip.action ? this.props.taptip.action : this._showTaptip;
-        } else if (this.props.clickAction) {
-            clickAction = this.props.clickAction;
-        }
-
-        var controlButtonClass = this.props.controlclass ? this.props.controlclass : "control_button";
-
-        var centering = this.props.hasOwnProperty("nocentering") && this.props.nocentering === true ? "" : "centeredDiv";
-
-        var outerClasses = this.props.hasOwnProperty("floatleft") && this.props.floatleft === true ? "floatLeft" : "inlineBlock";
-
-        return React.createElement(
-            'div',
-            { className: outerClasses },
-            taptip,
-            tooltip,
-            React.createElement(
-                'div',
-                { className: controlButtonClass,
-                    onClick: clickAction,
-                    onMouseEnter: tooltipShow,
-                    onMouseLeave: tooltipHide,
-                    style: selectedStyle },
-                React.createElement(
-                    'div',
-                    { className: centering },
-                    buttonIcon
-                )
-            )
-        );
-    }
-});
-
-module.exports = OutsideClick(ControlButton);
-
-},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":56,"react":undefined,"react-click-outside":undefined,"react-router":undefined}],20:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var ControlButton = require('../control-button');
-var controlButtonActionCreators = require('../../action-creators/control-button-action-creators');
-// var controlButtonStore = require('../../stores/control-button-store');
-
-var EditColumnButton = React.createClass({
-    displayName: 'EditColumnButton',
-
-    getInitialState: function getInitialState() {
-        return getStateFromStores();
-    },
-    _onFindBoxChange: function _onFindBoxChange(e) {
-        var findValue = e.target.value;
-
-        this.setState({ findValue: findValue });
-
-        this.props.onclear(this.props.column);
-    },
-    _onReplaceBoxChange: function _onReplaceBoxChange(e) {
-        var replaceValue = e.target.value;
-
-        this.setState({ replaceValue: replaceValue });
-    },
-    _findNext: function _findNext() {
-
-        if (this.state.findValue === "") {
-            this.props.onclear(this.props.column);
-        } else {
-            this.props.findnext(this.state.findValue, this.props.column);
-        }
-    },
-    _onClearEdit: function _onClearEdit(e) {
-
-        this.props.onclear(this.props.column);
-        this.setState({ findValue: "" });
-        this.setState({ replaceValue: "" });
-        controlButtonActionCreators.hideTaptip("editControlButton" + this.props.column);
-    },
-    _replace: function _replace() {
-        this.props.replace(this.state.findValue, this.state.replaceValue, this.props.column);
-    },
-    _replaceAll: function _replaceAll() {
-        this.props.replaceall(this.state.findValue, this.state.replaceValue, this.props.column);
-    },
-    render: function render() {
-
-        var editBoxContainer = {
-            position: "relative"
-        };
-
-        var inputStyle = {
-            width: "100%",
-            marginLeft: "10px",
-            fontWeight: "normal"
-        };
-
-        var divWidth = {
-            width: "85%"
-        };
-
-        var clearTooltip = {
-            content: "Clear Search",
-            x: 50,
-            y: 0
-        };
-
-        var findTooltip = {
-            content: "Find Next",
-            x: 100,
-            y: 0
-        };
-
-        var replaceTooltip = {
-            content: "Replace",
-            x: 100,
-            y: 80
-        };
-
-        var replaceAllTooltip = {
-            content: "Replace All",
-            x: 100,
-            y: 80
-        };
-
-        var buttonsStyle = {
-            marginTop: "8px"
-        };
-
-        var editBox = React.createElement(
-            'div',
-            { style: editBoxContainer },
-            React.createElement(ControlButton, {
-                fontAwesomeIcon: 'ban',
-                tooltip: clearTooltip,
-                clickAction: this._onClearEdit }),
-            React.createElement(
-                'div',
-                null,
-                React.createElement(
-                    'table',
-                    null,
-                    React.createElement(
-                        'tbody',
-                        null,
-                        React.createElement(
-                            'tr',
-                            null,
-                            React.createElement(
-                                'td',
-                                { colSpan: '2' },
-                                'Find in Column'
-                            )
-                        ),
-                        React.createElement(
-                            'tr',
-                            null,
-                            React.createElement(
-                                'td',
-                                { width: '70%' },
-                                React.createElement('input', {
-                                    type: 'text',
-                                    style: inputStyle,
-                                    onChange: this._onFindBoxChange,
-                                    value: this.state.findValue
-                                })
-                            ),
-                            React.createElement(
-                                'td',
-                                null,
-                                React.createElement(
-                                    'div',
-                                    { style: buttonsStyle },
-                                    React.createElement(ControlButton, {
-                                        fontAwesomeIcon: 'step-forward',
-                                        tooltip: findTooltip,
-                                        clickAction: this._findNext })
-                                )
-                            )
-                        ),
-                        React.createElement(
-                            'tr',
-                            null,
-                            React.createElement(
-                                'td',
-                                { colSpan: '2' },
-                                'Replace With'
-                            )
-                        ),
-                        React.createElement(
-                            'tr',
-                            null,
-                            React.createElement(
-                                'td',
-                                null,
-                                React.createElement('input', {
-                                    type: 'text',
-                                    style: inputStyle,
-                                    onChange: this._onReplaceBoxChange,
-                                    value: this.state.replaceValue
-                                })
-                            ),
-                            React.createElement(
-                                'td',
-                                null,
-                                React.createElement(
-                                    'div',
-                                    { className: 'inlineBlock',
-                                        style: buttonsStyle },
-                                    React.createElement(ControlButton, {
-                                        fontAwesomeIcon: 'step-forward',
-                                        tooltip: replaceTooltip,
-                                        clickAction: this._replace }),
-                                    React.createElement(ControlButton, {
-                                        fontAwesomeIcon: 'fast-forward',
-                                        tooltip: replaceAllTooltip,
-                                        clickAction: this._replaceAll })
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-        );
-
-        var editTaptip = {
-            "title": "Search Column",
-            "content": editBox,
-            "x": 100,
-            "y": 24,
-            "styles": [{ "key": "width", "value": "250px" }]
-        };
-
-        var editTooltip = {
-            "content": this.props.tooltipMsg,
-            "x": 160,
-            "y": 0
-        };
-
-        var columnIndex = this.props.column;
-
-        return React.createElement(ControlButton, {
-            name: "editControlButton" + columnIndex,
-            taptip: editTaptip,
-            tooltip: editTooltip,
-            fontAwesomeIcon: 'pencil',
-            controlclass: 'edit_column_button',
-            closeAction: this.props.onhide });
-    }
-});
-
-function getStateFromStores() {
-    return {
-        findValue: "",
-        replaceValue: ""
-    };
-}
-
-module.exports = EditColumnButton;
-
-},{"../../action-creators/control-button-action-creators":3,"../control-button":19,"react":undefined}],21:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var ControlButton = require('../control-button');
-var EditColumnButton = require('./edit-columns-button');
-var controlButtonActionCreators = require('../../action-creators/control-button-action-creators');
-// var controlButtonStore = require('../../stores/control-button-store');
-
-var EditSelectButton = React.createClass({
-    displayName: 'EditSelectButton',
-
-    componentDidMount: function componentDidMount() {
-        // this.opSelector = document.getElementsByClassName("opSelector")[0];
-        // this.opSelector.selectedIndex = -1;
-    },
-    componentDidUpdate: function componentDidUpdate() {},
-    _onClose: function _onClose() {},
-    _onCloneColumn: function _onCloneColumn() {
-        this.props.onclone(this.props.column);
-        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
-    },
-    _onAddColumn: function _onAddColumn() {
-        this.props.onadd(this.props.column);
-        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
-    },
-    _onRemoveColumn: function _onRemoveColumn() {
-        this.props.onremove(this.props.column);
-        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
-    },
-    _onEditColumn: function _onEditColumn() {
-        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
-        controlButtonActionCreators.toggleTaptip("editControlButton" + this.props.column);
-    },
-    render: function render() {
-
-        var cogBoxContainer = {
-            position: "relative"
-        };
-
-        var cogBox = React.createElement(
-            'div',
-            { style: cogBoxContainer },
-            React.createElement(
-                'ul',
-                {
-                    className: 'opList' },
-                React.createElement(
-                    'li',
-                    {
-                        className: 'opListItem edit',
-                        onClick: this._onEditColumn },
-                    'Find and Replace'
-                ),
-                React.createElement(
-                    'li',
-                    {
-                        className: 'opListItem clone',
-                        onClick: this._onCloneColumn },
-                    'Duplicate'
-                ),
-                React.createElement(
-                    'li',
-                    {
-                        className: 'opListItem add',
-                        onClick: this._onAddColumn },
-                    'Add'
-                ),
-                React.createElement(
-                    'li',
-                    {
-                        className: 'opListItem remove',
-                        onClick: this._onRemoveColumn },
-                    'Remove'
-                )
-            )
-        );
-
-        var cogTaptip = {
-            "content": cogBox,
-            "x": 100,
-            "y": 24,
-            "styles": [{ "key": "width", "value": "120px" }],
-            "break": "",
-            "padding": "0px"
-        };
-
-        var columnIndex = this.props.column;
-
-        var cogIcon = React.createElement('i', { className: "fa fa-cog " });
-
-        return React.createElement(ControlButton, {
-            name: "editSelectButton" + columnIndex,
-            taptip: cogTaptip,
-            controlclass: 'cog_button',
-            fontAwesomeIcon: 'pencil',
-            closeAction: this._onClose });
-    }
-});
-
-module.exports = EditSelectButton;
-
-},{"../../action-creators/control-button-action-creators":3,"../control-button":19,"./edit-columns-button":20,"react":undefined}],22:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var ControlButton = require('../control-button');
-// var controlButtonStore = require('../../stores/control-button-store');
-
-var FilterPointsButton = React.createClass({
-    displayName: 'FilterPointsButton',
-
-    getInitialState: function getInitialState() {
-        return getStateFromStores();
-    },
-    // componentDidMount: function () {
-    //     controlButtonStore.addChangeListener(this._onStoresChange);
-    // },
-    // componentWillUnmount: function () {
-    //     controlButtonStore.removeChangeListener(this._onStoresChange);
-    // },
-    // _onStoresChange: function () {
-
-    //     if (controlButtonStore.getClearButton(this.props.name))
-    //     {
-    //         this.setState({ filterValue: "" });
-    //     }
-    // },
-    _onFilterBoxChange: function _onFilterBoxChange(e) {
-        var filterValue = e.target.value;
-
-        this.setState({ filterValue: filterValue });
-
-        if (filterValue !== "") {
-            this.props.onfilter(e.target.value);
-        } else {
-            this.props.onclear();
-        }
-    },
-    _onClearFilter: function _onClearFilter(e) {
-        this.setState({ filterValue: "" });
-        this.props.onclear();
-    },
-    render: function render() {
-
-        var filterBoxContainer = {
-            position: "relative"
-        };
-
-        var inputStyle = {
-            width: "100%",
-            marginLeft: "10px",
-            fontWeight: "normal"
-        };
-
-        var divWidth = {
-            width: "85%"
-        };
-
-        var clearTooltip = {
-            content: "Clear Filter",
-            "x": 80,
-            "y": 0
-        };
-
-        var filterBox = React.createElement(
-            'div',
-            { style: filterBoxContainer },
-            React.createElement(ControlButton, {
-                fontAwesomeIcon: 'ban',
-                tooltip: clearTooltip,
-                clickAction: this._onClearFilter }),
-            React.createElement(
-                'div',
-                { className: 'inlineBlock' },
-                React.createElement(
-                    'div',
-                    { className: 'inlineBlock' },
-                    React.createElement('span', { className: 'fa fa-filter' })
-                ),
-                React.createElement(
-                    'div',
-                    { className: 'inlineBlock', style: divWidth },
-                    React.createElement('input', {
-                        type: 'search',
-                        style: inputStyle,
-                        onChange: this._onFilterBoxChange,
-                        value: this.state.filterValue
-                    })
-                )
-            )
-        );
-
-        var filterTaptip = {
-            "title": "Filter Points",
-            "content": filterBox,
-            "xOffset": 60,
-            "yOffset": 120,
-            "styles": [{ "key": "width", "value": "200px" }]
-        };
-
-        var filterIcon = React.createElement('i', { className: 'fa fa-filter' });
-
-        var holdSelect = this.state.filterValue !== "";
-
-        return React.createElement(ControlButton, {
-            name: "filterControlButton",
-            taptip: filterTaptip,
-            tooltip: this.props.tooltipMsg,
-            controlclass: 'filter_button',
-            staySelected: holdSelect,
-            icon: filterIcon });
-    }
-});
-
-function getStateFromStores() {
-    return {
-        filterValue: ""
-    };
-}
-
-module.exports = FilterPointsButton;
-
-},{"../control-button":19,"react":undefined}],23:[function(require,module,exports){
-'use strict';
-
-var $ = require('jquery');
-var React = require('react');
-var ReactDOM = require('react-dom');
-
-var Exchange = require('./exchange');
-var consoleStore = require('../stores/console-store');
-
-var Conversation = React.createClass({
-    displayName: 'Conversation',
-
-    getInitialState: getStateFromStores,
-    componentDidMount: function componentDidMount() {
-        var $conversation = $(ReactDOM.findDOMNode(this.refs.conversation));
-
-        if ($conversation.prop('scrollHeight') > $conversation.height()) {
-            $conversation.scrollTop($conversation.prop('scrollHeight'));
-        }
-
-        consoleStore.addChangeListener(this._onChange);
-    },
-    componentDidUpdate: function componentDidUpdate() {
-        var $conversation = $(ReactDOM.findDOMNode(this.refs.conversation));
-
-        $conversation.stop().animate({ scrollTop: $conversation.prop('scrollHeight') }, 500);
-    },
-    componentWillUnmount: function componentWillUnmount() {
-        consoleStore.removeChangeListener(this._onChange);
-    },
-    _onChange: function _onChange() {
-        this.setState(getStateFromStores());
-    },
-    render: function render() {
-        return React.createElement(
-            'div',
-            { ref: 'conversation', className: 'conversation' },
-            this.state.exchanges.map(function (exchange, index) {
-                return React.createElement(Exchange, { key: index, exchange: exchange });
-            })
-        );
-    }
-});
-
-function getStateFromStores() {
-    return { exchanges: consoleStore.getExchanges() };
-}
-
-module.exports = Conversation;
-
-},{"../stores/console-store":55,"./exchange":29,"jquery":undefined,"react":undefined,"react-dom":undefined}],24:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-var Router = require('react-router');
-var platformChartStore = require('../stores/platform-chart-store');
-
-var PlatformChart = require('./platform-chart');
-
-var Dashboard = React.createClass({
-    displayName: 'Dashboard',
-
-    getInitialState: function getInitialState() {
-        var state = getStateFromStores();
-        return state;
-    },
-    componentDidMount: function componentDidMount() {
-        platformChartStore.addChangeListener(this._onStoreChange);
-    },
-    componentWillUnmount: function componentWillUnmount() {
-        platformChartStore.removeChangeListener(this._onStoreChange);
-    },
-    _onStoreChange: function _onStoreChange() {
-        this.setState(getStateFromStores());
-    },
-    render: function render() {
-
-        var pinnedCharts = this.state.platformCharts;
-
-        var platformCharts = [];
-
-        pinnedCharts.forEach(function (pinnedChart) {
-            if (pinnedChart.data.length > 0) {
-                var platformChart = React.createElement(PlatformChart, { key: pinnedChart.chartKey, chart: pinnedChart, chartKey: pinnedChart.chartKey, hideControls: true });
-                platformCharts.push(platformChart);
-            }
-        });
-
-        if (pinnedCharts.length === 0) {
-            platformCharts = React.createElement(
-                'p',
-                { className: 'empty-help' },
-                'Pin a chart to have it appear on the dashboard'
-            );
-        }
-
-        return React.createElement(
-            'div',
-            { className: 'view' },
-            React.createElement(
-                'h2',
-                null,
-                'Dashboard'
-            ),
-            platformCharts
-        );
-    }
-});
-
-function getStateFromStores() {
-    return {
-        platformCharts: platformChartStore.getPinnedCharts()
-    };
-}
-
-module.exports = Dashboard;
-
-},{"../stores/platform-chart-store":59,"./platform-chart":35,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var modalActionCreators = require('../action-creators/modal-action-creators');
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-
-var RegisterPlatformForm = React.createClass({
-    displayName: 'RegisterPlatformForm',
-
-    getInitialState: function getInitialState() {
-        return {};
-    },
-    _onCancelClick: modalActionCreators.closeModal,
-    _onSubmit: function _onSubmit(e) {
-        e.preventDefault();
-        platformManagerActionCreators.deregisterPlatform(this.props.platform);
-    },
-    render: function render() {
-        return React.createElement(
-            'form',
-            { className: 'register-platform-form', onSubmit: this._onSubmit },
-            React.createElement(
-                'h1',
-                null,
-                'Deregister platform'
-            ),
-            React.createElement(
-                'p',
-                null,
-                'Deregister ',
-                React.createElement(
-                    'strong',
-                    null,
-                    this.props.platform.name
-                ),
-                '?'
-            ),
-            React.createElement(
-                'div',
-                { className: 'form__actions' },
-                React.createElement(
-                    'button',
-                    {
-                        className: 'button button--secondary',
-                        type: 'button',
-                        onClick: this._onCancelClick,
-                        autoFocus: true
-                    },
-                    'Cancel'
-                ),
-                React.createElement(
-                    'button',
-                    { className: 'button' },
-                    'Deregister'
-                )
-            )
-        );
-    }
-});
-
-module.exports = RegisterPlatformForm;
-
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"react":undefined}],26:[function(require,module,exports){
-'use strict';
-
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
@@ -3711,21 +2729,21 @@ var EditColumnButton = require('./control_buttons/edit-columns-button');
 var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
-var DeviceConfiguration = function (_BaseComponent) {
-    _inherits(DeviceConfiguration, _BaseComponent);
+var ConfigureRegistry = function (_BaseComponent) {
+    _inherits(ConfigureRegistry, _BaseComponent);
 
-    function DeviceConfiguration(props) {
-        _classCallCheck(this, DeviceConfiguration);
+    function ConfigureRegistry(props) {
+        _classCallCheck(this, ConfigureRegistry);
 
-        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DeviceConfiguration).call(this, props));
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(ConfigureRegistry).call(this, props));
 
-        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_showProps");
+        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_showProps", "_handleRowClick");
 
         _this.state = _this._resetState(_this.props.device);
         return _this;
     }
 
-    _createClass(DeviceConfiguration, [{
+    _createClass(ConfigureRegistry, [{
         key: 'componentDidMount',
         value: function componentDidMount() {
             // platformsStore.addChangeListener(this._onStoresChange);
@@ -3788,6 +2806,8 @@ var DeviceConfiguration = function (_BaseComponent) {
             state.columnNames = [];
             state.pointNames = [];
             state.filteredList = [];
+
+            state.selectedPoints = devicesStore.getSelectedPoints(device);
 
             if (state.registryValues.length > 0) {
                 state.registryHeader = getRegistryHeader(state.registryValues[0]);
@@ -4076,7 +3096,10 @@ var DeviceConfiguration = function (_BaseComponent) {
     }, {
         key: '_showProps',
         value: function _showProps(attributesList) {
-            modalActionCreators.openModal(_react2.default.createElement(_editPointForm2.default, { device: this.props.device, attributes: attributesList }));
+            modalActionCreators.openModal(_react2.default.createElement(_editPointForm2.default, {
+                device: this.props.device,
+                selectedPoints: this.state.selectedPoints,
+                attributes: attributesList }));
         }
     }, {
         key: '_updateCell',
@@ -4256,6 +3279,30 @@ var DeviceConfiguration = function (_BaseComponent) {
             modalActionCreators.openModal(_react2.default.createElement(_configDeviceForm2.default, { device: this.props.device }));
         }
     }, {
+        key: '_handleRowClick',
+        value: function _handleRowClick(evt) {
+
+            if (evt.target.nodeName !== "INPUT" && evt.target.nodeName !== "I" && evt.target.nodeName !== "DIV") {
+
+                var target = evt.target.nodeName === "TD" ? evt.target.parentNode : evt.target;
+
+                var rowIndex = target.dataset.row;
+
+                var pointKey = this.state.registryValues[rowIndex][0].value;
+                var selectedPoints = this.state.selectedPoints;
+
+                var index = selectedPoints.indexOf(pointKey);
+
+                if (index > -1) {
+                    selectedPoints.splice(index, 1);
+                } else {
+                    selectedPoints.push(pointKey);
+                }
+
+                this.setState({ selectedPoints: selectedPoints });
+            }
+        }
+    }, {
         key: 'render',
         value: function render() {
 
@@ -4306,7 +3353,7 @@ var DeviceConfiguration = function (_BaseComponent) {
                 attributesList.forEach(function (item, columnIndex) {
 
                     if (item.keyProp) {
-                        var selectedStyle = item.selected ? { backgroundColor: "#F5B49D" } : {};
+                        var selectedCellStyle = item.selected ? { backgroundColor: "#F5B49D" } : {};
                         var focusedCell = this.state.selectedCellColumn === columnIndex && this.state.selectedCellRow === rowIndex ? "focusedCell" : "";
 
                         var itemCell = columnIndex === 0 && !item.editable ? _react2.default.createElement(
@@ -4324,7 +3371,7 @@ var DeviceConfiguration = function (_BaseComponent) {
                                 id: this.state.registryValues[rowIndex][columnIndex].key + "-" + columnIndex + "-" + rowIndex,
                                 type: 'text',
                                 className: focusedCell,
-                                style: selectedStyle,
+                                style: selectedCellStyle,
                                 onChange: this._updateCell.bind(this, rowIndex, columnIndex),
                                 value: this.state.registryValues[rowIndex][columnIndex].value })
                         );
@@ -4344,9 +3391,14 @@ var DeviceConfiguration = function (_BaseComponent) {
                     )
                 ));
 
+                var selectedRowClass = this.state.selectedPoints.indexOf(this.state.registryValues[rowIndex][0].value) > -1 ? "selectedRegistryPoint" : "";
+
                 return _react2.default.createElement(
                     'tr',
-                    { key: "registry-row-" + rowIndex },
+                    { key: "registry-row-" + rowIndex,
+                        'data-row': rowIndex,
+                        onClick: this._handleRowClick,
+                        className: selectedRowClass },
                     _react2.default.createElement(
                         'td',
                         { key: "checkbox-" + rowIndex },
@@ -4395,12 +3447,11 @@ var DeviceConfiguration = function (_BaseComponent) {
                         'div',
                         { className: 'th-inner zztop' },
                         item,
-                        ' ',
                         filterButton,
-                        ' ',
                         addPointButton,
-                        ' ',
-                        removePointsButton
+                        removePointsButton,
+                        editSelectButton,
+                        editColumnButton
                     )
                 ) : _react2.default.createElement(
                     'th',
@@ -4516,7 +3567,7 @@ var DeviceConfiguration = function (_BaseComponent) {
         }
     }]);
 
-    return DeviceConfiguration;
+    return ConfigureRegistry;
 }(_baseComponent2.default);
 
 ;
@@ -4556,9 +3607,992 @@ function initializeList(registryConfig, keyPropsList) {
     });
 }
 
-exports.default = DeviceConfiguration;
+exports.default = ConfigureRegistry;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":57,"./base-component":12,"./config-device-form":15,"./confirm-form":17,"./control-button":19,"./control_buttons/edit-columns-button":20,"./control_buttons/edit-select-button":21,"./control_buttons/filter-points-button":22,"./edit-point-form":28,"react":undefined}],27:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":57,"./base-component":12,"./config-device-form":15,"./confirm-form":18,"./control-button":20,"./control_buttons/edit-columns-button":21,"./control_buttons/edit-select-button":22,"./control_buttons/filter-points-button":23,"./edit-point-form":28,"react":undefined}],18:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var modalActionCreators = require('../action-creators/modal-action-creators');
+
+var ConfirmForm = React.createClass({
+    displayName: 'ConfirmForm',
+
+    _onCancelClick: modalActionCreators.closeModal,
+    _onSubmit: function _onSubmit(e) {
+        e.preventDefault();
+        this.props.onConfirm();
+    },
+    render: function render() {
+
+        var promptText = this.props.promptText;
+
+        if (this.props.hasOwnProperty("preText") && this.props.hasOwnProperty("postText")) {
+            promptText = React.createElement(
+                'b',
+                null,
+                promptText
+            );
+        }
+
+        var confirmButton = this.props.confirmText ? React.createElement(
+            'button',
+            { className: 'button' },
+            this.props.confirmText
+        ) : "";
+
+        var cancelText = this.props.cancelText ? this.props.cancelText : "Cancel";
+
+        return React.createElement(
+            'form',
+            { className: 'confirmation-form', onSubmit: this._onSubmit },
+            React.createElement(
+                'h1',
+                null,
+                this.props.promptTitle
+            ),
+            React.createElement(
+                'p',
+                null,
+                this.props.preText,
+                promptText,
+                this.props.postText
+            ),
+            React.createElement(
+                'div',
+                { className: 'form__actions' },
+                React.createElement(
+                    'button',
+                    {
+                        className: 'button button--secondary',
+                        type: 'button',
+                        onClick: this._onCancelClick,
+                        autoFocus: true
+                    },
+                    cancelText
+                ),
+                confirmButton
+            )
+        );
+    }
+});
+
+module.exports = ConfirmForm;
+
+},{"../action-creators/modal-action-creators":5,"react":undefined}],19:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var Composer = require('./composer');
+var Conversation = require('./conversation');
+
+var Console = React.createClass({
+    displayName: 'Console',
+
+    render: function render() {
+        return React.createElement(
+            'div',
+            { className: 'console' },
+            React.createElement(Conversation, null),
+            React.createElement(Composer, null)
+        );
+    }
+});
+
+module.exports = Console;
+
+},{"./composer":14,"./conversation":24,"react":undefined}],20:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+var controlButtonStore = require('../stores/control-button-store');
+var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
+var OutsideClick = require('react-click-outside');
+
+var ControlButton = React.createClass({
+    displayName: 'ControlButton',
+
+    getInitialState: function getInitialState() {
+        var state = {};
+
+        state.showTaptip = false;
+        state.showTooltip = false;
+        state.deactivateTooltip = false;
+
+        state.selected = this.props.selected === true;
+
+        state.taptipX = 0;
+        state.taptipY = 0;
+        state.tooltipX = 0;
+        state.tooltipY = 0;
+
+        state.tooltipOffsetX = 0;
+        state.tooltipOffsetY = 0;
+        state.taptipOffsetX = 0;
+        state.taptipOffsetY = 0;
+
+        if (this.props.hasOwnProperty("tooltip")) {
+            if (this.props.tooltip.hasOwnProperty("x")) state.tooltipX = this.props.tooltip.x;
+
+            if (this.props.tooltip.hasOwnProperty("y")) state.tooltipY = this.props.tooltip.y;
+
+            if (this.props.tooltip.hasOwnProperty("xOffset")) state.tooltipOffsetX = this.props.tooltip.xOffset;
+
+            if (this.props.tooltip.hasOwnProperty("yOffset")) state.tooltipOffsetY = this.props.tooltip.yOffset;
+        }
+
+        if (this.props.hasOwnProperty("taptip")) {
+            if (this.props.taptip.hasOwnProperty("x")) state.taptipX = this.props.taptip.x;
+
+            if (this.props.taptip.hasOwnProperty("y")) state.taptipY = this.props.taptip.y;
+
+            if (this.props.taptip.hasOwnProperty("xOffset")) state.taptipOffsetX = this.props.taptip.xOffset;
+
+            if (this.props.taptip.hasOwnProperty("yOffset")) state.taptipOffsetY = this.props.taptip.yOffset;
+        }
+
+        return state;
+    },
+    componentDidMount: function componentDidMount() {
+        controlButtonStore.addChangeListener(this._onStoresChange);
+
+        window.addEventListener('keydown', this._hideTaptip);
+    },
+    componentWillUnmount: function componentWillUnmount() {
+        controlButtonStore.removeChangeListener(this._onStoresChange);
+
+        window.removeEventListener('keydown', this._hideTaptip);
+    },
+    componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
+        this.setState({ selected: nextProps.selected === true });
+
+        if (nextProps.selected === true) {
+            this.setState({ showTooltip: false });
+        }
+    },
+    _onStoresChange: function _onStoresChange() {
+
+        var showTaptip = controlButtonStore.getTaptip(this.props.name);
+
+        if (showTaptip !== null) {
+            if (showTaptip !== this.state.showTaptip) {
+                this.setState({ showTaptip: showTaptip });
+            }
+
+            this.setState({ selected: showTaptip === true });
+
+            if (showTaptip === true) {
+                this.setState({ showTooltip: false });
+            } else {
+                if (typeof this.props.closeAction == 'function') {
+                    this.props.closeAction();
+                }
+            }
+        }
+    },
+    handleClickOutside: function handleClickOutside() {
+        if (this.state.showTaptip) {
+            controlButtonActionCreators.hideTaptip(this.props.name);
+        }
+    },
+    _showTaptip: function _showTaptip(evt) {
+
+        if (!this.state.showTaptip) {
+            if (!(this.props.taptip.hasOwnProperty("x") && this.props.taptip.hasOwnProperty("y"))) {
+                this.setState({ taptipX: evt.clientX - this.state.taptipOffsetX });
+                this.setState({ taptipY: evt.clientY - this.state.taptipOffsetY });
+            }
+        }
+
+        controlButtonActionCreators.toggleTaptip(this.props.name);
+    },
+    _hideTaptip: function _hideTaptip(evt) {
+        if (evt.keyCode === 27) {
+            controlButtonActionCreators.hideTaptip(this.props.name);
+        }
+    },
+    _showTooltip: function _showTooltip(evt) {
+        this.setState({ showTooltip: true });
+
+        if (!(this.props.tooltip.hasOwnProperty("x") && this.props.tooltip.hasOwnProperty("y"))) {
+            this.setState({ tooltipX: evt.clientX - this.state.tooltipOffsetX });
+            this.setState({ tooltipY: evt.clientY - this.state.tooltipOffsetY });
+        }
+    },
+    _hideTooltip: function _hideTooltip() {
+        this.setState({ showTooltip: false });
+    },
+    render: function render() {
+
+        var taptip;
+        var tooltip;
+        var clickAction;
+        var selectedStyle;
+
+        var tooltipShow;
+        var tooltipHide;
+
+        var buttonIcon = this.props.icon ? this.props.icon : this.props.fontAwesomeIcon ? React.createElement('i', { className: "fa fa-" + this.props.fontAwesomeIcon }) : React.createElement(
+            'div',
+            { className: this.props.buttonClass },
+            React.createElement(
+                'span',
+                null,
+                this.props.unicodeIcon
+            )
+        );
+
+        if (this.props.staySelected || this.state.selected === true || this.state.showTaptip === true) {
+            selectedStyle = {
+                backgroundColor: "#ccc"
+            };
+        } else if (this.props.tooltip) {
+            var tooltipStyle = {
+                display: this.state.showTooltip ? "block" : "none",
+                position: "absolute",
+                top: this.state.tooltipY + "px",
+                left: this.state.tooltipX + "px"
+            };
+
+            var toolTipClasses = this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer";
+
+            tooltipShow = this._showTooltip;
+            tooltipHide = this._hideTooltip;
+
+            tooltip = React.createElement(
+                'div',
+                { className: toolTipClasses,
+                    style: tooltipStyle },
+                React.createElement(
+                    'div',
+                    { className: 'tooltip_inner' },
+                    React.createElement(
+                        'div',
+                        { className: 'opaque_inner' },
+                        this.props.tooltip.content
+                    )
+                )
+            );
+        }
+
+        if (this.props.taptip) {
+            var taptipStyle = {
+                display: this.state.showTaptip ? "block" : "none",
+                position: "absolute",
+                left: this.state.taptipX + "px",
+                top: this.state.taptipY + "px"
+            };
+
+            if (this.props.taptip.styles) {
+                this.props.taptip.styles.forEach(function (styleToAdd) {
+                    taptipStyle[styleToAdd.key] = styleToAdd.value;
+                });
+            }
+
+            var tapTipClasses = "taptip_outer";
+
+            var taptipBreak = this.props.taptip.hasOwnProperty("break") ? this.props.taptip.break : React.createElement('br', null);
+            var taptipTitle = this.props.taptip.hasOwnProperty("title") ? React.createElement(
+                'h4',
+                null,
+                this.props.taptip.title
+            ) : "";
+
+            var innerStyle = {};
+
+            if (this.props.taptip.hasOwnProperty("padding")) {
+                innerStyle = {
+                    padding: this.props.taptip.padding
+                };
+            }
+
+            taptip = React.createElement(
+                'div',
+                { className: tapTipClasses,
+                    style: taptipStyle },
+                React.createElement(
+                    'div',
+                    { className: 'taptip_inner',
+                        style: innerStyle },
+                    React.createElement(
+                        'div',
+                        { className: 'opaque_inner' },
+                        taptipTitle,
+                        taptipBreak,
+                        this.props.taptip.content
+                    )
+                )
+            );
+
+            clickAction = this.props.taptip.action ? this.props.taptip.action : this._showTaptip;
+        } else if (this.props.clickAction) {
+            clickAction = this.props.clickAction;
+        }
+
+        var controlButtonClass = this.props.controlclass ? this.props.controlclass : "control_button";
+
+        var centering = this.props.hasOwnProperty("nocentering") && this.props.nocentering === true ? "" : "centeredDiv";
+
+        var outerClasses = this.props.hasOwnProperty("floatleft") && this.props.floatleft === true ? "floatLeft" : "inlineBlock";
+
+        return React.createElement(
+            'div',
+            { className: outerClasses },
+            taptip,
+            tooltip,
+            React.createElement(
+                'div',
+                { className: controlButtonClass,
+                    onClick: clickAction,
+                    onMouseEnter: tooltipShow,
+                    onMouseLeave: tooltipHide,
+                    style: selectedStyle },
+                React.createElement(
+                    'div',
+                    { className: centering },
+                    buttonIcon
+                )
+            )
+        );
+    }
+});
+
+module.exports = OutsideClick(ControlButton);
+
+},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":56,"react":undefined,"react-click-outside":undefined,"react-router":undefined}],21:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var ControlButton = require('../control-button');
+var controlButtonActionCreators = require('../../action-creators/control-button-action-creators');
+// var controlButtonStore = require('../../stores/control-button-store');
+
+var EditColumnButton = React.createClass({
+    displayName: 'EditColumnButton',
+
+    getInitialState: function getInitialState() {
+        return getStateFromStores();
+    },
+    _onFindBoxChange: function _onFindBoxChange(e) {
+        var findValue = e.target.value;
+
+        this.setState({ findValue: findValue });
+
+        this.props.onclear(this.props.column);
+    },
+    _onReplaceBoxChange: function _onReplaceBoxChange(e) {
+        var replaceValue = e.target.value;
+
+        this.setState({ replaceValue: replaceValue });
+    },
+    _findNext: function _findNext() {
+
+        if (this.state.findValue === "") {
+            this.props.onclear(this.props.column);
+        } else {
+            this.props.findnext(this.state.findValue, this.props.column);
+        }
+    },
+    _onClearEdit: function _onClearEdit(e) {
+
+        this.props.onclear(this.props.column);
+        this.setState({ findValue: "" });
+        this.setState({ replaceValue: "" });
+        controlButtonActionCreators.hideTaptip("editControlButton" + this.props.column);
+    },
+    _replace: function _replace() {
+        this.props.replace(this.state.findValue, this.state.replaceValue, this.props.column);
+    },
+    _replaceAll: function _replaceAll() {
+        this.props.replaceall(this.state.findValue, this.state.replaceValue, this.props.column);
+    },
+    render: function render() {
+
+        var editBoxContainer = {
+            position: "relative"
+        };
+
+        var inputStyle = {
+            width: "100%",
+            marginLeft: "10px",
+            fontWeight: "normal"
+        };
+
+        var divWidth = {
+            width: "85%"
+        };
+
+        var clearTooltip = {
+            content: "Clear Search",
+            x: 50,
+            y: 0
+        };
+
+        var findTooltip = {
+            content: "Find Next",
+            x: 100,
+            y: 0
+        };
+
+        var replaceTooltip = {
+            content: "Replace",
+            x: 100,
+            y: 80
+        };
+
+        var replaceAllTooltip = {
+            content: "Replace All",
+            x: 100,
+            y: 80
+        };
+
+        var buttonsStyle = {
+            marginTop: "8px"
+        };
+
+        var editBox = React.createElement(
+            'div',
+            { style: editBoxContainer },
+            React.createElement(ControlButton, {
+                fontAwesomeIcon: 'ban',
+                tooltip: clearTooltip,
+                clickAction: this._onClearEdit }),
+            React.createElement(
+                'div',
+                null,
+                React.createElement(
+                    'table',
+                    null,
+                    React.createElement(
+                        'tbody',
+                        null,
+                        React.createElement(
+                            'tr',
+                            null,
+                            React.createElement(
+                                'td',
+                                { colSpan: '2' },
+                                'Find in Column'
+                            )
+                        ),
+                        React.createElement(
+                            'tr',
+                            null,
+                            React.createElement(
+                                'td',
+                                { width: '70%' },
+                                React.createElement('input', {
+                                    type: 'text',
+                                    style: inputStyle,
+                                    onChange: this._onFindBoxChange,
+                                    value: this.state.findValue
+                                })
+                            ),
+                            React.createElement(
+                                'td',
+                                null,
+                                React.createElement(
+                                    'div',
+                                    { style: buttonsStyle },
+                                    React.createElement(ControlButton, {
+                                        fontAwesomeIcon: 'step-forward',
+                                        tooltip: findTooltip,
+                                        clickAction: this._findNext })
+                                )
+                            )
+                        ),
+                        React.createElement(
+                            'tr',
+                            null,
+                            React.createElement(
+                                'td',
+                                { colSpan: '2' },
+                                'Replace With'
+                            )
+                        ),
+                        React.createElement(
+                            'tr',
+                            null,
+                            React.createElement(
+                                'td',
+                                null,
+                                React.createElement('input', {
+                                    type: 'text',
+                                    style: inputStyle,
+                                    onChange: this._onReplaceBoxChange,
+                                    value: this.state.replaceValue
+                                })
+                            ),
+                            React.createElement(
+                                'td',
+                                null,
+                                React.createElement(
+                                    'div',
+                                    { className: 'inlineBlock',
+                                        style: buttonsStyle },
+                                    React.createElement(ControlButton, {
+                                        fontAwesomeIcon: 'step-forward',
+                                        tooltip: replaceTooltip,
+                                        clickAction: this._replace }),
+                                    React.createElement(ControlButton, {
+                                        fontAwesomeIcon: 'fast-forward',
+                                        tooltip: replaceAllTooltip,
+                                        clickAction: this._replaceAll })
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        );
+
+        var editTaptip = {
+            "title": "Search Column",
+            "content": editBox,
+            "x": 100,
+            "y": 24,
+            "styles": [{ "key": "width", "value": "250px" }]
+        };
+
+        var editTooltip = {
+            "content": this.props.tooltipMsg,
+            "x": 160,
+            "y": 0
+        };
+
+        var columnIndex = this.props.column;
+
+        return React.createElement(ControlButton, {
+            name: "editControlButton" + columnIndex,
+            taptip: editTaptip,
+            tooltip: editTooltip,
+            fontAwesomeIcon: 'pencil',
+            controlclass: 'edit_column_button',
+            closeAction: this.props.onhide });
+    }
+});
+
+function getStateFromStores() {
+    return {
+        findValue: "",
+        replaceValue: ""
+    };
+}
+
+module.exports = EditColumnButton;
+
+},{"../../action-creators/control-button-action-creators":3,"../control-button":20,"react":undefined}],22:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var ControlButton = require('../control-button');
+var EditColumnButton = require('./edit-columns-button');
+var controlButtonActionCreators = require('../../action-creators/control-button-action-creators');
+// var controlButtonStore = require('../../stores/control-button-store');
+
+var EditSelectButton = React.createClass({
+    displayName: 'EditSelectButton',
+
+    componentDidMount: function componentDidMount() {
+        // this.opSelector = document.getElementsByClassName("opSelector")[0];
+        // this.opSelector.selectedIndex = -1;
+    },
+    componentDidUpdate: function componentDidUpdate() {},
+    _onClose: function _onClose() {},
+    _onCloneColumn: function _onCloneColumn() {
+        this.props.onclone(this.props.column);
+        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
+    },
+    _onAddColumn: function _onAddColumn() {
+        this.props.onadd(this.props.column);
+        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
+    },
+    _onRemoveColumn: function _onRemoveColumn() {
+        this.props.onremove(this.props.column);
+        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
+    },
+    _onEditColumn: function _onEditColumn() {
+        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
+        controlButtonActionCreators.toggleTaptip("editControlButton" + this.props.column);
+    },
+    render: function render() {
+
+        var cogBoxContainer = {
+            position: "relative"
+        };
+
+        var cogBox = React.createElement(
+            'div',
+            { style: cogBoxContainer },
+            React.createElement(
+                'ul',
+                {
+                    className: 'opList' },
+                React.createElement(
+                    'li',
+                    {
+                        className: 'opListItem edit',
+                        onClick: this._onEditColumn },
+                    'Find and Replace'
+                ),
+                React.createElement(
+                    'li',
+                    {
+                        className: 'opListItem clone',
+                        onClick: this._onCloneColumn },
+                    'Duplicate'
+                ),
+                React.createElement(
+                    'li',
+                    {
+                        className: 'opListItem add',
+                        onClick: this._onAddColumn },
+                    'Add'
+                ),
+                React.createElement(
+                    'li',
+                    {
+                        className: 'opListItem remove',
+                        onClick: this._onRemoveColumn },
+                    'Remove'
+                )
+            )
+        );
+
+        var cogTaptip = {
+            "content": cogBox,
+            "x": 100,
+            "y": 24,
+            "styles": [{ "key": "width", "value": "120px" }],
+            "break": "",
+            "padding": "0px"
+        };
+
+        var columnIndex = this.props.column;
+
+        var cogIcon = React.createElement('i', { className: "fa fa-cog " });
+
+        return React.createElement(ControlButton, {
+            name: "editSelectButton" + columnIndex,
+            taptip: cogTaptip,
+            controlclass: 'cog_button',
+            fontAwesomeIcon: 'pencil',
+            closeAction: this._onClose });
+    }
+});
+
+module.exports = EditSelectButton;
+
+},{"../../action-creators/control-button-action-creators":3,"../control-button":20,"./edit-columns-button":21,"react":undefined}],23:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var ControlButton = require('../control-button');
+// var controlButtonStore = require('../../stores/control-button-store');
+
+var FilterPointsButton = React.createClass({
+    displayName: 'FilterPointsButton',
+
+    getInitialState: function getInitialState() {
+        return getStateFromStores();
+    },
+    // componentDidMount: function () {
+    //     controlButtonStore.addChangeListener(this._onStoresChange);
+    // },
+    // componentWillUnmount: function () {
+    //     controlButtonStore.removeChangeListener(this._onStoresChange);
+    // },
+    // _onStoresChange: function () {
+
+    //     if (controlButtonStore.getClearButton(this.props.name))
+    //     {
+    //         this.setState({ filterValue: "" });
+    //     }
+    // },
+    _onFilterBoxChange: function _onFilterBoxChange(e) {
+        var filterValue = e.target.value;
+
+        this.setState({ filterValue: filterValue });
+
+        if (filterValue !== "") {
+            this.props.onfilter(e.target.value);
+        } else {
+            this.props.onclear();
+        }
+    },
+    _onClearFilter: function _onClearFilter(e) {
+        this.setState({ filterValue: "" });
+        this.props.onclear();
+    },
+    render: function render() {
+
+        var filterBoxContainer = {
+            position: "relative"
+        };
+
+        var inputStyle = {
+            width: "100%",
+            marginLeft: "10px",
+            fontWeight: "normal"
+        };
+
+        var divWidth = {
+            width: "85%"
+        };
+
+        var clearTooltip = {
+            content: "Clear Filter",
+            "x": 80,
+            "y": 0
+        };
+
+        var filterBox = React.createElement(
+            'div',
+            { style: filterBoxContainer },
+            React.createElement(ControlButton, {
+                fontAwesomeIcon: 'ban',
+                tooltip: clearTooltip,
+                clickAction: this._onClearFilter }),
+            React.createElement(
+                'div',
+                { className: 'inlineBlock' },
+                React.createElement(
+                    'div',
+                    { className: 'inlineBlock' },
+                    React.createElement('span', { className: 'fa fa-filter' })
+                ),
+                React.createElement(
+                    'div',
+                    { className: 'inlineBlock', style: divWidth },
+                    React.createElement('input', {
+                        type: 'search',
+                        style: inputStyle,
+                        onChange: this._onFilterBoxChange,
+                        value: this.state.filterValue
+                    })
+                )
+            )
+        );
+
+        var filterTaptip = {
+            "title": "Filter Points",
+            "content": filterBox,
+            "xOffset": 60,
+            "yOffset": 120,
+            "styles": [{ "key": "width", "value": "200px" }]
+        };
+
+        var filterIcon = React.createElement('i', { className: 'fa fa-filter' });
+
+        var holdSelect = this.state.filterValue !== "";
+
+        return React.createElement(ControlButton, {
+            name: "filterControlButton",
+            taptip: filterTaptip,
+            tooltip: this.props.tooltipMsg,
+            controlclass: 'filter_button',
+            staySelected: holdSelect,
+            icon: filterIcon });
+    }
+});
+
+function getStateFromStores() {
+    return {
+        filterValue: ""
+    };
+}
+
+module.exports = FilterPointsButton;
+
+},{"../control-button":20,"react":undefined}],24:[function(require,module,exports){
+'use strict';
+
+var $ = require('jquery');
+var React = require('react');
+var ReactDOM = require('react-dom');
+
+var Exchange = require('./exchange');
+var consoleStore = require('../stores/console-store');
+
+var Conversation = React.createClass({
+    displayName: 'Conversation',
+
+    getInitialState: getStateFromStores,
+    componentDidMount: function componentDidMount() {
+        var $conversation = $(ReactDOM.findDOMNode(this.refs.conversation));
+
+        if ($conversation.prop('scrollHeight') > $conversation.height()) {
+            $conversation.scrollTop($conversation.prop('scrollHeight'));
+        }
+
+        consoleStore.addChangeListener(this._onChange);
+    },
+    componentDidUpdate: function componentDidUpdate() {
+        var $conversation = $(ReactDOM.findDOMNode(this.refs.conversation));
+
+        $conversation.stop().animate({ scrollTop: $conversation.prop('scrollHeight') }, 500);
+    },
+    componentWillUnmount: function componentWillUnmount() {
+        consoleStore.removeChangeListener(this._onChange);
+    },
+    _onChange: function _onChange() {
+        this.setState(getStateFromStores());
+    },
+    render: function render() {
+        return React.createElement(
+            'div',
+            { ref: 'conversation', className: 'conversation' },
+            this.state.exchanges.map(function (exchange, index) {
+                return React.createElement(Exchange, { key: index, exchange: exchange });
+            })
+        );
+    }
+});
+
+function getStateFromStores() {
+    return { exchanges: consoleStore.getExchanges() };
+}
+
+module.exports = Conversation;
+
+},{"../stores/console-store":55,"./exchange":29,"jquery":undefined,"react":undefined,"react-dom":undefined}],25:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+var platformChartStore = require('../stores/platform-chart-store');
+
+var PlatformChart = require('./platform-chart');
+
+var Dashboard = React.createClass({
+    displayName: 'Dashboard',
+
+    getInitialState: function getInitialState() {
+        var state = getStateFromStores();
+        return state;
+    },
+    componentDidMount: function componentDidMount() {
+        platformChartStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function componentWillUnmount() {
+        platformChartStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function _onStoreChange() {
+        this.setState(getStateFromStores());
+    },
+    render: function render() {
+
+        var pinnedCharts = this.state.platformCharts;
+
+        var platformCharts = [];
+
+        pinnedCharts.forEach(function (pinnedChart) {
+            if (pinnedChart.data.length > 0) {
+                var platformChart = React.createElement(PlatformChart, { key: pinnedChart.chartKey, chart: pinnedChart, chartKey: pinnedChart.chartKey, hideControls: true });
+                platformCharts.push(platformChart);
+            }
+        });
+
+        if (pinnedCharts.length === 0) {
+            platformCharts = React.createElement(
+                'p',
+                { className: 'empty-help' },
+                'Pin a chart to have it appear on the dashboard'
+            );
+        }
+
+        return React.createElement(
+            'div',
+            { className: 'view' },
+            React.createElement(
+                'h2',
+                null,
+                'Dashboard'
+            ),
+            platformCharts
+        );
+    }
+});
+
+function getStateFromStores() {
+    return {
+        platformCharts: platformChartStore.getPinnedCharts()
+    };
+}
+
+module.exports = Dashboard;
+
+},{"../stores/platform-chart-store":59,"./platform-chart":35,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var modalActionCreators = require('../action-creators/modal-action-creators');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
+
+var RegisterPlatformForm = React.createClass({
+    displayName: 'RegisterPlatformForm',
+
+    getInitialState: function getInitialState() {
+        return {};
+    },
+    _onCancelClick: modalActionCreators.closeModal,
+    _onSubmit: function _onSubmit(e) {
+        e.preventDefault();
+        platformManagerActionCreators.deregisterPlatform(this.props.platform);
+    },
+    render: function render() {
+        return React.createElement(
+            'form',
+            { className: 'register-platform-form', onSubmit: this._onSubmit },
+            React.createElement(
+                'h1',
+                null,
+                'Deregister platform'
+            ),
+            React.createElement(
+                'p',
+                null,
+                'Deregister ',
+                React.createElement(
+                    'strong',
+                    null,
+                    this.props.platform.name
+                ),
+                '?'
+            ),
+            React.createElement(
+                'div',
+                { className: 'form__actions' },
+                React.createElement(
+                    'button',
+                    {
+                        className: 'button button--secondary',
+                        type: 'button',
+                        onClick: this._onCancelClick,
+                        autoFocus: true
+                    },
+                    'Cancel'
+                ),
+                React.createElement(
+                    'button',
+                    { className: 'button' },
+                    'Deregister'
+                )
+            )
+        );
+    }
+});
+
+module.exports = RegisterPlatformForm;
+
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"react":undefined}],27:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -4579,9 +4613,9 @@ var _baseComponent = require('./base-component');
 
 var _baseComponent2 = _interopRequireDefault(_baseComponent);
 
-var _deviceConfiguration = require('./device-configuration');
+var _configureRegistry = require('./configure-registry');
 
-var _deviceConfiguration2 = _interopRequireDefault(_deviceConfiguration);
+var _configureRegistry2 = _interopRequireDefault(_configureRegistry);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -4774,17 +4808,17 @@ var DevicesFound = function (_BaseComponent) {
 
                         if (device) {
                             if (device.registryConfig.length > 0) {
-                                var deviceConfiguration = _react2.default.createElement(
+                                var configureRegistry = _react2.default.createElement(
                                     'tr',
                                     { key: "config-" + device.id },
                                     _react2.default.createElement(
                                         'td',
                                         { colSpan: 7 },
-                                        _react2.default.createElement(_deviceConfiguration2.default, { device: device })
+                                        _react2.default.createElement(_configureRegistry2.default, { device: device })
                                     )
                                 );
 
-                                devices.splice(i + 1, 0, deviceConfiguration);
+                                devices.splice(i + 1, 0, configureRegistry);
                             }
                         }
                     }
@@ -4910,7 +4944,7 @@ var parseCsvFile = function parseCsvFile(contents) {
 
 exports.default = DevicesFound;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":57,"./base-component":12,"./confirm-form":17,"./device-configuration":26,"babyparse":undefined,"react":undefined,"socket":undefined}],28:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":57,"./base-component":12,"./configure-registry":17,"./confirm-form":18,"babyparse":undefined,"react":undefined,"socket":undefined}],28:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -4991,7 +5025,7 @@ var EditPointForm = function (_BaseComponent) {
         key: '_onSubmit',
         value: function _onSubmit(e) {
             e.preventDefault();
-            devicesActionCreators.updateRegistry(this.props.device, this.state.attributes);
+            devicesActionCreators.updateRegistry(this.props.device, this.props.selectedPoints, this.state.attributes);
             modalActionCreators.closeModal();
         }
     }, {
@@ -4999,6 +5033,15 @@ var EditPointForm = function (_BaseComponent) {
         value: function render() {
 
             var attributes = this.state.attributes.map(function (item, index) {
+
+                var attributeInput = index === 0 ? _react2.default.createElement(
+                    'label',
+                    null,
+                    item.value
+                ) : _react2.default.createElement('input', { type: 'text',
+                    'data-key': item.key,
+                    value: item.value,
+                    onChange: this._updateAttribute });
 
                 var itemRow = _react2.default.createElement(
                     'tr',
@@ -5011,10 +5054,7 @@ var EditPointForm = function (_BaseComponent) {
                     _react2.default.createElement(
                         'td',
                         null,
-                        _react2.default.createElement('input', { type: 'text',
-                            'data-key': item.key,
-                            value: item.value,
-                            onChange: this._updateAttribute })
+                        attributeInput
                     ),
                     _react2.default.createElement(
                         'td',
@@ -5083,7 +5123,7 @@ var EditPointForm = function (_BaseComponent) {
                     _react2.default.createElement(
                         'button',
                         { className: 'button' },
-                        'Save'
+                        'Apply'
                     )
                 )
             );
@@ -6335,7 +6375,7 @@ var GraphLineChart = OutsideClick(React.createClass({
 
 module.exports = PlatformChart;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":59,"./confirm-form":17,"./control-button":19,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-click-outside":undefined,"react-dom":undefined,"react-router":undefined}],36:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":59,"./confirm-form":18,"./control-button":20,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-click-outside":undefined,"react-dom":undefined,"react-router":undefined}],36:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -6680,7 +6720,7 @@ function getStateFromStores() {
 
 exports.default = PlatformManager;
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"../stores/authorization-store":54,"../stores/console-store":55,"../stores/modal-store":58,"../stores/platforms-panel-store":61,"../stores/platforms-store":62,"../stores/status-indicator-store":63,"./console":18,"./modal":31,"./navigation":32,"./platforms-panel":40,"./status-indicator":44,"jquery":undefined,"react":undefined,"react-dom":undefined,"react-router":undefined}],38:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"../stores/authorization-store":54,"../stores/console-store":55,"../stores/modal-store":58,"../stores/platforms-panel-store":61,"../stores/platforms-store":62,"../stores/status-indicator-store":63,"./console":19,"./modal":31,"./navigation":32,"./platforms-panel":40,"./status-indicator":44,"jquery":undefined,"react":undefined,"react-dom":undefined,"react-router":undefined}],38:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7293,7 +7333,7 @@ var PlatformsPanelItem = React.createClass({
 
 module.exports = PlatformsPanelItem;
 
-},{"../action-creators/control-button-action-creators":3,"../action-creators/devices-action-creators":4,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":60,"./control-button":19,"react":undefined,"react-router":undefined}],40:[function(require,module,exports){
+},{"../action-creators/control-button-action-creators":3,"../action-creators/devices-action-creators":4,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":60,"./control-button":20,"react":undefined,"react-router":undefined}],40:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7564,7 +7604,7 @@ var PlatformsPanel = React.createClass({
 
 module.exports = PlatformsPanel;
 
-},{"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":60,"../stores/platforms-panel-store":61,"./control-button":19,"./platforms-panel-item":39,"react":undefined,"react-router":undefined}],41:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":60,"../stores/platforms-panel-store":61,"./control-button":20,"./platforms-panel-item":39,"react":undefined,"react-router":undefined}],41:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7709,7 +7749,7 @@ function getStateFromStores() {
 
 module.exports = Platforms;
 
-},{"../action-creators/modal-action-creators":5,"../components/deregister-platform-confirmation":25,"../components/register-platform-form":42,"../stores/platforms-store":62,"react":undefined,"react-router":undefined}],42:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../components/deregister-platform-confirmation":26,"../components/register-platform-form":42,"../stores/platforms-store":62,"react":undefined,"react-router":undefined}],42:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -8956,6 +8996,10 @@ devicesStore.getNewScan = function () {
     return _newScan;
 };
 
+devicesStore.getSelectedPoints = function (device) {
+    return _devices[device.id].selectedPoints;
+};
+
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
@@ -8988,6 +9032,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     bacnetProxyUuid: action.bacnetProxyUuid,
                     registryConfig: [],
                     keyProps: ["Volttron_Point_Name", "Units", "Writable"],
+                    selectedPoints: [],
                     id: "548",
                     items: [{ key: "address", label: "Address", value: "Address 192.168.1.42" }, { key: "deviceId", label: "Device ID", value: "548" }, { key: "description", label: "Description", value: "Temperature sensor" }, { key: "vendorId", label: "Vendor ID", value: "18" }, { key: "vendor", label: "Vendor", value: "Siemens" }, { key: "type", label: "Type", value: "BACnet" }]
                 },
@@ -8997,6 +9042,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     bacnetProxyUuid: action.bacnetProxyUuid,
                     registryConfig: [],
                     keyProps: ["Volttron_Point_Name", "Units", "Writable"],
+                    selectedPoints: [],
                     id: "33",
                     items: [{ key: "address", label: "Address", value: "RemoteStation 1002:11" }, { key: "deviceId", label: "Device ID", value: "33" }, { key: "description", label: "Description", value: "Actuator 3-pt for zone control" }, { key: "vendorId", label: "Vendor ID", value: "12" }, { key: "vendor", label: "Vendor", value: "Alerton" }, { key: "type", label: "Type", value: "BACnet" }]
                 }
@@ -9035,6 +9081,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
             _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
             _devices[_device.id].configuring = true;
+            _devices[_device.id].selectedPoints = [];
             _registryFiles[_device.id] = action.file;
             devicesStore.emitChange();
             break;
@@ -9046,23 +9093,32 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
             // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
 
+            var i = -1;
             var keyProps = [];
-            _devices[_device.id].registryConfig.find(function (attributes) {
-                var match = false;
-                if (attributes[0].value === action.attributes[0].value) {
-                    attributes = action.attributes;
+            var attributes = _devices[_device.id].registryConfig.find(function (attributes, index) {
+                var match = attributes[0].value === action.attributes[0].value;
 
-                    attributes.forEach(function (item) {
-                        if (item.keyProp) {
-                            keyProps.push(item.key);
-                        }
-                    });
-
-                    match = true;
+                if (match) {
+                    i = index;
                 }
+
                 return match;
             });
+
+            if (attributes) {
+                attributes = action.attributes;
+
+                attributes.forEach(function (item) {
+                    if (item.keyProp) {
+                        keyProps.push(item.key);
+                    }
+                });
+
+                _devices[_device.id].registryConfig[i] = JSON.parse(JSON.stringify(attributes));
+            }
+
             _devices[_device.id].keyProps = keyProps;
+            _devices[_device.id].selectedPoints = action.selectedPoints;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.EDIT_REGISTRY:

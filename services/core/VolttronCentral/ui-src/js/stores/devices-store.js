@@ -92,6 +92,10 @@ devicesStore.getNewScan = function () {
     return _newScan;
 }
 
+devicesStore.getSelectedPoints = function (device) {
+    return _devices[device.id].selectedPoints;
+}
+
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
@@ -124,6 +128,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     bacnetProxyUuid: action.bacnetProxyUuid,
                     registryConfig: [],
                     keyProps: ["Volttron_Point_Name", "Units", "Writable"],
+                    selectedPoints: [],
                     id: "548",
                     items: [ 
                         { key: "address", label: "Address", value: "Address 192.168.1.42" }, 
@@ -140,6 +145,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     bacnetProxyUuid: action.bacnetProxyUuid,
                     registryConfig: [],
                     keyProps: ["Volttron_Point_Name", "Units", "Writable"],
+                    selectedPoints: [],
                     id: "33",
                     items: [ 
                         { key: "address", label: "Address", value: "RemoteStation 1002:11" }, 
@@ -185,6 +191,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
             _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
             _devices[_device.id].configuring = true;
+            _devices[_device.id].selectedPoints = [];
             _registryFiles[_device.id] = action.file;             
             devicesStore.emitChange();
             break;
@@ -196,25 +203,35 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
             // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
 
+            var i = -1;
             var keyProps = [];
-            _devices[_device.id].registryConfig.find(function (attributes) {
-                var match = false;
-                if (attributes[0].value === action.attributes[0].value )
+            var attributes = _devices[_device.id].registryConfig.find(function (attributes, index) {
+                var match = (attributes[0].value === action.attributes[0].value );
+
+                if (match)
                 {
-                    attributes = action.attributes;
-
-                    attributes.forEach(function (item) {
-                        if (item.keyProp)
-                        {
-                            keyProps.push(item.key);
-                        }
-                    });
-
-                    match = true;
+                    i = index;
                 }
+
                 return match;
             });
+
+            if (attributes)
+            {                
+                attributes = action.attributes;
+
+                attributes.forEach(function (item) {
+                    if (item.keyProp)
+                    {
+                        keyProps.push(item.key);
+                    }
+                });
+
+                _devices[_device.id].registryConfig[i] = JSON.parse(JSON.stringify(attributes));
+            }
+
             _devices[_device.id].keyProps = keyProps;
+            _devices[_device.id].selectedPoints = action.selectedPoints;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.EDIT_REGISTRY:

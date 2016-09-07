@@ -3,7 +3,7 @@
 import React from 'react';
 import io from 'socket';
 import BaseComponent from './base-component';
-import DeviceConfiguration from './device-configuration';
+import ConfigureRegistry from './configure-registry';
 
 var ConfirmForm = require('./confirm-form');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
@@ -172,15 +172,15 @@ class DevicesFound extends BaseComponent {
                     if (device) {
                         if (device.registryConfig.length > 0)
                         {
-                            var deviceConfiguration = (
+                            var configureRegistry = (
                                 <tr key={"config-" + device.id}>
                                     <td colSpan={7}>
-                                        <DeviceConfiguration device={device}/>
+                                        <ConfigureRegistry device={device}/>
                                     </td>
                                 </tr>
                             );
 
-                            devices.splice(i + 1, 0, deviceConfiguration);
+                            devices.splice(i + 1, 0, configureRegistry);
                         }
                     }
 

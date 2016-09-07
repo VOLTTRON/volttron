@@ -14,13 +14,13 @@ var EditColumnButton = require('./control_buttons/edit-columns-button');
 var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
-class DeviceConfiguration extends BaseComponent {    
+class ConfigureRegistry extends BaseComponent {    
     constructor(props) {
         super(props);
         this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", 
             "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn",
             "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
-            "_saveRegistry", "_removeFocus", "_resetState", "_showProps" );
+            "_saveRegistry", "_removeFocus", "_resetState", "_showProps", "_handleRowClick" );
 
         this.state = this._resetState(this.props.device);
     }
@@ -81,6 +81,8 @@ class DeviceConfiguration extends BaseComponent {
         state.columnNames = [];
         state.pointNames = [];
         state.filteredList = [];
+
+        state.selectedPoints = devicesStore.getSelectedPoints(device);
 
         if (state.registryValues.length > 0)
         {
@@ -370,7 +372,10 @@ class DeviceConfiguration extends BaseComponent {
 
     }
     _showProps(attributesList) {
-        modalActionCreators.openModal(<EditPointForm device={this.props.device} attributes={attributesList}/>);
+        modalActionCreators.openModal(<EditPointForm 
+            device={this.props.device} 
+            selectedPoints={this.state.selectedPoints}
+            attributes={attributesList}/>);
     }
     _updateCell(row, column, e) {
 
@@ -558,6 +563,32 @@ class DeviceConfiguration extends BaseComponent {
         devicesActionCreators.saveRegistry(this.props.device, this.state.registryValues);
         modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device}/>);
     }
+    _handleRowClick(evt){
+
+        if ((evt.target.nodeName !== "INPUT") && (evt.target.nodeName !== "I") && (evt.target.nodeName !== "DIV"))  
+        {
+
+            var target = (evt.target.nodeName === "TD" ? evt.target.parentNode : evt.target);
+
+            var rowIndex = target.dataset.row;
+
+            var pointKey = this.state.registryValues[rowIndex][0].value;
+            var selectedPoints = this.state.selectedPoints;
+
+            var index = selectedPoints.indexOf(pointKey);
+            
+            if (index > -1)
+            {
+                selectedPoints.splice(index, 1);
+            }
+            else
+            {
+                selectedPoints.push(pointKey);
+            }
+
+            this.setState({selectedPoints: selectedPoints});
+        }
+    }
     render() {        
         
         var filterPointsTooltip = {
@@ -609,7 +640,7 @@ class DeviceConfiguration extends BaseComponent {
 
                 if (item.keyProp)
                 {
-                    var selectedStyle = (item.selected ? {backgroundColor: "#F5B49D"} : {});
+                    var selectedCellStyle = (item.selected ? {backgroundColor: "#F5B49D"} : {});
                     var focusedCell = (this.state.selectedCellColumn === columnIndex && this.state.selectedCellRow === rowIndex ? "focusedCell" : "");
 
                     var itemCell = (columnIndex === 0 && !item.editable ? 
@@ -618,7 +649,7 @@ class DeviceConfiguration extends BaseComponent {
                                                     id={this.state.registryValues[rowIndex][columnIndex].key + "-" + columnIndex + "-" + rowIndex}
                                                     type="text"
                                                     className={focusedCell}
-                                                    style={selectedStyle}
+                                                    style={selectedCellStyle}
                                                     onChange={this._updateCell.bind(this, rowIndex, columnIndex)} 
                                                     value={ this.state.registryValues[rowIndex][columnIndex].value }/>
                                             </td>);
@@ -635,8 +666,14 @@ class DeviceConfiguration extends BaseComponent {
                     </div>
                 </td>);
 
+            var selectedRowClass = (this.state.selectedPoints.indexOf(this.state.registryValues[rowIndex][0].value) > -1 ?
+                                        "selectedRegistryPoint" : "");
+
             return ( 
-                <tr key={"registry-row-" + rowIndex}>
+                <tr key={"registry-row-" + rowIndex}
+                    data-row={rowIndex}
+                    onClick={this._handleRowClick}
+                    className={selectedRowClass}>
                     <td key={"checkbox-" + rowIndex}>
                         <input type="checkbox"
                             onChange={this._selectForDelete.bind(this, attributesList)}
@@ -682,7 +719,12 @@ class DeviceConfiguration extends BaseComponent {
             var headerCell = (index === 0 ?
                                 ( <th key={"header-" + item + "-" + index} style={firstColumnWidth}>
                                     <div className="th-inner zztop">
-                                        { item } { filterButton } { addPointButton } { removePointsButton }
+                                        { item } 
+                                        { filterButton } 
+                                        { addPointButton } 
+                                        { removePointsButton }
+                                        { editSelectButton }
+                                        { editColumnButton }
                                     </div>
                                 </th>) :
                                 ( <th key={"header-" + item + "-" + index}>
@@ -813,4 +855,4 @@ function initializeList(registryConfig, keyPropsList)
 }
 
 
-export default DeviceConfiguration;
+export default ConfigureRegistry;

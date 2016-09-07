@@ -46,21 +46,29 @@ class EditPointForm extends BaseComponent {
     }
     _onSubmit(e) {
         e.preventDefault();
-        devicesActionCreators.updateRegistry(this.props.device, this.state.attributes);
+        devicesActionCreators.updateRegistry(
+            this.props.device, 
+            this.props.selectedPoints, 
+            this.state.attributes
+        );
         modalActionCreators.closeModal();
     }
     render() {
         
         var attributes = this.state.attributes.map(function (item, index) {
 
+            var attributeInput = (index === 0 ? 
+                                    (<label>{item.value}</label>) : 
+                                        (<input type="text"
+                                            data-key={item.key}
+                                            value={item.value}
+                                            onChange={this._updateAttribute}></input>));
+
             var itemRow = (
                 <tr key={item.key + "-" + index}>
                     <td>{item.label}</td>
                     <td>
-                        <input type="text"
-                            data-key={item.key}
-                            value={item.value}
-                            onChange={this._updateAttribute}></input>
+                        {attributeInput}
                     </td>
                     <td className="centerContent">
                         <input type="checkbox" 
@@ -97,7 +105,7 @@ class EditPointForm extends BaseComponent {
                         Cancel
                     </button>
                     <button className="button">
-                        Save
+                        Apply
                     </button>
                 </div>
             </form>

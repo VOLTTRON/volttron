@@ -2214,6 +2214,22 @@ Interactive Layer
     border: none;
 }
 
+.registryConfigTable > tbody > tr {
+    cursor: cell;
+}
+
+.registryConfigTable > tbody > tr:not(.selectedRegistryPoint):hover {
+    background-color: rgba(102, 153, 187, .3);
+}
+
+.registryConfigTable > tbody > tr > td > > input {
+    cursor: auto;
+}
+
+.selectedRegistryPoint {
+    background-color: rgba(102, 153, 187, .5);
+}
+
 .th-inner {
     position: absolute;
     top: 0;
@@ -2277,14 +2293,25 @@ border-top-left-radius: 5px;
 .filter_button, 
 .add_point_button, 
 .remove_point_button {
-    display: inline-block;
-    margin: 0px 1px;
-    cursor: pointer;
-    width: 15px;
-    height: 18px;
-    padding: 2px 2px;
+    display: inline-block;    
+    cursor: pointer;    
+    height: 18px;    
     color: #878787;
     transform: translateY(25%);
+}
+
+.filter_button, 
+.add_point_button, 
+.remove_point_button {
+    margin: 0px 1px;
+    width: 10px;
+    padding: 2px 0px;
+}
+
+.cog_button {
+    margin: 0px;
+    width: 15px;
+    padding: 2px 2px;
 }
 
 .edit_column_button {
