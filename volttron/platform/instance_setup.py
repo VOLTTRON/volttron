@@ -74,6 +74,10 @@ from . import get_home
 # if it exists.
 config_opts = {}
 
+# Dictionary of tags to config functions.
+# Populated by the `installs` decorator.
+available_agents = {}
+
 # Yes or no answers to questions.
 y_or_n = ('Y', 'N', 'y', 'n')
 y = ('Y', 'y')
@@ -81,14 +85,14 @@ n = ('N', 'n')
 
 
 def _load_config():
-    """ Loads the config file if the path exists.  """
-    path = os.path.join(get_home(), "config")
+    """Loads the config file if the path exists."""
+    path = os.path.join(get_home(), 'config')
     if os.path.exists(path):
         parser = ConfigParser()
         parser.read(path)
-        options = parser.options("volttron")
+        options = parser.options('volttron')
         for option in options:
-            config_opts[option] = parser.get("volttron", option)
+            config_opts[option] = parser.get('volttron', option)
 
 
 def _install_config_file():
@@ -154,7 +158,7 @@ def _is_bound_already(address):
 def fail_if_instance_running():
 
     home = get_home()
-    ipc_address = "ipc://@{}/run/vip.socket".format(home)
+    ipc_address = 'ipc://@{}/run/vip.socket'.format(home)
 
     if os.path.exists(home) and\
        _is_bound_already(ipc_address):
@@ -171,10 +175,9 @@ to stop the instance.
 
 def _start_platform():
     cmd = ['volttron', '--developer-mode', '-vv']
+    print('Starting platform...')
     pid = Popen(cmd, env=os.environ.copy(), stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
-    print('Configuring instance...')
-    return pid
 
 
 def _shutdown_platform():
@@ -182,18 +185,7 @@ def _shutdown_platform():
     _cmd(['volttron-ctl', 'shutdown', '--platform'])
 
 
-def install_agent(agent_dir, config, tag):
-    _install_config_file()
-    _start_platform()
-    response = prompt_response("Should agent autostart?",
-                               valid_answers=y_or_n,
-                               default='N')
-    autostart = response in y
-    _install_agent(autostart, agent_dir, config, tag)
-    _shutdown_platform()
-
-
-def _install_agent(autostart, agent_dir, config, tag):
+def _install_agent(agent_dir, config, tag):
     if not isinstance(config, dict):
         config_file = config
     else:
@@ -204,8 +196,39 @@ def _install_agent(autostart, agent_dir, config, tag):
     _cmd(['volttron-ctl', 'remove', '--tag', tag, '--force'])
     _cmd(['scripts/core/pack_install.sh',
           agent_dir, config_file, tag])
-    if autostart:
-         _cmd(['volttron-ctl', 'enable', '--tag', tag])
+
+
+# Decorator to handle installing agents
+# Decorated functions need to return a config
+# file for the target agent.
+def installs(agent_dir, tag, identity=None):
+    def wrap(config_func):
+        global available_agents
+
+        def func(*args, **kwargs):
+            if identity is not None:
+                os.environ['AGENT_VIP_IDENTITY'] = identity
+
+            print 'Configuring {}'.format(agent_dir)
+            config = config_func(*args, **kwargs)
+            _install_config_file()
+            _start_platform()
+            _install_agent(agent_dir, config, tag)
+
+            autostart = prompt_response('Should agent autostart?',
+                                        valid_answers=y_or_n,
+                                        default='N')
+            if autostart in y:
+                _cmd(['volttron-ctl', 'enable', '--tag', tag])
+
+            _shutdown_platform()
+
+            if identity is not None:
+                os.environ.pop('AGENT_VIP_IDENTITY')
+
+        available_agents[tag] = func
+        return func
+    return wrap
 
 
 def is_valid_url(url, accepted_schemes):
@@ -232,13 +255,13 @@ def is_valid_port(port):
 def do_vip():
     global config_opts
 
-    parsed = urlparse.urlparse(config_opts.get("volttron", "vip-address"))
+    parsed = urlparse.urlparse(config_opts.get('volttron', 'vip-address'))
     vip_address = None
     if parsed.hostname is not None and parsed.scheme is not None:
-        vip_address = parsed.scheme + "://" + parsed.hostname
+        vip_address = parsed.scheme + '://' + parsed.hostname
         vip_port = parsed.port
     else:
-        vip_address = "tcp://127.0.0.1"
+        vip_address = 'tcp://127.0.0.1'
         vip_port = 22916
 
     available = False
@@ -260,46 +283,47 @@ def do_vip():
             if valid_port:
                 vip_port = new_vip_port
 
-        while vip_address.endswith("/"):
+        while vip_address.endswith('/'):
             vip_address = vip_address[:-1]
 
-        attempted_address = "{}:{}".format(vip_address, vip_port)
+        attempted_address = '{}:{}'.format(vip_address, vip_port)
         if not _is_bound_already(attempted_address):
             available = True
         else:
             print('\nERROR: That address has already been bound to.')
-    config_opts['vip-address'] = "{}:{}".format(vip_address, vip_port)
+    config_opts['vip-address'] = '{}:{}'.format(vip_address, vip_port)
 
 
+@installs('services/core/VolttronCentral', 'vc')
 def do_vc():
     global config_opts
 
     # Full implies that it will have a port on it as well.  Though if it's
     # not in the address that means that we haven't set it up before.
     full_bind_web_address = config_opts.get('bind-web-address',
-                                            "http://127.0.0.1")
+                                            'http://127.0.0.1')
 
     parsed = urlparse.urlparse(full_bind_web_address)
 
     address_only = full_bind_web_address
     port_only = None
     if parsed.port is not None:
-        address_only = parsed.scheme + "://" + parsed.hostname
+        address_only = parsed.scheme + '://' + parsed.hostname
         port_only = parsed.port
     else:
         port_only = 8080
 
-    print('''
+    print("""
 In order for external clients to connect to volttron central or the instance
 itself, the instance must bind to a tcp address.  If testing this can be an
 internal address such as 127.0.0.1.
-''')
+""")
     valid_address = False
     external_ip = None
     while not valid_address:
-        prompt = "Please enter the external ipv4 address for this instance? "
+        prompt = 'Please enter the external ipv4 address for this instance? '
         new_external_ip = prompt_response(prompt, default=address_only)
-        valid_address = is_valid_url(new_external_ip, ["http", "https"])
+        valid_address = is_valid_url(new_external_ip, ['http', 'https'])
         if valid_address:
             external_ip = new_external_ip
 
@@ -317,41 +341,41 @@ internal address such as 127.0.0.1.
     while external_ip.endswith("/"):
         external_ip = external_ip[:-1]
 
-    config_opts['bind-web-address'] = "{}:{}".format(external_ip, vc_port)
+    config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
-    _install_vc()
+    return vc_config()
 
 
-def _install_vc():
-    username = ""
+def vc_config():
+    username = ''
     while not username:
-        username = prompt_response("Enter volttron central admin user name:")
+        username = prompt_response('Enter volttron central admin user name:')
         if not username:
-            print("ERROR Invalid username")
-    password = ""
+            print('ERROR Invalid username')
+    password = ''
     while not password:
-        password = prompt_response("Enter volttron central admin password:")
+        password = prompt_response('Enter volttron central admin password:')
         if not password:
-            print("ERROR: Invalid password")
+            print('ERROR: Invalid password')
 
     config = {
-        "users": {
+        'users': {
             username: {
-                "password": hashlib.sha512(password).hexdigest(),
-                "groups": ["admin"]
+                'password': hashlib.sha512(password).hexdigest(),
+                'groups': ['admin']
             }
         }
     }
 
-    print("Installing volttron central(VC)")
-    install_agent("services/core/VolttronCentral", config, 'vc')
+    return config
 
 
+@installs('services/core/VolttronCentralPlatform', 'vcp')
 def do_vcp():
     global config_opts
 
     # Default instance name to the vip address.
-    instance_name = config_opts.get("instance-name",
+    instance_name = config_opts.get('instance-name',
                                     config_opts.get('vip-address'))
 
     valid_name = False
@@ -363,8 +387,8 @@ def do_vcp():
             instance_name = new_instance_name
     config_opts['instance-name'] = instance_name
 
-    vc_address = config_opts.get("volttron-central-address",
-                                 config_opts.get("bind-web-address"))
+    vc_address = config_opts.get('volttron-central-address',
+                                 config_opts.get('bind-web-address'))
 
     valid_vc = False
     while not valid_vc:
@@ -375,34 +399,23 @@ def do_vcp():
             vc_address = new_vc_address
     config_opts['volttron-central-address'] = vc_address
 
-    _install_vcp()
+    return {}
 
 
-def _install_vcp():
-    config = {}
-
-    print("Installing volttron central platform(VCP)")
-    install_agent("services/core/VolttronCentralPlatform", config, 'vcp')
-
-
+@installs('services/core/SQLHistorian', 'platform_historian',
+          identity='platform.historian')
 def do_platform_historian():
-    _install_platform_historian()
-
-
-def _install_platform_historian():
-    os.environ["AGENT_VIP_IDENTITY"] = "platform.historian"
-    datafile = os.path.join(get_home(), "data", "platform.historian.sqlite")
+    datafile = os.path.join(get_home(), 'data', 'platform.historian.sqlite')
     config = {
-        "agentid": "sqlhistorian-sqlite",
-        "connection": {
-            "type": "sqlite",
-            "params": {
-                "database": datafile
+        'agentid': 'sqlhistorian-sqlite',
+        'connection': {
+            'type': 'sqlite',
+            'params': {
+                'database': datafile
             }
         }
     }
-    install_agent("services/core/SQLHistorian", config, "platform_historian")
-    os.environ.pop("AGENT_VIP_IDENTITY")
+    return config
 
 
 def wizard():
@@ -432,12 +445,12 @@ def wizard():
     if response in y:
         do_vc()
 
-    prompt = "Will this instance be controlled by volttron central?"
+    prompt = 'Will this instance be controlled by volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
     if response in y:
         do_vcp()
 
-    prompt = "Would you like to install a platform historian?"
+    prompt = 'Would you like to install a platform historian?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         do_platform_historian()
@@ -451,11 +464,9 @@ def wizard():
 def main():
     parser = argparse.ArgumentParser()
 
-    agent_config_func = {"vc": do_vc,
-                         "vcp": do_vcp,
-                         "historian": do_platform_historian}
-
-    parser.add_argument('agent', nargs='*', help='Optional list of agents to configure')
+    parser.add_argument('agent', nargs='*',
+                        help='List of agents to configure {}'
+                        .format(available_agents.keys()))
 
     args = parser.parse_args()
     fail_if_instance_running()
@@ -464,12 +475,15 @@ def main():
     if not args.agent:
         wizard()
     else:
-        agent_set = set(args.agent)
-        agent_list = list(agent_set)
-        for agent in agent_list:
-            if agent not in agent_config_func:
+        # Warn about unknown agents
+        for agent in args.agent:
+            if agent not in available_agents:
                 print '"{}" not configurable with this tool'.format(agent)
                 agent_set.remove(agent)
 
-        for agent in agent_set:
-                agent_config_func[agent]()
+        # Configure agents
+        for agent in args.agent:
+            try:
+                available_agents[agent]()
+            except KeyError:
+                pass
