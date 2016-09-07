@@ -67,3 +67,23 @@ def get_agg_topic_map(client, agg_topics_collection):
              document['agg_type'],
              document['agg_time_period'])] = document['_id']
     return topic_id_map
+
+def get_agg_topics(client, agg_topics_collection, agg_meta_collection):
+    _log.debug('loading agg topics list')
+    db = client.get_default_database()
+    cursor = db[agg_meta_collection].find()
+    meta_map = dict()
+    for document in cursor:
+        meta_map[document['agg_topic_id']] =  document['meta']
+
+    cursor = db[agg_topics_collection].find()
+    agg_topics = []
+    for document in cursor:
+        _log.debug("meta_map[document['_id'] is {}".
+                   format(meta_map[document['_id']]))
+        agg_topics.append(
+            (document['agg_topic_name'].lower(),
+             document['agg_type'],
+             document['agg_time_period'],
+             meta_map[document['_id']]['configured_topics']))
+    return agg_topics

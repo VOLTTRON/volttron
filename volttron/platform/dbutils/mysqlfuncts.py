@@ -54,7 +54,7 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
+import ast
 import logging
 
 from mysql.connector import Error as MysqlError
@@ -358,6 +358,26 @@ class MySqlFuncts(DbDriver):
         _log.debug(name_map)
         return id_map, name_map
 
+
+    def get_agg_topics(self):
+        _log.debug("in get_agg_topics")
+        try:
+            query = "SELECT agg_topic_name, agg_type, agg_time_period, " \
+                    "metadata FROM " + self.agg_topics_table + " as t, " + \
+                    self.agg_meta_table + " as m WHERE t.agg_topic_id = " \
+                    "m.agg_topic_id "
+            rows = self.select(query, None)
+            topics = []
+            for row in rows:
+                meta = ast.literal_eval(row[3])['configured_topics']
+                topics.append((row[0], row[1], row[2], meta))
+            return topics
+        except MysqlError as e:
+            if e.errno == MysqlErrorCodes.ER_NO_SUCH_TABLE:
+                return []
+            else:
+                raise
+
     def get_agg_topic_map(self):
         _log.debug("in get_agg_topic_map")
         try:
@@ -446,7 +466,7 @@ class MySqlFuncts(DbDriver):
             where_str = where_str[:-2]  # strip last comma and space
             where_str += ") "
             where_clauses = [where_str]
-            args = topic_ids
+            args = topic_ids[:]
 
         if start is not None:
             where_clauses.append("ts >= %s")

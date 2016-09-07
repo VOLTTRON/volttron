@@ -229,11 +229,7 @@ def historian(config_path, **kwargs):
             pass
 
         def query_aggregate_topics(self):
-            topic_map = self.reader.get_agg_topic_map()
-            if topic_map:
-                return topic_map.keys()
-            else:
-                return []
+            return self.reader.get_agg_topics()
 
         def query_historian(self, topic, start=None, end=None, agg_type=None,
                             agg_period=None, skip=0, count=None,
@@ -312,19 +308,27 @@ def historian(config_path, **kwargs):
                 # If there are results add metadata if it is a query on a
                 # single topic
                 if not multi_topic_query:
-                    metadata = self.topic_meta.get(topic_ids[0], {})
                     if agg_type:
                         # if aggregation is on single topic find the topic id
                         # in the topics table that corresponds to agg_topic_id
                         # so that we can grab the correct metadata
+                        _log.debug("Single topic aggregate query. Try to get "
+                                   "metadata")
                         tid = self.topic_id_map.get(topic.lower(), None)
                         if tid:
-                            metadata = self.topic_meta.get(topic_ids[0], {})
+                            _log.debug("aggregation of a single topic, "
+                                       "found topic id in topic map. "
+                                       "topic_id={}".format(tid))
+                            metadata = self.topic_meta.get(tid, {})
                         else:
                             # if topic name does not have entry in topic_id_map
                             # it is a user configured aggregation_topic_name
                             # which denotes aggregation across multiple points
                             metadata = {}
+                    else:
+                        # this is a query on raw data, get metadata for
+                        # topic from topic_meta map
+                        metadata = self.topic_meta.get(topic_ids[0], {})
                 return {
                     'values': values,
                     'metadata': metadata

@@ -54,7 +54,7 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
+import ast
 import errno
 import logging
 import sqlite3
@@ -396,6 +396,27 @@ class SqlLiteFuncts(DbDriver):
             name_map[n.lower()] = n
         return id_map, name_map
 
+    def get_agg_topics(self):
+        try:
+            _log.debug("in get_agg_topics")
+            query = "SELECT agg_topic_name, agg_type, agg_time_period, " \
+                    "metadata FROM " + self.agg_topics_table + " as t, " + \
+                    self.agg_meta_table + " as m WHERE t.agg_topic_id = " \
+                                          "m.agg_topic_id "
+            rows = self.select(query, None)
+            topics = []
+            for row in rows:
+                _log.debug("rows from aggregate_t")
+                meta = ast.literal_eval(row[3])['configured_topics']
+                topics.append((row[0], row[1], row[2], meta))
+            return topics
+        except sqlite3.Error as e:
+            if e.message[0:13] == 'no such table':
+                _log.warn("No such table : {}".format(self.agg_topics_table))
+                return []
+            else:
+                raise
+
     def get_agg_topic_map(self):
         try:
             _log.debug("in get_agg_topic_map")
@@ -508,7 +529,7 @@ class SqlLiteFuncts(DbDriver):
             where_str = where_str[:-2]  # strip last comma and space
             where_str += ") "
             where_clauses = [where_str]
-            args = topic_ids
+            args = topic_ids[:]
 
         if start is not None:
             start_str = start.isoformat(' ')

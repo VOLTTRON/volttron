@@ -84,7 +84,6 @@ class DbDriver(object):
         self.__cursor = None
         self.__connect_params = kwargs
 
-
     def __connect(self):
         try:
             if self.__connection is None:
@@ -98,13 +97,12 @@ class DbDriver(object):
 
         return self.__connection is not None
 
-
     def read_tablenames_from_db(self, meta_table_name):
         rows = self.select("SELECT table_id, table_name, table_prefix from " +
-                    meta_table_name, None)
+                           meta_table_name, None)
         table_names = dict()
         table_prefix = ""
-        table_map ={}
+        table_map = {}
 
         for row in rows:
             table_map[row[0].lower()] = row[1]
@@ -112,7 +110,8 @@ class DbDriver(object):
             table_names[row[0]] = table_prefix + row[1]
 
         table_names['agg_topics_table'] = table_prefix + \
-                    'aggregate_' + table_map['topics_table']
+                                          'aggregate_' + table_map[
+                                              'topics_table']
         table_names['agg_meta_table'] = table_prefix + 'aggregate_' + \
                                         table_map['meta_table']
         return table_names
@@ -126,6 +125,14 @@ class DbDriver(object):
 
     @abstractmethod
     def get_topic_map(self):
+        pass
+
+    @abstractmethod
+    def get_agg_topics(self):
+        pass
+
+    @abstractmethod
+    def get_agg_topic_map(self):
         pass
 
     @abstractmethod
@@ -313,7 +320,7 @@ class DbDriver(object):
         return True
 
     @abstractmethod
-    def query(self, topic_ids, id_name_map,  start=None, end=None,
+    def query(self, topic_ids, id_name_map, start=None, end=None,
               agg_type=None,
               agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
@@ -340,8 +347,8 @@ class DbDriver(object):
             print("connect to database failed.......")
             return False
         table_name = agg_type + '_' + period
-        _log.debug("Inserting id {} {} {} {} into table {}".format(
-            ts, agg_topic_id, jsonapi.dumps(data), topic_ids, table_name))
+        _log.debug("Inserting aggregate: {} {} {} {} into table {}".format(
+            ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids), table_name))
         self.__cursor.execute(
             self.insert_aggregate_stmt(table_name),
             (ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids)))

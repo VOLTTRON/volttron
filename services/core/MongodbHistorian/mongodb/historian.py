@@ -305,18 +305,27 @@ def historian(config_path, **kwargs):
                 # single
                 # topic
                 if not multi_topic_query:
-                    metadata = self._topic_meta.get(topic_ids[0], {})
+
                     if agg_type:
                         # if aggregation is on single topic find the topic id
                         # in the topics table.
+                        _log.debug("Single topic aggregate query. Try to get "
+                                   "metadata")
                         topic_id = self._topic_id_map.get(topic.lower(), None)
                         if topic_id:
-                            metadata = self._topic_meta.get(topic_ids[0], {})
+                            _log.debug("aggregation of a single topic, "
+                                       "found topic id in topic map. "
+                                       "topic_id={}".format(topic_id))
+                            metadata = self._topic_meta.get(topic_id, {})
                         else:
                             # if topic name does not have entry in topic_id_map
                             # it is a user configured aggregation_topic_name
                             # which denotes aggregation across multiple points
                             metadata = {}
+                    else:
+                        # this is a query on raw data, get metadata for
+                        # topic from topic_meta map
+                        metadata = self._topic_meta.get(topic_ids[0], {})
 
                     return {
                         'values': values,
@@ -341,13 +350,10 @@ def historian(config_path, **kwargs):
             pass
 
         def query_aggregate_topics(self):
-            agg_map = mongoutils.get_agg_topic_map(
+            return mongoutils.get_agg_topics(
                 self._client,
-                self._agg_topic_collection)
-            if agg_map:
-                return agg_map.keys()
-            else:
-                return []
+                self._agg_topic_collection, self._agg_meta_collection)
+
 
         def _load_topic_map(self):
             _log.debug('loading topic map')

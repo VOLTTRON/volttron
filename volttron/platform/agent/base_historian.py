@@ -1144,8 +1144,9 @@ class BaseQueryHistorianAgent(Agent):
                                        agg_period, skip, count, order)
         metadata = results.get("metadata", None)
         values = results.get("values", None)
-        if values is not None and metadata is None:
+        if values and metadata is None:
             results['metadata'] = {}
+
         return results
 
 
