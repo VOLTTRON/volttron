@@ -2218,11 +2218,15 @@ Interactive Layer
     cursor: cell;
 }
 
+.registryConfigTable > tbody > tr > td > label {
+    cursor: cell;
+}
+
 .registryConfigTable > tbody > tr:not(.selectedRegistryPoint):hover {
     background-color: rgba(102, 153, 187, .3);
 }
 
-.registryConfigTable > tbody > tr > td > > input {
+.registryConfigTable > tbody > tr > td > input {
     cursor: auto;
 }
 

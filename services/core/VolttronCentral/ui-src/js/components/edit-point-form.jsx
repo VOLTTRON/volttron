@@ -57,12 +57,12 @@ class EditPointForm extends BaseComponent {
         
         var attributes = this.state.attributes.map(function (item, index) {
 
-            var attributeInput = (index === 0 ? 
-                                    (<label>{item.value}</label>) : 
-                                        (<input type="text"
-                                            data-key={item.key}
-                                            value={item.value}
-                                            onChange={this._updateAttribute}></input>));
+            var attributeInput = (item.editable ? 
+                                    (<input type="text"
+                                        data-key={item.key}
+                                        value={item.value}
+                                        onChange={this._updateAttribute}></input>) :
+                                        (<label>{item.value}</label>));
 
             var itemRow = (
                 <tr key={item.key + "-" + index}>

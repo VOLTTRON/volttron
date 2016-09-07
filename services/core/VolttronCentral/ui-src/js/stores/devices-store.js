@@ -96,6 +96,28 @@ devicesStore.getSelectedPoints = function (device) {
     return _devices[device.id].selectedPoints;
 }
 
+devicesStore.getPreppedData = function (data) {
+
+    var preppedData = data.map(function (row) {
+        var preppedRow = row.map(function (cell) {
+
+            cell.key = cell.key.toLowerCase();
+
+            cell.editable = !(cell.key === "point_name" || 
+                                cell.key === "reference_point_name" || 
+                                cell.key === "object_type" || 
+                                cell.key === "index");
+
+            return cell;
+        });
+
+        return preppedRow;
+    });
+
+
+    return preppedData;
+}
+
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
@@ -127,7 +149,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     platformUuid: action.platformUuid,
                     bacnetProxyUuid: action.bacnetProxyUuid,
                     registryConfig: [],
-                    keyProps: ["Volttron_Point_Name", "Units", "Writable"],
+                    keyProps: ["volttron_point_name", "units", "writable"],
                     selectedPoints: [],
                     id: "548",
                     items: [ 
@@ -144,7 +166,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     platformUuid: action.platformUuid,
                     bacnetProxyUuid: action.bacnetProxyUuid,
                     registryConfig: [],
-                    keyProps: ["Volttron_Point_Name", "Units", "Writable"],
+                    keyProps: ["volttron_point_name", "units", "writable"],
                     selectedPoints: [],
                     id: "33",
                     items: [ 
@@ -189,7 +211,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
             // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
             // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
-            _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
+            _devices[_device.id].registryConfig = devicesStore.getPreppedData(action.data);
             _devices[_device.id].configuring = true;
             _devices[_device.id].selectedPoints = [];
             _registryFiles[_device.id] = action.file;             

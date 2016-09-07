@@ -3,25 +3,11 @@
 var React = require('react');
 
 var ControlButton = require('../control-button');
-// var controlButtonStore = require('../../stores/control-button-store');
 
 var FilterPointsButton = React.createClass({
     getInitialState: function () {
         return getStateFromStores();
     },
-    // componentDidMount: function () {
-    //     controlButtonStore.addChangeListener(this._onStoresChange);
-    // },
-    // componentWillUnmount: function () {
-    //     controlButtonStore.removeChangeListener(this._onStoresChange);
-    // },
-    // _onStoresChange: function () {
-
-    //     if (controlButtonStore.getClearButton(this.props.name))
-    //     {
-    //         this.setState({ filterValue: "" });
-    //     }
-    // },
     _onFilterBoxChange: function (e) {
         var filterValue = e.target.value;
 
@@ -87,8 +73,8 @@ var FilterPointsButton = React.createClass({
         var filterTaptip = { 
             "title": "Filter Points", 
             "content": filterBox,
-            "xOffset": 60,
-            "yOffset": 120,
+            "xOffset": 300,
+            "yOffset": 420,
             "styles": [{"key": "width", "value": "200px"}]
         };
 
@@ -100,7 +86,7 @@ var FilterPointsButton = React.createClass({
 
         return (
             <ControlButton 
-                name={"filterControlButton"}
+                name={this.props.name + "-ControlButton"}
                 taptip={filterTaptip} 
                 tooltip={this.props.tooltipMsg}
                 controlclass="filter_button"

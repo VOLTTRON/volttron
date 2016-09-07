@@ -2802,7 +2802,7 @@ var ConfigureRegistry = function (_BaseComponent) {
 
             state.registryValues = getPointsFromStore(device, state.keyPropsList);
 
-            state.registryHeader = [];
+            // state.registryHeader = [];
             state.columnNames = [];
             state.pointNames = [];
             state.filteredList = [];
@@ -2810,7 +2810,7 @@ var ConfigureRegistry = function (_BaseComponent) {
             state.selectedPoints = devicesStore.getSelectedPoints(device);
 
             if (state.registryValues.length > 0) {
-                state.registryHeader = getRegistryHeader(state.registryValues[0]);
+                // state.registryHeader = getRegistryHeader(state.registryValues[0]);
                 state.columnNames = state.registryValues[0].map(function (columns) {
                     return columns.key;
                 });
@@ -2976,19 +2976,19 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_onAddColumn',
         value: function _onAddColumn(index) {
 
-            var registryHeader = JSON.parse(JSON.stringify(this.state.registryHeader));
+            // var registryHeader = JSON.parse(JSON.stringify(this.state.registryHeader));
             var registryValues = JSON.parse(JSON.stringify(this.state.registryValues));
             var columnNames = JSON.parse(JSON.stringify(this.state.columnNames));
             var keyPropsList = JSON.parse(JSON.stringify(this.state.keyPropsList));
 
-            var newHeader = registryHeader[index] + "-";
-            registryHeader.splice(index + 1, 0, newHeader);
+            // var newHeader = registryHeader[index] + "-";
+            // registryHeader.splice(index + 1, 0, newHeader);
 
             var newColumn = columnNames[index] + "-";
             columnNames.splice(index + 1, 0, newColumn);
             keyPropsList.push(newColumn);
 
-            this.setState({ registryHeader: registryHeader });
+            // this.setState({ registryHeader: registryHeader });
             this.setState({ columnNames: columnNames });
             this.setState({ keyPropsList: keyPropsList });
 
@@ -3011,19 +3011,19 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_onCloneColumn',
         value: function _onCloneColumn(index) {
 
-            var registryHeader = JSON.parse(JSON.stringify(this.state.registryHeader));
+            // var registryHeader = JSON.parse(JSON.stringify(this.state.registryHeader));
             var registryValues = JSON.parse(JSON.stringify(this.state.registryValues));
             var columnNames = JSON.parse(JSON.stringify(this.state.columnNames));
             var keyPropsList = JSON.parse(JSON.stringify(this.state.keyPropsList));
 
-            var newHeader = registryHeader[index] + "_";
-            registryHeader.splice(index + 1, 0, newHeader);
+            // var newHeader = registryHeader[index] + "_";
+            // registryHeader.splice(index + 1, 0, newHeader);
 
             var newColumn = columnNames[index] + "_";
             columnNames.splice(index + 1, 0, newColumn);
             keyPropsList.push(newColumn);
 
-            this.setState({ registryHeader: registryHeader });
+            // this.setState({ registryHeader: registryHeader });
             this.setState({ columnNames: columnNames });
             this.setState({ keyPropsList: keyPropsList });
 
@@ -3048,8 +3048,9 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_onRemoveColumn',
         value: function _onRemoveColumn(index) {
 
-            var columnHeader = this.state.registryHeader[index];
+            // var columnHeader = this.state.registryHeader[index];
 
+            var columnHeader = this.state.registryValues[0][index].label;
             var promptText = "Are you sure you want to delete the column, " + columnHeader + "?";
 
             modalActionCreators.openModal(_react2.default.createElement(ConfirmForm, {
@@ -3063,7 +3064,7 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_removeColumn',
         value: function _removeColumn(index) {
 
-            var registryHeader = JSON.parse(JSON.stringify(this.state.registryHeader));
+            // var registryHeader = JSON.parse(JSON.stringify(this.state.registryHeader));
             var registryValues = JSON.parse(JSON.stringify(this.state.registryValues));
             var columnNames = JSON.parse(JSON.stringify(this.state.columnNames));
             var keyPropsList = JSON.parse(JSON.stringify(this.state.keyPropsList));
@@ -3072,7 +3073,7 @@ var ConfigureRegistry = function (_BaseComponent) {
 
             columnNames.splice(index, 1);
 
-            registryHeader.splice(index, 1);
+            // registryHeader.splice(index, 1);
 
             registryValues.forEach(function (values) {
                 values.splice(index, 1);
@@ -3087,7 +3088,7 @@ var ConfigureRegistry = function (_BaseComponent) {
             this.setState({ keyPropsList: keyPropsList });
             this.setState({ columnNames: columnNames });
             this.setState({ registryValues: registryValues });
-            this.setState({ registryHeader: registryHeader });
+            // this.setState({ registryHeader: registryHeader });
 
             this.resizeTable = true;
 
@@ -3284,7 +3285,15 @@ var ConfigureRegistry = function (_BaseComponent) {
 
             if (evt.target.nodeName !== "INPUT" && evt.target.nodeName !== "I" && evt.target.nodeName !== "DIV") {
 
-                var target = evt.target.nodeName === "TD" ? evt.target.parentNode : evt.target;
+                var target;
+
+                if (evt.target.nodeName === "TD") {
+                    target = evt.target.parentNode;
+                } else if (evt.target.parentNode.nodeName === "TD") {
+                    target = evt.target.parentNode.parentNode;
+                } else {
+                    target = evt.target;
+                }
 
                 var rowIndex = target.dataset.row;
 
@@ -3313,7 +3322,7 @@ var ConfigureRegistry = function (_BaseComponent) {
             };
 
             var filterButton = _react2.default.createElement(FilterPointsButton, {
-                name: "filterRegistryPoints",
+                name: "filterRegistryPoints-" + this.props.device.id,
                 tooltipMsg: filterPointsTooltip,
                 onfilter: this._onFilterBoxChange,
                 onclear: this._onClearFilter });
@@ -3325,7 +3334,7 @@ var ConfigureRegistry = function (_BaseComponent) {
             };
 
             var addPointButton = _react2.default.createElement(ControlButton, {
-                name: 'addRegistryPoint',
+                name: "addRegistryPoint-" + this.props.device.id,
                 tooltip: addPointTooltip,
                 controlclass: 'add_point_button',
                 fontAwesomeIcon: 'plus',
@@ -3338,15 +3347,13 @@ var ConfigureRegistry = function (_BaseComponent) {
             };
 
             var removePointsButton = _react2.default.createElement(ControlButton, {
-                name: 'removeRegistryPoints',
+                name: "removeRegistryPoints-" + this.props.device.id,
                 fontAwesomeIcon: 'minus',
                 tooltip: removePointTooltip,
                 controlclass: 'remove_point_button',
                 clickAction: this._onRemovePoints });
 
-            var registryRows, registryHeader;
-
-            registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
+            var registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
 
                 var registryCells = [];
 
@@ -3356,7 +3363,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                         var selectedCellStyle = item.selected ? { backgroundColor: "#F5B49D" } : {};
                         var focusedCell = this.state.selectedCellColumn === columnIndex && this.state.selectedCellRow === rowIndex ? "focusedCell" : "";
 
-                        var itemCell = columnIndex === 0 && !item.editable ? _react2.default.createElement(
+                        var itemCell = !item.editable ? _react2.default.createElement(
                             'td',
                             { key: item.key + "-" + rowIndex + "-" + columnIndex },
                             _react2.default.createElement(
@@ -3414,58 +3421,100 @@ var ConfigureRegistry = function (_BaseComponent) {
                 width: "100%"
             };
 
-            registryHeader = this.state.registryHeader.map(function (item, index) {
+            var registryHeader = [];
 
-                var editSelectButton = _react2.default.createElement(EditSelectButton, {
-                    onremove: this._onRemoveColumn,
-                    onadd: this._onAddColumn,
-                    onclone: this._onCloneColumn,
-                    column: index });
+            var index = 0;
 
-                var editColumnButton = _react2.default.createElement(EditColumnButton, {
-                    column: index,
-                    tooltipMsg: 'Edit Column',
-                    findnext: this._onFindNext,
-                    replace: this._onReplace,
-                    replaceall: this._onReplaceAll
-                    // onfilter={this._onFilterBoxChange} 
-                    , onclear: this._onClearFind,
-                    onhide: this._removeFocus });
+            this.state.registryValues[0].forEach(function (item) {
 
-                var firstColumnWidth;
+                if (item.keyProp) {
+                    var editSelectButton = _react2.default.createElement(EditSelectButton, {
+                        onremove: this._onRemoveColumn,
+                        onadd: this._onAddColumn,
+                        onclone: this._onCloneColumn,
+                        column: index,
+                        name: "editSelectButton-" + this.props.device.id + "-" + item.key });
 
-                if (index === 0) {
-                    firstColumnWidth = {
-                        width: item.length * 10 + "px"
-                    };
+                    var editColumnButton = _react2.default.createElement(EditColumnButton, {
+                        column: index,
+                        tooltipMsg: 'Edit Column',
+                        findnext: this._onFindNext,
+                        replace: this._onReplace,
+                        replaceall: this._onReplaceAll
+                        // onfilter={this._onFilterBoxChange} 
+                        , onclear: this._onClearFind,
+                        onhide: this._removeFocus,
+                        name: "editColumnButton-" + this.props.device.id + "-" + item.key });
+
+                    var firstColumnWidth;
+
+                    if (index === 0) {
+                        firstColumnWidth = {
+                            width: item.length * 10 + "px"
+                        };
+                    }
+
+                    var headerCell;
+
+                    if (index === 0) {
+                        if (item.editable) {
+                            headerCell = _react2.default.createElement(
+                                'th',
+                                { key: "header-" + item.key + "-" + index, style: firstColumnWidth },
+                                _react2.default.createElement(
+                                    'div',
+                                    { className: 'th-inner zztop' },
+                                    item.label,
+                                    filterButton,
+                                    addPointButton,
+                                    removePointsButton,
+                                    editSelectButton,
+                                    editColumnButton
+                                )
+                            );
+                        } else {
+                            headerCell = _react2.default.createElement(
+                                'th',
+                                { key: "header-" + item.key + "-" + index, style: firstColumnWidth },
+                                _react2.default.createElement(
+                                    'div',
+                                    { className: 'th-inner zztop' },
+                                    item.label,
+                                    filterButton,
+                                    addPointButton,
+                                    removePointsButton
+                                )
+                            );
+                        }
+                    } else {
+                        if (item.editable) {
+                            headerCell = _react2.default.createElement(
+                                'th',
+                                { key: "header-" + item.key + "-" + index },
+                                _react2.default.createElement(
+                                    'div',
+                                    { className: 'th-inner', style: wideCell },
+                                    item.label,
+                                    editSelectButton,
+                                    editColumnButton
+                                )
+                            );
+                        } else {
+                            headerCell = _react2.default.createElement(
+                                'th',
+                                { key: "header-" + item.key + "-" + index },
+                                _react2.default.createElement(
+                                    'div',
+                                    { className: 'th-inner', style: wideCell },
+                                    item.label
+                                )
+                            );
+                        }
+                    }
+
+                    ++index;
+                    registryHeader.push(headerCell);
                 }
-
-                var headerCell = index === 0 ? _react2.default.createElement(
-                    'th',
-                    { key: "header-" + item + "-" + index, style: firstColumnWidth },
-                    _react2.default.createElement(
-                        'div',
-                        { className: 'th-inner zztop' },
-                        item,
-                        filterButton,
-                        addPointButton,
-                        removePointsButton,
-                        editSelectButton,
-                        editColumnButton
-                    )
-                ) : _react2.default.createElement(
-                    'th',
-                    { key: "header-" + item + "-" + index },
-                    _react2.default.createElement(
-                        'div',
-                        { className: 'th-inner', style: wideCell },
-                        item,
-                        editSelectButton,
-                        editColumnButton
-                    )
-                );
-
-                return headerCell;
             }, this);
 
             var wideDiv = {
@@ -3583,18 +3632,19 @@ function getPointsFromStore(device, keyPropsList) {
     return initializeList(devicesStore.getRegistryValues(device), keyPropsList);
 }
 
-function getRegistryHeader(registryItem) {
+// function getRegistryHeader(registryItem) {
 
-    var header = [];
+//     var header = [];
 
-    registryItem.forEach(function (item) {
-        if (item.keyProp) {
-            header.push(item.label);
-        }
-    });
+//     registryItem.forEach(function (item) {
+//         if (item.keyProp)
+//         {
+//             header.push(item.label);
+//         }
+//     });
 
-    return header;
-}
+//     return header;
+// }
 
 function initializeList(registryConfig, keyPropsList) {
     return registryConfig.map(function (row) {
@@ -4167,7 +4217,7 @@ var EditColumnButton = React.createClass({
         var columnIndex = this.props.column;
 
         return React.createElement(ControlButton, {
-            name: "editControlButton" + columnIndex,
+            name: this.props.name + "-controlButton",
             taptip: editTaptip,
             tooltip: editTooltip,
             fontAwesomeIcon: 'pencil',
@@ -4278,7 +4328,7 @@ var EditSelectButton = React.createClass({
         var cogIcon = React.createElement('i', { className: "fa fa-cog " });
 
         return React.createElement(ControlButton, {
-            name: "editSelectButton" + columnIndex,
+            name: this.props.name + "-controlButton",
             taptip: cogTaptip,
             controlclass: 'cog_button',
             fontAwesomeIcon: 'pencil',
@@ -4294,7 +4344,6 @@ module.exports = EditSelectButton;
 var React = require('react');
 
 var ControlButton = require('../control-button');
-// var controlButtonStore = require('../../stores/control-button-store');
 
 var FilterPointsButton = React.createClass({
     displayName: 'FilterPointsButton',
@@ -4302,19 +4351,6 @@ var FilterPointsButton = React.createClass({
     getInitialState: function getInitialState() {
         return getStateFromStores();
     },
-    // componentDidMount: function () {
-    //     controlButtonStore.addChangeListener(this._onStoresChange);
-    // },
-    // componentWillUnmount: function () {
-    //     controlButtonStore.removeChangeListener(this._onStoresChange);
-    // },
-    // _onStoresChange: function () {
-
-    //     if (controlButtonStore.getClearButton(this.props.name))
-    //     {
-    //         this.setState({ filterValue: "" });
-    //     }
-    // },
     _onFilterBoxChange: function _onFilterBoxChange(e) {
         var filterValue = e.target.value;
 
@@ -4383,8 +4419,8 @@ var FilterPointsButton = React.createClass({
         var filterTaptip = {
             "title": "Filter Points",
             "content": filterBox,
-            "xOffset": 60,
-            "yOffset": 120,
+            "xOffset": 300,
+            "yOffset": 420,
             "styles": [{ "key": "width", "value": "200px" }]
         };
 
@@ -4393,7 +4429,7 @@ var FilterPointsButton = React.createClass({
         var holdSelect = this.state.filterValue !== "";
 
         return React.createElement(ControlButton, {
-            name: "filterControlButton",
+            name: this.props.name + "-ControlButton",
             taptip: filterTaptip,
             tooltip: this.props.tooltipMsg,
             controlclass: 'filter_button',
@@ -5034,14 +5070,14 @@ var EditPointForm = function (_BaseComponent) {
 
             var attributes = this.state.attributes.map(function (item, index) {
 
-                var attributeInput = index === 0 ? _react2.default.createElement(
+                var attributeInput = item.editable ? _react2.default.createElement('input', { type: 'text',
+                    'data-key': item.key,
+                    value: item.value,
+                    onChange: this._updateAttribute }) : _react2.default.createElement(
                     'label',
                     null,
                     item.value
-                ) : _react2.default.createElement('input', { type: 'text',
-                    'data-key': item.key,
-                    value: item.value,
-                    onChange: this._updateAttribute });
+                );
 
                 var itemRow = _react2.default.createElement(
                     'tr',
@@ -9000,6 +9036,24 @@ devicesStore.getSelectedPoints = function (device) {
     return _devices[device.id].selectedPoints;
 };
 
+devicesStore.getPreppedData = function (data) {
+
+    var preppedData = data.map(function (row) {
+        var preppedRow = row.map(function (cell) {
+
+            cell.key = cell.key.toLowerCase();
+
+            cell.editable = !(cell.key === "point_name" || cell.key === "reference_point_name" || cell.key === "object_type" || cell.key === "index");
+
+            return cell;
+        });
+
+        return preppedRow;
+    });
+
+    return preppedData;
+};
+
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
@@ -9031,7 +9085,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     platformUuid: action.platformUuid,
                     bacnetProxyUuid: action.bacnetProxyUuid,
                     registryConfig: [],
-                    keyProps: ["Volttron_Point_Name", "Units", "Writable"],
+                    keyProps: ["volttron_point_name", "units", "writable"],
                     selectedPoints: [],
                     id: "548",
                     items: [{ key: "address", label: "Address", value: "Address 192.168.1.42" }, { key: "deviceId", label: "Device ID", value: "548" }, { key: "description", label: "Description", value: "Temperature sensor" }, { key: "vendorId", label: "Vendor ID", value: "18" }, { key: "vendor", label: "Vendor", value: "Siemens" }, { key: "type", label: "Type", value: "BACnet" }]
@@ -9041,7 +9095,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     platformUuid: action.platformUuid,
                     bacnetProxyUuid: action.bacnetProxyUuid,
                     registryConfig: [],
-                    keyProps: ["Volttron_Point_Name", "Units", "Writable"],
+                    keyProps: ["volttron_point_name", "units", "writable"],
                     selectedPoints: [],
                     id: "33",
                     items: [{ key: "address", label: "Address", value: "RemoteStation 1002:11" }, { key: "deviceId", label: "Device ID", value: "33" }, { key: "description", label: "Description", value: "Actuator 3-pt for zone control" }, { key: "vendorId", label: "Vendor ID", value: "12" }, { key: "vendor", label: "Vendor", value: "Alerton" }, { key: "type", label: "Type", value: "BACnet" }]
@@ -9079,7 +9133,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
             // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
             // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
-            _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
+            _devices[_device.id].registryConfig = devicesStore.getPreppedData(action.data);
             _devices[_device.id].configuring = true;
             _devices[_device.id].selectedPoints = [];
             _registryFiles[_device.id] = action.file;

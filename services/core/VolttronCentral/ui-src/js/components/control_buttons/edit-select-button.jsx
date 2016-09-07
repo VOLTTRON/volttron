@@ -74,7 +74,7 @@ var EditSelectButton = React.createClass({
 
         return (
             <ControlButton
-                name={"editSelectButton" + columnIndex}
+                name={this.props.name + "-controlButton"}
                 taptip={cogTaptip}
                 controlclass="cog_button"
                 fontAwesomeIcon="pencil"

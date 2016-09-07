@@ -178,7 +178,7 @@ var EditColumnButton = React.createClass({
 
         return (
             <ControlButton
-                name={"editControlButton" + columnIndex}
+                name={this.props.name + "-controlButton"}
                 taptip={editTaptip}
                 tooltip={editTooltip}
                 fontAwesomeIcon="pencil"                
