@@ -62,7 +62,6 @@ import glob
 import os
 import os.path
 import errno
-from string import whitespace
 from csv import DictReader
 from StringIO import StringIO
 
@@ -74,62 +73,12 @@ from volttron.platform.agent.utils import parse_json_config
 from volttron.platform.vip.agent import errors
 from volttron.platform.jsonrpc import RemoteError, MethodNotFound
 
+from volttron.platform.storeutils import list_unique_links, check_for_recursion, strip_config_name, store_ext
+
 from .vip.agent import Agent, Core, RPC
 
 
 _log = logging.getLogger(__name__)
-
-store_ext = ".store"
-link_prefix = "config://"
-
-def strip_config_name(config_name):
-    return config_name.strip(whitespace + r'\/')
-
-def _list_unique_links(config):
-    """Returns a set of config files referenced in this configuration"""
-    results = set()
-    if isinstance(config, dict):
-        values = config.values()
-    elif isinstance(config, list):
-        values = config
-    else:
-        #Raw config has no links
-        return results
-
-
-    for value in values:
-        if isinstance(value, (dict,list)):
-            results.update(_list_unique_links(value))
-        elif isinstance(value, str):
-            if value.startswith(link_prefix):
-                config_name = value.replace(link_prefix, '', 1)
-                config_name = strip_config_name(config_name)
-                results.add(config_name)
-
-    return results
-
-
-def check_for_recursion(new_config_name, new_config, existing_configs):
-    return _follow_links(set(), new_config_name, new_config_name, new_config, existing_configs)
-
-def _follow_links(seen, new_config_name, current_config_name, current_config, existing_configs):
-    children = _list_unique_links(current_config)
-
-    if new_config_name in children:
-        return True
-
-    seen.add(current_config_name)
-
-    for child_config_name in children - seen:
-        child_config = existing_configs.get(child_config_name)
-        if child_config is None:
-            #Link to a non-existing config, skip in the future.
-            seen.add(child_config_name)
-            continue
-        if _follow_links(seen, new_config_name, child_config_name, child_config, existing_configs):
-            return True
-
-    return False
 
 
 def process_store(identity, store):
@@ -236,7 +185,7 @@ class ConfigStoreService(Agent):
 
         with agent_store_lock:
             try:
-                self.vip.rpc.call(identity, "update_config", None, "DELETE_ALL", trigger_callback=True).get(
+                self.vip.rpc.call(identity, "config.update", "DELETE_ALL", None, trigger_callback=True).get(
                     timeout=10.0)
             except errors.Unreachable:
                 _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
@@ -249,7 +198,7 @@ class ConfigStoreService(Agent):
         # If the store is still empty (nothing jumped in and added to it while we were informing the agent)
         # then remove it from the global store.
         if not agent_disk_store:
-            self.store.pop(identity)
+            self.store.pop(identity, None)
 
     @RPC.export
     def manage_list_configs(self, identity):
@@ -257,6 +206,8 @@ class ConfigStoreService(Agent):
 
     @RPC.export
     def manage_list_stores(self):
+        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        _log.info("manage_list_stores called by {}".format(identity))
         return self.store.keys()
 
     @RPC.export
@@ -284,9 +235,43 @@ class ConfigStoreService(Agent):
 
     @RPC.export
     def get_configs(self):
-        """Called by an Agent at startup to get the initial configuration state."""
+        """Called by an Agent at startup to trigger initial configuration state push."""
         identity = bytes(self.vip.rpc.context.vip_message.peer)
-        return self.store.get(identity, {}).get("configs", {})
+        _log.info("get_configs called by {}".format(identity))
+
+        #We need to create store and lock if it doesn't exist in case someone tries to add
+        # a configuration while we are sending the initial state.
+        agent_store = self.store.get(identity)
+
+
+        if agent_store is None:
+            # Initialize a new store.
+            store_path = os.path.join(self.store_path, identity + store_ext)
+            store = PersistentDict(filename=store_path, flag='c', format='json')
+            agent_store = {"configs": {}, "store": store, "lock": Semaphore()}
+            self.store[identity] = agent_store
+
+        agent_configs = agent_store["configs"]
+        agent_disk_store = agent_store["store"]
+        agent_store_lock = agent_store["lock"]
+
+        with agent_store_lock:
+            try:
+                self.vip.rpc.call(identity, "config.initial_update", agent_configs).get(timeout=10.0)
+            except errors.Unreachable:
+                _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
+            except RemoteError as e:
+                _log.error("Agent {} failure when performing initial update: {}".format(identity, e))
+            except MethodNotFound as e:
+                _log.error(
+                    "Agent {} failure when performing initial update: {}".format(identity, e))
+
+        # If the store is empty (and nothing jumped in and added to it while we were informing the agent)
+        # then remove it from the global store.
+        if not agent_disk_store:
+            self.store.pop(identity, None)
+
+        _log.info("get_configs called by {} returned".format(identity))
 
     @RPC.export
     def delete_config(self, config_name, trigger_callback=False):
@@ -315,7 +300,7 @@ class ConfigStoreService(Agent):
 
         with agent_store_lock:
             try:
-                self.vip.rpc.call(identity, "update_config", config_name, "DELETE", trigger_callback=trigger_callback).get(timeout=10.0)
+                self.vip.rpc.call(identity, "config.update", "DELETE", config_name, trigger_callback=trigger_callback).get(timeout=10.0)
             except errors.Unreachable:
                 _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
             except RemoteError as e:
@@ -327,7 +312,7 @@ class ConfigStoreService(Agent):
         #If the store is empty (and nothing jumped in and added to it while we were informing the agent)
         # then remove it from the global store.
         if not agent_disk_store:
-            self.store.pop(identity)
+            self.store.pop(identity, None)
 
     # Helper method to allow the local services to store configs before message bus is online.
     def store_config(self, identity, config_name, contents, trigger_callback=False):
@@ -362,6 +347,7 @@ class ConfigStoreService(Agent):
         agent_store_lock = agent_store["lock"]
 
         config_name = strip_config_name(config_name)
+        config_name = config_name.lower()
 
         if config_name not in agent_configs:
             action = "NEW"
@@ -378,7 +364,7 @@ class ConfigStoreService(Agent):
 
         with agent_store_lock:
             try:
-                self.vip.rpc.call(identity, "update_config", action, contents=parsed, trigger_callback=trigger_callback).get(timeout=10.0)
+                self.vip.rpc.call(identity, "config.update", action, config_name, contents=parsed, trigger_callback=trigger_callback).get(timeout=10.0)
             except errors.Unreachable:
                 _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
             except RemoteError as e:
