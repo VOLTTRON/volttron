@@ -74,12 +74,10 @@ from volttron.platform.vip.agent import errors
 from volttron.platform.jsonrpc import RemoteError, MethodNotFound
 
 from volttron.platform.storeutils import list_unique_links, check_for_recursion, strip_config_name, store_ext
-
 from .vip.agent import Agent, Core, RPC
 
 
 _log = logging.getLogger(__name__)
-
 
 def process_store(identity, store):
     """Parses raw store data and returns contents.

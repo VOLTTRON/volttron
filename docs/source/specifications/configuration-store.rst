@@ -209,6 +209,7 @@ config.set_default(config_name, contents, trigger_callback=False) - Set a defaul
 
 config.delete_default(config_name, trigger_callback=False) - Delete a default value for a configuration. I have no idea why you would ever call this. It is here for completeness. This may not be called from a configuration callback. Doing so will raise a RuntimeError.
 
+
 Configuration Sub System RPC Methods
 ************************************
 
@@ -273,7 +274,9 @@ Command Line Interface
 
 The command line interface will consist of a new commands for the volttron-ctl program called "config" with four sub-commands called "store", "delete", "list", "get". These commands will map directly to the management RPC functions in the previous section.
 
+
 Disabling the Configuration Store
 *********************************
 
 Agents may optionally disable support for the configuration store by passing enable_store=False to the __init__ method of the Agent class. This allows temporary agents to not spin up the subsystem when it is not needed. Platform service agents that do not yet support the configuration store and the temporary agents used by volttron-ctl will set this value.
+
