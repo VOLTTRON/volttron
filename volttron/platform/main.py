@@ -89,14 +89,14 @@ from .vip.agent.compat import CompatPubSub
 from .vip.router import *
 from .vip.socket import decode_key, encode_key, Address
 from .vip.tracking import Tracker
-from .auth import AuthService
+from .auth import AuthService, AuthFile, AuthEntry
 from .control import ControlService
 from .web import MasterWebService
 from .store import ConfigStoreService
 from .agent import utils
 from .agent.known_identities import MASTER_WEB
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
-from .keystore import KeyStore
+from .keystore import KeyStore, KnownHostsStore
 
 try:
     import volttron.restricted
@@ -516,6 +516,13 @@ def start_volttron_process(opts):
         publickey = decode_key(keystore.public())
         if publickey:
             _log.info('public key: %s', encode_key(publickey))
+            # Authorize the platform key:
+            AuthFile().add(AuthEntry(credentials=encode_key(publickey)))
+            # Add platform key to known-hosts file:
+            known_hosts = KnownHostsStore()
+            known_hosts.add(opts.vip_local_address, encode_key(publickey))
+            for addr in opts.vip_address:
+                known_hosts.add(addr, encode_key(publickey))
         secretkey = decode_key(keystore.secret())
 
     # The following line doesn't appear to do anything, but it creates
