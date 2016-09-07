@@ -156,6 +156,11 @@ class KeyStore(BaseJSONStore):
 class KnownHostsStore(BaseJSONStore):
     '''Handle storage and retrival of known hosts'''
 
+    def __init__(self, filename=None):
+        if filename is None:
+            filename = os.path.join(get_home(), 'known_hosts')
+        super(KnownHostsStore, self).__init__(filename)
+
     def add(self, addr, server_key):
         self.update({self._parse_addr(addr): server_key})
 
