@@ -417,6 +417,10 @@ def do_platform_historian():
     }
     return config
 
+@installs('examples/ListenerAgent', 'listener')
+def do_listener():
+    return {}
+
 
 def wizard():
     """ Routine for configuring an insalled volttron instance.
@@ -454,6 +458,11 @@ def wizard():
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         do_platform_historian()
+
+    prompt = 'Would you like to install a listener agent?'
+    response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+    if response in y:
+        do_listener()
 
     print('Finished configuration\n')
     print('You can now start the volttron instance.\n')
