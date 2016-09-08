@@ -769,7 +769,11 @@ class ActuatorAgent(Agent):
             return
 
         try:
-            self.set_point(requester, point, message)
+            result = self.set_point(sender, point, message)
+            self._push_result_topic_pair(WRITE_ATTEMPT_PREFIX,
+                                         point, headers, message)
+            self._push_result_topic_pair(VALUE_RESPONSE_PREFIX,
+                                         point, headers, result)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
         except StandardError as ex:
@@ -830,16 +834,18 @@ class ActuatorAgent(Agent):
         if not isinstance(requester_id, str):
             raise TypeError("Agent id must be a nonempty string")
 
-        sender = bytes(self.vip.rpc.context.vip_message.peer)
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        sender = rpc_peer if rpc_peer != 'pubsub' else requester_id
         if self._check_lock(path, sender):
             result = self.vip.rpc.call(self.driver_vip_identity, 'set_point',
                                        path, point_name, value, **kwargs).get()
 
-            headers = self._get_headers(requester_id)
-            self._push_result_topic_pair(WRITE_ATTEMPT_PREFIX,
-                                         topic, headers, value)
-            self._push_result_topic_pair(VALUE_RESPONSE_PREFIX,
-                                         topic, headers, result)
+            if rpc_peer != 'pubsub':
+                headers = self._get_headers(requester_id)
+                self._push_result_topic_pair(WRITE_ATTEMPT_PREFIX,
+                                             topic, headers, value)
+                self._push_result_topic_pair(VALUE_RESPONSE_PREFIX,
+                                             topic, headers, result)
         else:
             raise LockError(
                 "caller ({}) does not have this lock".format(requester_id))
@@ -870,7 +876,8 @@ class ActuatorAgent(Agent):
             device, point_name = topic.rsplit('/', 1)
             devices[device].append((point_name, value))
 
-        sender = bytes(self.vip.rpc.context.vip_message.peer)
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        sender = rpc_peer if rpc_peer != 'pubsub' else requester_id
         for device in devices:
             if not self._check_lock(device, sender):
                 raise LockError("caller ({}) does not lock for device {}".format(requester_id, device))
@@ -920,7 +927,9 @@ class ActuatorAgent(Agent):
         headers = self._get_headers(requester)
 
         try:
-            self.revert_point(requester, point)
+            self.revert_point(sender, point)
+            self._push_result_topic_pair(REVERT_POINT_RESPONSE_PREFIX,
+                                         point, headers, None)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
         except StandardError as ex:
@@ -960,7 +969,9 @@ class ActuatorAgent(Agent):
         headers = self._get_headers(requester)
 
         try:
-            self.revert_device(requester, point)
+            self.revert_device(sender, point)
+            self._push_result_topic_pair(REVERT_DEVICE_RESPONSE_PREFIX,
+                                         point, headers, None)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
         except StandardError as ex:
@@ -991,14 +1002,16 @@ class ActuatorAgent(Agent):
 
         path, point_name = topic.rsplit('/', 1)
 
-        sender = bytes(self.vip.rpc.context.vip_message.peer)
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        sender = rpc_peer if rpc_peer != 'pubsub' else requester_id
         if self._check_lock(path, sender):
             self.vip.rpc.call(self.driver_vip_identity, 'revert_point', path,
                               point_name, **kwargs).get()
 
             headers = self._get_headers(requester_id)
-            self._push_result_topic_pair(REVERT_POINT_RESPONSE_PREFIX,
-                                         topic, headers, None)
+            if rpc_peer != 'pubsub':
+                self._push_result_topic_pair(REVERT_POINT_RESPONSE_PREFIX,
+                                             topic, headers, None)
         else:
             raise LockError("caller does not have this lock")
 
@@ -1026,14 +1039,16 @@ class ActuatorAgent(Agent):
 
         path = topic
 
-        sender = bytes(self.vip.rpc.context.vip_message.peer)
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        sender = rpc_peer if rpc_peer != 'pubsub' else requester_id
         if self._check_lock(path, sender):
             self.vip.rpc.call(self.driver_vip_identity, 'revert_device', path,
                               **kwargs).get()
 
             headers = self._get_headers(requester_id)
-            self._push_result_topic_pair(REVERT_DEVICE_RESPONSE_PREFIX,
-                                         topic, headers, None)
+            if rpc_peer != 'pubsub':
+                self._push_result_topic_pair(REVERT_DEVICE_RESPONSE_PREFIX,
+                                             topic, headers, None)
         else:
             raise LockError("caller does not have this lock")
 
@@ -1187,7 +1202,8 @@ class ActuatorAgent(Agent):
         _log.debug("Got new schedule request: {}, {}, {}, {}".
                    format(requester_id, task_id, priority, requests))
 
-        sender = bytes(self.vip.rpc.context.vip_message.peer)
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        sender = rpc_peer if rpc_peer != 'pubsub' else requester_id
         result = self._schedule_manager.request_slots(sender, task_id,
                                                       requests, priority, now)
         success = SCHEDULE_RESPONSE_SUCCESS if result.success else \
@@ -1257,7 +1273,8 @@ class ActuatorAgent(Agent):
         headers = self._get_headers(requester_id, task_id=task_id)
         headers['type'] = SCHEDULE_ACTION_CANCEL
 
-        sender = bytes(self.vip.rpc.context.vip_message.peer)
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        sender = rpc_peer if rpc_peer != 'pubsub' else requester_id
         result = self._schedule_manager.cancel_task(sender, task_id, now)
         success = SCHEDULE_RESPONSE_SUCCESS if result.success else \
             SCHEDULE_RESPONSE_FAILURE

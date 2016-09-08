@@ -2379,6 +2379,7 @@ def test_set_value_error(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator_pubsub
+@pytest.mark.xfail(reason="Request ids are now ignored.")
 def test_set_error_none_agent(publish_agent, cancel_schedules):
     """
     Test setting a value of a point through pubsub without a valid agent id
