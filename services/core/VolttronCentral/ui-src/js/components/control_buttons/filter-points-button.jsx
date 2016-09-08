@@ -73,8 +73,8 @@ var FilterPointsButton = React.createClass({
         var filterTaptip = { 
             "title": "Filter Points", 
             "content": filterBox,
-            "xOffset": 300,
-            "yOffset": 420,
+            "x": 80,
+            "y": -150,
             "styles": [{"key": "width", "value": "200px"}]
         };
 

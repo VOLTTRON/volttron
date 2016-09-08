@@ -4,13 +4,13 @@ import React from 'react';
 import BaseComponent from './base-component';
 import EditPointForm from './edit-point-form';
 import ConfigDeviceForm from './config-device-form';
+import EditSelectButton from './control_buttons/edit-select-button';
+import EditColumnButton from './control_buttons/edit-columns-button';
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var devicesStore = require('../stores/devices-store');
 var FilterPointsButton = require('./control_buttons/filter-points-button');
 var ControlButton = require('./control-button');
-var EditSelectButton = require('./control_buttons/edit-select-button');
-var EditColumnButton = require('./control_buttons/edit-columns-button');
 var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
@@ -20,20 +20,15 @@ class ConfigureRegistry extends BaseComponent {
         this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", 
             "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn",
             "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
-            "_saveRegistry", "_removeFocus", "_resetState", "_showProps", "_handleRowClick" );
+            "_saveRegistry", "_removeFocus", "_resetState", "_showProps", "_handleRowClick", "_getRealIndex" );
 
         this.state = this._resetState(this.props.device);
     }
     componentDidMount() {
-        // platformsStore.addChangeListener(this._onStoresChange);
-
         this.containerDiv = document.getElementsByClassName("fixed-table-container-inner")[0];
         this.fixedHeader = document.getElementsByClassName("header-background")[0];
         this.fixedInner = document.getElementsByClassName("fixed-table-container-inner")[0];
         this.registryTable = document.getElementsByClassName("registryConfigTable")[0];
-    }
-    componentWillUnmount() {
-        // platformsStore.removeChangeListener(this._onStoresChange);
     }
     componentDidUpdate() {
 
@@ -65,9 +60,6 @@ class ConfigureRegistry extends BaseComponent {
     componentWillReceiveProps(nextProps) {
         this.setState(this._resetState(nextProps.device));
     }
-    // _onStoresChange() {
-    //     this.setState({registryValues: getPointsFromStore(this.props.device) });
-    // }
     _resetState(device){
     
         var state = {};    
@@ -77,7 +69,6 @@ class ConfigureRegistry extends BaseComponent {
 
         state.registryValues = getPointsFromStore(device, state.keyPropsList);
 
-        // state.registryHeader = [];
         state.columnNames = [];
         state.pointNames = [];
         state.filteredList = [];
@@ -86,7 +77,6 @@ class ConfigureRegistry extends BaseComponent {
 
         if (state.registryValues.length > 0)
         {
-            // state.registryHeader = getRegistryHeader(state.registryValues[0]);
             state.columnNames = state.registryValues[0].map(function (columns) {
                 return columns.key;
             });
@@ -120,9 +110,6 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onClearFilter() {
         this.setState({ filterOn: false });
-        // this.setState({registryValues: getPointsFromStore(this.props.device) }); //TODO: when filtering, set nonmatches to hidden so they're
-                                                                                //still there and we don't lose information in inputs
-                                                                                //then to clear filter, set all to not hidden
     }
     _onAddPoint() {
 
@@ -251,21 +238,21 @@ class ConfigureRegistry extends BaseComponent {
 
         this.setState({ pointsToDelete : (allSelected ? JSON.parse(JSON.stringify(this.state.pointNames)) : []) }); 
     }
+    _getRealIndex(index) {
+
+        
+        
+    }
     _onAddColumn(index) {
 
-        // var registryHeader = JSON.parse(JSON.stringify(this.state.registryHeader));
         var registryValues = JSON.parse(JSON.stringify(this.state.registryValues));
         var columnNames = JSON.parse(JSON.stringify(this.state.columnNames));
         var keyPropsList = JSON.parse(JSON.stringify(this.state.keyPropsList));
-
-        // var newHeader = registryHeader[index] + "-";
-        // registryHeader.splice(index + 1, 0, newHeader);
 
         var newColumn = columnNames[index] + "-";
         columnNames.splice(index + 1, 0, newColumn);
         keyPropsList.push(newColumn);
 
-        // this.setState({ registryHeader: registryHeader });
         this.setState({ columnNames: columnNames });
         this.setState({ keyPropsList: keyPropsList });
 
@@ -286,19 +273,14 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onCloneColumn(index) {
 
-        // var registryHeader = JSON.parse(JSON.stringify(this.state.registryHeader));
         var registryValues = JSON.parse(JSON.stringify(this.state.registryValues));
         var columnNames = JSON.parse(JSON.stringify(this.state.columnNames));
         var keyPropsList = JSON.parse(JSON.stringify(this.state.keyPropsList));
         
-        // var newHeader = registryHeader[index] + "_";
-        // registryHeader.splice(index + 1, 0, newHeader);
-
         var newColumn = columnNames[index] + "_";
         columnNames.splice(index + 1, 0, newColumn);
         keyPropsList.push(newColumn);
 
-        // this.setState({ registryHeader: registryHeader });
         this.setState({ columnNames: columnNames });
         this.setState({ keyPropsList: keyPropsList });
 
@@ -323,8 +305,6 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onRemoveColumn(index) {
 
-        // var columnHeader = this.state.registryHeader[index];
-
         var columnHeader = this.state.registryValues[0][index].label;
         var promptText = ("Are you sure you want to delete the column, " + columnHeader + "?");
         
@@ -340,7 +320,6 @@ class ConfigureRegistry extends BaseComponent {
     }
     _removeColumn(index) {
 
-        // var registryHeader = JSON.parse(JSON.stringify(this.state.registryHeader));
         var registryValues = JSON.parse(JSON.stringify(this.state.registryValues));
         var columnNames = JSON.parse(JSON.stringify(this.state.columnNames));
         var keyPropsList = JSON.parse(JSON.stringify(this.state.keyPropsList));
@@ -348,8 +327,6 @@ class ConfigureRegistry extends BaseComponent {
         var columnName = columnNames[index];
 
         columnNames.splice(index, 1);
-
-        // registryHeader.splice(index, 1);
 
         registryValues.forEach(function (values) {
             values.splice(index, 1);
@@ -365,7 +342,6 @@ class ConfigureRegistry extends BaseComponent {
         this.setState({ keyPropsList: keyPropsList });
         this.setState({ columnNames: columnNames });
         this.setState({ registryValues: registryValues });
-        // this.setState({ registryHeader: registryHeader });
 
         this.resizeTable = true;
 
@@ -559,8 +535,6 @@ class ConfigureRegistry extends BaseComponent {
         devicesActionCreators.cancelRegistry(this.props.device);
     }
     _saveRegistry() {
-
-        //TODO: open dialog for device config
         devicesActionCreators.saveRegistry(this.props.device, this.state.registryValues);
         modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device}/>);
     }
@@ -607,8 +581,8 @@ class ConfigureRegistry extends BaseComponent {
         
         var filterPointsTooltip = {
             content: "Filter Points",
-            "x": 160,
-            "y": 30
+            "x": 80,
+            "y": -60
         }
 
         var filterButton = <FilterPointsButton 
@@ -619,8 +593,8 @@ class ConfigureRegistry extends BaseComponent {
 
         var addPointTooltip = {
             content: "Add New Point",
-            "x": 160,
-            "y": 30
+            "x": 80,
+            "y": -60
         }
 
         var addPointButton = <ControlButton 
@@ -633,8 +607,8 @@ class ConfigureRegistry extends BaseComponent {
 
         var removePointTooltip = {
             content: "Remove Points",
-            "x": 160,
-            "y": 30
+            "x": 80,
+            "y": -60
         }
 
         var removePointsButton = <ControlButton
@@ -714,7 +688,7 @@ class ConfigureRegistry extends BaseComponent {
                                             onadd={this._onAddColumn}
                                             onclone={this._onCloneColumn}
                                             column={index}
-                                            name={"editSelectButton-" + this.props.device.id + "-" + item.key}/>);
+                                            name={this.props.device.id + "-" + item.key}/>);
 
                 var editColumnButton = (<EditColumnButton 
                                             column={index} 
@@ -725,7 +699,7 @@ class ConfigureRegistry extends BaseComponent {
                                             // onfilter={this._onFilterBoxChange} 
                                             onclear={this._onClearFind}
                                             onhide={this._removeFocus}
-                                            name={"editColumnButton-" + this.props.device.id + "-" + item.key}/>);
+                                            name={this.props.device.id + "-" + item.key}/>);
 
                 var firstColumnWidth;
 

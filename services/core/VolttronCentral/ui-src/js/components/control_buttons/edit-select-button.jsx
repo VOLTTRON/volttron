@@ -1,46 +1,49 @@
 'use strict';
 
-var React = require('react');
+import React from 'react';
+import BaseComponent from '../base-component';
 
 var ControlButton = require('../control-button');
 var EditColumnButton = require('./edit-columns-button');
 var controlButtonActionCreators = require('../../action-creators/control-button-action-creators');
-// var controlButtonStore = require('../../stores/control-button-store');
 
-var EditSelectButton = React.createClass({
-    componentDidMount: function () {
-        // this.opSelector = document.getElementsByClassName("opSelector")[0];
-        // this.opSelector.selectedIndex = -1;
-    },
-    componentDidUpdate: function () {
-    },
-    _onClose: function () {
+class EditSelectButton extends BaseComponent {
+    constructor(props) {
+        super(props);
+        this._bind("_onCloneColumn", "_onAddColumn", "_onRemoveColumn", "_onEditColumn");
 
-    },
-    _onCloneColumn: function () {
+        this.state = {};
+
+        this.state.buttonName = "editSelect-" + this.props.name + "-controlButton";
+        this.state.editColumnButton = "editColumn-" + this.props.name + "-controlButton";
+    }
+    _onClose() {
+
+    }
+    _onCloneColumn() {
         this.props.onclone(this.props.column);
-        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
-    },
-    _onAddColumn: function () {
+        controlButtonActionCreators.hideTaptip(this.state.buttonName);
+    }
+    _onAddColumn() {
         this.props.onadd(this.props.column);
-        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
-    },
-    _onRemoveColumn: function () {
+        controlButtonActionCreators.hideTaptip(this.state.buttonName);
+    }
+    _onRemoveColumn() {
         this.props.onremove(this.props.column);
-        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
-    },
-    _onEditColumn: function () {
-        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
-        controlButtonActionCreators.toggleTaptip("editControlButton" + this.props.column);
-    },
-    render: function () {
+        controlButtonActionCreators.hideTaptip(this.state.buttonName);
+    }
+    _onEditColumn() {
+        controlButtonActionCreators.hideTaptip(this.state.buttonName);
+        controlButtonActionCreators.toggleTaptip(this.state.editColumnButton);
+    }
+    render() {
 
-        var cogBoxContainer = {
+        var editBoxContainer = {
             position: "relative"
         };
 
-        var cogBox = (
-            <div style={cogBoxContainer}>
+        var editBox = (
+            <div style={editBoxContainer}>
                 <ul
                     className="opList">
                     <li 
@@ -59,28 +62,31 @@ var EditSelectButton = React.createClass({
             </div> 
         );
 
-        var cogTaptip = { 
-            "content": cogBox,
-            "x": 100,
-            "y": 24,
+        var editSelectTaptip = { 
+            "content": editBox,
+            "x": 80,
+            "y": -80,
             "styles": [{"key": "width", "value": "120px"}],
             "break": "",
             "padding": "0px"
         };
 
-        var columnIndex = this.props.column;
-
-        var cogIcon = (<i className={"fa fa-cog "}></i>);
+        var editSelectTooltip = {
+            content: "Edit Column",
+            "x": 80,
+            "y": -60
+        }
 
         return (
             <ControlButton
-                name={this.props.name + "-controlButton"}
-                taptip={cogTaptip}
-                controlclass="cog_button"
+                name={this.state.buttonName}
+                taptip={editSelectTaptip}
+                tooltip={editSelectTooltip}
+                controlclass="edit_button"
                 fontAwesomeIcon="pencil"
                 closeAction={this._onClose}/>
         );
-    },
-});
+    }
+};
 
-module.exports = EditSelectButton;
+export default EditSelectButton;

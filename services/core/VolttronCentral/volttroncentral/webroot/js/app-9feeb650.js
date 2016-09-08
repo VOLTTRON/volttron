@@ -2712,6 +2712,14 @@ var _configDeviceForm = require('./config-device-form');
 
 var _configDeviceForm2 = _interopRequireDefault(_configDeviceForm);
 
+var _editSelectButton = require('./control_buttons/edit-select-button');
+
+var _editSelectButton2 = _interopRequireDefault(_editSelectButton);
+
+var _editColumnsButton = require('./control_buttons/edit-columns-button');
+
+var _editColumnsButton2 = _interopRequireDefault(_editColumnsButton);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -2724,8 +2732,6 @@ var devicesActionCreators = require('../action-creators/devices-action-creators'
 var devicesStore = require('../stores/devices-store');
 var FilterPointsButton = require('./control_buttons/filter-points-button');
 var ControlButton = require('./control-button');
-var EditSelectButton = require('./control_buttons/edit-select-button');
-var EditColumnButton = require('./control_buttons/edit-columns-button');
 var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
@@ -2737,7 +2743,7 @@ var ConfigureRegistry = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(ConfigureRegistry).call(this, props));
 
-        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_showProps", "_handleRowClick");
+        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_showProps", "_handleRowClick", "_getRealIndex");
 
         _this.state = _this._resetState(_this.props.device);
         return _this;
@@ -2746,17 +2752,10 @@ var ConfigureRegistry = function (_BaseComponent) {
     _createClass(ConfigureRegistry, [{
         key: 'componentDidMount',
         value: function componentDidMount() {
-            // platformsStore.addChangeListener(this._onStoresChange);
-
             this.containerDiv = document.getElementsByClassName("fixed-table-container-inner")[0];
             this.fixedHeader = document.getElementsByClassName("header-background")[0];
             this.fixedInner = document.getElementsByClassName("fixed-table-container-inner")[0];
             this.registryTable = document.getElementsByClassName("registryConfigTable")[0];
-        }
-    }, {
-        key: 'componentWillUnmount',
-        value: function componentWillUnmount() {
-            // platformsStore.removeChangeListener(this._onStoresChange);
         }
     }, {
         key: 'componentDidUpdate',
@@ -2787,10 +2786,6 @@ var ConfigureRegistry = function (_BaseComponent) {
         value: function componentWillReceiveProps(nextProps) {
             this.setState(this._resetState(nextProps.device));
         }
-        // _onStoresChange() {
-        //     this.setState({registryValues: getPointsFromStore(this.props.device) });
-        // }
-
     }, {
         key: '_resetState',
         value: function _resetState(device) {
@@ -2802,7 +2797,6 @@ var ConfigureRegistry = function (_BaseComponent) {
 
             state.registryValues = getPointsFromStore(device, state.keyPropsList);
 
-            // state.registryHeader = [];
             state.columnNames = [];
             state.pointNames = [];
             state.filteredList = [];
@@ -2810,7 +2804,6 @@ var ConfigureRegistry = function (_BaseComponent) {
             state.selectedPoints = devicesStore.getSelectedPoints(device);
 
             if (state.registryValues.length > 0) {
-                // state.registryHeader = getRegistryHeader(state.registryValues[0]);
                 state.columnNames = state.registryValues[0].map(function (columns) {
                     return columns.key;
                 });
@@ -2844,9 +2837,6 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_onClearFilter',
         value: function _onClearFilter() {
             this.setState({ filterOn: false });
-            // this.setState({registryValues: getPointsFromStore(this.props.device) }); //TODO: when filtering, set nonmatches to hidden so they're
-            //still there and we don't lose information in inputs
-            //then to clear filter, set all to not hidden
         }
     }, {
         key: '_onAddPoint',
@@ -2973,22 +2963,20 @@ var ConfigureRegistry = function (_BaseComponent) {
             this.setState({ pointsToDelete: allSelected ? JSON.parse(JSON.stringify(this.state.pointNames)) : [] });
         }
     }, {
+        key: '_getRealIndex',
+        value: function _getRealIndex(index) {}
+    }, {
         key: '_onAddColumn',
         value: function _onAddColumn(index) {
 
-            // var registryHeader = JSON.parse(JSON.stringify(this.state.registryHeader));
             var registryValues = JSON.parse(JSON.stringify(this.state.registryValues));
             var columnNames = JSON.parse(JSON.stringify(this.state.columnNames));
             var keyPropsList = JSON.parse(JSON.stringify(this.state.keyPropsList));
-
-            // var newHeader = registryHeader[index] + "-";
-            // registryHeader.splice(index + 1, 0, newHeader);
 
             var newColumn = columnNames[index] + "-";
             columnNames.splice(index + 1, 0, newColumn);
             keyPropsList.push(newColumn);
 
-            // this.setState({ registryHeader: registryHeader });
             this.setState({ columnNames: columnNames });
             this.setState({ keyPropsList: keyPropsList });
 
@@ -3011,19 +2999,14 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_onCloneColumn',
         value: function _onCloneColumn(index) {
 
-            // var registryHeader = JSON.parse(JSON.stringify(this.state.registryHeader));
             var registryValues = JSON.parse(JSON.stringify(this.state.registryValues));
             var columnNames = JSON.parse(JSON.stringify(this.state.columnNames));
             var keyPropsList = JSON.parse(JSON.stringify(this.state.keyPropsList));
-
-            // var newHeader = registryHeader[index] + "_";
-            // registryHeader.splice(index + 1, 0, newHeader);
 
             var newColumn = columnNames[index] + "_";
             columnNames.splice(index + 1, 0, newColumn);
             keyPropsList.push(newColumn);
 
-            // this.setState({ registryHeader: registryHeader });
             this.setState({ columnNames: columnNames });
             this.setState({ keyPropsList: keyPropsList });
 
@@ -3048,8 +3031,6 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_onRemoveColumn',
         value: function _onRemoveColumn(index) {
 
-            // var columnHeader = this.state.registryHeader[index];
-
             var columnHeader = this.state.registryValues[0][index].label;
             var promptText = "Are you sure you want to delete the column, " + columnHeader + "?";
 
@@ -3064,7 +3045,6 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_removeColumn',
         value: function _removeColumn(index) {
 
-            // var registryHeader = JSON.parse(JSON.stringify(this.state.registryHeader));
             var registryValues = JSON.parse(JSON.stringify(this.state.registryValues));
             var columnNames = JSON.parse(JSON.stringify(this.state.columnNames));
             var keyPropsList = JSON.parse(JSON.stringify(this.state.keyPropsList));
@@ -3072,8 +3052,6 @@ var ConfigureRegistry = function (_BaseComponent) {
             var columnName = columnNames[index];
 
             columnNames.splice(index, 1);
-
-            // registryHeader.splice(index, 1);
 
             registryValues.forEach(function (values) {
                 values.splice(index, 1);
@@ -3088,7 +3066,6 @@ var ConfigureRegistry = function (_BaseComponent) {
             this.setState({ keyPropsList: keyPropsList });
             this.setState({ columnNames: columnNames });
             this.setState({ registryValues: registryValues });
-            // this.setState({ registryHeader: registryHeader });
 
             this.resizeTable = true;
 
@@ -3274,8 +3251,6 @@ var ConfigureRegistry = function (_BaseComponent) {
     }, {
         key: '_saveRegistry',
         value: function _saveRegistry() {
-
-            //TODO: open dialog for device config
             devicesActionCreators.saveRegistry(this.props.device, this.state.registryValues);
             modalActionCreators.openModal(_react2.default.createElement(_configDeviceForm2.default, { device: this.props.device }));
         }
@@ -3317,8 +3292,8 @@ var ConfigureRegistry = function (_BaseComponent) {
 
             var filterPointsTooltip = {
                 content: "Filter Points",
-                "x": 160,
-                "y": 30
+                "x": 80,
+                "y": -60
             };
 
             var filterButton = _react2.default.createElement(FilterPointsButton, {
@@ -3329,8 +3304,8 @@ var ConfigureRegistry = function (_BaseComponent) {
 
             var addPointTooltip = {
                 content: "Add New Point",
-                "x": 160,
-                "y": 30
+                "x": 80,
+                "y": -60
             };
 
             var addPointButton = _react2.default.createElement(ControlButton, {
@@ -3342,8 +3317,8 @@ var ConfigureRegistry = function (_BaseComponent) {
 
             var removePointTooltip = {
                 content: "Remove Points",
-                "x": 160,
-                "y": 30
+                "x": 80,
+                "y": -60
             };
 
             var removePointsButton = _react2.default.createElement(ControlButton, {
@@ -3428,14 +3403,14 @@ var ConfigureRegistry = function (_BaseComponent) {
             this.state.registryValues[0].forEach(function (item) {
 
                 if (item.keyProp) {
-                    var editSelectButton = _react2.default.createElement(EditSelectButton, {
+                    var editSelectButton = _react2.default.createElement(_editSelectButton2.default, {
                         onremove: this._onRemoveColumn,
                         onadd: this._onAddColumn,
                         onclone: this._onCloneColumn,
                         column: index,
-                        name: "editSelectButton-" + this.props.device.id + "-" + item.key });
+                        name: this.props.device.id + "-" + item.key });
 
-                    var editColumnButton = _react2.default.createElement(EditColumnButton, {
+                    var editColumnButton = _react2.default.createElement(_editColumnsButton2.default, {
                         column: index,
                         tooltipMsg: 'Edit Column',
                         findnext: this._onFindNext,
@@ -3444,7 +3419,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                         // onfilter={this._onFilterBoxChange} 
                         , onclear: this._onClearFind,
                         onhide: this._removeFocus,
-                        name: "editColumnButton-" + this.props.device.id + "-" + item.key });
+                        name: this.props.device.id + "-" + item.key });
 
                     var firstColumnWidth;
 
@@ -4015,330 +3990,425 @@ module.exports = OutsideClick(ControlButton);
 },{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":56,"react":undefined,"react-click-outside":undefined,"react-router":undefined}],21:[function(require,module,exports){
 'use strict';
 
-var React = require('react');
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _baseComponent = require('../base-component');
+
+var _baseComponent2 = _interopRequireDefault(_baseComponent);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var ControlButton = require('../control-button');
 var controlButtonActionCreators = require('../../action-creators/control-button-action-creators');
-// var controlButtonStore = require('../../stores/control-button-store');
 
-var EditColumnButton = React.createClass({
-    displayName: 'EditColumnButton',
+var EditColumnButton = function (_BaseComponent) {
+    _inherits(EditColumnButton, _BaseComponent);
 
-    getInitialState: function getInitialState() {
-        return getStateFromStores();
-    },
-    _onFindBoxChange: function _onFindBoxChange(e) {
-        var findValue = e.target.value;
+    function EditColumnButton(props) {
+        _classCallCheck(this, EditColumnButton);
 
-        this.setState({ findValue: findValue });
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(EditColumnButton).call(this, props));
 
-        this.props.onclear(this.props.column);
-    },
-    _onReplaceBoxChange: function _onReplaceBoxChange(e) {
-        var replaceValue = e.target.value;
+        _this._bind("_onFindBoxChange", "_onReplaceBoxChange", "_findNext", "_onClearEdit", "_replace", "_replaceAll");
 
-        this.setState({ replaceValue: replaceValue });
-    },
-    _findNext: function _findNext() {
+        _this.state = getStateFromStores(_this.props.name);
+        return _this;
+    }
 
-        if (this.state.findValue === "") {
+    _createClass(EditColumnButton, [{
+        key: '_onFindBoxChange',
+        value: function _onFindBoxChange(e) {
+            var findValue = e.target.value;
+
+            this.setState({ findValue: findValue });
+
             this.props.onclear(this.props.column);
-        } else {
-            this.props.findnext(this.state.findValue, this.props.column);
         }
-    },
-    _onClearEdit: function _onClearEdit(e) {
+    }, {
+        key: '_onReplaceBoxChange',
+        value: function _onReplaceBoxChange(e) {
+            var replaceValue = e.target.value;
 
-        this.props.onclear(this.props.column);
-        this.setState({ findValue: "" });
-        this.setState({ replaceValue: "" });
-        controlButtonActionCreators.hideTaptip("editControlButton" + this.props.column);
-    },
-    _replace: function _replace() {
-        this.props.replace(this.state.findValue, this.state.replaceValue, this.props.column);
-    },
-    _replaceAll: function _replaceAll() {
-        this.props.replaceall(this.state.findValue, this.state.replaceValue, this.props.column);
-    },
-    render: function render() {
+            this.setState({ replaceValue: replaceValue });
+        }
+    }, {
+        key: '_findNext',
+        value: function _findNext() {
 
-        var editBoxContainer = {
-            position: "relative"
-        };
+            if (this.state.findValue === "") {
+                this.props.onclear(this.props.column);
+            } else {
+                this.props.findnext(this.state.findValue, this.props.column);
+            }
+        }
+    }, {
+        key: '_onClearEdit',
+        value: function _onClearEdit(e) {
 
-        var inputStyle = {
-            width: "100%",
-            marginLeft: "10px",
-            fontWeight: "normal"
-        };
+            this.props.onclear(this.props.column);
+            this.setState({ findValue: "" });
+            this.setState({ replaceValue: "" });
+            controlButtonActionCreators.hideTaptip(this.state.buttonName);
+        }
+    }, {
+        key: '_replace',
+        value: function _replace() {
+            this.props.replace(this.state.findValue, this.state.replaceValue, this.props.column);
+        }
+    }, {
+        key: '_replaceAll',
+        value: function _replaceAll() {
+            this.props.replaceall(this.state.findValue, this.state.replaceValue, this.props.column);
+        }
+    }, {
+        key: 'render',
+        value: function render() {
 
-        var divWidth = {
-            width: "85%"
-        };
+            var editBoxContainer = {
+                position: "relative"
+            };
 
-        var clearTooltip = {
-            content: "Clear Search",
-            x: 50,
-            y: 0
-        };
+            var inputStyle = {
+                width: "100%",
+                marginLeft: "10px",
+                fontWeight: "normal"
+            };
 
-        var findTooltip = {
-            content: "Find Next",
-            x: 100,
-            y: 0
-        };
+            var divWidth = {
+                width: "85%"
+            };
 
-        var replaceTooltip = {
-            content: "Replace",
-            x: 100,
-            y: 80
-        };
+            var clearTooltip = {
+                content: "Clear Search",
+                x: 50,
+                y: 0
+            };
 
-        var replaceAllTooltip = {
-            content: "Replace All",
-            x: 100,
-            y: 80
-        };
+            var findTooltip = {
+                content: "Find Next",
+                x: 100,
+                y: 0
+            };
 
-        var buttonsStyle = {
-            marginTop: "8px"
-        };
+            var replaceTooltip = {
+                content: "Replace",
+                x: 100,
+                y: 80
+            };
 
-        var editBox = React.createElement(
-            'div',
-            { style: editBoxContainer },
-            React.createElement(ControlButton, {
-                fontAwesomeIcon: 'ban',
-                tooltip: clearTooltip,
-                clickAction: this._onClearEdit }),
-            React.createElement(
+            var replaceAllTooltip = {
+                content: "Replace All",
+                x: 100,
+                y: 80
+            };
+
+            var buttonsStyle = {
+                marginTop: "8px"
+            };
+
+            var editBox = _react2.default.createElement(
                 'div',
-                null,
-                React.createElement(
-                    'table',
+                { style: editBoxContainer },
+                _react2.default.createElement(ControlButton, {
+                    fontAwesomeIcon: 'ban',
+                    tooltip: clearTooltip,
+                    clickAction: this._onClearEdit }),
+                _react2.default.createElement(
+                    'div',
                     null,
-                    React.createElement(
-                        'tbody',
+                    _react2.default.createElement(
+                        'table',
                         null,
-                        React.createElement(
-                            'tr',
+                        _react2.default.createElement(
+                            'tbody',
                             null,
-                            React.createElement(
-                                'td',
-                                { colSpan: '2' },
-                                'Find in Column'
-                            )
-                        ),
-                        React.createElement(
-                            'tr',
-                            null,
-                            React.createElement(
-                                'td',
-                                { width: '70%' },
-                                React.createElement('input', {
-                                    type: 'text',
-                                    style: inputStyle,
-                                    onChange: this._onFindBoxChange,
-                                    value: this.state.findValue
-                                })
-                            ),
-                            React.createElement(
-                                'td',
+                            _react2.default.createElement(
+                                'tr',
                                 null,
-                                React.createElement(
-                                    'div',
-                                    { style: buttonsStyle },
-                                    React.createElement(ControlButton, {
-                                        fontAwesomeIcon: 'step-forward',
-                                        tooltip: findTooltip,
-                                        clickAction: this._findNext })
+                                _react2.default.createElement(
+                                    'td',
+                                    { colSpan: '2' },
+                                    'Find in Column'
                                 )
-                            )
-                        ),
-                        React.createElement(
-                            'tr',
-                            null,
-                            React.createElement(
-                                'td',
-                                { colSpan: '2' },
-                                'Replace With'
-                            )
-                        ),
-                        React.createElement(
-                            'tr',
-                            null,
-                            React.createElement(
-                                'td',
-                                null,
-                                React.createElement('input', {
-                                    type: 'text',
-                                    style: inputStyle,
-                                    onChange: this._onReplaceBoxChange,
-                                    value: this.state.replaceValue
-                                })
                             ),
-                            React.createElement(
-                                'td',
+                            _react2.default.createElement(
+                                'tr',
                                 null,
-                                React.createElement(
-                                    'div',
-                                    { className: 'inlineBlock',
-                                        style: buttonsStyle },
-                                    React.createElement(ControlButton, {
-                                        fontAwesomeIcon: 'step-forward',
-                                        tooltip: replaceTooltip,
-                                        clickAction: this._replace }),
-                                    React.createElement(ControlButton, {
-                                        fontAwesomeIcon: 'fast-forward',
-                                        tooltip: replaceAllTooltip,
-                                        clickAction: this._replaceAll })
+                                _react2.default.createElement(
+                                    'td',
+                                    { width: '70%' },
+                                    _react2.default.createElement('input', {
+                                        type: 'text',
+                                        style: inputStyle,
+                                        onChange: this._onFindBoxChange,
+                                        value: this.state.findValue
+                                    })
+                                ),
+                                _react2.default.createElement(
+                                    'td',
+                                    null,
+                                    _react2.default.createElement(
+                                        'div',
+                                        { style: buttonsStyle },
+                                        _react2.default.createElement(ControlButton, {
+                                            fontAwesomeIcon: 'step-forward',
+                                            tooltip: findTooltip,
+                                            clickAction: this._findNext })
+                                    )
+                                )
+                            ),
+                            _react2.default.createElement(
+                                'tr',
+                                null,
+                                _react2.default.createElement(
+                                    'td',
+                                    { colSpan: '2' },
+                                    'Replace With'
+                                )
+                            ),
+                            _react2.default.createElement(
+                                'tr',
+                                null,
+                                _react2.default.createElement(
+                                    'td',
+                                    null,
+                                    _react2.default.createElement('input', {
+                                        type: 'text',
+                                        style: inputStyle,
+                                        onChange: this._onReplaceBoxChange,
+                                        value: this.state.replaceValue
+                                    })
+                                ),
+                                _react2.default.createElement(
+                                    'td',
+                                    null,
+                                    _react2.default.createElement(
+                                        'div',
+                                        { className: 'inlineBlock',
+                                            style: buttonsStyle },
+                                        _react2.default.createElement(ControlButton, {
+                                            fontAwesomeIcon: 'step-forward',
+                                            tooltip: replaceTooltip,
+                                            clickAction: this._replace }),
+                                        _react2.default.createElement(ControlButton, {
+                                            fontAwesomeIcon: 'fast-forward',
+                                            tooltip: replaceAllTooltip,
+                                            clickAction: this._replaceAll })
+                                    )
                                 )
                             )
                         )
                     )
                 )
-            )
-        );
+            );
 
-        var editTaptip = {
-            "title": "Search Column",
-            "content": editBox,
-            "x": 100,
-            "y": 24,
-            "styles": [{ "key": "width", "value": "250px" }]
-        };
+            var editTaptip = {
+                "title": "Search Column",
+                "content": editBox,
+                "x": 80,
+                "y": -150,
+                "styles": [{ "key": "width", "value": "250px" }]
+            };
 
-        var editTooltip = {
-            "content": this.props.tooltipMsg,
-            "x": 160,
-            "y": 0
-        };
+            var editTooltip = {
+                "content": this.props.tooltipMsg,
+                "x": 160,
+                "y": 0
+            };
 
-        var columnIndex = this.props.column;
+            var columnIndex = this.props.column;
 
-        return React.createElement(ControlButton, {
-            name: this.props.name + "-controlButton",
-            taptip: editTaptip,
-            tooltip: editTooltip,
-            fontAwesomeIcon: 'pencil',
-            controlclass: 'edit_column_button',
-            closeAction: this.props.onhide });
-    }
-});
+            return _react2.default.createElement(ControlButton, {
+                name: this.state.buttonName,
+                taptip: editTaptip,
+                tooltip: editTooltip,
+                fontAwesomeIcon: 'pencil',
+                controlclass: 'edit_column_button',
+                closeAction: this.props.onhide });
+        }
+    }]);
 
-function getStateFromStores() {
+    return EditColumnButton;
+}(_baseComponent2.default);
+
+;
+
+var getStateFromStores = function getStateFromStores(buttonName) {
     return {
         findValue: "",
-        replaceValue: ""
+        replaceValue: "",
+        buttonName: "editColumn-" + buttonName + "-controlButton"
     };
-}
+};
 
-module.exports = EditColumnButton;
+exports.default = EditColumnButton;
 
-},{"../../action-creators/control-button-action-creators":3,"../control-button":20,"react":undefined}],22:[function(require,module,exports){
+},{"../../action-creators/control-button-action-creators":3,"../base-component":12,"../control-button":20,"react":undefined}],22:[function(require,module,exports){
 'use strict';
 
-var React = require('react');
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _baseComponent = require('../base-component');
+
+var _baseComponent2 = _interopRequireDefault(_baseComponent);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var ControlButton = require('../control-button');
 var EditColumnButton = require('./edit-columns-button');
 var controlButtonActionCreators = require('../../action-creators/control-button-action-creators');
-// var controlButtonStore = require('../../stores/control-button-store');
 
-var EditSelectButton = React.createClass({
-    displayName: 'EditSelectButton',
+var EditSelectButton = function (_BaseComponent) {
+    _inherits(EditSelectButton, _BaseComponent);
 
-    componentDidMount: function componentDidMount() {
-        // this.opSelector = document.getElementsByClassName("opSelector")[0];
-        // this.opSelector.selectedIndex = -1;
-    },
-    componentDidUpdate: function componentDidUpdate() {},
-    _onClose: function _onClose() {},
-    _onCloneColumn: function _onCloneColumn() {
-        this.props.onclone(this.props.column);
-        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
-    },
-    _onAddColumn: function _onAddColumn() {
-        this.props.onadd(this.props.column);
-        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
-    },
-    _onRemoveColumn: function _onRemoveColumn() {
-        this.props.onremove(this.props.column);
-        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
-    },
-    _onEditColumn: function _onEditColumn() {
-        controlButtonActionCreators.hideTaptip("editSelectButton" + this.props.column);
-        controlButtonActionCreators.toggleTaptip("editControlButton" + this.props.column);
-    },
-    render: function render() {
+    function EditSelectButton(props) {
+        _classCallCheck(this, EditSelectButton);
 
-        var cogBoxContainer = {
-            position: "relative"
-        };
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(EditSelectButton).call(this, props));
 
-        var cogBox = React.createElement(
-            'div',
-            { style: cogBoxContainer },
-            React.createElement(
-                'ul',
-                {
-                    className: 'opList' },
-                React.createElement(
-                    'li',
-                    {
-                        className: 'opListItem edit',
-                        onClick: this._onEditColumn },
-                    'Find and Replace'
-                ),
-                React.createElement(
-                    'li',
-                    {
-                        className: 'opListItem clone',
-                        onClick: this._onCloneColumn },
-                    'Duplicate'
-                ),
-                React.createElement(
-                    'li',
-                    {
-                        className: 'opListItem add',
-                        onClick: this._onAddColumn },
-                    'Add'
-                ),
-                React.createElement(
-                    'li',
-                    {
-                        className: 'opListItem remove',
-                        onClick: this._onRemoveColumn },
-                    'Remove'
-                )
-            )
-        );
+        _this._bind("_onCloneColumn", "_onAddColumn", "_onRemoveColumn", "_onEditColumn");
 
-        var cogTaptip = {
-            "content": cogBox,
-            "x": 100,
-            "y": 24,
-            "styles": [{ "key": "width", "value": "120px" }],
-            "break": "",
-            "padding": "0px"
-        };
+        _this.state = {};
 
-        var columnIndex = this.props.column;
-
-        var cogIcon = React.createElement('i', { className: "fa fa-cog " });
-
-        return React.createElement(ControlButton, {
-            name: this.props.name + "-controlButton",
-            taptip: cogTaptip,
-            controlclass: 'cog_button',
-            fontAwesomeIcon: 'pencil',
-            closeAction: this._onClose });
+        _this.state.buttonName = "editSelect-" + _this.props.name + "-controlButton";
+        _this.state.editColumnButton = "editColumn-" + _this.props.name + "-controlButton";
+        return _this;
     }
-});
 
-module.exports = EditSelectButton;
+    _createClass(EditSelectButton, [{
+        key: '_onClose',
+        value: function _onClose() {}
+    }, {
+        key: '_onCloneColumn',
+        value: function _onCloneColumn() {
+            this.props.onclone(this.props.column);
+            controlButtonActionCreators.hideTaptip(this.state.buttonName);
+        }
+    }, {
+        key: '_onAddColumn',
+        value: function _onAddColumn() {
+            this.props.onadd(this.props.column);
+            controlButtonActionCreators.hideTaptip(this.state.buttonName);
+        }
+    }, {
+        key: '_onRemoveColumn',
+        value: function _onRemoveColumn() {
+            this.props.onremove(this.props.column);
+            controlButtonActionCreators.hideTaptip(this.state.buttonName);
+        }
+    }, {
+        key: '_onEditColumn',
+        value: function _onEditColumn() {
+            controlButtonActionCreators.hideTaptip(this.state.buttonName);
+            controlButtonActionCreators.toggleTaptip(this.state.editColumnButton);
+        }
+    }, {
+        key: 'render',
+        value: function render() {
 
-},{"../../action-creators/control-button-action-creators":3,"../control-button":20,"./edit-columns-button":21,"react":undefined}],23:[function(require,module,exports){
+            var editBoxContainer = {
+                position: "relative"
+            };
+
+            var editBox = _react2.default.createElement(
+                'div',
+                { style: editBoxContainer },
+                _react2.default.createElement(
+                    'ul',
+                    {
+                        className: 'opList' },
+                    _react2.default.createElement(
+                        'li',
+                        {
+                            className: 'opListItem edit',
+                            onClick: this._onEditColumn },
+                        'Find and Replace'
+                    ),
+                    _react2.default.createElement(
+                        'li',
+                        {
+                            className: 'opListItem clone',
+                            onClick: this._onCloneColumn },
+                        'Duplicate'
+                    ),
+                    _react2.default.createElement(
+                        'li',
+                        {
+                            className: 'opListItem add',
+                            onClick: this._onAddColumn },
+                        'Add'
+                    ),
+                    _react2.default.createElement(
+                        'li',
+                        {
+                            className: 'opListItem remove',
+                            onClick: this._onRemoveColumn },
+                        'Remove'
+                    )
+                )
+            );
+
+            var editSelectTaptip = {
+                "content": editBox,
+                "x": 80,
+                "y": -80,
+                "styles": [{ "key": "width", "value": "120px" }],
+                "break": "",
+                "padding": "0px"
+            };
+
+            var editSelectTooltip = {
+                content: "Edit Column",
+                "x": 80,
+                "y": -60
+            };
+
+            return _react2.default.createElement(ControlButton, {
+                name: this.state.buttonName,
+                taptip: editSelectTaptip,
+                tooltip: editSelectTooltip,
+                controlclass: 'edit_button',
+                fontAwesomeIcon: 'pencil',
+                closeAction: this._onClose });
+        }
+    }]);
+
+    return EditSelectButton;
+}(_baseComponent2.default);
+
+;
+
+exports.default = EditSelectButton;
+
+},{"../../action-creators/control-button-action-creators":3,"../base-component":12,"../control-button":20,"./edit-columns-button":21,"react":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4419,8 +4489,8 @@ var FilterPointsButton = React.createClass({
         var filterTaptip = {
             "title": "Filter Points",
             "content": filterBox,
-            "xOffset": 300,
-            "yOffset": 420,
+            "x": 80,
+            "y": -150,
             "styles": [{ "key": "width", "value": "200px" }]
         };
 

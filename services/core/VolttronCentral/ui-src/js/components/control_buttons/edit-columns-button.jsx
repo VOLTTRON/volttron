@@ -1,28 +1,31 @@
 'use strict';
 
-var React = require('react');
+import React from 'react';
+import BaseComponent from '../base-component';
 
 var ControlButton = require('../control-button');
 var controlButtonActionCreators = require('../../action-creators/control-button-action-creators');
-// var controlButtonStore = require('../../stores/control-button-store');
 
-var EditColumnButton = React.createClass({
-    getInitialState: function () {
-        return getStateFromStores();
-    },
-    _onFindBoxChange: function (e) {
+class EditColumnButton extends BaseComponent {
+    constructor(props) {
+        super(props);
+        this._bind("_onFindBoxChange", "_onReplaceBoxChange", "_findNext", "_onClearEdit", "_replace", "_replaceAll");
+
+        this.state = getStateFromStores(this.props.name);
+    }
+    _onFindBoxChange(e) {
         var findValue = e.target.value;
 
         this.setState({ findValue: findValue });        
 
         this.props.onclear(this.props.column);        
-    },
-    _onReplaceBoxChange: function (e) {
+    }
+    _onReplaceBoxChange(e) {
         var replaceValue = e.target.value;
 
         this.setState({ replaceValue: replaceValue });
-    },
-    _findNext: function () {
+    }
+    _findNext() {
 
         if (this.state.findValue === "")
         {
@@ -32,22 +35,22 @@ var EditColumnButton = React.createClass({
         {
             this.props.findnext(this.state.findValue, this.props.column);
         }
-    },
-    _onClearEdit: function (e) {
+    }
+    _onClearEdit(e) {
 
         this.props.onclear(this.props.column);
         this.setState({ findValue: "" });
         this.setState({ replaceValue: "" });
-        controlButtonActionCreators.hideTaptip("editControlButton" + this.props.column);
+        controlButtonActionCreators.hideTaptip(this.state.buttonName);
 
-    },
-    _replace: function () {        
+    }
+    _replace() {        
         this.props.replace(this.state.findValue, this.state.replaceValue, this.props.column);
-    },
-    _replaceAll: function () {
+    }
+    _replaceAll() {
         this.props.replaceall(this.state.findValue, this.state.replaceValue, this.props.column);
-    },
-    render: function () {
+    }
+    render() {
 
         var editBoxContainer = {
             position: "relative"
@@ -161,8 +164,8 @@ var EditColumnButton = React.createClass({
         var editTaptip = { 
             "title": "Search Column", 
             "content": editBox,
-            "x": 100,
-            "y": 24,
+            "x": 80,
+            "y": -150,
             "styles": [{"key": "width", "value": "250px"}]
         };
         
@@ -178,21 +181,22 @@ var EditColumnButton = React.createClass({
 
         return (
             <ControlButton
-                name={this.props.name + "-controlButton"}
+                name={this.state.buttonName}
                 taptip={editTaptip}
                 tooltip={editTooltip}
                 fontAwesomeIcon="pencil"                
                 controlclass="edit_column_button"
                 closeAction={this.props.onhide}/>
         );
-    },
-});
+    }
+};
 
-function getStateFromStores() {
+var getStateFromStores = (buttonName) => {
     return {
         findValue: "",
-        replaceValue: ""
+        replaceValue: "",
+        buttonName: "editColumn-" + buttonName + "-controlButton"
     };
 }
 
-module.exports = EditColumnButton;
+export default EditColumnButton;
