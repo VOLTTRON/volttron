@@ -158,7 +158,7 @@ def volttron_instance2_web(request):
 # Use this fixture when you want a single instance of volttron platform for
 # test
 @pytest.fixture(scope="module",
-                params=['unencrypted'])
+                params=['encrypted', 'unencrypted'])
 def volttron_instance(request):
     """Fixture that returns a single instance of volttron platform for testing
     Tests using this fixture will be run twice, once with an unencrypted
