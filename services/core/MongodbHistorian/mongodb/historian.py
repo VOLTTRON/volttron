@@ -346,8 +346,19 @@ def historian(config_path, **kwargs):
 
             return res
 
-        def query_topics_metadata(self):
-            pass
+        def query_topics_metadata(self, topics):
+
+            meta = {}
+            if isinstance(topics, str):
+                id = self._topic_id_map.get(topics.lower())
+                if id:
+                    meta = {topics: self._topic_meta.get(id)}
+            elif isinstance(topics, list):
+                for topic in topics:
+                    id = self._topic_id_map.get(topic.lower())
+                    if id:
+                        meta[topic] = self._topic_meta.get(id)
+            return meta
 
         def query_aggregate_topics(self):
             return mongoutils.get_agg_topics(

@@ -1488,7 +1488,7 @@ def test_log_topic_timestamped_readings(request, sqlhistorian, publish_agent,
                                                     mixed_reading],
                                        'Units': 'F',
                                        'tz': 'UTC',
-                                       'type': 'float'}}
+                                       'data_type': 'float'}}
 
     # pytest.set_trace()
     # Create timestamp
@@ -1512,3 +1512,99 @@ def test_log_topic_timestamped_readings(request, sqlhistorian, publish_agent,
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
     assert_timestamp(result['values'][0][0], '2015-12-02', '00:00:00.000000')
+
+@pytest.mark.sqlhistorian
+@pytest.mark.historian
+def test_get_topic_metadata(request, sqlhistorian, publish_agent,
+                            query_agent, clean):
+    """
+    Test querying for topic metadata
+    Expected result:
+     Should return a map of {topic_name:metadata}
+     Should work for a single topic string and list of topics
+     Should throw ValueError when input is not string or list
+
+
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param sqlhistorian: instance of the sql historian tested
+    :param clean: teardown function
+    """
+    # skip if this test case need not repeated for this specific sqlhistorian
+    skip_custom_tables(sqlhistorian)
+
+    global query_points
+    # print('HOME', volttron_instance.volttron_home)
+    print(
+    "\n** test_get_topic_metadata for {}**".format(request.keywords.node.name))
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    oat_reading = random.uniform(30, 100)
+    mixed_reading = oat_reading + random.uniform(-5, 5)
+
+    # Create a message for all points.
+    message = {'temp1': {'Readings': ['2015-12-02T00:00:00',
+                                                    mixed_reading],
+                                       'Units': 'F',
+                                       'tz': 'UTC',
+                                       'data_type': 'int'},
+               'temp2': {'Readings': ['2015-12-02T00:00:00',
+                                                     mixed_reading],
+                                        'Units': 'F',
+                                        'tz': 'UTC',
+                                        'data_type': 'double'},
+               }
+
+    # pytest.set_trace()
+    # Create timestamp
+    now = datetime.utcnow().isoformat() + 'Z'
+    print("now is ", now)
+    headers = {
+        headers_mod.DATE: now
+    }
+    # Publish messages
+    publish(publish_agent, "datalogger/Building/LAB/Device", headers,
+            message)
+    gevent.sleep(1)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(
+        identity,
+        'get_topics_metadata',
+        topics="datalogger/Building/LAB/Device/temp1"
+    ).get(timeout=10)
+
+    print('Query Result', result)
+    assert result['datalogger/Building/LAB/Device/temp1'] ==\
+        {'units': 'F', 'tz': 'UTC', 'type': 'int'}
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(
+        identity,
+        'get_topics_metadata',
+        topics=["datalogger/Building/LAB/Device/temp1",
+                "datalogger/Building/LAB/Device/temp2"]
+    ).get(timeout=10)
+
+    print('Query Result', result)
+    assert result['datalogger/Building/LAB/Device/temp1'] == \
+           {'units': 'F', 'tz': 'UTC', 'type': 'int'}
+    assert result['datalogger/Building/LAB/Device/temp2'] == \
+           {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+
+    try:
+        query_agent.vip.rpc.call(
+            identity,
+            'get_topics_metadata',
+            topics=123
+        ).get(timeout=10)
+
+    except RemoteError as e:
+        assert e.message == "Please provide a valid topic name string " \
+                            "or a list of topic names. Invalid input 123"
+
+
+
+

@@ -225,8 +225,19 @@ def historian(config_path, **kwargs):
                 # No topics present.
                 return []
 
-        def query_topics_metadata(self):
-            pass
+        def query_topics_metadata(self, topics):
+            meta = {}
+            if isinstance(topics, str):
+                id = self.topic_id_map.get(topics.lower())
+                if id:
+                    meta = {topics:self.topic_meta.get(id)}
+            elif isinstance(topics, list):
+                for topic in topics:
+                    id = self.topic_id_map.get(topic.lower())
+                    if id:
+                        meta[topic] = self.topic_meta.get(id)
+            return meta
+
 
         def query_aggregate_topics(self):
             return self.reader.get_agg_topics()

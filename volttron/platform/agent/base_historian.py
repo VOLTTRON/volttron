@@ -1038,10 +1038,15 @@ class BaseQueryHistorianAgent(Agent):
         aggregation_time_period, metadata)
         :rtype: list
         """
-        return self.query_aggregate_topics()
+        if isinstance(topics, str) or isinstance(topics, list):
+            return self.query_topics_metadata(topics)
+        else:
+            raise ValueError(
+                "Please provide a valid topic name string or "
+                "a list of topic names. Invalid input {}".format(topics))
 
     @abstractmethod
-    def query_topics_metadata(self):
+    def query_topics_metadata(self, topics):
         """
         This function is called by
         :py:meth:`BaseQueryHistorianAgent.get_topics_metadata`
