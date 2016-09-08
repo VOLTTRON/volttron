@@ -121,7 +121,7 @@ def publish_agent(request, volttron_instance1):
     print("agent id: ", actuator_uuid)
 
     # 3: Start a fake agent to publish to message bus
-    publish_agent = volttron_instance1.build_agent()
+    publish_agent = volttron_instance1.build_agent(identity=TEST_AGENT)
 
     # 4: add a tear down method to stop sqlhistorian agent and the fake agent
     #  \that published to message bus
@@ -266,6 +266,7 @@ def test_schedule_error_int_taskid(publish_agent):
 
 
 @pytest.mark.actuator
+@pytest.mark.xfail(reason="Request ids are now ignored.")
 def test_schedule_error_int_agentid(publish_agent):
     """
     Test responses for successful schedule request with integer agent id
@@ -333,6 +334,7 @@ def test_schedule_empty_taskid(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
+@pytest.mark.xfail(reason="Request ids are now ignored.")
 def test_schedule_empty_agentid(publish_agent, cancel_schedules):
     """
     Test responses for successful schedule request when agent id is an
@@ -398,6 +400,7 @@ def test_schedule_error_none_taskid(publish_agent):
 
 
 @pytest.mark.actuator
+@pytest.mark.xfail(reason="Request ids are now ignored.")
 def test_schedule_error_none_agentid(publish_agent):
     """
     Test error responses for schedule request with agentid = None
@@ -1199,6 +1202,7 @@ def test_cancel_error_invalid_taskid(publish_agent):
 
 
 @pytest.mark.actuator
+@pytest.mark.xfail(reason="Request ids are now ignored.")
 def test_cancel_error_taskid_agentid_mismatch(publish_agent, cancel_schedules):
     """
     Test error responses for schedule request. Test invalid task id
@@ -1296,7 +1300,7 @@ def test_get_default(publish_agent):
     ).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
-    assert result == 10.0
+    assert result == 2.5
 
 
 @pytest.mark.actuator

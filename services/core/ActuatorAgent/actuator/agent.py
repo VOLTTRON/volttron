@@ -829,7 +829,9 @@ class ActuatorAgent(Agent):
         headers = self._get_headers(requester_id)
         if not isinstance(requester_id, str):
             raise TypeError("Agent id must be a nonempty string")
-        if self._check_lock(path, requester_id):
+
+        sender = bytes(self.vip.rpc.context.vip_message.peer)
+        if self._check_lock(path, sender):
             result = self.vip.rpc.call(self.driver_vip_identity, 'set_point',
                                        path, point_name, value, **kwargs).get()
 
@@ -862,15 +864,15 @@ class ActuatorAgent(Agent):
         .. warning:: calling without previously scheduling *all* devices
                      and not within the time allotted will raise a LockError
         """
-
         devices = collections.defaultdict(list)
         for topic, value in topics_values:
             topic = topic.strip('/')
             device, point_name = topic.rsplit('/', 1)
             devices[device].append((point_name, value))
 
+        sender = bytes(self.vip.rpc.context.vip_message.peer)
         for device in devices:
-            if not self._check_lock(device, requester_id):
+            if not self._check_lock(device, sender):
                 raise LockError("caller ({}) does not lock for device {}".format(requester_id, device))
 
         results = {}
@@ -989,9 +991,8 @@ class ActuatorAgent(Agent):
 
         path, point_name = topic.rsplit('/', 1)
 
-        headers = self._get_headers(requester_id)
-
-        if self._check_lock(path, requester_id):
+        sender = bytes(self.vip.rpc.context.vip_message.peer)
+        if self._check_lock(path, sender):
             self.vip.rpc.call(self.driver_vip_identity, 'revert_point', path,
                               point_name, **kwargs).get()
 
@@ -1025,9 +1026,8 @@ class ActuatorAgent(Agent):
 
         path = topic
 
-        headers = self._get_headers(requester_id)
-
-        if self._check_lock(path, requester_id):
+        sender = bytes(self.vip.rpc.context.vip_message.peer)
+        if self._check_lock(path, sender):
             self.vip.rpc.call(self.driver_vip_identity, 'revert_device', path,
                               **kwargs).get()
 
@@ -1187,7 +1187,8 @@ class ActuatorAgent(Agent):
         _log.debug("Got new schedule request: {}, {}, {}, {}".
                    format(requester_id, task_id, priority, requests))
 
-        result = self._schedule_manager.request_slots(requester_id, task_id,
+        sender = bytes(self.vip.rpc.context.vip_message.peer)
+        result = self._schedule_manager.request_slots(sender, task_id,
                                                       requests, priority, now)
         success = SCHEDULE_RESPONSE_SUCCESS if result.success else \
             SCHEDULE_RESPONSE_FAILURE
@@ -1256,7 +1257,8 @@ class ActuatorAgent(Agent):
         headers = self._get_headers(requester_id, task_id=task_id)
         headers['type'] = SCHEDULE_ACTION_CANCEL
 
-        result = self._schedule_manager.cancel_task(requester_id, task_id, now)
+        sender = bytes(self.vip.rpc.context.vip_message.peer)
+        result = self._schedule_manager.cancel_task(sender, task_id, now)
         success = SCHEDULE_RESPONSE_SUCCESS if result.success else \
             SCHEDULE_RESPONSE_FAILURE
 
