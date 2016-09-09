@@ -238,9 +238,11 @@ def vip_main(agent_class, identity=None, **kwargs):
         identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
         if identity is not None:
             if not is_valid_identity(identity):
-                _log.error(
-                    'Invalid identity detecated {}'.format(identity))
-                return
+                _log.warn('Deprecation warining')
+                _log.warn(
+                    'All characters in {identity} are not in the valid set.'
+                    .format(idenity=identity))
+
         address = get_address()
         agent_uuid = os.environ.get('AGENT_UUID')
         volttron_home = get_home()
