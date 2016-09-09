@@ -77,12 +77,12 @@ class ConfigureRegistry extends BaseComponent {
 
         if (state.registryValues.length > 0)
         {
-            state.columnNames = state.registryValues[0].map(function (columns) {
+            state.columnNames = state.registryValues[0].attributes.map(function (columns) {
                 return columns.key;
             });
 
-            state.pointNames = state.registryValues.map(function (points) {
-                return points[0].value;
+            state.pointNames = state.registryValues.map(function (row) {
+                return row.attributes[0].value;
             });
         }
 
@@ -100,12 +100,13 @@ class ConfigureRegistry extends BaseComponent {
 
         return state;
     }
-    _onFilterBoxChange(filterValue) {
+    _onFilterBoxChange(filterValue, column) {
         this.setState({ filterOn: true });
+
         this.setState({ registryValues: getFilteredPoints(
                                             this.state.registryValues, 
                                             filterValue,
-                                            this.state.filterColumn
+                                            column
                                         ) });
     }
     _onClearFilter() {
@@ -123,16 +124,16 @@ class ConfigureRegistry extends BaseComponent {
 
         var pointValues = [];
 
-        this.state.columnNames.map(function (column) {
+        this.state.columnNames.forEach(function (columnName) {
             pointValues.push({ 
-                                "key" : column, 
+                                "key" : columnName, 
                                 "value": "", 
                                 "editable": true, 
-                                "keyProp": (this.state.keyPropsList.indexOf(column) > -1) 
+                                "keyProp": (this.state.keyPropsList.indexOf(columnName) > -1) 
                             });
-        });
+        }, this);
 
-        registryValues.push(pointValues);
+        registryValues.push({visible: true, attributes: pointValues});
 
         this.setState({ registryValues: registryValues });
 
@@ -175,13 +176,13 @@ class ConfigureRegistry extends BaseComponent {
             var index = -1;
             var pointValue = "";
 
-            registryValues.some(function (vals, i) {
-                var pointMatched = (vals[0].value ===  pointToDelete);
+            registryValues.some(function (row, i) {
+                var pointMatched = (row[0].attributes.value === pointToDelete);
 
                 if (pointMatched)
                 {
                     index = i;
-                    pointValue = vals[0].value;
+                    pointValue = row[0].attributes.value;
                 }
 
                 return pointMatched;
@@ -240,8 +241,8 @@ class ConfigureRegistry extends BaseComponent {
     }
     _getRealIndex(index) {
 
-        
-        
+
+
     }
     _onAddColumn(index) {
 
@@ -256,15 +257,15 @@ class ConfigureRegistry extends BaseComponent {
         this.setState({ columnNames: columnNames });
         this.setState({ keyPropsList: keyPropsList });
 
-        var newRegistryValues = registryValues.map(function (values) {
+        var newRegistryValues = registryValues.map(function (row) {
 
-            values.splice(index + 1, 0, { 
+            row.attributes.splice(index + 1, 0, { 
                                             "key": newColumn, 
                                             "value": "", 
                                             "editable": true, 
                                             "keyProp": true 
                                         });
-            return values;
+            return row;
         });
 
         this.resizeTable = true;
@@ -284,18 +285,18 @@ class ConfigureRegistry extends BaseComponent {
         this.setState({ columnNames: columnNames });
         this.setState({ keyPropsList: keyPropsList });
 
-        var newRegistryValues = registryValues.map(function (values, row) {
+        var newRegistryValues = registryValues.map(function (row) {
 
             var clonedValue = {};
 
-            for (var key in values[index])
+            for (var key in row.attributes[index])
             {
-                clonedValue[key] = values[index][key];
+                clonedValue[key] = row.attributes[index][key];
             }
 
-            values.splice(index + 1, 0, clonedValue);
+            row.attributes.splice(index + 1, 0, clonedValue);
 
-            return values;
+            return row;
         });
 
         this.resizeTable = true;
@@ -305,7 +306,7 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onRemoveColumn(index) {
 
-        var columnHeader = this.state.registryValues[0][index].label;
+        var columnHeader = this.state.registryValues[0].attributes[index].label;
         var promptText = ("Are you sure you want to delete the column, " + columnHeader + "?");
         
         modalActionCreators.openModal(
@@ -328,8 +329,8 @@ class ConfigureRegistry extends BaseComponent {
 
         columnNames.splice(index, 1);
 
-        registryValues.forEach(function (values) {
-            values.splice(index, 1);
+        registryValues.forEach(function (row) {
+            row.attributes.splice(index, 1);
         });
 
         index = keyPropsList.indexOf(columnName);
@@ -357,9 +358,9 @@ class ConfigureRegistry extends BaseComponent {
     _updateCell(row, column, e) {
 
         var currentTarget = e.currentTarget;
-        var newRegistryValues = this.state.registryValues.slice();
+        var newRegistryValues = JSON.parse(JSON.stringify(this.state.registryValues));
 
-        newRegistryValues[row][column].value = currentTarget.value;
+        newRegistryValues[row].attributes[column].value = currentTarget.value;
 
         this.setState({ registryValues: newRegistryValues });
     }
@@ -368,23 +369,23 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onFindNext(findValue, column) {
 
-        var registryValues = this.state.registryValues.slice();
+        // var registryValues = this.state.registryValues.slice();
         
         if (this.state.selectedCells.length === 0)
         {
             var selectedCells = [];
 
-            this.setState({ registryValues: registryValues.map(function (values, row) {
+            this.setState({ registryValues: this.state.registryValues.map(function (row, index) {
 
                     //searching i-th column in each row, and if the cell contains the target value, select it
-                    values[column].selected = (values[column].value.indexOf(findValue) > -1);
+                    row.attributes[column].selected = (row.attributes[column].value.indexOf(findValue) > -1);
 
-                    if (values[column].selected)
+                    if (row.attributes[column].selected)
                     {
-                        selectedCells.push(row);
+                        selectedCells.push(index);
                     }
 
-                    return values;
+                    return row;
                 })
             });
 
@@ -416,13 +417,13 @@ class ConfigureRegistry extends BaseComponent {
         }
         else
         {
-            var registryValues = this.state.registryValues.slice();
-            registryValues[this.state.selectedCellRow][column].value = registryValues[this.state.selectedCellRow][column].value.replace(findValue, replaceValue);        
+            // var registryValues = this.state.registryValues.slice();
+            this.state.registryValues[this.state.selectedCellRow].attributes[column].value = this.state.registryValues[this.state.selectedCellRow].attributes[column].value.replace(findValue, replaceValue);        
 
             //If the cell no longer has the target value, deselect it and move focus to the next selected cell
-            if (registryValues[this.state.selectedCellRow][column].value.indexOf(findValue) < 0)
+            if (this.state.registryValues[this.state.selectedCellRow].attributes[column].value.indexOf(findValue) < 0)
             {
-                registryValues[this.state.selectedCellRow][column].selected = false;
+                this.state.registryValues[this.state.selectedCellRow].attributes[column].selected = false;
 
                 //see if there will even be another selected cell to move to
                 var selectedCells = this.state.selectedCells.slice();
@@ -449,7 +450,7 @@ class ConfigureRegistry extends BaseComponent {
                 }
             }
 
-            this.setState({ registryValues: registryValues});
+            this.setState({ registryValues: this.state.registryValues});
         }
     }
     _onReplaceAll(findValue, replaceValue, column) {
@@ -460,23 +461,23 @@ class ConfigureRegistry extends BaseComponent {
         }
         else
         {
-            var registryValues = this.state.registryValues.slice();
-            var selectedCells = this.state.selectedCells.slice();
-            var selectedCellRow = this.state.selectedCellRow;
+            // var registryValues = this.state.registryValues.slice();
+            // var selectedCells = this.state.selectedCells.slice();
+            // var selectedCellRow = this.state.selectedCellRow;
 
-            while (selectedCells.length > 0)
+            while (this.state.selectedCells.length > 0)
             {
-                registryValues[selectedCellRow][column].value = registryValues[this.state.selectedCellRow][column].value.replace(findValue, replaceValue);        
+                this.state.registryValues[selectedCellRow].attributes[column].value = this.state.registryValues[this.state.selectedCellRow].attributes[column].value.replace(findValue, replaceValue);        
 
-                if (registryValues[selectedCellRow][column].value.indexOf(findValue) < 0)
+                if (this.state.registryValues[selectedCellRow].attributes[column].value.indexOf(findValue) < 0)
                 {
-                    registryValues[selectedCellRow][column].selected = false;
+                    this.state.registryValues[selectedCellRow].attributes[column].selected = false;
 
-                    var index = selectedCells.indexOf(selectedCellRow);
+                    var index = this.state.selectedCells.indexOf(selectedCellRow);
 
                     if (index > -1)
                     {
-                        selectedCells.splice(index, 1);
+                        this.state.selectedCells.splice(index, 1);
                     }
                     else
                     {
@@ -484,7 +485,7 @@ class ConfigureRegistry extends BaseComponent {
                         break;
                     }
 
-                    if (selectedCells.length > 0)
+                    if (this.state.selectedCells.length > 0)
                     {
                         selectedCellRow = this._goToNext(selectedCellRow, this.state.selectedCells);
                     }
@@ -494,18 +495,18 @@ class ConfigureRegistry extends BaseComponent {
             this.setState({ selectedCellRow: null});
             this.setState({ selectedCells: [] });
             this.setState({ selectedCellColumn: null });
-            this.setState({ registryValues: registryValues});
+            this.setState({ registryValues: this.state.registryValues});
         }
     }
     _onClearFind(column) {
 
-        var registryValues = this.state.registryValues.slice();
+        // var registryValues = this.state.registryValues.slice();
 
         this.state.selectedCells.map(function (row) {
-            registryValues[row][column].selected = false;
-        });
+            this.state.registryValues[row].attributes[column].selected = false;
+        }, this);
 
-        this.setState({ registryValues: registryValues });
+        this.setState({ registryValues: this.state.registryValues });
         this.setState({ selectedCells: [] });
         this.setState({ selectedCellRow: null });
         this.setState({ selectedCellColumn: null });
@@ -535,7 +536,9 @@ class ConfigureRegistry extends BaseComponent {
         devicesActionCreators.cancelRegistry(this.props.device);
     }
     _saveRegistry() {
-        devicesActionCreators.saveRegistry(this.props.device, this.state.registryValues);
+        devicesActionCreators.saveRegistry(this.props.device, this.state.registryValues.map(function (row) {
+            return row.attributes;
+        }));
         modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device}/>);
     }
     _handleRowClick(evt){
@@ -560,7 +563,7 @@ class ConfigureRegistry extends BaseComponent {
 
             var rowIndex = target.dataset.row;
 
-            var pointKey = this.state.registryValues[rowIndex][0].value;
+            var pointKey = this.state.registryValues[rowIndex].attributes[0].value;
             var selectedPoints = this.state.selectedPoints;
 
             var index = selectedPoints.indexOf(pointKey);
@@ -578,51 +581,12 @@ class ConfigureRegistry extends BaseComponent {
         }
     }
     render() {        
-        
-        var filterPointsTooltip = {
-            content: "Filter Points",
-            "x": 80,
-            "y": -60
-        }
-
-        var filterButton = <FilterPointsButton 
-                                name={"filterRegistryPoints-" + this.props.device.id}
-                                tooltipMsg={filterPointsTooltip}
-                                onfilter={this._onFilterBoxChange} 
-                                onclear={this._onClearFilter}/>
-
-        var addPointTooltip = {
-            content: "Add New Point",
-            "x": 80,
-            "y": -60
-        }
-
-        var addPointButton = <ControlButton 
-                                name={"addRegistryPoint-" + this.props.device.id}
-                                tooltip={addPointTooltip}
-                                controlclass="add_point_button"
-                                fontAwesomeIcon="plus"
-                                clickAction={this._onAddPoint}/>
-
-
-        var removePointTooltip = {
-            content: "Remove Points",
-            "x": 80,
-            "y": -60
-        }
-
-        var removePointsButton = <ControlButton
-                                name={"removeRegistryPoints-" + this.props.device.id}
-                                fontAwesomeIcon="minus"
-                                tooltip={removePointTooltip}
-                                controlclass="remove_point_button"
-                                clickAction={this._onRemovePoints}/>        
-        
+                
         var registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
 
             var registryCells = [];
 
-            attributesList.forEach(function (item, columnIndex) {
+            attributesList.attributes.forEach(function (item, columnIndex) {
 
                 if (item.keyProp)
                 {
@@ -632,12 +596,12 @@ class ConfigureRegistry extends BaseComponent {
                     var itemCell = (!item.editable ? 
                                         <td key={item.key + "-" + rowIndex + "-" + columnIndex}><label>{ item.value }</label></td> : 
                                         <td key={item.key + "-" + rowIndex + "-" + columnIndex}><input 
-                                            id={this.state.registryValues[rowIndex][columnIndex].key + "-" + columnIndex + "-" + rowIndex}
+                                            id={this.state.registryValues[rowIndex].attributes[columnIndex].key + "-" + columnIndex + "-" + rowIndex}
                                             type="text"
                                             className={focusedCell}
                                             style={selectedCellStyle}
                                             onChange={this._updateCell.bind(this, rowIndex, columnIndex)} 
-                                            value={ this.state.registryValues[rowIndex][columnIndex].value }/>
+                                            value={ this.state.registryValues[rowIndex].attributes[columnIndex].value }/>
                                         </td>);
 
                     registryCells.push(itemCell);
@@ -647,23 +611,26 @@ class ConfigureRegistry extends BaseComponent {
             registryCells.push(
                 <td key={"propsButton-" + rowIndex}>
                     <div className="propsButton"
-                        onClick={this._showProps.bind(this, attributesList)}>
+                        onClick={this._showProps.bind(this, attributesList.attributes)}>
                         <i className="fa fa-ellipsis-h"></i>
                     </div>
                 </td>);
 
-            var selectedRowClass = (this.state.selectedPoints.indexOf(this.state.registryValues[rowIndex][0].value) > -1 ?
+            var selectedRowClass = (this.state.selectedPoints.indexOf(this.state.registryValues[rowIndex].attributes[0].value) > -1 ?
                                         "selectedRegistryPoint" : "");
+
+            var visibleStyle = (!this.state.filterOn || attributesList.visible ? {} : {display: "none"});
 
             return ( 
                 <tr key={"registry-row-" + rowIndex}
                     data-row={rowIndex}
                     onClick={this._handleRowClick}
-                    className={selectedRowClass}>
+                    className={selectedRowClass}
+                    style={visibleStyle}>
                     <td key={"checkbox-" + rowIndex}>
                         <input type="checkbox"
-                            onChange={this._selectForDelete.bind(this, attributesList)}
-                            checked={this.state.pointsToDelete.indexOf(attributesList[0].value) > -1}>
+                            onChange={this._selectForDelete.bind(this, attributesList.attributes)}
+                            checked={this.state.pointsToDelete.indexOf(attributesList.attributes[0].value) > -1}>
                         </input>
                     </td>
                     { registryCells }                    
@@ -677,9 +644,9 @@ class ConfigureRegistry extends BaseComponent {
 
         var registryHeader = [];
 
-        var index = 0;
+        var tableIndex = 0;
 
-        this.state.registryValues[0].forEach(function (item) {
+        this.state.registryValues[0].attributes.forEach(function (item, index) {
         
             if (item.keyProp)
             {
@@ -701,19 +668,54 @@ class ConfigureRegistry extends BaseComponent {
                                             onhide={this._removeFocus}
                                             name={this.props.device.id + "-" + item.key}/>);
 
-                var firstColumnWidth;
-
-                if (index === 0)
-                {
-                    firstColumnWidth = {
-                        width: (item.length * 10) + "px"
-                    }
-                }
-
                 var headerCell;
 
-                if (index === 0)
+                if (tableIndex === 0)
                 {
+                    var firstColumnWidth = {
+                        width: (item.length * 10) + "px"
+                    }
+
+                    var filterPointsTooltip = {
+                        content: "Filter Points",
+                        "x": 80,
+                        "y": -60
+                    }
+
+                    var filterButton = <FilterPointsButton 
+                                            name={"filterRegistryPoints-" + this.props.device.id}
+                                            tooltipMsg={filterPointsTooltip}
+                                            onfilter={this._onFilterBoxChange} 
+                                            onclear={this._onClearFilter}
+                                            column={index}/>
+
+                    var addPointTooltip = {
+                        content: "Add New Point",
+                        "x": 80,
+                        "y": -60
+                    }
+
+                    var addPointButton = <ControlButton 
+                                            name={"addRegistryPoint-" + this.props.device.id}
+                                            tooltip={addPointTooltip}
+                                            controlclass="add_point_button"
+                                            fontAwesomeIcon="plus"
+                                            clickAction={this._onAddPoint}/>
+
+
+                    var removePointTooltip = {
+                        content: "Remove Points",
+                        "x": 80,
+                        "y": -60
+                    }
+
+                    var removePointsButton = <ControlButton
+                                            name={"removeRegistryPoints-" + this.props.device.id}
+                                            fontAwesomeIcon="minus"
+                                            tooltip={removePointTooltip}
+                                            controlclass="remove_point_button"
+                                            clickAction={this._onRemovePoints}/>
+
                     if (item.editable)
                     {                        
                         headerCell = ( <th key={"header-" + item.key + "-" + index} style={firstColumnWidth}>
@@ -761,7 +763,7 @@ class ConfigureRegistry extends BaseComponent {
                     }
                 }
 
-                ++index;
+                ++tableIndex;
                 registryHeader.push(headerCell);
             }
         }, this);        
@@ -845,10 +847,13 @@ class ConfigureRegistry extends BaseComponent {
     }
 };
 
-function getFilteredPoints(registryValues, filterStr, filterColumn) {
+function getFilteredPoints(registryValues, filterStr, column) {
 
     return registryValues.map(function (row) {
-        row.visible = (row[filterColumn].value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1);
+
+        row.visible = (filterStr === "" || (row.attributes[column].value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1));
+
+        return row;
     });
 }
 
@@ -874,11 +879,10 @@ function initializeList(registryConfig, keyPropsList)
 {
     return registryConfig.map(function (row) {
         row.forEach(function (cell) {
-            cell.keyProp = (keyPropsList.indexOf(cell.key) > -1);            
-            row.visible = true;
+            cell.keyProp = (keyPropsList.indexOf(cell.key) > -1); 
         });
 
-        return row;
+        return { visible: true, attributes: row};
     });
 }
 

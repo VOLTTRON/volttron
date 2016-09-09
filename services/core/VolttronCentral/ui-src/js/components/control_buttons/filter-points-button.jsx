@@ -15,7 +15,7 @@ var FilterPointsButton = React.createClass({
 
         if (filterValue !== "")
         {
-            this.props.onfilter(e.target.value);
+            this.props.onfilter(e.target.value, this.props.column);
         }
         else
         {
