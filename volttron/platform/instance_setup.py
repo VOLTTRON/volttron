@@ -99,7 +99,7 @@ def _install_config_file():
     home = get_home()
 
     if not os.path.exists(home):
-        os.makedirs(volttron_home, 0o755)
+        os.makedirs(home, 0o755)
 
     path = os.path.join(home, 'config')
 
