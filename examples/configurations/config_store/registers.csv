@@ -1,0 +1,3 @@
+Volttron Point Name,Units,Modbus Register,Writable,Point Address
+ReturnAirCO2,PPM,>f,FALSE,1001
+ReturnAirCO2Stpt,PPM,>f,TRUE,1011
