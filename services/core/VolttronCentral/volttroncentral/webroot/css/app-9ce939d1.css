@@ -663,6 +663,7 @@ br + .form__control-help {
 
 .propsButton {
     cursor: pointer;
+    text-align: center;
 }
 
 .tooltip_inner, .taptip_inner {
@@ -2228,6 +2229,14 @@ Interactive Layer
 
 .registryConfigTable > tbody > tr > td > input {
     cursor: auto;
+}
+
+.registryConfigTable > tbody > tr:first-child > td:last-child {
+    border-top: 1px solid #ddd;
+}
+
+.registryConfigTable > thead > tr > th > div > div > div > .tooltip_inner {
+    white-space: nowrap;
 }
 
 .selectedRegistryPoint {
