@@ -93,7 +93,7 @@ _comment_re = re.compile(
 _log = logging.getLogger(__name__)
 
 # The following are the only allowable characters for identities.
-_VALID_IDENTITY_CHARS = string.ascii_letters+'._-0123456789'
+_VALID_IDENTITY_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
 
 
 def is_valid_identity(identity_to_check):
@@ -108,12 +108,8 @@ def is_valid_identity(identity_to_check):
     if identity_to_check is None:
         return False
 
-    # Grab all of the invalid characters in the name template
-    for x in identity_to_check:
-        if x not in _VALID_IDENTITY_CHARS:
-            return False
-    return True
-
+    return _VALID_IDENTITY_RE.match(identity_to_check)
+    
 
 def _repl(match):
     """Replace the matched group with an appropriate string."""
