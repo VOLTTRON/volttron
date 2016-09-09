@@ -1,0 +1,7 @@
+{
+    "staggered_start": 30,
+    "driver_config_list": [
+    			"config://modbus1.config",
+			"config://modbus2.config"
+    			]
+}
