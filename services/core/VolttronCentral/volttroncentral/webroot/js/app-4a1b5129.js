@@ -2743,7 +2743,7 @@ var ConfigureRegistry = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(ConfigureRegistry).call(this, props));
 
-        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_showProps", "_handleRowClick", "_getRealIndex");
+        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_showProps", "_handleRowClick", "_getRealIndex", "_selectCells");
 
         _this.state = _this._resetState(_this.props.device);
         return _this;
@@ -3107,34 +3107,41 @@ var ConfigureRegistry = function (_BaseComponent) {
             this.setState({ selectedCellRow: null });
         }
     }, {
+        key: '_selectCells',
+        value: function _selectCells(findValue, column) {
+            var selectedCells = [];
+
+            this.setState({ registryValues: this.state.registryValues.map(function (row, index) {
+
+                    //searching i-th column in each row, and if the cell contains the target value, select it
+                    row.attributes[column].selected = row.attributes[column].value.indexOf(findValue) > -1;
+
+                    if (row.attributes[column].selected) {
+                        selectedCells.push(index);
+                    }
+
+                    return row;
+                })
+            });
+
+            if (selectedCells.length > 0) {
+                this.setState({ selectedCells: selectedCells });
+                this.setState({ selectedCellColumn: column });
+
+                //set focus to the first selected cell
+                this.setState({ selectedCellRow: selectedCells[0] });
+            }
+
+            return selectedCells;
+        }
+    }, {
         key: '_onFindNext',
         value: function _onFindNext(findValue, column) {
 
             // var registryValues = this.state.registryValues.slice();
 
             if (this.state.selectedCells.length === 0) {
-                var selectedCells = [];
-
-                this.setState({ registryValues: this.state.registryValues.map(function (row, index) {
-
-                        //searching i-th column in each row, and if the cell contains the target value, select it
-                        row.attributes[column].selected = row.attributes[column].value.indexOf(findValue) > -1;
-
-                        if (row.attributes[column].selected) {
-                            selectedCells.push(index);
-                        }
-
-                        return row;
-                    })
-                });
-
-                if (selectedCells.length > 0) {
-                    this.setState({ selectedCells: selectedCells });
-                    this.setState({ selectedCellColumn: column });
-
-                    //set focus to the first selected cell
-                    this.setState({ selectedCellRow: selectedCells[0] });
-                }
+                this._selectCells(findValue, column);
             } else {
                 //we've already found the selected cells, so we need to advance focus to the next one
                 if (this.state.selectedCells.length > 1) {
@@ -3182,52 +3189,66 @@ var ConfigureRegistry = function (_BaseComponent) {
                 this.setState({ registryValues: this.state.registryValues });
             }
         }
+        // _onReplaceAll(findValue, replaceValue, column) {
+
+        //     // var selectedCellRow, selectedCells;
+
+        //     if (!this.state.selectedCellRow)
+        //     {            
+        //         this._onFindNext(findValue, column);
+        //     }
+        //     else
+        //     {
+        //         selectedCells = this.state.selectedCells;        
+
+        //         selectedCellRow = selectedCells[0];
+
+        //         // var registryValues = this.state.registryValues.slice();
+        //         // var selectedCells = this.state.selectedCells.slice();
+        //         // var selectedCellRow = this.state.selectedCellRow;
+
+        //         selectedCells.forEach((selectedCell) => {
+
+        //             this.state.registryValues[selectedCellRow].attributes[column].value = this.state.registryValues[selectedCellRow].attributes[column].value.replace(findValue, replaceValue);        
+
+        //             if (this.state.registryValues[selectedCellRow].attributes[column].value.indexOf(findValue) < 0)
+        //             {
+        //                 this.state.registryValues[selectedCellRow].attributes[column].selected = false;
+        //             }   
+        //         });
+
+        //         this.setState({ selectedCellRow: null});
+        //         this.setState({ selectedCells: [] });
+        //         this.setState({ selectedCellColumn: null });
+        //         this.setState({ registryValues: this.state.registryValues});
+        //     }
+        // }
+
     }, {
         key: '_onReplaceAll',
         value: function _onReplaceAll(findValue, replaceValue, column) {
+            var _this2 = this;
 
-            if (!this.state.selectedCellRow) {
-                this._onFindNext(findValue, column);
-            } else {
-                // var registryValues = this.state.registryValues.slice();
-                // var selectedCells = this.state.selectedCells.slice();
-                // var selectedCellRow = this.state.selectedCellRow;
+            var selectedCellRow = this.state.selectedCells[0];
 
-                while (this.state.selectedCells.length > 0) {
-                    this.state.registryValues[selectedCellRow].attributes[column].value = this.state.registryValues[this.state.selectedCellRow].attributes[column].value.replace(findValue, replaceValue);
+            this.state.selectedCells.forEach(function (selectedCell) {
+                _this2.state.registryValues[selectedCellRow].attributes[column].value = _this2.state.registryValues[selectedCellRow].attributes[column].value.replace(findValue, replaceValue);
+            });
 
-                    if (this.state.registryValues[selectedCellRow].attributes[column].value.indexOf(findValue) < 0) {
-                        this.state.registryValues[selectedCellRow].attributes[column].selected = false;
-
-                        var index = this.state.selectedCells.indexOf(selectedCellRow);
-
-                        if (index > -1) {
-                            this.state.selectedCells.splice(index, 1);
-                        } else {
-                            //something went wrong, so stop the while loop
-                            break;
-                        }
-
-                        if (this.state.selectedCells.length > 0) {
-                            selectedCellRow = this._goToNext(selectedCellRow, this.state.selectedCells);
-                        }
-                    }
-                }
-
-                this.setState({ selectedCellRow: null });
-                this.setState({ selectedCells: [] });
-                this.setState({ selectedCellColumn: null });
-                this.setState({ registryValues: this.state.registryValues });
-            }
+            this.setState({ selectedCellRow: null });
+            this.setState({ selectedCells: [] });
+            this.setState({ selectedCellColumn: null });
+            this.setState({ registryValues: this.state.registryValues });
         }
     }, {
         key: '_onClearFind',
         value: function _onClearFind(column) {
+            var _this3 = this;
 
             // var registryValues = this.state.registryValues.slice();
 
             this.state.selectedCells.map(function (row) {
-                this.state.registryValues[row].attributes[column].selected = false;
+                _this3.state.registryValues[row].attributes[column].selected = false;
             }, this);
 
             this.setState({ registryValues: this.state.registryValues });
@@ -3393,7 +3414,8 @@ var ConfigureRegistry = function (_BaseComponent) {
                         tooltipMsg: 'Edit Column',
                         findnext: this._onFindNext,
                         replace: this._onReplace,
-                        replaceall: this._onReplaceAll
+                        replaceall: this._onReplaceAll,
+                        replaceEnabled: this.state.selectedCells.length > 0
                         // onfilter={this._onFilterBoxChange} 
                         , onclear: this._onClearFind,
                         onhide: this._removeFocus,
@@ -4086,12 +4108,16 @@ var EditColumnButton = function (_BaseComponent) {
     }, {
         key: '_replace',
         value: function _replace() {
-            this.props.replace(this.state.findValue, this.state.replaceValue, this.props.column);
+            if (this.props.replaceEnabled) {
+                this.props.replace(this.state.findValue, this.state.replaceValue, this.props.column);
+            }
         }
     }, {
         key: '_replaceAll',
         value: function _replaceAll() {
-            this.props.replaceall(this.state.findValue, this.state.replaceValue, this.props.column);
+            if (this.props.replaceEnabled) {
+                this.props.replaceall(this.state.findValue, this.state.replaceValue, this.props.column);
+            }
         }
     }, {
         key: 'render',
@@ -4138,6 +4164,8 @@ var EditColumnButton = function (_BaseComponent) {
             var buttonsStyle = {
                 marginTop: "8px"
             };
+
+            var replaceEnabled = !this.props.replaceEnabled ? "disableReplace" : "";
 
             var editBox = _react2.default.createElement(
                 'div',
@@ -4195,7 +4223,8 @@ var EditColumnButton = function (_BaseComponent) {
                                 null,
                                 _react2.default.createElement(
                                     'td',
-                                    { colSpan: '2' },
+                                    { className: replaceEnabled,
+                                        colSpan: '2' },
                                     'Replace With'
                                 )
                             ),
@@ -4204,7 +4233,7 @@ var EditColumnButton = function (_BaseComponent) {
                                 null,
                                 _react2.default.createElement(
                                     'td',
-                                    null,
+                                    { className: replaceEnabled },
                                     _react2.default.createElement('input', {
                                         type: 'text',
                                         style: inputStyle,
@@ -4214,7 +4243,7 @@ var EditColumnButton = function (_BaseComponent) {
                                 ),
                                 _react2.default.createElement(
                                     'td',
-                                    null,
+                                    { className: replaceEnabled },
                                     _react2.default.createElement(
                                         'div',
                                         { className: 'inlineBlock',

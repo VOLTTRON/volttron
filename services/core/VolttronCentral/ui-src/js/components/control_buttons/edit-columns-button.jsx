@@ -44,11 +44,17 @@ class EditColumnButton extends BaseComponent {
         controlButtonActionCreators.hideTaptip(this.state.buttonName);
 
     }
-    _replace() {        
-        this.props.replace(this.state.findValue, this.state.replaceValue, this.props.column);
+    _replace() {    
+        if (this.props.replaceEnabled)    
+        {
+            this.props.replace(this.state.findValue, this.state.replaceValue, this.props.column);
+        }
     }
     _replaceAll() {
-        this.props.replaceall(this.state.findValue, this.state.replaceValue, this.props.column);
+        if (this.props.replaceEnabled)    
+        {
+            this.props.replaceall(this.state.findValue, this.state.replaceValue, this.props.column);
+        }
     }
     render() {
 
@@ -94,6 +100,8 @@ class EditColumnButton extends BaseComponent {
             marginTop: "8px"
         }
 
+        var replaceEnabled = (!this.props.replaceEnabled ? "disableReplace" : "");
+
         var editBox = (
             <div style={editBoxContainer}>
                 <ControlButton 
@@ -127,12 +135,13 @@ class EditColumnButton extends BaseComponent {
                                 </td>
                             </tr>
                             <tr>
-                                <td colSpan="2">
+                                <td className={replaceEnabled}
+                                    colSpan="2">
                                     Replace With
                                 </td>
                             </tr>
                             <tr>
-                                <td>
+                                <td className={replaceEnabled}>
                                     <input
                                         type="text"
                                         style={inputStyle}
@@ -140,7 +149,7 @@ class EditColumnButton extends BaseComponent {
                                         value={ this.state.replaceValue }
                                     />
                                 </td>
-                                <td>
+                                <td className={replaceEnabled}>
                                     <div className="inlineBlock"
                                             style={buttonsStyle}>
                                         <ControlButton 

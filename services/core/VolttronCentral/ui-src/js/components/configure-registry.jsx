@@ -20,7 +20,8 @@ class ConfigureRegistry extends BaseComponent {
         this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", 
             "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn",
             "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
-            "_saveRegistry", "_removeFocus", "_resetState", "_showProps", "_handleRowClick", "_getRealIndex" );
+            "_saveRegistry", "_removeFocus", "_resetState", "_showProps", "_handleRowClick", "_getRealIndex",
+            "_selectCells" );
 
         this.state = this._resetState(this.props.device);
     }
@@ -378,36 +379,41 @@ class ConfigureRegistry extends BaseComponent {
     _removeFocus() {
         this.setState({ selectedCellRow: null});
     }
+    _selectCells(findValue, column) {
+        var selectedCells = [];
+
+        this.setState({ registryValues: this.state.registryValues.map(function (row, index) {
+
+                //searching i-th column in each row, and if the cell contains the target value, select it
+                row.attributes[column].selected = (row.attributes[column].value.indexOf(findValue) > -1);
+
+                if (row.attributes[column].selected)
+                {
+                    selectedCells.push(index);
+                }
+
+                return row;
+            })
+        });
+
+        if (selectedCells.length > 0)
+        {
+            this.setState({ selectedCells: selectedCells });
+            this.setState({ selectedCellColumn: column });
+
+            //set focus to the first selected cell
+            this.setState({ selectedCellRow: selectedCells[0]});
+        }
+
+        return selectedCells;
+    }
     _onFindNext(findValue, column) {
 
         // var registryValues = this.state.registryValues.slice();
         
         if (this.state.selectedCells.length === 0)
         {
-            var selectedCells = [];
-
-            this.setState({ registryValues: this.state.registryValues.map(function (row, index) {
-
-                    //searching i-th column in each row, and if the cell contains the target value, select it
-                    row.attributes[column].selected = (row.attributes[column].value.indexOf(findValue) > -1);
-
-                    if (row.attributes[column].selected)
-                    {
-                        selectedCells.push(index);
-                    }
-
-                    return row;
-                })
-            });
-
-            if (selectedCells.length > 0)
-            {
-                this.setState({ selectedCells: selectedCells });
-                this.setState({ selectedCellColumn: column });
-
-                //set focus to the first selected cell
-                this.setState({ selectedCellRow: selectedCells[0]});
-            }
+            this._selectCells(findValue, column);
         }
         else
         {
@@ -464,56 +470,58 @@ class ConfigureRegistry extends BaseComponent {
             this.setState({ registryValues: this.state.registryValues});
         }
     }
+    // _onReplaceAll(findValue, replaceValue, column) {
+
+    //     // var selectedCellRow, selectedCells;
+
+    //     if (!this.state.selectedCellRow)
+    //     {            
+    //         this._onFindNext(findValue, column);
+    //     }
+    //     else
+    //     {
+    //         selectedCells = this.state.selectedCells;        
+
+    //         selectedCellRow = selectedCells[0];
+
+    //         // var registryValues = this.state.registryValues.slice();
+    //         // var selectedCells = this.state.selectedCells.slice();
+    //         // var selectedCellRow = this.state.selectedCellRow;
+
+    //         selectedCells.forEach((selectedCell) => {
+
+    //             this.state.registryValues[selectedCellRow].attributes[column].value = this.state.registryValues[selectedCellRow].attributes[column].value.replace(findValue, replaceValue);        
+
+    //             if (this.state.registryValues[selectedCellRow].attributes[column].value.indexOf(findValue) < 0)
+    //             {
+    //                 this.state.registryValues[selectedCellRow].attributes[column].selected = false;
+    //             }   
+    //         });
+
+    //         this.setState({ selectedCellRow: null});
+    //         this.setState({ selectedCells: [] });
+    //         this.setState({ selectedCellColumn: null });
+    //         this.setState({ registryValues: this.state.registryValues});
+    //     }
+    // }
     _onReplaceAll(findValue, replaceValue, column) {
+        
+        var selectedCellRow = this.state.selectedCells[0];
 
-        if (!this.state.selectedCellRow)
-        {
-            this._onFindNext(findValue, column);
-        }
-        else
-        {
-            // var registryValues = this.state.registryValues.slice();
-            // var selectedCells = this.state.selectedCells.slice();
-            // var selectedCellRow = this.state.selectedCellRow;
+        this.state.selectedCells.forEach((selectedCell) => {
+            this.state.registryValues[selectedCellRow].attributes[column].value = this.state.registryValues[selectedCellRow].attributes[column].value.replace(findValue, replaceValue);   
+        });
 
-            while (this.state.selectedCells.length > 0)
-            {
-                this.state.registryValues[selectedCellRow].attributes[column].value = this.state.registryValues[this.state.selectedCellRow].attributes[column].value.replace(findValue, replaceValue);        
-
-                if (this.state.registryValues[selectedCellRow].attributes[column].value.indexOf(findValue) < 0)
-                {
-                    this.state.registryValues[selectedCellRow].attributes[column].selected = false;
-
-                    var index = this.state.selectedCells.indexOf(selectedCellRow);
-
-                    if (index > -1)
-                    {
-                        this.state.selectedCells.splice(index, 1);
-                    }
-                    else
-                    {
-                        //something went wrong, so stop the while loop
-                        break;
-                    }
-
-                    if (this.state.selectedCells.length > 0)
-                    {
-                        selectedCellRow = this._goToNext(selectedCellRow, this.state.selectedCells);
-                    }
-                }
-            }
-
-            this.setState({ selectedCellRow: null});
-            this.setState({ selectedCells: [] });
-            this.setState({ selectedCellColumn: null });
-            this.setState({ registryValues: this.state.registryValues});
-        }
+        this.setState({ selectedCellRow: null});
+        this.setState({ selectedCells: [] });
+        this.setState({ selectedCellColumn: null });
+        this.setState({ registryValues: this.state.registryValues});
     }
     _onClearFind(column) {
 
         // var registryValues = this.state.registryValues.slice();
 
-        this.state.selectedCells.map(function (row) {
+        this.state.selectedCells.map((row) => {
             this.state.registryValues[row].attributes[column].selected = false;
         }, this);
 
@@ -674,6 +682,7 @@ class ConfigureRegistry extends BaseComponent {
                                             findnext={this._onFindNext}
                                             replace={this._onReplace}
                                             replaceall={this._onReplaceAll}
+                                            replaceEnabled={this.state.selectedCells.length > 0}
                                             // onfilter={this._onFilterBoxChange} 
                                             onclear={this._onClearFind}
                                             onhide={this._removeFocus}
