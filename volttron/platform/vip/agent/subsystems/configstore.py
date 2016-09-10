@@ -259,24 +259,23 @@ class ConfigStore(SubsystemBase):
 
     def _process_callbacks(self, affected_configs):
         _log.debug("Processing callbacks for affected files: {}".format(affected_configs))
-        try:
-            for config_name, action in affected_configs.iteritems():
-                callbacks = set()
-                for pattern, actions in self._subscriptions.iteritems():
-                    if fnmatch.fnmatchcase(config_name, pattern) and action in actions:
-                        callbacks.update(actions[action])
+        for config_name, action in affected_configs.iteritems():
+            callbacks = set()
+            for pattern, actions in self._subscriptions.iteritems():
+                if fnmatch.fnmatchcase(config_name, pattern) and action in actions:
+                    callbacks.update(actions[action])
 
-                for callback in callbacks:
-                    try:
-                        if action == "DELETE":
-                            contents = None
-                        else:
-                            contents = self._gather_config(config_name)
-                        callback(config_name, action, contents)
-                    except StandardError as e:
-                        tb_str = traceback.format_exc()
-                        _log.error("Problem processing callback:")
-                        _log.error(tb_str)
+            for callback in callbacks:
+                try:
+                    if action == "DELETE":
+                        contents = None
+                    else:
+                        contents = self._gather_config(config_name)
+                    callback(config_name, action, contents)
+                except StandardError as e:
+                    tb_str = traceback.format_exc()
+                    _log.error("Problem processing callback:")
+                    _log.error(tb_str)
 
     def list(self):
         """Returns a list of configuration names for this agent.
