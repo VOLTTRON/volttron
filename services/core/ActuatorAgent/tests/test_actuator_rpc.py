@@ -680,7 +680,7 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
 
     assert schedule_header['type'] == 'NEW_SCHEDULE'
     assert schedule_header['taskID'] == taskid
-    assert schedule_header['requesterID'] == TEST_AGENT
+    # assert schedule_header['requesterID'] == TEST_AGENT
     assert schedule_message['result'] == SUCCESS
 
     assert cancel_header['taskID'] == 'task_low_priority'
@@ -779,16 +779,20 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedules):
 
     assert schedule_header['type'] == 'NEW_SCHEDULE'
     assert schedule_header['taskID'] == taskid
-    assert schedule_header['requesterID'] == agentid
+    # assert schedule_header['requesterID'] == agentid
     assert schedule_message['result'] == SUCCESS
 
     assert cancel_header['taskID'] == 'task_low_priority2'
-    assert cancel_message['data']['agentID'] == agentid
+    # assert cancel_message['data']['agentID'] == agentid
     assert cancel_message['data']['taskID'] == taskid
     assert cancel_message['result'] == 'PREEMPTED'
 
 
 @pytest.mark.actuator
+@pytest.mark.xfail(reason="Request ids are now ignored.")
+# This test checks to see if a requestid is no longer valid.
+# Since requestids are always vip identities and only one agent
+# is scheduling devices the expected lock error is not raised.
 def test_schedule_premept_active_task_gracetime(publish_agent,
                                                 cancel_schedules):
     """
@@ -881,11 +885,11 @@ def test_schedule_premept_active_task_gracetime(publish_agent,
 
     assert schedule_header['type'] == 'NEW_SCHEDULE'
     assert schedule_header['taskID'] == taskid
-    assert schedule_header['requesterID'] == agentid
+    # assert schedule_header['requesterID'] == agentid
     assert schedule_message['result'] == SUCCESS
 
     assert cancel_header['taskID'] == 'task_low_priority3'
-    assert cancel_message['data']['agentID'] == agentid
+    # assert cancel_message['data']['agentID'] == agentid
     assert cancel_message['data']['taskID'] == taskid
     assert cancel_message['result'] == 'PREEMPTED'
 
@@ -1055,11 +1059,11 @@ def test_schedule_premept_future_task(publish_agent, cancel_schedules):
 
     assert schedule_header['type'] == 'NEW_SCHEDULE'
     assert schedule_header['taskID'] == taskid
-    assert schedule_header['requesterID'] == agentid
+    # assert schedule_header['requesterID'] == TEST_AGENT
     assert schedule_message['result'] == SUCCESS
 
     assert cancel_header['taskID'] == 'task_low_priority4'
-    assert cancel_message['data']['agentID'] == agentid
+    assert cancel_message['data']['agentID'] == TEST_AGENT
     assert cancel_message['data']['taskID'] == taskid
     assert cancel_message['result'] == 'PREEMPTED'
 
@@ -1671,6 +1675,7 @@ def test_set_value_error(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
+@pytest.mark.xfail(reason="Request ids are now ignored.")
 def test_set_error_none_agent(publish_agent, cancel_schedules):
     """
     Test setting a value of a point through rpc with agentid=None
