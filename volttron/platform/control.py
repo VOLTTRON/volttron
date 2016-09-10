@@ -106,6 +106,7 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
 class ControlService(BaseAgent):
     def __init__(self, aip, *args, **kwargs):
         tracker = kwargs.pop('tracker', None)
+        kwargs["enable_store"] = False
         super(ControlService, self).__init__(*args, **kwargs)
         self._aip = aip
         self._tracker = tracker
@@ -963,6 +964,7 @@ class ControlConnection(object):
         self.peer = peer
         self._server = BaseAgent(address=self.address, publickey=publickey,
                                  secretkey=secretkey, serverkey=serverkey,
+                                 enable_store=False,
                                  identity=CONTROL_CONNECTION)
         self._greenlet = None
 
