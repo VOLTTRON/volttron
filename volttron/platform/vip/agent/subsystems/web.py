@@ -55,44 +55,55 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import logging
+import weakref
 
-""" Core package."""
+from volttron.platform.vip.agent.subsystems.base import SubsystemBase
+
+__docformat__ = 'reStructuredText'
+__version__ = '1.0'
+
+_log = logging.getLogger(__name__)
 
 
-import os
-import sys
+class WebSubSystem(SubsystemBase):
 
-__version__ = '3.1'
+    def __init__(self, owner, core, rpc):
+        self._owner = weakref.ref(owner)
+        self._rpc = weakref.ref(rpc)
+        self._core = weakref.ref(core)
+        self._endpoints = {}
 
+        rpc.export(self._opened, 'client.opened')
+        rpc.export(self._closed, 'client.closed')
+        rpc.export(self._message, 'client.message')
 
-def set_home(home=None):
-    """ Set the home directory with user and variables expanded.
+    def register_route(self, endpoint, callback):
+        self._endpoints[endpoint] = callback
 
-    If the home is sent in, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    os.environ["VOLTTRON_HOME"] = home or get_home()
-    
+    def register_path(self, prefix, static_path):
+        _log.info('Registirng path prefix: {}, path: {}'.format(
+            prefix, static_path
+        ))
+        self._rpc().call('master.web', 'register_path_route',
+                         self._core().identity, prefix, static_path)
 
-def get_home():
-    """ Return the home directory with user and variables expanded.
+    def register_websocket(self, endpoint, opened, closed, received):
+        self._endpoints[endpoint] = (opened, closed, received)
+        self._rpc().call('master.web', 'register_websocket', endpoint).get(timeout=5)
 
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    return os.path.abspath(
-        os.path.normpath(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
+    def send(self, endpoint, message=''):
+        print('Doing rpc send to master web.')
+        self._rpc().call('master.web', 'websocket_send', endpoint, message).get(timeout=5)
 
-def get_address():
-    """Return the VIP address of the platform
-    If the VOLTTRON_VIP_ADDR environment variable is set, it used.
-    Otherwise, it is derived from get_home()."""
-    address = os.environ.get('VOLTTRON_VIP_ADDR')
-    if not address:
-        abstract = '@' if sys.platform.startswith('linux') else ''
-        address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
+    def _opened(self):
+        print('Client opened callback')
 
-    return address
+    def _closed(self):
+        print('Client closed callback')
+
+    def _message(self, endpoint, message):
+        print('Client received message callback')
+        self._endpoints[endpoint][2](endpoint, message)
+
+        # self._endpoints[endpoint][2](message)

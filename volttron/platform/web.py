@@ -55,7 +55,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import logging
 import os
 import re
@@ -63,6 +63,16 @@ import requests
 from urlparse import urlparse, urljoin
 
 from gevent import pywsgi
+
+import gevent
+import gevent.pywsgi
+from ws4py.websocket import WebSocket
+
+from ws4py.server.geventserver import (WebSocketWSGIApplication,
+                                       WebSocketWSGIHandler,
+                                       WSGIServer)
+
+
 import mimetypes
 
 from requests.packages.urllib3.connection import (ConnectionError,
@@ -172,6 +182,303 @@ def is_ip_private(vip_address):
         ip) is not None or priv_20.match(ip) is not None or priv_16.match(
         ip) is not None
 
+import random
+from ws4py.websocket import EchoWebSocket #, EchoFoo
+
+class EchoFoo(WebSocket):
+    def received_message(self, message):
+        """
+        Automatically sends back the provided ``message`` to
+        its originating endpoint.
+        """
+        self.send(message.data, message.is_binary)
+
+
+class BroadcastWebSocket(EchoWebSocket):
+    def opened(self):
+        app = self.environ['ws4py.app']
+        app.clients.append(self)
+
+    def received_message(self, m):
+        # self.clients is set from within the server
+        # and holds the list of all connected servers
+        # we can dispatch to
+        app = self.environ['ws4py.app']
+        for client in app.clients:
+            client.send(m)
+
+    def closed(self, code, reason="A client left the room without a proper explanation."):
+        app = self.environ.pop('ws4py.app')
+        if self in app.clients:
+            app.clients.remove(self)
+            for client in app.clients:
+                try:
+                    client.send(reason)
+                except:
+                    pass
+
+
+
+class VolttronWebSocket(WebSocket):
+
+    def opened(self):
+        print('Socket opened')
+        app = self.environ['ws4py.app']
+        identity = self.environ['identity']
+        app.clients.append(self)
+        app.emit_opened(identity)
+
+    def received_message(self, m):
+        # self.clients is set from within the server
+        # and holds the list of all connected servers
+        # we can dispatch to
+        print('Socket received message: {}'.format(m))
+        app = self.environ['ws4py.app']
+        identity = self.environ['identity']
+        app.emit_received(identity, m)
+        # for client in app.clients:
+        #     client.send(m)
+
+    # def received_message(self, message):
+    #     """
+    #     Automatically sends back the provided ``message`` to
+    #     its originating endpoint.
+    #     """
+    #     self.send(message.data, message.is_binary)
+
+    def closed(self, code, reason="A client left the room without a proper explanation."):
+        print('Socket closed!')
+        app = self.environ.pop('ws4py.app')
+        identity = self.environ.pop('identity')
+        app.emit_closed(identity)
+        if self in app.clients:
+            app.clients.remove(self)
+            for client in app.clients:
+                try:
+                    client.send(reason)
+                except:
+                    pass
+
+
+class WebApplicationWrapper(object):
+    """ A container class that will hold all of the applications registered
+    with it.  The class provides a contianer for managing the routing of
+    websocket, static content, and rpc function calls.
+    """
+    def __init__(self, masterweb, host, port):
+        self.masterweb = masterweb
+        self.port = port
+        self.host = host
+        self.ws = WebSocketWSGIApplication(handler_cls=VolttronWebSocket)
+        self.clients = []
+        self._identity_map = {}
+
+    def favicon(self, environ, start_response):
+        """
+        Don't care about favicon, let's send nothing.
+        """
+        status = '200 OK'
+        headers = [('Content-type', 'text/plain')]
+        start_response(status, headers)
+        return ""
+
+    def emit_opened(self, identity):
+        self.masterweb.vip.rpc.call(identity, 'client.opened')
+
+    def emit_closed(self, identity):
+        self.masterweb.vip.rpc.call(identity, 'client.closed')
+
+    def emit_received(self, identity, message):
+        print('The message is {} of {}'.format(message, type(message)))
+        self.masterweb.vip.rpc.call(identity, 'client.message', str(message))
+
+    def create_ws_endpoint(self, endpoint, identity):
+        print(endpoint, identity)
+        self._identity_map[endpoint] = identity
+
+    def websocket_send(self, endpoint, message):
+        print('Sending message to clients!')
+        for c in self.clients:
+            c.send(message)
+
+    def __call__(self, environ, start_response):
+        """
+        Good ol' WSGI application. This is a simple demo
+        so I tried to stay away from dependencies.
+        """
+        if environ['PATH_INFO'] == '/favicon.ico':
+            return self.favicon(environ, start_response)
+
+        if environ['PATH_INFO'] == '/ws':
+            environ['ws4py.app'] = self
+            environ['endpoint'] = environ['PATH_INFO']
+            environ['identity'] = self._identity_map[environ['PATH_INFO']]
+            return self.ws(environ, start_response)
+
+        return self.webapp(environ, start_response)
+
+
+    def webapp(self, environ, start_response):
+        """
+        Our main webapp that'll display the chat form
+        """
+        status = '200 OK'
+        headers = [('Content-type', 'text/html')]
+
+        start_response(status, headers)
+
+        return """<html>
+        <head>
+        <script type='application/javascript' src='https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js'></script>
+          <script type='application/javascript'>
+            $(document).ready(function() {
+
+              websocket = 'ws://%(host)s:%(port)s/ws';
+              if (window.WebSocket) {
+                ws = new WebSocket(websocket);
+              }
+              else if (window.MozWebSocket) {
+                ws = MozWebSocket(websocket);
+              }
+              else {
+                console.log('WebSocket Not Supported');
+                return;
+              }
+
+              window.onbeforeunload = function(e) {
+                 $('#chat').val($('#chat').val() + 'Bye bye...\\n');
+                 ws.close(1000, '%(username)s left the room');
+
+                 if(!e) e = window.event;
+                 e.stopPropagation();
+                 e.preventDefault();
+              };
+              ws.onmessage = function (evt) {
+                 $('#chat').val($('#chat').val() + evt.data + '\\n');
+              };
+              ws.onopen = function() {
+                 ws.send("%(username)s entered the room");
+              };
+              ws.onclose = function(evt) {
+                 $('#chat').val($('#chat').val() + 'Connection closed by server: ' + evt.code + ' \"' + evt.reason + '\"\\n');
+              };
+
+              $('#send').click(function() {
+                 console.log($('#message').val());
+                 ws.send('%(username)s: ' + $('#message').val());
+                 $('#message').val("");
+                 return false;
+              });
+            });
+          </script>
+        </head>
+        <body>
+        <form action='#' id='chatform' method='get'>
+          <textarea id='chat' cols='35' rows='10'></textarea>
+          <br />
+          <label for='message'>%(username)s: </label><input type='text' id='message' />
+          <input id='send' type='submit' value='Send' />
+          </form>
+        </body>
+        </html>
+        """ % {'username': "User%d" % random.randint(0, 100),
+               'host': self.host,
+               'port': self.port}
+
+
+class VolttronWebSocket(WebSocket):
+
+    def opened(self):
+        print('Socket opened')
+        app = self.environ['ws4py.app']
+        identity = self.environ['identity']
+        app.clients.append(self)
+        app.emit_opened(identity)
+
+    def received_message(self, m):
+        # self.clients is set from within the server
+        # and holds the list of all connected servers
+        # we can dispatch to
+        print('Socket received message: {}'.format(m))
+        app = self.environ['ws4py.app']
+        identity = self.environ['identity']
+        app.emit_received(identity, self.environ['PATH_INFO'], m)
+        # for client in app.clients:
+        #     client.send(m)
+
+    def closed(self, code, reason="A client left the room without a proper explanation."):
+        print('Socket closed!')
+        app = self.environ.pop('ws4py.app')
+        identity = self.environ.pop('identity')
+        app.emit_closed(identity)
+        if self in app.clients:
+            app.clients.remove(self)
+            for client in app.clients:
+                try:
+                    client.send(reason)
+                except:
+                    pass
+
+
+class WebApplicationWrapper(object):
+    """ A container class that will hold all of the applications registered
+    with it.  The class provides a contianer for managing the routing of
+    websocket, static content, and rpc function calls.
+    """
+    def __init__(self, masterweb, host, port):
+        self.masterweb = masterweb
+        self.port = port
+        self.host = host
+        self.ws = WebSocketWSGIApplication(handler_cls=VolttronWebSocket)
+        self.clients = []
+        self._wsregistry = {}
+
+    def favicon(self, environ, start_response):
+        """
+        Don't care about favicon, let's send nothing.
+        """
+        status = '200 OK'
+        headers = [('Content-type', 'text/plain')]
+        start_response(status, headers)
+        return ""
+
+    def emit_opened(self, identity):
+        self.masterweb.vip.rpc.call(identity, 'client.opened')
+
+    def emit_closed(self, identity):
+        self.masterweb.vip.rpc.call(identity, 'client.closed')
+
+    def emit_received(self, identity, endpoint, message):
+        print('The message is {} of {}'.format(message, type(message)))
+        self.masterweb.vip.rpc.call(identity, 'client.message',
+                                    str(endpoint), str(message))
+
+    def create_ws_endpoint(self, endpoint, identity):
+        print(endpoint, identity)
+        self._wsregistry[endpoint] = identity
+
+    def websocket_send(self, endpoint, message):
+        print('Sending message to clients!')
+        for c in self.clients:
+            print('Sending endpoint&&message {}&&{}'.format(endpoint, message))
+            c.send(message)
+
+    def __call__(self, environ, start_response):
+        """
+        Good ol' WSGI application. This is a simple demo
+        so I tried to stay away from dependencies.
+        """
+        if environ['PATH_INFO'] == '/favicon.ico':
+            return self.favicon(environ, start_response)
+
+        path = environ['PATH_INFO']
+        if path in self._wsregistry:
+            environ['ws4py.app'] = self
+            environ['identity'] = self._wsregistry[environ['PATH_INFO']]
+            return self.ws(environ, start_response)
+
+        return self.masterweb.app_routing(environ, start_response)
+
 
 class MasterWebService(Agent):
     """The service that is responsible for managing and serving registered pages
@@ -181,12 +488,12 @@ class MasterWebService(Agent):
     """
 
     def __init__(self, serverkey, identity, address, bind_web_address, aip,
-                 volttron_central_address=None):
+                 volttron_central_address=None, **kwargs):
         """Initialize the discovery service with the serverkey
 
         serverkey is the public key in order to access this volttron's bus.
         """
-        super(MasterWebService, self).__init__(identity, address)
+        super(MasterWebService, self).__init__(identity, address, **kwargs)
 
         self.bind_web_address = bind_web_address
         # if the web address is bound then we need to allow the web agent
@@ -214,9 +521,15 @@ class MasterWebService(Agent):
         if not self.volttron_central_address:
             self.volttron_central_address = bind_web_address
 
-
         if not mimetypes.inited:
             mimetypes.init()
+
+        self.appContainer = None
+        self._server_greenlet = None
+
+    @RPC.export
+    def websocket_send(self, endpoint, message):
+        self.appContainer.websocket_send(endpoint, message)
 
     @RPC.export
     def get_bind_web_address(self):
@@ -267,6 +580,12 @@ class MasterWebService(Agent):
         compiled = re.compile(regex)
         self.pathroutes[peer].append(compiled)
         self.registeredroutes.append((compiled, 'path', root_dir))
+
+    @RPC.export
+    def register_websocket(self, endpoint):
+        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        _log.debug('Caller identity: {}'.format(identity))
+        self.appContainer.create_ws_endpoint(endpoint, identity)
 
     def _redirect_index(self, env, start_response, data=None):
         """ Redirect to the index page.
@@ -426,11 +745,17 @@ class MasterWebService(Agent):
         logdir = os.path.join(vhome, "log")
         if not os.path.exists(logdir):
             os.makedirs(logdir)
-        with open(os.path.join(logdir, 'web.access.log'), 'wb') as accesslog:
-            with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
-                server = pywsgi.WSGIServer((hostname, port), self.app_routing,
-                                       log=accesslog, error_log=errlog)
-                server.serve_forever()
+
+        self.appContainer = WebApplicationWrapper(self, hostname, port)
+        svr = WSGIServer((hostname, port), self.appContainer)
+        self._server_greenlet = gevent.spawn(svr.serve_forever)
+
+        # svr = WSGIServer((host, port))
+        # with open(os.path.join(logdir, 'web.access.log'), 'wb') as accesslog:
+        #     with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
+        #         server = pywsgi.WSGIServer((hostname, port), self.app_routing,
+        #                                log=accesslog, error_log=errlog)
+        #         server.serve_forever()
 
 
 def build_vip_address_string(vip_root, serverkey, publickey, secretkey):

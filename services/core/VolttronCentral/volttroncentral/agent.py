@@ -148,7 +148,7 @@ class VolttronCentralAgent(Agent):
         """
         _log.info("{} constructing...".format(self.__name__))
 
-        super(VolttronCentralAgent, self).__init__(**kwargs)
+        super(VolttronCentralAgent, self).__init__(enable_web=True, **kwargs)
         # Load the configuration into a dictionary
         self._config = utils.load_config(config_path)
 
@@ -211,6 +211,13 @@ class VolttronCentralAgent(Agent):
         self._request_store = load_create_store(
             os.path.join(os.environ['VOLTTRON_HOME'],
                          'data', 'volttron.central.requeststore'))
+
+        self.default_config = {"heartbeat_interval": 60}
+        self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"],
+                                  pattern="config")
+
+    def configure(self, config_name, action, contents):
+        pass
     # # @Core.periodic(60)
     # def _reconnect_to_platforms(self):
     #     """ Attempt to reconnect to all the registered platforms.
@@ -1024,19 +1031,28 @@ class VolttronCentralAgent(Agent):
             MASTER_WEB
         ))
 
+        self.vip.web.register_path(r'^/.*', self._webroot)
         self.vip.rpc.call(MASTER_WEB, 'register_agent_route',
                           r'^/jsonrpc.*',
                           self.core.identity,
                           'jsonrpc').get(timeout=10)
+        self.vip.web.register_websocket(r'/vc/ws', None, None,
+                                        self._received_data)
 
-        self.vip.rpc.call(MASTER_WEB, 'register_path_route', VOLTTRON_CENTRAL,
-                          r'^/.*', self._webroot).get(timeout=20)
+
+        # self.vip.rpc.call(MASTER_WEB, 'register_path_route', VOLTTRON_CENTRAL,
+        #                   r'^/.*', self._webroot).get(timeout=20)
 
         self.webaddress = self.vip.rpc.call(
             MASTER_WEB, 'get_bind_web_address').get(timeout=30)
 
         # Remove so that dynamic agents don't inherit the identity.
         os.environ.pop('AGENT_VIP_IDENTITY')
+
+    def _received_data(self, endpoint, message):
+        print('Received from endpoint {} message: {}'.format(endpoint, message))
+        self.vip.web.send(endpoint, message)
+
 
 
     def __load_persist_data(self):

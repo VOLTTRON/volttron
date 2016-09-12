@@ -53,46 +53,40 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 # }}}
 
+from os import path
+from setuptools import setup, find_packages
 
-""" Core package."""
+MAIN_MODULE = 'agent'
 
+# Find the agent package that contains the main module
+packages = find_packages('.')
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
 
-import os
-import sys
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
 
-__version__ = '3.1'
-
-
-def set_home(home=None):
-    """ Set the home directory with user and variables expanded.
-
-    If the home is sent in, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    os.environ["VOLTTRON_HOME"] = home or get_home()
-    
-
-def get_home():
-    """ Return the home directory with user and variables expanded.
-
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    return os.path.abspath(
-        os.path.normpath(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
-
-def get_address():
-    """Return the VIP address of the platform
-    If the VOLTTRON_VIP_ADDR environment variable is set, it used.
-    Otherwise, it is derived from get_home()."""
-    address = os.environ.get('VOLTTRON_VIP_ADDR')
-    if not address:
-        abstract = '@' if sys.platform.startswith('linux') else ''
-        address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
-
-    return address
+# Setup
+setup(
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
+        'setuptools.installation': [
+            'eggsecutable = ' + agent_module + ':main',
+        ]
+    }
+)

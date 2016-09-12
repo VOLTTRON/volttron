@@ -53,46 +53,63 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 # }}}
 
-
-""" Core package."""
-
-
-import os
+import logging
 import sys
 
-__version__ = '3.1'
+from volttron.platform.agent import utils
+from volttron.platform.vip.agent import Agent
+from volttron.platform.vip.agent import Core
+from volttron.platform.vip.agent.subsystems.web import WebSubSystem
+
+utils.setup_logging()
+_log = logging.getLogger(__name__)
+__version__ = '0.0.1'
 
 
-def set_home(home=None):
-    """ Set the home directory with user and variables expanded.
+class WebSocketAgent(Agent):
+    def __init__(self, config_path, **kwargs):
+        super(WebSocketAgent, self).__init__(**kwargs)
+        self._websubsystem = None
 
-    If the home is sent in, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    os.environ["VOLTTRON_HOME"] = home or get_home()
-    
+    @Core.receiver("onstart")
+    def _starting(self, sender, **kwargs):
+        self._websubsystem = WebSubSystem(self.vip.rpc)
+        # self._websubsystem.register_path('/foo', )
+        self._websubsystem.register_websocket('/ws', self._opened, self._closed,
+                                              self._received)
 
-def get_home():
-    """ Return the home directory with user and variables expanded.
+    @Core.receiver("onstop")
+    def _stopping(self, sender, **kwargs):
+        pass
 
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    return os.path.abspath(
-        os.path.normpath(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
+    def _opened(self):
+        _log.info('Client connected')
 
-def get_address():
-    """Return the VIP address of the platform
-    If the VOLTTRON_VIP_ADDR environment variable is set, it used.
-    Otherwise, it is derived from get_home()."""
-    address = os.environ.get('VOLTTRON_VIP_ADDR')
-    if not address:
-        abstract = '@' if sys.platform.startswith('linux') else ''
-        address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
+    def _closed(self):
+        _log.info('Client disconnected')
 
-    return address
+    def _received(self, message):
+        _log.info('Message Received: {}'.format(message))
+        _log.info('Sending message to {} {}'.format('/ws', message))
+        self._websubsystem.send('/ws', message)
+
+
+def main(argv=sys.argv):
+    """Main method called by the eggsecutable."""
+
+    try:
+        utils.vip_main(WebSocketAgent)
+    except Exception as e:
+        print(e)
+        _log.exception('unhandled exception')
+
+
+if __name__ == '__main__':
+    # Entry point for script
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        pass
