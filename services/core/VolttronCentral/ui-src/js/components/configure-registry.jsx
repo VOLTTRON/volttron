@@ -506,10 +506,11 @@ class ConfigureRegistry extends BaseComponent {
     // }
     _onReplaceAll(findValue, replaceValue, column) {
         
-        var selectedCellRow = this.state.selectedCells[0];
+        // var selectedCellRow = this.state.selectedCells[0];
 
         this.state.selectedCells.forEach((selectedCell) => {
-            this.state.registryValues[selectedCellRow].attributes[column].value = this.state.registryValues[selectedCellRow].attributes[column].value.replace(findValue, replaceValue);   
+            var newValue = this.state.registryValues[selectedCell].attributes[column].value.replace(findValue, replaceValue);
+            this.state.registryValues[selectedCell].attributes[column].value = newValue;   
         });
 
         this.setState({ selectedCellRow: null});

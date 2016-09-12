@@ -2239,6 +2239,10 @@ Interactive Layer
     white-space: nowrap;
 }
 
+.disableReplace {
+    opacity: .4;
+}
+
 .selectedRegistryPoint {
     background-color: rgba(102, 153, 187, .5);
 }

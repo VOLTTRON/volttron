@@ -147,6 +147,7 @@ class EditColumnButton extends BaseComponent {
                                         style={inputStyle}
                                         onChange={this._onReplaceBoxChange}
                                         value={ this.state.replaceValue }
+                                        disabled={ !this.props.replaceEnabled }
                                     />
                                 </td>
                                 <td className={replaceEnabled}>
