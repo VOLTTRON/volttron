@@ -3229,10 +3229,11 @@ var ConfigureRegistry = function (_BaseComponent) {
         value: function _onReplaceAll(findValue, replaceValue, column) {
             var _this2 = this;
 
-            var selectedCellRow = this.state.selectedCells[0];
+            // var selectedCellRow = this.state.selectedCells[0];
 
             this.state.selectedCells.forEach(function (selectedCell) {
-                _this2.state.registryValues[selectedCellRow].attributes[column].value = _this2.state.registryValues[selectedCellRow].attributes[column].value.replace(findValue, replaceValue);
+                var newValue = _this2.state.registryValues[selectedCell].attributes[column].value.replace(findValue, replaceValue);
+                _this2.state.registryValues[selectedCell].attributes[column].value = newValue;
             });
 
             this.setState({ selectedCellRow: null });
@@ -4238,7 +4239,8 @@ var EditColumnButton = function (_BaseComponent) {
                                         type: 'text',
                                         style: inputStyle,
                                         onChange: this._onReplaceBoxChange,
-                                        value: this.state.replaceValue
+                                        value: this.state.replaceValue,
+                                        disabled: !this.props.replaceEnabled
                                     })
                                 ),
                                 _react2.default.createElement(
