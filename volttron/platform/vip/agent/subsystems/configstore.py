@@ -56,6 +56,8 @@ import traceback
 import os
 import weakref
 import fnmatch
+import greenlet
+import inspect
 
 from .base import SubsystemBase
 from volttron.platform.storeutils import list_unique_links, check_for_config_link
@@ -63,8 +65,9 @@ from volttron.platform.storeutils import list_unique_links, check_for_config_lin
 from collections import defaultdict
 from copy import deepcopy
 
-"""The heartbeat subsystem adds an optional periodic publish to all agents.
-Heartbeats can be started with agents and toggled on and off at runtime.
+"""The configstore subsystem manages the agent side of the configuration store.
+It is responsible for processing change notifications from the platform
+ and triggering the correct callbacks with the contents of a configuration.
 """
 
 __docformat__ = 'reStructuredText'
@@ -85,9 +88,10 @@ class ConfigStore(SubsystemBase):
         self._default_store = {}
         self._callbacks = {}
 
-        self._processing_callbacks = False
         self._initialized = False
         self._initial_callbacks_called = False
+
+        self._process_callbacks_code_object = self._process_callbacks.__code__
 
         def sub_factory():
             return defaultdict(set)
@@ -255,29 +259,33 @@ class ConfigStore(SubsystemBase):
 
     def _process_callbacks(self, affected_configs):
         _log.debug("Processing callbacks for affected files: {}".format(affected_configs))
-        self._processing_callbacks = True
-        try:
-            for config_name, action in affected_configs.iteritems():
-                callbacks = set()
-                for pattern, actions in self._subscriptions.iteritems():
-                    if fnmatch.fnmatchcase(config_name, pattern) and action in actions:
-                        callbacks.update(actions[action])
+        for config_name, action in affected_configs.iteritems():
+            callbacks = set()
+            for pattern, actions in self._subscriptions.iteritems():
+                if fnmatch.fnmatchcase(config_name, pattern) and action in actions:
+                    callbacks.update(actions[action])
 
-                for callback in callbacks:
-                    try:
-                        if action == "DELETE":
-                            contents = None
-                        else:
-                            contents = self._gather_config(config_name)
-                        callback(config_name, action, contents)
-                    except StandardError as e:
-                        tb_str = traceback.format_exc()
-                        _log.error("Problem processing callback:")
-                        _log.error(tb_str)
-        finally:
-            self._processing_callbacks = False
+            for callback in callbacks:
+                try:
+                    if action == "DELETE":
+                        contents = None
+                    else:
+                        contents = self._gather_config(config_name)
+                    callback(config_name, action, contents)
+                except StandardError as e:
+                    tb_str = traceback.format_exc()
+                    _log.error("Problem processing callback:")
+                    _log.error(tb_str)
 
     def list(self):
+        """Returns a list of configuration names for this agent.
+
+        :returns: Configuration names
+        :rtype: list
+
+        :Return Values:
+        A list of all the configuration names available for this agent.
+        """
         # Handle case were we are called during "onstart".
         if not self._initialized:
             self._rpc().call("config.store", "get_configs").get()
@@ -289,6 +297,16 @@ class ConfigStore(SubsystemBase):
         return config_list
 
     def get(self, config_name="config"):
+        """Returns the contents of a configuration.
+
+        :param config_name: Name of configuration to add to store.
+        :type config_name: str
+        :returns: Configuration contents
+        :rtype: dict, list, or string
+
+        :Return Values:
+        The contents of the configuration specified.
+        """
         #Handle case were we are called during "onstart".
         if not self._initialized:
             self._rpc().call("config.store", "get_configs").get()
@@ -297,15 +315,49 @@ class ConfigStore(SubsystemBase):
 
         return self._gather_config(config_name)
 
+    def _check_call_from_process_callbacks(self):
+        frame_records = inspect.stack()
+        try:
+            #Don't create any unneeded references to frame objects.
+            for i in xrange(1, len(frame_records)):
+                if self._process_callbacks_code_object is frame_records[i][0].f_code:
+                    raise RuntimeError("Cannot request changes to the config store from a configuration callback.")
+        finally:
+            del frame_records
+
+
     def set(self, config_name, contents, trigger_callback=False ):
-        if self._processing_callbacks:
-            raise RuntimeError("Cannot request changes to the config store from a configuration callback.")
+        """Called to set the contents of a configuration.
 
-        self._rpc().call("config.store", "set_config", config_name, contents, trigger_callback=trigger_callback)
+        May not be called before the onstart phase of an agents lifetime.
 
-    def set_default(self, config_name, contents, trigger_callback=False):
-        if self._processing_callbacks:
-            raise RuntimeError("Cannot request changes to the config store from a configuration callback.")
+        May not be called from a configuration callback. Will produce a runtime error if done so.
+
+        :param config_name: Name of configuration to add to store.
+        :param contents: Contents of the configuration. May be a string, dictionary, or list.
+        :param trigger_callback: Tell the platform to trigger callbacks on the agent for this change.
+
+        :type config_name: str
+        :type contents: str, dict, list
+        :type trigger_callback: bool
+        """
+        self._check_call_from_process_callbacks()
+
+        self._rpc().call("config.store", "set_config", config_name, contents, trigger_callback=trigger_callback).get(timeout=10.0)
+
+    def set_default(self, config_name, contents):
+        """Called to set the contents of a default configuration file. Default configurations are used if the
+        configuration store does not contain a configuration with that name.
+
+        May not be called after the onsetup phase of an agents lifetime. Will produce a runtime error if done so.
+
+        :param config_name: Name of configuration to add to store.
+        :param contents: Contents of the configuration. May be a string, dictionary, or list.
+        :type config_name: str
+        :type contents: str, dict, list
+        """
+        if self._initialized:
+            raise RuntimeError("Cannot request changes to default configurations after onsetup.")
 
         if not isinstance(contents, (str, list, dict)):
             raise ValueError("Invalid content type: {}".format(contents.__class__.__name__))
@@ -317,15 +369,18 @@ class ConfigStore(SubsystemBase):
         if config_name in self._store:
             return
 
-        affected_configs = {config_name: action}
         self._update_refs(config_name, self._default_store[config_name])
-        if trigger_callback:
-            self._gather_affected(config_name, affected_configs)
-            self._process_callbacks(affected_configs)
 
-    def delete_default(self, config_name, trigger_callback=False):
-        if self._processing_callbacks:
-            raise RuntimeError("Cannot request changes to the config store from a configuration callback.")
+    def delete_default(self, config_name):
+        """Called to delete the contents of a default configuration file.
+
+            May not be called after the onsetup phase of an agents lifetime. Will produce a runtime error if done so.
+
+            :param config_name: Configuration to remove from store.
+            :type config_name: str
+            """
+        if self._initialized:
+            raise RuntimeError("Cannot request changes to default configurations after onsetup.")
 
         config_name = config_name.lower()
         del self._default_store[config_name]
@@ -333,21 +388,33 @@ class ConfigStore(SubsystemBase):
         if config_name in self._store:
             return
 
-        affected_configs = {config_name: "DELETE"}
-        self._gather_affected(config_name, affected_configs)
         self._update_refs(config_name, self._store[config_name])
-
-        if trigger_callback:
-            self._process_callbacks(affected_configs)
 
 
     def delete(self, config_name, trigger_callback=False):
-        if self._processing_callbacks:
-            raise RuntimeError("Cannot request changes to the config store from a configuration callback.")
+        """Delete a configuration by name. May not be called from a callback as this will cause
+            deadlock with the platform. Will produce a runtime error if done so.
 
-        self._rpc().call("config.store", "delete_config", config_name, trigger_callback=trigger_callback)
+        :param config_name: Configuration to remove from store.
+        :param trigger_callback: Tell the platform to trigger callbacks on the agent for this change.
+        :type config_name: str
+        :type trigger_callback: bool
+            """
+        self._check_call_from_process_callbacks()
+
+        self._rpc().call("config.store", "delete_config", config_name, trigger_callback=trigger_callback).get(timeout=10.0)
 
     def subscribe(self, callback, actions=VALID_ACTIONS, pattern="*"):
+        """Subscribe to changes to a configuration.
+
+        :param callback: Function to call in response to changes to a configuration.
+        :param actions: Change actions to respond to. Valid values are "NEW", "UPDATE", and "DELETE". May be a single action or a list of actions.
+        :param pattern: Configuration name pattern to match to.  Uses Unix style filename pattern matching.
+
+        :type callback: str
+        :type actions: str or list
+        :type pattern: str
+        """
         if isinstance(actions, str):
             actions = (actions,)
 
@@ -363,6 +430,7 @@ class ConfigStore(SubsystemBase):
             self._subscriptions[pattern][action].add(callback)
 
     def unsubscribe_all(self):
+        """Remove all subscriptions."""
         self._subscriptions.clear()
 
 
