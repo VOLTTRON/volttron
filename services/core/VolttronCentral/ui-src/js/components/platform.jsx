@@ -80,7 +80,7 @@ var Platform = React.createClass({
                 <table>
                     <thead>
                         <tr>
-                            <th>Tag</th>
+                            <th>Name</th>
                             <th>UUID</th>
                             <th>Status</th>
                             <th>Action</th>
@@ -119,7 +119,9 @@ var Platform = React.createClass({
                 <br/>
                 <br/>
                 <h3>Agents</h3>
-                {agents}
+                <div className="agents-container">
+                    {agents}
+                </div>
                 <h3>Install agents</h3>
                 <input type="file" multiple onChange={this._onFileChange} />
             </div>

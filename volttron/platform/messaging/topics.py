@@ -103,8 +103,9 @@ ALERTS = _('alerts/{agent_class}/{agent_uuid}') #/{agent_class}/{publickey}/{ale
 HEARTBEAT = _('heartbeats')
 PLATFORM = _('platform/{subtopic}')
 PLATFORM_SHUTDOWN = PLATFORM(subtopic='shutdown')
+PLATFORM_VCP_DEVICES = _('platforms/{platform_uuid}/devices/{topic}')
 
-RECORD = _('record')
+RECORD = _('record/{subtopic}')
 
 AGENT_SHUTDOWN = _('agent/{agent}/shutdown')
 AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(os.uname()[1], os.getpid()))
@@ -195,3 +196,6 @@ DRIVER_CONFIG_UPDATE = _(_CONFIG_VALUE.replace('{category}', 'driver'))
 
 WEATHER_BASE = 'weather'
 WEATHER_REQUEST = 'weather/request'
+
+BACNET_INFO_BASE = _('bacnet/{indication}')
+BACNET_I_AM = _(BACNET_INFO_BASE.replace('{indication}', 'i_am'))

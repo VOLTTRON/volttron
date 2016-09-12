@@ -1,8 +1,5 @@
 .. _Driver-Configuration:
-<<<<<<< Updated upstream
 
-=======
->>>>>>> Stashed changes
 ====================
 Driver Configuration
 ====================
@@ -186,7 +183,7 @@ Registry Configuration File
 ---------------------------
 Registry configuration files setup each individual point on a device. Typically this file will be in CSV format, but the exact format is driver specific. See the section for a particular driver for the registry configuration format.
 
-The following is a simple example of a MODBUS registry confugration file:
+The following is a simple example of a MODBUS registry configration file:
 
 .. csv-table:: Catalyst 371
     :header: Reference Point Name,Volttron Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Default Value,Notes

@@ -42,7 +42,7 @@ All posted JSON payloads will look like the following block:
         "authorization": "server_authorization_token"
     }
 
-As an alternative, the params can be an array as illistrated by the following:
+As an alternative, the params can be an array as illustrated by the following:
 
 .. code-block:: JSON
 
@@ -97,7 +97,7 @@ JSON-RPC Data Objects
 =====================
 
 .. csv-table:: Platform
-:header: "Key", "Type", "Value"
+    :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
                 "uuid", "string", "A unique identifier for the platform."
@@ -105,7 +105,7 @@ JSON-RPC Data Objects
                 "status", "Status", "A status object for the platform."
 
 .. csv-table:: PlatformDetails
-:header: "Key", "Type", "Value"
+    :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
                 "uuid", "string", "A unique identifier for the platform."
@@ -113,7 +113,7 @@ JSON-RPC Data Objects
                 "status", "Status", "A status object for the platform."
 
 .. csv-table:: Agent
-:header: "Key", "Type", "Value"
+    :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
                 "uuid", "string", "A unique identifier for the agent."
@@ -125,21 +125,21 @@ JSON-RPC Data Objects
 
 
 .. csv-table:: DiscoveryRegistratyEntry
-:header: "Key", "Type", "Value"
+    :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
                 "name",
                 "discovery_address":
 
 .. csv-table:: AdvancedRegistratyEntry_TODO
-:header: "Key", "Type", "Value"
+    :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
                 "name",
                 "vip_address"
 
 .. csv-table:: Agent_TODO
-:header: "Key", "Type", "Value"
+    :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
                 "uuid", "string", "A unique identifier for the platform."
@@ -147,7 +147,7 @@ JSON-RPC Data Objects
                 "status", "Status", "A status object for the platform."
 
 .. csv-table:: Building_TODO
-:header: "Key", "Type", "Value"
+    :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
                 "uuid", "string", "A unique identifier for the platform."
@@ -155,7 +155,7 @@ JSON-RPC Data Objects
                 "status", "Status", "A status object for the platform."
 
 .. csv-table:: Device_TODO
-:header: "Key", "Type", "Value"
+    :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
                 "uuid", "string", "A unique identifier for the platform."
@@ -163,7 +163,7 @@ JSON-RPC Data Objects
                 "status", "Status", "A status object for the platform."
 
 .. csv-table:: Status
-:header: "Key", "Type", "Value"
+    :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
                 "status", "string", "A value of GOOD, BAD, UNKNOWN, SUCCESS, FAIL"
