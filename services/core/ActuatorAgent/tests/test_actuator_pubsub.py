@@ -107,15 +107,14 @@ def cancel_schedules(request, publish_agent):
                 'Requesting cancel for task:', schedule['taskid'],
                 'from agent:',
                 schedule['agentid'])
-            result = publish_agent.vip.rpc.call(
-                PLATFORM_ACTUATOR,
-                REQUEST_CANCEL_SCHEDULE,
-                schedule['agentid'],
-                schedule['taskid']).get(timeout=10)
-            # sleep so that the message is sent to pubsub
-            # before next test monitors callback method calls
+
+            header = {
+                'type': 'CANCEL_SCHEDULE',
+                'taskID': schedule['taskid']
+            }
+
+            publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, None)
             gevent.sleep(1)
-            print("result of cancel ", result)
 
     request.addfinalizer(cleanup)
     return cleanup_parameters
@@ -140,12 +139,12 @@ def revert_devices(request, publish_agent):
                 'Requesting revert on device:', device['device'],
                 'from agent:',
                 device['agentid'])
-            publish_agent.vip.rpc.call(
-                PLATFORM_ACTUATOR,  # Target agent
-                'revert_device',  # Method
-                device['agentid'],  # Requestor
-                device['device']  # Point to revert
-            ).get(timeout=10)
+
+            topic = topics.ACTUATOR_REVERT_DEVICE(campus='',
+                                                  building='',
+                                                  unit=device['device'])
+            publish(publish_agent, topic, {}, None)
+
             # sleep so that the message is sent to pubsub before
             # next test monitors callback method calls
             gevent.sleep(1)
@@ -883,6 +882,7 @@ def test_schedule_error_duplicate_task(publish_agent, cancel_schedules):
         'task_duplicate_task',
         'LOW',
         msg).get(timeout=10)
+
     assert result['result'] == 'SUCCESS'
     print("Result of schedule through rpc ", result)
 
@@ -1845,22 +1845,20 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
                                        callback=publish_agent.callback).get()
+
+    topic = topics
+    header = {
+        'type': 'NEW_SCHEDULE',
+        'taskID': taskid,
+        'priority': 'LOW'
+    }
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=3))
     msg = [
         [device, start, end]
     ]
-    result = publish_agent.vip.rpc.call(
-        'platform.actuator',
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        'LOW',
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    # print result
-    assert result['result'] == 'SUCCESS'
-    # set value
+    publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
+
     header = {
         'requesterID': TEST_AGENT
     }
@@ -1941,6 +1939,13 @@ def test_revert_point(publish_agent, cancel_schedules):
     # print result
     assert result['result'] == 'SUCCESS'
 
+    revert_topic = topics.ACTUATOR_REVERT_POINT(campus='', building='',
+                                                unit=device, point=point)
+    print("revert topic: ", revert_topic)
+    publish_agent.vip.pubsub.publish('pubsub',
+                                     revert_topic,
+                                     headers={}).get(timeout=10)
+
     initial_value = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
         'get_point',  # Method
@@ -1961,7 +1966,7 @@ def test_revert_point(publish_agent, cancel_schedules):
     gevent.sleep(1)
 
     print('call args list ', publish_agent.callback.call_args_list)
-    assert publish_agent.callback.call_count == 1
+    assert publish_agent.callback.call_count == 2
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == value_topic
     result_header = publish_agent.callback.call_args[0][4]
@@ -2001,10 +2006,12 @@ def test_revert_point(publish_agent, cancel_schedules):
         'fakedriver2/SampleWritableFloat1',  # Point to get
     ).get(timeout=10)
     # Value taken from fake_unit_testing.csv
+
     assert result == initial_value
 
 
 @pytest.mark.actuator_pubsub
+@pytest.mark.dev
 def test_revert_device(publish_agent, cancel_schedules):
     """
     Test setting a float value of a point  through pubsub.
@@ -2029,8 +2036,8 @@ def test_revert_device(publish_agent, cancel_schedules):
     """
     print("\n**** test_set_value_float ****")
     agentid = TEST_AGENT
-    taskid = 'task_set_float_value'
-    device = 'fakedriver2'
+    taskid = 'task_revert_device'
+    device = 'fakedriver3'
     point = 'SampleWritableFloat1'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
@@ -2039,6 +2046,8 @@ def test_revert_device(publish_agent, cancel_schedules):
     # Subscribe to result of set
     value_topic = topics.ACTUATOR_VALUE(campus='', building='', unit=device,
                                         point=point)
+    error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit=device,
+                                        point=point)
     reverted_topic = topics.ACTUATOR_REVERTED_DEVICE(campus='', building='',
                                                      unit=device)
     print('value topic', value_topic)
@@ -2046,44 +2055,42 @@ def test_revert_device(publish_agent, cancel_schedules):
                                        prefix=value_topic,
                                        callback=publish_agent.callback).get()
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
+                                       prefix=error_topic,
+                                       callback=publish_agent.callback).get()
+    publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=reverted_topic,
                                        callback=publish_agent.callback).get()
+
+    header = {
+        'type': 'NEW_SCHEDULE',
+        'requesterID': TEST_AGENT,  # The name of the requesting agent.
+        'taskID': taskid,
+        'priority': 'LOW',  # ('HIGH, 'LOW', 'LOW_PREEMPT').
+    }
+
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=10))
     msg = [
         [device, start, end]
     ]
-    result = publish_agent.vip.rpc.call(
-        'platform.actuator',
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        'LOW',
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    # print result
-    assert result['result'] == 'SUCCESS'
+
+    publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
+    gevent.sleep(1)
 
     initial_value = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
         'get_point',  # Method
-        'fakedriver2/SampleWritableFloat1',  # Point to get
+        'fakedriver3/SampleWritableFloat1',  # Point to get
     ).get(timeout=10)
 
     test_value = initial_value + 1.0
 
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,  # Target agent
-        'set_point',  # Method
-        agentid,  # Requestor
-        'fakedriver2/SampleWritableFloat1',  # Point to set
-        test_value  # New value
-    ).get(timeout=10)
-
-    assert result == test_value
+    set_topic = topics.ACTUATOR_SET(campus='', building='',
+                                    unit=device,
+                                    point=point)
+    publish(publish_agent, set_topic, {}, test_value)
     gevent.sleep(1)
 
-    print('call args list ', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == value_topic
@@ -2102,12 +2109,9 @@ def test_revert_device(publish_agent, cancel_schedules):
     revert_topic = topics.ACTUATOR_REVERT_DEVICE(campus='', building='',
                                                  unit=device)
     print("revert topic: ", revert_topic)
-    publish_agent.vip.pubsub.publish('pubsub',
-                                     revert_topic,
-                                     headers=header).get(timeout=10)
+    publish(publish_agent, revert_topic, header, None)
     gevent.sleep(1)
 
-    print('call args list ', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == reverted_topic
