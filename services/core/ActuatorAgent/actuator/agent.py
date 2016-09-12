@@ -769,7 +769,7 @@ class ActuatorAgent(Agent):
             return
 
         try:
-            self.set_point(requester, point, message)
+            self._set_point(requester, point, message)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
         except StandardError as ex:
@@ -821,30 +821,30 @@ class ActuatorAgent(Agent):
                      the time allotted will raise a LockError"""
 
         rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
-        if rpc_peer != 'pubsub':
-            requester_id = rpc_peer
+        return self._set_point(rpc_peer, topic, value, **kwargs)
 
+    def _set_point(self, sender, topic, value, **kwargs):
         topic = topic.strip('/')
-        _log.debug('handle_set: {topic},{requester_id}, {value}'.
-                   format(topic=topic, requester_id=requester_id, value=value))
+        _log.debug('handle_set: {topic},{sender}, {value}'.
+                   format(topic=topic, sender=sender, value=value))
 
         path, point_name = topic.rsplit('/', 1)
 
-        if not isinstance(requester_id, str):
+        if not isinstance(sender, str):
             raise TypeError("Agent id must be a nonempty string")
 
-        if self._check_lock(path, requester_id):
+        if self._check_lock(path, sender):
             result = self.vip.rpc.call(self.driver_vip_identity, 'set_point',
                                        path, point_name, value, **kwargs).get()
 
-            headers = self._get_headers(requester_id)
+            headers = self._get_headers(sender)
             self._push_result_topic_pair(WRITE_ATTEMPT_PREFIX,
                                          topic, headers, value)
             self._push_result_topic_pair(VALUE_RESPONSE_PREFIX,
                                          topic, headers, result)
         else:
             raise LockError(
-                "caller ({}) does not have this lock".format(requester_id))
+                "caller ({}) does not have this lock".format(sender))
 
         return result
 
@@ -922,7 +922,7 @@ class ActuatorAgent(Agent):
         headers = self._get_headers(requester)
 
         try:
-            self.revert_point(requester, point)
+            self._revert_point(requester, point)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
         except StandardError as ex:
@@ -962,7 +962,7 @@ class ActuatorAgent(Agent):
         headers = self._get_headers(requester)
 
         try:
-            self.revert_device(requester, point)
+            self._revert_device(requester, point)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
         except StandardError as ex:
@@ -988,20 +988,20 @@ class ActuatorAgent(Agent):
                      the time allotted will raise a LockError"""
 
         rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
-        if rpc_peer != 'pubsub':
-            requester_id = rpc_peer
+        return self._revert_point(rpc_peer, topic, **kwargs)
 
+    def _revert_point(self, sender, topic, **kwargs):
         topic = topic.strip('/')
-        _log.debug('handle_revert: {topic},{requester_id}'.
-                   format(topic=topic, requester_id=requester_id))
+        _log.debug('handle_revert: {topic},{sender}'.
+                   format(topic=topic, sender=sender))
 
         path, point_name = topic.rsplit('/', 1)
 
-        if self._check_lock(path, requester_id):
+        if self._check_lock(path, sender):
             self.vip.rpc.call(self.driver_vip_identity, 'revert_point', path,
                               point_name, **kwargs).get()
 
-            headers = self._get_headers(requester_id)
+            headers = self._get_headers(sender)
             self._push_result_topic_pair(REVERT_POINT_RESPONSE_PREFIX,
                                          topic, headers, None)
         else:
@@ -1025,20 +1025,20 @@ class ActuatorAgent(Agent):
         within
                      the time allotted will raise a LockError"""
         rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
-        if rpc_peer != 'pubsub':
-            requester_id = rpc_peer
+        return self._revert_device(rpc_peer, topic, **kwargs)
 
+    def _revert_device(self, sender, topic, **kwargs):
         topic = topic.strip('/')
-        _log.debug('handle_revert: {topic},{requester_id}'.
-                   format(topic=topic, requester_id=requester_id))
+        _log.debug('handle_revert: {topic},{sender}'.
+                   format(topic=topic, sender=sender))
 
         path = topic
 
-        if self._check_lock(path, requester_id):
+        if self._check_lock(path, sender):
             self.vip.rpc.call(self.driver_vip_identity, 'revert_device', path,
                               **kwargs).get()
 
-            headers = self._get_headers(requester_id)
+            headers = self._get_headers(sender)
             self._push_result_topic_pair(REVERT_DEVICE_RESPONSE_PREFIX,
                                          topic, headers, None)
         else:
@@ -1117,15 +1117,15 @@ class ActuatorAgent(Agent):
                 else:
                     requests = message
 
-                self.request_new_schedule(requester_id, task_id, priority,
-                                          requests)
+                self._request_new_schedule(requester_id, task_id, priority,
+                                           requests)
             except StandardError as ex:
                 return self._handle_unknown_schedule_error(ex, headers,
                                                            message)
 
         elif request_type == SCHEDULE_ACTION_CANCEL:
             try:
-                self.request_cancel_schedule(requester_id, task_id)
+                self._request_cancel_schedule(requester_id, task_id)
             except StandardError as ex:
                 return self._handle_unknown_schedule_error(ex, headers,
                                                            message)
@@ -1162,13 +1162,13 @@ class ActuatorAgent(Agent):
             The return values are described in `New Task Response`_.
         """
         rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
-        if rpc_peer != 'pubsub':
-            requester_id = rpc_peer
+        return self._request_new_schedule(rpc_peer, task_id, priority, requests)
 
+    def _request_new_schedule(self, sender, task_id, priority, requests):
         now = utils.get_aware_utc_now()
 
         topic = topics.ACTUATOR_SCHEDULE_RESULT()
-        headers = self._get_headers(requester_id, task_id=task_id)
+        headers = self._get_headers(sender, task_id=task_id)
         headers['type'] = SCHEDULE_ACTION_NEW
         local_tz = get_localzone()
         try:
@@ -1195,9 +1195,9 @@ class ActuatorAgent(Agent):
             return self._handle_unknown_schedule_error(ex, headers, requests)
 
         _log.debug("Got new schedule request: {}, {}, {}, {}".
-                   format(requester_id, task_id, priority, requests))
+                   format(sender, task_id, priority, requests))
 
-        result = self._schedule_manager.request_slots(requester_id, task_id,
+        result = self._schedule_manager.request_slots(sender, task_id,
                                                       requests, priority, now)
         success = SCHEDULE_RESPONSE_SUCCESS if result.success else \
             SCHEDULE_RESPONSE_FAILURE
@@ -1215,7 +1215,7 @@ class ActuatorAgent(Agent):
                                             'result':
                                                 SCHEDULE_CANCEL_PREEMPTED,
                                             'info': '',
-                                            'data': {'agentID': requester_id,
+                                            'data': {'agentID': sender,
                                                      'taskID': task_id}})
 
         # If we are successful we do something else with the real result data
@@ -1263,14 +1263,14 @@ class ActuatorAgent(Agent):
         
         """
         rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
-        if rpc_peer != 'pubsub':
-            requester_id = rpc_peer
+        return self._request_cancel_schedule(rpc_peer, task_id)
 
+    def _request_cancel_schedule(self, sender, task_id):
         now = utils.get_aware_utc_now()
-        headers = self._get_headers(requester_id, task_id=task_id)
+        headers = self._get_headers(sender, task_id=task_id)
         headers['type'] = SCHEDULE_ACTION_CANCEL
 
-        result = self._schedule_manager.cancel_task(requester_id, task_id, now)
+        result = self._schedule_manager.cancel_task(sender, task_id, now)
         success = SCHEDULE_RESPONSE_SUCCESS if result.success else \
             SCHEDULE_RESPONSE_FAILURE
 
