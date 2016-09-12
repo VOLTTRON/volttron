@@ -92,6 +92,7 @@ from .vip.tracking import Tracker
 from .auth import AuthService
 from .control import ControlService
 from .web import MasterWebService
+from .store import ConfigStoreService
 from .agent import utils
 from .agent.known_identities import MASTER_WEB
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
@@ -540,11 +541,20 @@ def start_volttron_process(opts):
 
     address = 'inproc://vip'
     try:
+
+        # Start the config store before auth so we may one day have auth use it.
+        config_store = ConfigStoreService( address=address, identity='config.store')
+
+        event = gevent.event.Event()
+        config_store_task = gevent.spawn(config_store.core.run, event)
+        event.wait()
+        del event
+
         # Ensure auth service is running before router
         auth_file = os.path.join(opts.volttron_home, 'auth.json')
         auth = AuthService(
             auth_file, opts.aip, address=address, identity='auth',
-            allow_any=opts.developer_mode)
+            allow_any=opts.developer_mode, enable_store=False)
 
         event = gevent.event.Event()
         auth_task = gevent.spawn(auth.core.run, event)
@@ -567,9 +577,11 @@ def start_volttron_process(opts):
         # auto-starting agents
         services = [
             ControlService(opts.aip, address=address, identity='control',
-                           tracker=tracker, heartbeat_autostart=True),
+                           tracker=tracker, heartbeat_autostart=True,
+                           enable_store=False),
             PubSubService(protected_topics_file, address=address,
-                          identity='pubsub', heartbeat_autostart=True),
+                          identity='pubsub', heartbeat_autostart=True,
+                          enable_store=False),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
@@ -578,11 +590,12 @@ def start_volttron_process(opts):
                 address=address,
                 bind_web_address=opts.bind_web_address,
                 volttron_central_address=opts.volttron_central_address,
-                aip=opts.aip)
+                aip=opts.aip, enable_store=False)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
                  for service, event in zip(services, events)]
+        tasks.append(config_store_task)
         tasks.append(auth_task)
         gevent.wait(events)
         del events

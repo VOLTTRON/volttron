@@ -58,9 +58,10 @@
 import logging
 from datetime import datetime
 
-from volttron.platform.vip.agent import Agent, Core
+from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent import utils
 from volttron.platform.messaging.health import Status, STATUS_BAD
+from volttron.platform.agent.known_identities import PLATFORM_ALERTER
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -71,38 +72,89 @@ __version__ = '0.1'
 class AlertAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(AlertAgent, self).__init__(**kwargs)
-        config = utils.load_config(config_path)
+        self.config = utils.load_config(config_path)
         self.wait_time = {}
         self.topic_ttl = {}
         self.point_ttl = {}
 
+    @Core.receiver('onstart')
+    def onstart(self, sender, **kwargs):
+        config = self.config
         for topic in config.iterkeys():
+
             # Optional config option with a list of points that
             # might not be published.
             if type(config[topic]) is dict:
                 point_config = config[topic]
-                points = point_config["points"]
-                seconds = point_config["seconds"]
-                self.point_ttl[topic] = {}
-                for p in points:
-                    self.point_ttl[topic][p] = seconds
+                self.watch_device(topic,
+                                  point_config["seconds"],
+                                  point_config["points"])
 
             # Default config option
             else:
-                seconds = config[topic]
+                timeout = config[topic]
+                self.watch_topic(topic, timeout)
 
-            self.wait_time[topic] = seconds
-            self.topic_ttl[topic] = seconds
+    @RPC.export
+    def watch_topic(self, topic, timeout):
+        """RPC method
 
-            _log.debug("Expecting {} every {} seconds"
-                       .format(topic, seconds))
+        Listen for a topic to be published within a given
+        number of seconds or send alerts.
 
-    @Core.receiver('onstart')
-    def onstart(self, sender, **kwargs):
-        for device in self.wait_time.iterkeys():
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=device,
-                                      callback=self.reset_time)
+        :param topic: Topic expected to be published.
+        :type topic: str
+        :param timeout: Seconds before an alert is sent.
+        :type timeout: int
+        """
+        self.wait_time[topic] = timeout
+        self.topic_ttl[topic] = timeout
+        self.vip.pubsub.subscribe(peer='pubsub',
+                                  prefix=topic,
+                                  callback=self.reset_time)
+        _log.info("Expecting {} every {} seconds"
+                   .format(topic, timeout))
+
+    @RPC.export
+    def watch_device(self, topic, timeout, points):
+        """RPC method
+        
+        Watch a device's ALL topic and expect points. This
+        method calls the watch topic method so both methods
+        don't need to be called.
+
+        :param topic: Topic expected to be published.
+        :type topic: str
+        :param timeout: Seconds before an alert is sent.
+        :type timeout: int
+        :param points: Points to expect in the publish message.
+        :type points: [str]
+        """
+        self.point_ttl[topic] = {}
+
+        for p in points:
+            self.point_ttl[topic][p] = timeout
+
+        self.watch_topic(topic, timeout)
+
+    @RPC.export
+    def ignore_topic(self, topic):
+        """RPC method
+
+        Remove a topic from agent's watch list. Alerts will no
+        longer be sent if a topic stops being published.
+
+        :param topic: Topic to remove from the watch list.
+        :type topic: str
+        """
+        _log.info("Removing topic {} from watchlist".format(topic))
+
+        self.vip.pubsub.unsubscribe(peer='pubsub',
+                                    prefix=topic,
+                                    callback=self.reset_time)
+        self.point_ttl.pop(topic, None)
+        self.topic_ttl.pop(topic, None)
+        self.wait_time.pop(topic, None)
 
     def reset_time(self, peer, sender, bus, topic, headers, message):
         if topic not in self.wait_time:
@@ -153,7 +205,7 @@ class AlertAgent(Agent):
 
 
 def main():
-    utils.vip_main(AlertAgent)
+    utils.vip_main(AlertAgent, identity=PLATFORM_ALERTER)
 
 
 if __name__ == '__main__':

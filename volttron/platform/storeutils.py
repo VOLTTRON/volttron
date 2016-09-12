@@ -56,43 +56,63 @@
 # }}}
 
 
-""" Core package."""
+from string import whitespace
+
+store_ext = ".store"
+link_prefix = "config://"
+
+def strip_config_name(config_name):
+    return config_name.strip(whitespace + r'\/')
+
+def check_for_config_link(value):
+    if value.startswith(link_prefix):
+        config_name = value.replace(link_prefix, '', 1)
+        config_name = strip_config_name(config_name)
+        return config_name
+    return None
+
+def list_unique_links(config):
+    """Returns a set of config files referenced in this configuration"""
+    results = set()
+    if isinstance(config, dict):
+        values = config.values()
+    elif isinstance(config, list):
+        values = config
+    else:
+        #Raw config has no links
+        return results
 
 
-import os
-import sys
+    for value in values:
+        if isinstance(value, (dict,list)):
+            results.update(list_unique_links(value))
+        elif isinstance(value, str):
+            value = value.lower()
+            if value.startswith(link_prefix):
+                config_name = value.replace(link_prefix, '', 1)
+                config_name = strip_config_name(config_name)
+                results.add(config_name)
 
-__version__ = '3.1'
+    return results
 
 
-def set_home(home=None):
-    """ Set the home directory with user and variables expanded.
+def check_for_recursion(new_config_name, new_config, existing_configs):
+    return _follow_links(set(), new_config_name, new_config_name, new_config, existing_configs)
 
-    If the home is sent in, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    os.environ["VOLTTRON_HOME"] = home or get_home()
-    
+def _follow_links(seen, new_config_name, current_config_name, current_config, existing_configs):
+    children = list_unique_links(current_config)
 
-def get_home():
-    """ Return the home directory with user and variables expanded.
+    if new_config_name in children:
+        return True
 
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    return os.path.abspath(
-        os.path.normpath(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
+    seen.add(current_config_name)
 
-def get_address():
-    """Return the VIP address of the platform
-    If the VOLTTRON_VIP_ADDR environment variable is set, it used.
-    Otherwise, it is derived from get_home()."""
-    address = os.environ.get('VOLTTRON_VIP_ADDR')
-    if not address:
-        abstract = '@' if sys.platform.startswith('linux') else ''
-        address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
+    for child_config_name in children - seen:
+        child_config = existing_configs.get(child_config_name)
+        if child_config is None:
+            #Link to a non-existing config, skip in the future.
+            seen.add(child_config_name)
+            continue
+        if _follow_links(seen, new_config_name, child_config_name, child_config, existing_configs):
+            return True
 
-    return address

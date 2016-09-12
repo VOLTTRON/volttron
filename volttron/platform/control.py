@@ -76,6 +76,7 @@ import base64
 import gevent
 import gevent.event
 from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.platform import get_home, get_address
 
 from .agent import utils
 from .agent.known_identities import CONTROL_CONNECTION
@@ -105,6 +106,7 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
 class ControlService(BaseAgent):
     def __init__(self, aip, *args, **kwargs):
         tracker = kwargs.pop('tracker', None)
+        kwargs["enable_store"] = False
         super(ControlService, self).__init__(*args, **kwargs)
         self._aip = aip
         self._tracker = tracker
@@ -905,6 +907,54 @@ def update_auth(opts):
 #            with open(wheel) as file:
 #                client.send_and_start_agent(file)
 
+def add_config_to_store(opts):
+    opts.connection.peer = "config.store"
+    call = opts.connection.call
+
+    file_contents = opts.infile.read()
+
+    call("manage_store", opts.identity, opts.name, file_contents, config_type=opts.config_type)
+
+def delete_config_from_store(opts):
+    opts.connection.peer = "config.store"
+    call = opts.connection.call
+    if opts.delete_store:
+        call("manage_delete_store", opts.identity)
+        return
+
+    if opts.name is None:
+        _stderr.write('ERROR: must specify a configuration when not deleting entire store\n')
+        return
+
+    call("manage_delete_config", opts.identity, opts.name)
+
+
+def list_store(opts):
+    opts.connection.peer = "config.store"
+    call = opts.connection.call
+    results = []
+    if opts.identity is None:
+        results = call("manage_list_stores")
+    else:
+        results = call("manage_list_configs", opts.identity)
+
+    for item in results:
+        _stdout.write(item+"\n")
+
+def get_config(opts):
+    opts.connection.peer = "config.store"
+    call = opts.connection.call
+    results = call("manage_get", opts.identity, opts.name, raw=opts.raw)
+
+    if opts.raw:
+        _stdout.write(results)
+    else:
+        if isinstance(results, str):
+            _stdout.write(results)
+        else:
+            import pprint
+            pprint.pprint(results, _stdout)
+
 
 class ControlConnection(object):
     def __init__(self, address, peer='control', publickey=None,
@@ -914,6 +964,7 @@ class ControlConnection(object):
         self.peer = peer
         self._server = BaseAgent(address=self.address, publickey=publickey,
                                  secretkey=secretkey, serverkey=serverkey,
+                                 enable_store=False,
                                  identity=CONTROL_CONNECTION)
         self._greenlet = None
 
@@ -970,13 +1021,8 @@ def main(argv=sys.argv):
                          'potential damage.\n' % os.path.basename(argv[0]))
         sys.exit(77)
 
-    volttron_home = os.path.normpath(config.expandall(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+    volttron_home = get_home()
     os.environ['VOLTTRON_HOME'] = volttron_home
-
-    vip_path = '$VOLTTRON_HOME/run/vip.socket'
-    if sys.platform.startswith('linux'):
-        vip_path = '@' + vip_path
 
     global_args = config.ArgumentParser(description='global options',
                                         add_help=False)
@@ -998,7 +1044,7 @@ def main(argv=sys.argv):
     global_args.add_argument('--known-hosts-file', metavar='FILE',
                              help='get known-host server keys from FILE')
     global_args.set_defaults(
-        vip_address='ipc://' + vip_path,
+        vip_address=get_address(),
         timeout=30,
         keystore_file=os.path.join(volttron_home, 'keystore'),
         known_hosts_file=os.path.join(volttron_home, 'known_hosts')
@@ -1043,14 +1089,15 @@ def main(argv=sys.argv):
         volttron_home=volttron_home,
     )
 
-    subparsers = parser.add_subparsers(title='commands', metavar='',
+    top_level_subparsers = parser.add_subparsers(title='commands', metavar='',
                                        dest='command')
 
     def add_parser(*args, **kwargs):
         parents = kwargs.get('parents', [])
         parents.append(global_args)
         kwargs['parents'] = parents
-        return subparsers.add_parser(*args, **kwargs)
+        subparser = kwargs.pop("subparser", top_level_subparsers)
+        return subparser.add_parser(*args, **kwargs)
 
     install = add_parser('install', help='install agent from wheel',
                          epilog='Optionally you may specify the --tag argument to tag the '
@@ -1151,6 +1198,65 @@ def main(argv=sys.argv):
                          dest='verify_agents',
                          help=argparse.SUPPRESS)
     run.set_defaults(func=run_agent)
+
+    config_store = add_parser("config",
+                              help="manage the platform configuration store")
+
+    config_store_subparsers = config_store.add_subparsers(title='subcommands', metavar='',
+                                                          dest='store_commands')
+
+    config_store_store = add_parser("store",
+                                    help="store a configuration",
+                                    subparser=config_store_subparsers)
+
+    config_store_store.add_argument('identity',
+                                    help='VIP IDENTITY of the store')
+    config_store_store.add_argument('name',
+                                    help='name used to reference the configuration by in the store')
+    config_store_store.add_argument('infile', nargs='?', type=argparse.FileType('r'), default=sys.stdin,
+                                    help='file containing the contents of the configuration')
+    config_store_store.add_argument('--raw', const="raw", dest="config_type" , action="store_const",
+                                    help='interpret the input file as raw data')
+    config_store_store.add_argument('--json', const="json", dest="config_type", action="store_const",
+                                    help='interpret the input file as json')
+    config_store_store.add_argument('--csv', const="csv", dest="config_type", action="store_const",
+                                    help='interpret the input file as csv')
+
+    config_store_store.set_defaults(func=add_config_to_store,
+                                    config_type="raw")
+
+    config_store_delete = add_parser("delete",
+                                    help="delete a configuration",
+                                    subparser=config_store_subparsers)
+    config_store_delete.add_argument('identity',
+                                    help='VIP IDENTITY of the store')
+    config_store_delete.add_argument('name', nargs='?',
+                                    help='name used to reference the configuration by in the store')
+    config_store_delete.add_argument('--all', dest="delete_store", action="store_true",
+                                    help='delete all configurations in the store')
+
+    config_store_delete.set_defaults(func=delete_config_from_store)
+
+    config_store_list = add_parser("list",
+                                     help="list stores or configurations in a store",
+                                     subparser=config_store_subparsers)
+
+    config_store_list.add_argument('identity', nargs='?',
+                                    help='VIP IDENTITY of the store to list')
+
+    config_store_list.set_defaults(func=list_store)
+
+    config_store_get = add_parser("get",
+                                    help="get the contents of a configuration",
+                                    subparser=config_store_subparsers)
+
+    config_store_get.add_argument('identity',
+                                    help='VIP IDENTITY of the store')
+    config_store_get.add_argument('name',
+                                    help='name used to reference the configuration by in the store')
+    config_store_get.add_argument('--raw', action="store_true",
+                                    help='get the configuration as raw data')
+    config_store_get.set_defaults(func=get_config)
 
     shutdown = add_parser('shutdown',
                           help='stop all agents')
