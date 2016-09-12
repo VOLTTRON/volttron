@@ -54,15 +54,24 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+
+import logging
 import weakref
 
 from volttron.platform.vip.agent.subsystems.base import SubsystemBase
 
+__docformat__ = 'reStructuredText'
+__version__ = '1.0'
+
+_log = logging.getLogger(__name__)
+
 
 class WebSubSystem(SubsystemBase):
 
-    def __init__(self, rpc):
+    def __init__(self, owner, core, rpc):
+        self._owner = weakref.ref(owner)
         self._rpc = weakref.ref(rpc)
+        self._core = weakref.ref(core)
         self._endpoints = {}
 
         rpc.export(self._opened, 'client.opened')
@@ -72,14 +81,18 @@ class WebSubSystem(SubsystemBase):
     def register_route(self, endpoint, callback):
         self._endpoints[endpoint] = callback
 
-    def register_path(self, endpoint, static_path):
-        pass
+    def register_path(self, prefix, static_path):
+        _log.info('Registirng path prefix: {}, path: {}'.format(
+            prefix, static_path
+        ))
+        self._rpc().call('master.web', 'register_path_route',
+                         self._core().identity, prefix, static_path)
 
     def register_websocket(self, endpoint, opened, closed, received):
         self._endpoints[endpoint] = (opened, closed, received)
         self._rpc().call('master.web', 'register_websocket', endpoint).get(timeout=5)
 
-    def send(self, endpoint, message):
+    def send(self, endpoint, message=''):
         print('Doing rpc send to master web.')
         self._rpc().call('master.web', 'websocket_send', endpoint, message).get(timeout=5)
 
@@ -89,8 +102,8 @@ class WebSubSystem(SubsystemBase):
     def _closed(self):
         print('Client closed callback')
 
-    def _message(self, message):
+    def _message(self, endpoint, message):
         print('Client received message callback')
-        self._endpoints['/ws'][2](message)
+        self._endpoints[endpoint][2](endpoint, message)
 
         # self._endpoints[endpoint][2](message)

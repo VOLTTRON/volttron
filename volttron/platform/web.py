@@ -182,42 +182,6 @@ def is_ip_private(vip_address):
         ip) is not None or priv_20.match(ip) is not None or priv_16.match(
         ip) is not None
 
-import random
-from ws4py.websocket import EchoWebSocket #, EchoFoo
-
-class EchoFoo(WebSocket):
-    def received_message(self, message):
-        """
-        Automatically sends back the provided ``message`` to
-        its originating endpoint.
-        """
-        self.send(message.data, message.is_binary)
-
-
-class BroadcastWebSocket(EchoWebSocket):
-    def opened(self):
-        app = self.environ['ws4py.app']
-        app.clients.append(self)
-
-    def received_message(self, m):
-        # self.clients is set from within the server
-        # and holds the list of all connected servers
-        # we can dispatch to
-        app = self.environ['ws4py.app']
-        for client in app.clients:
-            client.send(m)
-
-    def closed(self, code, reason="A client left the room without a proper explanation."):
-        app = self.environ.pop('ws4py.app')
-        if self in app.clients:
-            app.clients.remove(self)
-            for client in app.clients:
-                try:
-                    client.send(reason)
-                except:
-                    pass
-
-
 
 class VolttronWebSocket(WebSocket):
 
@@ -235,16 +199,9 @@ class VolttronWebSocket(WebSocket):
         print('Socket received message: {}'.format(m))
         app = self.environ['ws4py.app']
         identity = self.environ['identity']
-        app.emit_received(identity, m)
+        app.emit_received(identity, self.environ['PATH_INFO'], m)
         # for client in app.clients:
         #     client.send(m)
-
-    # def received_message(self, message):
-    #     """
-    #     Automatically sends back the provided ``message`` to
-    #     its originating endpoint.
-    #     """
-    #     self.send(message.data, message.is_binary)
 
     def closed(self, code, reason="A client left the room without a proper explanation."):
         print('Socket closed!')
@@ -271,7 +228,7 @@ class WebApplicationWrapper(object):
         self.host = host
         self.ws = WebSocketWSGIApplication(handler_cls=VolttronWebSocket)
         self.clients = []
-        self._identity_map = {}
+        self._wsregistry = {}
 
     def favicon(self, environ, start_response):
         """
@@ -288,17 +245,19 @@ class WebApplicationWrapper(object):
     def emit_closed(self, identity):
         self.masterweb.vip.rpc.call(identity, 'client.closed')
 
-    def emit_received(self, identity, message):
+    def emit_received(self, identity, endpoint, message):
         print('The message is {} of {}'.format(message, type(message)))
-        self.masterweb.vip.rpc.call(identity, 'client.message', str(message))
+        self.masterweb.vip.rpc.call(identity, 'client.message',
+                                    str(endpoint), str(message))
 
     def create_ws_endpoint(self, endpoint, identity):
         print(endpoint, identity)
-        self._identity_map[endpoint] = identity
+        self._wsregistry[endpoint] = identity
 
     def websocket_send(self, endpoint, message):
         print('Sending message to clients!')
         for c in self.clients:
+            print('Sending endpoint&&message {}&&{}'.format(endpoint, message))
             c.send(message)
 
     def __call__(self, environ, start_response):
@@ -309,81 +268,13 @@ class WebApplicationWrapper(object):
         if environ['PATH_INFO'] == '/favicon.ico':
             return self.favicon(environ, start_response)
 
-        if environ['PATH_INFO'] == '/ws':
+        path = environ['PATH_INFO']
+        if path in self._wsregistry:
             environ['ws4py.app'] = self
-            environ['endpoint'] = environ['PATH_INFO']
-            environ['identity'] = self._identity_map[environ['PATH_INFO']]
+            environ['identity'] = self._wsregistry[environ['PATH_INFO']]
             return self.ws(environ, start_response)
 
-        return self.webapp(environ, start_response)
-
-
-    def webapp(self, environ, start_response):
-        """
-        Our main webapp that'll display the chat form
-        """
-        status = '200 OK'
-        headers = [('Content-type', 'text/html')]
-
-        start_response(status, headers)
-
-        return """<html>
-        <head>
-        <script type='application/javascript' src='https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js'></script>
-          <script type='application/javascript'>
-            $(document).ready(function() {
-
-              websocket = 'ws://%(host)s:%(port)s/ws';
-              if (window.WebSocket) {
-                ws = new WebSocket(websocket);
-              }
-              else if (window.MozWebSocket) {
-                ws = MozWebSocket(websocket);
-              }
-              else {
-                console.log('WebSocket Not Supported');
-                return;
-              }
-
-              window.onbeforeunload = function(e) {
-                 $('#chat').val($('#chat').val() + 'Bye bye...\\n');
-                 ws.close(1000, '%(username)s left the room');
-
-                 if(!e) e = window.event;
-                 e.stopPropagation();
-                 e.preventDefault();
-              };
-              ws.onmessage = function (evt) {
-                 $('#chat').val($('#chat').val() + evt.data + '\\n');
-              };
-              ws.onopen = function() {
-                 ws.send("%(username)s entered the room");
-              };
-              ws.onclose = function(evt) {
-                 $('#chat').val($('#chat').val() + 'Connection closed by server: ' + evt.code + ' \"' + evt.reason + '\"\\n');
-              };
-
-              $('#send').click(function() {
-                 console.log($('#message').val());
-                 ws.send('%(username)s: ' + $('#message').val());
-                 $('#message').val("");
-                 return false;
-              });
-            });
-          </script>
-        </head>
-        <body>
-        <form action='#' id='chatform' method='get'>
-          <textarea id='chat' cols='35' rows='10'></textarea>
-          <br />
-          <label for='message'>%(username)s: </label><input type='text' id='message' />
-          <input id='send' type='submit' value='Send' />
-          </form>
-        </body>
-        </html>
-        """ % {'username': "User%d" % random.randint(0, 100),
-               'host': self.host,
-               'port': self.port}
+        return self.masterweb.app_routing(environ, start_response)
 
 
 class MasterWebService(Agent):
