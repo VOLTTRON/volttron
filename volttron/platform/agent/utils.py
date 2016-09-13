@@ -71,6 +71,7 @@ import os
 import pytz
 import re
 import stat
+import string
 from volttron.platform import get_home, get_address
 from dateutil.parser import parse
 from dateutil.tz import tzutc
@@ -78,7 +79,8 @@ from tzlocal import get_localzone
 from zmq.utils import jsonapi
 from ..lib.inotify.green import inotify, IN_MODIFY
 
-__all__ = ['load_config', 'run_agent', 'start_agent_thread']
+__all__ = ['load_config', 'run_agent', 'start_agent_thread',
+           'is_valid_identity']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
@@ -90,6 +92,24 @@ _comment_re = re.compile(
 
 _log = logging.getLogger(__name__)
 
+# The following are the only allowable characters for identities.
+_VALID_IDENTITY_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
+
+
+def is_valid_identity(identity_to_check):
+    """ Checks the passed identity to see if it contains invalid characters
+
+    A None value for identity_to_check will return False
+
+    @:param: string: The vip_identity to check for validity
+    @:return: boolean: True if values are in the set of valid characters.
+    """
+
+    if identity_to_check is None:
+        return False
+
+    return _VALID_IDENTITY_RE.match(identity_to_check)
+    
 
 def _repl(match):
     """Replace the matched group with an appropriate string."""
@@ -225,6 +245,13 @@ def vip_main(agent_class, identity=None, **kwargs):
 
         config = os.environ.get('AGENT_CONFIG')
         identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
+        if identity is not None:
+            if not is_valid_identity(identity):
+                _log.warn('Deprecation warining')
+                _log.warn(
+                    'All characters in {identity} are not in the valid set.'
+                    .format(idenity=identity))
+
         address = get_address()
         agent_uuid = os.environ.get('AGENT_UUID')
         volttron_home = get_home()

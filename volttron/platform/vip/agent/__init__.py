@@ -58,12 +58,14 @@
 from __future__ import absolute_import
 
 import os
+import logging as _log
 
 from .core import *
 from .errors import *
 from .decorators import *
 from .subsystems import *
 from .... import platform
+from .... platform.agent.utils import is_valid_identity
 
 
 class Agent(object):
@@ -87,6 +89,13 @@ class Agent(object):
                  heartbeat_autostart=False, heartbeat_period=60,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, enable_store=True):
+
+        if identity is not None and not is_valid_identity(identity):
+            _log.warn('Deprecation warining')
+            _log.warn(
+                'All characters in {identity} are not in the valid set.'.format(
+                    idenity=identity))
+
         self.core = Core(self, identity=identity, address=address,
                          context=context, publickey=publickey,
                          secretkey=secretkey, serverkey=serverkey,
