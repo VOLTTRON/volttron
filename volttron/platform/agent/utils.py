@@ -110,7 +110,20 @@ def strip_comments(string):
 
 def load_config(config_path):
     """Load a JSON-encoded configuration file."""
-    return parse_json_config(open(config_path).read())
+    if config_path is None:
+        _log.info("AGENT_CONFIG does not exist in environment. load_config returning empty configuration.")
+        return {}
+
+    if not os.path.exists(config_path):
+        _log.info("Config file specified by AGENT_CONFIG does not exist. load_config returning empty configuration.")
+        return {}
+
+    try:
+        with open(config_path) as f:
+            return parse_json_config(f.read())
+    except StandardError as e:
+        _log.error("Problem parsing agent configuration")
+        raise
 
 def parse_json_config(config_str):
     """Parse a JSON-encoded configuration file."""
