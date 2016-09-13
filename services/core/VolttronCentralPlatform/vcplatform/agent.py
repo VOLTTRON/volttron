@@ -79,6 +79,7 @@ import psutil
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (
     get_aware_utc_now, format_timestamp, parse_timestamp_string)
+from volttron.platform.messaging import topics
 from volttron.platform.messaging.topics import (LOGGER, PLATFORM_VCP_DEVICES,
                                                 PLATFORM)
 from volttron.platform.vip.agent.subsystems.query import Query
@@ -512,6 +513,29 @@ class VolttronCentralPlatform(Agent):
         raise NotManagedError("Could not connect to specified volttron central")
 
     @RPC.export
+    def start_bacnet_scan(self, proxy_identity, low_device_id=None,
+                          high_device_id=None, target_address=None):
+        if proxy_identity not in self.vip.peerlist().get(timeout=5):
+            raise Unreachable("Can't reach agent identity {}".format(
+                proxy_identity))
+
+        self.vip.rpc.call(proxy_identity, "who_is", low_device_id=low_device_id,
+                          high_device_id=high_device_id,
+                          target_address=target_address).get(timeout=5.0)
+        return "STARTED"
+
+    @PubSub.subscribe('pubsub', topics.BACNET_I_AM)
+    def _iam_handler(self, peer, sender, bus, topic, headers, message):
+        vc = self._vc_connection()
+        if not vc:
+            _log.error('Platform must have connection to vc to send iam')
+        else:
+            _log.debug('Publishing iam response to vc')
+            topic = "platforms/{}/iam".format(self._local_instance_uuid)
+            vc.publish(topic=topic, message=message)
+
+
+    @RPC.export
     def unmanage(self):
         self._is_registering = False
         self._is_registered = False
@@ -729,15 +753,19 @@ class VolttronCentralPlatform(Agent):
                 _log.debug("Calling method {} on agent {}"
                            .format(agent_method, agent_uuid))
                 _log.debug("Params is: {}".format(params))
-                # find the identity of the agent so we can call it by name.
-                identity = self._control_connection.call('agent_vip_identity', agent_uuid)
-                if params:
-                    if isinstance(params, list):
-                        result = self.vip.rpc.call(identity, agent_method, *params).get(timeout=30)
-                    else:
-                        result = self.vip.rpc.call(identity, agent_method, **params).get(timeout=30)
+                if agent_method == 'start_bacnet_scan':
+                    identity = params.pop("proxy_identity")
+                    result = self.start_bacnet_scan(identity, **params)
                 else:
-                    result = self.vip.rpc.call(identity, agent_method).get(timeout=30)
+                    # find the identity of the agent so we can call it by name.
+                    identity = self._control_connection.call('agent_vip_identity', agent_uuid)
+                    if params:
+                        if isinstance(params, list):
+                            result = self.vip.rpc.call(identity, agent_method, *params).get(timeout=30)
+                        else:
+                            result = self.vip.rpc.call(identity, agent_method, **params).get(timeout=30)
+                    else:
+                        result = self.vip.rpc.call(identity, agent_method).get(timeout=30)
 
         if isinstance(result, dict):
             if 'result' in result:

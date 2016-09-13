@@ -283,6 +283,8 @@ class VolttronCentralAgent(Agent):
                 else:
                     _log.error("Couldn't retrive device topic {} from platform "
                                "{}".format(lookup_topic, platform_uuid))
+        elif op_or_datatype == 'iam':
+            self.vip.web.send("/vc/ws/iam", jsonapi.dumps(message))
 
     @PubSub.subscribe("pubsub", "datalogger/platforms")
     def _on_platform_log_message(self, peer, sender, bus, topic, headers,
@@ -881,6 +883,7 @@ class VolttronCentralAgent(Agent):
                           'jsonrpc').get(timeout=10)
         self.vip.web.register_websocket(r'/vc/ws', None, None,
                                         self._received_data)
+        self.vip.web.register_websocket(r'/vc/ws/iam')
 
 
         # self.vip.rpc.call(MASTER_WEB, 'register_path_route', VOLTTRON_CENTRAL,
