@@ -898,8 +898,7 @@ class VolttronCentralPlatform(Agent):
             }
 
             if is_running:
-                identity = self.vip.rpc.call('control', 'agent_vip_identity',
-                                             a['uuid']).get(timeout=30)
+                identity = a['identity']
                 status = self.vip.rpc.call(identity,
                                            'health.get_status').get(timeout=30)
                 uuid_to_status[a['uuid']]['health'] = status
