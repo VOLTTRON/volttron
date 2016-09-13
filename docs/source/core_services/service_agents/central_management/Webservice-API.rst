@@ -342,6 +342,7 @@ TODO: change repsonse Retrieve Installed Agents From platform1
              "result": [
                  {
                      "name": "HelloAgent",
+                     "identity": "helloagent-0.0_1",
                      "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
                      "process_id": 3142,
                      "error_code": null,
@@ -359,6 +360,7 @@ TODO: change repsonse Retrieve Installed Agents From platform1
                  },
                  {
                      "name": "Historian",
+                     "identity": "sqlhistorianagent-3.5.0_1",
                      "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
                      "process_id": 3143,
                      "error_code": null,
@@ -377,6 +379,7 @@ TODO: change repsonse Retrieve Installed Agents From platform1
                  },
                  {
                     "name": "VolltronCentralPlatform",
+                    "identity": "platform.agent",
                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
                     "process_id": 3144,
                     "error_code": null,
@@ -394,6 +397,7 @@ TODO: change repsonse Retrieve Installed Agents From platform1
                 },
                 {
                      "name": "StoppedAgent-0.1",
+                     "identity": "stoppedagent-0.1_1",
                      "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
                      "process_id": null,
                      "error_code": 0,
