@@ -182,7 +182,8 @@ class ControlService(BaseAgent):
         tag = self._aip.agent_tag
         priority = self._aip.agent_priority
         return [{'name': name, 'uuid': uuid,
-                 'tag': tag(uuid), 'priority': priority(uuid)}
+                 'tag': tag(uuid), 'priority': priority(uuid),
+                 'identity': self.agent_vip_identity(uuid)}
                 for uuid, name in self._aip.list_agents().iteritems()]
 
     @RPC.export
