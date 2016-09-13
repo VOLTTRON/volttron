@@ -61,6 +61,7 @@
 
 from __future__ import absolute_import
 
+import copy
 import logging
 from datetime import datetime, timedelta
 
@@ -136,9 +137,15 @@ class AggregateHistorian(Agent):
 
             # 3. Call parent method to set up periodic aggregation
             # collection calls
-
+            if agg_group.get('utc_collection_start_time'):
+                utc_collection_start_time = datetime.strptime(
+                    agg_group.get('utc_collection_start_time'),
+                    '%Y-%m-%dT%H:%M:%S.%f').replace(tzinfo=pytz.utc)
+            else:
+                utc_collection_start_time = datetime.utcnow().replace(
+                    tzinfo=pytz.utc)
             self._collect_aggregate_data(
-                datetime.utcnow().replace(tzinfo=pytz.utc),
+                utc_collection_start_time,
                 agg_time_period,
                 use_calendar_periods,
                 agg_group['points'])
@@ -558,13 +565,18 @@ class AggregateHistorian(Agent):
         elif unit == 'w':
             start_time = end_time - timedelta(weeks=period_int)
         elif unit == 'M':
-            start_time = end_time - timedelta(days=30)
+            start_time = end_time - timedelta(days=30*period_int)
         else:
             raise ValueError(
                 "Invalid unit {} provided for aggregation_period. "
                 "Unit should be m/h/d/w/M".format(unit))
 
         if use_calender_time_periods:
+            if unit == 'm':
+                start_time = start_time.replace(second=0,
+                                                microsecond=0)
+                end_time = end_time.replace(second=0,
+                                            microsecond=0)
             if unit == 'h':
                 start_time = start_time.replace(minute=0,
                                                 second=0,
@@ -572,7 +584,7 @@ class AggregateHistorian(Agent):
                 end_time = end_time.replace(minute=0,
                                             second=0,
                                             microsecond=0)
-            elif unit == 'd' or unit == 'w':
+            elif unit == 'd':
                 start_time = start_time.replace(hour=0,
                                                 minute=0,
                                                 second=0,
@@ -581,6 +593,20 @@ class AggregateHistorian(Agent):
                                             minute=0,
                                             second=0,
                                             microsecond=0)
+            elif unit == 'w':
+
+                day_idx = end_time.weekday()
+                # weekday index starts on Monday, so Mon=0, Tue=1 etc.
+                if day_idx != 6:
+                    #If it is not a sunday move to last sunday
+                    end_time = end_time - timedelta(days=day_idx+1)
+
+                end_time = end_time.replace(hour=0,
+                                            minute=0,
+                                            second=0,
+                                            microsecond=0)
+                start_time = end_time - timedelta(weeks=period_int)
+
             elif unit == 'M':
                 end_time = end_time.replace(day=1,
                                            hour=0,
@@ -588,9 +614,10 @@ class AggregateHistorian(Agent):
                                            second=0,
                                            microsecond=0)
                 # get last day of previous month
-                start_time = end_time - timedelta(days=1)
+                end_time = end_time - timedelta(days=1)
+
                 # move to first day of previous month
-                start_time = start_time.replace(day=1,
+                start_time = copy.copy(end_time).replace(day=1,
                                                 hour=0,
                                                 minute=0,
                                                 second=0,
