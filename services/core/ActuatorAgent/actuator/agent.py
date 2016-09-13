@@ -218,7 +218,7 @@ The PUB/SUB interface responses will have the following header:
 
     {
         'type': 'NEW_SCHEDULE'
-        'requesterID': <Agent ID from the request>,
+        'requesterID': <VIP Identity of requesting agent>,
         'taskID': <Task ID from the request>
     }
     
@@ -319,7 +319,7 @@ The headder of the publish will take this form:
 .. code-block:: python
 
     {
-        'requesterID': <Agent ID>
+        'requesterID': <VIP Identity of requesting agent>
     }
     
 and a message body in this form:
@@ -367,7 +367,8 @@ Canceling a Task
 
 Cancelling a Task requires two things:
 
-- The original requester of the Task. This is the Agent's ID.
+- The original requester of the Task. The agent's VIP identity
+  automatically replaces provided parameters.
 - The name of the Task.
 
 Cancel Task Response
@@ -387,7 +388,7 @@ in the following format:
 .. note:: 
     There are some things to be aware of when canceling a schedule:
     
-        - The requesterID and taskID must match the original values from the
+        - The taskID must match the original value from the
         original request header.
         - After a Tasks time has passed there is no need to cancel it. Doing
         so will result in a "TASK_ID_DOES_NOT_EXIST" error.
@@ -426,7 +427,7 @@ Along with the following header:
 
     {
         'type': 'CANCEL_SCHEDULE',
-        'requesterID': <Agent ID associated with the preempted Task>,
+        'requesterID': <VIP id associated with the preempted Task>,
         'taskID': <Task ID of the preempted Task>
     }
     
@@ -452,7 +453,7 @@ With the following header:
 .. code-block:: python
 
     {
-        'requesterID': <Agent with access>,
+        'requesterID': <VIP identity of Agent with access>,
         'taskID': <Task associated with the time slot>
         'window': <Seconds remaining in the time slot>
     }
@@ -702,7 +703,7 @@ class ActuatorAgent(Agent):
         .. code-block:: python
         
             {
-                'requesterID': <Agent ID>
+                'requesterID': <Ignored, VIP Identity used internally>
             }
         
         The ActuatorAgent will reply on the **value** topic 
@@ -738,7 +739,7 @@ class ActuatorAgent(Agent):
         .. code-block:: python
         
             {
-                'requesterID': <Agent ID>
+                'requesterID': <Ignored, VIP Identity used internally>
             }
         
         The ActuatorAgent will reply on the **value** topic 
@@ -802,7 +803,7 @@ class ActuatorAgent(Agent):
         Sets the value of a specific point on a device. 
         Requires the device be scheduled by the calling agent.
         
-        :param requester_id: Identifier given when requesting schedule. 
+        :param requester_id: Ignored, VIP Identity used internally
         :param topic: The topic of the point to set in the 
                       format <device topic>/<point name>
         :param value: Value to set point to.
@@ -855,7 +856,7 @@ class ActuatorAgent(Agent):
         Set multiple points on multiple devices. Makes a single
         RPC call to the master driver per device.
 
-        :param requester_id: Identifier given when requesting schedule.
+        :param requester_id: Ignored, VIP Identity used internally
         :param topics_values: List of (topic, value) tuples
         :param \*\*kwargs: Any driver specific parameters
 
@@ -901,7 +902,7 @@ class ActuatorAgent(Agent):
         .. code-block:: python
         
             {
-                'requesterID': <Agent ID>
+                'requesterID': <Ignored, VIP Identity used internally>
             }
         
         The ActuatorAgent will reply on
@@ -941,7 +942,7 @@ class ActuatorAgent(Agent):
         .. code-block:: python
         
             {
-                'requesterID': <Agent ID>
+                'requesterID': <Ignored, VIP Identity used internally>
             }
         
         The ActuatorAgent will reply on the **value** topic 
@@ -976,7 +977,7 @@ class ActuatorAgent(Agent):
         Reverts the value of a specific point on a device to a default state. 
         Requires the device be scheduled by the calling agent.
         
-        :param requester_id: Identifier given when requesting schedule. 
+        :param requester_id: Ignored, VIP Identity used internally
         :param topic: The topic of the point to revert in the 
                       format <device topic>/<point name>
         :param \*\*kwargs: Any driver specific parameters
@@ -1015,7 +1016,7 @@ class ActuatorAgent(Agent):
         Reverts all points on a device to a default state. 
         Requires the device be scheduled by the calling agent.
         
-        :param requester_id: Identifier given when requesting schedule. 
+        :param requester_id: Ignored, VIP Identity used internally
         :param topic: The topic of the device to revert
         :param \*\*kwargs: Any driver specific parameters
         :type topic: str
@@ -1066,7 +1067,7 @@ class ActuatorAgent(Agent):
         
             {
                 'type': 'NEW_SCHEDULE',
-                'requesterID': <Agent ID>, #The name of the requesting agent.
+                'requesterID': <Ignored, VIP Identity used internally>,
                 'taskID': <unique task ID>, #The desired task ID for this
                 task. It must be unique among all other scheduled tasks.
                 'priority': <task priority>, #The desired task priority,
@@ -1083,12 +1084,12 @@ class ActuatorAgent(Agent):
         
             {
                 'type': 'CANCEL_SCHEDULE',
-                'requesterID': <Agent ID>, #The name of the requesting agent.
+                'requesterID': <Ignored, VIP Identity used internally>,
                 'taskID': <unique task ID>, #The task ID for the canceled Task.
             }
             
         requesterID
-            The name of the requesting agent.
+            The name of the requesting agent. Automatically replaced with VIP id.
         taskID
             The desired task ID for this task. It must be unique among all
             other scheduled tasks.
@@ -1144,7 +1145,7 @@ class ActuatorAgent(Agent):
         
         Requests one or more blocks on time on one or more device.
         
-        :param requester_id: Requester name. 
+        :param requester_id: Ignored, VIP Identity used internally
         :param task_id: Task name.
         :param priority: Priority of the task. Must be either "HIGH", "LOW",
         or "LOW_PREEMPT"
@@ -1249,7 +1250,7 @@ class ActuatorAgent(Agent):
         
         Requests the cancelation of the specified task id.
         
-        :param requester_id: Requester name. 
+        :param requester_id: Ignored, VIP Identity used internally
         :param task_id: Task name.
         
         :type requester_id: str

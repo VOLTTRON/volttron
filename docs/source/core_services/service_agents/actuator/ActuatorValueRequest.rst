@@ -40,7 +40,7 @@ With this header:
 
     #python
     {
-        'requesterID': <Agent ID>
+        'requesterID': <Ignored, VIP Identity used internally>
     }
 
 And the message contents being the new value of the actuator.
@@ -66,7 +66,7 @@ With this header:
 
     #python
     {
-        'requesterID': <Agent ID>
+        'requesterID': <Agent VIP identity>
     }
 
 With the message containing the value encoded in JSON.
@@ -88,7 +88,7 @@ With this header:
 
     #python
     {
-        'requesterID': <Agent ID>
+        'requesterID': <Agent VIP identity>
     }
 
 The message will be in the following form:
