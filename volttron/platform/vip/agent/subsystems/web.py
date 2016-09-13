@@ -88,7 +88,8 @@ class WebSubSystem(SubsystemBase):
         self._rpc().call('master.web', 'register_path_route',
                          self._core().identity, prefix, static_path)
 
-    def register_websocket(self, endpoint, opened, closed, received):
+    def register_websocket(self, endpoint, opened=None, closed=None,
+                           received=None):
         self._endpoints[endpoint] = (opened, closed, received)
         self._rpc().call('master.web', 'register_websocket', endpoint).get(timeout=5)
 
@@ -104,6 +105,7 @@ class WebSubSystem(SubsystemBase):
 
     def _message(self, endpoint, message):
         print('Client received message callback')
-        self._endpoints[endpoint][2](endpoint, message)
-
-        # self._endpoints[endpoint][2](message)
+        if self._endpoints[endpoint][2] is None:
+            print('Not an endpoint that can be written')
+        else:
+            self._endpoints[endpoint][2](endpoint, message)
