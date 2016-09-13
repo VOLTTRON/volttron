@@ -283,6 +283,10 @@ class AIPplatform(object):
         return agent_uuid
 
     def install_agent(self, agent_wheel, vip_identity=None):
+        if not is_valid_identity(vip_identity):
+            raise ValueError('Invalid identity detected: {}'.format(
+                vip_identity
+            ))
         while True:
             agent_uuid = str(uuid.uuid4())
             if agent_uuid in self.agents:
