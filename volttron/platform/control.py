@@ -858,9 +858,9 @@ def remove_auth(opts):
     try:
         auth_file.remove_by_indices(opts.indices)
         if len(opts.indices) > 1:
-            msg = 'removed entries at indices {}'
+            msg = 'removed entries at indices {}'.format(opts.indices)
         else:
-            msg = msg = 'removed entry at index {}'
+            msg = msg = 'removed entry at index {}'.format(opts.indices)
         _stdout.write(msg + '\n')
     except AuthException as err:
         _stderr.write('ERROR: %s\n' % err.message)
