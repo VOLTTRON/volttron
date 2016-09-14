@@ -37,6 +37,9 @@ def get_mongo_client(connection_params):
                       'passwd': passwd, 'database': database_name}
 
             mongo_uri = "mongodb://{user}:{passwd}@{hostsandports}/{database}"
+            if connection_params.get('authSource'):
+                mongo_uri = mongo_uri + '?authSource={authSource}'
+                params['authSource'] = connection_params['authSource']
             mongo_uri = mongo_uri.format(**params)
             mongoclient = pymongo.MongoClient(mongo_uri)
 
@@ -44,6 +47,7 @@ def get_mongo_client(connection_params):
 
 
 def get_topic_map(client, topics_collection):
+    _log.debug("In get topic map")
     db = client.get_default_database()
     cursor = db[topics_collection].find()
     topic_id_map = dict()
@@ -52,6 +56,7 @@ def get_topic_map(client, topics_collection):
         topic_id_map[document['topic_name'].lower()] = document['_id']
         topic_name_map[document['topic_name'].lower()] = \
             document['topic_name']
+    _log.debug("Returning map from get_topic_map")
     return topic_id_map, topic_name_map
 
 
@@ -66,10 +71,11 @@ def get_agg_topic_map(client, agg_topics_collection):
             (document['agg_topic_name'].lower(),
              document['agg_type'],
              document['agg_time_period'])] = document['_id']
+    _log.debug('returning agg topics map')
     return topic_id_map
 
 def get_agg_topics(client, agg_topics_collection, agg_meta_collection):
-    _log.debug('loading agg topics list')
+    _log.debug('loading agg topics for rpc call')
     db = client.get_default_database()
     cursor = db[agg_meta_collection].find()
     meta_map = dict()
@@ -86,4 +92,5 @@ def get_agg_topics(client, agg_topics_collection, agg_meta_collection):
              document['agg_type'],
              document['agg_time_period'],
              meta_map[document['_id']]['configured_topics']))
+    _log.debug('returning agg topics for rpc call')
     return agg_topics

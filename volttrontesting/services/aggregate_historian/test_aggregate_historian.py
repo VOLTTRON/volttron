@@ -330,8 +330,8 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
     """
 
     # Publish fake data.
-    start_time = datetime.utcnow() - timedelta(minutes=1)
-    publish_test_data(query_agent, start_time, 0, 5)
+    start_time = datetime.utcnow() - timedelta(minutes=2)
+    publish_test_data(query_agent, start_time, 0, 10)
     gevent.sleep(0.5)
     agent_uuid = None
     try:
@@ -629,8 +629,8 @@ def test_multiple_topic_pattern(request, volttron_instance, aggregate_agent,
     """
 
     # Publish fake data.
-    start_time = datetime.utcnow() - timedelta(minutes=1)
-    publish_test_data(query_agent, start_time, 0, 5)
+    start_time = datetime.utcnow() - timedelta(minutes=2)
+    publish_test_data(query_agent, start_time, 0, 10)
     gevent.sleep(0.5)
     agent_uuid = None
     try:

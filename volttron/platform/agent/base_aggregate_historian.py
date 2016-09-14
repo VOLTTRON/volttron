@@ -94,7 +94,7 @@ class AggregateHistorian(Agent):
         :param kwargs:
         """
         super(AggregateHistorian, self).__init__(**kwargs)
-
+        _log.debug("In init of aggregate historian")
         # Instantiate variables
         self.config = utils.load_config(config_path)
         self.topic_id_map = None
@@ -108,6 +108,7 @@ class AggregateHistorian(Agent):
         assert database_type is not None
         params = connection.get('params', None)
         assert params is not None
+        _log.debug("Done init of aggregate historian")
 
     @Core.receiver('onstart')
     def _on_start(self, sender, **kwargs):
@@ -119,9 +120,11 @@ class AggregateHistorian(Agent):
         @param kwargs:
         @return:
         """
+        _log.debug("In start of aggregate historian")
         self.topic_id_map, name_map = self.get_topic_map()
         self.agg_topic_id_map = self.get_agg_topic_map()
-
+        _log.debug("In start of aggregate historian. "
+                   "After loading topic and aggregate topic maps")
         for agg_group in self.config['aggregations']:
             # 1. Validate and normalize aggregation period and
             # initialize use_calendar_periods flag
@@ -321,20 +324,24 @@ class AggregateHistorian(Agent):
                     start_time,
                     end_time)
                 if count == 0:
-                    _log.warn("No records found for topic {topic} "
-                              "between {start_time} and {end_time}".
-                              format(topic=data['topic_names'],
-                                     start_time=start_time,
-                                     end_time=end_time))
+                    _log.warn(
+                        "No records found for topic {topic} between "
+                        "{start_time} and {end_time}".format(
+                            topic=topic_pattern if topic_pattern else
+                                data['topic_names'],
+                            start_time=start_time,
+                            end_time=end_time))
                 elif count < data.get('min_count', 0):
                     _log.warn(
                         "Skipping recording of aggregate data for {topic} "
                         "between {start_time} and {end_time} as number of "
                         "records is less than minimum allowed("
-                        "{count})".format(topic=data['topic_names'],
-                                          start_time=start_time,
-                                          end_time=end_time,
-                                          count=data.get('min_count', 0)))
+                        "{count})".format(
+                            topic=topic_pattern if topic_pattern
+                                else data['topic_names'],
+                            start_time=start_time,
+                            end_time=end_time,
+                            count=data.get('min_count', 0)))
                 else:
                     aggregate_topic_id = \
                         self.agg_topic_id_map[

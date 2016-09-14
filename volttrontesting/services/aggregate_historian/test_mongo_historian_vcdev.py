@@ -33,7 +33,8 @@ mongo_aggregator = {
             "port": 27017,
             "database": "historian_dev2",
             "user": "hdev",
-            "passwd": ""
+            "passwd": "",
+            "authSource": "admin"
         }
     }
 }
@@ -47,17 +48,16 @@ connection_type = None
 def setup_mongodb(connection_params, table_names):
     print ("setup mongodb")
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
+    if connection_params.get('authSource'):
+        mongo_conn_str = mongo_conn_str + '?authSource={authSource}'
     params = connection_params
     mongo_conn_str = mongo_conn_str.format(**params)
     mongo_client = pymongo.MongoClient(mongo_conn_str)
     print ("Got mongo client")
     db = mongo_client[connection_params['database']]
     print ("Got mongo default db")
-    # db[table_names['data_table']].remove()
-    # db[table_names['topics_table']].remove()
-    # db[table_names['meta_table']].remove()
-    db[table_names['agg_topics_table']].remove()
-    db[table_names['agg_meta_table']].remove()
+    # db[table_names['agg_topics_table']].remove()
+    # db[table_names['agg_meta_table']].remove()
     print ("Done setup mongodb")
     return db
 
@@ -165,7 +165,7 @@ def aggregate_agent(request, volttron_instance):
         agent_dir=request.param['source_historian'],
         config_file=request.param,
         start=True)
-    print("agent id: ", historian_uuid)
+    print("historian agent id: ", historian_uuid)
 
     # 3: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
@@ -183,15 +183,15 @@ def aggregate_agent(request, volttron_instance):
 
 def cleanup(connection_type, truncate_tables):
     global db_connection, table_names
-    #truncate_tables.append(table_names['data_table'])
+    # truncate_tables.append(table_names['data_table'])
     truncate_tables.append(table_names['agg_topics_table'])
     truncate_tables.append(table_names['agg_meta_table'])
     cleanup_function = globals()["cleanup_" + connection_type]
     cleanup_function(db_connection, truncate_tables)
 
+
 @pytest.mark.timeout(180)
-@pytest.mark.dev
-@pytest.mark.aggregator
+# @pytest.mark.dev
 def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
     """
     Test the basic functionality of aggregate historian when aggregating a
@@ -227,18 +227,18 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
                  {
                      # ZoneTemperature
                      "topic_name_pattern":
-                         "PNNL/SEB/AHU3/VAV112/ZoneTemperature$",
+                         "PNNL/SEB/AHU1/VAV127A/ZoneTemperature$",
                      "aggregation_topic_name":
-                         "PNNL/SEB/AHU3/VAV112/zonetemp_aggregate",
+                         "PNNL/SEB/AHU1/VAV127A/zonetemp_aggregate",
                      "aggregation_type": "sum",
                      "min_count": 2
                  },
                  {
-                     # PNNL/SEB/AHU3/VAV112/ZoneAirFlow
+                     # PNNL/SEB/AHU1/VAV127A/ZoneAirFlow
                      "topic_name_pattern":
-                         "PNNL/SEB/AHU3/VAV112/ZoneAirFlow$",
+                         "PNNL/SEB/AHU1/VAV127A/ZoneAirFlow$",
                      "aggregation_topic_name":
-                         "PNNL/SEB/AHU3/VAV112/zone_air_flow_agg",
+                         "PNNL/SEB/AHU1/VAV127A/zone_air_flow_agg",
                      "aggregation_type": "sum",
                      "min_count": 2
                  }
@@ -250,12 +250,12 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
             agent_dir=aggregate_agent["source_agg_historian"],
             config_file=aggregate_agent,
             start=True)
-        print("agent id: ", agent_uuid)
+        print("aggregate historian agent id: ", agent_uuid)
 
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
-            topic='PNNL/SEB/AHU3/VAV112/zonetemp_aggregate',
+            topic='PNNL/SEB/AHU1/VAV127A/zonetemp_aggregate',
             agg_type='sum',
             agg_period="3m",
             count=20,
@@ -267,7 +267,7 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
         result2 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
-            topic='PNNL/SEB/AHU3/VAV112/zone_air_flow_agg',
+            topic='PNNL/SEB/AHU1/VAV127A/zone_air_flow_agg',
             agg_type='sum',
             agg_period="3m",
             count=20,
@@ -279,13 +279,13 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
         # Now verify the computed sum
         expected_sum = get_expected_sum(
             query_agent,
-            'PNNL/SEB/AHU3/VAV112/ZoneTemperature',
+            'PNNL/SEB/AHU1/VAV127A/ZoneTemperature',
             result1['values'][0][0], 3)
         assert (result1['values'][0][1] == expected_sum)
 
         expected_sum = get_expected_sum(
             query_agent,
-            'PNNL/SEB/AHU3/VAV112/ZoneAirFlow',
+            'PNNL/SEB/AHU1/VAV127A/ZoneAirFlow',
             result1['values'][0][0], 3)
         assert (result2['values'][0][1] == expected_sum)
         assert (result2['metadata']) == {}
@@ -297,10 +297,10 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
 
         # Expected result
         expected_list = [
-            ['PNNL/SEB/AHU3/VAV112/zonetemp_aggregate', 'sum', "3m",
-             'PNNL/SEB/AHU3/VAV112/ZoneTemperature$'],
-            ['PNNL/SEB/AHU3/VAV112/zone_air_flow_agg', 'sum', "3m",
-             'PNNL/SEB/AHU3/VAV112/ZoneAirFlow$']]
+            ['PNNL/SEB/AHU1/VAV127A/zonetemp_aggregate', 'sum', "3m",
+             'PNNL/SEB/AHU1/VAV127A/ZoneTemperature$'],
+            ['PNNL/SEB/AHU1/VAV127A/zone_air_flow_agg', 'sum', "3m",
+             'PNNL/SEB/AHU1/VAV127A/ZoneAirFlow$']]
         assert len(result) == 2
         for row in result:
             expected_list.remove(row)
@@ -315,7 +315,6 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
 
 
 @pytest.mark.timeout(180)
-@pytest.mark.aggregator
 def test_single_topic(request, volttron_instance, aggregate_agent,
                       query_agent):
     """
@@ -347,22 +346,22 @@ def test_single_topic(request, volttron_instance, aggregate_agent,
                 "aggregation_period": "3m",
                 "use_calendar_time_periods": True,
                 "points": [
-                    {"topic_names": ["PNNL/SEB/AHU3/VAV112/ZoneTemperature"],
+                    {"topic_names": ["PNNL/SEB/AHU1/VAV127A/ZoneTemperature"],
                      "aggregation_type": "sum", "min_count": 2},
                     {"topic_names": [
-                        "PNNL/SEB/AHU3/VAV112/ZoneAirFlow"],
-                     "aggregation_type": "sum", "min_count": 2}
+                        "PNNL/SEB/AHU1/VAV127A/ZoneAirFlow"],
+                        "aggregation_type": "sum", "min_count": 2}
                 ]
             },
             {
                 "aggregation_period": "5m",
                 "use_calendar_time_periods": False,
                 "points": [
-                    {"topic_names": ["PNNL/SEB/AHU3/VAV112/ZoneTemperature"],
+                    {"topic_names": ["PNNL/SEB/AHU1/VAV127A/ZoneTemperature"],
                      "aggregation_type": "sum", "min_count": 2},
                     {"topic_names": [
-                        "PNNL/SEB/AHU3/VAV112/ZoneAirFlow"],
-                     "aggregation_type": "sum", "min_count": 2}
+                        "PNNL/SEB/AHU1/VAV127A/ZoneAirFlow"],
+                        "aggregation_type": "sum", "min_count": 2}
                 ]
             }
         ]
@@ -377,7 +376,7 @@ def test_single_topic(request, volttron_instance, aggregate_agent,
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
-            topic='PNNL/SEB/AHU3/VAV112/ZoneTemperature',
+            topic='PNNL/SEB/AHU1/VAV127A/ZoneTemperature',
             agg_type='sum',
             agg_period="3m",
             count=20,
@@ -388,7 +387,7 @@ def test_single_topic(request, volttron_instance, aggregate_agent,
         result2 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
-            topic='PNNL/SEB/AHU3/VAV112/ZoneAirFlow',
+            topic='PNNL/SEB/AHU1/VAV127A/ZoneAirFlow',
             agg_type='sum',
             agg_period="3m",
             count=20,
@@ -414,12 +413,12 @@ def test_single_topic(request, volttron_instance, aggregate_agent,
 
         # Now verify the computed sum
         expected_sum = get_expected_sum(query_agent,
-                                        'PNNL/SEB/AHU3/VAV112/ZoneTemperature',
+                                        'PNNL/SEB/AHU1/VAV127A/ZoneTemperature',
                                         result1['values'][0][0], 3)
         assert (result1['values'][0][1] == expected_sum)
 
         expected_sum = get_expected_sum(query_agent,
-                                        'PNNL/SEB/AHU3/VAV112/ZoneAirFlow',
+                                        'PNNL/SEB/AHU1/VAV127A/ZoneAirFlow',
                                         result2['values'][0][0], 3)
         assert (result2['values'][0][1] == expected_sum)
 
@@ -427,7 +426,7 @@ def test_single_topic(request, volttron_instance, aggregate_agent,
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
-            topic='PNNL/SEB/AHU3/VAV112/ZoneAirFlow',
+            topic='PNNL/SEB/AHU1/VAV127A/ZoneAirFlow',
             agg_type='sum',
             agg_period='5m',
             count=20,
@@ -436,7 +435,7 @@ def test_single_topic(request, volttron_instance, aggregate_agent,
         result2 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
-            topic='PNNL/SEB/AHU3/VAV112/ZoneTemperature',
+            topic='PNNL/SEB/AHU1/VAV127A/ZoneTemperature',
             agg_type='sum',
             agg_period='5m',
             count=20,
@@ -453,13 +452,12 @@ def test_single_topic(request, volttron_instance, aggregate_agent,
 
         # Now verify the computed sum
         expected_sum = get_expected_sum(query_agent,
-                                        'PNNL/SEB/AHU3/VAV112/ZoneTemperature',
+                                        'PNNL/SEB/AHU1/VAV127A/ZoneTemperature',
                                         result1['values'][0][0], 5)
         assert (result1['values'][0][1] == expected_sum)
 
-
         expected_sum = get_expected_sum(query_agent,
-                                        'PNNL/SEB/AHU3/VAV112/ZoneAirFlow',
+                                        'PNNL/SEB/AHU1/VAV127A/ZoneAirFlow',
                                         result2['values'][1][0], 5)
         assert (result2['values'][1][1] == expected_sum)
 
@@ -481,14 +479,14 @@ def test_single_topic(request, volttron_instance, aggregate_agent,
         assert len(result) == 4
         # Expected result
         expected_list = [
-            ['PNNL/SEB/AHU3/VAV112/ZoneAirFlow', 'sum', "3m",
-             'PNNL/SEB/AHU3/VAV112/ZoneAirFlow'],
-            ['PNNL/SEB/AHU3/VAV112/ZoneTemperature', 'sum', "3m",
-             ['PNNL/SEB/AHU3/VAV112/ZoneTemperature']],
-            ['PNNL/SEB/AHU3/VAV112/ZoneAirFlow', 'sum', '5m',
-             ['PNNL/SEB/AHU3/VAV112/ZoneAirFlow']],
-            ['PNNL/SEB/AHU3/VAV112/ZoneTemperature', 'sum', '5m',
-             ['PNNL/SEB/AHU3/VAV112/ZoneTemperature']]]
+            ['PNNL/SEB/AHU1/VAV127A/ZoneAirFlow', 'sum', "3m",
+             'PNNL/SEB/AHU1/VAV127A/ZoneAirFlow'],
+            ['PNNL/SEB/AHU1/VAV127A/ZoneTemperature', 'sum', "3m",
+             ['PNNL/SEB/AHU1/VAV127A/ZoneTemperature']],
+            ['PNNL/SEB/AHU1/VAV127A/ZoneAirFlow', 'sum', '5m',
+             ['PNNL/SEB/AHU1/VAV127A/ZoneAirFlow']],
+            ['PNNL/SEB/AHU1/VAV127A/ZoneTemperature', 'sum', '5m',
+             ['PNNL/SEB/AHU1/VAV127A/ZoneTemperature']]]
         for row in result:
             assert [row[0]] == row[3]
             assert row[1] == 'sum'
@@ -513,7 +511,6 @@ def compute_timediff_seconds(time1_str, time2_str):
     return diff
 
 
-@pytest.mark.aggregator
 def test_multiple_topic_pattern(request, volttron_instance, aggregate_agent,
                                 query_agent):
     """
@@ -548,9 +545,9 @@ def test_multiple_topic_pattern(request, volttron_instance, aggregate_agent,
                  {
                      # ZoneTemperature and ZoneDischargeAirTemperature
                      "topic_name_pattern":
-                         "PNNL/SEB/AHU3/VAV112/Zone.*Temperature$",
+                         "PNNL/SEB/AHU1/VAV127A/Zone.*Temperature$",
                      "aggregation_topic_name":
-                         "PNNL/SEB/AHU3/VAV112/zone_and_zone_discharge_temp",
+                         "PNNL/SEB/AHU1/VAV127A/zone_and_zone_discharge_temp",
                      "aggregation_type": "sum",
                      "min_count": 2
                  }
@@ -565,7 +562,7 @@ def test_multiple_topic_pattern(request, volttron_instance, aggregate_agent,
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
-            topic='PNNL/SEB/AHU3/VAV112/zone_and_zone_discharge_temp',
+            topic='PNNL/SEB/AHU1/VAV127A/zone_and_zone_discharge_temp',
             agg_type='sum',
             agg_period="3m",
             count=20,
@@ -576,8 +573,8 @@ def test_multiple_topic_pattern(request, volttron_instance, aggregate_agent,
         # Now verify the computed sum
         expected_sum = get_expected_sum(
             query_agent,
-            ['PNNL/SEB/AHU3/VAV112/ZoneDischargeAirTemperature',
-                'PNNL/SEB/AHU3/VAV112/ZoneTemperature'],
+            ['PNNL/SEB/AHU1/VAV127A/ZoneDischargeAirTemperature',
+             'PNNL/SEB/AHU1/VAV127A/ZoneTemperature'],
             result1['values'][0][0], 3)
         assert (result1['values'][0][1] == expected_sum)
 
@@ -591,10 +588,10 @@ def test_multiple_topic_pattern(request, volttron_instance, aggregate_agent,
         assert len(result) == 1
         # Expected result
         assert result[0][0] == \
-               'PNNL/SEB/AHU3/VAV112/zone_and_zone_discharge_temp'
+               'PNNL/SEB/AHU1/VAV127A/zone_and_zone_discharge_temp'
         assert result[0][1] == 'sum'
         assert result[0][2] == "3m"
-        assert result[0][3] == 'PNNL/SEB/AHU3/VAV112/Zone.*Temperature$'
+        assert result[0][3] == 'PNNL/SEB/AHU1/VAV127A/Zone.*Temperature$'
 
 
     finally:
@@ -603,7 +600,6 @@ def test_multiple_topic_pattern(request, volttron_instance, aggregate_agent,
             volttron_instance.remove_agent(agent_uuid)
 
 
-@pytest.mark.aggregator
 def test_multiple_topic_list(request, volttron_instance, aggregate_agent,
                              query_agent):
     """
@@ -630,10 +626,10 @@ def test_multiple_topic_list(request, volttron_instance, aggregate_agent,
              "use_calendar_time_periods": True,
              "points": [
                  {
-                     "topic_names": ["PNNL/SEB/AHU3/VAV112/ZoneTemperature",
-                                     "PNNL/SEB/AHU3/VAV112/ZoneDischargeAirTemperature"],
+                     "topic_names": ["PNNL/SEB/AHU1/VAV127A/ZoneTemperature",
+                                     "PNNL/SEB/AHU1/VAV127A/ZoneDischargeAirTemperature"],
                      "aggregation_topic_name":
-                         "PNNL/SEB/AHU3/VAV112/multi_list",
+                         "PNNL/SEB/AHU1/VAV127A/multi_list",
                      "aggregation_type": "sum",
                      "min_count": 2
                  }
@@ -648,7 +644,7 @@ def test_multiple_topic_list(request, volttron_instance, aggregate_agent,
 
         result1 = query_agent.vip.rpc.call('platform.historian',
                                            'query',
-                                           topic='PNNL/SEB/AHU3/VAV112/multi_list',
+                                           topic='PNNL/SEB/AHU1/VAV127A/multi_list',
                                            agg_type='sum',
                                            agg_period="3m",
                                            count=20,
@@ -659,8 +655,8 @@ def test_multiple_topic_list(request, volttron_instance, aggregate_agent,
         # Now verify the computed sum
         expected_sum = get_expected_sum(query_agent,
                                         [
-                                            'PNNL/SEB/AHU3/VAV112/ZoneDischargeAirTemperature',
-                                            'PNNL/SEB/AHU3/VAV112/ZoneTemperature'],
+                                            'PNNL/SEB/AHU1/VAV127A/ZoneDischargeAirTemperature',
+                                            'PNNL/SEB/AHU1/VAV127A/ZoneTemperature'],
                                         result1['values'][0][0], 3)
         assert (result1['values'][0][1] == expected_sum)
 
@@ -673,19 +669,18 @@ def test_multiple_topic_list(request, volttron_instance, aggregate_agent,
 
         assert len(result) == 1
         # Expected result
-        assert result[0][0] == 'PNNL/SEB/AHU3/VAV112/multi_list'
+        assert result[0][0] == 'PNNL/SEB/AHU1/VAV127A/multi_list'
         assert result[0][1] == 'sum'
         assert result[0][2] == "3m"
         assert set(result[0][3]) == set(
-            ("PNNL/SEB/AHU3/VAV112/ZoneDischargeAirTemperature",
-             "PNNL/SEB/AHU3/VAV112/ZoneTemperature"))
+            ("PNNL/SEB/AHU1/VAV127A/ZoneDischargeAirTemperature",
+             "PNNL/SEB/AHU1/VAV127A/ZoneTemperature"))
     finally:
         cleanup(aggregate_agent['connection']['type'], ['sum_3m'])
         if agent_uuid is not None:
             volttron_instance.remove_agent(agent_uuid)
 
 
-@pytest.mark.aggregator
 def test_topic_reconfiguration(request, volttron_instance, aggregate_agent,
                                query_agent):
     """
@@ -716,10 +711,10 @@ def test_topic_reconfiguration(request, volttron_instance, aggregate_agent,
              "use_calendar_time_periods": True,
              "points": [
                  {
-                     "topic_names": ["PNNL/SEB/AHU3/VAV112/ZoneTemperature",
-                                     "PNNL/SEB/AHU3/VAV112/ZoneDischargeAirTemperature"],
+                     "topic_names": ["PNNL/SEB/AHU1/VAV127A/ZoneTemperature",
+                                     "PNNL/SEB/AHU1/VAV127A/ZoneDischargeAirTemperature"],
                      "aggregation_topic_name":
-                         "PNNL/SEB/AHU3/VAV112/aggregation_name",
+                         "PNNL/SEB/AHU1/VAV127A/aggregation_name",
                      "aggregation_type": "sum",
                      "min_count": 2
                  }
@@ -735,7 +730,7 @@ def test_topic_reconfiguration(request, volttron_instance, aggregate_agent,
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
-            topic='PNNL/SEB/AHU3/VAV112/aggregation_name',
+            topic='PNNL/SEB/AHU1/VAV127A/aggregation_name',
             agg_type='sum',
             agg_period="3m",
             count=20,
@@ -745,8 +740,8 @@ def test_topic_reconfiguration(request, volttron_instance, aggregate_agent,
         # Now verify the computed sum
         expected_sum = get_expected_sum(query_agent,
                                         [
-                                            'PNNL/SEB/AHU3/VAV112/ZoneDischargeAirTemperature',
-                                            'PNNL/SEB/AHU3/VAV112/ZoneTemperature'],
+                                            'PNNL/SEB/AHU1/VAV127A/ZoneDischargeAirTemperature',
+                                            'PNNL/SEB/AHU1/VAV127A/ZoneTemperature'],
                                         result1['values'][0][0], 3)
         assert (result1['values'][0][1] == expected_sum)
 
@@ -759,19 +754,19 @@ def test_topic_reconfiguration(request, volttron_instance, aggregate_agent,
 
         assert len(result) == 1
         # Expected result
-        assert result[0][0] == 'PNNL/SEB/AHU3/VAV112/aggregation_name'
+        assert result[0][0] == 'PNNL/SEB/AHU1/VAV127A/aggregation_name'
         assert result[0][1] == 'sum'
         assert result[0][2] == "3m"
         assert set(result[0][3]) == set(
-            ("PNNL/SEB/AHU3/VAV112/ZoneDischargeAirTemperature",
-             "PNNL/SEB/AHU3/VAV112/ZoneTemperature"))
+            ("PNNL/SEB/AHU1/VAV127A/ZoneDischargeAirTemperature",
+             "PNNL/SEB/AHU1/VAV127A/ZoneTemperature"))
         volttron_instance.remove_agent(agent_uuid)
 
         # Restart after changing topic names list for the same aggregate topic
         agent_uuid = None
         # Update topic names
         aggregate_agent['aggregations'][0]["points"][0]["topic_names"] = \
-            ["PNNL/SEB/AHU3/VAV112/ZoneTemperature"]
+            ["PNNL/SEB/AHU1/VAV127A/ZoneTemperature"]
         print("Before reinstall current time is {}".format(datetime.utcnow()))
 
         agent_uuid = volttron_instance.install_agent(
@@ -784,7 +779,7 @@ def test_topic_reconfiguration(request, volttron_instance, aggregate_agent,
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
-            topic='PNNL/SEB/AHU3/VAV112/aggregation_name',
+            topic='PNNL/SEB/AHU1/VAV127A/aggregation_name',
             agg_type='sum',
             agg_period="3m",
             count=20,
@@ -794,7 +789,7 @@ def test_topic_reconfiguration(request, volttron_instance, aggregate_agent,
         lindex = len(result1) - 1
         expected_sum = get_expected_sum(query_agent,
                                         [
-                                            'PNNL/SEB/AHU3/VAV112/ZoneTemperature'],
+                                            'PNNL/SEB/AHU1/VAV127A/ZoneTemperature'],
                                         result1['values'][lindex][0], 3)
         assert (result1['values'][lindex][1] == expected_sum)
         assert (result1['metadata']) == {}
@@ -806,10 +801,10 @@ def test_topic_reconfiguration(request, volttron_instance, aggregate_agent,
 
         assert len(result) == 1
         # Expected result
-        assert result[0][0] == 'PNNL/SEB/AHU3/VAV112/aggregation_name'
+        assert result[0][0] == 'PNNL/SEB/AHU1/VAV127A/aggregation_name'
         assert result[0][1] == 'sum'
         assert result[0][2] == "3m"
-        assert result[0][3] == ["PNNL/SEB/AHU3/VAV112/ZoneTemperature"]
+        assert result[0][3] == ["PNNL/SEB/AHU1/VAV127A/ZoneTemperature"]
 
     finally:
         cleanup(aggregate_agent['connection']['type'], ['sum_3m'])
