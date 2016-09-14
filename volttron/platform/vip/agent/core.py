@@ -423,6 +423,7 @@ class Core(BasicCore):
         self.onsockevent = Signal()
         self.onconnected = Signal()
         self.ondisconnected = Signal()
+        self.configuration = Signal()
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
@@ -562,8 +563,10 @@ class Core(BasicCore):
             _log.debug("Running onstart methods.")
             hello_response_event.set()
             self.onstart.sendby(self.link_receiver, self)
+            self.configuration.sendby(self.link_receiver, self)
             if running_event is not None:
                 running_event.set()
+
 
         def monitor():
             # Call socket.monitor() directly rather than use
