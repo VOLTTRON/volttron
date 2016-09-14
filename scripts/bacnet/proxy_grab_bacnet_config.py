@@ -127,12 +127,8 @@ def process_device_object_reference(address, obj_type, obj_inst, property_name, 
     for object_index in xrange(1,objectCount+1):
         _log.debug('property_name index = ' + repr(object_index))
         
-        object_reference = read_prop(app, 
-                                address, 
-                                obj_type,
-                                obj_inst,
-                                property_name,
-                                index=object_index)
+        object_reference = read_prop(address, obj_type, obj_inst, property_name,
+                                     index=object_index)
         
         #Skip references to objects on other devices.
         if object_reference.deviceIdentifier is not None:
@@ -142,6 +138,8 @@ def process_device_object_reference(address, obj_type, obj_inst, property_name, 
         
         process_object(address, sub_obj_type, sub_obj_index, max_range_report, config_writer)
 
+
+# noinspection PyDictCreation
 def process_object(address, obj_type, index, max_range_report, config_writer):
     _log.debug('obj_type = ' + repr(obj_type))
     _log.debug('bacnet_index = ' + repr(index))
@@ -151,13 +149,13 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
     subondinate_list_property = get_datatype(obj_type, 'subordinateList')
     if subondinate_list_property is not None:
         _log.debug('Processing StructuredViewObject')
-        process_device_object_reference(address, obj_type, index, 'subordinateList', max_range_report, config_writer)
+        # process_device_object_reference(address, obj_type, index, 'subordinateList', max_range_report, config_writer)
         return
     
     subondinate_list_property = get_datatype(obj_type, 'zoneMembers')
     if subondinate_list_property is not None:
         _log.debug('Processing LifeSafetyZoneObject')
-        process_device_object_reference(address, obj_type, index, 'zoneMembers', max_range_report, config_writer)
+        # process_device_object_reference(address, obj_type, index, 'zoneMembers', max_range_report, config_writer)
         return
     
     present_value_type = get_datatype(obj_type, 'presentValue')
@@ -400,15 +398,15 @@ def main():
     
     
     try:
-        objectCount = read_prop(target_address, "device", device_id, "objectList", index=0)
+        object_count = read_prop(target_address, "device", device_id, "objectList", index=0)
         list_property = "objectList"
     except TypeError:
-        objectCount = read_prop(target_address, "device", device_id, "structuredObjectList", index=0)
+        object_count = read_prop(target_address, "device", device_id, "structuredObjectList", index=0)
         list_property = "structuredObjectList"
     
-    _log.debug('objectCount = ' + str(objectCount))
+    _log.debug('object_count = ' + str(object_count))
     
-    for object_index in xrange(1,objectCount+1):
+    for object_index in xrange(1,object_count+1):
         _log.debug('object_device_index = ' + repr(object_index))
         
         bac_object = read_prop(target_address,
