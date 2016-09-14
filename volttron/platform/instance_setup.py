@@ -131,7 +131,7 @@ def prompt_response(prompt, valid_answers=None, default=None):
 
 
 def _cmd(cmdargs):
-    """ Executes the passed command.
+    """Executes the passed command.
 
     :param cmdargs: A list of arguments that should be passed to Popen.
     :type cmdargs: [str]
@@ -245,11 +245,11 @@ def is_valid_url(url, accepted_schemes):
 
 def is_valid_port(port):
     try:
-        value = int(port)
+        port = int(port)
     except ValueError:
         return False
 
-    return port > 0 and port < 65535
+    return 0 < port < 65535
 
 
 def do_vip():
@@ -274,6 +274,8 @@ def do_vip():
             valid_address = is_valid_url(new_vip_address, ['tcp'])
             if valid_address:
                 vip_address = new_vip_address
+            else:
+                print("Address is not valid")
 
         valid_port = False
         while not valid_port:
@@ -282,6 +284,8 @@ def do_vip():
             valid_port = is_valid_port(new_vip_port)
             if valid_port:
                 vip_port = new_vip_port
+            else:
+                print("Port is not valid")
 
         while vip_address.endswith('/'):
             vip_address = vip_address[:-1]
@@ -423,7 +427,7 @@ def do_listener():
 
 
 def wizard():
-    """ Routine for configuring an insalled volttron instance.
+    """Routine for configuring an insalled volttron instance.
 
     The function interactively sets up the instance for working with volttron
     central and the discovery service.
@@ -471,18 +475,26 @@ def wizard():
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    group = parser.add_mutually_exclusive_group()
 
-    parser.add_argument('agent', nargs='*',
-                        help='List of agents to configure {}'
-                        .format(available_agents.keys()))
+    agent_list = '\n\t' + '\n\t'.join(sorted(available_agents.keys()))
+    group.add_argument('--list-agents', action='store_true', dest='list_agents',
+                       help='list configurable agents{}'.format(agent_list))
+
+    group.add_argument('--agent', nargs='+',
+                        help='configure listed agents')
 
     args = parser.parse_args()
     fail_if_instance_running()
     _load_config()
 
-    if not args.agent:
+    if args.list_agents:
+        print "Agents available to configure:{}".format(agent_list)
+
+    elif not args.agent:
         wizard()
+
     else:
         # Warn about unknown agents
         for agent in args.agent:

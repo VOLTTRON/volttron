@@ -139,10 +139,14 @@ they can be listed at the command line.
 
 ::
 
-    usage: volttron-cfg [-h] [agent [agent ...]]
-
-    positional arguments:
-      agent       List of agents to configure ['vcp', 'vc', 'platform_historian']
+    usage: volttron-cfg [-h] [--list-agents | --agent AGENT [AGENT ...]]
 
     optional arguments:
-      -h, --help  show this help message and exit
+      -h, --help            show this help message and exit
+      --list-agents         list configurable agents
+                                listener
+                                platform_historian
+                                vc
+                                vcp
+      --agent AGENT [AGENT ...]
+                            configure listed agents
