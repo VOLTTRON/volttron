@@ -29,7 +29,7 @@ from volttron.platform.vip.agent import Agent
 from volttron.platform.aip import AIPplatform
 from volttron.platform import packaging
 from volttron.platform.agent import utils
-from volttron.platform.keystore import KeyStore
+from volttron.platform.keystore import KeyStore, KnownHostsStore
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -418,6 +418,13 @@ class PlatformWrapper:
 
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
+
+        # Add platform's public key to known hosts file
+        publickey = self.keystore.public()
+        known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
+        known_hosts = KnownHostsStore(known_hosts_file)
+        known_hosts.add(self.opts['vip_local_address'], publickey)
+        known_hosts.add(self.opts['vip_address'], publickey)
 
         # Set up the configuration file based upon the passed parameters.
         parser = configparser.ConfigParser()
