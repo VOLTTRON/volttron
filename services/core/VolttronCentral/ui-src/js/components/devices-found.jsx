@@ -9,8 +9,10 @@ var ConfirmForm = require('./confirm-form');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var devicesStore = require('../stores/devices-store');
-let socket = io('https://localhost:3000');
+
 var CsvParse = require('babyparse');
+
+var ws, websocket;
 
 class DevicesFound extends BaseComponent {
     constructor(props) {
@@ -18,25 +20,42 @@ class DevicesFound extends BaseComponent {
         this._bind('_onStoresChange', '_uploadRegistryFile');
 
         this.state = {};
-        this.state.devices = devicesStore.getDevices(props.platform, props.bacnet);
-
-        if (socket)
-        {
-            socket.on('server:event', data => {
-                console.log("data: " + data);
-            });
-        }
+        // this.state.devices = devicesStore.getDevices(props.platform, props.bacnet);        
     }
     componentDidMount() {
         devicesStore.addChangeListener(this._onStoresChange);
+
+        websocket = "ws://" + window.location.host + "/vc/ws/iam"; // 'ws://%(host)s:%(port)s/ws';
+        if (window.WebSocket) {
+            ws = new WebSocket(websocket);
+        }
+        else if (window.MozWebSocket) {
+            ws = MozWebSocket(websocket);
+        }
+
+        ws.onmessage = function(evt)
+        {
+            devicesActionCreators.deviceDetected(evt.data, this.props.platform, this.props.bacnet);
+
+        }.bind(this);
     }
     componentWillUnmount() {
         devicesStore.removeChangeListener(this._onStoresChange);
+        ws.onmessage = null;
+    }
+    componentWillReceiveProps(nextProps) {
+        if (this.props.canceled !== nextProps.canceled)
+        {
+            if (nextProps.canceled)
+            {
+                ws.close();
+            }
+        }
     }
     _onStoresChange() {
         var devices = devicesStore.getDevices(this.props.platform, this.props.bacnet);
+        // this.setState({devices: devices});
         this.props.devicesloaded(devices.length > 0);
-        this.setState({devices: devices});
     }
     _configureDevice(device) {
 
@@ -53,7 +72,7 @@ class DevicesFound extends BaseComponent {
         }
 
         var deviceId = evt.target.dataset.key;
-        var device = this.state.devices.find(function (device) {
+        var device = this.props.devices.find(function (device) {
             return device.id === deviceId;
         });
 
@@ -104,7 +123,6 @@ class DevicesFound extends BaseComponent {
                     {
                         // this.setState({registry_config: fileName});       
                         devicesActionCreators.loadRegistry(device, results.data, fileName);
-                        console.log(JSON.stringify(results.data));
                     }
                 }
 
@@ -120,10 +138,10 @@ class DevicesFound extends BaseComponent {
     render() {        
         
         var devicesContainer;
-        if (this.state.devices.length)
+        if (this.props.devices.length)
         {
             var devices = 
-                this.state.devices.map(function (device) {
+                this.props.devices.map(function (device) {
 
                     var deviceId = device.id;
 
@@ -157,7 +175,7 @@ class DevicesFound extends BaseComponent {
 
                 }, this); 
 
-            var ths = this.state.devices[0].items.map(function (d, i) {
+            var ths = this.props.devices[0].items.map(function (d, i) {
                             return (<th key={d.key + "-" + i + "-th"} className="plain">{d.label}</th>); 
                         }); 
 
@@ -165,7 +183,7 @@ class DevicesFound extends BaseComponent {
             {
                 for (var i = devices.length - 1; i >= 0; i--)
                 {
-                    var device = this.state.devices.find(function (dev) {
+                    var device = this.props.devices.find(function (dev) {
                         return dev.id === devices[i].key;
                     });
 

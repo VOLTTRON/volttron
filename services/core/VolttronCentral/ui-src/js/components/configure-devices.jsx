@@ -10,7 +10,6 @@ var statusIndicatorActionCreators = require('../action-creators/status-indicator
 import DevicesFound from './devices-found';
 const scanDuration = 10000; // 10 seconds
 
-
 class ConfigureDevices extends BaseComponent {
     constructor(props) {
         super(props);
@@ -59,8 +58,10 @@ class ConfigureDevices extends BaseComponent {
                 clearTimeout(this._scanTimeout);    
             }
         }
-
-
+        else
+        {
+            this.setState({devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyUuid)});
+        }
     }
     _onDeviceMethodChange(evt) {
 
@@ -300,6 +301,7 @@ class ConfigureDevices extends BaseComponent {
             {      
                 devicesContainer = (
                     <DevicesFound 
+                        devices={this.state.devices}
                         devicesloaded={this._onDevicesLoaded} 
                         platform={this.state.platform} 
                         canceled={this.state.canceled}
@@ -360,6 +362,7 @@ function getInitialState() {
         state.address = "";
 
         state.newScan = true;
+        state.devices = [];
         
         if (state.deviceMethod === "scanForDevices")
         {

@@ -22,39 +22,40 @@ var devicesActionCreators = {
     },
     scanForDevices: function (platformUuid, bacnetProxyUuid, low, high, address) {
 
-        // var authorization = authorizationStore.getAuthorization();
+        var authorization = authorizationStore.getAuthorization();
 
-        // return new rpc.Exchange({
-        //     method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.who_is',
-        //     authorization: authorization,
-        //     params: {
+        return new rpc.Exchange({
+            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.who_is',
+            authorization: authorization,
+            params: {
                 
-        //     },
-        // }).promise
-        //     .then(function (result) {
+            },
+        }).promise
+            .then(function (result) {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.LISTEN_FOR_IAMS,
+                    platformUuid: platformUuid,
+                    bacnetProxyUuid: bacnetProxyUuid,
+                    low_device_id: low,
+                    high_device_id: high,
+                    target_address: address
+                });                
+            })
+            .catch(rpc.Error, function (error) {
 
-        //         if (result)
-        //         {
-        //             console.log(JSON.stringify(result));
+                error.message = "Unable to scan for devices. " + error.message + ".";
 
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.LISTEN_FOR_IAMS,
-                        platformUuid: platformUuid,
-                        bacnetProxyUuid: bacnetProxyUuid,
-                        low_device_id: low,
-                        high_device_id: high,
-                        target_address: address
-                    });
-            //     }
-                
-            // })
-            // .catch(rpc.Error, function (error) {
-
-            //     error.message = "Unable to scan for devices. " + error.message + ".";
-
-            //     handle401(error, error.message);
-            // });
+                handle401(error, error.message);
+            });
         
+    },
+    deviceDetected: function (device, platform, bacnet) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.DEVICE_DETECTED,
+            platform: platform,
+            bacnet: bacnet,
+            device: device
+        });
     },
     cancelScan: function (platform) {
         dispatcher.dispatch({
