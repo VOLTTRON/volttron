@@ -567,7 +567,7 @@ def start_volttron_process(opts):
         auth_file = os.path.join(opts.volttron_home, 'auth.json')
         auth = AuthService(
             auth_file, opts.aip, address=address, identity='auth',
-            allow_any=opts.developer_mode)
+            allow_any=opts.developer_mode, enable_store=False)
 
         event = gevent.event.Event()
         auth_task = gevent.spawn(auth.core.run, event)
@@ -590,9 +590,11 @@ def start_volttron_process(opts):
         # auto-starting agents
         services = [
             ControlService(opts.aip, address=address, identity='control',
-                           tracker=tracker, heartbeat_autostart=True),
+                           tracker=tracker, heartbeat_autostart=True,
+                           enable_store=False),
             PubSubService(protected_topics_file, address=address,
-                          identity='pubsub', heartbeat_autostart=True),
+                          identity='pubsub', heartbeat_autostart=True,
+                          enable_store=False),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
@@ -601,7 +603,7 @@ def start_volttron_process(opts):
                 address=address,
                 bind_web_address=opts.bind_web_address,
                 volttron_central_address=opts.volttron_central_address,
-                aip=opts.aip)
+                aip=opts.aip, enable_store=False)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
