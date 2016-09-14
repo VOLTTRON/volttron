@@ -260,7 +260,8 @@ class Router(BaseRouter):
                  context=None, secretkey=None, publickey=None,
                  default_user_id=None, monitor=False, tracker=None,
                  volttron_central_address=None, instance_name=None,
-                 bind_web_address=None, volttron_central_serverkey=None):
+                 bind_web_address=None, volttron_central_serverkey=None,
+                 developer_mode=False):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
@@ -284,6 +285,7 @@ class Router(BaseRouter):
         self._volttron_central_serverkey = volttron_central_serverkey
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address
+        self._developer_mode = developer_mode
 
     def setup(self):
         sock = self.socket
@@ -298,8 +300,9 @@ class Router(BaseRouter):
             addr.identity = identity
         if not addr.domain:
             addr.domain = 'vip'
-        addr.server = 'CURVE'
-        addr.secretkey = self._secretkey
+        if not self._developer_mode:
+            addr.server = 'CURVE'
+            addr.secretkey = self._secretkey
         addr.bind(sock)
         _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:
@@ -540,7 +543,8 @@ def start_volttron_process(opts):
                    volttron_central_address=opts.volttron_central_address,
                    volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
-                   bind_web_address=opts.bind_web_address).run()
+                   bind_web_address=opts.bind_web_address,
+                   developer_mode=opts.developer_mode).run()
 
         except Exception:
             _log.exception('Unhandled exception in router loop')
