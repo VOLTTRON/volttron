@@ -520,7 +520,10 @@ def start_volttron_process(opts):
         if publickey:
             _log.info('public key: %s', encode_key(publickey))
             # Authorize the platform key:
-            AuthFile().add(AuthEntry(credentials=encode_key(publickey)))
+            entry = AuthEntry(credentials=encode_key(publickey),
+                        user_id='platform',
+                        comments='Automatically added by platform on start')
+            AuthFile().add(entry)
             # Add platform key to known-hosts file:
             known_hosts = KnownHostsStore()
             known_hosts.add(opts.vip_local_address, encode_key(publickey))
