@@ -15,8 +15,7 @@ class ConfigureDevices extends BaseComponent {
         super(props);
         this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange',
                     '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan',
-                    '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_showCancel', '_resumeScan', 
-                    '_cancelScan', '_onDevicesLoaded', 'componentWillUnmount');
+                    '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded', 'componentWillUnmount');
 
         this.state = getInitialState();
     }
@@ -82,9 +81,21 @@ class ConfigureDevices extends BaseComponent {
         this.setState({ selectedProxyUuid: selectedProxyUuid });
     }
     _onDeviceStart(evt) {
+
         this.setState({ deviceStart: evt.target.value });
+
+        if (!this.state.startedInputtingDeviceEnd)
+        {
+            this.setState({ deviceEnd: evt.target.value });            
+        }
     }
     _onDeviceEnd(evt) {
+
+        if (!this.state.startedInputtingDeviceEnd)
+        {
+            this.setState({startedInputtingDeviceEnd: true});
+        }
+
         this.setState({ deviceEnd: evt.target.value });
     }
     _onAddress(evt) {
@@ -360,6 +371,8 @@ function getInitialState() {
         state.deviceStart = "";
         state.deviceEnd = "";
         state.address = "";
+
+        state.startedInputtingDeviceEnd = false;
 
         state.newScan = true;
         state.devices = [];

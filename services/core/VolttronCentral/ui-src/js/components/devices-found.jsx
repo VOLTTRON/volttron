@@ -8,6 +8,7 @@ import ConfigureRegistry from './configure-registry';
 var ConfirmForm = require('./confirm-form');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var devicesStore = require('../stores/devices-store');
 
 var CsvParse = require('babyparse');
@@ -17,15 +18,37 @@ var ws, websocket;
 class DevicesFound extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind('_onStoresChange', '_uploadRegistryFile');
+        this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpSocket');
 
-        this.state = {};
-        // this.state.devices = devicesStore.getDevices(props.platform, props.bacnet);        
+        this.state = {};       
     }
     componentDidMount() {
         devicesStore.addChangeListener(this._onStoresChange);
+        this._setUpSocket()
+    }
+    componentWillUnmount() {
+        devicesStore.removeChangeListener(this._onStoresChange);
+    }
+    componentWillReceiveProps(nextProps) {
+        if (this.props.canceled !== nextProps.canceled)
+        {
+            if (nextProps.canceled)
+            {
+                ws.close();
+            }
+            else
+            {
+                this._setUpSocket();
+            }
+        }
 
-        websocket = "ws://" + window.location.host + "/vc/ws/iam"; // 'ws://%(host)s:%(port)s/ws';
+        if (nextProps.devices !== this.props.devices)
+        {
+            this.props.devicesloaded(nextProps.devices.length > 0);
+        }
+    }
+    _setUpSocket() {
+        websocket = "ws://" + window.location.host + "/vc/ws/iam";
         if (window.WebSocket) {
             ws = new WebSocket(websocket);
         }
@@ -37,25 +60,32 @@ class DevicesFound extends BaseComponent {
         {
             devicesActionCreators.deviceDetected(evt.data, this.props.platform, this.props.bacnet);
 
+            var warnings = devicesStore.getWarnings();
+
+            if (!objectIsEmpty(warnings))
+            {
+                for (var key in warnings)
+                {
+                    var values = warnings[key].items.join(", ");
+
+                    statusIndicatorActionCreators.openStatusIndicator(
+                        "error", 
+                        warnings[key].message + "ID: " + values, 
+                        values, 
+                        "left"
+                    );
+                }
+            }
+                
+            function objectIsEmpty(obj)
+            {
+                return Object.keys(obj).length === 0;
+            }
+
         }.bind(this);
     }
-    componentWillUnmount() {
-        devicesStore.removeChangeListener(this._onStoresChange);
-        ws.onmessage = null;
-    }
-    componentWillReceiveProps(nextProps) {
-        if (this.props.canceled !== nextProps.canceled)
-        {
-            if (nextProps.canceled)
-            {
-                ws.close();
-            }
-        }
-    }
     _onStoresChange() {
-        var devices = devicesStore.getDevices(this.props.platform, this.props.bacnet);
-        // this.setState({devices: devices});
-        this.props.devicesloaded(devices.length > 0);
+        // var devices = devicesStore.getDevices(this.props.platform, this.props.bacnet); 
     }
     _configureDevice(device) {
 
@@ -71,9 +101,11 @@ class DevicesFound extends BaseComponent {
             return;
         }
 
-        var deviceId = evt.target.dataset.key;
+        var deviceId = evt.target.dataset.id;
+        var deviceAddress = evt.target.dataset.address;
+
         var device = this.props.devices.find(function (device) {
-            return device.id === deviceId;
+            return ((device.id === deviceId) && (device.address === deviceAddress));
         });
 
         if (device)
@@ -99,8 +131,6 @@ class DevicesFound extends BaseComponent {
                             cancelText="OK"
                         ></ConfirmForm>
                     );
-
-                    // this.setState({registry_config: this.state.registry_config});
                 }
                 else 
                 {
@@ -132,7 +162,7 @@ class DevicesFound extends BaseComponent {
         }
         else
         {
-            alert("Couldn't find device by ID " + deviceId);
+            alert("Couldn't find device by ID " + deviceId + " and address " + deviceAddress);
         }               
     }
     render() {        
@@ -144,14 +174,15 @@ class DevicesFound extends BaseComponent {
                 this.props.devices.map(function (device) {
 
                     var deviceId = device.id;
+                    var deviceAddress = device.address;
 
                     var tds = device.items.map(function (d, i) {
                             return (<td key={d.key + "-" + i} className="plain">{ d.value }</td>)
                         });
 
                     return (
-                        <tr key={deviceId}>
-                            <td key={"config-arrow-" + deviceId} className="plain">
+                        <tr key={deviceId + deviceAddress}>
+                            <td key={"config-arrow-" + deviceId + deviceAddress} className="plain">
                                 <div className={ device.configuring ? "configure-arrow rotateConfigure" : "configure-arrow" }
                                     onClick={this._configureDevice.bind(this, device)}>
                                         &#9654;
@@ -160,13 +191,14 @@ class DevicesFound extends BaseComponent {
 
                             { tds }
 
-                            <td key={"file-upload-" + deviceId} className="plain">
+                            <td key={"file-upload-" + deviceId + deviceAddress} className="plain">
                                 <div className="fileButton">
                                     <div><i className="fa fa-file"></i></div>
                                     <input 
                                         className="uploadButton" 
                                         type="file"
-                                        data-key={deviceId}
+                                        data-id={deviceId}
+                                        data-address={deviceAddress}
                                         onChange={this._uploadRegistryFile}/>
                                 </div>
                             </td>
@@ -184,14 +216,14 @@ class DevicesFound extends BaseComponent {
                 for (var i = devices.length - 1; i >= 0; i--)
                 {
                     var device = this.props.devices.find(function (dev) {
-                        return dev.id === devices[i].key;
+                        return ((dev.id + dev.address) === devices[i].key);
                     });
 
                     if (device) {
                         if (device.registryConfig.length > 0)
                         {
                             var configureRegistry = (
-                                <tr key={"config-" + device.id}>
+                                <tr key={"config-" + device.id + device.address}>
                                     <td colSpan={7}>
                                         <ConfigureRegistry device={device}/>
                                     </td>

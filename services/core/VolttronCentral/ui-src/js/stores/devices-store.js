@@ -15,8 +15,9 @@ var _backupData = {};
 var _registryFiles = {};
 var _backupFileName = {};
 var _platform;
-var _devices = {};
+var _devices = [];
 var _newScan = false;
+var _warnings = {};
 
 var _placeHolders = [ [
     {"key": "Point_Name", "value": "", "editable": true},
@@ -971,23 +972,24 @@ devicesStore.getState = function () {
     return { action: _action, view: _view, device: _device, platform: _platform };
 };
 
-// devicesStore.getFilteredRegistryValues = function (device, filterStr) {
-
-//     return _data[device.deviceId].filter(function (item) {
-//         var pointName = item.find(function (pair) {
-//             return pair.key === "Point_Name";
-//         })
-
-//         return (pointName ? (pointName.value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1) : false);
-//     });
-// }
-
 devicesStore.getRegistryValues = function (device) {
 
-    return (_devices[device.id].registryConfig.length ? 
-                JSON.parse(JSON.stringify(_devices[device.id].registryConfig)) : 
-                    JSON.parse(JSON.stringify(_placeHolders)));
+    var device = devicesStore.getDeviceRef(device.id, device.address);
+    var config = [];
+
+    if (device)
+    {
+        if (device.registryConfig.length)
+        {
+            config = JSON.parse(JSON.stringify(device.registryConfig));
+        }
+    }
+    else
+    {
+        config = JSON.parse(JSON.stringify(_placeHolders));
+    }
     
+    return config;    
 };
 
 devicesStore.getDataLoaded = function (device) {
@@ -1003,25 +1005,41 @@ devicesStore.getRegistryFile = function (device) {
     
 };
 
+devicesStore.getWarnings = function () {
+    return _warnings;
+};
+
 devicesStore.getDevices = function (platform, bacnetUuid) {
 
-    var devices = [];
-
-    for (var key in _devices)
-    {
-        if ((_devices[key].platformUuid === platform.uuid) 
-            && (_devices[key].bacnetProxyUuid === bacnetUuid))
-        {
-            devices.push(_devices[key]);
-        }
-    }
+    var devices = _devices.filter(function (device) {
+        return ((device.platformUuid === platform.uuid) 
+            && (device.bacnetProxyUuid === bacnetUuid));
+    });
 
     return JSON.parse(JSON.stringify(devices));
 }
 
-devicesStore.getDevice = function (deviceId) {
+devicesStore.getDeviceByID = function (deviceId) {
 
-    return JSON.parse(JSON.stringify(_devices[deviceId]));
+    var device = _devices.find(function (dvc) {
+        return (dvc.id === deviceId);
+    });
+
+    return device;
+}
+
+devicesStore.getDeviceRef = function (deviceId, deviceAddress) {
+
+    var device = _devices.find(function (dvc) {
+        return ((dvc.id === deviceId) && (dvc.address === deviceAddress));
+    });
+
+    return device;
+}
+
+devicesStore.getDevice = function (deviceId, deviceAddress) {
+
+    return JSON.parse(JSON.stringify(devicesStore.getDeviceRef(deviceId, deviceAddress)));
 }
 
 devicesStore.getNewScan = function () {
@@ -1030,7 +1048,16 @@ devicesStore.getNewScan = function () {
 }
 
 devicesStore.getSelectedPoints = function (device) {
-    return _devices[device.id].selectedPoints;
+
+    var device = devicesStore.getDeviceRef(device.id, device.address);
+    var selectedPoints = [];
+
+    if (device)
+    {
+        selectedPoints = device.selectedPoints;
+    }
+
+    return selectedPoints;
 }
 
 devicesStore.getPreppedData = function (data) {
@@ -1062,7 +1089,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
         case ACTION_TYPES.CONFIGURE_DEVICES:
             _platform = action.platform;
-            _devices = {};
+            _devices = [];
             _newScan = true;
             devicesStore.emitChange();
             break;
@@ -1073,33 +1100,58 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _device = null;
             devicesStore.emitChange();
             break;
-        case ACTION_TYPES.SCAN_FOR_DEVICES:
-            _action = "start_scan";
-            _view = "Detect Devices";
-            _device = null;
-            devicesStore.emitChange();
-            break;
+        // case ACTION_TYPES.SCAN_FOR_DEVICES:
+        //     _action = "start_scan";
+        //     _view = "Detect Devices";
+        //     _device = null;
+        //     devicesStore.emitChange();
+        //     break;
         case ACTION_TYPES.LISTEN_FOR_IAMS:
             _newScan = false;
-            _devices = {};
+            _warnings = {};
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.DEVICE_DETECTED:
             _action = "device_detected";
             _view = "Devices Found";
-            loadDevice(action.device, action.platform, action.bacnet);
+            var warning = loadDevice(action.device, action.platform, action.bacnet);
+
+            if (!objectIsEmpty(warning))
+            {
+                if (_warnings.hasOwnProperty(warning.key))
+                {
+                    _warnings[warning.key].items.push(warning.value);
+                }
+                else
+                {
+                    _warnings[warning.key] = {
+                        message: warning.message,
+                        items: [
+                            warning.value
+                        ]
+                    };
+                }
+            }
             devicesStore.emitChange();
             break;
-        case ACTION_TYPES.LIST_DETECTED_DEVICES:
-            _action = "show_new_devices";
-            _view = "Configure Devices";
-            _device = null;
-            devicesStore.emitChange();
-            break;
+        // case ACTION_TYPES.LIST_DETECTED_DEVICES:
+        //     _action = "show_new_devices";
+        //     _view = "Configure Devices";
+        //     _device = null;
+        //     devicesStore.emitChange();
+        //     break;
         case ACTION_TYPES.CONFIGURE_DEVICE:
             _action = "configure_device";
             _view = "Configure Device";
-            _devices[action.device.id] = action.device;
+            _device = action.device;
+
+            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+
+            if (device)
+            {
+                device.configuring = action.device.configuring; 
+            }
+            // _devices[action.device.id] = action.device;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.CANCEL_REGISTRY:
@@ -1108,8 +1160,17 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _device = action.device;
             // _data[_device.deviceId] = (_backupData.hasOwnProperty(_device.deviceId) ? JSON.parse(JSON.stringify(_backupData[_device.deviceId])) : []);
             // _registryFiles[_device.deviceId] = (_backupFileName.hasOwnProperty(_device.deviceId) ? _backupFileName[_device.deviceId] : "");
-            _devices[_device.id].registryConfig = [];
-            _devices[_device.id].configuring = false;
+            
+            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+
+            if (device)
+            {
+                device.registryConfig = [];
+                device.configuring = false;
+            }
+
+            // _devices[_device.id].registryConfig = [];
+            // _devices[_device.id].configuring = false;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.LOAD_REGISTRY:
@@ -1119,9 +1180,19 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
             // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
             // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
-            _devices[_device.id].registryConfig = devicesStore.getPreppedData(action.data);
-            _devices[_device.id].configuring = true;
-            _devices[_device.id].selectedPoints = [];
+
+            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+
+            if (device)
+            {
+                device.registryConfig = devicesStore.getPreppedData(action.data);
+                device.configuring = true;
+                device.selectedPoints = [];
+            }
+
+            // _devices[_device.id].registryConfig = devicesStore.getPreppedData(action.data);
+            // _devices[_device.id].configuring = true;
+            // _devices[_device.id].selectedPoints = [];
             _registryFiles[_device.id] = action.file;             
             devicesStore.emitChange();
             break;
@@ -1135,33 +1206,40 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             var i = -1;
             var keyProps = [];
-            var attributes = _devices[_device.id].registryConfig.find(function (attributes, index) {
-                var match = (attributes[0].value === action.attributes[0].value );
 
-                if (match)
-                {
-                    i = index;
-                }
+            var device = devicesStore.getDeviceRef(_device.id, _device.address);
 
-                return match;
-            });
+            if (device)
+            {
+                var attributes = device.registryConfig.find(function (attributes, index) {
+                    var match = (attributes[0].value === action.attributes[0].value );
 
-            if (attributes)
-            {                
-                attributes = action.attributes;
-
-                attributes.forEach(function (item) {
-                    if (item.keyProp)
+                    if (match)
                     {
-                        keyProps.push(item.key);
+                        i = index;
                     }
+
+                    return match;
                 });
 
-                _devices[_device.id].registryConfig[i] = JSON.parse(JSON.stringify(attributes));
+                if (attributes)
+                {                
+                    attributes = action.attributes;
+
+                    attributes.forEach(function (item) {
+                        if (item.keyProp)
+                        {
+                            keyProps.push(item.key);
+                        }
+                    });
+
+                    device.registryConfig[i] = JSON.parse(JSON.stringify(attributes));
+                }
+
+                device.keyProps = keyProps;
+                device.selectedPoints = action.selectedPoints;
             }
 
-            _devices[_device.id].keyProps = keyProps;
-            _devices[_device.id].selectedPoints = action.selectedPoints;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.EDIT_REGISTRY:
@@ -1172,53 +1250,95 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _backupFileName[_device.deviceId] = (_registryFiles.hasOwnProperty(_device.deviceId) ? _registryFiles[_device.deviceId] : "");
             devicesStore.emitChange();
             break;
-        case ACTION_TYPES.GENERATE_REGISTRY:
-            _action = "configure_registry";
-            _view = "Registry Configuration";
-            _device = action.device;
-            _backupData[_device.deviceId] = (_data.hasOwnProperty(_device.deviceId) ? JSON.parse(JSON.stringify(_data[_device.deviceId])) : []);
-            _backupFileName[_device.deviceId] = (_registryFiles.hasOwnProperty(_device.deviceId) ? _registryFiles[_device.deviceId] : "");
-            _data[_device.deviceId] = [];
-            devicesStore.emitChange();
-            break;
+        // case ACTION_TYPES.GENERATE_REGISTRY:
+        //     _action = "configure_registry";
+        //     _view = "Registry Configuration";
+        //     _device = action.device;
+        //     _backupData[_device.deviceId] = (_data.hasOwnProperty(_device.deviceId) ? JSON.parse(JSON.stringify(_data[_device.deviceId])) : []);
+        //     _backupFileName[_device.deviceId] = (_registryFiles.hasOwnProperty(_device.deviceId) ? _registryFiles[_device.deviceId] : "");
+        //     _data[_device.deviceId] = [];
+        //     devicesStore.emitChange();
+        //     break;
         case ACTION_TYPES.SAVE_REGISTRY:
             _action = "configure_device";
             _view = "Configure Device";
             _device = action.device;
             // _data[_device.deviceId] = JSON.parse(JSON.stringify(action.data));
-            _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
-            _devices[_device.id].configuring = false;
+
+            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+
+            if (device)
+            {
+                device.registryConfig = JSON.parse(JSON.stringify(action.data));
+                device.configuring = false;
+            }
+
+            // _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
+            // _devices[_device.id].configuring = false;
             devicesStore.emitChange();
             break;
     }
 
+    function objectIsEmpty(obj)
+    {
+        return Object.keys(obj).length === 0;
+    }
+
     function loadDevice(data, platform, bacnetUuid) 
     {
+        var warningMsg = {};
+
         if (data)
         {
             var device = JSON.parse(data);
+            var deviceIdStr = device.device_id.toString();
+            var addDevice = true;
 
-            _devices[device.device_id.toString()] = {
-                id: device.device_id.toString(),
-                vendor_id: device.vendor_id,
-                address: device.address,
-                max_apdu_length: device.max_apdu_length,
-                segmentation_supported: device.segmentation_supported,
-                configuring: false,
-                platformUuid: platform.uuid,
-                bacnetProxyUuid: bacnetUuid,
-                registryConfig: [],
-                keyProps: ["volttron_point_name", "units", "writable"],
-                selectedPoints: [],
-                items: [ 
-                    { key: "address", label: "Address", value: device.address }, 
-                    { key: "deviceId", label: "Device ID", value: device.device_id.toString() }, 
-                    { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
-                    { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
-                    { key: "type", label: "Type", value: "BACnet" }
-                ]
-            };
-        }    
+            var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
+
+            if (alreadyInList)
+            {
+                if (alreadyInList.address !== device.address)
+                {
+                    warningMsg = { 
+                        key: "duplicate_id", 
+                        message: "Duplicate device IDs found. What the heck?",
+                        value: deviceIdStr 
+                    };
+                }
+                else // If the IDs are the same and the addresses are the same, assume
+                {   // it's an IAM for a device we already know about
+
+                    addDevice = false;
+                }
+            }
+            
+            if (addDevice) 
+            {
+                _devices.push({
+                    id: deviceIdStr,
+                    vendor_id: device.vendor_id,
+                    address: device.address,
+                    max_apdu_length: device.max_apdu_length,
+                    segmentation_supported: device.segmentation_supported,
+                    configuring: false,
+                    platformUuid: platform.uuid,
+                    bacnetProxyUuid: bacnetUuid,
+                    registryConfig: [],
+                    keyProps: ["volttron_point_name", "units", "writable"],
+                    selectedPoints: [],
+                    items: [ 
+                        { key: "address", label: "Address", value: device.address }, 
+                        { key: "deviceId", label: "Device ID", value: deviceIdStr }, 
+                        { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
+                        { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
+                        { key: "type", label: "Type", value: "BACnet" }
+                    ]
+                });
+            }
+        }
+
+        return warningMsg;
     }
 });
 

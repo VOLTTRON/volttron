@@ -24,12 +24,27 @@ var devicesActionCreators = {
 
         var authorization = authorizationStore.getAuthorization();
 
+        var params = {};
+
+        if (low)
+        {
+            params.low_device_id = Number(low);
+        }
+
+        if (high)
+        {
+            params.high_device_id = Number(high);
+        }
+
+        if (address)
+        {
+            params.target_address = address;
+        }
+
         return new rpc.Exchange({
             method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.who_is',
             authorization: authorization,
-            params: {
-                
-            },
+            params: params,
         }).promise
             .then(function (result) {
                 dispatcher.dispatch({
@@ -63,12 +78,12 @@ var devicesActionCreators = {
             platform: platform
         });
     },
-    listDetectedDevices: function (platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.LIST_DETECTED_DEVICES,
-            platform: platform
-        });
-    },
+    // listDetectedDevices: function (platform) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.LIST_DETECTED_DEVICES,
+    //         platform: platform
+    //     });
+    // },
     configureDevice: function (device) {
         dispatcher.dispatch({
             type: ACTION_TYPES.CONFIGURE_DEVICE,
@@ -81,12 +96,12 @@ var devicesActionCreators = {
     //         device: device
     //     });
     // },
-    generateRegistry: function (device) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.GENERATE_REGISTRY,
-            device: device
-        });
-    },
+    // generateRegistry: function (device) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.GENERATE_REGISTRY,
+    //         device: device
+    //     });
+    // },
     cancelRegistry: function (device) {
         dispatcher.dispatch({
             type: ACTION_TYPES.CANCEL_REGISTRY,
