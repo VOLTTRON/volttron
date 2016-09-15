@@ -297,7 +297,9 @@ class PlatformWrapper:
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
-                            volttron_home=self.volttron_home, **kwargs)
+                            volttron_home=self.volttron_home,
+                            developer_mode=(not self.encrypt),
+                            **kwargs)
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
 
         # Automatically add agent's credentials to auth.json file
@@ -739,13 +741,19 @@ class PlatformWrapper:
         self.logit('Starting agent {}'.format(agent_uuid))
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
-        cmd = ['volttron-ctl', 'start', agent_uuid]
+        cmd = ['volttron-ctl']
+        if self.opts.get('developer_mode', False):
+            cmd.append('--developer-mode')
+        cmd.extend(['start', agent_uuid])
         p = Popen(cmd, env=self.env,
                   stdout=sys.stdout, stderr=sys.stderr)
         p.wait()
 
         # Confirm agent running
-        cmd = ['volttron-ctl', 'status', agent_uuid]
+        cmd = ['volttron-ctl']
+        if self.opts.get('developer_mode', False):
+            cmd.append('--developer-mode')
+        cmd.extend(['status', agent_uuid])
         res = subprocess.check_output(cmd, env=self.env)
         self.logit("Subprocess res is {}".format(res))
         assert 'running' in res
@@ -760,7 +768,10 @@ class PlatformWrapper:
         # Confirm agent running
         _log.debug("STOPPING AGENT: {}".format(agent_uuid))
         try:
-            cmd = ['volttron-ctl', 'stop', agent_uuid]
+            cmd = ['volttron-ctl']
+            if self.opts.get('developer_mode', False):
+                cmd.append('--developer-mode')
+            cmd.extend(['stop', agent_uuid])
             res = subprocess.check_output(cmd, env=self.env)
         except CalledProcessError as ex:
             _log.error("Exception: {}".format(ex))
@@ -777,7 +788,10 @@ class PlatformWrapper:
         """Remove the agent specified by agent_uuid"""
         _log.debug("REMOVING AGENT: {}".format(agent_uuid))
         try:
-            cmd = ['volttron-ctl', 'remove', agent_uuid]
+            cmd = ['volttron-ctl']
+            if self.opts.get('developer_mode', False):
+                cmd.append('--developer-mode')
+            cmd.extend(['remove', agent_uuid])
             res = subprocess.check_output(cmd, env=self.env)
         except CalledProcessError as ex:
             _log.error("Exception: {}".format(ex))
@@ -789,7 +803,10 @@ class PlatformWrapper:
     def agent_status(self, agent_uuid):
         _log.debug("AGENT_STATUS: {}".format(agent_uuid))
         # Confirm agent running
-        cmd = ['volttron-ctl', 'status', agent_uuid]
+        cmd = ['volttron-ctl']
+        if self.opts.get('developer_mode', False):
+            cmd.append('--developer-mode')
+        cmd.extend(['status', agent_uuid])
         pid = None
         try:
             res = subprocess.check_output(cmd, env=self.env)
