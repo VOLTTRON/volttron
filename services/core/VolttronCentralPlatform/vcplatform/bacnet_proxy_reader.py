@@ -1,5 +1,7 @@
+from csv import DictWriter
 import logging
 import weakref
+from cStringIO import StringIO
 
 from bacpypes.object import get_datatype
 from bacpypes.primitivedata import (Enumerated, Unsigned, Boolean, Integer,
@@ -9,13 +11,78 @@ _log = logging.getLogger(__name__)
 
 
 class BACnetReader(object):
-    def __init__(self, rpc, bacnet_proxy_identity):
+    def __init__(self, rpc, bacnet_proxy_identity, response_function):
         _log.info("Creating {}".format(self.__class__.__name__))
         self._rpc = weakref.ref(rpc)
         self._proxy_identity = bacnet_proxy_identity
+        self._response_function = response_function
+
+    def read_device_name(self, address, device_id):
+        try:
+            device_name = self.read_prop(address, "device", device_id,
+                                         "objectName")
+            _log.debug('device_name = ' + str(device_name))
+        except TypeError:
+            _log.debug("device missing objectName")
+            device_name = None
+        return device_name
+
+    def read_device_description(self, address, device_id):
+        try:
+            device_description = self.read_prop(address, "device", device_id,
+                                                "description")
+            _log.debug('description = ' + str(device_description))
+        except TypeError:
+            _log.debug('device missing description')
+            device_description = None
+        return device_description
+
+    def read_device_properties(self, target_address, device_id):
+        buffer = StringIO()
+        config_writer = DictWriter(buffer, ('Reference Point Name',
+                                            'Volttron Point Name',
+                                            'Units',
+                                            'Unit Details',
+                                            'BACnet Object Type',
+                                            'Property',
+                                            'Writable',
+                                            'Index',
+                                            'Write Priority',
+                                            'Notes'))
+        try:
+            object_count = self.read_prop(target_address, "device", device_id,
+                                          "objectList", index=0)
+            list_property = "objectList"
+        except TypeError:
+            object_count = self.read_prop(target_address, "device", device_id,
+                                          "structuredObjectList", index=0)
+            list_property = "structuredObjectList"
+
+        _log.debug('object_count = ' + str(object_count))
+
+        for object_index in xrange(1, object_count + 1):
+            _log.debug('object_device_index = ' + repr(object_index))
+
+            bac_object = self.read_prop(target_address,
+                                        "device",
+                                        device_id,
+                                        list_property,
+                                        index=object_index)
+
+            obj_type, index = bac_object
+            # Deals with the largest numbers that can be reported.
+            # see proxy_grab_bacnet_config.py
+            default_range_report = 1.0e+20
+            self.process_object(target_address, obj_type, index,
+                                default_range_report, config_writer)
+
+        sval = buffer.getvalue()
+        _log.debug('VALUE is: {}'.format(sval))
+        buffer.close()
+        return sval
 
     def read_props(self, address, parameters):
-        return self._rpc().call("platform.bacnet_proxy", "read_properties",
+        return self._rpc().call(self._proxy_identity, "read_properties",
                                 address,
                                 parameters).get(timeout=5)
 
@@ -26,8 +93,10 @@ class BACnetReader(object):
                                 index]}
 
         result = self.read_props(address, point_map)
-
-        return result.get("result")
+        try:
+            return result["result"]
+        except KeyError:
+            pass
 
     def process_device_object_reference(self, address, obj_type, obj_inst,
                                         property_name,
@@ -58,6 +127,9 @@ class BACnetReader(object):
                        config_writer):
         _log.debug('obj_type = ' + repr(obj_type))
         _log.debug('bacnet_index = ' + repr(index))
+        context=None
+        if obj_type == "device":
+            context = dict(address=address, device=index)
 
         writable = 'FALSE'
 
@@ -210,7 +282,7 @@ class BACnetReader(object):
                                                    "resolution")
                         object_notes = 'Resolution: {resolution:.6g}'.format(
                             resolution=res_value)
-                    except TypeError:
+                    except (TypeError, ValueError):
                         pass
 
                 if obj_type not in (
@@ -236,7 +308,7 @@ class BACnetReader(object):
                                 max=max_value)
                         else:
                             object_units_details = 'No limits.'
-                    except TypeError:
+                    except (TypeError, ValueError):
                         pass
 
                 if obj_type != 'analogInput':
@@ -247,14 +319,12 @@ class BACnetReader(object):
                             default=default_value)
                         object_units_details = object_units_details.strip()
                         # writable = 'TRUE'
-                    except TypeError:
-                        pass
-                    except ValueError:
+                    except (TypeError, ValueError):
                         pass
 
         _log.debug('  object units = ' + str(object_units))
         _log.debug('  object units details = ' + str(object_units_details))
-        _log.debug('  object notes = ' + object_notes)
+        _log.debug('  object notes = ' + str(object_notes))
 
         results = {}
         results['Reference Point Name'] = results[
@@ -266,5 +336,7 @@ class BACnetReader(object):
         results['Writable'] = writable
         results['Index'] = index
         results['Notes'] = object_notes
+
+        self._response_function(context, results)
 
         config_writer.writerow(results)

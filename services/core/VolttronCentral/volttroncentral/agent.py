@@ -148,7 +148,8 @@ class VolttronCentralAgent(Agent):
         """
         _log.info("{} constructing...".format(self.__name__))
 
-        super(VolttronCentralAgent, self).__init__(enable_web=True, **kwargs)
+        super(VolttronCentralAgent, self).__init__(enable_store=False,
+                                                   enable_web=True, **kwargs)
         # Load the configuration into a dictionary
         self._config = utils.load_config(config_path)
 
@@ -213,8 +214,8 @@ class VolttronCentralAgent(Agent):
                          'data', 'volttron.central.requeststore'))
 
         self.default_config = {"heartbeat_interval": 60}
-        self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"],
-                                  pattern="config")
+        # self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"],
+        #                           pattern="config")
 
     def configure(self, config_name, action, contents):
         pass
@@ -283,8 +284,9 @@ class VolttronCentralAgent(Agent):
                 else:
                     _log.error("Couldn't retrive device topic {} from platform "
                                "{}".format(lookup_topic, platform_uuid))
-        elif op_or_datatype == 'iam':
-            self.vip.web.send("/vc/ws/iam", jsonapi.dumps(message))
+        elif op_or_datatype in ('iam', 'configure'):
+            ws_endpoint = "/vc/ws/{}".format(op_or_datatype)
+            self.vip.web.send(ws_endpoint, jsonapi.dumps(message))
 
     @PubSub.subscribe("pubsub", "datalogger/platforms")
     def _on_platform_log_message(self, peer, sender, bus, topic, headers,
@@ -883,7 +885,10 @@ class VolttronCentralAgent(Agent):
                           'jsonrpc').get(timeout=10)
         self.vip.web.register_websocket(r'/vc/ws', None, None,
                                         self._received_data)
+
         self.vip.web.register_websocket(r'/vc/ws/iam')
+        self.vip.web.register_websocket(r'/vc/ws/configure',
+                                        received=self._configure_agent)
 
 
         # self.vip.rpc.call(MASTER_WEB, 'register_path_route', VOLTTRON_CENTRAL,
@@ -893,13 +898,15 @@ class VolttronCentralAgent(Agent):
             MASTER_WEB, 'get_bind_web_address').get(timeout=30)
 
         # Remove so that dynamic agents don't inherit the identity.
-        os.environ.pop('AGENT_VIP_IDENTITY')
+        if 'AGENT_VIP_IDENTITY' in os.environ:
+            os.environ.pop('AGENT_VIP_IDENTITY')
+
+    def _configure_agent(self, endpoint, message):
+        _log.debug('Configure agent: {} message: {}'.format(endpoint, message))
 
     def _received_data(self, endpoint, message):
         print('Received from endpoint {} message: {}'.format(endpoint, message))
         self.vip.web.send(endpoint, message)
-
-
 
     def __load_persist_data(self):
         persist_kv = None
@@ -959,7 +966,11 @@ class VolttronCentralAgent(Agent):
         """ Clean up the  agent code before the agent is killed
         """
         for v in self._platform_connections.values():
-            v.kill()
+            try:
+                if v is not None:
+                    v.kill()
+            except AttributeError:
+                pass
 
         self._platform_connections.clear()
 

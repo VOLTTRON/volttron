@@ -56,7 +56,7 @@
 # }}}
 
 
-from __future__ import absolute_import, print_function
+from __future__ import print_function
 
 import base64
 import requests
@@ -75,7 +75,6 @@ import urlparse
 import gevent
 import gevent.event
 import psutil
-from bacnet_proxy_reader import BACnetReader
 
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (
@@ -103,6 +102,10 @@ __version__ = '3.5.6'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
+# After setup logging
+from bacnet_proxy_reader import BACnetReader
+_log.debug('LOGGING SETUP?')
 
 
 class NotManagedError(StandardError):
@@ -514,8 +517,26 @@ class VolttronCentralPlatform(Agent):
         raise NotManagedError("Could not connect to specified volttron central")
 
     @RPC.export
+    def publish_bacnet_props(self, proxy_identity, address, device_id):
+
+        bn = BACnetReader(self.vip.rpc, proxy_identity, self._bacnet_response)
+        results = dict(address=address, device_id=device_id, device_name=None,
+                       device_description=None)
+
+        gevent.spawn(bn.read_device_properties, address, device_id)
+        return "PUBLISHING"
+
+    def _bacnet_response(self, context, results):
+        if context is not None:
+            results.update(context)
+        gevent.spawn(self._pub_to_vc, "configure", message=results)
+
+
+    @RPC.export
     def start_bacnet_scan(self, proxy_identity, low_device_id=None,
                           high_device_id=None, target_address=None):
+        """This function is a wrapper around the bacnet proxy scan.
+        """
         if proxy_identity not in self.vip.peerlist().get(timeout=5):
             raise Unreachable("Can't reach agent identity {}".format(
                 proxy_identity))
@@ -527,13 +548,27 @@ class VolttronCentralPlatform(Agent):
 
     @PubSub.subscribe('pubsub', topics.BACNET_I_AM)
     def _iam_handler(self, peer, sender, bus, topic, headers, message):
+        print('sender: {}'.format(sender))
+        proxy_identity = sender
+        address = message['address']
+        device_id = message['device_id']
+        bn = BACnetReader(self.vip.rpc, proxy_identity)
+        message['device_name'] = bn.read_device_name(address, device_id)
+        message['device_description'] = bn.read_device_description(address,
+                                                                   device_id)
+        self._pub_to_vc("iam", message=message)
+
+    def _pub_to_vc(self, topic_leaf, headers=None, message=None):
         vc = self._vc_connection()
+
         if not vc:
-            _log.error('Platform must have connection to vc to send iam')
+            _log.error('Platform must have connection to vc to publish {}'
+                       .format(topic_leaf))
         else:
-            _log.debug('Publishing iam response to vc')
-            topic = "platforms/{}/iam".format(self._local_instance_uuid)
-            vc.publish(topic=topic, message=message)
+            topic = "platforms/{}/{}".format(self._local_instance_uuid,
+                                                  topic_leaf)
+            _log.debug('Publishing to vc topic: {}'.format(topic))
+            vc.publish(topic=topic, headers=headers, message=message)
 
 
     @RPC.export
@@ -754,9 +789,12 @@ class VolttronCentralPlatform(Agent):
                 _log.debug("Calling method {} on agent {}"
                            .format(agent_method, agent_uuid))
                 _log.debug("Params is: {}".format(params))
-                if agent_method == 'start_bacnet_scan':
+                if agent_method in ('start_bacnet_scan', 'publish_bacnet_props'):
                     identity = params.pop("proxy_identity")
-                    result = self.start_bacnet_scan(identity, **params)
+                    if agent_method == 'start_bacnet_scan':
+                        result = self.start_bacnet_scan(identity, **params)
+                    elif agent_method == 'publish_bacnet_props':
+                        result = self.publish_bacnet_props(identity, **params)
                 else:
                     # find the identity of the agent so we can call it by name.
                     identity = self._control_connection.call('agent_vip_identity', agent_uuid)
@@ -944,7 +982,7 @@ def main(argv=sys.argv):
     :return:
     """
     # utils.vip_main(platform_agent)
-    utils.vip_main(VolttronCentralPlatform, identity = VOLTTRON_CENTRAL_PLATFORM)
+    utils.vip_main(VolttronCentralPlatform, identity=VOLTTRON_CENTRAL_PLATFORM)
 
 
 if __name__ == '__main__':
