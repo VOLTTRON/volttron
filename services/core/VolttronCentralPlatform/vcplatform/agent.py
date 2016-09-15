@@ -75,6 +75,7 @@ import urlparse
 import gevent
 import gevent.event
 import psutil
+from bacnet_proxy_reader import BACnetReader
 
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (
@@ -98,7 +99,7 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        METHOD_NOT_FOUND)
 from volttron.utils.persistance import load_create_store
 
-__version__ = '3.5.4'
+__version__ = '3.5.6'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
