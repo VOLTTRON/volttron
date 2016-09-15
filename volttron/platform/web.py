@@ -181,12 +181,12 @@ class MasterWebService(Agent):
     """
 
     def __init__(self, serverkey, identity, address, bind_web_address, aip,
-                 volttron_central_address=None):
+                 volttron_central_address=None, **kwargs):
         """Initialize the discovery service with the serverkey
 
         serverkey is the public key in order to access this volttron's bus.
         """
-        super(MasterWebService, self).__init__(identity, address)
+        super(MasterWebService, self).__init__(identity, address, **kwargs)
 
         self.bind_web_address = bind_web_address
         # if the web address is bound then we need to allow the web agent
