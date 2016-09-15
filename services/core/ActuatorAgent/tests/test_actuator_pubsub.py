@@ -1661,10 +1661,10 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     header = {
         'type': 'NEW_SCHEDULE',
         'taskID': taskid,
-        'priority': 'LOW'
+        'priority': 'HIGH'
     }
     start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=3))
+    end = str(datetime.now() + timedelta(seconds=10))
     msg = [
         [device, start, end]
     ]
