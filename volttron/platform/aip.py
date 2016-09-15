@@ -87,6 +87,8 @@ from .agent.utils import is_valid_identity
 from .messaging import topics
 from .packages import UnpackedPackage
 from .vip.agent import Agent
+from .keystore import KeyStore
+from .auth import AuthFile, AuthEntry
 
 try:
     from volttron.restricted import auth
@@ -301,7 +303,12 @@ class AIPplatform(object):
             else:
                 unpack(agent_wheel, dest=agent_path)
 
-            self._setup_agent_vip_id(agent_uuid, vip_identity=vip_identity)
+            final_identity = self._setup_agent_vip_id(agent_uuid,
+                                                      vip_identity=vip_identity)
+
+            name = self.agent_name(agent_uuid)
+            agent_path_with_name = os.path.join(agent_path, name)
+            self._authorize_agent_keys(agent_path_with_name, final_identity)
 
         except Exception:
             shutil.rmtree(agent_path)
@@ -356,6 +363,25 @@ class AIPplatform(object):
         if rm_id_template:
             os.remove(identity_template_filename)
             _log.debug('IDENTITY_TEMPLATE file removed.')
+
+        return final_identity
+
+    def _authorize_agent_keys(self, agent_path, identity):
+        data_dir = self._get_data_dir(agent_path)
+        keystore_path = os.path.join(data_dir, 'keystore.json')
+        keystore = KeyStore(keystore_path)
+        publickey = keystore.public()
+        entry = AuthEntry(credentials=publickey, user_id=identity,
+                          comments='Automatically added on agent install')
+        AuthFile().add(entry)
+
+    def _get_data_dir(self, agent_path):
+        pkg = UnpackedPackage(agent_path)
+        data_dir = os.path.join(os.path.dirname(pkg.distinfo),
+                                '{}.agent-data'.format(pkg.package_name))
+        if not os.path.exists(data_dir):
+            os.mkdir(data_dir)
+        return data_dir
 
     def get_all_agent_identities(self):
         results = set()
@@ -611,10 +637,8 @@ class AIPplatform(object):
             execenv = self._reserve_resources(resmon, execreqs)
         execenv.name = name or agent_path
         _log.info('starting agent %s', agent_path)
-        data_dir = os.path.join(os.path.dirname(pkg.distinfo),
-                                '{}.agent-data'.format(pkg.package_name))
-        if not os.path.exists(data_dir):
-            os.mkdir(data_dir)
+
+        data_dir = self._get_data_dir(agent_path)
         execenv.execute(argv, cwd=data_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[agent_uuid] = execenv
