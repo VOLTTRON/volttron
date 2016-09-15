@@ -3,6 +3,12 @@ Agent VIP IDENTITY Assignment Specification
 
 This document explains how an agent obtains it's VIP IDENTITY, how the platform sets an agent's VIP IDENTITY at startup, and what mechanisms are available to the user to set the VIP IDENTITY for any agent.
 
+What is a VIP IDENTITY
+----------------------
+
+A VIP IDENTITY is a platform instance unique identifier for agents.  The IDENTITY is used to route messages from one Agent through the VOLTTRON router to the recipiant Agent.  The VIP IDENTITY provides a consistant, user defined, and human readable character set to build a VIP IDENTITY.  VIP IDENTITIES should be composed of both upper and lowercase lettters, numbers and the following special caracters _.-.
+
+
 Runtime
 -------
 
@@ -48,11 +54,11 @@ The platform uses the following template to generate a VIP IDENTITY:
 
 .. code-block:: python
 
-    "{agent_name} #{n}"
+    "{agent_name}_{n}"
 
 {agent_name} is substituted with the name of the actual agent such as "listeneragent-0.1"
 
-{n} is a number to make VIP IDENTITY unique. {n} is set to the first unused number (starting from 1) for all installed instances of an agent. e.g. If there are 2 listener agents installed and the first (VIP IDENTITY listeneragent-0.1 #1) is uninstalled leaving the second (VIP IDENTITY "listeneragent-0.1 #2") a new listener agent will receive the VIP IDENTITY "listeneragent-0.1 #1" when installed. The next installed listener will receive a VIP IDENTITY of "listeneragent-0.1 #3".
+{n} is a number to make VIP IDENTITY unique. {n} is set to the first unused number (starting from 1) for all installed instances of an agent. e.g. If there are 2 listener agents installed and the first (VIP IDENTITY listeneragent-0.1_1) is uninstalled leaving the second (VIP IDENTITY "listeneragent-0.1_2") a new listener agent will receive the VIP IDENTITY "listeneragent-0.1_1" when installed. The next installed listener will receive a VIP IDENTITY of "listeneragent-0.1_3".
 
 The # sign is used to prevent confusing the agent version number with the installed instance number.
 
