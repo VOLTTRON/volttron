@@ -964,8 +964,7 @@ class ControlConnection(object):
         self.peer = peer
         self._server = BaseAgent(address=self.address, publickey=publickey,
                                  secretkey=secretkey, serverkey=serverkey,
-                                 enable_store=False,
-                                 identity=CONTROL_CONNECTION)
+                                 enable_store=False)
         self._greenlet = None
 
     @property
