@@ -120,7 +120,8 @@ class AggregateHistorian(Agent):
         @param kwargs:
         @return:
         """
-        _log.debug("In start of aggregate historian")
+        _log.debug("In start of aggregate historian. current time{}".format(
+            datetime.utcnow()))
         self.topic_id_map, name_map = self.get_topic_map()
         self.agg_topic_id_map = self.get_agg_topic_map()
         _log.debug("In start of aggregate historian. "
@@ -152,6 +153,9 @@ class AggregateHistorian(Agent):
                 agg_time_period,
                 use_calendar_periods,
                 agg_group['points'])
+        _log.debug("End of onstart method - current time{}".format(
+            datetime.utcnow()))
+
 
     def _init_agg_group(self, agg_group, agg_time_period):
         if 'points' not in agg_group:
@@ -287,7 +291,7 @@ class AggregateHistorian(Agent):
 
         _log.debug(
             "In _collect_aggregate_data: Time agg_time_period passed as arg  "
-            "{} ".format(agg_time_period))
+            "{} use_calendar={}".format(agg_time_period, use_calendar_periods))
         _log.debug("points passed as arg  {} ".format(points))
 
         start_time, end_time = \
@@ -358,7 +362,7 @@ class AggregateHistorian(Agent):
                                           topic_ids)
         finally:
             collection_time = AggregateHistorian.compute_next_collection_time(
-                end_time, agg_time_period, use_calendar_periods)
+                collection_time, agg_time_period, use_calendar_periods)
             _log.debug("Scheduling next collection at {}".format(collection_time))
             event = self.core.schedule(collection_time,
                                        self._collect_aggregate_data,

@@ -398,13 +398,20 @@ def historian(config_path, **kwargs):
             db[self._data_collection].create_index(
                 [('ts', pymongo.ASCENDING),
                  ('topic_id', pymongo.ASCENDING)],
-                unique=True)
+                unique=True, background=True)
 
             self._topic_id_map, self._topic_name_map = \
                 mongoutils.get_topic_map(self._client, self._topic_collection)
-            self._agg_topic_id_map = mongoutils.get_agg_topic_map(
-                self._client, self._agg_topic_collection)
             self._load_meta_map()
+
+            if self._agg_topic_collection in db.collection_names():
+                _log.debug("found agg_topics_collection ")
+                self._agg_topic_id_map = mongoutils.get_agg_topic_map(
+                    self._client, self._agg_topic_collection)
+            else:
+                _log.debug("no agg topics to load")
+                self._agg_topic_id_map = {}
+
 
         def record_table_definitions(self, meta_table_name):
             _log.debug("In record_table_def  table:{}".format(
