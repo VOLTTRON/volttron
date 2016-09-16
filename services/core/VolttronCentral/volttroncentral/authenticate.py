@@ -4,12 +4,7 @@
     @author: Craig Allwardt
 '''
 import hashlib
-import logging
 
-from volttron.platform.agent import utils
-
-utils.setup_logging()
-_log = logging.getLogger(__name__)
 
 class Authenticate:
 
