@@ -1669,7 +1669,7 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
         [device, start, end]
     ]
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
-
+    gevent.sleep(1)
     header = {
         'requesterID': TEST_AGENT
     }
