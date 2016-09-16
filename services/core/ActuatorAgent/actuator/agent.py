@@ -84,7 +84,7 @@ ActuatorAgent Configuration
         File used to save and restore Task states if the ActuatorAgent
          restarts for any reason. File will be
         created if it does not exist when it is needed.
-    "heartbeat_period"
+    "heartbeat_interval"
         How often to send a heartbeat signal to all devices in seconds.
         Defaults to 60.
         
@@ -496,7 +496,7 @@ ACTUATOR_COLLECTION = 'actuators'
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-__version__ = "0.4"
+__version__ = "0.5"
 
 
 class LockError(StandardError):
@@ -515,16 +515,22 @@ def actuator_agent(config_path, **kwargs):
     :returns: Actuator Agent
     :rtype: ActuatorAgent
     """
-    config = utils.load_config(config_path)
-    heartbeat_interval = int(config.get('heartbeat_period', 60))
+    try:
+        config = utils.load_config(config_path)
+    except StandardError:
+        config = {}
+
+    if not config:
+        _log.info("Using Actuator Agent defaults for starting configuration.")
+
+    heartbeat_interval = int(config.get('heartbeat_interval', 60))
     schedule_publish_interval = int(
         config.get('schedule_publish_interval', 60))
-    schedule_state_file = config.get('schedule_state_file')
     preempt_grace_time = config.get('preempt_grace_time', 60)
     driver_vip_identity = config.get('driver_vip_identity', 'platform.driver')
 
     return ActuatorAgent(heartbeat_interval, schedule_publish_interval,
-                         schedule_state_file, preempt_grace_time,
+                         preempt_grace_time,
                          driver_vip_identity, **kwargs)
 
 
@@ -550,12 +556,11 @@ class ActuatorAgent(Agent):
     :type heartbeat_interval: float
     :type schedule_publish_interval: float
     :type preempt_grace_time: float
-    :type schedule_state_file: str
     :type driver_vip_identity: str
     """
 
     def __init__(self, heartbeat_interval=60, schedule_publish_interval=60,
-                 schedule_state_file=None, preempt_grace_time=60,
+                 preempt_grace_time=60,
                  driver_vip_identity='platform.driver', **kwargs):
 
         super(ActuatorAgent, self).__init__(**kwargs)
@@ -563,11 +568,83 @@ class ActuatorAgent(Agent):
 
         self._update_event = None
         self._device_states = {}
+
+        self.schedule_state_file = "_schedule_state"
+        self.heartbeat_greenlet = None
         self.heartbeat_interval = heartbeat_interval
+        self._schedule_manager = None
         self.schedule_publish_interval = schedule_publish_interval
-        self.schedule_state_file = schedule_state_file
-        self.preempt_grace_time = preempt_grace_time
-        self.driver_vip_identity = driver_vip_identity
+
+        self.default_config = {"heartbeat_interval": heartbeat_interval,
+                              "schedule_publish_interval": schedule_publish_interval,
+                              "preempt_grace_time": preempt_grace_time,
+                              "driver_vip_identity": driver_vip_identity}
+
+
+        self.vip.config.set_default("config", self.default_config)
+        self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"], pattern="config")
+
+    def configure(self, config_name, action, contents):
+        try:
+            config = self.default_config.copy()
+            config.update(contents)
+
+            _log.debug("Configuring Actuator Agent")
+
+            self.driver_vip_identity = str(config["driver_vip_identity"])
+            self.schedule_publish_interval = int(config["schedule_publish_interval"])
+
+            _log.debug("MasterDriver VIP IDENTITY: {}".format(self.driver_vip_identity))
+            _log.debug("Schedule publish interval: {}".format(self.schedule_publish_interval))
+
+            #Only restart the heartbeat if it changes.
+            if (self.heartbeat_interval != config["heartbeat_interval"] or
+                        action == "NEW" or
+                        self.heartbeat_greenlet is None):
+                if self.heartbeat_greenlet is not None:
+                    self.heartbeat_greenlet.kill()
+
+                self.heartbeat_interval = config["heartbeat_interval"]
+
+                self.heartbeat_greenlet = self.core.periodic(self.heartbeat_interval, self._heart_beat)
+
+            _log.debug("Heartbeat interval: {}".format(self.heartbeat_interval))
+            _log.debug("Preemption grace period: {}".format(config["preempt_grace_time"]))
+
+            if self._schedule_manager is None:
+                try:
+                    state_string = self.vip.config.get(self.schedule_state_file)
+                except KeyError:
+                    state_string = None
+                self._setup_schedule(config["preempt_grace_time"], state_string)
+            else:
+                self._schedule_manager.set_grace_period(config["preempt_grace_time"])
+
+        finally:
+            if action == "NEW":
+                #We will only see new action once.
+                #Do this after the scheduler is setup.
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=topics.ACTUATOR_GET(),
+                                          callback=self.handle_get)
+
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=topics.ACTUATOR_SET(),
+                                          callback=self.handle_set)
+
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=topics.ACTUATOR_SCHEDULE_REQUEST(),
+                                          callback=self.handle_schedule_request)
+
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=topics.ACTUATOR_REVERT_POINT(),
+                                          callback=self.handle_revert_point)
+
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=topics.ACTUATOR_REVERT_DEVICE(),
+                                          callback=self.handle_revert_device)
+
+
 
     def _heart_beat(self):
         _log.debug("sending heartbeat")
@@ -579,37 +656,19 @@ class ActuatorAgent(Agent):
         except Exception as e:
             _log.warning(''.join([e.__class__.__name__, '(', e.message, ')']))
 
-    @Core.receiver('onstart')
-    def _on_start(self, sender, **kwargs):
-        self._setup_schedule()
-        self.vip.pubsub.subscribe(peer='pubsub',
-                                  prefix=topics.ACTUATOR_GET(),
-                                  callback=self.handle_get)
 
-        self.vip.pubsub.subscribe(peer='pubsub',
-                                  prefix=topics.ACTUATOR_SET(),
-                                  callback=self.handle_set)
+    def _schedule_save_callback(self, state_file_contents):
+        _log.debug("Saving schedule state")
+        self.vip.config.set(self.schedule_state_file, state_file_contents)
 
-        self.vip.pubsub.subscribe(peer='pubsub',
-                                  prefix=topics.ACTUATOR_SCHEDULE_REQUEST(),
-                                  callback=self.handle_schedule_request)
 
-        self.vip.pubsub.subscribe(peer='pubsub',
-                                  prefix=topics.ACTUATOR_REVERT_POINT(),
-                                  callback=self.handle_revert_point)
-
-        self.vip.pubsub.subscribe(peer='pubsub',
-                                  prefix=topics.ACTUATOR_REVERT_DEVICE(),
-                                  callback=self.handle_revert_device)
-
-        self.core.periodic(self.heartbeat_interval, self._heart_beat)
-
-    def _setup_schedule(self):
+    def _setup_schedule(self, preempt_grace_time, initial_state=None):
         now = utils.get_aware_utc_now()
         self._schedule_manager = ScheduleManager(
-            self.preempt_grace_time,
+            preempt_grace_time,
             now=now,
-            state_file_name=self.schedule_state_file)
+            save_state_callback=self._schedule_save_callback,
+            initial_state_string=initial_state)
 
         self._update_device_state_and_schedule(now)
 
@@ -617,7 +676,7 @@ class ActuatorAgent(Agent):
         _log.debug("_update_device_state_and_schedule")
         # Sanity check now.
         # This is specifically for when this is running in a VM that gets
-        # suspeded and then resumed.
+        # suspended and then resumed.
         # If we don't make this check a resumed VM will publish one event
         # per minute of
         # time the VM was suspended for. 
