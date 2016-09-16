@@ -81,7 +81,7 @@ class ConfigDeviceForm extends BaseComponent {
                 })
 
                 return (
-                    <tr>
+                    <tr key={setting.key}>
                         <td style={firstStyle}>{setting.label}</td>
                         <td style={secondStyle}
                             className="plain">
@@ -112,6 +112,7 @@ class ConfigDeviceForm extends BaseComponent {
 
         return (
             <form className="config-device-form" onSubmit={this._onSubmit}>
+                <div className="centerContent"><h3>Device Configuration</h3></div>
                 <div className="configDeviceContainer">
                     <div className="uneditableAttributes">
                         { uneditableAttributes }

@@ -1100,12 +1100,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _device = null;
             devicesStore.emitChange();
             break;
-        // case ACTION_TYPES.SCAN_FOR_DEVICES:
-        //     _action = "start_scan";
-        //     _view = "Detect Devices";
-        //     _device = null;
-        //     devicesStore.emitChange();
-        //     break;
         case ACTION_TYPES.LISTEN_FOR_IAMS:
             _newScan = false;
             _warnings = {};
@@ -1134,12 +1128,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             }
             devicesStore.emitChange();
             break;
-        // case ACTION_TYPES.LIST_DETECTED_DEVICES:
-        //     _action = "show_new_devices";
-        //     _view = "Configure Devices";
-        //     _device = null;
-        //     devicesStore.emitChange();
-        //     break;
         case ACTION_TYPES.CONFIGURE_DEVICE:
             _action = "configure_device";
             _view = "Configure Device";
@@ -1151,7 +1139,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             {
                 device.configuring = action.device.configuring; 
             }
-            // _devices[action.device.id] = action.device;
+
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.CANCEL_REGISTRY:
@@ -1169,8 +1157,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 device.configuring = false;
             }
 
-            // _devices[_device.id].registryConfig = [];
-            // _devices[_device.id].configuring = false;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.LOAD_REGISTRY:
@@ -1190,9 +1176,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 device.selectedPoints = [];
             }
 
-            // _devices[_device.id].registryConfig = devicesStore.getPreppedData(action.data);
-            // _devices[_device.id].configuring = true;
-            // _devices[_device.id].selectedPoints = [];
             _registryFiles[_device.id] = action.file;             
             devicesStore.emitChange();
             break;
@@ -1222,7 +1205,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     return match;
                 });
 
-                if (attributes)
+                if (typeof attributes !== "undefined")
                 {                
                     attributes = action.attributes;
 
@@ -1234,9 +1217,9 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     });
 
                     device.registryConfig[i] = JSON.parse(JSON.stringify(attributes));
+                    device.keyProps = keyProps;
                 }
 
-                device.keyProps = keyProps;
                 device.selectedPoints = action.selectedPoints;
             }
 
@@ -1250,20 +1233,10 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _backupFileName[_device.deviceId] = (_registryFiles.hasOwnProperty(_device.deviceId) ? _registryFiles[_device.deviceId] : "");
             devicesStore.emitChange();
             break;
-        // case ACTION_TYPES.GENERATE_REGISTRY:
-        //     _action = "configure_registry";
-        //     _view = "Registry Configuration";
-        //     _device = action.device;
-        //     _backupData[_device.deviceId] = (_data.hasOwnProperty(_device.deviceId) ? JSON.parse(JSON.stringify(_data[_device.deviceId])) : []);
-        //     _backupFileName[_device.deviceId] = (_registryFiles.hasOwnProperty(_device.deviceId) ? _registryFiles[_device.deviceId] : "");
-        //     _data[_device.deviceId] = [];
-        //     devicesStore.emitChange();
-        //     break;
         case ACTION_TYPES.SAVE_REGISTRY:
             _action = "configure_device";
             _view = "Configure Device";
             _device = action.device;
-            // _data[_device.deviceId] = JSON.parse(JSON.stringify(action.data));
 
             var device = devicesStore.getDeviceRef(_device.id, _device.address);
 
@@ -1273,8 +1246,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 device.configuring = false;
             }
 
-            // _devices[_device.id].registryConfig = JSON.parse(JSON.stringify(action.data));
-            // _devices[_device.id].configuring = false;
             devicesStore.emitChange();
             break;
     }
@@ -1302,7 +1273,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 {
                     warningMsg = { 
                         key: "duplicate_id", 
-                        message: "Duplicate device IDs found. What the heck?",
+                        message: "Duplicate device IDs found. What the heck? Your network may not be set up correctly. ",
                         value: deviceIdStr 
                     };
                 }

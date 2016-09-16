@@ -23,11 +23,11 @@ class DevicesFound extends BaseComponent {
         this.state = {};       
     }
     componentDidMount() {
-        devicesStore.addChangeListener(this._onStoresChange);
+        // devicesStore.addChangeListener(this._onStoresChange);
         this._setUpSocket()
     }
     componentWillUnmount() {
-        devicesStore.removeChangeListener(this._onStoresChange);
+        // devicesStore.removeChangeListener(this._onStoresChange);
     }
     componentWillReceiveProps(nextProps) {
         if (this.props.canceled !== nextProps.canceled)
