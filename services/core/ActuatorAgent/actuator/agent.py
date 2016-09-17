@@ -574,6 +574,7 @@ class ActuatorAgent(Agent):
         self.heartbeat_interval = heartbeat_interval
         self._schedule_manager = None
         self.schedule_publish_interval = schedule_publish_interval
+        self.subscriptions_setup = False
 
         self.default_config = {"heartbeat_interval": heartbeat_interval,
                               "schedule_publish_interval": schedule_publish_interval,
@@ -585,64 +586,76 @@ class ActuatorAgent(Agent):
         self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"], pattern="config")
 
     def configure(self, config_name, action, contents):
+        config = self.default_config.copy()
+        config.update(contents)
+
+        _log.debug("Configuring Actuator Agent")
+
         try:
-            config = self.default_config.copy()
-            config.update(contents)
+            driver_vip_identity = str(config["driver_vip_identity"])
+            schedule_publish_interval = float(config["schedule_publish_interval"])
 
-            _log.debug("Configuring Actuator Agent")
+            heartbeat_interval = float(config["heartbeat_interval"])
+            preempt_grace_time = float(config["preempt_grace_time"])
+        except ValueError as e:
+            _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
+            #TODO: set a health status for the agent
+            return
 
-            self.driver_vip_identity = str(config["driver_vip_identity"])
-            self.schedule_publish_interval = int(config["schedule_publish_interval"])
+        self.driver_vip_identity = driver_vip_identity
+        self.schedule_publish_interval = schedule_publish_interval
 
-            _log.debug("MasterDriver VIP IDENTITY: {}".format(self.driver_vip_identity))
-            _log.debug("Schedule publish interval: {}".format(self.schedule_publish_interval))
+        _log.debug("MasterDriver VIP IDENTITY: {}".format(self.driver_vip_identity))
+        _log.debug("Schedule publish interval: {}".format(self.schedule_publish_interval))
 
-            #Only restart the heartbeat if it changes.
-            if (self.heartbeat_interval != config["heartbeat_interval"] or
-                        action == "NEW" or
-                        self.heartbeat_greenlet is None):
-                if self.heartbeat_greenlet is not None:
-                    self.heartbeat_greenlet.kill()
+        #Only restart the heartbeat if it changes.
+        if (self.heartbeat_interval != heartbeat_interval or
+                    action == "NEW" or
+                    self.heartbeat_greenlet is None):
+            if self.heartbeat_greenlet is not None:
+                self.heartbeat_greenlet.kill()
 
-                self.heartbeat_interval = config["heartbeat_interval"]
+            self.heartbeat_interval = heartbeat_interval
 
-                self.heartbeat_greenlet = self.core.periodic(self.heartbeat_interval, self._heart_beat)
+            self.heartbeat_greenlet = self.core.periodic(self.heartbeat_interval, self._heart_beat)
 
-            _log.debug("Heartbeat interval: {}".format(self.heartbeat_interval))
-            _log.debug("Preemption grace period: {}".format(config["preempt_grace_time"]))
+        _log.debug("Heartbeat interval: {}".format(self.heartbeat_interval))
+        _log.debug("Preemption grace period: {}".format(preempt_grace_time))
 
-            if self._schedule_manager is None:
-                try:
-                    state_string = self.vip.config.get(self.schedule_state_file)
-                except KeyError:
-                    state_string = None
-                self._setup_schedule(config["preempt_grace_time"], state_string)
-            else:
-                self._schedule_manager.set_grace_period(config["preempt_grace_time"])
+        if self._schedule_manager is None:
+            try:
+                state_string = self.vip.config.get(self.schedule_state_file)
+            except KeyError:
+                state_string = None
+            self._setup_schedule(preempt_grace_time, state_string)
+        else:
+            self._schedule_manager.set_grace_period(preempt_grace_time)
 
-        finally:
-            if action == "NEW":
-                #We will only see new action once.
-                #Do this after the scheduler is setup.
-                self.vip.pubsub.subscribe(peer='pubsub',
-                                          prefix=topics.ACTUATOR_GET(),
-                                          callback=self.handle_get)
 
-                self.vip.pubsub.subscribe(peer='pubsub',
-                                          prefix=topics.ACTUATOR_SET(),
-                                          callback=self.handle_set)
+        if not self.subscriptions_setup and self._schedule_manager is not None:
+            #We will only see new action once.
+            #Do this after the scheduler is setup.
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_GET(),
+                                      callback=self.handle_get)
 
-                self.vip.pubsub.subscribe(peer='pubsub',
-                                          prefix=topics.ACTUATOR_SCHEDULE_REQUEST(),
-                                          callback=self.handle_schedule_request)
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_SET(),
+                                      callback=self.handle_set)
 
-                self.vip.pubsub.subscribe(peer='pubsub',
-                                          prefix=topics.ACTUATOR_REVERT_POINT(),
-                                          callback=self.handle_revert_point)
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_SCHEDULE_REQUEST(),
+                                      callback=self.handle_schedule_request)
 
-                self.vip.pubsub.subscribe(peer='pubsub',
-                                          prefix=topics.ACTUATOR_REVERT_DEVICE(),
-                                          callback=self.handle_revert_device)
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_REVERT_POINT(),
+                                      callback=self.handle_revert_point)
+
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_REVERT_DEVICE(),
+                                      callback=self.handle_revert_device)
+
+            self.subscriptions_setup = True
 
 
 
@@ -719,6 +732,7 @@ class ActuatorAgent(Agent):
         latest_next = now + datetime.timedelta(
             seconds=self.schedule_publish_interval)
         # Round to the next second to fix timer goofyness in agent timers.
+        # TODO: Improved scheduler should no longer require this.
         if latest_next.microsecond:
             latest_next = latest_next.replace(
                 microsecond=0) + datetime.timedelta(seconds=1)
