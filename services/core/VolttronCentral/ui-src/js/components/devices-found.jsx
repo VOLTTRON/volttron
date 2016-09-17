@@ -59,7 +59,6 @@ class DevicesFound extends BaseComponent {
 
         devicesWs.onmessage = function(evt)
         {
-            console.log("device socket: " + evt.data);
             devicesActionCreators.deviceDetected(evt.data, this.props.platform, this.props.bacnet);
 
             var warnings = devicesStore.getWarnings();
@@ -92,7 +91,6 @@ class DevicesFound extends BaseComponent {
 
         pointsWs.onmessage = function(evt)
         {
-            console.log("point socket: " + evt.data);
             devicesActionCreators.pointReceived(evt.data, this.props.platform, this.props.bacnet);
 
             var warnings = devicesStore.getWarnings();

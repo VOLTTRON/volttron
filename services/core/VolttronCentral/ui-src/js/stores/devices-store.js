@@ -1065,12 +1065,7 @@ devicesStore.getPreppedData = function (data) {
     var preppedData = data.map(function (row) {
         var preppedRow = row.map(function (cell) {
 
-            cell.key = cell.key.toLowerCase();
-
-            cell.editable = !(cell.key === "point_name" || 
-                                cell.key === "reference_point_name" || 
-                                cell.key === "object_type" || 
-                                cell.key === "index");
+            devicesStore.prepCell(cell);
 
             return cell;
         });
@@ -1081,6 +1076,16 @@ devicesStore.getPreppedData = function (data) {
 
     return preppedData;
 }
+
+devicesStore.prepCell = function (cell) {
+
+    cell.key = cell.key.toLowerCase();
+
+    cell.editable = !(cell.key === "point_name" || 
+                        cell.key === "reference_point_name" || 
+                        cell.key === "object_type" || 
+                        cell.key === "index");
+};
 
 
 devicesStore.dispatchToken = dispatcher.register(function (action) {
@@ -1344,50 +1349,48 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         if (data)
         {
             var point = JSON.parse(data);
-            var deviceIdStr = device.device_id.toString();
-            var addDevice = true;
+            var deviceId = "59";
+            var deviceAddress = "10.0.2.6"
+            var addPoint = true;
 
-            var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
+            var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
 
-            if (alreadyInList)
+            if (device)
             {
-                if (alreadyInList.address !== device.address)
-                {
-                    warningMsg = { 
-                        key: "duplicate_id", 
-                        message: "Duplicate device IDs found. What the heck? Your network may not be set up correctly. ",
-                        value: deviceIdStr 
-                    };
-                }
-                else // If the IDs are the same and the addresses are the same, assume
-                {   // it's an IAM for a device we already know about
+                var pointInList = device.registryConfig.find(function (point) {
+                    var indexCell = point.find(function (cell) {
+                        return cell.key === "index";
+                    })
 
-                    addDevice = false;
-                }
-            }
-            
-            if (addDevice) 
-            {
-                _devices.push({
-                    id: deviceIdStr,
-                    vendor_id: device.vendor_id,
-                    address: device.address,
-                    max_apdu_length: device.max_apdu_length,
-                    segmentation_supported: device.segmentation_supported,
-                    configuring: false,
-                    platformUuid: platform.uuid,
-                    bacnetProxyUuid: bacnetUuid,
-                    registryConfig: [],
-                    keyProps: ["volttron_point_name", "units", "writable"],
-                    selectedPoints: [],
-                    items: [ 
-                        { key: "address", label: "Address", value: device.address }, 
-                        { key: "deviceId", label: "Device ID", value: deviceIdStr }, 
-                        { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
-                        { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
-                        { key: "type", label: "Type", value: "BACnet" }
-                    ]
+                    var match = false;
+
+                    if (indexCell)
+                    {
+                        match = (indexCell.value === point.Index);
+                    }
+
+                    return match;
                 });
+            
+                if (typeof pointInList === "undefined") 
+                {
+                    var newPoint = [];
+
+                    for (var key in point)
+                    {
+                        var cell = {
+                            key: key.toLowerCase().replace(/ /g, "_"),
+                            label: key,
+                            value: (point[key] === null ? "" : point[key])
+                        };
+
+                        devicesStore.prepCell(cell);
+
+                        newPoint.push(cell);
+                    }
+
+                    device.registryConfig.push(newPoint);
+                }
             }
         }
 
