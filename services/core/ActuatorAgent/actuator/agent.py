@@ -633,7 +633,6 @@ class ActuatorAgent(Agent):
 
 
         if not self.subscriptions_setup and self._schedule_manager is not None:
-            #We will only see new action once.
             #Do this after the scheduler is setup.
             self.vip.pubsub.subscribe(peer='pubsub',
                                       prefix=topics.ACTUATOR_GET(),
@@ -656,7 +655,6 @@ class ActuatorAgent(Agent):
                                       callback=self.handle_revert_device)
 
             self.subscriptions_setup = True
-
 
 
     def _heart_beat(self):
