@@ -1128,6 +1128,29 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             }
             devicesStore.emitChange();
             break;
+        case ACTION_TYPES.POINT_RECEIVED:
+            _action = "point_received";
+            _view = "Devices Found";
+            var warning = loadPoint(action.data, action.platform, action.bacnet);
+
+            if (!objectIsEmpty(warning))
+            {
+                if (_warnings.hasOwnProperty(warning.key))
+                {
+                    _warnings[warning.key].items.push(warning.value);
+                }
+                else
+                {
+                    _warnings[warning.key] = {
+                        message: warning.message,
+                        items: [
+                            warning.value
+                        ]
+                    };
+                }
+            }
+            devicesStore.emitChange();
+            break;
         case ACTION_TYPES.CONFIGURE_DEVICE:
             _action = "configure_device";
             _view = "Configure Device";
@@ -1262,6 +1285,65 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         if (data)
         {
             var device = JSON.parse(data);
+            var deviceIdStr = device.device_id.toString();
+            var addDevice = true;
+
+            var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
+
+            if (alreadyInList)
+            {
+                if (alreadyInList.address !== device.address)
+                {
+                    warningMsg = { 
+                        key: "duplicate_id", 
+                        message: "Duplicate device IDs found. What the heck? Your network may not be set up correctly. ",
+                        value: deviceIdStr 
+                    };
+                }
+                else // If the IDs are the same and the addresses are the same, assume
+                {   // it's an IAM for a device we already know about
+
+                    addDevice = false;
+                }
+            }
+            
+            if (addDevice) 
+            {
+                _devices.push({
+                    id: deviceIdStr,
+                    vendor_id: device.vendor_id,
+                    address: device.address,
+                    max_apdu_length: device.max_apdu_length,
+                    segmentation_supported: device.segmentation_supported,
+                    configuring: false,
+                    platformUuid: platform.uuid,
+                    bacnetProxyUuid: bacnetUuid,
+                    registryConfig: [],
+                    keyProps: ["volttron_point_name", "units", "writable"],
+                    selectedPoints: [],
+                    items: [ 
+                        { key: "address", label: "Address", value: device.address },  
+                        { key: "deviceName", label: "Name", value: device.device_name },  
+                        { key: "deviceDescription", label: "Description", value: device.device_description }, 
+                        { key: "deviceId", label: "Device ID", value: deviceIdStr }, 
+                        { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
+                        { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
+                        { key: "type", label: "Type", value: "BACnet" }
+                    ]
+                });
+            }
+        }
+
+        return warningMsg;
+    }
+
+    function loadPoint(data, platform, bacnetUuid) 
+    {
+        var warningMsg = {};
+
+        if (data)
+        {
+            var point = JSON.parse(data);
             var deviceIdStr = device.device_id.toString();
             var addDevice = true;
 

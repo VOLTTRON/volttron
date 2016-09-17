@@ -13,18 +13,19 @@ var devicesStore = require('../stores/devices-store');
 
 var CsvParse = require('babyparse');
 
-var ws, websocket;
+var devicesWs, devicesWebsocket;
+var pointsWs, pointsWebsocket;
 
 class DevicesFound extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpSocket');
+        this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpDevicesSocket');
 
         this.state = {};       
     }
     componentDidMount() {
         // devicesStore.addChangeListener(this._onStoresChange);
-        this._setUpSocket()
+        this._setUpDevicesSocket()
     }
     componentWillUnmount() {
         // devicesStore.removeChangeListener(this._onStoresChange);
@@ -34,11 +35,11 @@ class DevicesFound extends BaseComponent {
         {
             if (nextProps.canceled)
             {
-                ws.close();
+                devicesWs.close();
             }
             else
             {
-                this._setUpSocket();
+                this._setUpDevicesSocket();
             }
         }
 
@@ -47,17 +48,18 @@ class DevicesFound extends BaseComponent {
             this.props.devicesloaded(nextProps.devices.length > 0);
         }
     }
-    _setUpSocket() {
-        websocket = "ws://" + window.location.host + "/vc/ws/iam";
+    _setUpDevicesSocket() {
+        devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
         if (window.WebSocket) {
-            ws = new WebSocket(websocket);
+            devicesWs = new WebSocket(devicesWebsocket);
         }
         else if (window.MozWebSocket) {
-            ws = MozWebSocket(websocket);
+            devicesWs = MozWebSocket(devicesWebsocket);
         }
 
-        ws.onmessage = function(evt)
+        devicesWs.onmessage = function(evt)
         {
+            console.log("device socket: " + evt.data);
             devicesActionCreators.deviceDetected(evt.data, this.props.platform, this.props.bacnet);
 
             var warnings = devicesStore.getWarnings();
@@ -76,10 +78,38 @@ class DevicesFound extends BaseComponent {
                     );
                 }
             }
-                
-            function objectIsEmpty(obj)
+
+        }.bind(this);
+    }    
+    _setUpPointsSocket() {
+        pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
+        if (window.WebSocket) {
+            pointsWs = new WebSocket(pointsWebsocket);
+        }
+        else if (window.MozWebSocket) {
+            pointsWs = MozWebSocket(pointsWebsocket);
+        }
+
+        pointsWs.onmessage = function(evt)
+        {
+            console.log("point socket: " + evt.data);
+            devicesActionCreators.pointReceived(evt.data, this.props.platform, this.props.bacnet);
+
+            var warnings = devicesStore.getWarnings();
+
+            if (!objectIsEmpty(warnings))
             {
-                return Object.keys(obj).length === 0;
+                for (var key in warnings)
+                {
+                    var values = warnings[key].items.join(", ");
+
+                    statusIndicatorActionCreators.openStatusIndicator(
+                        "error", 
+                        warnings[key].message + "ID: " + values, 
+                        values, 
+                        "left"
+                    );
+                }
             }
 
         }.bind(this);
@@ -89,8 +119,10 @@ class DevicesFound extends BaseComponent {
     }
     _configureDevice(device) {
 
+        devicesWs.close();
         device.configuring = !device.configuring;
         devicesActionCreators.configureDevice(device);
+        this._setUpPointsSocket();
     }
     _uploadRegistryFile(evt) {
 
@@ -220,18 +252,16 @@ class DevicesFound extends BaseComponent {
                     });
 
                     if (device) {
-                        if (device.registryConfig.length > 0)
-                        {
-                            var configureRegistry = (
-                                <tr key={"config-" + device.id + device.address}>
-                                    <td colSpan={7}>
-                                        <ConfigureRegistry device={device}/>
-                                    </td>
-                                </tr>
-                            );
+                        
+                        var configureRegistry = (
+                            <tr key={"config-" + device.id + device.address}>
+                                <td colSpan={7}>
+                                    <ConfigureRegistry device={device}/>
+                                </td>
+                            </tr>
+                        );
 
-                            devices.splice(i + 1, 0, configureRegistry);
-                        }
+                        devices.splice(i + 1, 0, configureRegistry);
                     }
 
                 }
@@ -350,6 +380,11 @@ var parseCsvFile = (contents) => {
     results.data = registryValues;
 
     return results;
+}
+
+function objectIsEmpty(obj)
+{
+    return Object.keys(obj).length === 0;
 }
 
 export default DevicesFound;

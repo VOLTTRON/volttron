@@ -57,7 +57,6 @@ class ConfigureRegistry extends BaseComponent {
                 focusedCell.focus();
             }
         }
-
     }
     componentWillReceiveProps(nextProps) {
         if (this.props.device !== nextProps.device)
@@ -607,264 +606,255 @@ class ConfigureRegistry extends BaseComponent {
         }
     }
     render() {        
-                
-        var registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
+        
+        var registryRows, registryHeader, registryButtons;
 
-            var registryCells = [];
+        if (this.state.registryValues.length)
+        {            
+            registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
 
-            attributesList.attributes.forEach(function (item, columnIndex) {
+                var registryCells = [];
 
-                if (item.keyProp)
-                {
-                    var selectedCellStyle = (item.selected ? {backgroundColor: "#F5B49D"} : {});
-                    var focusedCell = (this.state.selectedCellColumn === columnIndex && this.state.selectedCellRow === rowIndex ? "focusedCell" : "");
+                attributesList.attributes.forEach(function (item, columnIndex) {
 
-                    var itemCell = (!item.editable ? 
-                                        <td key={item.key + "-" + rowIndex + "-" + columnIndex}><label>{ item.value }</label></td> : 
-                                        <td key={item.key + "-" + rowIndex + "-" + columnIndex}><input 
-                                            id={this.state.registryValues[rowIndex].attributes[columnIndex].key + "-" + columnIndex + "-" + rowIndex}
-                                            type="text"
-                                            className={focusedCell}
-                                            style={selectedCellStyle}
-                                            onChange={this._updateCell.bind(this, rowIndex, columnIndex)} 
-                                            value={ this.state.registryValues[rowIndex].attributes[columnIndex].value }/>
-                                        </td>);
+                    if (item.keyProp)
+                    {
+                        var selectedCellStyle = (item.selected ? {backgroundColor: "#F5B49D"} : {});
+                        var focusedCell = (this.state.selectedCellColumn === columnIndex && this.state.selectedCellRow === rowIndex ? "focusedCell" : "");
 
-                    registryCells.push(itemCell);
-                }
+                        var itemCell = (!item.editable ? 
+                                            <td key={item.key + "-" + rowIndex + "-" + columnIndex}><label>{ item.value }</label></td> : 
+                                            <td key={item.key + "-" + rowIndex + "-" + columnIndex}><input 
+                                                id={this.state.registryValues[rowIndex].attributes[columnIndex].key + "-" + columnIndex + "-" + rowIndex}
+                                                type="text"
+                                                className={focusedCell}
+                                                style={selectedCellStyle}
+                                                onChange={this._updateCell.bind(this, rowIndex, columnIndex)} 
+                                                value={ this.state.registryValues[rowIndex].attributes[columnIndex].value }/>
+                                            </td>);
+
+                        registryCells.push(itemCell);
+                    }
+                }, this);
+
+                registryCells.push(
+                    <td key={"propsButton-" + rowIndex}>
+                        <div className="propsButton"
+                            onClick={this._showProps.bind(this, attributesList.attributes)}>
+                            <i className="fa fa-ellipsis-h"></i>
+                        </div>
+                    </td>);
+
+                var selectedRowClass = (this.state.selectedPoints.indexOf(this.state.registryValues[rowIndex].attributes[0].value) > -1 ?
+                                            "selectedRegistryPoint" : "");
+
+                var visibleStyle = (!this.state.filterOn || attributesList.visible ? {} : {display: "none"});
+
+                return ( 
+                    <tr key={"registry-row-" + rowIndex}
+                        data-row={rowIndex}
+                        onClick={this._handleRowClick}
+                        className={selectedRowClass}
+                        style={visibleStyle}>
+                        <td key={"checkbox-" + rowIndex}>
+                            <input type="checkbox"
+                                onChange={this._selectForDelete.bind(this, attributesList.attributes)}
+                                checked={this.state.pointsToDelete.indexOf(attributesList.attributes[0].value) > -1}>
+                            </input>
+                        </td>
+                        { registryCells }                    
+                    </tr>
+                )
             }, this);
 
-            registryCells.push(
-                <td key={"propsButton-" + rowIndex}>
-                    <div className="propsButton"
-                        onClick={this._showProps.bind(this, attributesList.attributes)}>
-                        <i className="fa fa-ellipsis-h"></i>
-                    </div>
-                </td>);
-
-            var selectedRowClass = (this.state.selectedPoints.indexOf(this.state.registryValues[rowIndex].attributes[0].value) > -1 ?
-                                        "selectedRegistryPoint" : "");
-
-            var visibleStyle = (!this.state.filterOn || attributesList.visible ? {} : {display: "none"});
-
-            return ( 
-                <tr key={"registry-row-" + rowIndex}
-                    data-row={rowIndex}
-                    onClick={this._handleRowClick}
-                    className={selectedRowClass}
-                    style={visibleStyle}>
-                    <td key={"checkbox-" + rowIndex}>
-                        <input type="checkbox"
-                            onChange={this._selectForDelete.bind(this, attributesList.attributes)}
-                            checked={this.state.pointsToDelete.indexOf(attributesList.attributes[0].value) > -1}>
-                        </input>
-                    </td>
-                    { registryCells }                    
-                </tr>
-            )
-        }, this);
-
-        var wideCell = {
-            width: "100%"
-        }
-
-        var registryHeader = [];
-
-        var tableIndex = 0;
-
-        this.state.registryValues[0].attributes.forEach(function (item, index) {
         
-            if (item.keyProp)
-            {
-                var editSelectButton = (<EditSelectButton 
-                                            onremove={this._onRemoveColumn}
-                                            onadd={this._onAddColumn}
-                                            onclone={this._onCloneColumn}
-                                            column={index}
-                                            name={this.props.device.id + "-" + item.key}/>);
+            var headerColumns = [];
+            var tableIndex = 0;
 
-                var editColumnButton = (<EditColumnButton 
-                                            column={index} 
-                                            tooltipMsg="Edit Column"
-                                            findnext={this._onFindNext}
-                                            replace={this._onReplace}
-                                            replaceall={this._onReplaceAll}
-                                            replaceEnabled={this.state.selectedCells.length > 0}
-                                            // onfilter={this._onFilterBoxChange} 
-                                            onclear={this._onClearFind}
-                                            onhide={this._removeFocus}
-                                            name={this.props.device.id + "-" + item.key}/>);
-
-                var headerCell;
-
-                if (tableIndex === 0)
-                {
-                    var firstColumnWidth = {
-                        width: (item.length * 10) + "px"
-                    }
-
-                    var filterPointsTooltip = {
-                        content: "Filter Points",
-                        "x": 80,
-                        "y": -60
-                    }
-
-                    var filterButton = <FilterPointsButton 
-                                            name={"filterRegistryPoints-" + this.props.device.id}
-                                            tooltipMsg={filterPointsTooltip}
-                                            onfilter={this._onFilterBoxChange} 
-                                            onclear={this._onClearFilter}
-                                            column={index}/>
-
-                    var addPointTooltip = {
-                        content: "Add New Point",
-                        "x": 80,
-                        "y": -60
-                    }
-
-                    var addPointButton = <ControlButton 
-                                            name={"addRegistryPoint-" + this.props.device.id}
-                                            tooltip={addPointTooltip}
-                                            controlclass="add_point_button"
-                                            fontAwesomeIcon="plus"
-                                            clickAction={this._onAddPoint}/>
-
-
-                    var removePointTooltip = {
-                        content: "Remove Points",
-                        "x": 80,
-                        "y": -60
-                    }
-
-                    var removePointsButton = <ControlButton
-                                            name={"removeRegistryPoints-" + this.props.device.id}
-                                            fontAwesomeIcon="minus"
-                                            tooltip={removePointTooltip}
-                                            controlclass="remove_point_button"
-                                            clickAction={this._onRemovePoints}/>
-
-                    if (item.editable)
-                    {                        
-                        headerCell = ( <th key={"header-" + item.key + "-" + index} style={firstColumnWidth}>
-                                            <div className="th-inner zztop">
-                                                { item.label } 
-                                                { filterButton } 
-                                                { addPointButton } 
-                                                { removePointsButton }
-                                                { editSelectButton }
-                                                { editColumnButton }
-                                            </div>
-                                        </th>);
-                    }
-                    else
-                    {
-                        headerCell = ( <th key={"header-" + item.key + "-" + index} style={firstColumnWidth}>
-                                            <div className="th-inner zztop">
-                                                { item.label } 
-                                                { filterButton } 
-                                                { addPointButton } 
-                                                { removePointsButton }
-                                            </div>
-                                        </th>);
-                    }
-                }
-                else
-                {
-                    if (item.editable)
-                    {
-                        headerCell = ( <th key={"header-" + item.key + "-" + index}>
-                                            <div className="th-inner" style={wideCell}>
-                                                { item.label }
-                                                { editSelectButton }
-                                                { editColumnButton }
-                                            </div>
-                                        </th> );
-                    }
-                    else
-                    {
-                        headerCell = ( <th key={"header-" + item.key + "-" + index}>
-                                            <div className="th-inner" style={wideCell}>
-                                                { item.label }
-                                            </div>
-                                        </th> );
-                    }
-                }
-
-                ++tableIndex;
-                registryHeader.push(headerCell);
-            }
-        }, this);        
-
-        var wideDiv = {
-            width: "100%",
-            textAlign: "center",
-            paddingTop: "20px"
-        }
-
-        var visibilityClass = ( this.props.device.configuring ? 
-                                    "collapsible-registry-values slow-show" : 
-                                        "collapsible-registry-values slow-hide" );
-
-        var tooltipX = 320;
-        var tooltipY = 150;        
-        
-        var saveTooltip = {
-            "content": "Save Configuration",
-            "xOffset": tooltipX,
-            "yOffset": tooltipY
-        };
-
-        var saveButton = (
-            <ControlButton 
-                name="saveConfigButton"
-                tooltip={saveTooltip}
-                fontAwesomeIcon="save"
-                clickAction={this._saveRegistry}></ControlButton>
-        );
-
-        var cancelTooltip = {
-            "content": "Cancel Configuration",
-            "xOffset": tooltipX,
-            "yOffset": tooltipY
-        };
-
-        var cancelIcon = <span>&#10008;</span>;
-        var cancelButton = (
-            <ControlButton 
-                name="cancelConfigButton"
-                tooltip={cancelTooltip}
-                icon={cancelIcon}
-                clickAction={this._cancelRegistry}></ControlButton>
-        );
-
-        var checkboxColumnStyle = {
-            width: "24px"
-        }
+            this.state.registryValues[0].attributes.forEach(function (item, index) {
             
-        return (
-            <div className={visibilityClass}>                
-                <div className="fixed-table-container"> 
-                    <div className="header-background"></div>      
-                    <div className="fixed-table-container-inner">    
-                        <table className="registryConfigTable">
-                            <thead>
-                                <tr key="header-values">
-                                    <th style={checkboxColumnStyle} key="header-checkbox">
-                                        <div className="th-inner">
-                                            <input type="checkbox"
-                                                onChange={this._selectAll}
-                                                checked={this.state.allSelected}/>
-                                        </div>
-                                    </th>
-                                    { registryHeader }
-                                </tr>
-                            </thead>
-                            <tbody>                            
-                                { registryRows }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                if (item.keyProp)
+                {
+                    var editSelectButton = (<EditSelectButton 
+                                                onremove={this._onRemoveColumn}
+                                                onadd={this._onAddColumn}
+                                                onclone={this._onCloneColumn}
+                                                column={index}
+                                                name={this.props.device.id + "-" + item.key}/>);
+
+                    var editColumnButton = (<EditColumnButton 
+                                                column={index} 
+                                                tooltipMsg="Edit Column"
+                                                findnext={this._onFindNext}
+                                                replace={this._onReplace}
+                                                replaceall={this._onReplaceAll}
+                                                replaceEnabled={this.state.selectedCells.length > 0}
+                                                // onfilter={this._onFilterBoxChange} 
+                                                onclear={this._onClearFind}
+                                                onhide={this._removeFocus}
+                                                name={this.props.device.id + "-" + item.key}/>);
+
+                    var headerCell;
+
+                    if (tableIndex === 0)
+                    {
+                        var firstColumnWidth = {
+                            width: (item.length * 10) + "px"
+                        }
+
+                        var filterPointsTooltip = {
+                            content: "Filter Points",
+                            "x": 80,
+                            "y": -60
+                        }
+
+                        var filterButton = <FilterPointsButton 
+                                                name={"filterRegistryPoints-" + this.props.device.id}
+                                                tooltipMsg={filterPointsTooltip}
+                                                onfilter={this._onFilterBoxChange} 
+                                                onclear={this._onClearFilter}
+                                                column={index}/>
+
+                        var addPointTooltip = {
+                            content: "Add New Point",
+                            "x": 80,
+                            "y": -60
+                        }
+
+                        var addPointButton = <ControlButton 
+                                                name={"addRegistryPoint-" + this.props.device.id}
+                                                tooltip={addPointTooltip}
+                                                controlclass="add_point_button"
+                                                fontAwesomeIcon="plus"
+                                                clickAction={this._onAddPoint}/>
+
+
+                        var removePointTooltip = {
+                            content: "Remove Points",
+                            "x": 80,
+                            "y": -60
+                        }
+
+                        var removePointsButton = <ControlButton
+                                                name={"removeRegistryPoints-" + this.props.device.id}
+                                                fontAwesomeIcon="minus"
+                                                tooltip={removePointTooltip}
+                                                controlclass="remove_point_button"
+                                                clickAction={this._onRemovePoints}/>
+
+                        if (item.editable)
+                        {                        
+                            headerCell = ( <th key={"header-" + item.key + "-" + index} style={firstColumnWidth}>
+                                                <div className="th-inner zztop">
+                                                    { item.label } 
+                                                    { filterButton } 
+                                                    { addPointButton } 
+                                                    { removePointsButton }
+                                                    { editSelectButton }
+                                                    { editColumnButton }
+                                                </div>
+                                            </th>);
+                        }
+                        else
+                        {
+                            headerCell = ( <th key={"header-" + item.key + "-" + index} style={firstColumnWidth}>
+                                                <div className="th-inner zztop">
+                                                    { item.label } 
+                                                    { filterButton } 
+                                                    { addPointButton } 
+                                                    { removePointsButton }
+                                                </div>
+                                            </th>);
+                        }
+                    }
+                    else
+                    {
+
+                        var wideCell = {
+                            width: "100%"
+                        };
+
+                        if (item.editable)
+                        {
+                            headerCell = ( <th key={"header-" + item.key + "-" + index}>
+                                                <div className="th-inner" style={wideCell}>
+                                                    { item.label }
+                                                    { editSelectButton }
+                                                    { editColumnButton }
+                                                </div>
+                                            </th> );
+                        }
+                        else
+                        {
+                            headerCell = ( <th key={"header-" + item.key + "-" + index}>
+                                                <div className="th-inner" style={wideCell}>
+                                                    { item.label }
+                                                </div>
+                                            </th> );
+                        }
+                    }
+
+                    ++tableIndex;
+                    headerColumns.push(headerCell);
+                }
+            }, this);  
+
+            var checkboxColumnStyle = {
+                width: "24px"
+            }
+
+            registryHeader = (
+                <tr key="header-values">
+                    <th style={checkboxColumnStyle} key="header-checkbox">
+                        <div className="th-inner">
+                            <input type="checkbox"
+                                onChange={this._selectAll}
+                                checked={this.state.allSelected}/>
+                        </div>
+                    </th>
+                    { headerColumns }
+                </tr>
+            );
+
+            var wideDiv = {
+                width: "100%",
+                textAlign: "center",
+                paddingTop: "20px"
+            };
+
+            var tooltipX = 320;
+            var tooltipY = 150;        
+            
+            var saveTooltip = {
+                "content": "Save Configuration",
+                "xOffset": tooltipX,
+                "yOffset": tooltipY
+            };
+
+            var saveButton = (
+                <ControlButton 
+                    name="saveConfigButton"
+                    tooltip={saveTooltip}
+                    fontAwesomeIcon="save"
+                    clickAction={this._saveRegistry}></ControlButton>
+            );
+
+            var cancelTooltip = {
+                "content": "Cancel Configuration",
+                "xOffset": tooltipX,
+                "yOffset": tooltipY
+            };
+
+            var cancelIcon = <span>&#10008;</span>;
+            var cancelButton = (
+                <ControlButton 
+                    name="cancelConfigButton"
+                    tooltip={cancelTooltip}
+                    icon={cancelIcon}
+                    clickAction={this._cancelRegistry}></ControlButton>
+            );
+            
+            registryButtons = (
                 <div className="registry-buttons" style={wideDiv}>
                     <div className="inlineBlock">
                         {cancelButton}
@@ -873,6 +863,29 @@ class ConfigureRegistry extends BaseComponent {
                         {saveButton}
                     </div>                    
                 </div>
+            );     
+        };
+
+        var visibilityClass = ( this.props.device.configuring ? 
+                                    "collapsible-registry-values slow-show" : 
+                                        "collapsible-registry-values slow-hide" );        
+            
+        return (
+            <div className={visibilityClass}>                
+                <div className="fixed-table-container"> 
+                    <div className="header-background"></div>      
+                    <div className="fixed-table-container-inner">    
+                        <table className="registryConfigTable">
+                            <thead>
+                                { registryHeader }                                
+                            </thead>
+                            <tbody>                            
+                                { registryRows }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                { registryButtons }
             </div>
         );
     }

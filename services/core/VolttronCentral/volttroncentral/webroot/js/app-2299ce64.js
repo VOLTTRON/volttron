@@ -256,6 +256,14 @@ var devicesActionCreators = {
             device: device
         });
     },
+    pointReceived: function pointReceived(data, platform, bacnet) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.POINT_RECEIVED,
+            platform: platform,
+            bacnet: bacnet,
+            data: data
+        });
+    },
     cancelScan: function cancelScan(platform) {
         dispatcher.dispatch({
             type: ACTION_TYPES.CANCEL_SCANNING,
@@ -269,9 +277,32 @@ var devicesActionCreators = {
     //     });
     // },
     configureDevice: function configureDevice(device) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CONFIGURE_DEVICE,
-            device: device
+
+        var authorization = authorizationStore.getAuthorization();
+
+        var params = {
+            // expanded:false, 
+            // "filter":[3000124], 
+            device_id: Number(device.id),
+            proxy_identity: "platform.bacnet_proxy",
+            address: device.address
+        };
+
+        return new rpc.Exchange({
+            method: 'platform.uuid.' + device.platformUuid + '.agent.uuid.' + device.bacnetProxyUuid + '.publish_bacnet_props',
+            authorization: authorization,
+            params: params
+        }).promise.then(function (result) {
+
+            dispatcher.dispatch({
+                type: ACTION_TYPES.CONFIGURE_DEVICE,
+                device: device
+            });
+        }).catch(rpc.Error, function (error) {
+
+            error.message = "Unable to receive points. " + error.message + ".";
+
+            handle401(error, error.message);
         });
     },
     // configureRegistry: function (device) {
@@ -3372,252 +3403,288 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: 'render',
         value: function render() {
 
-            var registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
+            var registryRows, registryHeader, registryButtons;
 
-                var registryCells = [];
+            if (this.state.registryValues.length) {
+                registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
 
-                attributesList.attributes.forEach(function (item, columnIndex) {
+                    var registryCells = [];
+
+                    attributesList.attributes.forEach(function (item, columnIndex) {
+
+                        if (item.keyProp) {
+                            var selectedCellStyle = item.selected ? { backgroundColor: "#F5B49D" } : {};
+                            var focusedCell = this.state.selectedCellColumn === columnIndex && this.state.selectedCellRow === rowIndex ? "focusedCell" : "";
+
+                            var itemCell = !item.editable ? _react2.default.createElement(
+                                'td',
+                                { key: item.key + "-" + rowIndex + "-" + columnIndex },
+                                _react2.default.createElement(
+                                    'label',
+                                    null,
+                                    item.value
+                                )
+                            ) : _react2.default.createElement(
+                                'td',
+                                { key: item.key + "-" + rowIndex + "-" + columnIndex },
+                                _react2.default.createElement('input', {
+                                    id: this.state.registryValues[rowIndex].attributes[columnIndex].key + "-" + columnIndex + "-" + rowIndex,
+                                    type: 'text',
+                                    className: focusedCell,
+                                    style: selectedCellStyle,
+                                    onChange: this._updateCell.bind(this, rowIndex, columnIndex),
+                                    value: this.state.registryValues[rowIndex].attributes[columnIndex].value })
+                            );
+
+                            registryCells.push(itemCell);
+                        }
+                    }, this);
+
+                    registryCells.push(_react2.default.createElement(
+                        'td',
+                        { key: "propsButton-" + rowIndex },
+                        _react2.default.createElement(
+                            'div',
+                            { className: 'propsButton',
+                                onClick: this._showProps.bind(this, attributesList.attributes) },
+                            _react2.default.createElement('i', { className: 'fa fa-ellipsis-h' })
+                        )
+                    ));
+
+                    var selectedRowClass = this.state.selectedPoints.indexOf(this.state.registryValues[rowIndex].attributes[0].value) > -1 ? "selectedRegistryPoint" : "";
+
+                    var visibleStyle = !this.state.filterOn || attributesList.visible ? {} : { display: "none" };
+
+                    return _react2.default.createElement(
+                        'tr',
+                        { key: "registry-row-" + rowIndex,
+                            'data-row': rowIndex,
+                            onClick: this._handleRowClick,
+                            className: selectedRowClass,
+                            style: visibleStyle },
+                        _react2.default.createElement(
+                            'td',
+                            { key: "checkbox-" + rowIndex },
+                            _react2.default.createElement('input', { type: 'checkbox',
+                                onChange: this._selectForDelete.bind(this, attributesList.attributes),
+                                checked: this.state.pointsToDelete.indexOf(attributesList.attributes[0].value) > -1 })
+                        ),
+                        registryCells
+                    );
+                }, this);
+
+                var headerColumns = [];
+                var tableIndex = 0;
+
+                this.state.registryValues[0].attributes.forEach(function (item, index) {
 
                     if (item.keyProp) {
-                        var selectedCellStyle = item.selected ? { backgroundColor: "#F5B49D" } : {};
-                        var focusedCell = this.state.selectedCellColumn === columnIndex && this.state.selectedCellRow === rowIndex ? "focusedCell" : "";
+                        var editSelectButton = _react2.default.createElement(_editSelectButton2.default, {
+                            onremove: this._onRemoveColumn,
+                            onadd: this._onAddColumn,
+                            onclone: this._onCloneColumn,
+                            column: index,
+                            name: this.props.device.id + "-" + item.key });
 
-                        var itemCell = !item.editable ? _react2.default.createElement(
-                            'td',
-                            { key: item.key + "-" + rowIndex + "-" + columnIndex },
-                            _react2.default.createElement(
-                                'label',
-                                null,
-                                item.value
-                            )
-                        ) : _react2.default.createElement(
-                            'td',
-                            { key: item.key + "-" + rowIndex + "-" + columnIndex },
-                            _react2.default.createElement('input', {
-                                id: this.state.registryValues[rowIndex].attributes[columnIndex].key + "-" + columnIndex + "-" + rowIndex,
-                                type: 'text',
-                                className: focusedCell,
-                                style: selectedCellStyle,
-                                onChange: this._updateCell.bind(this, rowIndex, columnIndex),
-                                value: this.state.registryValues[rowIndex].attributes[columnIndex].value })
-                        );
+                        var editColumnButton = _react2.default.createElement(_editColumnsButton2.default, {
+                            column: index,
+                            tooltipMsg: 'Edit Column',
+                            findnext: this._onFindNext,
+                            replace: this._onReplace,
+                            replaceall: this._onReplaceAll,
+                            replaceEnabled: this.state.selectedCells.length > 0
+                            // onfilter={this._onFilterBoxChange} 
+                            , onclear: this._onClearFind,
+                            onhide: this._removeFocus,
+                            name: this.props.device.id + "-" + item.key });
 
-                        registryCells.push(itemCell);
+                        var headerCell;
+
+                        if (tableIndex === 0) {
+                            var firstColumnWidth = {
+                                width: item.length * 10 + "px"
+                            };
+
+                            var filterPointsTooltip = {
+                                content: "Filter Points",
+                                "x": 80,
+                                "y": -60
+                            };
+
+                            var filterButton = _react2.default.createElement(FilterPointsButton, {
+                                name: "filterRegistryPoints-" + this.props.device.id,
+                                tooltipMsg: filterPointsTooltip,
+                                onfilter: this._onFilterBoxChange,
+                                onclear: this._onClearFilter,
+                                column: index });
+
+                            var addPointTooltip = {
+                                content: "Add New Point",
+                                "x": 80,
+                                "y": -60
+                            };
+
+                            var addPointButton = _react2.default.createElement(ControlButton, {
+                                name: "addRegistryPoint-" + this.props.device.id,
+                                tooltip: addPointTooltip,
+                                controlclass: 'add_point_button',
+                                fontAwesomeIcon: 'plus',
+                                clickAction: this._onAddPoint });
+
+                            var removePointTooltip = {
+                                content: "Remove Points",
+                                "x": 80,
+                                "y": -60
+                            };
+
+                            var removePointsButton = _react2.default.createElement(ControlButton, {
+                                name: "removeRegistryPoints-" + this.props.device.id,
+                                fontAwesomeIcon: 'minus',
+                                tooltip: removePointTooltip,
+                                controlclass: 'remove_point_button',
+                                clickAction: this._onRemovePoints });
+
+                            if (item.editable) {
+                                headerCell = _react2.default.createElement(
+                                    'th',
+                                    { key: "header-" + item.key + "-" + index, style: firstColumnWidth },
+                                    _react2.default.createElement(
+                                        'div',
+                                        { className: 'th-inner zztop' },
+                                        item.label,
+                                        filterButton,
+                                        addPointButton,
+                                        removePointsButton,
+                                        editSelectButton,
+                                        editColumnButton
+                                    )
+                                );
+                            } else {
+                                headerCell = _react2.default.createElement(
+                                    'th',
+                                    { key: "header-" + item.key + "-" + index, style: firstColumnWidth },
+                                    _react2.default.createElement(
+                                        'div',
+                                        { className: 'th-inner zztop' },
+                                        item.label,
+                                        filterButton,
+                                        addPointButton,
+                                        removePointsButton
+                                    )
+                                );
+                            }
+                        } else {
+
+                            var wideCell = {
+                                width: "100%"
+                            };
+
+                            if (item.editable) {
+                                headerCell = _react2.default.createElement(
+                                    'th',
+                                    { key: "header-" + item.key + "-" + index },
+                                    _react2.default.createElement(
+                                        'div',
+                                        { className: 'th-inner', style: wideCell },
+                                        item.label,
+                                        editSelectButton,
+                                        editColumnButton
+                                    )
+                                );
+                            } else {
+                                headerCell = _react2.default.createElement(
+                                    'th',
+                                    { key: "header-" + item.key + "-" + index },
+                                    _react2.default.createElement(
+                                        'div',
+                                        { className: 'th-inner', style: wideCell },
+                                        item.label
+                                    )
+                                );
+                            }
+                        }
+
+                        ++tableIndex;
+                        headerColumns.push(headerCell);
                     }
                 }, this);
 
-                registryCells.push(_react2.default.createElement(
-                    'td',
-                    { key: "propsButton-" + rowIndex },
+                var checkboxColumnStyle = {
+                    width: "24px"
+                };
+
+                registryHeader = _react2.default.createElement(
+                    'tr',
+                    { key: 'header-values' },
+                    _react2.default.createElement(
+                        'th',
+                        { style: checkboxColumnStyle, key: 'header-checkbox' },
+                        _react2.default.createElement(
+                            'div',
+                            { className: 'th-inner' },
+                            _react2.default.createElement('input', { type: 'checkbox',
+                                onChange: this._selectAll,
+                                checked: this.state.allSelected })
+                        )
+                    ),
+                    headerColumns
+                );
+
+                var wideDiv = {
+                    width: "100%",
+                    textAlign: "center",
+                    paddingTop: "20px"
+                };
+
+                var tooltipX = 320;
+                var tooltipY = 150;
+
+                var saveTooltip = {
+                    "content": "Save Configuration",
+                    "xOffset": tooltipX,
+                    "yOffset": tooltipY
+                };
+
+                var saveButton = _react2.default.createElement(ControlButton, {
+                    name: 'saveConfigButton',
+                    tooltip: saveTooltip,
+                    fontAwesomeIcon: 'save',
+                    clickAction: this._saveRegistry });
+
+                var cancelTooltip = {
+                    "content": "Cancel Configuration",
+                    "xOffset": tooltipX,
+                    "yOffset": tooltipY
+                };
+
+                var cancelIcon = _react2.default.createElement(
+                    'span',
+                    null,
+                    '✘'
+                );
+                var cancelButton = _react2.default.createElement(ControlButton, {
+                    name: 'cancelConfigButton',
+                    tooltip: cancelTooltip,
+                    icon: cancelIcon,
+                    clickAction: this._cancelRegistry });
+
+                registryButtons = _react2.default.createElement(
+                    'div',
+                    { className: 'registry-buttons', style: wideDiv },
                     _react2.default.createElement(
                         'div',
-                        { className: 'propsButton',
-                            onClick: this._showProps.bind(this, attributesList.attributes) },
-                        _react2.default.createElement('i', { className: 'fa fa-ellipsis-h' })
-                    )
-                ));
-
-                var selectedRowClass = this.state.selectedPoints.indexOf(this.state.registryValues[rowIndex].attributes[0].value) > -1 ? "selectedRegistryPoint" : "";
-
-                var visibleStyle = !this.state.filterOn || attributesList.visible ? {} : { display: "none" };
-
-                return _react2.default.createElement(
-                    'tr',
-                    { key: "registry-row-" + rowIndex,
-                        'data-row': rowIndex,
-                        onClick: this._handleRowClick,
-                        className: selectedRowClass,
-                        style: visibleStyle },
-                    _react2.default.createElement(
-                        'td',
-                        { key: "checkbox-" + rowIndex },
-                        _react2.default.createElement('input', { type: 'checkbox',
-                            onChange: this._selectForDelete.bind(this, attributesList.attributes),
-                            checked: this.state.pointsToDelete.indexOf(attributesList.attributes[0].value) > -1 })
+                        { className: 'inlineBlock' },
+                        cancelButton
                     ),
-                    registryCells
+                    _react2.default.createElement(
+                        'div',
+                        { className: 'inlineBlock' },
+                        saveButton
+                    )
                 );
-            }, this);
-
-            var wideCell = {
-                width: "100%"
-            };
-
-            var registryHeader = [];
-
-            var tableIndex = 0;
-
-            this.state.registryValues[0].attributes.forEach(function (item, index) {
-
-                if (item.keyProp) {
-                    var editSelectButton = _react2.default.createElement(_editSelectButton2.default, {
-                        onremove: this._onRemoveColumn,
-                        onadd: this._onAddColumn,
-                        onclone: this._onCloneColumn,
-                        column: index,
-                        name: this.props.device.id + "-" + item.key });
-
-                    var editColumnButton = _react2.default.createElement(_editColumnsButton2.default, {
-                        column: index,
-                        tooltipMsg: 'Edit Column',
-                        findnext: this._onFindNext,
-                        replace: this._onReplace,
-                        replaceall: this._onReplaceAll,
-                        replaceEnabled: this.state.selectedCells.length > 0
-                        // onfilter={this._onFilterBoxChange} 
-                        , onclear: this._onClearFind,
-                        onhide: this._removeFocus,
-                        name: this.props.device.id + "-" + item.key });
-
-                    var headerCell;
-
-                    if (tableIndex === 0) {
-                        var firstColumnWidth = {
-                            width: item.length * 10 + "px"
-                        };
-
-                        var filterPointsTooltip = {
-                            content: "Filter Points",
-                            "x": 80,
-                            "y": -60
-                        };
-
-                        var filterButton = _react2.default.createElement(FilterPointsButton, {
-                            name: "filterRegistryPoints-" + this.props.device.id,
-                            tooltipMsg: filterPointsTooltip,
-                            onfilter: this._onFilterBoxChange,
-                            onclear: this._onClearFilter,
-                            column: index });
-
-                        var addPointTooltip = {
-                            content: "Add New Point",
-                            "x": 80,
-                            "y": -60
-                        };
-
-                        var addPointButton = _react2.default.createElement(ControlButton, {
-                            name: "addRegistryPoint-" + this.props.device.id,
-                            tooltip: addPointTooltip,
-                            controlclass: 'add_point_button',
-                            fontAwesomeIcon: 'plus',
-                            clickAction: this._onAddPoint });
-
-                        var removePointTooltip = {
-                            content: "Remove Points",
-                            "x": 80,
-                            "y": -60
-                        };
-
-                        var removePointsButton = _react2.default.createElement(ControlButton, {
-                            name: "removeRegistryPoints-" + this.props.device.id,
-                            fontAwesomeIcon: 'minus',
-                            tooltip: removePointTooltip,
-                            controlclass: 'remove_point_button',
-                            clickAction: this._onRemovePoints });
-
-                        if (item.editable) {
-                            headerCell = _react2.default.createElement(
-                                'th',
-                                { key: "header-" + item.key + "-" + index, style: firstColumnWidth },
-                                _react2.default.createElement(
-                                    'div',
-                                    { className: 'th-inner zztop' },
-                                    item.label,
-                                    filterButton,
-                                    addPointButton,
-                                    removePointsButton,
-                                    editSelectButton,
-                                    editColumnButton
-                                )
-                            );
-                        } else {
-                            headerCell = _react2.default.createElement(
-                                'th',
-                                { key: "header-" + item.key + "-" + index, style: firstColumnWidth },
-                                _react2.default.createElement(
-                                    'div',
-                                    { className: 'th-inner zztop' },
-                                    item.label,
-                                    filterButton,
-                                    addPointButton,
-                                    removePointsButton
-                                )
-                            );
-                        }
-                    } else {
-                        if (item.editable) {
-                            headerCell = _react2.default.createElement(
-                                'th',
-                                { key: "header-" + item.key + "-" + index },
-                                _react2.default.createElement(
-                                    'div',
-                                    { className: 'th-inner', style: wideCell },
-                                    item.label,
-                                    editSelectButton,
-                                    editColumnButton
-                                )
-                            );
-                        } else {
-                            headerCell = _react2.default.createElement(
-                                'th',
-                                { key: "header-" + item.key + "-" + index },
-                                _react2.default.createElement(
-                                    'div',
-                                    { className: 'th-inner', style: wideCell },
-                                    item.label
-                                )
-                            );
-                        }
-                    }
-
-                    ++tableIndex;
-                    registryHeader.push(headerCell);
-                }
-            }, this);
-
-            var wideDiv = {
-                width: "100%",
-                textAlign: "center",
-                paddingTop: "20px"
             };
 
             var visibilityClass = this.props.device.configuring ? "collapsible-registry-values slow-show" : "collapsible-registry-values slow-hide";
-
-            var tooltipX = 320;
-            var tooltipY = 150;
-
-            var saveTooltip = {
-                "content": "Save Configuration",
-                "xOffset": tooltipX,
-                "yOffset": tooltipY
-            };
-
-            var saveButton = _react2.default.createElement(ControlButton, {
-                name: 'saveConfigButton',
-                tooltip: saveTooltip,
-                fontAwesomeIcon: 'save',
-                clickAction: this._saveRegistry });
-
-            var cancelTooltip = {
-                "content": "Cancel Configuration",
-                "xOffset": tooltipX,
-                "yOffset": tooltipY
-            };
-
-            var cancelIcon = _react2.default.createElement(
-                'span',
-                null,
-                '✘'
-            );
-            var cancelButton = _react2.default.createElement(ControlButton, {
-                name: 'cancelConfigButton',
-                tooltip: cancelTooltip,
-                icon: cancelIcon,
-                clickAction: this._cancelRegistry });
-
-            var checkboxColumnStyle = {
-                width: "24px"
-            };
 
             return _react2.default.createElement(
                 'div',
@@ -3635,22 +3702,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                             _react2.default.createElement(
                                 'thead',
                                 null,
-                                _react2.default.createElement(
-                                    'tr',
-                                    { key: 'header-values' },
-                                    _react2.default.createElement(
-                                        'th',
-                                        { style: checkboxColumnStyle, key: 'header-checkbox' },
-                                        _react2.default.createElement(
-                                            'div',
-                                            { className: 'th-inner' },
-                                            _react2.default.createElement('input', { type: 'checkbox',
-                                                onChange: this._selectAll,
-                                                checked: this.state.allSelected })
-                                        )
-                                    ),
-                                    registryHeader
-                                )
+                                registryHeader
                             ),
                             _react2.default.createElement(
                                 'tbody',
@@ -3660,20 +3712,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                         )
                     )
                 ),
-                _react2.default.createElement(
-                    'div',
-                    { className: 'registry-buttons', style: wideDiv },
-                    _react2.default.createElement(
-                        'div',
-                        { className: 'inlineBlock' },
-                        cancelButton
-                    ),
-                    _react2.default.createElement(
-                        'div',
-                        { className: 'inlineBlock' },
-                        saveButton
-                    )
-                )
+                registryButtons
             );
         }
     }]);
@@ -4822,7 +4861,8 @@ var devicesStore = require('../stores/devices-store');
 
 var CsvParse = require('babyparse');
 
-var ws, websocket;
+var devicesWs, devicesWebsocket;
+var pointsWs, pointsWebsocket;
 
 var DevicesFound = function (_BaseComponent) {
     _inherits(DevicesFound, _BaseComponent);
@@ -4832,7 +4872,7 @@ var DevicesFound = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DevicesFound).call(this, props));
 
-        _this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpSocket');
+        _this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpDevicesSocket');
 
         _this.state = {};
         return _this;
@@ -4842,7 +4882,7 @@ var DevicesFound = function (_BaseComponent) {
         key: 'componentDidMount',
         value: function componentDidMount() {
             // devicesStore.addChangeListener(this._onStoresChange);
-            this._setUpSocket();
+            this._setUpDevicesSocket();
         }
     }, {
         key: 'componentWillUnmount',
@@ -4854,9 +4894,9 @@ var DevicesFound = function (_BaseComponent) {
         value: function componentWillReceiveProps(nextProps) {
             if (this.props.canceled !== nextProps.canceled) {
                 if (nextProps.canceled) {
-                    ws.close();
+                    devicesWs.close();
                 } else {
-                    this._setUpSocket();
+                    this._setUpDevicesSocket();
                 }
             }
 
@@ -4865,16 +4905,17 @@ var DevicesFound = function (_BaseComponent) {
             }
         }
     }, {
-        key: '_setUpSocket',
-        value: function _setUpSocket() {
-            websocket = "ws://" + window.location.host + "/vc/ws/iam";
+        key: '_setUpDevicesSocket',
+        value: function _setUpDevicesSocket() {
+            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
             if (window.WebSocket) {
-                ws = new WebSocket(websocket);
+                devicesWs = new WebSocket(devicesWebsocket);
             } else if (window.MozWebSocket) {
-                ws = MozWebSocket(websocket);
+                devicesWs = MozWebSocket(devicesWebsocket);
             }
 
-            ws.onmessage = function (evt) {
+            devicesWs.onmessage = function (evt) {
+                console.log("device socket: " + evt.data);
                 devicesActionCreators.deviceDetected(evt.data, this.props.platform, this.props.bacnet);
 
                 var warnings = devicesStore.getWarnings();
@@ -4886,9 +4927,30 @@ var DevicesFound = function (_BaseComponent) {
                         statusIndicatorActionCreators.openStatusIndicator("error", warnings[key].message + "ID: " + values, values, "left");
                     }
                 }
+            }.bind(this);
+        }
+    }, {
+        key: '_setUpPointsSocket',
+        value: function _setUpPointsSocket() {
+            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
+            if (window.WebSocket) {
+                pointsWs = new WebSocket(pointsWebsocket);
+            } else if (window.MozWebSocket) {
+                pointsWs = MozWebSocket(pointsWebsocket);
+            }
 
-                function objectIsEmpty(obj) {
-                    return Object.keys(obj).length === 0;
+            pointsWs.onmessage = function (evt) {
+                console.log("point socket: " + evt.data);
+                devicesActionCreators.pointReceived(evt.data, this.props.platform, this.props.bacnet);
+
+                var warnings = devicesStore.getWarnings();
+
+                if (!objectIsEmpty(warnings)) {
+                    for (var key in warnings) {
+                        var values = warnings[key].items.join(", ");
+
+                        statusIndicatorActionCreators.openStatusIndicator("error", warnings[key].message + "ID: " + values, values, "left");
+                    }
                 }
             }.bind(this);
         }
@@ -4901,8 +4963,10 @@ var DevicesFound = function (_BaseComponent) {
         key: '_configureDevice',
         value: function _configureDevice(device) {
 
+            devicesWs.close();
             device.configuring = !device.configuring;
             devicesActionCreators.configureDevice(device);
+            this._setUpPointsSocket();
         }
     }, {
         key: '_uploadRegistryFile',
@@ -5035,19 +5099,18 @@ var DevicesFound = function (_BaseComponent) {
                         });
 
                         if (device) {
-                            if (device.registryConfig.length > 0) {
-                                var configureRegistry = _react2.default.createElement(
-                                    'tr',
-                                    { key: "config-" + device.id + device.address },
-                                    _react2.default.createElement(
-                                        'td',
-                                        { colSpan: 7 },
-                                        _react2.default.createElement(_configureRegistry2.default, { device: device })
-                                    )
-                                );
 
-                                devices.splice(i + 1, 0, configureRegistry);
-                            }
+                            var configureRegistry = _react2.default.createElement(
+                                'tr',
+                                { key: "config-" + device.id + device.address },
+                                _react2.default.createElement(
+                                    'td',
+                                    { colSpan: 7 },
+                                    _react2.default.createElement(_configureRegistry2.default, { device: device })
+                                )
+                            );
+
+                            devices.splice(i + 1, 0, configureRegistry);
                         }
                     }
                 }
@@ -5169,6 +5232,10 @@ var parseCsvFile = function parseCsvFile(contents) {
 
     return results;
 };
+
+function objectIsEmpty(obj) {
+    return Object.keys(obj).length === 0;
+}
 
 exports.default = DevicesFound;
 
@@ -8874,6 +8941,7 @@ module.exports = keyMirror({
     // SCAN_FOR_DEVICES: null,
     LISTEN_FOR_IAMS: null,
     DEVICE_DETECTED: null,
+    POINT_RECEIVED: null,
     CANCEL_SCANNING: null,
     // LIST_DETECTED_DEVICES: null,
     CONFIGURE_DEVICE: null,
@@ -10405,6 +10473,23 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             }
             devicesStore.emitChange();
             break;
+        case ACTION_TYPES.POINT_RECEIVED:
+            _action = "point_received";
+            _view = "Devices Found";
+            var warning = loadPoint(action.data, action.platform, action.bacnet);
+
+            if (!objectIsEmpty(warning)) {
+                if (_warnings.hasOwnProperty(warning.key)) {
+                    _warnings[warning.key].items.push(warning.value);
+                } else {
+                    _warnings[warning.key] = {
+                        message: warning.message,
+                        items: [warning.value]
+                    };
+                }
+            }
+            devicesStore.emitChange();
+            break;
         case ACTION_TYPES.CONFIGURE_DEVICE:
             _action = "configure_device";
             _view = "Configure Device";
@@ -10528,6 +10613,52 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
         if (data) {
             var device = JSON.parse(data);
+            var deviceIdStr = device.device_id.toString();
+            var addDevice = true;
+
+            var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
+
+            if (alreadyInList) {
+                if (alreadyInList.address !== device.address) {
+                    warningMsg = {
+                        key: "duplicate_id",
+                        message: "Duplicate device IDs found. What the heck? Your network may not be set up correctly. ",
+                        value: deviceIdStr
+                    };
+                } else // If the IDs are the same and the addresses are the same, assume
+                    {
+                        // it's an IAM for a device we already know about
+
+                        addDevice = false;
+                    }
+            }
+
+            if (addDevice) {
+                _devices.push({
+                    id: deviceIdStr,
+                    vendor_id: device.vendor_id,
+                    address: device.address,
+                    max_apdu_length: device.max_apdu_length,
+                    segmentation_supported: device.segmentation_supported,
+                    configuring: false,
+                    platformUuid: platform.uuid,
+                    bacnetProxyUuid: bacnetUuid,
+                    registryConfig: [],
+                    keyProps: ["volttron_point_name", "units", "writable"],
+                    selectedPoints: [],
+                    items: [{ key: "address", label: "Address", value: device.address }, { key: "deviceName", label: "Name", value: device.device_name }, { key: "deviceDescription", label: "Description", value: device.device_description }, { key: "deviceId", label: "Device ID", value: deviceIdStr }, { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] }, { key: "type", label: "Type", value: "BACnet" }]
+                });
+            }
+        }
+
+        return warningMsg;
+    }
+
+    function loadPoint(data, platform, bacnetUuid) {
+        var warningMsg = {};
+
+        if (data) {
+            var point = JSON.parse(data);
             var deviceIdStr = device.device_id.toString();
             var addDevice = true;
 

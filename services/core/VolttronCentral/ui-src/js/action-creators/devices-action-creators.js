@@ -72,6 +72,14 @@ var devicesActionCreators = {
             device: device
         });
     },
+    pointReceived: function (data, platform, bacnet) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.POINT_RECEIVED,
+            platform: platform,
+            bacnet: bacnet,
+            data: data
+        });
+    },
     cancelScan: function (platform) {
         dispatcher.dispatch({
             type: ACTION_TYPES.CANCEL_SCANNING,
@@ -85,10 +93,36 @@ var devicesActionCreators = {
     //     });
     // },
     configureDevice: function (device) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CONFIGURE_DEVICE,
-            device: device
-        });
+
+        var authorization = authorizationStore.getAuthorization();
+
+        var params = {
+            // expanded:false, 
+            // "filter":[3000124], 
+            device_id: Number(device.id), 
+            proxy_identity: "platform.bacnet_proxy", 
+            address: device.address
+        }
+
+        return new rpc.Exchange({
+            method: 'platform.uuid.' + device.platformUuid + '.agent.uuid.' + device.bacnetProxyUuid + '.publish_bacnet_props',
+            authorization: authorization,
+            params: params,
+        }).promise
+            .then(function (result) {
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CONFIGURE_DEVICE,
+                    device: device
+                });
+            })
+            .catch(rpc.Error, function (error) {
+
+                error.message = "Unable to receive points. " + error.message + ".";
+
+                handle401(error, error.message);
+            });
+        
     },
     // configureRegistry: function (device) {
     //     dispatcher.dispatch({

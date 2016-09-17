@@ -552,7 +552,7 @@ class VolttronCentralPlatform(Agent):
         proxy_identity = sender
         address = message['address']
         device_id = message['device_id']
-        bn = BACnetReader(self.vip.rpc, proxy_identity)
+        bn = BACnetReader(self.vip.rpc, proxy_identity, None)
         message['device_name'] = bn.read_device_name(address, device_id)
         message['device_description'] = bn.read_device_description(address,
                                                                    device_id)
