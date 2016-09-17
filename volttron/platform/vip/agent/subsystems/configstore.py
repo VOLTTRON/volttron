@@ -259,23 +259,33 @@ class ConfigStore(SubsystemBase):
 
     def _process_callbacks(self, affected_configs):
         _log.debug("Processing callbacks for affected files: {}".format(affected_configs))
-        for config_name, action in affected_configs.iteritems():
-            callbacks = set()
-            for pattern, actions in self._subscriptions.iteritems():
-                if fnmatch.fnmatchcase(config_name, pattern) and action in actions:
-                    callbacks.update(actions[action])
+        #Always process "config" first.
+        if "config" in affected_configs:
+            self._process_callbacks_one_config("config", affected_configs["config"])
 
-            for callback in callbacks:
-                try:
-                    if action == "DELETE":
-                        contents = None
-                    else:
-                        contents = self._gather_config(config_name)
-                    callback(config_name, action, contents)
-                except StandardError as e:
-                    tb_str = traceback.format_exc()
-                    _log.error("Problem processing callback:")
-                    _log.error(tb_str)
+        for config_name, action in affected_configs.iteritems():
+            if config_name == "config":
+                continue
+            self._process_callbacks_one_config(config_name, action)
+
+
+    def _process_callbacks_one_config(self, config_name, action):
+        callbacks = set()
+        for pattern, actions in self._subscriptions.iteritems():
+            if fnmatch.fnmatchcase(config_name, pattern) and action in actions:
+                callbacks.update(actions[action])
+
+        for callback in callbacks:
+            try:
+                if action == "DELETE":
+                    contents = None
+                else:
+                    contents = self._gather_config(config_name)
+                callback(config_name, action, contents)
+            except StandardError as e:
+                tb_str = traceback.format_exc()
+                _log.error("Problem processing callback:")
+                _log.error(tb_str)
 
     def list(self):
         """Returns a list of configuration names for this agent.
