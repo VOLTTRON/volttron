@@ -72,7 +72,7 @@ import os as _os
 import re as _re
 import shlex as _shlex
 import sys as _sys
-from . instance_setup import setup_instance
+from . instance_setup import main
 
 
 def expandall(string):
@@ -604,6 +604,6 @@ _patch_argparse()
 
 def _main():
     try:
-        setup_instance()
+        main()
     except KeyboardInterrupt:
         print('\n')
