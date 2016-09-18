@@ -491,10 +491,11 @@ class Core(BasicCore):
            self.serverkey = self._get_keys_from_addr()[2]
         known_serverkey = self._get_serverkey_from_known_hosts()
 
-        if self.serverkey is not None and self.serverkey != known_serverkey:
-            raise Exception("Provided server key ({}) for {} does does "
-                "not match known serverkey ({}).".format(self.address,
-                self.serverkey, known_serverkey))
+        if (self.serverkey is not None and known_serverkey is not None
+                and self.serverkey != known_serverkey):
+            raise Exception("Provided server key ({}) for {} does "
+                "not match known serverkey ({}).".format(self.serverkey,
+                self.address, known_serverkey))
 
         self.serverkey = known_serverkey
 
