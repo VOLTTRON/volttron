@@ -487,12 +487,10 @@ class Core(BasicCore):
             self.publickey, self.secretkey = self._get_keys_from_keystore()
 
     def _set_server_key(self):
-        _log.debug('_set_server_key 1: %s', self.serverkey)
         if self.serverkey is None:
            self.serverkey = self._get_keys_from_addr()[2]
         known_serverkey = self._get_serverkey_from_known_hosts()
 
-        _log.debug('_set_server_key 2: %s', self.serverkey)
         if (self.serverkey is not None and known_serverkey is not None
                 and self.serverkey != known_serverkey):
             raise Exception("Provided server key ({}) for {} does "
@@ -528,7 +526,6 @@ class Core(BasicCore):
         return keystore.public(), keystore.secret()
 
     def _get_keys_from_addr(self):
-        _log.debug('address: %s', self.address)
         url = list(urlparse.urlsplit(self.address))
         query = urlparse.parse_qs(url[3])
         publickey = query.get('publickey', [None])[0]
