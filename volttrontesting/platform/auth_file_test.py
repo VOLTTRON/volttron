@@ -144,14 +144,14 @@ def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
 def test_remove_invalid_index(auth_file_platform_tuple):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
-        auth_file.remove_by_index(1)
+        auth_file.remove_by_index(2)
 
 
 @pytest.mark.auth
 def test_update_invalid_index(auth_file_platform_tuple, auth_entry1):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
-        auth_file.update_by_index(auth_entry1, 1)
+        auth_file.update_by_index(auth_entry1, 2)
 
 
 @pytest.mark.auth
