@@ -248,7 +248,8 @@ class PlatformWrapper:
                               volttron_home=self.volttron_home)
         else:
             conn = Connection(address=self.local_vip_address, peer=peer,
-                              volttron_home=self.volttron_home)
+                              volttron_home=self.volttron_home,
+                              developer_mode=True)
         return conn
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
