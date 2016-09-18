@@ -634,6 +634,18 @@ class AuthFile(object):
             entries.append(auth_entry)
             self._write(entries, groups, roles)
 
+    def remove_by_credentials(self, credentials):
+        """
+        Removes entry from auth file by credential
+
+        :para credential: entries will this credential will be
+            removed
+        :type credential: str
+        """
+        entries, groups, roles = self.read()
+        entries = [e for e in entries if e.credentials != credentials]
+        self._write(entries, groups, roles)
+
     def remove_by_index(self, index):
         """
         Removes entry from auth file by index

@@ -141,6 +141,25 @@ def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
 
 
 @pytest.mark.auth
+def test_remove_auth_by_credentials(auth_file_platform_tuple, auth_entry1,
+                                    auth_entry2, auth_entry3):
+    auth_file, platform = auth_file_platform_tuple
+
+    # add entries
+    auth_file.add(auth_entry1)
+    auth_file.add(auth_entry2)
+    auth_entry3.credentials = auth_entry2.credentials
+    auth_file.add(auth_entry3)
+    entries = auth_file.read_allow_entries()
+    entries_len = len(entries)
+
+    # remove entries
+    auth_file.remove_by_credentials(auth_entry2.credentials)
+    entries = auth_file.read_allow_entries()
+    assert entries_len - 2 == len(entries)
+
+
+@pytest.mark.auth
 def test_remove_invalid_index(auth_file_platform_tuple):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
