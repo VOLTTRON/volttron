@@ -306,9 +306,7 @@ class AIPplatform(object):
             final_identity = self._setup_agent_vip_id(agent_uuid,
                                                       vip_identity=vip_identity)
 
-            name = self.agent_name(agent_uuid)
-            agent_path_with_name = os.path.join(agent_path, name)
-            self._authorize_agent_keys(agent_path_with_name, final_identity)
+            self._authorize_agent_keys(agent_uuid, final_identity)
 
         except Exception:
             shutil.rmtree(agent_path)
@@ -366,14 +364,25 @@ class AIPplatform(object):
 
         return final_identity
 
-    def _authorize_agent_keys(self, agent_path, identity):
-        data_dir = self._get_data_dir(agent_path)
+
+    def _get_agent_publickey(self, agent_uuid):
+        agent_path = os.path.join(self.install_dir, agent_uuid)
+        name = self.agent_name(agent_uuid)
+        agent_path_with_name = os.path.join(agent_path, name)
+        data_dir = self._get_data_dir(agent_path_with_name)
         keystore_path = os.path.join(data_dir, 'keystore.json')
         keystore = KeyStore(keystore_path)
-        publickey = keystore.public()
+        return keystore.public()
+
+    def _authorize_agent_keys(self, agent_uuid, identity):
+        publickey = self._get_agent_publickey(agent_uuid)
         entry = AuthEntry(credentials=publickey, user_id=identity,
                           comments='Automatically added on agent install')
         AuthFile().add(entry)
+
+    def _unauthorize_agent_keys(self, agent_uuid):
+        publickey = self._get_agent_publickey(agent_uuid)
+        AuthFile().remove_by_credentials(publickey)
 
     def _get_data_dir(self, agent_path):
         pkg = UnpackedPackage(agent_path)
@@ -416,6 +425,7 @@ class AIPplatform(object):
             raise ValueError('invalid agent')
         self.stop_agent(agent_uuid)
         self.agents.pop(agent_uuid, None)
+        self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
 
     def agent_name(self, agent_uuid):
