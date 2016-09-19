@@ -450,9 +450,10 @@ def watch_file(fullpath, callback):
 
 
 def create_file_if_missing(path, permission=0o660, contents=None):
-    if not os.path.exists(os.path.dirname(path)):
+    dirname = os.path.dirname(path)
+    if dirname and not os.path.exists(dirname):
         try:
-            os.makedirs(os.path.dirname(path))
+            os.makedirs(dirname)
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
