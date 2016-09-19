@@ -305,6 +305,12 @@ var devicesActionCreators = {
             handle401(error, error.message);
         });
     },
+    toggleShowPoints: function toggleShowPoints(device) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.TOGGLE_SHOW_POINTS,
+            device: device
+        });
+    },
     // configureRegistry: function (device) {
     //     dispatcher.dispatch({
     //         type: ACTION_TYPES.CONFIGURE_REGISTRY,
@@ -2483,7 +2489,7 @@ var ConfigureDevices = function (_BaseComponent) {
                 }
 
                 var buttonStyle = {
-                    height: "21px"
+                    height: "24px"
                 };
 
                 var platformNameLength = platform.name.length * 6;
@@ -2870,7 +2876,7 @@ var ConfigureRegistry = function (_BaseComponent) {
             state.registryValues = getPointsFromStore(device, state.keyPropsList);
 
             state.columnNames = [];
-            state.pointNames = [];
+            // state.pointNames = [];
             state.filteredList = [];
 
             state.selectedPoints = devicesStore.getSelectedPoints(device);
@@ -2880,9 +2886,9 @@ var ConfigureRegistry = function (_BaseComponent) {
                     return columns.key;
                 });
 
-                state.pointNames = state.registryValues.map(function (row) {
-                    return row.attributes[0].value;
-                });
+                // state.pointNames = state.registryValues.map(function (row) {
+                //     return row.attributes[0].value;
+                // });
             }
 
             state.pointsToDelete = [];
@@ -2904,7 +2910,9 @@ var ConfigureRegistry = function (_BaseComponent) {
         value: function _onFilterBoxChange(filterValue, column) {
             this.setState({ filterOn: true });
 
-            this.setState({ registryValues: getFilteredPoints(this.state.registryValues, filterValue, column) });
+            this.setState({
+                registryValues: getFilteredPoints(this.state.registryValues, filterValue, column)
+            });
         }
     }, {
         key: '_onClearFilter',
@@ -2914,14 +2922,6 @@ var ConfigureRegistry = function (_BaseComponent) {
     }, {
         key: '_onAddPoint',
         value: function _onAddPoint() {
-
-            var pointNames = this.state.pointNames;
-
-            pointNames.push("");
-
-            this.setState({ pointNames: pointNames });
-
-            var registryValues = this.state.registryValues;
 
             var pointValues = [];
 
@@ -2935,12 +2935,20 @@ var ConfigureRegistry = function (_BaseComponent) {
                 });
             }, this);
 
-            registryValues.push({ visible: true, attributes: pointValues });
-
-            this.setState({ registryValues: registryValues });
-
-            this.scrollToBottom = true;
+            modalActionCreators.openModal(_react2.default.createElement(_editPointForm2.default, {
+                device: this.props.device,
+                selectedPoints: this.state.selectedPoints,
+                attributes: pointValues }));
         }
+        // _addPoint(pointValues) {
+
+        //     this.state.registryValues.push({visible: true, attributes: pointValues});
+
+        //     this.setState({ registryValues: this.state.registryValues });
+
+        //     this.scrollToBottom = true;
+        // }
+
     }, {
         key: '_onRemovePoints',
         value: function _onRemovePoints() {
@@ -2968,10 +2976,6 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_removePoints',
         value: function _removePoints(pointsToDelete) {
 
-            // var registryValues = JSON.parse(JSON.stringify(this.state.registryValues));
-            // var pointsList = JSON.parse(JSON.stringify(this.state.pointsToDelete));
-            // var namesList = JSON.parse(JSON.stringify(this.state.pointNames));
-
             pointsToDelete.forEach(function (pointToDelete) {
 
                 var index = -1;
@@ -2997,17 +3001,18 @@ var ConfigureRegistry = function (_BaseComponent) {
                         this.state.pointsToDelete.splice(index, 1);
                     }
 
-                    index = this.state.pointNames.indexOf(pointValue);
+                    // index = this.state.pointNames.indexOf(pointValue);
 
-                    if (index > -1) {
-                        this.state.pointNames.splice(index, 1);
-                    }
+                    // if (index > -1)
+                    // {
+                    //     this.state.pointNames.splice(index, 1);
+                    // }
                 }
             }, this);
 
             this.setState({ registryValues: this.state.registryValues });
             this.setState({ pointsToDelete: this.state.pointsToDelete });
-            this.setState({ pointNames: this.state.pointNames });
+            // this.setState({ pointNames: this.state.pointNames });
 
             modalActionCreators.closeModal();
         }
@@ -3372,7 +3377,6 @@ var ConfigureRegistry = function (_BaseComponent) {
         value: function _handleRowClick(evt) {
 
             if (evt.target.nodeName !== "INPUT" && evt.target.nodeName !== "I" && evt.target.nodeName !== "DIV") {
-
                 var target;
 
                 if (evt.target.nodeName === "TD") {
@@ -3684,7 +3688,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                 );
             };
 
-            var visibilityClass = this.props.device.configuring ? "collapsible-registry-values slow-show" : "collapsible-registry-values slow-hide";
+            var visibilityClass = this.props.device.showPoints ? "collapsible-registry-values slow-show" : "collapsible-registry-values slow-hide";
 
             return _react2.default.createElement(
                 'div',
@@ -4894,7 +4898,10 @@ var DevicesFound = function (_BaseComponent) {
         value: function componentWillReceiveProps(nextProps) {
             if (this.props.canceled !== nextProps.canceled) {
                 if (nextProps.canceled) {
-                    devicesWs.close();
+                    if (typeof devicesWs !== "undefined" && devicesWs !== null) {
+                        devicesWs.close();
+                        devicesWs = null;
+                    }
                 } else {
                     this._setUpDevicesSocket();
                 }
@@ -4907,6 +4914,12 @@ var DevicesFound = function (_BaseComponent) {
     }, {
         key: '_setUpDevicesSocket',
         value: function _setUpDevicesSocket() {
+
+            if (typeof pointsWs !== "undefined" && pointsWs !== null) {
+                pointsWs.close();
+                pointsWs = null;
+            }
+
             devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
             if (window.WebSocket) {
                 devicesWs = new WebSocket(devicesWebsocket);
@@ -4931,6 +4944,12 @@ var DevicesFound = function (_BaseComponent) {
     }, {
         key: '_setUpPointsSocket',
         value: function _setUpPointsSocket() {
+
+            if (typeof devicesWs !== "undefined" && devicesWs !== null) {
+                devicesWs.close();
+                devicesWs = null;
+            }
+
             pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
             if (window.WebSocket) {
                 pointsWs = new WebSocket(pointsWebsocket);
@@ -4961,10 +4980,19 @@ var DevicesFound = function (_BaseComponent) {
         key: '_configureDevice',
         value: function _configureDevice(device) {
 
-            devicesWs.close();
-            device.configuring = !device.configuring;
-            devicesActionCreators.configureDevice(device);
-            this._setUpPointsSocket();
+            device.showPoints = !device.showPoints;
+
+            // Don't set up the socket again if we've already set it up once.
+            // So before setting device.configuring to true, first check
+            // if we're going to show points but haven't started configuring yet.
+            // If so, set up the socket and set configuring to true.
+            if (device.showPoints && !device.configuring) {
+                this._setUpPointsSocket();
+                device.configuring = true;
+                devicesActionCreators.configureDevice(device);
+            } else {
+                devicesActionCreators.toggleShowPoints(device);
+            }
         }
     }, {
         key: '_uploadRegistryFile',
@@ -5054,7 +5082,7 @@ var DevicesFound = function (_BaseComponent) {
                             { key: "config-arrow-" + deviceId + deviceAddress, className: 'plain' },
                             _react2.default.createElement(
                                 'div',
-                                { className: device.configuring ? "configure-arrow rotateConfigure" : "configure-arrow",
+                                { className: device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow",
                                     onClick: this._configureDevice.bind(this, device) },
                                 '▶'
                             )
@@ -8943,6 +8971,7 @@ module.exports = keyMirror({
     CANCEL_SCANNING: null,
     // LIST_DETECTED_DEVICES: null,
     CONFIGURE_DEVICE: null,
+    TOGGLE_SHOW_POINTS: null,
     EDIT_REGISTRY: null,
     UPDATE_REGISTRY: null,
     LOAD_REGISTRY: null,
@@ -10501,7 +10530,25 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             var device = devicesStore.getDeviceRef(_device.id, _device.address);
 
             if (device) {
+                device.showPoints = action.device.showPoints;
                 device.configuring = action.device.configuring;
+
+                if (device.configuring) {
+                    device.registryConfig = [];
+                }
+            }
+
+            devicesStore.emitChange();
+            break;
+        case ACTION_TYPES.TOGGLE_SHOW_POINTS:
+            _action = "configure_device";
+            _view = "Configure Device";
+            _device = action.device;
+
+            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+
+            if (device) {
+                device.showPoints = action.device.showPoints;
             }
 
             devicesStore.emitChange();
@@ -10517,7 +10564,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             if (device) {
                 device.registryConfig = [];
-                device.configuring = false;
+                device.showPoints = false;
             }
 
             devicesStore.emitChange();
@@ -10534,7 +10581,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             if (device) {
                 device.registryConfig = devicesStore.getPreppedData(action.data);
-                device.configuring = true;
+                device.showPoints = true;
                 device.selectedPoints = [];
             }
 
@@ -10565,17 +10612,18 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     return match;
                 });
 
+                action.attributes.forEach(function (item) {
+                    if (item.keyProp) {
+                        keyProps.push(item.key);
+                    }
+                });
+
+                device.keyProps = keyProps;
+
                 if (typeof attributes !== "undefined") {
-                    attributes = action.attributes;
-
-                    attributes.forEach(function (item) {
-                        if (item.keyProp) {
-                            keyProps.push(item.key);
-                        }
-                    });
-
-                    device.registryConfig[i] = JSON.parse(JSON.stringify(attributes));
-                    device.keyProps = keyProps;
+                    device.registryConfig[i] = JSON.parse(JSON.stringify(action.attributes));
+                } else {
+                    device.registryConfig.push(JSON.parse(JSON.stringify(action.attributes)));
                 }
 
                 device.selectedPoints = action.selectedPoints;
@@ -10600,7 +10648,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             if (device) {
                 device.registryConfig = JSON.parse(JSON.stringify(action.data));
-                device.configuring = false;
+                device.showPoints = false;
             }
 
             devicesStore.emitChange();
@@ -10643,6 +10691,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     address: device.address,
                     max_apdu_length: device.max_apdu_length,
                     segmentation_supported: device.segmentation_supported,
+                    showPoints: false,
                     configuring: false,
                     platformUuid: platform.uuid,
                     bacnetProxyUuid: bacnetUuid,

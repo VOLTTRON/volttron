@@ -93,7 +93,7 @@ var devicesActionCreators = {
     //     });
     // },
     configureDevice: function (device) {
-
+        
         var authorization = authorizationStore.getAuthorization();
 
         var params = {
@@ -122,7 +122,12 @@ var devicesActionCreators = {
 
                 handle401(error, error.message);
             });
-        
+    },
+    toggleShowPoints: function (device) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.TOGGLE_SHOW_POINTS,
+            device: device
+        });
     },
     // configureRegistry: function (device) {
     //     dispatcher.dispatch({

@@ -1165,7 +1165,27 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             if (device)
             {
-                device.configuring = action.device.configuring; 
+                device.showPoints = action.device.showPoints; 
+                device.configuring = action.device.configuring;
+
+                if (device.configuring)
+                {
+                    device.registryConfig = [];
+                }
+            }
+
+            devicesStore.emitChange();
+            break;
+        case ACTION_TYPES.TOGGLE_SHOW_POINTS:
+            _action = "configure_device";
+            _view = "Configure Device";
+            _device = action.device;
+
+            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+
+            if (device)
+            {
+                device.showPoints = action.device.showPoints;
             }
 
             devicesStore.emitChange();
@@ -1182,7 +1202,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             if (device)
             {
                 device.registryConfig = [];
-                device.configuring = false;
+                device.showPoints = false;
             }
 
             devicesStore.emitChange();
@@ -1200,7 +1220,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             if (device)
             {
                 device.registryConfig = devicesStore.getPreppedData(action.data);
-                device.configuring = true;
+                device.showPoints = true;
                 device.selectedPoints = [];
             }
 
@@ -1233,19 +1253,22 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     return match;
                 });
 
+                action.attributes.forEach(function (item) {
+                    if (item.keyProp)
+                    {
+                        keyProps.push(item.key);
+                    }
+                });
+
+                device.keyProps = keyProps;
+
                 if (typeof attributes !== "undefined")
                 {                
-                    attributes = action.attributes;
-
-                    attributes.forEach(function (item) {
-                        if (item.keyProp)
-                        {
-                            keyProps.push(item.key);
-                        }
-                    });
-
-                    device.registryConfig[i] = JSON.parse(JSON.stringify(attributes));
-                    device.keyProps = keyProps;
+                    device.registryConfig[i] = JSON.parse(JSON.stringify(action.attributes));                    
+                }
+                else
+                {
+                    device.registryConfig.push(JSON.parse(JSON.stringify(action.attributes)));
                 }
 
                 device.selectedPoints = action.selectedPoints;
@@ -1271,7 +1294,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             if (device)
             {
                 device.registryConfig = JSON.parse(JSON.stringify(action.data));
-                device.configuring = false;
+                device.showPoints = false;
             }
 
             devicesStore.emitChange();
@@ -1320,6 +1343,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     address: device.address,
                     max_apdu_length: device.max_apdu_length,
                     segmentation_supported: device.segmentation_supported,
+                    showPoints: false,
                     configuring: false,
                     platformUuid: platform.uuid,
                     bacnetProxyUuid: bacnetUuid,

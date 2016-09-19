@@ -74,7 +74,7 @@ class ConfigureRegistry extends BaseComponent {
         state.registryValues = getPointsFromStore(device, state.keyPropsList);
 
         state.columnNames = [];
-        state.pointNames = [];
+        // state.pointNames = [];
         state.filteredList = [];
 
         state.selectedPoints = devicesStore.getSelectedPoints(device);
@@ -85,9 +85,9 @@ class ConfigureRegistry extends BaseComponent {
                 return columns.key;
             });
 
-            state.pointNames = state.registryValues.map(function (row) {
-                return row.attributes[0].value;
-            });
+            // state.pointNames = state.registryValues.map(function (row) {
+            //     return row.attributes[0].value;
+            // });
         }
 
         state.pointsToDelete = [];
@@ -107,43 +107,47 @@ class ConfigureRegistry extends BaseComponent {
     _onFilterBoxChange(filterValue, column) {
         this.setState({ filterOn: true });
 
-        this.setState({ registryValues: getFilteredPoints(
-                                            this.state.registryValues, 
-                                            filterValue,
-                                            column
-                                        ) });
+        this.setState({ 
+            registryValues: getFilteredPoints(
+                this.state.registryValues, 
+                filterValue,
+                column
+            ) 
+        });
     }
     _onClearFilter() {
         this.setState({ filterOn: false });
     }
     _onAddPoint() {
 
-        var pointNames = this.state.pointNames;
-
-        pointNames.push("");
-
-        this.setState({ pointNames: pointNames });
-
-        var registryValues = this.state.registryValues;
-
         var pointValues = [];
 
         this.state.registryValues[0].attributes.forEach(function (attribute) {
             pointValues.push({ 
-                                "key" : attribute.key, 
-                                "label": attribute.label,
-                                "value": "", 
-                                "editable": true, 
-                                "keyProp": attribute.keyProp 
-                            });
+                "key" : attribute.key, 
+                "label": attribute.label,
+                "value": "", 
+                "editable": true, 
+                "keyProp": attribute.keyProp 
+            });
         }, this);
 
-        registryValues.push({visible: true, attributes: pointValues});
-
-        this.setState({ registryValues: registryValues });
-
-        this.scrollToBottom = true;
+        modalActionCreators.openModal(
+            <EditPointForm 
+                device={this.props.device} 
+                selectedPoints={this.state.selectedPoints}
+                attributes={pointValues}>
+            </EditPointForm>);
+        
     }
+    // _addPoint(pointValues) {
+        
+    //     this.state.registryValues.push({visible: true, attributes: pointValues});
+
+    //     this.setState({ registryValues: this.state.registryValues });
+
+    //     this.scrollToBottom = true;
+    // }
     _onRemovePoints() {
 
         var promptText, confirmText, confirmAction, cancelText;
@@ -172,10 +176,6 @@ class ConfigureRegistry extends BaseComponent {
     }
     _removePoints(pointsToDelete) {
         
-        // var registryValues = JSON.parse(JSON.stringify(this.state.registryValues));
-        // var pointsList = JSON.parse(JSON.stringify(this.state.pointsToDelete));
-        // var namesList = JSON.parse(JSON.stringify(this.state.pointNames));
-
         pointsToDelete.forEach(function (pointToDelete) {
 
             var index = -1;
@@ -204,18 +204,18 @@ class ConfigureRegistry extends BaseComponent {
                     this.state.pointsToDelete.splice(index, 1);
                 }
 
-                index = this.state.pointNames.indexOf(pointValue);
+                // index = this.state.pointNames.indexOf(pointValue);
 
-                if (index > -1)
-                {
-                    this.state.pointNames.splice(index, 1);
-                }
+                // if (index > -1)
+                // {
+                //     this.state.pointNames.splice(index, 1);
+                // }
             }
         }, this);
 
         this.setState({ registryValues: this.state.registryValues });
         this.setState({ pointsToDelete: this.state.pointsToDelete });
-        this.setState({ pointNames: this.state.pointNames });
+        // this.setState({ pointNames: this.state.pointNames });
 
         modalActionCreators.closeModal();
     }
@@ -570,7 +570,6 @@ class ConfigureRegistry extends BaseComponent {
 
         if ((evt.target.nodeName !== "INPUT") && (evt.target.nodeName !== "I") && (evt.target.nodeName !== "DIV"))  
         {
-
             var target;
 
             if (evt.target.nodeName === "TD")
@@ -866,7 +865,7 @@ class ConfigureRegistry extends BaseComponent {
             );     
         };
 
-        var visibilityClass = ( this.props.device.configuring ? 
+        var visibilityClass = ( this.props.device.showPoints ? 
                                     "collapsible-registry-values slow-show" : 
                                         "collapsible-registry-values slow-hide" );        
             
@@ -895,7 +894,9 @@ function getFilteredPoints(registryValues, filterStr, column) {
 
     return registryValues.map(function (row) {
 
-        row.visible = (filterStr === "" || (row.attributes[column].value.trim().toUpperCase().indexOf(filterStr.trim().toUpperCase()) > -1));
+        row.visible = (filterStr === "" || (row.attributes[column].value.trim()
+                                                .toUpperCase()
+                                                .indexOf(filterStr.trim().toUpperCase()) > -1));
 
         return row;
     });

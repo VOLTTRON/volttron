@@ -35,7 +35,11 @@ class DevicesFound extends BaseComponent {
         {
             if (nextProps.canceled)
             {
-                devicesWs.close();
+                if (typeof devicesWs !== "undefined" && devicesWs !== null)
+                {
+                    devicesWs.close();
+                    devicesWs = null;
+                }
             }
             else
             {
@@ -49,6 +53,13 @@ class DevicesFound extends BaseComponent {
         }
     }
     _setUpDevicesSocket() {
+
+        if (typeof pointsWs !== "undefined" && pointsWs !== null)
+        {
+            pointsWs.close();
+            pointsWs = null;
+        }
+
         devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
         if (window.WebSocket) {
             devicesWs = new WebSocket(devicesWebsocket);
@@ -81,6 +92,13 @@ class DevicesFound extends BaseComponent {
         }.bind(this);
     }    
     _setUpPointsSocket() {
+        
+        if (typeof devicesWs !== "undefined" && devicesWs !== null)
+        {
+            devicesWs.close();
+            devicesWs = null;
+        }
+
         pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
         if (window.WebSocket) {
             pointsWs = new WebSocket(pointsWebsocket);
@@ -116,11 +134,23 @@ class DevicesFound extends BaseComponent {
         // var devices = devicesStore.getDevices(this.props.platform, this.props.bacnet); 
     }
     _configureDevice(device) {
+        
+        device.showPoints = !device.showPoints;
 
-        devicesWs.close();
-        device.configuring = !device.configuring;
-        devicesActionCreators.configureDevice(device);
-        this._setUpPointsSocket();
+        // Don't set up the socket again if we've already set it up once.
+        // So before setting device.configuring to true, first check
+        // if we're going to show points but haven't started configuring yet.
+        // If so, set up the socket and set configuring to true.
+        if (device.showPoints && !device.configuring)
+        {
+            this._setUpPointsSocket();
+            device.configuring = true;
+            devicesActionCreators.configureDevice(device);
+        }
+        else
+        {
+            devicesActionCreators.toggleShowPoints(device);
+        }
     }
     _uploadRegistryFile(evt) {
 
@@ -213,7 +243,7 @@ class DevicesFound extends BaseComponent {
                     return (
                         <tr key={deviceId + deviceAddress}>
                             <td key={"config-arrow-" + deviceId + deviceAddress} className="plain">
-                                <div className={ device.configuring ? "configure-arrow rotateConfigure" : "configure-arrow" }
+                                <div className={ device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow" }
                                     onClick={this._configureDevice.bind(this, device)}>
                                         &#9654;
                                 </div>

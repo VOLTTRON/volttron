@@ -204,7 +204,7 @@ class ConfigureDevices extends BaseComponent {
             }
 
             var buttonStyle = {
-                height: "21px"
+                height: "24px"
             }
 
             var platformNameLength = platform.name.length * 6;
