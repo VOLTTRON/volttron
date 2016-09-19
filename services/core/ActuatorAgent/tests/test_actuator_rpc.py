@@ -90,23 +90,44 @@ def publish_agent(request, volttron_instance1):
     :param volttron_instance1: instance of volttron in which test cases are run
     :return: an instance of fake agent used for publishing
     """
-    # Create master driver config and 2 fake devices each with 6 points
-    process = Popen(['python', 'config_builder.py', '--count=4',
-                     '--publish-only-depth-all', 'fake',
-                     'fake_unit_testing.csv', 'null'],
+
+    # Reset master driver config store
+    process = Popen(['volttron-ctl', 'config', 'delete',
+                     'platform.driver', '--all'],
                     env=volttron_instance1.env,
                     cwd='scripts/scalability-testing',
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
-    print result
+    print(result)
     assert result == 0
+
+    # Add master driver configuration files to config store.
+    process = Popen(['volttron-ctl', 'config', 'store',
+                     'platform.driver',
+                     'fake.csv', 'fake_unit_testing.csv', '--csv'],
+                    env=volttron_instance1.env,
+                    cwd='scripts/scalability-testing',
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = process.wait()
+    print(result)
+    assert result == 0
+
+    for i in xrange(4):
+        config_name = "devices/fakedriver{}".format(i)
+        process = Popen(['volttron-ctl', 'config', 'store',
+                         'platform.driver',
+                         config_name, 'fake_unit_testing.config', '--json'],
+                        env=volttron_instance1.env,
+                        cwd='scripts/scalability-testing',
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = process.wait()
+        print(result)
+        assert result == 0
 
     # Start the master driver agent which would intern start the fake driver
     #  using the configs created above
     master_uuid = volttron_instance1.install_agent(
         agent_dir="services/core/MasterDriverAgent",
-        config_file="scripts/scalability-testing/configs/master-driver.agent",
         start=True)
     print("agent id: ", master_uuid)
     gevent.sleep(2)  # wait for the agent to start and start the devices
