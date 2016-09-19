@@ -57,7 +57,7 @@
 #}}}
 
 
-'''Module for storing local public and secret keys and remote public keys'''
+"""Module for storing local public and secret keys and remote public keys"""
 
 
 import json
@@ -75,7 +75,7 @@ _log = logging.getLogger(__name__)
 
 
 class BaseJSONStore(object):
-    '''JSON-file-backed store for dictionaries'''
+    """JSON-file-backed store for dictionaries"""
 
     def __init__(self, filename, permissions=0o600):
         self.filename = filename
@@ -154,7 +154,7 @@ class KeyStore(BaseJSONStore):
 
 
 class KnownHostsStore(BaseJSONStore):
-    '''Handle storage and retrival of known hosts'''
+    """Handle storage and retrival of known hosts"""
 
     def __init__(self, filename=None):
         if filename is None:
