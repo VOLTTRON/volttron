@@ -81,8 +81,7 @@ def sysmon_agent(config_path, **kwargs):
     :rtype: SysMonAgent
     """
     config = utils.load_config(config_path)
-    vip_identity = 'platform.sysmon'
-    return SysMonAgent(config, identity=vip_identity, **kwargs)
+    return SysMonAgent(config, **kwargs)
 
 
 class SysMonAgent(Agent):
@@ -183,7 +182,7 @@ class SysMonAgent(Agent):
 
 def main(argv=sys.argv):
     """Main method called by the platform."""
-    utils.vip_main(sysmon_agent)
+    utils.vip_main(sysmon_agent, identity='platform.sysmon')
 
 
 if __name__ == '__main__':

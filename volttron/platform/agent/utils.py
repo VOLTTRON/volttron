@@ -71,13 +71,16 @@ import os
 import pytz
 import re
 import stat
+import string
+from volttron.platform import get_home, get_address
 from dateutil.parser import parse
 from dateutil.tz import tzutc
 from tzlocal import get_localzone
 from zmq.utils import jsonapi
 from ..lib.inotify.green import inotify, IN_MODIFY
 
-__all__ = ['load_config', 'run_agent', 'start_agent_thread']
+__all__ = ['load_config', 'run_agent', 'start_agent_thread',
+           'is_valid_identity']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
@@ -89,6 +92,24 @@ _comment_re = re.compile(
 
 _log = logging.getLogger(__name__)
 
+# The following are the only allowable characters for identities.
+_VALID_IDENTITY_RE = re.compile(r"^[A-Za-z0-9_.\-]+$")
+
+
+def is_valid_identity(identity_to_check):
+    """ Checks the passed identity to see if it contains invalid characters
+
+    A None value for identity_to_check will return False
+
+    @:param: string: The vip_identity to check for validity
+    @:return: boolean: True if values are in the set of valid characters.
+    """
+
+    if identity_to_check is None:
+        return False
+
+    return _VALID_IDENTITY_RE.match(identity_to_check)
+    
 
 def _repl(match):
     """Replace the matched group with an appropriate string."""
@@ -109,7 +130,24 @@ def strip_comments(string):
 
 def load_config(config_path):
     """Load a JSON-encoded configuration file."""
-    return jsonapi.loads(strip_comments(open(config_path).read()))
+    if config_path is None:
+        _log.info("AGENT_CONFIG does not exist in environment. load_config returning empty configuration.")
+        return {}
+
+    if not os.path.exists(config_path):
+        _log.info("Config file specified by AGENT_CONFIG does not exist. load_config returning empty configuration.")
+        return {}
+
+    try:
+        with open(config_path) as f:
+            return parse_json_config(f.read())
+    except StandardError as e:
+        _log.error("Problem parsing agent configuration")
+        raise
+
+def parse_json_config(config_str):
+    """Parse a JSON-encoded configuration file."""
+    return jsonapi.loads(strip_comments(config_str))
 
 
 def run_agent(cls, subscribe_address=None, publish_address=None,
@@ -191,7 +229,7 @@ def default_main(agent_class, description=None, argv=sys.argv,
         pass
 
 
-def vip_main(agent_class, **kwargs):
+def vip_main(agent_class, identity=None, **kwargs):
     """Default main entry point implementation for VIP agents."""
     try:
         # If stdout is a pipe, re-open it line buffered
@@ -206,7 +244,21 @@ def vip_main(agent_class, **kwargs):
         Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt,)
 
         config = os.environ.get('AGENT_CONFIG')
-        agent = agent_class(config_path=config, **kwargs)
+        identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
+        if identity is not None:
+            if not is_valid_identity(identity):
+                _log.warn('Deprecation warining')
+                _log.warn(
+                    'All characters in {identity} are not in the valid set.'
+                    .format(idenity=identity))
+
+        address = get_address()
+        agent_uuid = os.environ.get('AGENT_UUID')
+        volttron_home = get_home()
+
+        agent = agent_class(config_path=config, identity=identity,
+                            address=address, agent_uuid=agent_uuid,
+                            volttron_home=volttron_home, **kwargs)
         try:
             run = agent.run
         except AttributeError:

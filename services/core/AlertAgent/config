@@ -1,0 +1,8 @@
+{
+    "devices/fakedriver0/all": 90,
+
+    "devices/fakedriver1/all": {
+        "seconds": 90,
+        "points": ["temperature", "PowerState"]
+    }
+}

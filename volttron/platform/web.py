@@ -181,12 +181,12 @@ class MasterWebService(Agent):
     """
 
     def __init__(self, serverkey, identity, address, bind_web_address, aip,
-                 volttron_central_address=None):
+                 volttron_central_address=None, **kwargs):
         """Initialize the discovery service with the serverkey
 
         serverkey is the public key in order to access this volttron's bus.
         """
-        super(MasterWebService, self).__init__(identity, address)
+        super(MasterWebService, self).__init__(identity, address, **kwargs)
 
         self.bind_web_address = bind_web_address
         # if the web address is bound then we need to allow the web agent
@@ -443,11 +443,17 @@ def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
     """
     _log.debug("root: {}, serverkey: {}, publickey: {}, secretkey: {}".format(
         vip_root, serverkey, publickey, secretkey))
-    if not (serverkey and publickey and secretkey and vip_root):
-        raise ValueError("All parameters must be entered.")
+    parsed = urlparse(vip_root)
+    if parsed.scheme == 'tcp':
+        if not (serverkey and publickey and secretkey and vip_root):
+            raise ValueError("All parameters must be entered.")
 
-    root = "{}?serverkey={}&publickey={}&secretkey={}".format(
-        vip_root, serverkey, publickey, secretkey
-    )
+        root = "{}?serverkey={}&publickey={}&secretkey={}".format(
+            vip_root, serverkey, publickey, secretkey)
+
+    elif parsed.scheme == 'ipc':
+        root = vip_root
+    else:
+        raise ValueError('Invalid vip root specified!')
 
     return root
