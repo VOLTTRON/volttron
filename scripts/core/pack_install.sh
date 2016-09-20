@@ -59,8 +59,8 @@ VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl clear
 VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg configure "$WHEEL" "$2"
 
 if [ -z "$AGENT_VIP_IDENTITY" ]; then
-    VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl $COMMAND_ARGS install "$WHEEL" --tag "$3"
+    VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl $COMMAND_ARGS install "file://$WHEEL" --tag "$3"
 else
-    VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl $COMMAND_ARGS install "$WHEEL" --tag "$3" --vip-identity "$AGENT_VIP_IDENTITY"
+    VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl $COMMAND_ARGS install "file://$WHEEL" --tag "$3" --vip-identity "$AGENT_VIP_IDENTITY"
 fi
 
