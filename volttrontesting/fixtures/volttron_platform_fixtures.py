@@ -17,14 +17,6 @@ def print_log(volttron_home):
                 print('NO LOG FILE AVAILABLE.')
 
 
-@pytest.fixture
-def randomize_ip_and_port():
-    # ip = "127.0.0.{}".format(randint(1, 254))
-    # port = get_rand_port(ip)
-    # get_n_volttron_instances.instances
-    return get_rand_ip_and_port
-
-
 def get_rand_ip_and_port():
     ip = "127.0.0.{}".format(randint(1, 254))
     port = get_rand_port(ip)
@@ -49,16 +41,6 @@ def get_rand_vip():
     return "tcp://{}".format(get_rand_ip_and_port())
 
 
-@pytest.fixture(scope="module")
-def instance1_config():
-    return {"vip-address": get_rand_vip()}
-
-
-@pytest.fixture(scope="module")
-def instance2_config():
-    return {"vip-address": get_rand_vip()}
-
-
 def build_wrapper(vip_address, **kwargs):
     wrapper = PlatformWrapper()
     print('BUILD_WRAPPER: {}'.format(vip_address))
@@ -78,8 +60,8 @@ def cleanup_wrappers(platforms):
 
 
 @pytest.fixture(scope="module")
-def volttron_instance1(request, instance1_config):
-    wrapper = build_wrapper(instance1_config['vip-address'])
+def volttron_instance1(request):
+    wrapper = build_wrapper(get_rand_vip())
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -89,9 +71,9 @@ def volttron_instance1(request, instance1_config):
 
 
 @pytest.fixture(scope="module")
-def volttron_instance2(request, instance2_config):
+def volttron_instance2(request):
     print("building instance 2")
-    wrapper = build_wrapper(instance2_config['vip-address'])
+    wrapper = build_wrapper(get_rand_vip())
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -169,7 +151,7 @@ def volttron_instance(request):
     wrapper = None
     address = get_rand_vip()
     if request.param == 'encrypted':
-        print("building instance 1 (using encryption)")
+        print("building instance (using encryption)")
         wrapper = build_wrapper(address, encrypt=True)
     else:
         wrapper = build_wrapper(address)
