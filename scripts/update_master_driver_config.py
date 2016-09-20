@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
 
     parser.add_argument('main_configuration', type=file,
-                        help='configuration to start with')
+                        help='Specify the pre-config store main master driver configuration file')
 
     args = parser.parse_args()
     process_main_config(args.main_configuration, args.keep_old)
