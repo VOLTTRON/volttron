@@ -209,6 +209,7 @@ def publish_agent(request, volttron_instance):
     # using the configs created above
     master_uuid = volttron_instance.install_agent(
         agent_dir="services/core/MasterDriverAgent",
+        config_file={},
         start=True)
     print("agent id: ", master_uuid)
     gevent.sleep(2)  # wait for the agent to start and start the devices
