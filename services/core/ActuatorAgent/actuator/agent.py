@@ -84,7 +84,7 @@ ActuatorAgent Configuration
         File used to save and restore Task states if the ActuatorAgent
          restarts for any reason. File will be
         created if it does not exist when it is needed.
-    "heartbeat_period"
+    "heartbeat_interval"
         How often to send a heartbeat signal to all devices in seconds.
         Defaults to 60.
         
@@ -218,7 +218,7 @@ The PUB/SUB interface responses will have the following header:
 
     {
         'type': 'NEW_SCHEDULE'
-        'requesterID': <Agent ID from the request>,
+        'requesterID': <VIP Identity of requesting agent>,
         'taskID': <Task ID from the request>
     }
     
@@ -319,7 +319,7 @@ The headder of the publish will take this form:
 .. code-block:: python
 
     {
-        'requesterID': <Agent ID>
+        'requesterID': <VIP Identity of requesting agent>
     }
     
 and a message body in this form:
@@ -367,7 +367,8 @@ Canceling a Task
 
 Cancelling a Task requires two things:
 
-- The original requester of the Task. This is the Agent's ID.
+- The original requester of the Task. The agent's VIP identity
+  automatically replaces provided parameters.
 - The name of the Task.
 
 Cancel Task Response
@@ -387,7 +388,7 @@ in the following format:
 .. note:: 
     There are some things to be aware of when canceling a schedule:
     
-        - The requesterID and taskID must match the original values from the
+        - The taskID must match the original value from the
         original request header.
         - After a Tasks time has passed there is no need to cancel it. Doing
         so will result in a "TASK_ID_DOES_NOT_EXIST" error.
@@ -426,7 +427,7 @@ Along with the following header:
 
     {
         'type': 'CANCEL_SCHEDULE',
-        'requesterID': <Agent ID associated with the preempted Task>,
+        'requesterID': <VIP id associated with the preempted Task>,
         'taskID': <Task ID of the preempted Task>
     }
     
@@ -452,7 +453,7 @@ With the following header:
 .. code-block:: python
 
     {
-        'requesterID': <Agent with access>,
+        'requesterID': <VIP identity of Agent with access>,
         'taskID': <Task associated with the time slot>
         'window': <Seconds remaining in the time slot>
     }
@@ -496,7 +497,7 @@ ACTUATOR_COLLECTION = 'actuators'
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-__version__ = "0.4"
+__version__ = "0.5"
 
 
 class LockError(StandardError):
@@ -515,16 +516,22 @@ def actuator_agent(config_path, **kwargs):
     :returns: Actuator Agent
     :rtype: ActuatorAgent
     """
-    config = utils.load_config(config_path)
-    heartbeat_interval = int(config.get('heartbeat_period', 60))
+    try:
+        config = utils.load_config(config_path)
+    except StandardError:
+        config = {}
+
+    if not config:
+        _log.info("Using Actuator Agent defaults for starting configuration.")
+
+    heartbeat_interval = int(config.get('heartbeat_interval', 60))
     schedule_publish_interval = int(
         config.get('schedule_publish_interval', 60))
-    schedule_state_file = config.get('schedule_state_file')
     preempt_grace_time = config.get('preempt_grace_time', 60)
     driver_vip_identity = config.get('driver_vip_identity', 'platform.driver')
 
     return ActuatorAgent(heartbeat_interval, schedule_publish_interval,
-                         schedule_state_file, preempt_grace_time,
+                         preempt_grace_time,
                          driver_vip_identity, **kwargs)
 
 
@@ -550,12 +557,11 @@ class ActuatorAgent(Agent):
     :type heartbeat_interval: float
     :type schedule_publish_interval: float
     :type preempt_grace_time: float
-    :type schedule_state_file: str
     :type driver_vip_identity: str
     """
 
     def __init__(self, heartbeat_interval=60, schedule_publish_interval=60,
-                 schedule_state_file=None, preempt_grace_time=60,
+                 preempt_grace_time=60,
                  driver_vip_identity='platform.driver', **kwargs):
 
         super(ActuatorAgent, self).__init__(**kwargs)
@@ -563,11 +569,83 @@ class ActuatorAgent(Agent):
 
         self._update_event = None
         self._device_states = {}
+
+        self.schedule_state_file = "_schedule_state"
+        self.heartbeat_greenlet = None
         self.heartbeat_interval = heartbeat_interval
+        self._schedule_manager = None
         self.schedule_publish_interval = schedule_publish_interval
-        self.schedule_state_file = schedule_state_file
-        self.preempt_grace_time = preempt_grace_time
-        self.driver_vip_identity = driver_vip_identity
+
+        self.default_config = {"heartbeat_interval": heartbeat_interval,
+                              "schedule_publish_interval": schedule_publish_interval,
+                              "preempt_grace_time": preempt_grace_time,
+                              "driver_vip_identity": driver_vip_identity}
+
+
+        self.vip.config.set_default("config", self.default_config)
+        self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"], pattern="config")
+
+    def configure(self, config_name, action, contents):
+        try:
+            config = self.default_config.copy()
+            config.update(contents)
+
+            _log.debug("Configuring Actuator Agent")
+
+            self.driver_vip_identity = str(config["driver_vip_identity"])
+            self.schedule_publish_interval = int(config["schedule_publish_interval"])
+
+            _log.debug("MasterDriver VIP IDENTITY: {}".format(self.driver_vip_identity))
+            _log.debug("Schedule publish interval: {}".format(self.schedule_publish_interval))
+
+            #Only restart the heartbeat if it changes.
+            if (self.heartbeat_interval != config["heartbeat_interval"] or
+                        action == "NEW" or
+                        self.heartbeat_greenlet is None):
+                if self.heartbeat_greenlet is not None:
+                    self.heartbeat_greenlet.kill()
+
+                self.heartbeat_interval = config["heartbeat_interval"]
+
+                self.heartbeat_greenlet = self.core.periodic(self.heartbeat_interval, self._heart_beat)
+
+            _log.debug("Heartbeat interval: {}".format(self.heartbeat_interval))
+            _log.debug("Preemption grace period: {}".format(config["preempt_grace_time"]))
+
+            if self._schedule_manager is None:
+                try:
+                    state_string = self.vip.config.get(self.schedule_state_file)
+                except KeyError:
+                    state_string = None
+                self._setup_schedule(config["preempt_grace_time"], state_string)
+            else:
+                self._schedule_manager.set_grace_period(config["preempt_grace_time"])
+
+        finally:
+            if action == "NEW":
+                #We will only see new action once.
+                #Do this after the scheduler is setup.
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=topics.ACTUATOR_GET(),
+                                          callback=self.handle_get)
+
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=topics.ACTUATOR_SET(),
+                                          callback=self.handle_set)
+
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=topics.ACTUATOR_SCHEDULE_REQUEST(),
+                                          callback=self.handle_schedule_request)
+
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=topics.ACTUATOR_REVERT_POINT(),
+                                          callback=self.handle_revert_point)
+
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=topics.ACTUATOR_REVERT_DEVICE(),
+                                          callback=self.handle_revert_device)
+
+
 
     def _heart_beat(self):
         _log.debug("sending heartbeat")
@@ -579,37 +657,19 @@ class ActuatorAgent(Agent):
         except Exception as e:
             _log.warning(''.join([e.__class__.__name__, '(', e.message, ')']))
 
-    @Core.receiver('onstart')
-    def _on_start(self, sender, **kwargs):
-        self._setup_schedule()
-        self.vip.pubsub.subscribe(peer='pubsub',
-                                  prefix=topics.ACTUATOR_GET(),
-                                  callback=self.handle_get)
 
-        self.vip.pubsub.subscribe(peer='pubsub',
-                                  prefix=topics.ACTUATOR_SET(),
-                                  callback=self.handle_set)
+    def _schedule_save_callback(self, state_file_contents):
+        _log.debug("Saving schedule state")
+        self.vip.config.set(self.schedule_state_file, state_file_contents)
 
-        self.vip.pubsub.subscribe(peer='pubsub',
-                                  prefix=topics.ACTUATOR_SCHEDULE_REQUEST(),
-                                  callback=self.handle_schedule_request)
 
-        self.vip.pubsub.subscribe(peer='pubsub',
-                                  prefix=topics.ACTUATOR_REVERT_POINT(),
-                                  callback=self.handle_revert_point)
-
-        self.vip.pubsub.subscribe(peer='pubsub',
-                                  prefix=topics.ACTUATOR_REVERT_DEVICE(),
-                                  callback=self.handle_revert_device)
-
-        self.core.periodic(self.heartbeat_interval, self._heart_beat)
-
-    def _setup_schedule(self):
+    def _setup_schedule(self, preempt_grace_time, initial_state=None):
         now = utils.get_aware_utc_now()
         self._schedule_manager = ScheduleManager(
-            self.preempt_grace_time,
+            preempt_grace_time,
             now=now,
-            state_file_name=self.schedule_state_file)
+            save_state_callback=self._schedule_save_callback,
+            initial_state_string=initial_state)
 
         self._update_device_state_and_schedule(now)
 
@@ -617,7 +677,7 @@ class ActuatorAgent(Agent):
         _log.debug("_update_device_state_and_schedule")
         # Sanity check now.
         # This is specifically for when this is running in a VM that gets
-        # suspeded and then resumed.
+        # suspended and then resumed.
         # If we don't make this check a resumed VM will publish one event
         # per minute of
         # time the VM was suspended for. 
@@ -702,7 +762,7 @@ class ActuatorAgent(Agent):
         .. code-block:: python
         
             {
-                'requesterID': <Agent ID>
+                'requesterID': <Ignored, VIP Identity used internally>
             }
         
         The ActuatorAgent will reply on the **value** topic 
@@ -714,7 +774,7 @@ class ActuatorAgent(Agent):
         
         """
         point = topic.replace(topics.ACTUATOR_GET() + '/', '', 1)
-        requester = headers.get('requesterID')
+        requester = sender
         headers = self._get_headers(requester)
         try:
             value = self.get_point(point)
@@ -738,7 +798,7 @@ class ActuatorAgent(Agent):
         .. code-block:: python
         
             {
-                'requesterID': <Agent ID>
+                'requesterID': <Ignored, VIP Identity used internally>
             }
         
         The ActuatorAgent will reply on the **value** topic 
@@ -759,7 +819,7 @@ class ActuatorAgent(Agent):
             message = compat.unpack_legacy_message(headers, message)
 
         point = topic.replace(topics.ACTUATOR_SET() + '/', '', 1)
-        requester = headers.get('requesterID')
+        requester = sender
         headers = self._get_headers(requester)
         if not message:
             error = {'type': 'ValueError', 'value': 'missing argument'}
@@ -769,7 +829,7 @@ class ActuatorAgent(Agent):
             return
 
         try:
-            self.set_point(requester, point, message)
+            self._set_point(requester, point, message)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
         except StandardError as ex:
@@ -802,7 +862,7 @@ class ActuatorAgent(Agent):
         Sets the value of a specific point on a device. 
         Requires the device be scheduled by the calling agent.
         
-        :param requester_id: Identifier given when requesting schedule. 
+        :param requester_id: Ignored, VIP Identity used internally
         :param topic: The topic of the point to set in the 
                       format <device topic>/<point name>
         :param value: Value to set point to.
@@ -820,27 +880,31 @@ class ActuatorAgent(Agent):
         within
                      the time allotted will raise a LockError"""
 
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        return self._set_point(rpc_peer, topic, value, **kwargs)
+
+    def _set_point(self, sender, topic, value, **kwargs):
         topic = topic.strip('/')
-        _log.debug('handle_set: {topic},{requester_id}, {value}'.
-                   format(topic=topic, requester_id=requester_id, value=value))
+        _log.debug('handle_set: {topic},{sender}, {value}'.
+                   format(topic=topic, sender=sender, value=value))
 
         path, point_name = topic.rsplit('/', 1)
 
-        headers = self._get_headers(requester_id)
-        if not isinstance(requester_id, str):
+        if not isinstance(sender, str):
             raise TypeError("Agent id must be a nonempty string")
-        if self._check_lock(path, requester_id):
+
+        if self._check_lock(path, sender):
             result = self.vip.rpc.call(self.driver_vip_identity, 'set_point',
                                        path, point_name, value, **kwargs).get()
 
-            headers = self._get_headers(requester_id)
+            headers = self._get_headers(sender)
             self._push_result_topic_pair(WRITE_ATTEMPT_PREFIX,
                                          topic, headers, value)
             self._push_result_topic_pair(VALUE_RESPONSE_PREFIX,
                                          topic, headers, result)
         else:
             raise LockError(
-                "caller ({}) does not have this lock".format(requester_id))
+                "caller ({}) does not have this lock".format(sender))
 
         return result
 
@@ -851,7 +915,7 @@ class ActuatorAgent(Agent):
         Set multiple points on multiple devices. Makes a single
         RPC call to the master driver per device.
 
-        :param requester_id: Identifier given when requesting schedule.
+        :param requester_id: Ignored, VIP Identity used internally
         :param topics_values: List of (topic, value) tuples
         :param \*\*kwargs: Any driver specific parameters
 
@@ -862,7 +926,7 @@ class ActuatorAgent(Agent):
         .. warning:: calling without previously scheduling *all* devices
                      and not within the time allotted will raise a LockError
         """
-
+        requester_id = bytes(self.vip.rpc.context.vip_message.peer)
         devices = collections.defaultdict(list)
         for topic, value in topics_values:
             topic = topic.strip('/')
@@ -897,7 +961,7 @@ class ActuatorAgent(Agent):
         .. code-block:: python
         
             {
-                'requesterID': <Agent ID>
+                'requesterID': <Ignored, VIP Identity used internally>
             }
         
         The ActuatorAgent will reply on
@@ -914,11 +978,11 @@ class ActuatorAgent(Agent):
         with the same header as the request.
         """
         point = topic.replace(topics.ACTUATOR_REVERT_POINT() + '/', '', 1)
-        requester = headers.get('requesterID')
+        requester = sender
         headers = self._get_headers(requester)
 
         try:
-            self.revert_point(requester, point)
+            self._revert_point(requester, point)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
         except StandardError as ex:
@@ -937,7 +1001,7 @@ class ActuatorAgent(Agent):
         .. code-block:: python
         
             {
-                'requesterID': <Agent ID>
+                'requesterID': <Ignored, VIP Identity used internally>
             }
         
         The ActuatorAgent will reply on the **value** topic 
@@ -954,11 +1018,11 @@ class ActuatorAgent(Agent):
         with the same header as the request.
         """
         point = topic.replace(topics.ACTUATOR_REVERT_DEVICE() + '/', '', 1)
-        requester = headers.get('requesterID')
+        requester = sender
         headers = self._get_headers(requester)
 
         try:
-            self.revert_device(requester, point)
+            self._revert_device(requester, point)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
         except StandardError as ex:
@@ -972,7 +1036,7 @@ class ActuatorAgent(Agent):
         Reverts the value of a specific point on a device to a default state. 
         Requires the device be scheduled by the calling agent.
         
-        :param requester_id: Identifier given when requesting schedule. 
+        :param requester_id: Ignored, VIP Identity used internally
         :param topic: The topic of the point to revert in the 
                       format <device topic>/<point name>
         :param \*\*kwargs: Any driver specific parameters
@@ -983,19 +1047,21 @@ class ActuatorAgent(Agent):
         within
                      the time allotted will raise a LockError"""
 
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        return self._revert_point(rpc_peer, topic, **kwargs)
+
+    def _revert_point(self, sender, topic, **kwargs):
         topic = topic.strip('/')
-        _log.debug('handle_revert: {topic},{requester_id}'.
-                   format(topic=topic, requester_id=requester_id))
+        _log.debug('handle_revert: {topic},{sender}'.
+                   format(topic=topic, sender=sender))
 
         path, point_name = topic.rsplit('/', 1)
 
-        headers = self._get_headers(requester_id)
-
-        if self._check_lock(path, requester_id):
+        if self._check_lock(path, sender):
             self.vip.rpc.call(self.driver_vip_identity, 'revert_point', path,
                               point_name, **kwargs).get()
 
-            headers = self._get_headers(requester_id)
+            headers = self._get_headers(sender)
             self._push_result_topic_pair(REVERT_POINT_RESPONSE_PREFIX,
                                          topic, headers, None)
         else:
@@ -1009,7 +1075,7 @@ class ActuatorAgent(Agent):
         Reverts all points on a device to a default state. 
         Requires the device be scheduled by the calling agent.
         
-        :param requester_id: Identifier given when requesting schedule. 
+        :param requester_id: Ignored, VIP Identity used internally
         :param topic: The topic of the device to revert
         :param \*\*kwargs: Any driver specific parameters
         :type topic: str
@@ -1018,20 +1084,21 @@ class ActuatorAgent(Agent):
         .. warning:: Calling without previously scheduling a device and not
         within
                      the time allotted will raise a LockError"""
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        return self._revert_device(rpc_peer, topic, **kwargs)
 
+    def _revert_device(self, sender, topic, **kwargs):
         topic = topic.strip('/')
-        _log.debug('handle_revert: {topic},{requester_id}'.
-                   format(topic=topic, requester_id=requester_id))
+        _log.debug('handle_revert: {topic},{sender}'.
+                   format(topic=topic, sender=sender))
 
         path = topic
 
-        headers = self._get_headers(requester_id)
-
-        if self._check_lock(path, requester_id):
+        if self._check_lock(path, sender):
             self.vip.rpc.call(self.driver_vip_identity, 'revert_device', path,
                               **kwargs).get()
 
-            headers = self._get_headers(requester_id)
+            headers = self._get_headers(sender)
             self._push_result_topic_pair(REVERT_DEVICE_RESPONSE_PREFIX,
                                          topic, headers, None)
         else:
@@ -1059,7 +1126,7 @@ class ActuatorAgent(Agent):
         
             {
                 'type': 'NEW_SCHEDULE',
-                'requesterID': <Agent ID>, #The name of the requesting agent.
+                'requesterID': <Ignored, VIP Identity used internally>,
                 'taskID': <unique task ID>, #The desired task ID for this
                 task. It must be unique among all other scheduled tasks.
                 'priority': <task priority>, #The desired task priority,
@@ -1076,12 +1143,12 @@ class ActuatorAgent(Agent):
         
             {
                 'type': 'CANCEL_SCHEDULE',
-                'requesterID': <Agent ID>, #The name of the requesting agent.
+                'requesterID': <Ignored, VIP Identity used internally>,
                 'taskID': <unique task ID>, #The task ID for the canceled Task.
             }
             
         requesterID
-            The name of the requesting agent.
+            The name of the requesting agent. Automatically replaced with VIP id.
         taskID
             The desired task ID for this task. It must be unique among all
             other scheduled tasks.
@@ -1099,7 +1166,7 @@ class ActuatorAgent(Agent):
                    format(topic=topic, headers=str(headers),
                           message=str(message)))
 
-        requester_id = headers.get('requesterID')
+        requester_id = sender
         task_id = headers.get('taskID')
         priority = headers.get('priority')
 
@@ -1110,15 +1177,15 @@ class ActuatorAgent(Agent):
                 else:
                     requests = message
 
-                self.request_new_schedule(requester_id, task_id, priority,
-                                          requests)
+                self._request_new_schedule(requester_id, task_id, priority,
+                                           requests)
             except StandardError as ex:
                 return self._handle_unknown_schedule_error(ex, headers,
                                                            message)
 
         elif request_type == SCHEDULE_ACTION_CANCEL:
             try:
-                self.request_cancel_schedule(requester_id, task_id)
+                self._request_cancel_schedule(requester_id, task_id)
             except StandardError as ex:
                 return self._handle_unknown_schedule_error(ex, headers,
                                                            message)
@@ -1137,7 +1204,7 @@ class ActuatorAgent(Agent):
         
         Requests one or more blocks on time on one or more device.
         
-        :param requester_id: Requester name. 
+        :param requester_id: Ignored, VIP Identity used internally
         :param task_id: Task name.
         :param priority: Priority of the task. Must be either "HIGH", "LOW",
         or "LOW_PREEMPT"
@@ -1154,11 +1221,14 @@ class ActuatorAgent(Agent):
         
             The return values are described in `New Task Response`_.
         """
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        return self._request_new_schedule(rpc_peer, task_id, priority, requests)
 
+    def _request_new_schedule(self, sender, task_id, priority, requests):
         now = utils.get_aware_utc_now()
 
         topic = topics.ACTUATOR_SCHEDULE_RESULT()
-        headers = self._get_headers(requester_id, task_id=task_id)
+        headers = self._get_headers(sender, task_id=task_id)
         headers['type'] = SCHEDULE_ACTION_NEW
         local_tz = get_localzone()
         try:
@@ -1185,9 +1255,9 @@ class ActuatorAgent(Agent):
             return self._handle_unknown_schedule_error(ex, headers, requests)
 
         _log.debug("Got new schedule request: {}, {}, {}, {}".
-                   format(requester_id, task_id, priority, requests))
+                   format(sender, task_id, priority, requests))
 
-        result = self._schedule_manager.request_slots(requester_id, task_id,
+        result = self._schedule_manager.request_slots(sender, task_id,
                                                       requests, priority, now)
         success = SCHEDULE_RESPONSE_SUCCESS if result.success else \
             SCHEDULE_RESPONSE_FAILURE
@@ -1205,7 +1275,7 @@ class ActuatorAgent(Agent):
                                             'result':
                                                 SCHEDULE_CANCEL_PREEMPTED,
                                             'info': '',
-                                            'data': {'agentID': requester_id,
+                                            'data': {'agentID': sender,
                                                      'taskID': task_id}})
 
         # If we are successful we do something else with the real result data
@@ -1239,7 +1309,7 @@ class ActuatorAgent(Agent):
         
         Requests the cancelation of the specified task id.
         
-        :param requester_id: Requester name. 
+        :param requester_id: Ignored, VIP Identity used internally
         :param task_id: Task name.
         
         :type requester_id: str
@@ -1252,11 +1322,15 @@ class ActuatorAgent(Agent):
         The return values are described in `Cancel Task Response`_.
         
         """
+        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        return self._request_cancel_schedule(rpc_peer, task_id)
+
+    def _request_cancel_schedule(self, sender, task_id):
         now = utils.get_aware_utc_now()
-        headers = self._get_headers(requester_id, task_id=task_id)
+        headers = self._get_headers(sender, task_id=task_id)
         headers['type'] = SCHEDULE_ACTION_CANCEL
 
-        result = self._schedule_manager.cancel_task(requester_id, task_id, now)
+        result = self._schedule_manager.cancel_task(sender, task_id, now)
         success = SCHEDULE_RESPONSE_SUCCESS if result.success else \
             SCHEDULE_RESPONSE_FAILURE
 
