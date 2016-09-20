@@ -2,6 +2,8 @@ import os
 import pytest
 from random import randint
 import socket
+import uuid
+
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 PRINT_LOG_ON_SHUTDOWN = False
@@ -39,6 +41,10 @@ def is_port_open(ip, port):
 
 def get_rand_vip():
     return "tcp://{}".format(get_rand_ip_and_port())
+
+
+def get_rand_ipc_vip():
+    return "ipc://@/" + str(uuid.uuid4())
 
 
 def build_wrapper(vip_address, **kwargs):
@@ -82,9 +88,14 @@ def volttron_instance2(request):
     return wrapper
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="function",
+        params=['tcp', 'ipc'])
 def volttron_instance1_encrypt(request):
     print("building instance 1 (using encryption)")
+    if request.param == 'tcp':
+        address = get_rand_vip()
+    else:
+        address = get_rand_ipc_vip()
     wrapper = build_wrapper(get_rand_vip(), encrypt=True)
 
     def cleanup():
