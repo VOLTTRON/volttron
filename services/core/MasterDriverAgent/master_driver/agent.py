@@ -113,6 +113,11 @@ def master_driver_agent(config_path, **kwargs):
     scalability_test_iterations = get_config('scalability_test_iterations', 3)
 
     driver_scrape_interval = get_config('driver_scrape_interval', 0.02)
+
+    if config.get("driver_config_list") is not None:
+        _log.warning("Master driver configured with old setting. This is no longer supported.")
+        _log.warning('Use the script "scripts/update_master_driver_config.py" to convert the configuration.')
+
     
     return MasterDriverAgent(driver_config_list, scalability_test,
                              scalability_test_iterations,
