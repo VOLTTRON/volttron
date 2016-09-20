@@ -258,6 +258,7 @@ class ControlService(BaseAgent):
             The name of the channel that the agent file will be sent on.
 
         """
+
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         channel = self.vip.channel(peer, channel_name)
         try:
@@ -286,6 +287,7 @@ class ControlService(BaseAgent):
                 _log.debug('Closing channel on server')
                 channel.close(linger=0)
                 del channel
+
             agent_uuid = self._aip.install_agent(path, vip_identity=vip_identity)
             return agent_uuid #self._aip.install_agent(path)
         finally:
@@ -355,47 +357,59 @@ def install_agent(opts):
     tag = opts.tag
     vip_identity = opts.vip_identity
 
-    try:
-        _log.debug('Creating channel for sending the agent.')
-        channel_name = str(uuid.uuid4())
-        channel = opts.connection.server.vip.channel('control',
-                                                      channel_name)
-        _log.debug('calling control install agent.')
-        agent_uuid = opts.connection.call_no_get('install_agent',
-                                                 filename,
-                                                 channel_name,
-                                                 vip_identity=vip_identity)
-        _log.debug('waiting for ready')
-        _log.debug('received {}'.format(channel.recv()))
-
-        with open(filename, 'rb') as wheel_file_data:
-            _log.debug('sending wheel to control.')
-            while True:
-                data = wheel_file_data.read(8125)
-
-                if not data:
-                    break
-                channel.send(data)
-
-        _log.debug('sending done message.')
-        channel.send('done')
-        _log.debug('closing channel')
-
-        agent_uuid = agent_uuid.get(timeout=10)
-
-        channel.close(linger=0)
-        del channel
+    if filename.startswith("file://"):
+        _log.info("Installing wheel locally without channel subsystem")
+        filename = filename[7:]
+        filename = config.expandall(filename)
+        agent_uuid = aip.install_agent(filename,
+                                       vip_identity=vip_identity)
 
         if tag:
-            opts.connection.call('tag_agent',
-                                 agent_uuid,
-                                 tag)
-    except Exception as exc:
-        if opts.debug:
-            traceback.print_exc()
-        _stderr.write(
-            '{}: error: {}: {}\n'.format(opts.command, exc, filename))
-        return 10
+            opts.connection.call('tag_agent', agent_uuid, tag)
+
+    else:
+        try:
+            _log.debug('Creating channel for sending the agent.')
+            channel_name = str(uuid.uuid4())
+            channel = opts.connection.server.vip.channel('control',
+                                                          channel_name)
+            _log.debug('calling control install agent.')
+            agent_uuid = opts.connection.call_no_get('install_agent',
+                                                     filename,
+                                                     channel_name,
+                                                     vip_identity=vip_identity)
+            _log.debug('waiting for ready')
+            _log.debug('received {}'.format(channel.recv()))
+
+            with open(filename, 'rb') as wheel_file_data:
+                _log.debug('sending wheel to control.')
+                while True:
+                    data = wheel_file_data.read(8125)
+
+                    if not data:
+                        break
+                    channel.send(data)
+
+            _log.debug('sending done message.')
+            channel.send('done')
+            _log.debug('closing channel')
+
+            agent_uuid = agent_uuid.get(timeout=10)
+
+            channel.close(linger=0)
+            del channel
+
+            if tag:
+                opts.connection.call('tag_agent',
+                                     agent_uuid,
+                                     tag)
+        except Exception as exc:
+            if opts.debug:
+                traceback.print_exc()
+            _stderr.write(
+                '{}: error: {}: {}\n'.format(opts.command, exc, filename))
+            return 10
+
     name = opts.connection.call('agent_name', agent_uuid)
     _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
 

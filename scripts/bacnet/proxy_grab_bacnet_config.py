@@ -64,8 +64,6 @@ import argparse
 
 import gevent
 import os
-
-from volttron.platform import get_address
 from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
@@ -82,8 +80,8 @@ if "VOLTTRON_HOME" not in os.environ:
     os.environ["VOLTTRON_HOME"] = '`/.volttron'
 
 class BACnetInteraction(Agent):
-    def __init__(self, *args, **kwargs):
-        super(BACnetInteraction, self).__init__(*args, **kwargs)
+    def __init__(self, *args):
+        super(BACnetInteraction, self).__init__(*args)
         self.callbacks = {}
     def get_iam(self, device_id, callback, address=None):
         self.callbacks[device_id] = callback
@@ -99,7 +97,7 @@ class BACnetInteraction(Agent):
         if callback is not None:
             callback(message)
 
-agent = BACnetInteraction("bacnet_interaction", address=get_address())
+agent = BACnetInteraction("bacnet_interaction")
 gevent.spawn(agent.core.run).join(0)
 
 """
@@ -148,17 +146,18 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
     
     writable = 'FALSE'
     
-    subondinate_list_property = get_datatype(obj_type, 'subordinateList')
-    if subondinate_list_property is not None:
-        _log.debug('Processing StructuredViewObject')
-        # process_device_object_reference(address, obj_type, index, 'subordinateList', max_range_report, config_writer)
-        return
-    
-    subondinate_list_property = get_datatype(obj_type, 'zoneMembers')
-    if subondinate_list_property is not None:
-        _log.debug('Processing LifeSafetyZoneObject')
-        # process_device_object_reference(address, obj_type, index, 'zoneMembers', max_range_report, config_writer)
-        return
+    # TODO: Eventually we will have a device that will want to use this code so leave it here.
+    #subondinate_list_property = get_datatype(obj_type, 'subordinateList')
+    #if subondinate_list_property is not None:
+    #    _log.debug('Processing StructuredViewObject')
+    #    process_device_object_reference(address, obj_type, index, 'subordinateList', max_range_report, config_writer)
+    #    return
+    #
+    #subondinate_list_property = get_datatype(obj_type, 'zoneMembers')
+    #if subondinate_list_property is not None:
+    #    _log.debug('Processing LifeSafetyZoneObject')
+    #    process_device_object_reference(address, obj_type, index, 'zoneMembers', max_range_report, config_writer)
+    #    return
     
     present_value_type = get_datatype(obj_type, 'presentValue')
     if present_value_type is None:
