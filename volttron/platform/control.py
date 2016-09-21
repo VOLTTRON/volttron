@@ -1202,13 +1202,24 @@ def main(argv=sys.argv):
     auth_subparsers = auth_cmds.add_subparsers(title='subcommands',
             metavar='', dest='store_commands')
 
-    auth_list = add_parser('list', help='list authentication records',
-            subparser=auth_subparsers)
-    auth_list.set_defaults(func=list_auth)
-
     auth_add = add_parser('add', help='add new authentication record',
             subparser=auth_subparsers)
     auth_add.set_defaults(func=add_auth)
+
+    auth_add_known_host = add_parser('add-known-host', subparser=auth_subparsers,
+            help='add server public key to known-hosts file')
+    auth_add_known_host.add_argument('--host', required=True,
+            help='hostname or IP address with optional port')
+    auth_add_known_host.add_argument('--server-key', required=True)
+    auth_add_known_host.set_defaults(func=add_server_key)
+
+    auth_keypair = add_parser('keypair', subparser=auth_subparsers,
+            help='generate CurveMQ keys for encrypting VIP connections')
+    auth_keypair.set_defaults(func=gen_keypair)
+
+    auth_list = add_parser('list', help='list authentication records',
+            subparser=auth_subparsers)
+    auth_list.set_defaults(func=list_auth)
 
     auth_remove = add_parser('remove', subparser=auth_subparsers,
             help='removes one or more authentication records by indices')
@@ -1216,11 +1227,16 @@ def main(argv=sys.argv):
             help='index or indices of record(s) to remove')
     auth_remove.set_defaults(func=remove_auth)
 
+    auth_serverkey = add_parser('serverkey', subparser=auth_subparsers,
+            help="show the serverkey for the instance")
+    auth_serverkey.set_defaults(func=show_serverkey)
+
     auth_update = add_parser('update', subparser=auth_subparsers,
             help='updates one authentication record by index')
     auth_update.add_argument('index', type=int,
             help='index of record to update')
     auth_update.set_defaults(func=update_auth)
+
 
     config_store = add_parser("config",
                               help="manage the platform configuration store")
@@ -1292,26 +1308,12 @@ def main(argv=sys.argv):
     send.add_argument('wheel', nargs='+', help='agent package to send')
     send.set_defaults(func=send_agent)
 
-    keypair = add_parser('keypair',
-                         help='generate CurveMQ keys for encrypting VIP connections')
-    keypair.set_defaults(func=gen_keypair)
-
-    add_known_host = add_parser('add-known-host',
-                                help='add server public key to known-hosts file')
-    add_known_host.add_argument('--host', required=True,
-                                help='hostname or IP address with optional port')
-    add_known_host.add_argument('--server-key', required=True)
-    add_known_host.set_defaults(func=add_server_key)
-
     stats = add_parser('stats',
                        help='manage router message statistics tracking')
     op = stats.add_argument(
         'op', choices=['status', 'enable', 'disable', 'dump', 'pprint'],
         nargs='?')
     stats.set_defaults(func=do_stats, op='status')
-    serverkey = add_parser('serverkey',
-                           help="show the serverkey for the instance")
-    serverkey.set_defaults(func=show_serverkey)
 
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
