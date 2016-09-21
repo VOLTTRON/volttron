@@ -96,7 +96,7 @@ def volttron_instance1_encrypt(request):
         address = get_rand_vip()
     else:
         address = get_rand_ipc_vip()
-    wrapper = build_wrapper(get_rand_vip(), encrypt=True)
+    wrapper = build_wrapper(address, encrypt=True)
 
     def cleanup():
         cleanup_wrapper(wrapper)
