@@ -58,7 +58,7 @@ import ast
 import logging
 
 from mysql.connector import Error as MysqlError
-from mysql.connector import errorcode as MysqlErrorCodes
+from mysql.connector import errorcode as mysql_errorcodes
 import pytz
 import re
 from basedb import DbDriver
@@ -358,14 +358,13 @@ class MySqlFuncts(DbDriver):
         _log.debug(name_map)
         return id_map, name_map
 
-
     def get_agg_topics(self):
         _log.debug("in get_agg_topics")
         try:
             query = "SELECT agg_topic_name, agg_type, agg_time_period, " \
                     "metadata FROM " + self.agg_topics_table + " as t, " + \
                     self.agg_meta_table + " as m WHERE t.agg_topic_id = " \
-                    "m.agg_topic_id "
+                                          "m.agg_topic_id "
             rows = self.select(query, None)
             topics = []
             for row in rows:
@@ -373,7 +372,7 @@ class MySqlFuncts(DbDriver):
                 topics.append((row[0], row[1], row[2], meta))
             return topics
         except MysqlError as e:
-            if e.errno == MysqlErrorCodes.ER_NO_SUCH_TABLE:
+            if e.errno == mysql_errorcodes.ER_NO_SUCH_TABLE:
                 return []
             else:
                 raise
@@ -392,7 +391,7 @@ class MySqlFuncts(DbDriver):
                 id_map[(row[1].lower(), row[2], row[3])] = row[0]
             return id_map
         except MysqlError as e:
-            if e.errno == MysqlErrorCodes.ER_NO_SUCH_TABLE:
+            if e.errno == mysql_errorcodes.ER_NO_SUCH_TABLE:
                 return {}
             else:
                 raise
@@ -444,11 +443,12 @@ class MySqlFuncts(DbDriver):
     def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
         """
         This function should return the results of a aggregation query
-        @param topic_ids:
-        @param agg_type:
-        @param start:
-        @param end:
-        @return:
+        @param topic_ids: list of single topics
+        @param agg_type: type of aggregation
+        @param start: start time
+        @param end: end time
+        @return: aggregate value, count of number of records over which
+        aggregation was computed
         """
         if isinstance(agg_type, str):
             if agg_type.upper() not in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM']:

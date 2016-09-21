@@ -84,13 +84,14 @@ def historian(config_path, **kwargs):
     if topic_replace_list:
         _log.debug("topic replace list is: {}".format(topic_replace_list))
 
-    DbFuncts = sqlutils.get_dbfuncts_class(database_type)
+    db_functs_class = sqlutils.get_dbfuncts_class(database_type)
 
     class SQLHistorian(BaseHistorian):
         """This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
         of the BaseHistorianAgent.
         """
+
         def __init__(self, **kwargs):
             """ Initialise the historian.
 
@@ -105,8 +106,8 @@ def historian(config_path, **kwargs):
             super(SQLHistorian, self).__init__(
                 topic_replace_list=topic_replace_list, **kwargs)
             self.tables_def, table_names = self.parse_table_def(config)
-            self.reader = DbFuncts(connection['params'], table_names)
-            self.writer = DbFuncts(connection['params'], table_names)
+            self.reader = db_functs_class(connection['params'], table_names)
+            self.writer = db_functs_class(connection['params'], table_names)
             self.reader.setup_historian_tables()
 
             self.topic_id_map = {}
@@ -228,16 +229,15 @@ def historian(config_path, **kwargs):
         def query_topics_metadata(self, topics):
             meta = {}
             if isinstance(topics, str):
-                id = self.topic_id_map.get(topics.lower())
-                if id:
-                    meta = {topics:self.topic_meta.get(id)}
+                topic_id = self.topic_id_map.get(topics.lower())
+                if topic_id:
+                    meta = {topics: self.topic_meta.get(topic_id)}
             elif isinstance(topics, list):
                 for topic in topics:
-                    id = self.topic_id_map.get(topic.lower())
-                    if id:
-                        meta[topic] = self.topic_meta.get(id)
+                    topic_id = self.topic_id_map.get(topic.lower())
+                    if topic_id:
+                        meta[topic] = self.topic_meta.get(topic_id)
             return meta
-
 
         def query_aggregate_topics(self):
             return self.reader.get_agg_topics()

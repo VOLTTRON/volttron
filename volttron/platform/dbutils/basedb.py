@@ -110,17 +110,16 @@ class DbDriver(object):
             table_names[row[0]] = table_prefix + row[1]
 
         table_names['agg_topics_table'] = table_prefix + \
-                                          'aggregate_' + table_map[
-                                              'topics_table']
+            'aggregate_' + table_map['topics_table']
         table_names['agg_meta_table'] = table_prefix + 'aggregate_' + \
-                                        table_map['meta_table']
+            table_map['meta_table']
         return table_names
 
     @abstractmethod
     def setup_historian_tables(self):
-        '''
+        """
         Create historian tables if necessary
-        '''
+        """
         pass
 
     @abstractmethod
@@ -129,14 +128,31 @@ class DbDriver(object):
 
     @abstractmethod
     def get_agg_topics(self):
+        """
+        Get the list of aggregate topics available
+        :return: list of tuples containing
+        (agg_topic_name, agg_type, agg_time_period, configured topics/topic
+        name pattern)
+        """
         pass
 
     @abstractmethod
     def get_agg_topic_map(self):
+        """
+        Get a map of aggregate_topics to aggregate_topic_id
+        :return: dict of format
+        {(agg_topic_name, agg_type, agg_time_period):agg_topic_id}
+        """
         pass
 
     @abstractmethod
     def find_topics_by_pattern(self, topic_pattern):
+        """
+        Return a map of {topi_name.lower():topic_id} that matches the given
+        pattern
+        :param topic_pattern: pattern to match against topic_name
+        :return:
+        """
         pass
 
     @abstractmethod
@@ -157,6 +173,11 @@ class DbDriver(object):
 
     @abstractmethod
     def is_supported_aggregation(self, agg_type):
+        """
+        Check if passed aggregation is supported by the specific data store
+        :param agg_type: type of aggregation
+        :return: True if supported false otherwise
+        """
         pass
 
     @abstractmethod

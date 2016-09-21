@@ -145,9 +145,9 @@ class SqlLiteFuncts(DbDriver):
         conn.commit()
         conn.close()
 
-    def record_table_definitions(self, tables_def, meta_table_name):
+    def record_table_definitions(self, table_defs, meta_table_name):
         _log.debug(
-            "In record_table_def {} {}".format(tables_def, meta_table_name))
+            "In record_table_def {} {}".format(table_defs, meta_table_name))
         conn = sqlite3.connect(
             self.__database,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
@@ -160,18 +160,18 @@ class SqlLiteFuncts(DbDriver):
                table_name TEXT NOT NULL, \
                table_prefix TEXT);')
 
-        table_prefix = tables_def.get('table_prefix', "")
+        table_prefix = table_defs.get('table_prefix', "")
 
         cursor.execute('INSERT OR REPLACE INTO ' + meta_table_name
                        + ' VALUES (?, ?, ?)',
-                       ['data_table', tables_def['data_table'], table_prefix])
+                       ['data_table', table_defs['data_table'], table_prefix])
         cursor.execute('INSERT OR REPLACE INTO ' + meta_table_name
                        + ' VALUES (?, ?, ?)',
-                       ['topics_table', tables_def['topics_table'],
+                       ['topics_table', table_defs['topics_table'],
                         table_prefix])
         cursor.execute('INSERT OR REPLACE INTO ' + meta_table_name +
                        ' VALUES (?, ?, ?)',
-                       ['meta_table', tables_def['meta_table'], table_prefix])
+                       ['meta_table', table_defs['meta_table'], table_prefix])
 
         conn.commit()
 
@@ -506,11 +506,12 @@ class SqlLiteFuncts(DbDriver):
     def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
         """
         This function should return the results of a aggregation query
-        @param topic_ids:
-        @param agg_type:
-        @param start:
-        @param end:
-        @return:
+        @param topic_ids: list of single topics
+        @param agg_type: type of aggregation
+        @param start: start time
+        @param end: end time
+        @return: aggregate value, count of number of records over which
+        aggregation was computed
         """
         if isinstance(agg_type, str):
             if agg_type.upper() not in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM']:

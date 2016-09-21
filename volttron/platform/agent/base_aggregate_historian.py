@@ -63,10 +63,10 @@ from __future__ import absolute_import
 
 import copy
 import logging
+from abc import abstractmethod
 from datetime import datetime, timedelta
 
 import pytz
-from abc import abstractmethod
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent import Core
@@ -155,7 +155,6 @@ class AggregateHistorian(Agent):
                 agg_group['points'])
         _log.debug("End of onstart method - current time{}".format(
             datetime.utcnow()))
-
 
     def _init_agg_group(self, agg_group, agg_time_period):
         if 'points' not in agg_group:
@@ -271,16 +270,18 @@ class AggregateHistorian(Agent):
 
     def _collect_aggregate_data(self, collection_time, agg_time_period,
                                 use_calendar_periods, points):
+
         """
         Method that does the collection and computation of aggregate data based
         on raw date in historian's data table. This method is called
         periodically after agent start
-        @param aggregation_period - time agg_time_period for which data needs
-        to be collected and aggregated
-        @param use_calendar_periods - flag that indicates if time
+        :param collection_time:  time of aggregation collection
+        :param param agg_time_period: - time agg_time_period for which data
+        needs  to be collected and aggregated
+        :param param use_calendar_periods: flag that indicates if time
         agg_time_period should be aligned to calendar times
-        @param points - list of points for which aggregate data needs to be
-        collected. Each element in the list is a dictionary containing
+        :param param points: list of points for which aggregate data needs
+        to be collected. Each element in the list is a dictionary containing
             topic_names/topic_name_pattern,
             aggregation_type(ex. sum, avg etc.), and
             min_count(minimum number of raw data to be present within the
@@ -299,8 +300,8 @@ class AggregateHistorian(Agent):
                 collection_time, agg_time_period, use_calendar_periods)
         try:
             _log.debug(
-                "After  compute agg_time_period = {} start_time {} end_time {} ".
-                    format(agg_time_period, start_time, end_time))
+                "After  compute agg_time_period = {} start_time {} end_time "
+                "{} ".format(agg_time_period, start_time, end_time))
             for data in points:
                 _log.debug("data in loop {}".format(data))
                 topic_ids = data.get('topic_ids', None)
@@ -332,7 +333,7 @@ class AggregateHistorian(Agent):
                         "No records found for topic {topic} between "
                         "{start_time} and {end_time}".format(
                             topic=topic_pattern if topic_pattern else
-                                data['topic_names'],
+                            data['topic_names'],
                             start_time=start_time,
                             end_time=end_time))
                 elif count < data.get('min_count', 0):
@@ -342,7 +343,7 @@ class AggregateHistorian(Agent):
                         "records is less than minimum allowed("
                         "{count})".format(
                             topic=topic_pattern if topic_pattern
-                                else data['topic_names'],
+                            else data['topic_names'],
                             start_time=start_time,
                             end_time=end_time,
                             count=data.get('min_count', 0)))
@@ -352,8 +353,9 @@ class AggregateHistorian(Agent):
                             data['aggregation_topic_name'].lower(),
                             data['aggregation_type'].lower(),
                             agg_time_period]
-                    _log.debug("agg_topic_id {} and topic ids sent to insert {} "
-                               "".format(aggregate_topic_id, topic_ids))
+                    _log.debug(
+                        "agg_topic_id {} and topic ids sent to insert {} "
+                        "".format(aggregate_topic_id, topic_ids))
                     self.insert_aggregate(aggregate_topic_id,
                                           data['aggregation_type'],
                                           agg_time_period,
@@ -363,7 +365,8 @@ class AggregateHistorian(Agent):
         finally:
             collection_time = AggregateHistorian.compute_next_collection_time(
                 collection_time, agg_time_period, use_calendar_periods)
-            _log.debug("Scheduling next collection at {}".format(collection_time))
+            _log.debug(
+                "Scheduling next collection at {}".format(collection_time))
             event = self.core.schedule(collection_time,
                                        self._collect_aggregate_data,
                                        collection_time,
@@ -372,13 +375,12 @@ class AggregateHistorian(Agent):
                                        points)
             _log.debug("After Scheduling next collection.{}".format(event))
 
-
     @abstractmethod
     def get_topic_map(self):
         """
         Query the topics table and create a map of topic name to topic id.
         This should be done as part of init
-        @return: Returns a list of topic_map containing
+        :return: Returns a list of topic_map containing
         {topic_name.lower():id}
         """
         pass
@@ -390,7 +392,7 @@ class AggregateHistorian(Agent):
         (topic name, aggregation type, aggregation time period) to
         topic id.
         This should be done as part of init
-        @return: Returns a list of topic_map containing
+        :return: Returns a list of topic_map containing
         {(agg_topic_name.lower(), agg_type, agg_time_period) :id}
         """
         pass
@@ -398,7 +400,7 @@ class AggregateHistorian(Agent):
     @abstractmethod
     def find_topics_by_pattern(self, topic_pattern):
         """ Find the list of topics and its id for a given topic_pattern
-        @return: returns list of dictionary object {topic_name.lower():id}"""
+        :return: returns list of dictionary object {topic_name.lower():id}"""
 
     @abstractmethod
     def initialize_aggregate_store(self, aggregation_topic_name, agg_type,
@@ -407,16 +409,16 @@ class AggregateHistorian(Agent):
         Create the data structure (table or collection) that is going to store
         the aggregate data for the give aggregation type and aggregation
         time period
-        @param aggregation_topic_name: Unique topic name for this
+        :param aggregation_topic_name: Unique topic name for this
         aggregation. If aggregation is done over multiple points it is a
         unique name given by user, else it is same as topic_name for which
         aggregation is done
-        @param agg_type: The type of aggregation. For example, avg, sum etc.
-        @param agg_time_period: The time period of aggregation
-        @param topics_meta: String that represents the list of topics across
+        :param agg_type: The type of aggregation. For example, avg, sum etc.
+        :param agg_time_period: The time period of aggregation
+        :param topics_meta: String that represents the list of topics across
         which this aggregation is computed. It could be topic name pattern
         or list of topics. This information should go into metadata table
-        @:return - Return a aggregation_topic_id after inserting
+        :return: Return a aggregation_topic_id after inserting
         aggregation_topic_name into topics table
         """
 
@@ -437,10 +439,10 @@ class AggregateHistorian(Agent):
         Collects the aggregate data by querying the historian's data store
         @param topic_ids: list of topic ids for which aggregation should be
         performed.
-        @param agg_type: type of aggregation
-        @param start_time: start time for query (inclusive)
-        @param end_time:  end time for query (exclusive)
-        @return: a tuple of (aggregated value, count of record over which
+        :param agg_type: type of aggregation
+        :param start_time: start time for query (inclusive)
+        :param end_time:  end time for query (exclusive)
+        :return: a tuple of (aggregated value, count of record over which
         this aggregation was computed)
         """
         pass
@@ -452,11 +454,11 @@ class AggregateHistorian(Agent):
         @param agg_topic_id: If len(topic_ids) is 1. This would be the same
         as the topic_ids[0]. Else this id corresponds to the unique topic name
         given by user for this aggregation across multiple points.
-        @param agg_type: type of aggregation
-        @param agg_time_period: The time period of aggregation
-        @param end_time: end time used for query records that got aggregated
-        @param topic_ids: topic ids for which aggregation was computed
-        @param value: aggregation result
+        :param agg_type: type of aggregation
+        :param agg_time_period: The time period of aggregation
+        :param end_time: end time used for query records that got aggregated
+        :param topic_ids: topic ids for which aggregation was computed
+        :param value: aggregation result
         """
         pass
 
@@ -465,8 +467,8 @@ class AggregateHistorian(Agent):
         """
         Checks if the given aggregation is supported by the historian's
         data store
-        @param agg_type: The type of aggregation to be computed
-        @return: True is supported False otherwise
+        :param agg_type: The type of aggregation to be computed
+        :return: True is supported False otherwise
         """
         pass
 
@@ -477,8 +479,8 @@ class AggregateHistorian(Agent):
         Validates and normalizes aggregation time period. For example,
         if aggregation time period is given as 48h it will get converted
         into 2d
-        @param time_period: time period string to be validated and normalized
-        @return: normalized time period
+        :param time_period: time period string to be validated and normalized
+        :return: normalized time period
         """
         try:
             time_period = time_period.strip()
@@ -512,56 +514,59 @@ class AggregateHistorian(Agent):
 
         return str(period) + unit
 
-
-
     @staticmethod
-    def compute_next_collection_time(current_time, agg_period,
-                                use_calendar_periods):
+    def compute_next_collection_time(collection_time, agg_period,
+                                     use_calendar_periods):
         """
         compute the next collection time based on current time in utc and
         aggregation time period.
-        @param agg_period: period string from AggregateHistorian config
-        @param use_calendar_periods: boolean to say if aggregate period
+        :param collection_time: time of aggregate collection
+        :param agg_period: period string from AggregateHistorian config
+        :param use_calendar_periods: boolean to say if aggregate period
         should be
         based on calendar periods. For example: Week = Sunday to Saturday,
         Hourly average would be 1AM= 2AM, 2AM-3AM etc
-        @return: next collection time in utc
+        :return: next collection time in utc
+
         """
         period_int = int(agg_period[:-1])
         unit = agg_period[-1:]
         if unit == 'm':
-            return current_time + timedelta(minutes=period_int)
+            return collection_time + timedelta(minutes=period_int)
         elif unit == 'h':
-            return current_time + timedelta(hours=period_int)
+            return collection_time + timedelta(hours=period_int)
         elif unit == 'd':
-            return current_time + timedelta(days=period_int)
+            return collection_time + timedelta(days=period_int)
         elif unit == 'w':
-            return current_time + timedelta(weeks=period_int)
+            return collection_time + timedelta(weeks=period_int)
         elif unit == 'M':
             if use_calendar_periods:
                 # collect more frequently than 30 days so that
                 # we don't miss collecting January's data in case we
                 # start collecting on say Jan 31
-                period_int = period_int * 15
-                return current_time + timedelta(days=period_int)
+                period_int *= 15
+                return collection_time + timedelta(days=period_int)
             else:
-                period_int = period_int * 30
-                return current_time + timedelta(days=period_int)
+                period_int *= 30
+                return collection_time + timedelta(days=period_int)
 
     @staticmethod
     def compute_aggregation_time_slice(collection_time, agg_period,
-                                      use_calender_time_periods):
+                                       use_calender_time_periods):
         """
         Computes the start and end time for querying the historians data table
         for computing aggregates. Start and end time depend on whether the time
         periods should align to calendar time periods. For example a daily
         average could be computed for data collected between 12am to 11.59am of
-        a specific date or data between (current_time - 24 hours) and
+        a specific date or data between (collection_time - 24 hours) and
         current_time.
         Setting use_calendar_time_periods to true results in former.
-        @param agg_period:
-        @param use_calender_time_periods:
-        @return:
+        :param collection_time: Time of aggregation collection
+        :param agg_period: time period of the aggregation
+        :param use_calender_time_periods: boolean to indicate if the time
+        period should align to the calendar time periods
+        :return: start and end time of aggregation. start time is inclusive
+        and end time is not.
         """
         end_time = collection_time
         period_int = int(agg_period[:-1])
@@ -576,7 +581,7 @@ class AggregateHistorian(Agent):
         elif unit == 'w':
             start_time = end_time - timedelta(weeks=period_int)
         elif unit == 'M':
-            start_time = end_time - timedelta(days=30*period_int)
+            start_time = end_time - timedelta(days=30 * period_int)
         else:
             raise ValueError(
                 "Invalid unit {} provided for aggregation_period. "
@@ -609,8 +614,8 @@ class AggregateHistorian(Agent):
                 day_idx = end_time.weekday()
                 # weekday index starts on Monday, so Mon=0, Tue=1 etc.
                 if day_idx != 6:
-                    #If it is not a sunday move to last sunday
-                    end_time = end_time - timedelta(days=day_idx+1)
+                    # If it is not a sunday move to last sunday
+                    end_time = end_time - timedelta(days=day_idx + 1)
 
                 end_time = end_time.replace(hour=0,
                                             minute=0,
@@ -620,18 +625,18 @@ class AggregateHistorian(Agent):
 
             elif unit == 'M':
                 end_time = end_time.replace(day=1,
-                                           hour=0,
-                                           minute=0,
-                                           second=0,
-                                           microsecond=0)
+                                            hour=0,
+                                            minute=0,
+                                            second=0,
+                                            microsecond=0)
                 # get last day of previous month
                 end_time = end_time - timedelta(days=1)
 
                 # move to first day of previous month
                 start_time = copy.copy(end_time).replace(day=1,
-                                                hour=0,
-                                                minute=0,
-                                                second=0,
-                                                microsecond=0)
+                                                         hour=0,
+                                                         minute=0,
+                                                         second=0,
+                                                         microsecond=0)
 
         return start_time, end_time

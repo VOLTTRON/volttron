@@ -90,6 +90,7 @@ def historian(config_path, **kwargs):
         to a SQLite database. It is designed to test some of the functionality
         of the BaseHistorianAgent.
         """
+
         def __init__(self, **kwargs):
             """ Initialise the historian.
 
@@ -350,21 +351,20 @@ def historian(config_path, **kwargs):
 
             meta = {}
             if isinstance(topics, str):
-                id = self._topic_id_map.get(topics.lower())
-                if id:
-                    meta = {topics: self._topic_meta.get(id)}
+                topic_id = self._topic_id_map.get(topics.lower())
+                if topic_id:
+                    meta = {topics: self._topic_meta.get(topic_id)}
             elif isinstance(topics, list):
                 for topic in topics:
-                    id = self._topic_id_map.get(topic.lower())
-                    if id:
-                        meta[topic] = self._topic_meta.get(id)
+                    topic_id = self._topic_id_map.get(topic.lower())
+                    if topic_id:
+                        meta[topic] = self._topic_meta.get(topic_id)
             return meta
 
         def query_aggregate_topics(self):
             return mongoutils.get_agg_topics(
                 self._client,
                 self._agg_topic_collection, self._agg_meta_collection)
-
 
         def _load_topic_map(self):
             _log.debug('loading topic map')
@@ -411,7 +411,6 @@ def historian(config_path, **kwargs):
             else:
                 _log.debug("no agg topics to load")
                 self._agg_topic_id_map = {}
-
 
         def record_table_definitions(self, meta_table_name):
             _log.debug("In record_table_def  table:{}".format(
