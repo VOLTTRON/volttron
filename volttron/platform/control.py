@@ -356,9 +356,8 @@ def install_agent(opts):
     tag = opts.tag
     vip_identity = opts.vip_identity
 
-    if filename.startswith("file://"):
+    if opts.vip_address.startswith('ipc://'):
         _log.info("Installing wheel locally without channel subsystem")
-        filename = filename[7:]
         filename = config.expandall(filename)
         agent_uuid = aip.install_agent(filename,
                                        vip_identity=vip_identity)
