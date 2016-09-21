@@ -10,7 +10,7 @@ ActuatorAgent will respond on the topic
     #python
     {
         'type': <'NEW_SCHEDULE', 'CANCEL_SCHEDULE'>
-        'requesterID': <Agent ID from the request>,
+        'requesterID': <Agent VIP identity from the request>,
         'taskID': <Task ID from the request>
     }
 
