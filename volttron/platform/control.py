@@ -1196,6 +1196,32 @@ def main(argv=sys.argv):
                          help=argparse.SUPPRESS)
     run.set_defaults(func=run_agent)
 
+    auth_cmds = add_parser("auth",
+            help="manage authorization entries and encryption keys")
+
+    auth_subparsers = auth_cmds.add_subparsers(title='subcommands',
+            metavar='', dest='store_commands')
+
+    auth_list = add_parser('list', help='list authentication records',
+            subparser=auth_subparsers)
+    auth_list.set_defaults(func=list_auth)
+
+    auth_add = add_parser('add', help='add new authentication record',
+            subparser=auth_subparsers)
+    auth_add.set_defaults(func=add_auth)
+
+    auth_remove = add_parser('remove', subparser=auth_subparsers,
+            help='removes one or more authentication records by indices')
+    auth_remove.add_argument('indices', nargs='+', type=int,
+            help='index or indices of record(s) to remove')
+    auth_remove.set_defaults(func=remove_auth)
+
+    auth_update = add_parser('update', subparser=auth_subparsers,
+            help='updates one authentication record by index')
+    auth_update.add_argument('index', type=int,
+            help='index of record to update')
+    auth_update.set_defaults(func=update_auth)
+
     config_store = add_parser("config",
                               help="manage the platform configuration store")
 
@@ -1286,24 +1312,6 @@ def main(argv=sys.argv):
     serverkey = add_parser('serverkey',
                            help="show the serverkey for the instance")
     serverkey.set_defaults(func=show_serverkey)
-
-    auth_list = add_parser('auth-list', help='list authentication records')
-    auth_list.set_defaults(func=list_auth)
-
-    auth_add = add_parser('auth-add', help='add new authentication record')
-    auth_add.set_defaults(func=add_auth)
-
-    auth_remove = add_parser('auth-remove',
-                             help='removes one or more authentication records by indices')
-    auth_remove.add_argument('indices', nargs='+', type=int,
-                             help='index or indices of record(s) to remove')
-    auth_remove.set_defaults(func=remove_auth)
-
-    auth_update = add_parser('auth-update',
-                             help='updates one authentication record by index')
-    auth_update.add_argument('index', type=int,
-                             help='index of record to update')
-    auth_update.set_defaults(func=update_auth)
 
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
