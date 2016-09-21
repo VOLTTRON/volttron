@@ -85,13 +85,13 @@ class SyslogAgent(Agent):
     on message bus whenever there is change on that file.
     """
 
-    def __init__(self, syslog_file_path, syslog_topic):
+    def __init__(self, address, identity, syslog_file_path, syslog_topic):
         """ Configures the `SyslogAgent`
 
         @param syslog_file_path: path to the syslog file.
         @syslog_topic: topic to publish syslog message on.
         """
-        super(SyslogAgent, self).__init__(identity='syslog')
+        super(SyslogAgent, self).__init__(identity, address)
         self.syslog_file_path = syslog_file_path
         self.syslog_topic = syslog_topic
                 
