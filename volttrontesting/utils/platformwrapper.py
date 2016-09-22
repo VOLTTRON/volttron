@@ -593,51 +593,78 @@ class PlatformWrapper:
     #
     #     return auuid
 
+    # def _install_agent(self, wheel_file, start, vip_identity):
+    #
+    #     agent = self.build_agent()
+    #     self.logit('Creating channel for sending the agent.')
+    #     channel_name = str(uuid.uuid4())
+    #     channel = agent.vip.channel('control',
+    #                                 channel_name)
+    #     gevent.sleep(0.3)
+    #     self.logit('calling control install agent.')
+    #     result = agent.vip.rpc.call('control',
+    #                                 'install_agent',
+    #                                 wheel_file,
+    #                                 channel_name,
+    #                                 vip_identity)
+    #     self.logit('waiting for ready')
+    #     response = channel.recv()
+    #     if response != b'ready':
+    #         raise ValueError('Invalid channel protocol returned {}'.format(
+    #             response))
+    #
+    #     with open(wheel_file, 'rb') as fin:
+    #         _log.debug('sending wheel to control.')
+    #         while True:
+    #             data = fin.read(8125)
+    #             if not data:
+    #                 _log.debug('Finished sending data')
+    #                 break
+    #             channel.send(data)
+    #
+    #     _log.debug('sending done message.')
+    #     channel.send('done')
+    #     try:
+    #         # must do this before channel closes or process will hang.
+    #         auuid = result.get(timeout=10)
+    #         _log.debug('closing channel')
+    #     except gevent.Timeout:
+    #         _log.error('Timeout in channel')
+    #     finally:
+    #         channel.close(linger=0)
+    #         del channel
+    #
+    #     if start:
+    #         self.start_agent(auuid)
+    #
+    #     return auuid
+
     def _install_agent(self, wheel_file, start, vip_identity):
 
         agent = self.build_agent()
         self.logit('Creating channel for sending the agent.')
-        channel_name = str(uuid.uuid4())
-        channel = agent.vip.channel('control',
-                                    channel_name)
+
         gevent.sleep(0.3)
         self.logit('calling control install agent.')
-        result = agent.vip.rpc.call('control',
-                                    'install_agent',
-                                    wheel_file,
-                                    channel_name,
-                                    vip_identity)
-        self.logit('waiting for ready')
-        response = channel.recv()
-        if response != b'ready':
-            raise ValueError('Invalid channel protocol returned {}'.format(
-                response))
+        self.logit("VOLTTRON_HOME SETTING: {}".format(
+            self.env['VOLTTRON_HOME']))
+        env = self.env.copy()
+        cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
+        if vip_identity:
+            cmd = ['volttron-ctl', '-vv', 'install', wheel_file,
+               '--vip-identity', vip_identity]
+        res = subprocess.check_output(cmd, env=env)
+        assert res, "failed to install wheel:{}".format(wheel_file)
+        self.logit("Result of install agent")
+        self.logit(res)
 
-        with open(wheel_file, 'rb') as fin:
-            _log.debug('sending wheel to control.')
-            while True:
-                data = fin.read(8125)
-                if not data:
-                    _log.debug('Finished sending data')
-                    break
-                channel.send(data)
-
-        _log.debug('sending done message.')
-        channel.send('done')
-        try:
-            # must do this before channel closes or process will hang.
-            auuid = result.get(timeout=10)
-            _log.debug('closing channel')
-        except gevent.Timeout:
-            _log.error('Timeout in channel')
-        finally:
-            channel.close(linger=0)
-            del channel
+        agent_uuid = res.split(' ')[-2]
+        self.logit(agent_uuid)
 
         if start:
-            self.start_agent(auuid)
+             self.start_agent(agent_uuid)
 
-        return auuid
+        return agent_uuid
 
     def install_multiple_agents(self, agent_configs):
         """
@@ -718,7 +745,6 @@ class PlatformWrapper:
             self.logit('Building agent package')
             wheel_file = self.build_agentpackage(agent_dir, config_file)
             assert wheel_file
-
         agent_uuid = self._install_agent(wheel_file, start, vip_identity)
 
         assert agent_uuid is not None
