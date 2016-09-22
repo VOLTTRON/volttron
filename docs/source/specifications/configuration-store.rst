@@ -22,7 +22,7 @@ Any valid OS file path name is a valid configuration name. Any leading or traili
 
 The canonical name for the main agent configuration is "config".
 
-All configuration names are converted to lower case when added to the store.
+The configuration subsystem remembers the case of configuration names. Name matching is case insensitive both on the Agent and platform side. Configuration names are reported to agent callbacks in the original case used when adding them to the configuration. If a new configuration is store with a different case of an existing name the new name case is used.
 
 Configuration Ownership
 -----------------------
@@ -174,9 +174,11 @@ The configuration store shall be implemented on the Agent(client) side in the fo
 
 The subsystem caches configurations as the platform updates the state to the agent. Changes to the cache triggered by an RPC call from the platform will trigger callbacks in the agent.
 
-No callback methods are called until after the "onstart" phase of agent startup has completed. A new phase to agent startup called "onconfig" will be added to the Core class.
+No callback methods are called until  the "onconfig" phase of agent startup. A new phase to agent startup called "onconfig" will be added to the Core class. Originally it was planned to have this run after the "onstart" phase has completed but that is currently not possible. Ideally if an agent is using the config store feature it will not need any "onstart" methods.
 
 When the "onconfig" phase is triggered the subsystem will retrieve the current configuration state from the platform and call all callbacks registered to a configuration in the store to the "NEW" action. No callbacks are called before this point in agent startup.
+
+The first time callbacks are called at agent startup any callbacks subscribed to a configuration called "config" are called first.
 
 Configuration Sub System Agent Methods
 **************************************

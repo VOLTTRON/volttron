@@ -68,7 +68,7 @@ def check_for_config_link(value):
     if value.startswith(link_prefix):
         config_name = value.replace(link_prefix, '', 1)
         config_name = strip_config_name(config_name)
-        return config_name
+        return config_name.lower()
     return None
 
 def list_unique_links(config):
@@ -97,7 +97,7 @@ def list_unique_links(config):
 
 
 def check_for_recursion(new_config_name, new_config, existing_configs):
-    return _follow_links(set(), new_config_name, new_config_name, new_config, existing_configs)
+    return _follow_links(set(), new_config_name.lower(), new_config_name.lower(), new_config, existing_configs)
 
 def _follow_links(seen, new_config_name, current_config_name, current_config, existing_configs):
     children = list_unique_links(current_config)
@@ -116,3 +116,4 @@ def _follow_links(seen, new_config_name, current_config_name, current_config, ex
         if _follow_links(seen, new_config_name, child_config_name, child_config, existing_configs):
             return True
 
+    return False
