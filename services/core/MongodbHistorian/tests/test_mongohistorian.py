@@ -339,8 +339,9 @@ def publish_fake_data(agent):
 def test_insert_duplicate(volttron_instance, database_client):
     clean_db(database_client)
     data_collection = database_client.get_default_database()['data']
-    index_model = pymongo.IndexModel([("ts", pymongo.ASCENDING),
-                                    ("topic_id", pymongo.ASCENDING)], unique=True)
+    index_model = pymongo.IndexModel([("topic_id", pymongo.DESCENDING),
+                                      ("ts", pymongo.DESCENDING)],
+                                     unique=True)
     # make sure the data collection has the unique constraint.
     data_collection.create_indexes([index_model])
     # Install the historian agent (after this call the agent should be running

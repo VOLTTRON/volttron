@@ -118,14 +118,14 @@ class MySqlFuncts(DbDriver):
                     ' (ts timestamp(6) NOT NULL,\
                      topic_id INTEGER NOT NULL, \
                      value_string TEXT NOT NULL, \
-                     UNIQUE(ts, topic_id))')
+                     UNIQUE(topic_id, ts))')
             else:
                 self.execute_stmt(
                     'CREATE TABLE IF NOT EXISTS ' + self.data_table +
                     ' (ts timestamp NOT NULL,\
                      topic_id INTEGER NOT NULL, \
                      value_string TEXT NOT NULL, \
-                     UNIQUE(ts, topic_id))')
+                     UNIQUE(topic_id, ts))')
 
             self.execute_stmt('''CREATE INDEX IF NOT EXISTS data_idx
                                     ON ''' + self.data_table + ''' (ts ASC)''')
@@ -426,13 +426,13 @@ class MySqlFuncts(DbDriver):
         stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
                " (ts timestamp(6) NOT NULL, topic_id INTEGER NOT NULL, " \
                "value_string TEXT NOT NULL, topics_list TEXT," \
-               " UNIQUE(ts, topic_id)," \
+               " UNIQUE(topic_id, ts)," \
                "INDEX (ts ASC))"
         if not self.MICROSECOND_SUPPORT:
             stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
                    " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
                    "value_string TEXT NOT NULL, topics_list TEXT," \
-                   " UNIQUE(ts, topic_id)," \
+                   " UNIQUE(topic_id, ts)," \
                    "INDEX (ts ASC))"
         return self.execute_stmt(stmt)
 

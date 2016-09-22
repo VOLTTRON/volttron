@@ -129,7 +129,7 @@ class SqlLiteFuncts(DbDriver):
                        ''' (ts timestamp NOT NULL,
                        topic_id INTEGER NOT NULL,
                        value_string TEXT NOT NULL,
-                       UNIQUE(ts, topic_id))''')
+                       UNIQUE(topic_id, ts))''')
         cursor.execute('''CREATE INDEX IF NOT EXISTS data_idx
                                 ON ''' + self.data_table + ''' (ts ASC)''')
         cursor.execute('''CREATE TABLE IF NOT EXISTS ''' +
@@ -486,7 +486,7 @@ class SqlLiteFuncts(DbDriver):
         stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
                " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
                "value_string TEXT NOT NULL, topics TEXT, " \
-               "UNIQUE(ts, topic_id)); "
+               "UNIQUE(topic_id, ts)); "
         c = sqlite3.connect(
             self.__database,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)

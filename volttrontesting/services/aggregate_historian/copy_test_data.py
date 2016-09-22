@@ -27,9 +27,10 @@ dest_params = {
 local_dest_params = {
             "host": "localhost",
             "port": 27017,
-            "database": "mongo_test",
+            "database": "performance_test",
             "user": "test",
-            "passwd": "test"
+            "passwd": "test",
+            "authSource": "mongo_test"
         }
 
 
@@ -100,8 +101,8 @@ def copy(source_params, dest_params, start_date, end_date):
     # id:<object id>, value:<search/mapreduce result>
 
     dest_db[dest_tables['data_table']].create_index(
-        [('ts', pymongo.ASCENDING),
-         ('topic_id', pymongo.ASCENDING)],
+        [('topic_id', pymongo.DESCENDING),
+         ('ts', pymongo.DESCENDING)],
         unique=True, background=False)
     records = []
     i = 0

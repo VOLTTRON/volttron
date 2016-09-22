@@ -117,9 +117,9 @@ class MongodbAggregateHistorian(AggregateHistorian):
             + table_map.get('topics_table', 'topics')
 
         db[self._agg_topic_collection].create_index(
-            [('agg_topic_name', pymongo.ASCENDING),
-             ('agg_type', pymongo.ASCENDING),
-             ('agg_time_period', pymongo.ASCENDING)],
+            [('agg_topic_name', pymongo.DESCENDING),
+             ('agg_type', pymongo.DESCENDING),
+             ('agg_time_period', pymongo.DESCENDING)],
             unique=True, background=True)
 
         # 2. load topic name and topic id.
@@ -156,8 +156,8 @@ class MongodbAggregateHistorian(AggregateHistorian):
         db = self.dbclient.get_default_database()
         agg_collection = agg_type + '''_''' + agg_time_period
         db[agg_collection].create_index(
-            [('ts', pymongo.ASCENDING),
-             ('topic_id', pymongo.ASCENDING)],
+            [('topic_id', pymongo.DESCENDING),
+             ('ts', pymongo.DESCENDING)],
             unique=True, background=True)
 
         row = db[self._agg_topic_collection].insert_one(

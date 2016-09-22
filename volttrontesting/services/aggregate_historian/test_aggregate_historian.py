@@ -730,6 +730,7 @@ def test_multiple_topic_list(volttron_instance, aggregate_agent,
         agent_uuid = volttron_instance.install_agent(
             agent_dir=aggregate_agent["source_agg_historian"],
             config_file=aggregate_agent,
+            vip_identity='aggregate_historian1',
             start=True)
 
         result1 = query_agent.vip.rpc.call('platform.historian',
@@ -872,8 +873,9 @@ def test_topic_reconfiguration(volttron_instance, aggregate_agent,
             count=20,
             order="FIRST_TO_LAST").get(timeout=10)
 
-        print(result1)
-        lindex = len(result1) - 1
+        print("Result:{}" .format(result1))
+        lindex = len(result1['values']) - 1
+        print("lindex = {}".format(lindex))
         expected_sum = get_expected_sum(query_agent,
                                         ['device1/out_temp'],
                                         result1['values'][lindex][0], 1)

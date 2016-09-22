@@ -396,8 +396,8 @@ def historian(config_path, **kwargs):
                 connection['params'])
             db = self._client.get_default_database()
             db[self._data_collection].create_index(
-                [('ts', pymongo.ASCENDING),
-                 ('topic_id', pymongo.ASCENDING)],
+                [('topic_id', pymongo.DESCENDING),
+                 ('ts', pymongo.DESCENDING)],
                 unique=True, background=True)
 
             self._topic_id_map, self._topic_name_map = \
