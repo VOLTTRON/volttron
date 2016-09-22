@@ -1845,7 +1845,6 @@ def test_revert_point(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator_pubsub
-@pytest.mark.dev
 def test_revert_device(publish_agent, cancel_schedules):
     """
     Test setting a float value of a point  through pubsub.
