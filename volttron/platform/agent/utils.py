@@ -408,7 +408,7 @@ def get_utc_seconds_from_epoch(timestamp=datetime.now(tz=tzutc())):
     # convert to UTC first.
     seconds_from_epoch = calendar.timegm(timestamp.utctimetuple())
     # timetuple loses microsecond accuracy so we have to put it back.
-    seconds_from_epoch += timestamp.microsecond / 1000000
+    seconds_from_epoch += timestamp.microsecond / 1000000.0
     return seconds_from_epoch
 
 

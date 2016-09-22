@@ -301,9 +301,9 @@ class Interface(BasicRevert, BaseInterface):
                 
         return result_dict
     
-    def parse_config(self, config_string):
-        f = StringIO(config_string)
-        configDict = DictReader(f)
+    def parse_config(self, configDict):
+        if configDict is None:
+            return
         
         for regDef in configDict:
             #Skip lines that have no address yet.
