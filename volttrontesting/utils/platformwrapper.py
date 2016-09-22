@@ -604,8 +604,7 @@ class PlatformWrapper:
         env = self.env.copy()
         cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
         if vip_identity:
-            cmd = ['volttron-ctl', '-vv', 'install', wheel_file,
-                   '--vip-identity', vip_identity]
+            cmd.extend(['--vip-identity', vip_identity])
         res = subprocess.check_output(cmd, env=env)
         assert res, "failed to install wheel:{}".format(wheel_file)
         agent_uuid = res.split(' ')[-2]
