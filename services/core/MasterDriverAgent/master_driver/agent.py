@@ -145,6 +145,7 @@ class MasterDriverAgent(Agent):
             self.driver_scrape_interval = 0.05
         self.system_socket_limit = system_socket_limit
         self.freed_time_slots = []
+        self._name_map = {}
 
 
         if scalability_test:
@@ -274,17 +275,19 @@ class MasterDriverAgent(Agent):
         return topic
 
     def stop_driver(self, device_topic):
-        driver = self.instances.pop(device_topic, None)
+        real_name = self._name_map.pop(device_topic.lower(), device_topic)
+
+        driver = self.instances.pop(real_name, None)
 
         if driver is None:
             return
 
-        _log.info("Stopping driver: {}".format(device_topic))
+        _log.info("Stopping driver: {}".format(real_name))
 
         try:
             driver.core.stop(timeout=5.0)
         except StandardError as e:
-            _log.warning("Failure during {} driver shutdown: {}".format(device_topic, e))
+            _log.error("Failure during {} driver shutdown: {}".format(real_name, e))
 
         bisect.insort(self.freed_time_slots, driver.time_slot)
 
@@ -302,6 +305,7 @@ class MasterDriverAgent(Agent):
         driver = DriverAgent(self, contents, slot, self.driver_scrape_interval, topic)
         gevent.spawn(driver.core.run)
         self.instances[topic] = driver
+        self._name_map[topic.lower()] = topic
 
 
     def remove_driver(self, config_name, action, contents):
