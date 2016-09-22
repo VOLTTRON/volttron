@@ -271,12 +271,9 @@ class Interface(BaseInterface):
         '''Ping target function not implemented for this interface'''
         print("ping_target not implemented in radiothermostat interface")
 
-    def parse_config(self, config_string):
-        '''Parses the file with point_names and properties, and creates registers'''
-        if config_string is None:
+    def parse_config(self, configDict):
+        if configDict is None:
             return
-        f = StringIO(config_string)
-        configDict = DictReader(f)
 
         for regDef in configDict:
 
