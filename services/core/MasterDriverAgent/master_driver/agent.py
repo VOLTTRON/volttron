@@ -245,7 +245,7 @@ class MasterDriverAgent(Agent):
 
         try:
             driver_scrape_interval = float(config["driver_scrape_interval"])
-        except ValueError:
+        except ValueError as e:
             _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
             _log.error("Master driver settings unchanged")
             # TODO: set a health status for the agent
