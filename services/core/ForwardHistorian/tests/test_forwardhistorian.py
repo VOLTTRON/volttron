@@ -118,7 +118,7 @@ def publish_agent(request, volttron_instances, forwarder):
         agent = PublishMixin(
             volttron_instance1.opts['publish_address'])
     else:
-        agent = volttron_instance1.build_agent()
+        agent = volttron_instance1.build_agent(identity='test-agent')
 
     # 2: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
@@ -677,7 +677,7 @@ def test_actuator_topic(publish_agent, query_agent):
         result_message = query_agent.callback.call_args[0][5]
         assert result_header['type'] == 'NEW_SCHEDULE'
         assert result_header['taskID'] == 'task_schedule_response'
-        assert result_header['requesterID'] == 'test-agent'
+        assert result_header['requesterID'] in ['test-agent', 'pubsub.compat']
         assert result_message['result'] == 'SUCCESS'
     finally:
         volttron_instance1.stop_agent(master_uuid)
