@@ -15,7 +15,7 @@ class ConfigureDevices extends BaseComponent {
         super(props);
         this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange',
                     '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan',
-                    '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded', 'componentWillUnmount');
+                    '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded');
 
         this.state = getInitialState();
     }

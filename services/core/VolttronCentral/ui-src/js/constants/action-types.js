@@ -3,6 +3,7 @@
 var keyMirror = require('keymirror');
 
 module.exports = keyMirror({
+    HANDLE_KEY_DOWN: null,
     OPEN_MODAL: null,
     CLOSE_MODAL: null,
 

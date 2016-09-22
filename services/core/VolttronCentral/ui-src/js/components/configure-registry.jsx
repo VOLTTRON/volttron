@@ -7,6 +7,7 @@ import NewColumnForm from './new-column-form';
 import ConfigDeviceForm from './config-device-form';
 import EditSelectButton from './control_buttons/edit-select-button';
 import EditColumnButton from './control_buttons/edit-columns-button';
+import RegistryRow from './registry-row';
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var devicesStore = require('../stores/devices-store');
@@ -15,22 +16,26 @@ var ControlButton = require('./control-button');
 var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
+
+var registryWs, registryWebsocket;
 class ConfigureRegistry extends BaseComponent {    
     constructor(props) {
         super(props);
         this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", 
-            "_selectForDelete", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn",
-            "_updateCell", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
-            "_saveRegistry", "_removeFocus", "_resetState", "_showProps", "_handleRowClick", "_addColumn",
-            "_selectCells", "_cloneColumn" );
+            "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn",
+            "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
+            "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", 
+            "_cloneColumn", "_onStoresChange" );
 
         this.state = this._resetState(this.props.device);
     }
     componentDidMount() {
-        this.containerDiv = document.getElementsByClassName("fixed-table-container-inner")[0];
+        this.containerDiv = document.getElementsByClassName("fixed-table-container")[0];
         this.fixedHeader = document.getElementsByClassName("header-background")[0];
         this.fixedInner = document.getElementsByClassName("fixed-table-container-inner")[0];
         this.registryTable = document.getElementsByClassName("registryConfigTable")[0];
+
+        devicesStore.addChangeListener(this._onStoresChange);
     }
     componentDidUpdate() {
 
@@ -77,6 +82,8 @@ class ConfigureRegistry extends BaseComponent {
         // state.pointNames = [];
         state.filteredList = [];
 
+        state.tableHasFocus = true;
+
         state.selectedPoints = devicesStore.getSelectedPoints(device);
 
         if (state.registryValues.length > 0)
@@ -84,10 +91,6 @@ class ConfigureRegistry extends BaseComponent {
             state.columnNames = state.registryValues[0].attributes.map(function (columns) {
                 return columns.key;
             });
-
-            // state.pointNames = state.registryValues.map(function (row) {
-            //     return row.attributes[0].value;
-            // });
         }
 
         state.pointsToDelete = [];
@@ -102,7 +105,92 @@ class ConfigureRegistry extends BaseComponent {
         this.scrollToBottom = false;
         this.resizeTable = false;
 
+        // this.keyboardIndex = -1;
+        this.keyboardRange = [-1, -1];
+
         return state;
+    }
+    _onStoresChange () {
+
+        var keyboard = devicesStore.getKeyboard(this.props.device.id);
+
+        if (keyboard && keyboard.active)
+        {                            
+            switch (keyboard.cmd)
+            {
+                case "start":
+                    // this.setState({ keyboardIndex: 0 });
+                    this.setState({ keyboardRange: [0, 0]});
+                    break;
+                case "up":
+                    var newIndex = this.state.keyboardRange[0] - 1;
+
+                    if (newIndex > -1)
+                    {
+                        // this.setState({ keyboardIndex: newIndex });
+                        this.setState({ keyboardRange: [newIndex, newIndex]});
+                    }
+
+                    break;
+                case "down":
+                    var newIndex = this.state.keyboardRange[1] + 1;
+
+                    if (newIndex < this.state.registryValues.length)
+                    {
+                        // this.setState({ keyboardIndex: newIndex });
+                        this.setState({ keyboardRange: [newIndex, newIndex]});
+                    }
+                    
+                    break;
+                case "extend_up":
+                    var newIndex = this.state.keyboardRange[0] - 1;
+
+                    if (newIndex > -1)
+                    {
+                        // this.setState({ keyboardIndex: newIndex });
+
+                        if (newIndex < this.state.keyboardRange[0])
+                        {
+                            this.state.keyboardRange[0] = newIndex;
+
+                            this.setState({ keyboardRange: this.state.keyboardRange});    
+                        }
+                    }
+
+                    break;
+                case "extend_down":
+                    var newIndex = this.state.keyboardRange[1] + 1;
+
+                    if (newIndex < this.state.registryValues.length)
+                    {
+                        // this.setState({ keyboardIndex: newIndex });
+
+                        if (newIndex > this.state.keyboardRange[1])
+                        {
+                            this.state.keyboardRange[1] = newIndex;
+
+                            this.setState({ keyboardRange: this.state.keyboardRange});    
+                        }
+                    }
+
+                    break;
+                case "enter":
+
+                    this._fetchExtendedPoints(this.state.keyboardRange);
+
+                    break;
+                
+            }        
+        }
+        else
+        {
+            this.setState({ keyboardRange: [-1, -1] });
+        }
+    }
+    _fetchExtendedPoints(keyboardRange) {
+
+
+
     }
     _onFilterBoxChange(filterValue, column) {
         this.setState({ filterOn: true });
@@ -219,24 +307,24 @@ class ConfigureRegistry extends BaseComponent {
 
         modalActionCreators.closeModal();
     }
-    _selectForDelete(attributesList) {
+    // _selectForDelete(attributesList) {
         
-        var pointsToDelete = this.state.pointsToDelete;
+    //     var pointsToDelete = this.state.pointsToDelete;
 
-        var index = pointsToDelete.indexOf(attributesList[0].value);
+    //     var index = pointsToDelete.indexOf(attributesList[0].value);
 
-        if (index < 0)
-        {
-            pointsToDelete.push(attributesList[0].value);
-        }
-        else
-        {
-            pointsToDelete.splice(index, 1);
-        }
+    //     if (index < 0)
+    //     {
+    //         pointsToDelete.push(attributesList[0].value);
+    //     }
+    //     else
+    //     {
+    //         pointsToDelete.splice(index, 1);
+    //     }
 
-        this.setState({ pointsToDelete: pointsToDelete });
+    //     this.setState({ pointsToDelete: pointsToDelete });
 
-    }
+    // }
     _selectAll() {
         var allSelected = !this.state.allSelected;
 
@@ -366,21 +454,21 @@ class ConfigureRegistry extends BaseComponent {
         modalActionCreators.closeModal();
 
     }
-    _showProps(attributesList) {
-        modalActionCreators.openModal(<EditPointForm 
-            device={this.props.device} 
-            selectedPoints={this.state.selectedPoints}
-            attributes={attributesList}/>);
-    }
-    _updateCell(row, column, e) {
+    // _showProps(attributesList) {
+    //     modalActionCreators.openModal(<EditPointForm 
+    //         device={this.props.device} 
+    //         selectedPoints={this.state.selectedPoints}
+    //         attributes={attributesList}/>);
+    // }
+    // _updateCell(row, column, e) {
 
-        var currentTarget = e.currentTarget;
-        var newRegistryValues = JSON.parse(JSON.stringify(this.state.registryValues));
+    //     var currentTarget = e.currentTarget;
+    //     var newRegistryValues = JSON.parse(JSON.stringify(this.state.registryValues));
 
-        newRegistryValues[row].attributes[column].value = currentTarget.value;
+    //     newRegistryValues[row].attributes[column].value = currentTarget.value;
 
-        this.setState({ registryValues: newRegistryValues });
-    }
+    //     this.setState({ registryValues: newRegistryValues });
+    // }
     _removeFocus() {
         this.setState({ selectedCellRow: null});
     }
@@ -566,44 +654,44 @@ class ConfigureRegistry extends BaseComponent {
         }));
         modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device}/>);
     }
-    _handleRowClick(evt){
+    // _handleRowClick(evt){
 
-        if ((evt.target.nodeName !== "INPUT") && (evt.target.nodeName !== "I") && (evt.target.nodeName !== "DIV"))  
-        {
-            var target;
+    //     if ((evt.target.nodeName !== "INPUT") && (evt.target.nodeName !== "I") && (evt.target.nodeName !== "DIV"))  
+    //     {
+    //         var target;
 
-            if (evt.target.nodeName === "TD")
-            {
-                target = evt.target.parentNode;
-            }
-            else if (evt.target.parentNode.nodeName === "TD")
-            {
-                target = evt.target.parentNode.parentNode;
-            }
-            else
-            {
-                target = evt.target;
-            }
+    //         if (evt.target.nodeName === "TD")
+    //         {
+    //             target = evt.target.parentNode;
+    //         }
+    //         else if (evt.target.parentNode.nodeName === "TD")
+    //         {
+    //             target = evt.target.parentNode.parentNode;
+    //         }
+    //         else
+    //         {
+    //             target = evt.target;
+    //         }
 
-            var rowIndex = target.dataset.row;
+    //         var rowIndex = target.dataset.row;
 
-            var pointKey = this.state.registryValues[rowIndex].attributes[0].value;
-            var selectedPoints = this.state.selectedPoints;
+    //         var pointKey = this.state.registryValues[rowIndex].attributes[0].value;
+    //         var selectedPoints = this.state.selectedPoints;
 
-            var index = selectedPoints.indexOf(pointKey);
+    //         var index = selectedPoints.indexOf(pointKey);
             
-            if (index > -1)
-            {
-                selectedPoints.splice(index, 1);
-            }
-            else
-            {
-                selectedPoints.push(pointKey);
-            }
+    //         if (index > -1)
+    //         {
+    //             selectedPoints.splice(index, 1);
+    //         }
+    //         else
+    //         {
+    //             selectedPoints.push(pointKey);
+    //         }
 
-            this.setState({selectedPoints: selectedPoints});
-        }
-    }
+    //         this.setState({selectedPoints: selectedPoints});
+    //     }
+    // }
     render() {        
         
         var registryRows, registryHeader, registryButtons;
@@ -612,58 +700,14 @@ class ConfigureRegistry extends BaseComponent {
         {            
             registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
 
-                var registryCells = [];
-
-                attributesList.attributes.forEach(function (item, columnIndex) {
-
-                    if (item.keyProp)
-                    {
-                        var selectedCellStyle = (item.selected ? {backgroundColor: "#F5B49D"} : {});
-                        var focusedCell = (this.state.selectedCellColumn === columnIndex && this.state.selectedCellRow === rowIndex ? "focusedCell" : "");
-
-                        var itemCell = (!item.editable ? 
-                                            <td key={item.key + "-" + rowIndex + "-" + columnIndex}><label>{ item.value }</label></td> : 
-                                            <td key={item.key + "-" + rowIndex + "-" + columnIndex}><input 
-                                                id={this.state.registryValues[rowIndex].attributes[columnIndex].key + "-" + columnIndex + "-" + rowIndex}
-                                                type="text"
-                                                className={focusedCell}
-                                                style={selectedCellStyle}
-                                                onChange={this._updateCell.bind(this, rowIndex, columnIndex)} 
-                                                value={ this.state.registryValues[rowIndex].attributes[columnIndex].value }/>
-                                            </td>);
-
-                        registryCells.push(itemCell);
-                    }
-                }, this);
-
-                registryCells.push(
-                    <td key={"propsButton-" + rowIndex}>
-                        <div className="propsButton"
-                            onClick={this._showProps.bind(this, attributesList.attributes)}>
-                            <i className="fa fa-ellipsis-h"></i>
-                        </div>
-                    </td>);
-
-                var selectedRowClass = (this.state.selectedPoints.indexOf(this.state.registryValues[rowIndex].attributes[0].value) > -1 ?
-                                            "selectedRegistryPoint" : "");
-
-                var visibleStyle = (!this.state.filterOn || attributesList.visible ? {} : {display: "none"});
-
-                return ( 
-                    <tr key={"registry-row-" + rowIndex}
-                        data-row={rowIndex}
-                        onClick={this._handleRowClick}
-                        className={selectedRowClass}
-                        style={visibleStyle}>
-                        <td key={"checkbox-" + rowIndex}>
-                            <input type="checkbox"
-                                onChange={this._selectForDelete.bind(this, attributesList.attributes)}
-                                checked={this.state.pointsToDelete.indexOf(attributesList.attributes[0].value) > -1}>
-                            </input>
-                        </td>
-                        { registryCells }                    
-                    </tr>
-                )
+                return (<RegistryRow 
+                            attributesList={attributesList} 
+                            rowIndex={rowIndex}
+                            device={this.props.device}
+                            selectedCell={this.state.selectedCellRow === rowIndex}
+                            selectedCellColumn={this.state.selectedCellColumn}
+                            filterOn={this.state.filterOn}/>);
+                
             }, this);
 
         
@@ -768,15 +812,10 @@ class ConfigureRegistry extends BaseComponent {
                     }
                     else
                     {
-
-                        var wideCell = {
-                            width: "100%"
-                        };
-
                         if (item.editable)
                         {
                             headerCell = ( <th key={"header-" + item.key + "-" + index}>
-                                                <div className="th-inner" style={wideCell}>
+                                                <div className="th-inner" >
                                                     { item.label }
                                                     { editSelectButton }
                                                     { editColumnButton }
@@ -786,7 +825,7 @@ class ConfigureRegistry extends BaseComponent {
                         else
                         {
                             headerCell = ( <th key={"header-" + item.key + "-" + index}>
-                                                <div className="th-inner" style={wideCell}>
+                                                <div className="th-inner" >
                                                     { item.label }
                                                 </div>
                                             </th> );
@@ -870,7 +909,8 @@ class ConfigureRegistry extends BaseComponent {
                                         "collapsible-registry-values slow-hide" );        
             
         return (
-            <div className={visibilityClass}>                
+            <div className={visibilityClass}
+                tabIndex={1}>                
                 <div className="fixed-table-container"> 
                     <div className="header-background"></div>      
                     <div className="fixed-table-container-inner">    

@@ -955,6 +955,10 @@ br + .form__control-help {
     transform: translateY(-50%);
 }
 
+.edit_column_button > .centeredDiv {
+    transform: translateY(0%);   
+}
+
 .status-good {
     color: #A1D490;
 }

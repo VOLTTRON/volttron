@@ -18,6 +18,11 @@ var _platform;
 var _devices = [];
 var _newScan = false;
 var _warnings = {};
+var _keyboard = {
+    device: null,
+    active: false,
+    cmd: null
+};
 
 var _placeHolders = [ [
     {"key": "Point_Name", "value": "", "editable": true},
@@ -1060,38 +1065,63 @@ devicesStore.getSelectedPoints = function (device) {
     return selectedPoints;
 }
 
-devicesStore.getPreppedData = function (data) {
+devicesStore.getKeyboard = function (deviceId) {
 
-    var preppedData = data.map(function (row) {
-        var preppedRow = row.map(function (cell) {
+    var keyboard = ( deviceId === _keyboard.device ? JSON.parse(JSON.stringify(_keyboard)) : null);
 
-            devicesStore.prepCell(cell);
-
-            return cell;
-        });
-
-        return preppedRow;
-    });
-
-
-    return preppedData;
+    return keyboard;
 }
-
-devicesStore.prepCell = function (cell) {
-
-    cell.key = cell.key.toLowerCase();
-
-    cell.editable = !(cell.key === "point_name" || 
-                        cell.key === "reference_point_name" || 
-                        cell.key === "object_type" || 
-                        cell.key === "index");
-};
-
 
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
     switch (action.type) {
+        case ACTION_TYPES.HANDLE_KEY_DOWN:
+            
+            if (_devices.length)
+            {
+                var keydown = action.keydown;
+
+                var emitKeyboard = function (keyboard)
+                {
+                    if (keyboard.device === null)
+                    {
+                        keyboard.device = _devices[0].id;
+                    }
+
+                    devicesStore.emitChange();
+                }
+
+                switch (keydown.which)
+                {
+                    case 17: // control
+                        _keyboard.active = true;
+                        _keyboard.cmd = "start";
+                        emitKeyboard(_keyboard);
+                        break;
+                    case 27: // ESC
+                        _keyboard.active = false;
+                        _keyboard.cmd = null;
+                        emitKeyboard(_keyboard);
+                        break;
+                    case 13: // Enter
+                        _keyboard.cmd = "enter";
+                        emitKeyboard(_keyboard);
+                        break;
+                    // case 9:    //Tab
+                    case 32:    //Space
+                    case 40:    //Down
+                        _keyboard.cmd = (keydown.ctrlKey ? "extend_down" : "down");
+                        emitKeyboard(_keyboard);
+                        break;
+                    case 38:    //Up
+                        _keyboard.cmd = (keydown.ctrlKey ? "extend_up" : "up");
+                        emitKeyboard(_keyboard);
+                        break;
+                }
+            }
+            
+            break;
         case ACTION_TYPES.CONFIGURE_DEVICES:
             _platform = action.platform;
             _devices = [];
@@ -1219,7 +1249,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             if (device)
             {
-                device.registryConfig = devicesStore.getPreppedData(action.data);
+                device.registryConfig = getPreppedData(action.data);
                 device.showPoints = true;
                 device.selectedPoints = [];
             }
@@ -1301,6 +1331,88 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             break;
     }
 
+    function getPreppedData(data) {
+
+        var preppedData = data.map(function (row) {
+            var preppedRow = row.map(function (cell) {
+
+                prepCell(cell);
+
+                return cell;
+            });
+
+            return preppedRow;
+        });
+
+
+        return preppedData;
+    }
+
+    function prepCell(cell) {
+
+        cell.key = cell.key.toLowerCase();
+
+        cell.editable = !(cell.key === "point_name" || 
+                            cell.key === "reference_point_name" || 
+                            cell.key === "object_type" || 
+                            cell.key === "index");
+    }
+
+    function loadPoint(data, platform, bacnetUuid) 
+    {
+        var warningMsg = {};
+
+        if (data)
+        {
+            var point = JSON.parse(data);
+            var deviceId = "59";
+            var deviceAddress = "10.0.2.6"
+            var addPoint = true;
+
+            var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
+
+            if (device)
+            {
+                var pointInList = device.registryConfig.find(function (point) {
+                    var indexCell = point.find(function (cell) {
+                        return cell.key === "index";
+                    })
+
+                    var match = false;
+
+                    if (indexCell)
+                    {
+                        match = (indexCell.value === point.Index);
+                    }
+
+                    return match;
+                });
+            
+                if (typeof pointInList === "undefined") 
+                {
+                    var newPoint = [];
+
+                    for (var key in point)
+                    {
+                        var cell = {
+                            key: key.toLowerCase().replace(/ /g, "_"),
+                            label: key,
+                            value: (point[key] === null ? "" : point[key])
+                        };
+
+                        prepCell(cell);
+
+                        newPoint.push(cell);
+                    }
+
+                    device.registryConfig.push(newPoint);
+                }
+            }
+        }
+
+        return warningMsg;
+    }
+
     function objectIsEmpty(obj)
     {
         return Object.keys(obj).length === 0;
@@ -1365,61 +1477,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
         return warningMsg;
     }
-
-    function loadPoint(data, platform, bacnetUuid) 
-    {
-        var warningMsg = {};
-
-        if (data)
-        {
-            var point = JSON.parse(data);
-            var deviceId = "59";
-            var deviceAddress = "10.0.2.6"
-            var addPoint = true;
-
-            var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
-
-            if (device)
-            {
-                var pointInList = device.registryConfig.find(function (point) {
-                    var indexCell = point.find(function (cell) {
-                        return cell.key === "index";
-                    })
-
-                    var match = false;
-
-                    if (indexCell)
-                    {
-                        match = (indexCell.value === point.Index);
-                    }
-
-                    return match;
-                });
-            
-                if (typeof pointInList === "undefined") 
-                {
-                    var newPoint = [];
-
-                    for (var key in point)
-                    {
-                        var cell = {
-                            key: key.toLowerCase().replace(/ /g, "_"),
-                            label: key,
-                            value: (point[key] === null ? "" : point[key])
-                        };
-
-                        devicesStore.prepCell(cell);
-
-                        newPoint.push(cell);
-                    }
-
-                    device.registryConfig.push(newPoint);
-                }
-            }
-        }
-
-        return warningMsg;
-    }
+    
 });
 
 module.exports = devicesStore;

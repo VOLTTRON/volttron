@@ -86,6 +86,12 @@ var devicesActionCreators = {
             platform: platform
         });
     },
+    handleKeyDown: function (keydown) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.HANDLE_KEY_DOWN,
+            keydown: keydown
+        });
+    },
     // listDetectedDevices: function (platform) {
     //     dispatcher.dispatch({
     //         type: ACTION_TYPES.LIST_DETECTED_DEVICES,

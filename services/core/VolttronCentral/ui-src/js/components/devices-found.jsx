@@ -1,7 +1,6 @@
 'use strict';
 
 import React from 'react';
-import io from 'socket';
 import BaseComponent from './base-component';
 import ConfigureRegistry from './configure-registry';
 

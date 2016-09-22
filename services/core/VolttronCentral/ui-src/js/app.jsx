@@ -14,10 +14,10 @@ var PageNotFound = require('./components/page-not-found');
 var Platform = require('./components/platform');
 import PlatformManager from './components/platform-manager';
 var Platforms = require('./components/platforms');
-// var Devices = require('./components/devices');
 import ConfigureDevices from './components/configure-devices';
 var PlatformCharts = require('./components/platform-charts');
 var Navigation = require('./components/navigation');
+var devicesActionCreators = require('./action-creators/devices-action-creators');
 
 var _afterLoginPath = '/dashboard';
 
@@ -96,6 +96,7 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
     }.bind(this));
 
     devicesStore.addChangeListener(function () { 
+
         if (devicesStore.getNewScan())       
         {
             if (!this.router.isActive('configure-devices'))
@@ -103,7 +104,22 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
                 this.router.push('/configure-devices');
             }
         }
+
     }.bind(this));
+
+
+    var handleKeyDown = function (keydown) {
+
+        if (this.router.isActive('configure-devices'))
+        {
+            if (keydown.target.nodeName !== "INPUT")
+            {
+                devicesActionCreators.handleKeyDown(keydown);    
+            }            
+        }
+    }
+
+    document.addEventListener("keydown", handleKeyDown.bind(this));
 });
 
 
