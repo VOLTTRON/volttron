@@ -22,7 +22,7 @@ Any valid OS file path name is a valid configuration name. Any leading or traili
 
 The canonical name for the main agent configuration is "config".
 
-All configuration names are converted to lower case when added to the store.
+The configuration subsystem remembers the case of configuration names. Name matching is case insensitive both on the Agent and platform side. Configuration names are reported to agent callbacks in the original case used when adding them to the configuration. If a new configuration is store with a different case of an existing name the new name case is used.
 
 Configuration Ownership
 -----------------------
