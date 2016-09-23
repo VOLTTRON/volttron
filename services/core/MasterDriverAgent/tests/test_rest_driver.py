@@ -62,22 +62,22 @@ import multiprocessing
 import json
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
-driver_config_dict = {
+driver_config_dict_string = """{
     "driver_config": {"device_address": "http://127.0.0.1:8080"},
-    "campus": "campus",
-    "building": "building",
-    "unit": "unit",
     "driver_type": "restful",
-    "registry_config": os.path.join(os.getcwd(), "services/core/MasterDriverAgent/tests/restful.csv"),
+    "registry_config": "config://restful.csv",
     "interval": 20,
     "timezone": "UTC"
-}
+}"""
 
-driver_config = os.path.join(os.getcwd(), "services/core/MasterDriverAgent/tests/config")
-with open(driver_config, 'w') as outfile:
-    json.dump(driver_config_dict, outfile)
+restful_csv_string = """Point Name,Volttron Point Name,Units,Writable,Notes,Default
+test_point,test_point,Units,True,Test point,forty two"""
 
-MASTER_CONFIG = {"driver_config_list": [driver_config]}
+# driver_config = os.path.join(os.getcwd(), "services/core/MasterDriverAgent/tests/config")
+# with open(driver_config, 'w') as outfile:
+#     json.dump(driver_config_dict, outfile)
+
+MASTER_CONFIG = {}
 
 point = 'forty two'
 
@@ -112,14 +112,33 @@ def http_server():
 
 @pytest.fixture(scope='module')
 def agent(request, volttron_instance1):
+    agent = volttron_instance1.build_agent()
+    # Clean out master driver configurations.
+    agent.vip.rpc.call('config.store',
+                       'manage_delete_store',
+                       'platform.driver').get(timeout=10)
+
+    #Add test configurations.
+    agent.vip.rpc.call('config.store',
+                       'manage_store',
+                       'platform.driver',
+                       "devices/campus/building/unit",
+                       driver_config_dict_string,
+                       "json").get(timeout=10)
+
+    agent.vip.rpc.call('config.store',
+                       'manage_store',
+                       'platform.driver',
+                       "restful.csv",
+                       restful_csv_string,
+                       "csv").get(timeout=10)
+
     master_uuid = volttron_instance1.install_agent(
         agent_dir="services/core/MasterDriverAgent",
         config_file=MASTER_CONFIG,
         start=True)
     print("agent id: ", master_uuid)
     gevent.sleep(2)  # wait for the agent to start and start the devices
-    
-    agent = volttron_instance1.build_agent()
 
     process = multiprocessing.Process(target=http_server)
     process.start()
@@ -129,7 +148,7 @@ def agent(request, volttron_instance1):
         volttron_instance1.stop_agent(master_uuid)
         agent.core.stop()
         process.terminate()
-        os.remove(driver_config)
+        #os.remove(driver_config)
 
     request.addfinalizer(stop)
     return agent
