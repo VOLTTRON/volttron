@@ -517,13 +517,16 @@ class VolttronCentralPlatform(Agent):
         raise NotManagedError("Could not connect to specified volttron central")
 
     @RPC.export
-    def publish_bacnet_props(self, proxy_identity, address, device_id):
+    def publish_bacnet_props(self, proxy_identity, address, device_id,
+                             extended=False, filter={}):
 
         bn = BACnetReader(self.vip.rpc, proxy_identity, self._bacnet_response)
         results = dict(address=address, device_id=device_id, device_name=None,
                        device_description=None)
-
-        gevent.spawn(bn.read_device_properties, address, device_id)
+        if not extended:
+            gevent.spawn(bn.read_device_primary, address, device_id)
+        else:
+            gevent.spawn(bn.read_device_extended, address, device_id, filter)
         return "PUBLISHING"
 
     def _bacnet_response(self, context, results):

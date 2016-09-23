@@ -11,7 +11,7 @@ _log = logging.getLogger(__name__)
 
 
 class BACnetReader(object):
-    def __init__(self, rpc, bacnet_proxy_identity, response_function):
+    def __init__(self, rpc, bacnet_proxy_identity, response_function=None):
         _log.info("Creating {}".format(self.__class__.__name__))
         self._rpc = weakref.ref(rpc)
         self._proxy_identity = bacnet_proxy_identity
@@ -37,6 +37,69 @@ class BACnetReader(object):
             device_description = None
         return device_description
 
+    def read_device_extended(self, target_address, device_id, filter):
+        """Read the extended device properties
+
+        This function will publish the
+
+        :param target_address:
+        :param device_id:
+        :param filter:
+        :return:
+        """
+
+        default_range_report = 1.0e+20
+        for bac_type, indexes in filter.items():
+            query = {}
+
+            for point_index in indexes:
+                self.process_object(target_address, bac_type, point_index,
+                                    default_range_report)
+
+    def read_device_primary(self, target_address, device_id):
+        """('Reference Point Name',
+            'Volttron Point Name',
+            'Units',
+            'Unit Details',
+            'BACnet Object Type',
+            'Property',
+            'Writable',
+            'Index',
+            'Write Priority',
+            'Notes')
+        """
+        try:
+            object_count = self.read_prop(target_address, "device", device_id,
+                                          "objectList", index=0)
+            list_property = "objectList"
+        except TypeError:
+            object_count = self.read_prop(target_address, "device", device_id,
+                                          "structuredObjectList", index=0)
+            list_property = "structuredObjectList"
+
+        _log.debug('object_count = ' + str(object_count))
+
+        for object_index in xrange(1, object_count + 1):
+            _log.debug('object_device_index = ' + repr(object_index))
+
+            bac_object = self.read_prop(target_address,
+                                        "device",
+                                        device_id,
+                                        list_property,
+                                        index=object_index)
+
+            obj_type, index = bac_object
+            # Deals with the largest numbers that can be reported.
+            # see proxy_grab_bacnet_config.py
+            default_range_report = 1.0e+20
+            self.process_object(target_address, obj_type, index,
+                                default_range_report)
+
+        # sval = buffer.getvalue()
+        # _log.debug('VALUE is: {}'.format(sval))
+        # buffer.close()
+        # return sval
+
     def read_device_properties(self, target_address, device_id):
         buffer = StringIO()
         config_writer = DictWriter(buffer, ('Reference Point Name',
@@ -44,7 +107,7 @@ class BACnetReader(object):
                                             'Units',
                                             'Unit Details',
                                             'BACnet Object Type',
-                                            'Property',
+                                            'Propert.y',
                                             'Writable',
                                             'Index',
                                             'Write Priority',
@@ -123,8 +186,7 @@ class BACnetReader(object):
                                 max_range_report,
                                 config_writer)
 
-    def process_object(self, address, obj_type, index, max_range_report,
-                       config_writer):
+    def process_object(self, address, obj_type, index, max_range_report):
         _log.debug('obj_type = ' + repr(obj_type))
         _log.debug('bacnet_index = ' + repr(index))
         context=None
@@ -339,4 +401,4 @@ class BACnetReader(object):
 
         self._response_function(context, results)
 
-        config_writer.writerow(results)
+        # config_writer.writerow(results)
