@@ -70,8 +70,8 @@ from volttrontesting.platform.auth_control_test import assert_auth_entries_same
 
 
 @pytest.fixture(scope='function')
-def auth_file_platform_tuple(volttron_instance1_encrypt):
-    platform = volttron_instance1_encrypt
+def auth_file_platform_tuple(volttron_instance_encrypt):
+    platform = volttron_instance_encrypt
     auth_file = AuthFile(os.path.join(platform.volttron_home, 'auth.json'))
 
     allow_entries, groups, roles = auth_file.read()
