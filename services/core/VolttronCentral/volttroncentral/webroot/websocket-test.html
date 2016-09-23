@@ -68,6 +68,10 @@
           };
         });
 
+        $("#clear").click(function(evt) {
+          $('#responses').val('');
+        });
+
         $("#send").click(function(evt) {
             var txt = $(message).val();
 
@@ -99,6 +103,7 @@
       <input type="button" id="open" value="open" /> <input type="button" id="close" value="close" /><br />
       <input type="text" id="message" value="This is a temp message" /><br />
       <input type="button" id="send" value="send" />
+      <input type="button" id="clear" value="clear" />
       <div>
       	<textarea id="responses" cols="200" rows="20"></textarea>
       </div>
