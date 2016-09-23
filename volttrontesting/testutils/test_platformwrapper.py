@@ -97,8 +97,6 @@ def test_can_install_listener(volttron_instance):
     removed = vi.remove_agent(auuid)
     print('REMOVED: ', removed)
 
-
-@pytest.mark.xfail(reason="Increases open file count by about 70k")
 @pytest.mark.timeout(1000)
 def test_resinstall_agent(volttron_instance):
     mysql_config = {
