@@ -578,70 +578,8 @@ class PlatformWrapper:
         aip.setup()
         return aip
 
-    # TODO Remove when verified that the other method works properly.
-    # def _install_agent(self, wheel_file, start, vip_identity):
-    #     aip = self._aip()
-    #     auuid = aip.install_agent(wheel_file, vip_identity=vip_identity)
-    #     assert auuid is not None
-    #     if start:
-    #         self.logit('STARTING: {}'.format(wheel_file))
-    #         status = self.start_agent(auuid)
-    #         # aip.start_agent(auuid)
-    #         # status = aip.agent_status(auuid)
-    #         self.logit('STATUS NOW: {}'.format(status))
-    #         assert status > 0
-    #
-    #     return auuid
-
-    # def _install_agent(self, wheel_file, start, vip_identity):
-    #
-    #     agent = self.build_agent()
-    #     self.logit('Creating channel for sending the agent.')
-    #     channel_name = str(uuid.uuid4())
-    #     channel = agent.vip.channel('control',
-    #                                 channel_name)
-    #     gevent.sleep(0.3)
-    #     self.logit('calling control install agent.')
-    #     result = agent.vip.rpc.call('control',
-    #                                 'install_agent',
-    #                                 wheel_file,
-    #                                 channel_name,
-    #                                 vip_identity)
-    #     self.logit('waiting for ready')
-    #     response = channel.recv()
-    #     if response != b'ready':
-    #         raise ValueError('Invalid channel protocol returned {}'.format(
-    #             response))
-    #
-    #     with open(wheel_file, 'rb') as fin:
-    #         _log.debug('sending wheel to control.')
-    #         while True:
-    #             data = fin.read(8125)
-    #             if not data:
-    #                 _log.debug('Finished sending data')
-    #                 break
-    #             channel.send(data)
-    #
-    #     _log.debug('sending done message.')
-    #     channel.send('done')
-    #     try:
-    #         # must do this before channel closes or process will hang.
-    #         auuid = result.get(timeout=10)
-    #         _log.debug('closing channel')
-    #     except gevent.Timeout:
-    #         _log.error('Timeout in channel')
-    #     finally:
-    #         channel.close(linger=0)
-    #         del channel
-    #
-    #     if start:
-    #         self.start_agent(auuid)
-    #
-    #     return auuid
-
     def _install_agent(self, wheel_file, start, vip_identity):
 
-        agent = self.build_agent()
         self.logit('Creating channel for sending the agent.')
 
         gevent.sleep(0.3)
