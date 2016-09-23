@@ -13,6 +13,8 @@ import re
 from dateutil.parser import parse
 from volttron.platform.messaging import headers as headers_mod
 
+AGG_AGENT_VIP = 'aggregate_agent'
+
 try:
     import mysql.connector as mysql
 
@@ -280,6 +282,12 @@ def aggregate_agent(request, volttron_instance):
         start=True)
     print("agent id: ", historian_uuid)
 
+    agg_agent_uuid = volttron_instance.install_agent(
+        agent_dir=request.param["source_agg_historian"],
+        config_file={},
+        vip_identity=AGG_AGENT_VIP,
+        start=True)
+
     # 3: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
     def stop_agent():
@@ -289,6 +297,7 @@ def aggregate_agent(request, volttron_instance):
         #     print("closed connection to db")
         if volttron_instance.is_running():
             volttron_instance.remove_agent(historian_uuid)
+            volttron_instance.remove_agent(agg_agent_uuid)
 
     request.addfinalizer(stop_agent)
     return request.param
@@ -304,7 +313,55 @@ def cleanup(connection_type, truncate_tables):
 
 
 @pytest.mark.aggregator
-def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
+def test_get_supported_aggregations(aggregate_agent, query_agent):
+    """
+    :param aggregate_agent: the aggregate historian configuration
+    :param query_agent: fake agent used to query historian
+    :return:
+    """
+    # aggregate_agent['aggregations'] = [
+    #     {"aggregation_period": "1m",
+    #      "use_calendar_time_periods": True,
+    #      "points": [
+    #          {
+    #              "topic_name_pattern": "device1/out_.*",
+    #              "aggregation_topic_name": "device1/outsidetemp_aggregate",
+    #              "aggregation_type": "sum",
+    #              "min_count": 2
+    #          }
+    #      ]
+    #      }
+    # ]
+    query_agent.vip.rpc.call("config.store", "manage_store",
+                             AGG_AGENT_VIP, "config",
+                             aggregate_agent).get()
+
+    result = query_agent.vip.rpc.call(
+        AGG_AGENT_VIP,
+        'get_supported_aggregations').get(timeout=10)
+
+
+    assert result
+    print result
+    conn =  aggregate_agent.get("connection")
+    if conn:
+        if conn.get("type") == "mysql":
+            assert result == ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'BIT_AND',
+                              'BIT_OR','BIT_XOR', 'GROUP_CONCAT', 'STD',
+                              'STDDEV', 'STDDEV_POP', 'STDDEV_SAMP',
+                              'VAR_POP', 'VAR_SAMP', 'VARIANCE']
+        elif conn.get("type") == "sqlite":
+            assert result == ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'TOTAL',
+                              'GROUP_CONCAT']
+        elif conn.get("type") == "mongodb":
+            assert result ==['SUM', 'COUNT', 'AVG', 'MIN', 'MAX',
+                             'STDDEVPOP', 'STDDEVSAMP']
+
+
+
+
+@pytest.mark.aggregator
+def test_single_topic_pattern(aggregate_agent, query_agent):
     """
     Test the basic functionality of aggregate historian when aggregating a
     single topic that is identified by topic_name_pattern instead of
@@ -322,8 +379,6 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
     aggregation_topic_name even though the second time around we are
     aggregating for a single topic
 
-    :param volttron_instance: volttron instance on which test agents are
-    installed and run
     :param aggregate_agent: the aggregate historian configuration
     :param query_agent: fake agent used to query historian
     """
@@ -332,7 +387,6 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
     start_time = datetime.utcnow() - timedelta(minutes=2)
     publish_test_data(query_agent, start_time, 0, 10)
     gevent.sleep(0.5)
-    agent_uuid = None
     try:
 
         aggregate_agent['aggregations'] = [
@@ -354,12 +408,9 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
              ]
              }
         ]
-
-        agent_uuid = volttron_instance.install_agent(
-            agent_dir=aggregate_agent["source_agg_historian"],
-            config_file=aggregate_agent,
-            start=True)
-        print("agent id: ", agent_uuid)
+        query_agent.vip.rpc.call("config.store", "manage_store",
+                                 AGG_AGENT_VIP, "config",
+                                 aggregate_agent).get()
 
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
@@ -409,14 +460,11 @@ def test_single_topic_pattern(volttron_instance, aggregate_agent, query_agent):
         assert len(expected_list) == 0
     finally:
         cleanup(aggregate_agent['connection']['type'], ['sum_1m'])
-        if agent_uuid is not None:
-            volttron_instance.remove_agent(agent_uuid)
 
 
 @pytest.mark.timeout(180)
 @pytest.mark.aggregator
-def test_single_topic(volttron_instance, aggregate_agent,
-                      query_agent):
+def test_single_topic(aggregate_agent, query_agent):
     """
     Test the basic functionality of aggregate historian when aggregating a
     single topic
@@ -432,8 +480,6 @@ def test_single_topic(volttron_instance, aggregate_agent,
     2. timestamp for both points within a single aggregation group should be
     time synchronized.
 
-    :param volttron_instance: volttron instance on which test agents are
-    installed and run
     :param aggregate_agent: the aggregate historian configuration
     :param query_agent: fake agent used to publish to and query historian
     """
@@ -441,7 +487,6 @@ def test_single_topic(volttron_instance, aggregate_agent,
     start_time = datetime.utcnow() - timedelta(minutes=2)
     publish_test_data(query_agent, start_time, 0, 30)
     gevent.sleep(0.5)
-    agent_uuid = None
     try:
         aggregate_agent['aggregations'] = [
             {
@@ -465,12 +510,9 @@ def test_single_topic(volttron_instance, aggregate_agent,
                 ]
             }
         ]
-        agent_uuid = volttron_instance.install_agent(
-            agent_dir=aggregate_agent["source_agg_historian"],
-            config_file=aggregate_agent,
-            start=True)
-        print("agent id: ", agent_uuid)
-        print("time before sleep {}".format(datetime.utcnow()))
+        query_agent.vip.rpc.call("config.store", "manage_store",
+                                 AGG_AGENT_VIP, "config",
+                                 aggregate_agent).get()
         gevent.sleep(2.5 * 60)  # sleep till we see two rows in aggregate table
 
         result1 = query_agent.vip.rpc.call(
@@ -585,8 +627,6 @@ def test_single_topic(volttron_instance, aggregate_agent,
 
     finally:
         cleanup(aggregate_agent['connection']['type'], ['sum_1m', 'sum_2m'])
-        if agent_uuid is not None:
-            volttron_instance.remove_agent(agent_uuid)
 
 
 def compute_timediff_seconds(time1_str, time2_str):
@@ -603,8 +643,7 @@ def compute_timediff_seconds(time1_str, time2_str):
 
 
 @pytest.mark.aggregator
-def test_multiple_topic_pattern(volttron_instance, aggregate_agent,
-                                query_agent):
+def test_multiple_topic_pattern(aggregate_agent, query_agent):
     """
     Test aggregate historian when aggregating across multiple topics
     that are identified by topic_name_pattern instead of explicit topic name
@@ -620,8 +659,6 @@ def test_multiple_topic_pattern(volttron_instance, aggregate_agent,
     2. timestamp for both points within a single aggregation group should be
     time synchronized
 
-    :param volttron_instance: volttron instance on which test agents are
-    installed and run
     :param aggregate_agent: the aggregate historian configuration
     :param  query_agent: fake agent used to query historian
     """
@@ -630,7 +667,6 @@ def test_multiple_topic_pattern(volttron_instance, aggregate_agent,
     start_time = datetime.utcnow() - timedelta(minutes=2)
     publish_test_data(query_agent, start_time, 0, 10)
     gevent.sleep(0.5)
-    agent_uuid = None
     try:
 
         aggregate_agent['aggregations'] = [
@@ -647,10 +683,10 @@ def test_multiple_topic_pattern(volttron_instance, aggregate_agent,
              }
         ]
 
-        agent_uuid = volttron_instance.install_agent(
-            agent_dir=aggregate_agent["source_agg_historian"],
-            config_file=aggregate_agent,
-            start=True)
+        query_agent.vip.rpc.call("config.store", "manage_store",
+                                 AGG_AGENT_VIP, "config",
+                                 aggregate_agent).get()
+
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
@@ -684,13 +720,10 @@ def test_multiple_topic_pattern(volttron_instance, aggregate_agent,
         assert result[0][3] == 'device1/*'
     finally:
         cleanup(aggregate_agent['connection']['type'], ['sum_1m'])
-        if agent_uuid is not None:
-            volttron_instance.remove_agent(agent_uuid)
 
 
 @pytest.mark.aggregator
-def test_multiple_topic_list(volttron_instance, aggregate_agent,
-                             query_agent):
+def test_multiple_topic_list(aggregate_agent, query_agent):
     """
     Test aggregate historian when aggregating across multiple topics
     that are identified by explicit list of topic names
@@ -700,8 +733,6 @@ def test_multiple_topic_list(volttron_instance, aggregate_agent,
     3. Sleep for 1 minute
     4. Do an rpc call to historian to verify data
 
-    :param volttron_instance: volttron instance on which test agents are
-    installed and run
     :param aggregate_agent: the aggregate historian configuration
     :param query_agent: fake agent used to query historian
     """
@@ -710,7 +741,6 @@ def test_multiple_topic_list(volttron_instance, aggregate_agent,
     start_time = datetime.utcnow() - timedelta(minutes=2)
     publish_test_data(query_agent, start_time, 0, 5)
     gevent.sleep(0.5)
-    agent_uuid = None
     try:
 
         aggregate_agent['aggregations'] = [
@@ -727,11 +757,9 @@ def test_multiple_topic_list(volttron_instance, aggregate_agent,
              }
         ]
 
-        agent_uuid = volttron_instance.install_agent(
-            agent_dir=aggregate_agent["source_agg_historian"],
-            config_file=aggregate_agent,
-            vip_identity='aggregate_historian1',
-            start=True)
+        query_agent.vip.rpc.call("config.store", "manage_store",
+                                 AGG_AGENT_VIP, "config",
+                                 aggregate_agent).get()
 
         result1 = query_agent.vip.rpc.call('platform.historian',
                                            'query',
@@ -765,13 +793,10 @@ def test_multiple_topic_list(volttron_instance, aggregate_agent,
         assert set(result[0][3]) == {"device1/in_temp", "device1/out_temp"}
     finally:
         cleanup(aggregate_agent['connection']['type'], ['sum_1m'])
-        if agent_uuid is not None:
-            volttron_instance.remove_agent(agent_uuid)
 
 
 @pytest.mark.aggregator
-def test_topic_reconfiguration(volttron_instance, aggregate_agent,
-                               query_agent):
+def test_topic_reconfiguration(aggregate_agent, query_agent):
     """
     Test aggregate historian when topic names/topic pattern is updated and
     restarted. Check if aggregate topic list gets updated correctly and doesn't
@@ -783,15 +808,12 @@ def test_topic_reconfiguration(volttron_instance, aggregate_agent,
     4. Do an rpc call to historian to verify data
 
 
-    :param volttron_instance: volttron instance on which test agents are
-    installed and run
     :param aggregate_agent: the aggregate historian configuration
     :param query_agent: fake agent used to query historian
     """
 
     # Publish fake data.
 
-    agent_uuid = None
     try:
         start_time = datetime.utcnow() - timedelta(minutes=2)
         publish_test_data(query_agent, start_time, 0, 5)
@@ -810,10 +832,9 @@ def test_topic_reconfiguration(volttron_instance, aggregate_agent,
              }
         ]
 
-        agent_uuid = volttron_instance.install_agent(
-            agent_dir=aggregate_agent["source_agg_historian"],
-            config_file=aggregate_agent,
-            start=True)
+        query_agent.vip.rpc.call("config.store", "manage_store",
+                                 AGG_AGENT_VIP, "config",
+                                 aggregate_agent).get()
 
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
@@ -845,24 +866,21 @@ def test_topic_reconfiguration(volttron_instance, aggregate_agent,
         assert result[0][1] == 'sum'
         assert result[0][2] == '1m'
         assert set(result[0][3]) == {"device1/in_temp", "device1/out_temp"}
-        volttron_instance.remove_agent(agent_uuid)
 
-        # Restart after changing topic names list for the same aggregate topic
+        # Reconfigure changing topic names list for the same aggregate topic
         start_time = datetime.utcnow() - timedelta(minutes=1)
         publish_test_data(query_agent, start_time, 0, 5)
-        gevent.sleep(0.5)
-        agent_uuid = None
+
         # Update topic names
         aggregate_agent['aggregations'][0]["points"][0]["topic_names"] = \
             ["device1/out_temp"]
         print("Before reinstall current time is {}".format(datetime.utcnow()))
 
-        agent_uuid = volttron_instance.install_agent(
-            agent_dir=aggregate_agent["source_agg_historian"],
-            config_file=aggregate_agent,
-            start=True)
+        query_agent.vip.rpc.call("config.store", "manage_store",
+                                 AGG_AGENT_VIP, "config",
+                                 aggregate_agent).get()
 
-        print ("After reinstall\n\n")
+        print ("After configure\n\n")
 
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
@@ -873,7 +891,7 @@ def test_topic_reconfiguration(volttron_instance, aggregate_agent,
             count=20,
             order="FIRST_TO_LAST").get(timeout=10)
 
-        print("Result:{}" .format(result1))
+        print("Result:{}".format(result1))
         lindex = len(result1['values']) - 1
         print("lindex = {}".format(lindex))
         expected_sum = get_expected_sum(query_agent,
@@ -896,5 +914,3 @@ def test_topic_reconfiguration(volttron_instance, aggregate_agent,
 
     finally:
         cleanup(aggregate_agent['connection']['type'], ['sum_1m'])
-        if agent_uuid:
-            volttron_instance.remove_agent(agent_uuid)

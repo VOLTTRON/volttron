@@ -69,7 +69,7 @@ from datetime import datetime, timedelta
 import pytz
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent
-from volttron.platform.vip.agent import Core
+from volttron.platform.vip.agent.subsystems import RPC
 
 _log = logging.getLogger(__name__)
 __version__ = '1.0'
@@ -79,12 +79,25 @@ class AggregateHistorian(Agent):
     """
     Base agent to aggregate data in historian based on a specific time period.
     Different subclasses of this agent is needed to interact with different
-    type of historians. Subclasses should
-        1. Implement the collect_aggregate_data with logic to query the
-        historian data table to collect and aggregate raw data and store it
-        specific aggrgate tables/collections
-        2. call setup_periodic_collection() method from its onstart method
-        to set up periodic call to collect_aggregate_data()
+    type of historians. Subclasses should implement the following methods
+
+    - :py:meth:`get_topic_map()
+        <AggregateHistorian.get_topic_map>`
+    - :py:meth:`get_agg_topic_map()
+        <AggregateHistorian.get_agg_topic_map>`
+    - :py:meth:`find_topics_by_pattern()
+        <AggregateHistorian.find_topics_by_pattern>`
+    - :py:meth:`initialize_aggregate_store()
+        <AggregateHistorian.initialize_aggregate_store>`
+    - :py:meth:`update_aggregate_metadata()
+        <AggregateHistorian.update_aggregate_metadata>`
+    - :py:meth:`collect_aggregate()
+        <AggregateHistorian.collect_aggregate>`
+    - :py:meth:`insert_aggregate()
+        <AggregateHistorian.insert_aggregate>`
+    - :py:meth:`get_aggregation_list()
+        <AggregateHistorian.get_aggregation_list>`
+
     """
 
     def __init__(self, config_path, **kwargs):
@@ -96,37 +109,46 @@ class AggregateHistorian(Agent):
         super(AggregateHistorian, self).__init__(**kwargs)
         _log.debug("In init of aggregate historian")
         # Instantiate variables
-        self.config = utils.load_config(config_path)
+        config = utils.load_config(config_path)
         self.topic_id_map = None
         self.aggregate_topic_id_map = None
         self.volttron_table_defs = 'volttron_table_definitions'
 
+        self.vip.config.set_default("config", config)
+        self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"],
+                                  pattern="config")
+        _log.debug("Done init of aggregate historian")
+
+    def configure(self, config_name, action, config):
+        """
+        Converts aggregation time period into seconds, validates
+        configuration values and calls the collect aggregate method for the
+        first time
+        :param config_name: name of the config entry in store. We only use
+        one config store entry with the default name config
+        :param action: "NEW or "UPDATE" code treats both the same way
+        :param config: configuratuion as json object
+        """
+
+        _log.debug("In configure of aggregate historian. current time"
+                   "{} config is {}".format(datetime.utcnow(), config))
+
+        if not config or not isinstance(config, dict):
+            raise ValueError("Configuration should be a valid json")
+
         # 1. Check connection to db instantiate db functions class
-        connection = self.config.get('connection', None)
+        connection = config.get('connection', None)
         assert connection is not None
         database_type = connection.get('type', None)
         assert database_type is not None
         params = connection.get('params', None)
         assert params is not None
-        _log.debug("Done init of aggregate historian")
 
-    @Core.receiver('onstart')
-    def _on_start(self, sender, **kwargs):
-        """
-        Converts aggregation time period into seconds, validates
-        configuration values and setups periodic call to
-        :py:meth:`AggregateHistorian._collect_aggregate_data` method
-        @param sender:
-        @param kwargs:
-        @return:
-        """
-        _log.debug("In start of aggregate historian. current time{}".format(
-            datetime.utcnow()))
         self.topic_id_map, name_map = self.get_topic_map()
         self.agg_topic_id_map = self.get_agg_topic_map()
         _log.debug("In start of aggregate historian. "
                    "After loading topic and aggregate topic maps")
-        for agg_group in self.config['aggregations']:
+        for agg_group in config['aggregations']:
             # 1. Validate and normalize aggregation period and
             # initialize use_calendar_periods flag
             agg_time_period = \
@@ -249,9 +271,9 @@ class AggregateHistorian(Agent):
                     " name {} meta {}".format(agg_id,
                                               data['aggregation_topic_name'],
                                               topic_meta))
-                self.update_aggregate(agg_id,
-                                      data['aggregation_topic_name'],
-                                      topic_meta)
+                self.update_aggregate_metadata(agg_id,
+                                               data['aggregation_topic_name'],
+                                               topic_meta)
             else:
                 _log.debug(
                     "Inserting new record into aggregate_topics name {} "
@@ -274,7 +296,23 @@ class AggregateHistorian(Agent):
         """
         Method that does the collection and computation of aggregate data based
         on raw date in historian's data table. This method is called
-        periodically after agent start
+        for the first time when a agent is configured with a new
+        configuration or when the config in config store is updated. After the
+        collection of aggregate data, this methods schedules itself to be
+        called after a specific period of time. The time interval is
+        calculated by
+        :py:meth:`compute_next_collection_time()
+        <AggregateHistorian.compute_next_collection_time>`
+        This method in turn calls the following methods implemented by
+        child classes:
+
+        - :py:meth:`find_topics_by_pattern()
+        <AggregateHistorian.find_topics_by_pattern>`
+        - :py:meth:`collect_aggregate()
+        <AggregateHistorian.collect_aggregate>`
+        - :py:meth:`insert_aggregate()
+        <AggregateHistorian.insert_aggregate>`
+
         :param collection_time:  time of aggregation collection
         :param param agg_time_period: - time agg_time_period for which data
         needs  to be collected and aggregated
@@ -423,8 +461,8 @@ class AggregateHistorian(Agent):
         """
 
     @abstractmethod
-    def update_aggregate(self, agg_id, aggregation_topic_name,
-                         topic_meta):
+    def update_aggregate_metadata(self, agg_id, aggregation_topic_name,
+                                  topic_meta):
         """
         Update aggregation_topic_name and topic_meta data for the given
         agg_id.
@@ -437,7 +475,7 @@ class AggregateHistorian(Agent):
     def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):
         """
         Collects the aggregate data by querying the historian's data store
-        @param topic_ids: list of topic ids for which aggregation should be
+        :param topic_ids: list of topic ids for which aggregation should be
         performed.
         :param agg_type: type of aggregation
         :param start_time: start time for query (inclusive)
@@ -451,7 +489,7 @@ class AggregateHistorian(Agent):
     def insert_aggregate(self, agg_topic_id, agg_type, agg_time_period,
                          end_time, value, topic_ids):
         """
-        @param agg_topic_id: If len(topic_ids) is 1. This would be the same
+        :param agg_topic_id: If len(topic_ids) is 1. This would be the same
         as the topic_ids[0]. Else this id corresponds to the unique topic name
         given by user for this aggregation across multiple points.
         :param agg_type: type of aggregation
@@ -462,13 +500,28 @@ class AggregateHistorian(Agent):
         """
         pass
 
-    @abstractmethod
     def is_supported_aggregation(self, agg_type):
         """
         Checks if the given aggregation is supported by the historian's
         data store
         :param agg_type: The type of aggregation to be computed
         :return: True is supported False otherwise
+        """
+        if agg_type:
+            return agg_type.upper() in [x.upper() for x in
+                                        self.get_aggregation_list()]
+        else:
+            return False
+
+    @RPC.export
+    def get_supported_aggregations(self):
+        return self.get_aggregation_list()
+
+    @abstractmethod
+    def get_aggregation_list(self):
+        """
+        Returns a list of supported aggregations
+        :return: list of supported aggregations
         """
         pass
 

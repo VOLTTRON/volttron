@@ -317,9 +317,9 @@ class SqlLiteFuncts(DbDriver):
         return '''UPDATE ''' + self.topics_table + ''' SET topic_name = ?
             WHERE topic_id = ?'''
 
-    def is_supported_aggregation(self, agg_type):
-        return agg_type.upper() in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM',
-                                    'TOTAL', 'GROUP_CONCAT']
+    def get_aggregation_list(self):
+        return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'TOTAL', 'GROUP_CONCAT']
+
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
         _log.debug("In sqlitefuncts insert aggregate topic")

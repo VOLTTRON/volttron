@@ -172,11 +172,10 @@ class DbDriver(object):
         pass
 
     @abstractmethod
-    def is_supported_aggregation(self, agg_type):
+    def get_aggregation_list(self):
         """
-        Check if passed aggregation is supported by the specific data store
-        :param agg_type: type of aggregation
-        :return: True if supported false otherwise
+        Return list of aggregation supported by the specific data store
+        :return: list of aggregations
         """
         pass
 

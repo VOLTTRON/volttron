@@ -215,29 +215,25 @@ the same date over again.
 
 from __future__ import absolute_import, print_function
 
-from abc import abstractmethod
-from dateutil.parser import parse
 import logging
-import re
 import sqlite3
 import threading
 import weakref
 from Queue import Queue, Empty
+from abc import abstractmethod
 from collections import defaultdict
 from datetime import datetime, timedelta
-import threading
 from threading import Thread
-import weakref
 
 import pytz
 import re
 from dateutil.parser import parse
+from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from volttron.platform.agent.utils import process_timestamp, \
     fix_sqlite3_datetime, get_aware_utc_now
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
-from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from zmq.utils import jsonapi
 
 _log = logging.getLogger(__name__)
@@ -348,18 +344,17 @@ class BaseHistorianAgent(Agent):
             # subscriptions never got finished.
             pass
 
-
     def parse_table_def(self, config):
         default_table_def = {"table_prefix": "",
                              "data_table": "data",
                              "topics_table": "topics",
                              "meta_table": "meta"}
-        tables_def = config.get('tables_def',None)
+        tables_def = config.get('tables_def', None)
         if not tables_def:
-            tables_def =  default_table_def
+            tables_def = default_table_def
         table_names = dict(tables_def)
 
-        table_prefix = tables_def.get('table_prefix',None)
+        table_prefix = tables_def.get('table_prefix', None)
         table_prefix = table_prefix + "_" if table_prefix else ""
         if table_prefix:
             for key, value in table_names.items():
@@ -435,9 +430,10 @@ class BaseHistorianAgent(Agent):
             return
 
         source = 'log'
-        _log.debug(
-            "Queuing {topic} from {source} for publish".format(topic=topic,
-                                                               source=source))
+        # _log.debug(
+        #     "Queuing {topic} from {source} for publish".format(topic=topic,
+        #
+        # source=source))
         for point, item in data.iteritems():
             #             ts_path = location + '/' + point
             if 'Readings' not in item or 'Units' not in item:
@@ -487,9 +483,6 @@ class BaseHistorianAgent(Agent):
         # we strip it off to get the base device
         parts = topic.split('/')
         device = '/'.join(parts[1:-1])  # '/'.join(reversed(parts[2:]))
-
-        _log.debug("found topic {}".format(topic))
-
         self._capture_data(peer, sender, bus, topic, headers, message, device)
 
     def _capture_analysis_data(self, peer, sender, bus, topic, headers,
@@ -658,7 +651,6 @@ class BaseHistorianAgent(Agent):
             wait_for_input = True
             start_time = datetime.utcnow()
 
-            _log.debug("Calling publish_to_historian.")
             while True:
                 to_publish_list = backupdb.get_outstanding_to_publish(
                     self._submit_size_limit)
@@ -843,8 +835,6 @@ class BackupDatabase:
             for timestamp, value in values:
                 if timestamp is None:
                     timestamp = get_aware_utc_now()
-                _log.debug("Inserting into outstanding table with timestamp "
-                           "{}".format(timestamp))
                 c.execute(
                     '''INSERT OR REPLACE INTO outstanding
                     values(NULL, ?, ?, ?, ?)''',
@@ -1154,10 +1144,9 @@ class BaseQueryHistorianAgent(Agent):
 
         return results
 
-
     @abstractmethod
     def query_historian(self, topic, start=None, end=None, agg_type=None,
-              agg_period=None, skip=0, count=None, order=None):
+                        agg_period=None, skip=0, count=None, order=None):
         """
         This function is called by :py:meth:`BaseQueryHistorianAgent.query`
         to actually query the data store

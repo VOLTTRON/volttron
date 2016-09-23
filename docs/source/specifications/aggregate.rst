@@ -242,8 +242,8 @@ Results will be of the format
     'metadata': {}}
 
 
-Qurey list of available aggregate topics
-----------------------------------------
+Qurey list of aggregate data collected
+--------------------------------------
 ::
 
     result = query_agent.vip.rpc.call('platform.historian',
@@ -254,6 +254,17 @@ The result will be of the format:
 ::
 
     [(aggregate topic name, aggregation type, aggregation time period, configured list of topics or topic name pattern), ...]
+
+This shows the list of aggregation currently being computed periodically
+
+Qurey list of supported aggregation types
+-----------------------------------------
+::
+
+    result = query_agent.vip.rpc.call(
+        AGG_AGENT_VIP,
+        'get_supported_aggregations').get(timeout=10)
+
 
 
 Constraints and Limitations

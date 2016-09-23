@@ -86,56 +86,66 @@ class SQLAggregateHistorian(AggregateHistorian):
         :param config_path: configuration file path
         :param kwargs:
         """
+        self.dbfuncts_class = None
         super(SQLAggregateHistorian, self).__init__(config_path, **kwargs)
 
+    def configure(self, config_name, action, config):
+        if not config or not isinstance(config, dict):
+            raise ValueError("Configuration should be a valid json")
+
         # 1. Check connection to db instantiate db functions class
-        connection = self.config.get('connection', None)
+        connection = config.get('connection', None)
         assert connection is not None
         database_type = connection.get('type', None)
         assert database_type is not None
         params = connection.get('params', None)
         assert params is not None
 
-        dbfuncts_class = sqlutils.get_dbfuncts_class(database_type)
-        self.dbfuncts = dbfuncts_class(connection['params'], None)
-        self.dbfuncts.setup_aggregate_historian_tables(
+        class_name = sqlutils.get_dbfuncts_class(database_type)
+        self.dbfuncts_class = class_name(connection['params'], None)
+        self.dbfuncts_class.setup_aggregate_historian_tables(
             self.volttron_table_defs)
+        super(SQLAggregateHistorian, self).configure(
+            config_name, action, config)
 
     def get_topic_map(self):
-        return self.dbfuncts.get_topic_map()
+        return self.dbfuncts_class.get_topic_map()
 
     def get_agg_topic_map(self):
-        return self.dbfuncts.get_agg_topic_map()
+        return self.dbfuncts_class.get_agg_topic_map()
 
     def find_topics_by_pattern(self, topic_pattern):
-        return self.dbfuncts.find_topics_by_pattern(topic_pattern)
+        return self.dbfuncts_class.find_topics_by_pattern(topic_pattern)
 
-    def is_supported_aggregation(self, agg_type):
-        if agg_type:
-            return self.dbfuncts.is_supported_aggregation(agg_type)
+    def get_aggregation_list(self):
+        if self.dbfuncts_class:
+            return self.dbfuncts_class.get_aggregation_list()
         else:
-            return False
+            raise Exception("Please configure historian with a valid "
+                            "configuration")
+
 
     def initialize_aggregate_store(self, aggregation_topic_name, agg_type,
                                    agg_time_period, topics_meta):
         _log.debug("aggregation_topic_name " + aggregation_topic_name)
         _log.debug("topics_meta {}".format(topics_meta))
-        self.dbfuncts.create_aggregate_store(agg_type, agg_time_period)
-        agg_id = self.dbfuncts.insert_agg_topic(aggregation_topic_name,
-                                                agg_type, agg_time_period)
-        self.dbfuncts.insert_agg_meta(agg_id[0], topics_meta)
+        self.dbfuncts_class.create_aggregate_store(agg_type, agg_time_period)
+        agg_id = self.dbfuncts_class.insert_agg_topic(aggregation_topic_name,
+                                                      agg_type,
+                                                      agg_time_period)
+        self.dbfuncts_class.insert_agg_meta(agg_id[0], topics_meta)
         return agg_id[0]
 
-    def update_aggregate(self, agg_id, aggregation_topic_name,
-                         topic_meta):
+    def update_aggregate_metadata(self, agg_id, aggregation_topic_name,
+                                  topic_meta):
         _log.debug("aggregation_topic_name " + aggregation_topic_name)
         _log.debug("topic_meta {}".format(topic_meta))
 
-        self.dbfuncts.update_agg_topic(agg_id, aggregation_topic_name)
-        self.dbfuncts.insert_agg_meta(agg_id, topic_meta)
+        self.dbfuncts_class.update_agg_topic(agg_id, aggregation_topic_name)
+        self.dbfuncts_class.insert_agg_meta(agg_id, topic_meta)
 
     def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):
-        return self.dbfuncts.collect_aggregate(
+        return self.dbfuncts_class.collect_aggregate(
             topic_ids,
             agg_type,
             start_time,
@@ -143,12 +153,12 @@ class SQLAggregateHistorian(AggregateHistorian):
 
     def insert_aggregate(self, topic_id, agg_type, period, end_time,
                          value, topic_ids):
-        self.dbfuncts.insert_aggregate(topic_id,
-                                       agg_type,
-                                       period,
-                                       end_time,
-                                       value,
-                                       topic_ids)
+        self.dbfuncts_class.insert_aggregate(topic_id,
+                                             agg_type,
+                                             period,
+                                             end_time,
+                                             value,
+                                             topic_ids)
 
 
 def main(argv=sys.argv):

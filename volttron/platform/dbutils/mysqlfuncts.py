@@ -322,12 +322,10 @@ class MySqlFuncts(DbDriver):
         return '''UPDATE ''' + self.topics_table + ''' SET topic_name = %s
             WHERE topic_id = %s'''
 
-    def is_supported_aggregation(self, agg_type):
-        return agg_type.upper() in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM',
-                                    'BIT_AND', 'BIT_OR', 'BIT_XOR',
-                                    'GROUP_CONCAT', 'STD', 'STDDEV',
-                                    'STDDEV_POP', 'STDDEV_SAMP', 'VAR_POP',
-                                    'VAR_SAMP', 'VARIANCE']
+    def get_aggregation_list(self):
+        return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'BIT_AND', 'BIT_OR',
+                'BIT_XOR', 'GROUP_CONCAT', 'STD', 'STDDEV', 'STDDEV_POP',
+                'STDDEV_SAMP', 'VAR_POP', 'VAR_SAMP', 'VARIANCE']
 
     def insert_agg_topic_stmt(self):
         _log.debug("Insert aggregate topics stmt inserts "

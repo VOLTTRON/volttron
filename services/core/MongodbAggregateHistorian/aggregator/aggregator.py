@@ -89,9 +89,21 @@ class MongodbAggregateHistorian(AggregateHistorian):
         :param config_path: configuration file path
         :param kwargs:
         """
+        self.dbclient = None
+        self._data_collection = None
+        self._meta_collection = None
+        self._topic_collection = None
+        self._agg_meta_collection = None
+        self._agg_topic_collection = None
+        self.topic_id_map = {}
         super(MongodbAggregateHistorian, self).__init__(config_path, **kwargs)
 
-        connection = self.config.get('connection')
+    def configure(self, config_name, action, config):
+
+        if not config or not isinstance(config, dict):
+            raise ValueError("Configuration should be a valid json")
+
+        connection = config.get('connection')
         self.dbclient = mongoutils.get_mongo_client(connection['params'])
 
         # Why are we not letting users configure data and topic collection
@@ -124,6 +136,8 @@ class MongodbAggregateHistorian(AggregateHistorian):
 
         # 2. load topic name and topic id.
         self.topic_id_map, name_map = self.get_topic_map()
+        super(MongodbAggregateHistorian, self).configure(config_name,
+                                                         action, config)
 
     def get_topic_map(self):
         return mongoutils.get_topic_map(self.dbclient, self._topic_collection)
@@ -143,12 +157,10 @@ class MongodbAggregateHistorian(AggregateHistorian):
                 '_id']
         return topic_id_map
 
-    def is_supported_aggregation(self, agg_type):
-        if agg_type:
-            return agg_type.upper() in ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX',
-                                        'STDDEVPOP', 'STDDEVSAMP']
-        else:
-            return False
+    def get_aggregation_list(self):
+        return  ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX', 'STDDEVPOP',
+                 'STDDEVSAMP']
+
 
     def initialize_aggregate_store(self, aggregation_topic_name, agg_type,
                                    agg_time_period, topics_meta):
@@ -172,8 +184,8 @@ class MongodbAggregateHistorian(AggregateHistorian):
                                                   'meta': topics_meta})
         return agg_id
 
-    def update_aggregate(self, agg_id, aggregation_topic_name,
-                         topic_meta):
+    def update_aggregate_metadata(self, agg_id, aggregation_topic_name,
+                                  topic_meta):
         db = self.dbclient.get_default_database()
 
         result = db[self._agg_topic_collection].update_one(
