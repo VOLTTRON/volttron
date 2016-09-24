@@ -17,4 +17,9 @@ for D in services/core/*; do
     fi
 done
 py.test -v volttron
-py.test -v volttrontesting
+
+for D in volttrontesting/*; do
+    if [ -d "${D}" ]; then
+        py.test -v ${D}
+    fi
+done
