@@ -87,6 +87,8 @@ class ConfigStore(SubsystemBase):
         self._store = {}
         self._default_store = {}
         self._callbacks = {}
+        self._name_map = {}
+        self._default_name_map = {}
 
         self._initialized = False
         self._initial_callbacks_called = False
@@ -142,9 +144,11 @@ class ConfigStore(SubsystemBase):
                 del self._reverse_ref_map[ref]
 
 
-    def _initial_update(self, configs):
+    def _initial_update(self, configs, reset_name_map=True):
         self._initialized = True
-        self._store = configs
+        self._store = {key.lower(): value for (key,value) in configs.iteritems()}
+        if reset_name_map:
+            self._name_map = {key.lower(): key for key in configs.iterkeys()}
 
         for config_name, config_contents in self._store.iteritems():
             self._add_refs(config_name, config_contents)
@@ -223,16 +227,18 @@ class ConfigStore(SubsystemBase):
 
         #Update local store.
         if action == "DELETE":
-            if config_name in self._store:
-                del self._store[config_name]
-                if config_name not in self._default_store:
-                    affected_configs[config_name] = "DELETE"
-                    self._gather_affected(config_name, affected_configs)
-                    self._delete_refs(config_name)
+            config_name_lower = config_name.lower()
+            if config_name_lower in self._store:
+                del self._store[config_name_lower]
+
+                if config_name_lower not in self._default_store:
+                    affected_configs[config_name_lower] = "DELETE"
+                    self._gather_affected(config_name_lower, affected_configs)
+                    self._delete_refs(config_name_lower)
                 else:
-                    affected_configs[config_name] = "UPDATE"
-                    self._gather_affected(config_name, affected_configs)
-                    self._update_refs(config_name, self._default_store[config_name])
+                    affected_configs[config_name_lower] = "UPDATE"
+                    self._gather_affected(config_name_lower, affected_configs)
+                    self._update_refs(config_name_lower, self._default_store[config_name_lower])
 
         if action == "DELETE_ALL":
             for name in self._store:
@@ -242,40 +248,61 @@ class ConfigStore(SubsystemBase):
                 affected_configs[name] = "UPDATE"
             self._ref_map = {}
             self._reverse_ref_map = defaultdict(set)
-            self._initial_update({})
+            self._initial_update({}, False)
 
         if action in ("NEW", "UPDATE"):
-            self._store[config_name] = contents
-            if config_name in self._default_store:
+            config_name_lower = config_name.lower()
+            self._store[config_name_lower] = contents
+            self._name_map[config_name_lower] = config_name
+            if config_name_lower in self._default_store:
                 action = "UPDATE"
-            affected_configs[config_name] = action
-            self._update_refs(config_name, self._store[config_name])
-            self._gather_affected(config_name, affected_configs)
+            affected_configs[config_name_lower] = action
+            self._update_refs(config_name_lower, self._store[config_name_lower])
+            self._gather_affected(config_name_lower, affected_configs)
 
 
         if trigger_callback and self._initial_callbacks_called:
             self._process_callbacks(affected_configs)
 
+        if action == "DELETE":
+            del self._name_map[config_name_lower]
+
+        if action == "DELETE_ALL":
+            self._name_map.clear()
+
+
 
     def _process_callbacks(self, affected_configs):
         _log.debug("Processing callbacks for affected files: {}".format(affected_configs))
-        for config_name, action in affected_configs.iteritems():
-            callbacks = set()
-            for pattern, actions in self._subscriptions.iteritems():
-                if fnmatch.fnmatchcase(config_name, pattern) and action in actions:
-                    callbacks.update(actions[action])
+        all_map = self._default_name_map.copy()
+        all_map.update(self._name_map)
+        #Always process "config" first.
+        if "config" in affected_configs:
+            self._process_callbacks_one_config("config", affected_configs["config"], all_map)
 
-            for callback in callbacks:
-                try:
-                    if action == "DELETE":
-                        contents = None
-                    else:
-                        contents = self._gather_config(config_name)
-                    callback(config_name, action, contents)
-                except StandardError as e:
-                    tb_str = traceback.format_exc()
-                    _log.error("Problem processing callback:")
-                    _log.error(tb_str)
+        for config_name, action in affected_configs.iteritems():
+            if config_name == "config":
+                continue
+            self._process_callbacks_one_config(config_name, action, all_map)
+
+
+    def _process_callbacks_one_config(self, config_name, action, name_map):
+        callbacks = set()
+        for pattern, actions in self._subscriptions.iteritems():
+            if fnmatch.fnmatchcase(config_name, pattern) and action in actions:
+                callbacks.update(actions[action])
+
+        for callback in callbacks:
+            try:
+                if action == "DELETE":
+                    contents = None
+                else:
+                    contents = self._gather_config(config_name)
+                callback(name_map[config_name], action, contents)
+            except StandardError as e:
+                tb_str = traceback.format_exc()
+                _log.error("Problem processing callback:")
+                _log.error(tb_str)
 
     def list(self):
         """Returns a list of configuration names for this agent.
@@ -290,9 +317,12 @@ class ConfigStore(SubsystemBase):
         if not self._initialized:
             self._rpc().call("config.store", "get_configs").get()
 
+        all_map = self._default_name_map.copy()
+        all_map.update(self._name_map)
+
         store_set = set(self._store.keys())
         default_set = set(self._default_store.keys())
-        config_list =  list(store_set|default_set)
+        config_list =  list(all_map[x] for x in (store_set|default_set))
         config_list.sort()
         return config_list
 
@@ -362,14 +392,15 @@ class ConfigStore(SubsystemBase):
         if not isinstance(contents, (str, list, dict)):
             raise ValueError("Invalid content type: {}".format(contents.__class__.__name__))
 
-        config_name = config_name.lower()
-        action = "UPDATE" if config_name in self._default_store else "NEW"
-        self._default_store[config_name] = contents
+        config_name_lower = config_name.lower()
+        action = "UPDATE" if config_name_lower in self._default_store else "NEW"
+        self._default_store[config_name_lower] = contents
+        self._default_name_map[config_name_lower] = config_name
 
-        if config_name in self._store:
+        if config_name_lower in self._store:
             return
 
-        self._update_refs(config_name, self._default_store[config_name])
+        self._update_refs(config_name_lower, self._default_store[config_name_lower])
 
     def delete_default(self, config_name):
         """Called to delete the contents of a default configuration file.
@@ -382,13 +413,14 @@ class ConfigStore(SubsystemBase):
         if self._initialized:
             raise RuntimeError("Cannot request changes to default configurations after onsetup.")
 
-        config_name = config_name.lower()
-        del self._default_store[config_name]
+        config_name_lower = config_name.lower()
+        del self._default_store[config_name_lower]
+        del self._default_name_map[config_name_lower]
 
-        if config_name in self._store:
+        if config_name_lower in self._store:
             return
 
-        self._update_refs(config_name, self._store[config_name])
+        self._update_refs(config_name_lower, self._store[config_name_lower])
 
 
     def delete(self, config_name, trigger_callback=False):
