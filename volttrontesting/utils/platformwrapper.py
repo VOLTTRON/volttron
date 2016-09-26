@@ -581,7 +581,6 @@ class PlatformWrapper:
     def _install_agent(self, wheel_file, start, vip_identity):
 
         self.logit('Creating channel for sending the agent.')
-
         gevent.sleep(0.3)
         self.logit('calling control install agent.')
         self.logit("VOLTTRON_HOME SETTING: {}".format(
@@ -589,13 +588,9 @@ class PlatformWrapper:
         env = self.env.copy()
         cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
         if vip_identity:
-            cmd = ['volttron-ctl', '-vv', 'install', wheel_file,
-               '--vip-identity', vip_identity]
+            cmd.extend(['--vip-identity', vip_identity])
         res = subprocess.check_output(cmd, env=env)
         assert res, "failed to install wheel:{}".format(wheel_file)
-        self.logit("Result of install agent")
-        self.logit(res)
-
         agent_uuid = res.split(' ')[-2]
         self.logit(agent_uuid)
 

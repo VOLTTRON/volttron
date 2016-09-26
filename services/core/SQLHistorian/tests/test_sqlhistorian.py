@@ -666,7 +666,6 @@ def test_exact_timestamp_with_z(request, sqlhistorian, publish_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
-
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_query_start_time(request, sqlhistorian, publish_agent, query_agent,

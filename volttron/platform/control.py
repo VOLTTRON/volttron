@@ -1235,7 +1235,7 @@ def main(argv=sys.argv):
                                     help='interpret the input file as csv')
 
     config_store_store.set_defaults(func=add_config_to_store,
-                                    config_type="raw")
+                                    config_type="json")
 
     config_store_delete = add_parser("delete",
                                     help="delete a configuration",
