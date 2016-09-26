@@ -28,6 +28,8 @@ class ConfigureRegistry extends BaseComponent {
             "_cloneColumn", "_onStoresChange" );
 
         this.state = this._resetState(this.props.device);
+
+        this.state.keyboardRange = [-1, -1];
     }
     componentDidMount() {
         this.containerDiv = document.getElementsByClassName("fixed-table-container")[0];
@@ -66,7 +68,10 @@ class ConfigureRegistry extends BaseComponent {
     componentWillReceiveProps(nextProps) {
         if (this.props.device !== nextProps.device)
         {
-            this.setState(this._resetState(nextProps.device));
+            var newState = this._resetState(nextProps.device);
+            newState.keyboardRange = this.state.keyboardRange;
+
+            this.setState(newState);
         }
     }
     _resetState(device){
@@ -99,14 +104,12 @@ class ConfigureRegistry extends BaseComponent {
         state.selectedCells = [];
         state.selectedCellRow = null;
         state.selectedCellColumn = null;
-
         state.filterOn = false;
 
         this.scrollToBottom = false;
         this.resizeTable = false;
 
         // this.keyboardIndex = -1;
-        this.keyboardRange = [-1, -1];
 
         return state;
     }
@@ -182,10 +185,10 @@ class ConfigureRegistry extends BaseComponent {
                 
             }        
         }
-        else
-        {
-            this.setState({ keyboardRange: [-1, -1] });
-        }
+        // else
+        // {
+        //     this.setState({ keyboardRange: [-1, -1] });
+        // }
     }
     _fetchExtendedPoints(keyboardRange) {
 
@@ -700,13 +703,16 @@ class ConfigureRegistry extends BaseComponent {
         {            
             registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
 
+                var keyboardSelected = (rowIndex >= this.state.keyboardRange[0] && rowIndex <= this.state.keyboardRange[1]);
+
                 return (<RegistryRow 
                             attributesList={attributesList} 
                             rowIndex={rowIndex}
                             device={this.props.device}
                             selectedCell={this.state.selectedCellRow === rowIndex}
                             selectedCellColumn={this.state.selectedCellColumn}
-                            filterOn={this.state.filterOn}/>);
+                            filterOn={this.state.filterOn}
+                            keyboardSelected={keyboardSelected}/>);
                 
             }, this);
 

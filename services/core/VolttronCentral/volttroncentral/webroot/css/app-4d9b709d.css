@@ -2248,7 +2248,11 @@ Interactive Layer
 }
 
 .selectedRegistryPoint {
-    background-color: rgba(102, 153, 187, .5);
+    background-color: rgba(102, 153, 187, .5) !important;
+}
+
+.keyboard-selected {
+    background-color: rgba(102, 153, 187, .1);
 }
 
 .th-inner {

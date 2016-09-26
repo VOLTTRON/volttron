@@ -2846,6 +2846,8 @@ var ConfigureRegistry = function (_BaseComponent) {
         _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_cloneColumn", "_onStoresChange");
 
         _this.state = _this._resetState(_this.props.device);
+
+        _this.state.keyboardRange = [-1, -1];
         return _this;
     }
 
@@ -2887,7 +2889,10 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: 'componentWillReceiveProps',
         value: function componentWillReceiveProps(nextProps) {
             if (this.props.device !== nextProps.device) {
-                this.setState(this._resetState(nextProps.device));
+                var newState = this._resetState(nextProps.device);
+                newState.keyboardRange = this.state.keyboardRange;
+
+                this.setState(newState);
             }
         }
     }, {
@@ -2921,14 +2926,12 @@ var ConfigureRegistry = function (_BaseComponent) {
             state.selectedCells = [];
             state.selectedCellRow = null;
             state.selectedCellColumn = null;
-
             state.filterOn = false;
 
             this.scrollToBottom = false;
             this.resizeTable = false;
 
             // this.keyboardIndex = -1;
-            this.keyboardRange = [-1, -1];
 
             return state;
         }
@@ -2997,9 +3000,11 @@ var ConfigureRegistry = function (_BaseComponent) {
                         break;
 
                 }
-            } else {
-                this.setState({ keyboardRange: [-1, -1] });
             }
+            // else
+            // {
+            //     this.setState({ keyboardRange: [-1, -1] });
+            // }
         }
     }, {
         key: '_fetchExtendedPoints',
@@ -3519,13 +3524,16 @@ var ConfigureRegistry = function (_BaseComponent) {
             if (this.state.registryValues.length) {
                 registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
 
+                    var keyboardSelected = rowIndex >= this.state.keyboardRange[0] && rowIndex <= this.state.keyboardRange[1];
+
                     return _react2.default.createElement(_registryRow2.default, {
                         attributesList: attributesList,
                         rowIndex: rowIndex,
                         device: this.props.device,
                         selectedCell: this.state.selectedCellRow === rowIndex,
                         selectedCellColumn: this.state.selectedCellColumn,
-                        filterOn: this.state.filterOn });
+                        filterOn: this.state.filterOn,
+                        keyboardSelected: keyboardSelected });
                 }, this);
 
                 var headerColumns = [];
@@ -8785,7 +8793,7 @@ var RegistryRow = function (_BaseComponent) {
         value: function _showProps(attributesList) {
             modalActionCreators.openModal(_react2.default.createElement(_editPointForm2.default, {
                 device: this.props.device,
-                attributes: this.state.attributesList }));
+                attributes: this.state.attributesList.attributes }));
         }
     }, {
         key: '_selectForDelete',
@@ -8906,7 +8914,17 @@ var RegistryRow = function (_BaseComponent) {
             //                                             .value) > -1 ? 
             //                                     "selectedRegistryPoint" : "");
 
-            var selectedRowClass = this.state.attributesList.selected ? "selectedRegistryPoint" : "";
+            var selectedRowClasses = this.state.attributesList.selected ? ["selectedRegistryPoint"] : [""];
+
+            var selectedRowClasses = [];
+
+            if (this.state.attributesList.selected) {
+                selectedRowClasses.push("selectedRegistryPoint");
+            }
+
+            if (this.props.keyboardSelected) {
+                selectedRowClasses.push("keyboard-selected");
+            }
 
             console.log("row " + rowIndex);
 
@@ -8917,7 +8935,7 @@ var RegistryRow = function (_BaseComponent) {
                 { key: "registry-row-" + rowIndex,
                     'data-row': rowIndex,
                     onClick: this._handleRowClick,
-                    className: selectedRowClass,
+                    className: selectedRowClasses.join(" "),
                     style: visibleStyle },
                 _react2.default.createElement(
                     'td',

@@ -46,7 +46,7 @@ class RegistryRow extends BaseComponent {
         modalActionCreators.openModal(
             <EditPointForm 
                 device={this.props.device} 
-                attributes={this.state.attributesList}/>);
+                attributes={this.state.attributesList.attributes}/>);
     }
     _selectForDelete() {
         
@@ -152,8 +152,21 @@ class RegistryRow extends BaseComponent {
         //                                             .value) > -1 ? 
         //                                     "selectedRegistryPoint" : "");
 
-        var selectedRowClass = (this.state.attributesList.selected ?
-                                    "selectedRegistryPoint" : "");
+        var selectedRowClasses = (this.state.attributesList.selected ?
+                                    ["selectedRegistryPoint"] : [""]);
+
+        var selectedRowClasses = [];
+
+        if (this.state.attributesList.selected)
+        {
+            selectedRowClasses.push("selectedRegistryPoint");
+        }
+
+        if (this.props.keyboardSelected)
+        {
+            selectedRowClasses.push("keyboard-selected");
+        }
+
 
         console.log("row " + rowIndex);
 
@@ -163,7 +176,7 @@ class RegistryRow extends BaseComponent {
             <tr key={"registry-row-" + rowIndex}
                 data-row={rowIndex}
                 onClick={this._handleRowClick}
-                className={selectedRowClass}
+                className={selectedRowClasses.join(" ")}
                 style={visibleStyle}>
                 <td key={"checkbox-" + rowIndex}>
                     <input type="checkbox"
