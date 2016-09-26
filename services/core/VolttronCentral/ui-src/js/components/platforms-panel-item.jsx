@@ -274,6 +274,13 @@ var PlatformsPanelItem = React.createClass({
                                     "status-unknown")) );
         }
 
+        var agentInfo;
+
+        if (panelItem.type === "agent")
+        {
+            agentInfo = <div>Identity:&nbsp;{panelItem.identity}</div>;
+        } 
+
         if (this.state.cancelButton)
         {
             arrowContent = <span style={arrowContentStyle}><i className="fa fa-remove"></i></span>;
@@ -380,7 +387,8 @@ var PlatformsPanelItem = React.createClass({
                         style={tooltipStyle}>
                         <div className="tooltip_inner">
                             <div className="opaque_inner">
-                                {panelItem.name}:&nbsp;{(panelItem.context ? panelItem.context : panelItem.statusLabel)}
+                                {agentInfo}
+                                Status:&nbsp;{(panelItem.context ? panelItem.context : panelItem.statusLabel)}
                             </div>
                         </div>
                     </div>

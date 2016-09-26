@@ -1595,6 +1595,11 @@ var AgentRow = React.createClass({
             React.createElement(
                 'td',
                 null,
+                agent.identity
+            ),
+            React.createElement(
+                'td',
+                null,
                 agent.uuid
             ),
             React.createElement(
@@ -7361,6 +7366,11 @@ var Platform = React.createClass({
                         React.createElement(
                             'th',
                             null,
+                            'Identity'
+                        ),
+                        React.createElement(
+                            'th',
+                            null,
                             'UUID'
                         ),
                         React.createElement(
@@ -7705,6 +7715,17 @@ var PlatformsPanelItem = React.createClass({
             arrowClasses.push(panelItem.status === "GOOD" ? "status-good" : panelItem.status === "BAD" ? "status-bad" : "status-unknown");
         }
 
+        var agentInfo;
+
+        if (panelItem.type === "agent") {
+            agentInfo = React.createElement(
+                'div',
+                null,
+                'Identity: ',
+                panelItem.identity
+            );
+        }
+
         if (this.state.cancelButton) {
             arrowContent = React.createElement(
                 'span',
@@ -7830,8 +7851,8 @@ var PlatformsPanelItem = React.createClass({
                         React.createElement(
                             'div',
                             { className: 'opaque_inner' },
-                            panelItem.name,
-                            ': ',
+                            agentInfo,
+                            'Status: ',
                             panelItem.context ? panelItem.context : panelItem.statusLabel
                         )
                     )
