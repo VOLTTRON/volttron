@@ -871,9 +871,9 @@ def remove_auth(opts):
     try:
         auth_file.remove_by_indices(opts.indices)
         if len(opts.indices) > 1:
-            msg = 'removed entries at indices {}'
+            msg = 'removed entries at indices {}'.format(opts.indices)
         else:
-            msg = msg = 'removed entry at index {}'
+            msg = msg = 'removed entry at index {}'.format(opts.indices)
         _stdout.write(msg + '\n')
     except AuthException as err:
         _stderr.write('ERROR: %s\n' % err.message)
@@ -970,15 +970,15 @@ def get_config(opts):
 
 
 class ControlConnection(object):
-    def __init__(self, address, peer='control', publickey=None,
-                 secretkey=None,
-                 serverkey=None):
+    def __init__(self, address, peer='control', developer_mode=False,
+                 publickey=None, secretkey=None, serverkey=None):
         self.address = address
         self.peer = peer
         self._server = BaseAgent(address=self.address, publickey=publickey,
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
-                                 identity=CONTROL_CONNECTION)
+                                 identity=CONTROL_CONNECTION,
+                                 developer_mode=developer_mode)
         self._greenlet = None
 
     @property
@@ -1017,12 +1017,9 @@ def get_keys(opts):
     '''Gets keys from keystore and known-hosts store'''
     hosts = KnownHostsStore(opts.known_hosts_file)
     serverkey = hosts.serverkey(opts.vip_address)
-    publickey = None
-    secretkey = None
-    if opts.keystore:
-        key_store = KeyStore(opts.keystore_file)
-        publickey = key_store.public()
-        secretkey = key_store.secret()
+    key_store = KeyStore(opts.keystore_file)
+    publickey = key_store.public()
+    secretkey = key_store.secret()
     return {'publickey': publickey, 'secretkey': secretkey,
             'serverkey': serverkey}
 
@@ -1045,13 +1042,13 @@ def main(argv=sys.argv):
                              help='read configuration from FILE')
     global_args.add_argument('--debug', action='store_true',
                              help='show tracbacks for errors rather than a brief message')
+    global_args.add_argument('--developer-mode', action='store_true',
+                             help='run in insecure developer mode')
     global_args.add_argument('-t', '--timeout', type=float, metavar='SECS',
                              help='timeout in seconds for remote calls (default: %(default)g)')
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
-    global_args.add_argument('-k', '--keystore', action='store_true',
-                             help='use public and secret keys from keystore')
     global_args.add_argument('--keystore-file', metavar='FILE',
                              help='use keystore from FILE')
     global_args.add_argument('--known-hosts-file', metavar='FILE',
@@ -1364,7 +1361,9 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = ControlConnection(opts.vip_address, **get_keys(opts))
+    opts.connection = ControlConnection(opts.vip_address,
+                                        developer_mode=opts.developer_mode,
+                                        **get_keys(opts))
 
     try:
         with gevent.Timeout(opts.timeout):

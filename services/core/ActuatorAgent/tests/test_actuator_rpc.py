@@ -91,10 +91,13 @@ def publish_agent(request, volttron_instance1):
     :return: an instance of fake agent used for publishing
     """
 
+    developer_mode = volttron_instance1.opts.get('developer_mode', False)
+
     # Reset master driver config store
-    process = Popen(['volttron-ctl', 'config', 'delete',
-                     'platform.driver', '--all'],
-                    env=volttron_instance1.env,
+    cmd = ['volttron-ctl', 'config', 'delete', 'platform.driver', '--all']
+    if developer_mode:
+        cmd.append('--developer-mode')
+    process = Popen(cmd, env=volttron_instance1.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
@@ -102,10 +105,11 @@ def publish_agent(request, volttron_instance1):
     assert result == 0
 
     # Add master driver configuration files to config store.
-    process = Popen(['volttron-ctl', 'config', 'store',
-                     'platform.driver',
-                     'fake.csv', 'fake_unit_testing.csv', '--csv'],
-                    env=volttron_instance1.env,
+    cmd = ['volttron-ctl', 'config', 'store','platform.driver',
+           'fake.csv', 'fake_unit_testing.csv', '--csv']
+    if developer_mode:
+        cmd.append('--developer-mode')
+    process = Popen(cmd, env=volttron_instance1.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
@@ -114,10 +118,11 @@ def publish_agent(request, volttron_instance1):
 
     for i in xrange(4):
         config_name = "devices/fakedriver{}".format(i)
-        process = Popen(['volttron-ctl', 'config', 'store',
-                         'platform.driver',
-                         config_name, 'fake_unit_testing.config', '--json'],
-                        env=volttron_instance1.env,
+        cmd = ['volttron-ctl', 'config', 'store', 'platform.driver',
+               config_name, 'fake_unit_testing.config', '--json']
+        if developer_mode:
+            cmd.append('--developer-mode')
+        process = Popen(cmd, env=volttron_instance1.env,
                         cwd='scripts/scalability-testing',
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         result = process.wait()
