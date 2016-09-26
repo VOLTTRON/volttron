@@ -77,7 +77,14 @@ from dateutil.parser import parse
 from dateutil.tz import tzutc
 from tzlocal import get_localzone
 from zmq.utils import jsonapi
-from ..lib.inotify.green import inotify, IN_MODIFY
+
+try:
+    from ..lib.inotify.green import inotify, IN_MODIFY
+except AttributeError:
+    # inotify library is not available on OS X/MacOS.
+    # @TODO Integrate with the OS X FS Events API
+    inotify = None
+    IN_MODIFY = None
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity']
@@ -438,13 +445,19 @@ def process_timestamp(timestamp_string, topic=''):
 
 
 def watch_file(fullpath, callback):
-    """Run callback method whenever the file changes"""
+    """Run callback method whenever the file changes
+
+        Not available on OS X/MacOS.
+    """
     dirname, filename = os.path.split(fullpath)
-    with inotify() as inot:
-        inot.add_watch(dirname, IN_MODIFY)
-        for event in inot:
-            if event.name == filename and event.mask & IN_MODIFY:
-                callback()
+    if inotify is None:
+        _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
+    else:
+        with inotify() as inot:
+            inot.add_watch(dirname, IN_MODIFY)
+            for event in inot:
+                if event.name == filename and event.mask & IN_MODIFY:
+                    callback()
 
 
 def create_file_if_missing(path, permission=0o660, contents=None):
