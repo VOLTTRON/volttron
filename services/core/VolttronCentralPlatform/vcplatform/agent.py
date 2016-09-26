@@ -773,10 +773,12 @@ class VolttronCentralPlatform(Agent):
                                                channel_name)
                 sha512 = hashlib.sha512()
                 _log.debug('Sending wheel to control')
+
                 with open(path, 'rb') as wheel_file_data:
                     while True:
                         # get a request
-                        request, file_offset, chunk_size = channel.recv_multipart()
+                        with gevent.Timeout(5):
+                            request, file_offset, chunk_size = channel.recv_multipart()
                         if request == b'checksum':
                             channel.send(sha512.digest())
                             break
@@ -791,13 +793,14 @@ class VolttronCentralPlatform(Agent):
                         sha512.update(data)
                         channel.send(data)
 
-                results.append({'uuid': agent_uuid.get(timeout=10)})
-                channel.close(linger=0)
-                del channel
-
             except Exception as e:
                 results.append({'error': str(e)})
                 _log.error("EXCEPTION: " + str(e))
+            else:
+                results.append({'uuid': agent_uuid.get(timeout=10)})
+            finally:
+                channel.close(linger=0)
+                del channel
 
         shutil.rmtree(tmpdir, ignore_errors=True)
 

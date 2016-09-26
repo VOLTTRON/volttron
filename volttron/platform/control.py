@@ -289,7 +289,8 @@ class ControlService(BaseAgent):
                     ])
 
                     # get the requested data
-                    data = channel.recv()
+                    with gevent.Timeout(5):
+                        data = channel.recv()
                     sha512.update(data)
                     store.write(data)
                     size = len(data)
@@ -298,12 +299,16 @@ class ControlService(BaseAgent):
                     # let volttron-ctl know that we have everything
                     if size < CHUNK_SIZE:
                         channel.send_multipart([b'checksum', b'', b''])
-                        checksum = channel.recv()
+                        with gevent.Timeout(5):
+                            checksum = channel.recv()
                         assert checksum == sha512.digest()
                         break
 
             except AssertionError:
                 _log.warning("Checksum mismatch on received file")
+                raise
+            except gevent.Timeout:
+                _log.warning("Gevent timeout trying to receive data")
                 raise
             finally:
                 store.close()
@@ -406,7 +411,8 @@ def install_agent(opts):
             with open(filename, 'rb') as wheel_file_data:
                 while True:
                     # get a request
-                    request, file_offset, chunk_size = channel.recv_multipart()
+                    with gevent.Timeout(5):
+                        request, file_offset, chunk_size = channel.recv_multipart()
                     if request == b'checksum':
                         channel.send(sha512.digest())
                         break
@@ -423,20 +429,21 @@ def install_agent(opts):
 
             agent_uuid = agent_uuid.get(timeout=10)
 
-            _log.debug('closing channel')
-            channel.close(linger=0)
-            del channel
-
-            if tag:
-                opts.connection.call('tag_agent',
-                                     agent_uuid,
-                                     tag)
         except Exception as exc:
             if opts.debug:
                 traceback.print_exc()
             _stderr.write(
                 '{}: error: {}: {}\n'.format(opts.command, exc, filename))
             return 10
+        else:
+            if tag:
+                opts.connection.call('tag_agent',
+                                     agent_uuid,
+                                     tag)
+        finally:
+            _log.debug('closing channel')
+            channel.close(linger=0)
+            del channel
 
     name = opts.connection.call('agent_name', agent_uuid)
     _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
