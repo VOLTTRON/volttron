@@ -102,6 +102,8 @@ _stderr = sys.stderr
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
+CHUNK_SIZE = 4096
+
 
 class ControlService(BaseAgent):
     def __init__(self, aip, *args, **kwargs):
@@ -264,23 +266,28 @@ class ControlService(BaseAgent):
             tmpdir = tempfile.mkdtemp()
             path = os.path.join(tmpdir, os.path.basename(filename))
             store = open(path, 'wb')
-            _log.debug('Begining to receive data.')
-            bytecount = 0
-            # Send synchronization message to inform peer of readiness
-            channel.send('ready')
+            file_offset = 0
+
             try:
                 while True:
+                    # request a chunk of the file
+                    channel.send_multipart([
+                        b'fetch',
+                        bytes(file_offset)
+                    ])
+
+                    # get the requested data
                     data = channel.recv()
-                    bytecount += len(data)
-                    if data == 'done':
-                        _log.debug("Received {} bytes of data".format(
-                            bytecount))
-                        _log.debug('done receiving data')
-                        break
+                    size = len(data)
+                    file_offset += size
                     store.write(data)
-                # Send done synchronization message
-                _log.debug('Sending done back!')
-                channel.send('done')
+
+                    # let volttron-ctl know that we have everything
+                    if size < CHUNK_SIZE:
+                        channel.send_multipart([b'thank you', b''])
+                        assert channel.recv() == b'youre welcome'
+                        break
+
             finally:
                 store.close()
                 _log.debug('Closing channel on server')
@@ -288,7 +295,7 @@ class ControlService(BaseAgent):
                 del channel
 
             agent_uuid = self._aip.install_agent(path, vip_identity=vip_identity)
-            return agent_uuid #self._aip.install_agent(path)
+            return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -376,24 +383,27 @@ def install_agent(opts):
                                                      filename,
                                                      channel_name,
                                                      vip_identity=vip_identity)
-            _log.debug('waiting for ready')
-            _log.debug('received {}'.format(channel.recv()))
 
+            _log.debug('sending wheel to control.')
             with open(filename, 'rb') as wheel_file_data:
-                _log.debug('sending wheel to control.')
                 while True:
-                    data = wheel_file_data.read(8125)
-
-                    if not data:
+                    # get a request
+                    request, file_offset = channel.recv_multipart()
+                    if request == b'thank you':
+                        channel.send(b'youre welcome')
                         break
-                    channel.send(data)
 
-            _log.debug('sending done message.')
-            channel.send('done')
-            _log.debug('closing channel')
+                    assert request == b'fetch'
+
+                    # send a chunk of the file
+                    file_offset = int(file_offset)
+                    wheel_file_data.seek(file_offset)
+                    data = wheel_file_data.read(CHUNK_SIZE)
+                    channel.send(data)
 
             agent_uuid = agent_uuid.get(timeout=10)
 
+            _log.debug('closing channel')
             channel.close(linger=0)
             del channel
 
