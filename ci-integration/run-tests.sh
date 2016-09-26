@@ -8,6 +8,8 @@ export CI=travis
 pip install mock
 pip install pytest pytest-timeout
 
+# Break up the tests to work around the issue in #754. Breaking them up allows 
+# the files to be closed with the individual pytest processes
 py.test -v docs
 py.test -v examples
 py.test -v scripts
