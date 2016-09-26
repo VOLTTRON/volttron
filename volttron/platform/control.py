@@ -72,6 +72,7 @@ import traceback
 import StringIO
 import uuid
 import base64
+import hashlib
 
 import gevent
 import gevent.event
@@ -238,17 +239,26 @@ class ControlService(BaseAgent):
 
             # client creates channel to this agent (control)
             channel = agent.vip.channel('control', 'channel_name')
-            # client waits for a ready response from control note this will
-            # block until the repsonse is received.
-            response = channel.recv()
+
             # Begin sending data
+            sha512 = hashlib.sha512()
             while True:
-                wheeldata = fin.read(8125)
-                if not wheeldata:
-                    break
-                channel.send(wheeldata)
-            # send the done message
-            channel.send('done')
+                request, file_offset, chunk_size = channel.recv_multipart()
+
+                # Control has all of the file. Send hash for for it to verify.
+                if request == b'checksum':
+                    channel.send(hash)
+                assert request == b'fetch'
+
+                # send a chunk of the file
+                file_offset = int(file_offset)
+                chunk_size = int(chunk_size)
+                file.seek(file_offset)
+                data = file.read(chunk_size)
+                sha512.update(data)
+                channel.send(data)
+
+            agent_uuid = agent_uuid.get(timeout=10)
             # close and delete the channel
             channel.close(linger=0)
             del channel
@@ -267,27 +277,34 @@ class ControlService(BaseAgent):
             path = os.path.join(tmpdir, os.path.basename(filename))
             store = open(path, 'wb')
             file_offset = 0
+            sha512 = hashlib.sha512()
 
             try:
                 while True:
                     # request a chunk of the file
                     channel.send_multipart([
                         b'fetch',
-                        bytes(file_offset)
+                        bytes(file_offset),
+                        bytes(CHUNK_SIZE)
                     ])
 
                     # get the requested data
                     data = channel.recv()
+                    sha512.update(data)
+                    store.write(data)
                     size = len(data)
                     file_offset += size
-                    store.write(data)
 
                     # let volttron-ctl know that we have everything
                     if size < CHUNK_SIZE:
-                        channel.send_multipart([b'thank you', b''])
-                        assert channel.recv() == b'youre welcome'
+                        channel.send_multipart([b'checksum', b'', b''])
+                        checksum = channel.recv()
+                        assert checksum == sha512.digest()
                         break
 
+            except AssertionError:
+                _log.warning("Checksum mismatch on received file")
+                raise
             finally:
                 store.close()
                 _log.debug('Closing channel on server')
@@ -384,21 +401,24 @@ def install_agent(opts):
                                                      channel_name,
                                                      vip_identity=vip_identity)
 
-            _log.debug('sending wheel to control.')
+            _log.debug('Sending wheel to control')
+            sha512 = hashlib.sha512()
             with open(filename, 'rb') as wheel_file_data:
                 while True:
                     # get a request
-                    request, file_offset = channel.recv_multipart()
-                    if request == b'thank you':
-                        channel.send(b'youre welcome')
+                    request, file_offset, chunk_size = channel.recv_multipart()
+                    if request == b'checksum':
+                        channel.send(sha512.digest())
                         break
 
                     assert request == b'fetch'
 
                     # send a chunk of the file
                     file_offset = int(file_offset)
+                    chunk_size = int(chunk_size)
                     wheel_file_data.seek(file_offset)
-                    data = wheel_file_data.read(CHUNK_SIZE)
+                    data = wheel_file_data.read(chunk_size)
+                    sha512.update(data)
                     channel.send(data)
 
             agent_uuid = agent_uuid.get(timeout=10)
