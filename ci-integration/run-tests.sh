@@ -7,4 +7,19 @@ export CI=travis
 #pip install pymongo pytest pytest-bdd pytest-cov
 pip install mock
 pip install pytest pytest-timeout
-py.test -v
+
+py.test -v docs
+py.test -v examples
+py.test -v scripts
+for D in services/core/*; do
+    if [ -d "${D}" ]; then
+        py.test -v ${D}
+    fi
+done
+py.test -v volttron
+
+for D in volttrontesting/*; do
+    if [ -d "${D}" ]; then
+        py.test -v ${D}
+    fi
+done
