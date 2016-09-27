@@ -14,46 +14,18 @@ exit_code=0
 # Break up the tests to work around the issue in #754. Breaking them up allows 
 # the files to be closed with the individual pytest processes
 
-# testdirs=("examples" "services/core/*" "volttron" "volttrontesting/*")
 
-#echo ${testdirs[@]}
-
-#for D in services/core/*; do
-#    if [ -d "${D}" ]; then
-#        testdirs=("#testdirs[@]}" $D)
-#    fi
-#done
-#echo "HIIIIIIIIIIIIIII"
-#echo ${testdirs[@]}
-
+#directories that need split into individual files
 filedirs="volttrontesting/platform"
-testdirs="docs examples scripts volttron"
-splitdirs="services/core"
+#directories that can be called as normal (recursive)
+testdirs="docs examples scripts volttron volttrontesting/gevent volttrontesting/multiplatform volttrontesting/subsystems volttrontesting/testutils volttrontesting/zmq"
+#directories that must have their subdirectories split
+splitdirs="services/core/*"
 
-echo "File tests"
-for dir in $filedirs; do
-  echo "File test for dir: $dir"
-  for testfile in $dir/*.py; do
-    echo "Using testfile: $testfile"
-    pytest -v $testfile
-
-  tmp_code=$?
-  exit_code=$tmp_code
-  echo $exit_code
-  if [ $tmp_code -ne 0 ]; then
-    if [ $tmp_code -ne 5 ]; then
-      if [ ${FAST_FAIL} ]; then
-        echo "Fast failing!"
-        exit $tmp_code
-      fi
-    fi
-  fi
-
-   done
-done
-
+echo "TestDirs"
 for dir in $testdirs; do
-  pytest -v $testdirs
+  echo "*********TESTDIR: $dir"
+  py.test -v $dir
 
   tmp_code=$?
   exit_code=$tmp_code
@@ -62,31 +34,53 @@ for dir in $testdirs; do
     if [ $tmp_code -ne 5 ]; then
       if [ ${FAST_FAIL} ]; then
         echo "Fast failing!"
-        exit $tmp_code
+#        exit $tmp_code
       fi
     fi
   fi
-
-   done
 done
 
+echo "SplitDirs"
 for dir in $splitdirs; do
 
-for D in "$dir/*"; do
+for D in $dir; do
     if [ -d "${D}" ]; then
+  echo "*********SPLITDIR: $D"
         py.test -v ${D}
         tmp_code=$?
         if [ $tmp_code -ne 0 ]; then
           if [ $tmp_code -ne 5 ]; then
             if [ ${FAST_FAIL} ]; then
               echo "Fast failing!"
-              exit $tmp_code
+ #             exit $tmp_code
             fi
             exit_code=$tmp_code
           fi
         fi
     fi
 done
+done
+
+echo "File tests"
+for dir in $filedirs; do
+  echo "File test for dir: $dir"
+  for testfile in $dir/*.py; do
+    echo "Using testfile: $testfile"
+    py.test -v $testfile
+
+  tmp_code=$?
+  exit_code=$tmp_code
+  echo $exit_code
+  if [ $tmp_code -ne 0 ]; then
+    if [ $tmp_code -ne 5 ]; then
+      if [ ${FAST_FAIL} ]; then
+        echo "Fast failing!"
+#        exit $tmp_code
+      fi
+    fi
+  fi
+
+   done
 done
 
 exit $exit_code
