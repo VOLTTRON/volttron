@@ -588,24 +588,8 @@ class PlatformWrapper:
         aip.setup()
         return aip
 
-    # TODO Remove when verified that the other method works properly.
-    # def _install_agent(self, wheel_file, start, vip_identity):
-    #     aip = self._aip()
-    #     auuid = aip.install_agent(wheel_file, vip_identity=vip_identity)
-    #     assert auuid is not None
-    #     if start:
-    #         self.logit('STARTING: {}'.format(wheel_file))
-    #         status = self.start_agent(auuid)
-    #         # aip.start_agent(auuid)
-    #         # status = aip.agent_status(auuid)
-    #         self.logit('STATUS NOW: {}'.format(status))
-    #         assert status > 0
-    #
-    #     return auuid
-
     def _install_agent(self, wheel_file, start, vip_identity):
 
-        agent = self.build_agent()
         self.logit('Creating channel for sending the agent.')
         gevent.sleep(0.3)
         self.logit('calling control install agent.')
@@ -706,7 +690,6 @@ class PlatformWrapper:
             self.logit('Building agent package')
             wheel_file = self.build_agentpackage(agent_dir, config_file)
             assert wheel_file
-
         agent_uuid = self._install_agent(wheel_file, start, vip_identity)
 
         assert agent_uuid is not None

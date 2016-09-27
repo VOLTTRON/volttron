@@ -30,7 +30,7 @@ def get_env(platform):
 
 def auth_list(platform):
     env = get_env(platform)
-    return subprocess.check_output(['volttron-ctl', 'auth-list'], env=env)
+    return subprocess.check_output(['volttron-ctl', 'auth', 'list'], env=env)
 
 
 def auth_list_json(platform):
@@ -61,7 +61,7 @@ def entry_to_input_string(domain='', address='', user_id='', capabilities='',
 
 def auth_add(platform, entry):
     env = get_env(platform)
-    p = subprocess.Popen(['volttron-ctl', 'auth-add'], env=env,
+    p = subprocess.Popen(['volttron-ctl', 'auth', 'add'], env=env,
                          stdin=subprocess.PIPE)
     p.communicate(input=entry_to_input_string(**entry.__dict__))
     assert p.returncode == 0
@@ -69,7 +69,7 @@ def auth_add(platform, entry):
 
 def auth_remove(platform, index):
     env = get_env(platform)
-    p = subprocess.Popen(['volttron-ctl', 'auth-remove', str(index)], env=env,
+    p = subprocess.Popen(['volttron-ctl', 'auth', 'remove', str(index)], env=env,
                          stdin=subprocess.PIPE)
     p.communicate(input='Y\n')
     assert p.returncode == 0
@@ -77,7 +77,7 @@ def auth_remove(platform, index):
 
 def auth_update(platform, index, **kwargs):
     env = get_env(platform)
-    p = subprocess.Popen(['volttron-ctl', 'auth-update', str(index)], env=env,
+    p = subprocess.Popen(['volttron-ctl', 'auth', 'update', str(index)], env=env,
                          stdin=subprocess.PIPE)
     p.communicate(input=entry_to_input_string(**kwargs))
     assert p.returncode == 0
