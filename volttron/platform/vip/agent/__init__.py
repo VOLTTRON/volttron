@@ -92,7 +92,7 @@ class Agent(object):
                  publickey=None, secretkey=None, serverkey=None,
                  heartbeat_autostart=False, heartbeat_period=60,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, enable_store=True, developer_mode=False
+                 agent_uuid=None, enable_store=True, developer_mode=False,
                  enable_web=False):
 
         if identity is not None and not is_valid_identity(identity):
