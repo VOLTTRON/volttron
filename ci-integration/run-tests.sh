@@ -17,8 +17,8 @@ py.test -v docs
 tmp_code=$?
 exit_code=$tmp_code
 echo $exit_code
-if [[ $tmp_code -ne 0 ]]; then
-  if [[ $tmp_code -ne 5 ]]; then
+if [ $tmp_code -ne 0 ]; then
+  if [ $tmp_code -ne 5 ]; then
     if [ ${FAST_FAIL} ]; then
       echo "Fast failing!"
       exit $tmp_code
@@ -28,8 +28,8 @@ fi
 
 py.test -v examples
 tmp_code=$?
-if [[ $tmp_code -ne 0 ]]; then
-  if [[ $tmp_code -ne 5 ]]; then
+if [ $tmp_code -ne 0 ]; then
+  if [ $tmp_code -ne 5 ]; then
     if [ ${FAST_FAIL} ]; then
       echo "Fast failing!"
       exit $tmp_code
@@ -40,8 +40,8 @@ fi
 
 py.test -v scripts
 tmp_code=$?
-if [[ $tmp_code -ne 0 ]]; then
-  if [[ $tmp_code -ne 5 ]]; then
+if [ $tmp_code -ne 0 ]; then
+  if [ $tmp_code -ne 5 ]; then
     if [ ${FAST_FAIL} ]; then
       echo "Fast failing!"
       exit $tmp_code
@@ -54,8 +54,8 @@ for D in services/core/*; do
     if [ -d "${D}" ]; then
         py.test -v ${D}
         tmp_code=$?
-        if [[ $tmp_code -ne 0 ]]; then
-          if [[ $tmp_code -ne 5 ]]; then
+        if [ $tmp_code -ne 0 ]; then
+          if [ $tmp_code -ne 5 ]; then
             if [ ${FAST_FAIL} ]; then
               echo "Fast failing!"
               exit $tmp_code
@@ -68,8 +68,8 @@ done
 
 py.test -v volttron
 tmp_code=$?
-if [[ $tmp_code -ne 0 ]]; then
-  if [[ $tmp_code -ne 5 ]]; then
+if [ $tmp_code -ne 0 ]; then
+  if [ $tmp_code -ne 5 ]; then
     if [ ${FAST_FAIL} ]; then
       echo "Fast failing!"
       exit $tmp_code
@@ -82,8 +82,8 @@ for D in volttrontesting/*; do
     if [ -d "${D}" ]; then
         py.test -v ${D}
         tmp_code=$?
-        if [[ $tmp_code -ne 0 ]]; then
-          if [[ $tmp_code -ne 5 ]]; then
+        if [ $tmp_code -ne 0 ]; then
+          if [ $tmp_code -ne 5 ]; then
             if [ ${FAST_FAIL} ]; then
               echo "Fast failing!"
               exit $tmp_code
