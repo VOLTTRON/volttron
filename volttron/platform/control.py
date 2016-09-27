@@ -356,9 +356,8 @@ def install_agent(opts):
     tag = opts.tag
     vip_identity = opts.vip_identity
 
-    if filename.startswith("file://"):
+    if opts.vip_address.startswith('ipc://'):
         _log.info("Installing wheel locally without channel subsystem")
-        filename = filename[7:]
         filename = config.expandall(filename)
         agent_uuid = aip.install_agent(filename,
                                        vip_identity=vip_identity)
@@ -872,9 +871,9 @@ def remove_auth(opts):
     try:
         auth_file.remove_by_indices(opts.indices)
         if len(opts.indices) > 1:
-            msg = 'removed entries at indices {}'
+            msg = 'removed entries at indices {}'.format(opts.indices)
         else:
-            msg = msg = 'removed entry at index {}'
+            msg = msg = 'removed entry at index {}'.format(opts.indices)
         _stdout.write(msg + '\n')
     except AuthException as err:
         _stderr.write('ERROR: %s\n' % err.message)
@@ -971,15 +970,15 @@ def get_config(opts):
 
 
 class ControlConnection(object):
-    def __init__(self, address, peer='control', publickey=None,
-                 secretkey=None,
-                 serverkey=None):
+    def __init__(self, address, peer='control', developer_mode=False,
+                 publickey=None, secretkey=None, serverkey=None):
         self.address = address
         self.peer = peer
         self._server = BaseAgent(address=self.address, publickey=publickey,
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
-                                 identity=CONTROL_CONNECTION)
+                                 identity=CONTROL_CONNECTION,
+                                 developer_mode=developer_mode)
         self._greenlet = None
 
     @property
@@ -1018,12 +1017,9 @@ def get_keys(opts):
     '''Gets keys from keystore and known-hosts store'''
     hosts = KnownHostsStore(opts.known_hosts_file)
     serverkey = hosts.serverkey(opts.vip_address)
-    publickey = None
-    secretkey = None
-    if opts.keystore:
-        key_store = KeyStore(opts.keystore_file)
-        publickey = key_store.public()
-        secretkey = key_store.secret()
+    key_store = KeyStore(opts.keystore_file)
+    publickey = key_store.public()
+    secretkey = key_store.secret()
     return {'publickey': publickey, 'secretkey': secretkey,
             'serverkey': serverkey}
 
@@ -1046,13 +1042,13 @@ def main(argv=sys.argv):
                              help='read configuration from FILE')
     global_args.add_argument('--debug', action='store_true',
                              help='show tracbacks for errors rather than a brief message')
+    global_args.add_argument('--developer-mode', action='store_true',
+                             help='run in insecure developer mode')
     global_args.add_argument('-t', '--timeout', type=float, metavar='SECS',
                              help='timeout in seconds for remote calls (default: %(default)g)')
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
-    global_args.add_argument('-k', '--keystore', action='store_true',
-                             help='use public and secret keys from keystore')
     global_args.add_argument('--keystore-file', metavar='FILE',
                              help='use keystore from FILE')
     global_args.add_argument('--known-hosts-file', metavar='FILE',
@@ -1213,6 +1209,48 @@ def main(argv=sys.argv):
                          help=argparse.SUPPRESS)
     run.set_defaults(func=run_agent)
 
+    auth_cmds = add_parser("auth",
+            help="manage authorization entries and encryption keys")
+
+    auth_subparsers = auth_cmds.add_subparsers(title='subcommands',
+            metavar='', dest='store_commands')
+
+    auth_add = add_parser('add', help='add new authentication record',
+            subparser=auth_subparsers)
+    auth_add.set_defaults(func=add_auth)
+
+    auth_add_known_host = add_parser('add-known-host', subparser=auth_subparsers,
+            help='add server public key to known-hosts file')
+    auth_add_known_host.add_argument('--host', required=True,
+            help='hostname or IP address with optional port')
+    auth_add_known_host.add_argument('--server-key', required=True)
+    auth_add_known_host.set_defaults(func=add_server_key)
+
+    auth_keypair = add_parser('keypair', subparser=auth_subparsers,
+            help='generate CurveMQ keys for encrypting VIP connections')
+    auth_keypair.set_defaults(func=gen_keypair)
+
+    auth_list = add_parser('list', help='list authentication records',
+            subparser=auth_subparsers)
+    auth_list.set_defaults(func=list_auth)
+
+    auth_remove = add_parser('remove', subparser=auth_subparsers,
+            help='removes one or more authentication records by indices')
+    auth_remove.add_argument('indices', nargs='+', type=int,
+            help='index or indices of record(s) to remove')
+    auth_remove.set_defaults(func=remove_auth)
+
+    auth_serverkey = add_parser('serverkey', subparser=auth_subparsers,
+            help="show the serverkey for the instance")
+    auth_serverkey.set_defaults(func=show_serverkey)
+
+    auth_update = add_parser('update', subparser=auth_subparsers,
+            help='updates one authentication record by index')
+    auth_update.add_argument('index', type=int,
+            help='index of record to update')
+    auth_update.set_defaults(func=update_auth)
+
+
     config_store = add_parser("config",
                               help="manage the platform configuration store")
 
@@ -1237,7 +1275,7 @@ def main(argv=sys.argv):
                                     help='interpret the input file as csv')
 
     config_store_store.set_defaults(func=add_config_to_store,
-                                    config_type="raw")
+                                    config_type="json")
 
     config_store_delete = add_parser("delete",
                                     help="delete a configuration",
@@ -1283,44 +1321,12 @@ def main(argv=sys.argv):
     send.add_argument('wheel', nargs='+', help='agent package to send')
     send.set_defaults(func=send_agent)
 
-    keypair = add_parser('keypair',
-                         help='generate CurveMQ keys for encrypting VIP connections')
-    keypair.set_defaults(func=gen_keypair)
-
-    add_known_host = add_parser('add-known-host',
-                                help='add server public key to known-hosts file')
-    add_known_host.add_argument('--host', required=True,
-                                help='hostname or IP address with optional port')
-    add_known_host.add_argument('--server-key', required=True)
-    add_known_host.set_defaults(func=add_server_key)
-
     stats = add_parser('stats',
                        help='manage router message statistics tracking')
     op = stats.add_argument(
         'op', choices=['status', 'enable', 'disable', 'dump', 'pprint'],
         nargs='?')
     stats.set_defaults(func=do_stats, op='status')
-    serverkey = add_parser('serverkey',
-                           help="show the serverkey for the instance")
-    serverkey.set_defaults(func=show_serverkey)
-
-    auth_list = add_parser('auth-list', help='list authentication records')
-    auth_list.set_defaults(func=list_auth)
-
-    auth_add = add_parser('auth-add', help='add new authentication record')
-    auth_add.set_defaults(func=add_auth)
-
-    auth_remove = add_parser('auth-remove',
-                             help='removes one or more authentication records by indices')
-    auth_remove.add_argument('indices', nargs='+', type=int,
-                             help='index or indices of record(s) to remove')
-    auth_remove.set_defaults(func=remove_auth)
-
-    auth_update = add_parser('auth-update',
-                             help='updates one authentication record by index')
-    auth_update.add_argument('index', type=int,
-                             help='index of record to update')
-    auth_update.set_defaults(func=update_auth)
 
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
@@ -1365,7 +1371,9 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = ControlConnection(opts.vip_address, **get_keys(opts))
+    opts.connection = ControlConnection(opts.vip_address,
+                                        developer_mode=opts.developer_mode,
+                                        **get_keys(opts))
 
     try:
         with gevent.Timeout(opts.timeout):

@@ -77,7 +77,14 @@ from dateutil.parser import parse
 from dateutil.tz import tzutc
 from tzlocal import get_localzone
 from zmq.utils import jsonapi
-from ..lib.inotify.green import inotify, IN_MODIFY
+
+try:
+    from ..lib.inotify.green import inotify, IN_MODIFY
+except AttributeError:
+    # inotify library is not available on OS X/MacOS.
+    # @TODO Integrate with the OS X FS Events API
+    inotify = None
+    IN_MODIFY = None
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity']
@@ -244,6 +251,7 @@ def vip_main(agent_class, identity=None, **kwargs):
         Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt,)
 
         config = os.environ.get('AGENT_CONFIG')
+        developer_mode = '_DEVELOPER_MODE' in os.environ
         identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
         if identity is not None:
             if not is_valid_identity(identity):
@@ -258,7 +266,8 @@ def vip_main(agent_class, identity=None, **kwargs):
 
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
-                            volttron_home=volttron_home, **kwargs)
+                            volttron_home=volttron_home,
+                            developer_mode=developer_mode, **kwargs)
         try:
             run = agent.run
         except AttributeError:
@@ -406,7 +415,7 @@ def get_utc_seconds_from_epoch(timestamp=datetime.now(tz=tzutc())):
     # convert to UTC first.
     seconds_from_epoch = calendar.timegm(timestamp.utctimetuple())
     # timetuple loses microsecond accuracy so we have to put it back.
-    seconds_from_epoch += timestamp.microsecond / 1000000
+    seconds_from_epoch += timestamp.microsecond / 1000000.0
     return seconds_from_epoch
 
 
@@ -438,16 +447,29 @@ def process_timestamp(timestamp_string, topic=''):
 
 
 def watch_file(fullpath, callback):
-    """Run callback method whenever the file changes"""
+    """Run callback method whenever the file changes
+
+        Not available on OS X/MacOS.
+    """
     dirname, filename = os.path.split(fullpath)
-    with inotify() as inot:
-        inot.add_watch(dirname, IN_MODIFY)
-        for event in inot:
-            if event.name == filename and event.mask & IN_MODIFY:
-                callback()
+    if inotify is None:
+        _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
+    else:
+        with inotify() as inot:
+            inot.add_watch(dirname, IN_MODIFY)
+            for event in inot:
+                if event.name == filename and event.mask & IN_MODIFY:
+                    callback()
 
 
 def create_file_if_missing(path, permission=0o660, contents=None):
+    dirname = os.path.dirname(path)
+    if dirname and not os.path.exists(dirname):
+        try:
+            os.makedirs(dirname)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
     try:
         open(path)
     except IOError as exc:
