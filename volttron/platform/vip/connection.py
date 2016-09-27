@@ -81,7 +81,8 @@ class Connection(object):
 
     """
     def __init__(self, address, peer=None, publickey=None,
-                 secretkey=None, serverkey=None, volttron_home=None):
+                 secretkey=None, serverkey=None, volttron_home=None,
+                 developer_mode=False):
         _log.debug("Connection: {}, {}, {}, {}, {}"
                    .format(address, peer, publickey, secretkey, serverkey))
         self._address = address
@@ -121,7 +122,8 @@ class Connection(object):
                 raise AttributeError(
                     'Invalid address type specified. ipc or tcp accepted.')
         self._server = Agent(address=full_address, identity=str(uuid.uuid4()),
-                             volttron_home=self.volttron_home)
+                             volttron_home=self.volttron_home,
+                             developer_mode=developer_mode)
         self._greenlet = None
         self._connected_since = None
         self._last_publish = None

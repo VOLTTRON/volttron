@@ -82,8 +82,8 @@ def historian(config_path, **kwargs):
 
             self.report_all_handled()
 
-        def query_historian(self, topic, start=None, end=None, skip=0,
-                            count=None, order="FIRST_TO_LAST"):
+        def query_historian(self, topic, start=None, end=None, agg_type=None,
+              agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
             """Not implemented
             """
             raise NotImplemented("query_historian not implimented for null historian")
