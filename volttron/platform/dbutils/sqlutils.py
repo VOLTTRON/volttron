@@ -7,25 +7,31 @@
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
-# 1. Redistributions of source code must retain the above copyright notice, this
+# 1. Redistributions of source code must retain the above copyright notice,
+# this
 #    list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright notice,
 #    this list of conditions and the following disclaimer in the documentation
 #    and/or other materials provided with the distribution.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES
 # (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
 # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
+# The views and conclusions contained in the software and documentation are
+# those
+# of the authors and should not be interpreted as representing official
+# policies,
 # either expressed or implied, of the FreeBSD Project.
 #
 
@@ -51,59 +57,29 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
-
+# }}}
+import inspect
 import logging
-import sys
 
-from volttron.platform.vip.agent import *
-from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-def historian(config_path, **kwargs):
 
-    config = utils.load_config(config_path)
-            
-    class NullHistorian(BaseHistorian):
-        '''This historian forwards data to another platform.
-        '''
-
-        @Core.receiver("onstart")
-        def starting(self, sender, **kwargs):
-            
-            _log.debug('Null historian started.')
-
-        def publish_to_historian(self, to_publish_list):
-            _log.debug("recieved {} items to publish"
-                       .format(len(to_publish_list)))
-
-            self.report_all_handled()
-
-        def query_historian(self, topic, start=None, end=None, agg_type=None,
-              agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
-            """Not implemented
-            """
-            raise NotImplemented("query_historian not implimented for null historian")
-
-    return NullHistorian(**kwargs)
-
-
-
-def main(argv=sys.argv):
-    '''Main method called by the aip.'''
+def get_dbfuncts_class(database_type):
+    mod_name = database_type + "functs"
+    mod_name_path = "volttron.platform.dbutils.{}".format(
+        mod_name)
+    loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
+    # loaded_mod = importlib.import_module(name=mod_name_path)
+    for name, cls in inspect.getmembers(loaded_mod):
+        # assume class is not the root dbdriver
+        if inspect.isclass(cls) and name != 'DbDriver':
+            dbfuncts_class = cls
+            break
     try:
-        utils.vip_main(historian)
-    except Exception as e:
-        print(e)
-        _log.exception('unhandled exception')
-
-
-if __name__ == '__main__':
-    # Entry point for script
-    try:
-        sys.exit(main())
-    except KeyboardInterrupt:
-        pass
+        _log.debug('Historian using module: ' + dbfuncts_class.__name__)
+    except NameError:
+        raise Exception('Invalid module named ' + mod_name_path + ".")
+    return dbfuncts_class

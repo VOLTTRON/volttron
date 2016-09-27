@@ -339,8 +339,9 @@ def publish_fake_data(agent):
 def test_insert_duplicate(volttron_instance, database_client):
     clean_db(database_client)
     data_collection = database_client.get_default_database()['data']
-    index_model = pymongo.IndexModel([("ts", pymongo.ASCENDING),
-                                    ("topic_id", pymongo.ASCENDING)], unique=True)
+    index_model = pymongo.IndexModel([("topic_id", pymongo.DESCENDING),
+                                      ("ts", pymongo.DESCENDING)],
+                                     unique=True)
     # make sure the data collection has the unique constraint.
     data_collection.create_indexes([index_model])
     # Install the historian agent (after this call the agent should be running
@@ -492,8 +493,6 @@ def test_basic_function(volttron_instance, database_client):
     Test basic functionality of sql historian. Inserts three points as part of all topic and checks
     if all three got into the database
     :param volttron_instance: The instance against which the test is run
-    :param mongohistorian: instance of the sql historian tested
-    :param clean: teardown function
     """
     global query_points, db_connection
 
@@ -507,6 +506,7 @@ def test_basic_function(volttron_instance, database_client):
 
         # Publish data to message bus that should be recorded in the mongo database.
         expected = publish_fake_data(publish_agent)
+        expected = publish_fake_data(publish_agent)
         gevent.sleep(0.5)
 
         # Query the historian
@@ -515,7 +515,6 @@ def test_basic_function(volttron_instance, database_client):
                                             topic=query_points['oat_point'],
                                             count=20,
                                             order="LAST_TO_FIRST").get(timeout=100)
-
         assert expected['datetime'].isoformat()[:-3] + '000' == result['values'][0][0]
         assert result['values'][0][1] == expected['oat_point']
 

@@ -1741,7 +1741,7 @@ def test_revert_point(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print("\n**** test_set_value_float ****")
+    print("\n**** test_revert_point ****")
     agentid = TEST_AGENT
     taskid = 'task_set_float_value'
     device = 'fakedriver2'
