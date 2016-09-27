@@ -13,86 +13,23 @@ exit_code=0
 
 # Break up the tests to work around the issue in #754. Breaking them up allows 
 # the files to be closed with the individual pytest processes
-py.test -v docs
-tmp_code=$?
-exit_code=$tmp_code
-echo $exit_code
-if [ $tmp_code -ne 0 ]; then
-  if [ $tmp_code -ne 5 ]; then
-    if [ ${FAST_FAIL} ]; then
-      echo "Fast failing!"
-      exit $tmp_code
+
+
+for dir in "docs" "examples" "scripts" "services/core" "volttron" "volttrontesting"
+do
+  echo $dir
+  py.test -v $dir
+  tmp_code=$?
+  exit_code=$tmp_code
+  echo $exit_code
+  if [ $tmp_code -ne 0 ]; then
+    if [ $tmp_code -ne 5 ]; then
+      if [ ${FAST_FAIL} ]; then
+        echo "Fast failing!"
+        exit $tmp_code
+      fi
     fi
   fi
-fi
-
-py.test -v examples
-tmp_code=$?
-if [ $tmp_code -ne 0 ]; then
-  if [ $tmp_code -ne 5 ]; then
-    if [ ${FAST_FAIL} ]; then
-      echo "Fast failing!"
-      exit $tmp_code
-    fi
-    exit_code=$tmp_code
-  fi
-fi
-
-py.test -v scripts
-tmp_code=$?
-if [ $tmp_code -ne 0 ]; then
-  if [ $tmp_code -ne 5 ]; then
-    if [ ${FAST_FAIL} ]; then
-      echo "Fast failing!"
-      exit $tmp_code
-    fi
-    exit_code=$tmp_code
-  fi
-fi
-
-for D in services/core/*; do
-    if [ -d "${D}" ]; then
-        py.test -v ${D}
-        tmp_code=$?
-        if [ $tmp_code -ne 0 ]; then
-          if [ $tmp_code -ne 5 ]; then
-            if [ ${FAST_FAIL} ]; then
-              echo "Fast failing!"
-              exit $tmp_code
-            fi
-            exit_code=$tmp_code
-          fi
-        fi
-    fi
-done
-
-py.test -v volttron
-tmp_code=$?
-if [ $tmp_code -ne 0 ]; then
-  if [ $tmp_code -ne 5 ]; then
-    if [ ${FAST_FAIL} ]; then
-      echo "Fast failing!"
-      exit $tmp_code
-    fi
-    exit_code=$tmp_code
-  fi
-fi
-
-for D in volttrontesting/*; do
-    if [ -d "${D}" ]; then
-        py.test -v ${D}
-        tmp_code=$?
-        if [ $tmp_code -ne 0 ]; then
-          if [ $tmp_code -ne 5 ]; then
-            if [ ${FAST_FAIL} ]; then
-              echo "Fast failing!"
-              exit $tmp_code
-            fi
-            exit_code=$tmp_code
-          fi
-        fi
-    fi
 done
 
 exit $exit_code
-
