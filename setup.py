@@ -87,7 +87,7 @@ local_requirements = [
 
 # Standard requirements
 requirements = [
-    'BACpypes==0.13.2',
+    'BACpypes>0.13,<0.14',
     'gevent>=0.13,<2',
     'monotonic',
     'pymodbus>=1.2,<2',
@@ -106,7 +106,7 @@ install_requires = (
 if __name__ == '__main__':
     setup(
         name = 'volttron',
-        version = '3.5.0',
+        version = '4.0.0',
         description = 'Agent Execution Platform',
         author = 'Volttron Team',
         author_email = 'volttron@pnnl.gov',
