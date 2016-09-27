@@ -34,7 +34,7 @@ for dir in $testdirs; do
     if [ $tmp_code -ne 5 ]; then
       if [ ${FAST_FAIL} ]; then
         echo "Fast failing!"
-#        exit $tmp_code
+        exit $tmp_code
       fi
     fi
   fi
@@ -52,7 +52,7 @@ for D in $dir; do
           if [ $tmp_code -ne 5 ]; then
             if [ ${FAST_FAIL} ]; then
               echo "Fast failing!"
- #             exit $tmp_code
+              exit $tmp_code
             fi
             exit_code=$tmp_code
           fi
@@ -75,7 +75,7 @@ for dir in $filedirs; do
     if [ $tmp_code -ne 5 ]; then
       if [ ${FAST_FAIL} ]; then
         echo "Fast failing!"
-#        exit $tmp_code
+        exit $tmp_code
       fi
     fi
   fi
