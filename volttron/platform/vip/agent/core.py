@@ -382,9 +382,7 @@ class BasicCore(object):
 
     @dualmethod
     def schedule(self, deadline, func, *args, **kwargs):
-        if hasattr(deadline, 'timetuple'):
-            #deadline = time.mktime(deadline.timetuple())
-            deadline = utils.get_utc_seconds_from_epoch(deadline)
+        deadline = utils.get_utc_seconds_from_epoch(deadline)
         event = ScheduledEvent(func, args, kwargs)
         heapq.heappush(self._schedule, (deadline, event))
         self._schedule_event.set()

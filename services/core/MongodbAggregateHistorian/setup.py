@@ -56,76 +56,37 @@
 
 # }}}
 
-import datetime
-import logging
-import os
-import sys
+from os import path
+from setuptools import setup, find_packages
 
-from volttron.platform.vip.agent import Agent, Core, PubSub
-from volttron.platform.messaging import topics
-from volttron.platform.agent import utils
-from volttron.platform.messaging.utils import normtopic
+MAIN_MODULE = 'aggregator'
 
+# Find the agent package that contains the main module
+packages = find_packages('.')
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
 
-from dateutil.parser import parse
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
 
-
-utils.setup_logging()
-_log = logging.getLogger(__name__)
-
-__version__ = "0.1"
-
-
-class AlertMonitorAgent(Agent):
-    """
-    The `AlertMonitoringAgent` is a simple example class for demonstrating
-    the functionality of the `volttron.platform.vip.agent.subsystems.health`
-    subsystem.
-
-    The `AlertMonitoringAgent` will listen to the `ALERTS_BASE` (alerts) topic
-    and then write any alert to a text file.  The text file location can
-    be customized from the agent configuration file using the "outfile"
-    parameter.
-    """
-
-    def __init__(self, config_path, **kwargs):
-        """ Configures the `AlertMonitorAgent`
-
-        Validates that the outfile parameter in the config file is specified
-        and sets up the agent.
-
-        @param config_path: path to the configuration file for this agent.
-        @param kwargs:
-        @return:
-        """
-        config = utils.load_config(config_path)
-        self._outfile = config.pop('outfile')
-        if not self._outfile:
-            raise ValueError('Invalid outfile parameter in config file.')
-
-        # pop off the identity arge because we are goint to explicitly
-        # set it to our identity.  If we didn't do this it would cause
-        # an error.  The default identity is the uuid of the agent.
-        kwargs.pop('identity')
-
-        _log.debug('outfile is {}'.format(os.path.abspath(self._outfile)))
-        super(AlertMonitorAgent, self).__init__(**kwargs)
-
-    @PubSub.subscribe("pubsub", topics.ALERTS.format(agent_class='',
-                      agent_uuid=''))
-    def onmessage(self, peer, sender, bus, topic, headers, message):
-        with open(self._outfile, 'a') as f:
-            f.write("headers: {} message: {}\n".format(headers, message))
-
-
-def main(argv=sys.argv):
-    '''Main method called to start the agent.'''
-    utils.vip_main(AlertMonitorAgent, identity='alert.monitor')
-
-
-if __name__ == '__main__':
-    # Entry point for script
-    try:
-        sys.exit(main())
-    except KeyboardInterrupt:
-        pass
+# Setup
+setup(
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
+        'setuptools.installation': [
+            'eggsecutable = ' + agent_module + ':main',
+        ]
+    }
+)
