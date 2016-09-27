@@ -88,7 +88,7 @@ class Agent(object):
                  publickey=None, secretkey=None, serverkey=None,
                  heartbeat_autostart=False, heartbeat_period=60,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, enable_store=True):
+                 agent_uuid=None, enable_store=True, developer_mode=False):
 
         if identity is not None and not is_valid_identity(identity):
             _log.warn('Deprecation warining')
@@ -99,7 +99,8 @@ class Agent(object):
         self.core = Core(self, identity=identity, address=address,
                          context=context, publickey=publickey,
                          secretkey=secretkey, serverkey=serverkey,
-                         volttron_home=volttron_home, agent_uuid=agent_uuid)
+                         volttron_home=volttron_home, agent_uuid=agent_uuid,
+                         developer_mode=developer_mode)
         self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
                                     heartbeat_period, enable_store)
         self.core.setup()

@@ -89,7 +89,7 @@ from .vip.agent.compat import CompatPubSub
 from .vip.router import *
 from .vip.socket import decode_key, encode_key, Address
 from .vip.tracking import Tracker
-from .auth import AuthService
+from .auth import AuthService, AuthFile, AuthEntry
 from .control import ControlService
 from .web import MasterWebService
 from .store import ConfigStoreService
@@ -97,7 +97,7 @@ from .syslog import SyslogAgent
 from .agent import utils
 from .agent.known_identities import MASTER_WEB
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
-from .keystore import KeyStore
+from .keystore import KeyStore, KnownHostsStore
 
 try:
     import volttron.restricted
@@ -261,7 +261,8 @@ class Router(BaseRouter):
                  context=None, secretkey=None, publickey=None,
                  default_user_id=None, monitor=False, tracker=None,
                  volttron_central_address=None, instance_name=None,
-                 bind_web_address=None, volttron_central_serverkey=None):
+                 bind_web_address=None, volttron_central_serverkey=None,
+                 developer_mode=False):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
@@ -285,6 +286,7 @@ class Router(BaseRouter):
         self._volttron_central_serverkey = volttron_central_serverkey
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address
+        self._developer_mode = developer_mode
 
     def setup(self):
         sock = self.socket
@@ -299,6 +301,9 @@ class Router(BaseRouter):
             addr.identity = identity
         if not addr.domain:
             addr.domain = 'vip'
+        if not self._developer_mode:
+            addr.server = 'CURVE'
+            addr.secretkey = self._secretkey
         addr.bind(sock)
         _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:
@@ -515,6 +520,16 @@ def start_volttron_process(opts):
         publickey = decode_key(keystore.public())
         if publickey:
             _log.info('public key: %s', encode_key(publickey))
+            # Authorize the platform key:
+            entry = AuthEntry(credentials=encode_key(publickey),
+                        user_id='platform',
+                        comments='Automatically added by platform on start')
+            AuthFile().add(entry)
+            # Add platform key to known-hosts file:
+            known_hosts = KnownHostsStore()
+            known_hosts.add(opts.vip_local_address, encode_key(publickey))
+            for addr in opts.vip_address:
+                known_hosts.add(addr, encode_key(publickey))
         secretkey = decode_key(keystore.secret())
 
     # The following line doesn't appear to do anything, but it creates
@@ -532,7 +547,8 @@ def start_volttron_process(opts):
                    volttron_central_address=opts.volttron_central_address,
                    volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
-                   bind_web_address=opts.bind_web_address).run()
+                   bind_web_address=opts.bind_web_address,
+                   developer_mode=opts.developer_mode).run()
 
         except Exception:
             _log.exception('Unhandled exception in router loop')
