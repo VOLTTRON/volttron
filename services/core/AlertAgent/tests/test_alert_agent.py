@@ -58,8 +58,8 @@
 import pytest
 import gevent
 import json
-import gevent.subprocess as subprocess
-from gevent.subprocess import Popen
+
+from volttron.platform.agent.known_identities import PLATFORM_ALERTER
 
 ALERT_CONFIG = {
     "fakedevice": 5,
@@ -71,7 +71,7 @@ ALERT_CONFIG = {
 
 alert_messages = {}
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def agent(request, volttron_instance1):
 
     alert_uuid = volttron_instance1.install_agent(
@@ -102,6 +102,7 @@ def agent(request, volttron_instance1):
     request.addfinalizer(stop)
     return agent
 
+
 def test_alert_agent(agent):
     global alert_messages
     for _ in range(10):
@@ -115,6 +116,34 @@ def test_alert_agent(agent):
     assert not alert_messages
     gevent.sleep(6)
 
+    assert len(alert_messages) == 3
+
+
+def test_ignore_topic(agent):
+    global alert_messages
+
+    agent.vip.rpc.call(PLATFORM_ALERTER, 'ignore_topic', 'fakedevice2').get()
+    alert_messages.clear()
+    gevent.sleep(6)
+
+    assert len(alert_messages) == 1
     assert u'fakedevice not published within time limit' in alert_messages
-    assert u'fakedevice2 not published within time limit' in alert_messages
-    assert u'fakedevice2(point) not published within time limit' in alert_messages
+
+
+def test_watch_topic(agent):
+    global alert_messages
+
+    agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_topic', 'newtopic', 5).get()
+    gevent.sleep(6)
+
+    assert u'newtopic not published within time limit' in alert_messages
+
+
+def test_watch_device(agent):
+    global alert_messages
+
+    agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_device', 'newdevice', 5, ['point']).get()
+    gevent.sleep(6)
+
+    assert u'newdevice not published within time limit' in alert_messages
+    assert u'newdevice(point) not published within time limit' in alert_messages

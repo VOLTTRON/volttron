@@ -89,13 +89,14 @@ from .vip.agent.compat import CompatPubSub
 from .vip.router import *
 from .vip.socket import decode_key, encode_key, Address
 from .vip.tracking import Tracker
-from .auth import AuthService
+from .auth import AuthService, AuthFile, AuthEntry
 from .control import ControlService
 from .web import MasterWebService
+from .store import ConfigStoreService
 from .agent import utils
 from .agent.known_identities import MASTER_WEB
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
-from .keystore import KeyStore
+from .keystore import KeyStore, KnownHostsStore
 
 try:
     import volttron.restricted
@@ -259,7 +260,8 @@ class Router(BaseRouter):
                  context=None, secretkey=None, publickey=None,
                  default_user_id=None, monitor=False, tracker=None,
                  volttron_central_address=None, instance_name=None,
-                 bind_web_address=None, volttron_central_serverkey=None):
+                 bind_web_address=None, volttron_central_serverkey=None,
+                 developer_mode=False):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
@@ -283,6 +285,7 @@ class Router(BaseRouter):
         self._volttron_central_serverkey = volttron_central_serverkey
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address
+        self._developer_mode = developer_mode
 
     def setup(self):
         sock = self.socket
@@ -297,6 +300,9 @@ class Router(BaseRouter):
             addr.identity = identity
         if not addr.domain:
             addr.domain = 'vip'
+        if not self._developer_mode:
+            addr.server = 'CURVE'
+            addr.secretkey = self._secretkey
         addr.bind(sock)
         _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:
@@ -513,6 +519,16 @@ def start_volttron_process(opts):
         publickey = decode_key(keystore.public())
         if publickey:
             _log.info('public key: %s', encode_key(publickey))
+            # Authorize the platform key:
+            entry = AuthEntry(credentials=encode_key(publickey),
+                        user_id='platform',
+                        comments='Automatically added by platform on start')
+            AuthFile().add(entry)
+            # Add platform key to known-hosts file:
+            known_hosts = KnownHostsStore()
+            known_hosts.add(opts.vip_local_address, encode_key(publickey))
+            for addr in opts.vip_address:
+                known_hosts.add(addr, encode_key(publickey))
         secretkey = decode_key(keystore.secret())
 
     # The following line doesn't appear to do anything, but it creates
@@ -530,7 +546,8 @@ def start_volttron_process(opts):
                    volttron_central_address=opts.volttron_central_address,
                    volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
-                   bind_web_address=opts.bind_web_address).run()
+                   bind_web_address=opts.bind_web_address,
+                   developer_mode=opts.developer_mode).run()
 
         except Exception:
             _log.exception('Unhandled exception in router loop')
@@ -540,11 +557,20 @@ def start_volttron_process(opts):
 
     address = 'inproc://vip'
     try:
+
+        # Start the config store before auth so we may one day have auth use it.
+        config_store = ConfigStoreService( address=address, identity='config.store')
+
+        event = gevent.event.Event()
+        config_store_task = gevent.spawn(config_store.core.run, event)
+        event.wait()
+        del event
+
         # Ensure auth service is running before router
         auth_file = os.path.join(opts.volttron_home, 'auth.json')
         auth = AuthService(
             auth_file, opts.aip, address=address, identity='auth',
-            allow_any=opts.developer_mode)
+            allow_any=opts.developer_mode, enable_store=False)
 
         event = gevent.event.Event()
         auth_task = gevent.spawn(auth.core.run, event)
@@ -567,9 +593,11 @@ def start_volttron_process(opts):
         # auto-starting agents
         services = [
             ControlService(opts.aip, address=address, identity='control',
-                           tracker=tracker, heartbeat_autostart=True),
+                           tracker=tracker, heartbeat_autostart=True,
+                           enable_store=False),
             PubSubService(protected_topics_file, address=address,
-                          identity='pubsub', heartbeat_autostart=True),
+                          identity='pubsub', heartbeat_autostart=True,
+                          enable_store=False),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
@@ -578,11 +606,12 @@ def start_volttron_process(opts):
                 address=address,
                 bind_web_address=opts.bind_web_address,
                 volttron_central_address=opts.volttron_central_address,
-                aip=opts.aip)
+                aip=opts.aip, enable_store=False)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
                  for service, event in zip(services, events)]
+        tasks.append(config_store_task)
         tasks.append(auth_task)
         gevent.wait(events)
         del events

@@ -17,7 +17,7 @@ With the following header:
 
     #python
     {
-        'requesterID': <Agent with access>,
+        'requesterID': <VIP identity of agent with access>,
         'taskID': <Task associated with the time slot>
         'window': <Seconds remaining in the time slot>
     }

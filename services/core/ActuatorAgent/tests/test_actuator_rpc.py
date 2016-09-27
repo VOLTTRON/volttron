@@ -90,23 +90,50 @@ def publish_agent(request, volttron_instance1):
     :param volttron_instance1: instance of volttron in which test cases are run
     :return: an instance of fake agent used for publishing
     """
-    # Create master driver config and 2 fake devices each with 6 points
-    process = Popen(['python', 'config_builder.py', '--count=4',
-                     '--publish-only-depth-all', 'fake',
-                     'fake_unit_testing.csv', 'null'],
-                    env=volttron_instance1.env,
+
+    developer_mode = volttron_instance1.opts.get('developer_mode', False)
+
+    # Reset master driver config store
+    cmd = ['volttron-ctl', 'config', 'delete', 'platform.driver', '--all']
+    if developer_mode:
+        cmd.append('--developer-mode')
+    process = Popen(cmd, env=volttron_instance1.env,
                     cwd='scripts/scalability-testing',
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
-    print result
+    print(result)
     assert result == 0
+
+    # Add master driver configuration files to config store.
+    cmd = ['volttron-ctl', 'config', 'store','platform.driver',
+           'fake.csv', 'fake_unit_testing.csv', '--csv']
+    if developer_mode:
+        cmd.append('--developer-mode')
+    process = Popen(cmd, env=volttron_instance1.env,
+                    cwd='scripts/scalability-testing',
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = process.wait()
+    print(result)
+    assert result == 0
+
+    for i in xrange(4):
+        config_name = "devices/fakedriver{}".format(i)
+        cmd = ['volttron-ctl', 'config', 'store', 'platform.driver',
+               config_name, 'fake_unit_testing.config', '--json']
+        if developer_mode:
+            cmd.append('--developer-mode')
+        process = Popen(cmd, env=volttron_instance1.env,
+                        cwd='scripts/scalability-testing',
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = process.wait()
+        print(result)
+        assert result == 0
 
     # Start the master driver agent which would intern start the fake driver
     #  using the configs created above
     master_uuid = volttron_instance1.install_agent(
         agent_dir="services/core/MasterDriverAgent",
-        config_file="scripts/scalability-testing/configs/master-driver.agent",
+        config_file={},
         start=True)
     print("agent id: ", master_uuid)
     gevent.sleep(2)  # wait for the agent to start and start the devices
@@ -121,7 +148,7 @@ def publish_agent(request, volttron_instance1):
     print("agent id: ", actuator_uuid)
 
     # 3: Start a fake agent to publish to message bus
-    publish_agent = volttron_instance1.build_agent()
+    publish_agent = volttron_instance1.build_agent(identity=TEST_AGENT)
 
     # 4: add a tear down method to stop sqlhistorian agent and the fake agent
     #  \that published to message bus
@@ -266,37 +293,6 @@ def test_schedule_error_int_taskid(publish_agent):
 
 
 @pytest.mark.actuator
-def test_schedule_error_int_agentid(publish_agent):
-    """
-    Test responses for successful schedule request with integer agent id
-
-    :param publish_agent: fixture invoked to setup all agents necessary and
-    returns an instance of Agent object used for publishing
-    """
-    print ("\n**** test_schedule_error_int_agentid ****")
-    agentid = 1234
-    taskid = 'task_schedule_int_agentid'
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=1))
-    msg = [
-        ['fakedriver1', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print result
-    assert result['result'] == FAILURE
-    assert result['info'] == \
-           'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
-
-
-@pytest.mark.actuator
 def test_schedule_empty_taskid(publish_agent, cancel_schedules):
     """
     Test responses for successful schedule request when task id is an empty
@@ -333,42 +329,6 @@ def test_schedule_empty_taskid(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_schedule_empty_agentid(publish_agent, cancel_schedules):
-    """
-    Test responses for successful schedule request when agent id is an
-    empty string
-
-    :param publish_agent: fixture invoked to setup all agents necessary and
-    returns an instance of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end
-    of test so that other tests can use the same device and time slot
-    """
-    print ("\n**** test_schedule_empty_agentid ****")
-    # used by cancel_schedules
-    agentid = ''
-    taskid = 'task_empty_str_agent'
-    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=1))
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print result
-    assert result['result'] == FAILURE
-    assert result['info'] == \
-           'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
-
-
-@pytest.mark.actuator
 def test_schedule_error_none_taskid(publish_agent):
     """
     Test error responses for  schedule request with taskid = None
@@ -395,36 +355,6 @@ def test_schedule_error_none_taskid(publish_agent):
     print result
     assert result['result'] == FAILURE
     assert result['info'] == 'MISSING_TASK_ID'
-
-
-@pytest.mark.actuator
-def test_schedule_error_none_agentid(publish_agent):
-    """
-    Test error responses for schedule request with agentid = None
-
-    :param publish_agent: fixture invoked to setup all agents necessary and
-    returns an instance of Agent object used for publishing
-    """
-    print ("\n**** test_schedule_error_none_agentid ****")
-    agentid = None
-    taskid = 'task_none_agentid'
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=1))
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print result
-    assert result['result'] == FAILURE
-    assert result['info'] == 'MISSING_AGENT_ID'
 
 
 @pytest.mark.actuator
@@ -677,7 +607,7 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
 
     assert schedule_header['type'] == 'NEW_SCHEDULE'
     assert schedule_header['taskID'] == taskid
-    assert schedule_header['requesterID'] == TEST_AGENT
+    # assert schedule_header['requesterID'] == TEST_AGENT
     assert schedule_message['result'] == SUCCESS
 
     assert cancel_header['taskID'] == 'task_low_priority'
@@ -776,16 +706,20 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedules):
 
     assert schedule_header['type'] == 'NEW_SCHEDULE'
     assert schedule_header['taskID'] == taskid
-    assert schedule_header['requesterID'] == agentid
+    # assert schedule_header['requesterID'] == agentid
     assert schedule_message['result'] == SUCCESS
 
     assert cancel_header['taskID'] == 'task_low_priority2'
-    assert cancel_message['data']['agentID'] == agentid
+    # assert cancel_message['data']['agentID'] == agentid
     assert cancel_message['data']['taskID'] == taskid
     assert cancel_message['result'] == 'PREEMPTED'
 
 
 @pytest.mark.actuator
+@pytest.mark.xfail(reason="Request ids are now ignored.")
+# This test checks to see if a requestid is no longer valid.
+# Since requestids are always vip identities and only one agent
+# is scheduling devices the expected lock error is not raised.
 def test_schedule_premept_active_task_gracetime(publish_agent,
                                                 cancel_schedules):
     """
@@ -878,11 +812,11 @@ def test_schedule_premept_active_task_gracetime(publish_agent,
 
     assert schedule_header['type'] == 'NEW_SCHEDULE'
     assert schedule_header['taskID'] == taskid
-    assert schedule_header['requesterID'] == agentid
+    # assert schedule_header['requesterID'] == agentid
     assert schedule_message['result'] == SUCCESS
 
     assert cancel_header['taskID'] == 'task_low_priority3'
-    assert cancel_message['data']['agentID'] == agentid
+    # assert cancel_message['data']['agentID'] == agentid
     assert cancel_message['data']['taskID'] == taskid
     assert cancel_message['result'] == 'PREEMPTED'
 
@@ -1052,11 +986,11 @@ def test_schedule_premept_future_task(publish_agent, cancel_schedules):
 
     assert schedule_header['type'] == 'NEW_SCHEDULE'
     assert schedule_header['taskID'] == taskid
-    assert schedule_header['requesterID'] == agentid
+    # assert schedule_header['requesterID'] == TEST_AGENT
     assert schedule_message['result'] == SUCCESS
 
     assert cancel_header['taskID'] == 'task_low_priority4'
-    assert cancel_message['data']['agentID'] == agentid
+    assert cancel_message['data']['agentID'] == TEST_AGENT
     assert cancel_message['data']['taskID'] == taskid
     assert cancel_message['result'] == 'PREEMPTED'
 
@@ -1199,50 +1133,6 @@ def test_cancel_error_invalid_taskid(publish_agent):
 
 
 @pytest.mark.actuator
-def test_cancel_error_taskid_agentid_mismatch(publish_agent, cancel_schedules):
-    """
-    Test error responses for schedule request. Test invalid task id
-
-    :param publish_agent: fixture invoked to setup all agents necessary and
-    returns an instance of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end
-    of test so that other tests can use the same device and time slot
-    """
-    print ("\n**** test_cancel_error_taskid_agentid_mismatch ****")
-    agentid = TEST_AGENT
-    taskid = 'invalid_cancel'
-    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=2))
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print result
-    assert result['result'] == SUCCESS
-
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_CANCEL_SCHEDULE,
-        'invalid_agent_for_task',
-        taskid,
-    ).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print result
-    assert result['result'] == FAILURE
-    assert result['info'] == 'AGENT_ID_TASK_ID_MISMATCH'
-
-
-@pytest.mark.actuator
 def test_cancel_success(publish_agent):
     """
     Test successful schedule cancel
@@ -1296,7 +1186,7 @@ def test_get_default(publish_agent):
     ).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
-    assert result == 10.0
+    assert result == 2.5
 
 
 @pytest.mark.actuator
@@ -1664,54 +1554,6 @@ def test_set_value_error(publish_agent, cancel_schedules):
     except RemoteError as e:
         assert e.message == "ValueError('could not convert string to float: " \
                             "On')"
-
-
-@pytest.mark.actuator
-def test_set_error_none_agent(publish_agent, cancel_schedules):
-    """
-    Test setting a value of a point through rpc with agentid=None
-
-
-    :param publish_agent: fixture invoked to setup all agents necessary and
-    returns an instance of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end
-    of test so that other tests can use the same device and time slot
-    """
-    print ("\n**** test_set_error_none_agent ****")
-    agentid = TEST_AGENT
-    taskid = 'task_set_none_agent'
-    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=2))
-
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print result
-    assert result['result'] == SUCCESS
-
-    try:
-        result = publish_agent.vip.rpc.call(
-            'platform.actuator',  # Target agent
-            'set_point',  # Method
-            None,  # Requestor
-            'fakedriver0/SampleWritableFloat1',  # Point to set
-            'On'  # New value
-        ).get(timeout=10)
-        pytest.fail(
-            "Expecting value error but code returned: {}".format(result))
-    except RemoteError as e:
-        assert e.message == 'Agent id must be a nonempty string'
-        assert e.exc_info['exc_type'] == 'TypeError'
 
 
 @pytest.mark.actuator
