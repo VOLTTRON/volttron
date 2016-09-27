@@ -14,8 +14,9 @@ exit_code=0
 # Break up the tests to work around the issue in #754. Breaking them up allows 
 # the files to be closed with the individual pytest processes
 
+testdirs= "docs" "examples" "scripts" "services/core" "volttron" "volttrontesting"
 
-for dir in "docs" "examples" "scripts" "services/core" "volttron" "volttrontesting"
+for dir in testdirs
 do
   echo $dir
   py.test -v $dir
