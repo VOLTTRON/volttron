@@ -173,6 +173,15 @@ to stop the instance.
         sys.exit()
 
 
+def fail_if_not_in_src_root():
+    in_src_root = os.path.exists("./volttron") and os.path.exists("./.git")
+    if not in_src_root:
+        print """
+volttron-cfg needs to be run from the volttron top level source directory.
+"""
+        sys.exit()
+
+
 def _start_platform():
     cmd = ['volttron', '--developer-mode', '-vv']
     print('Starting platform...')
@@ -487,6 +496,8 @@ def main():
 
     args = parser.parse_args()
     fail_if_instance_running()
+    fail_if_not_in_src_root()
+
     _load_config()
 
     if args.list_agents:
