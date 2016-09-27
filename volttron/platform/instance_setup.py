@@ -389,7 +389,7 @@ def do_vcp():
         if new_instance_name:
             valid_name = True
             instance_name = new_instance_name
-    config_opts['instance-name'] = instance_name
+    config_opts['instance-name'] = '"{}"'.format(instance_name)
 
     vc_address = config_opts.get('volttron-central-address',
                                  config_opts.get('bind-web-address'))
