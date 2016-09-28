@@ -66,20 +66,23 @@ for dir in $filedirs; do
   echo "File test for dir: $dir"
   for testfile in $dir/*.py; do
     echo "Using testfile: $testfile"
-    py.test -v $testfile
+    if [ $testfile != "volttrontesting/platform/packaging-tests.py" ]; then
+       py.test -v $testfile
 
-  tmp_code=$?
-  exit_code=$tmp_code
-  echo $exit_code
-  if [ $tmp_code -ne 0 ]; then
-    if [ $tmp_code -ne 5 ]; then
-      if [ ${FAST_FAIL} ]; then
-        echo "Fast failing!"
-        exit $tmp_code
-      fi
-    fi
-  fi
-
+       tmp_code=$?
+       exit_code=$tmp_code
+       echo $exit_code
+       if [ $tmp_code -ne 0 ]; then
+         if [ $tmp_code -ne 5 ]; then
+           if [ ${FAST_FAIL} ]; then
+             echo "Fast failing!"
+             exit $tmp_code
+           fi
+         fi
+       fi
+       else
+         echo "Skipping $testfile"
+     fi
    done
 done
 
