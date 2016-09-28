@@ -136,7 +136,8 @@ def _cmd(cmdargs):
     :param cmdargs: A list of arguments that should be passed to Popen.
     :type cmdargs: [str]
     """
-    print(cmdargs)
+    if verbose:
+        print(cmdargs)
     process = Popen(cmdargs, env=os.environ, stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE)
     process.wait()
@@ -184,13 +185,15 @@ volttron-cfg needs to be run from the volttron top level source directory.
 
 def _start_platform():
     cmd = ['volttron', '--developer-mode', '-vv']
-    print('Starting platform...')
+    if verbose:
+        print('Starting platform...')
     pid = Popen(cmd, env=os.environ.copy(), stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
 
 
 def _shutdown_platform():
-    print('Shutting down platform...')
+    if verbose:
+        print('Shutting down platform...')
     _cmd(['volttron-ctl', 'shutdown', '--platform'])
 
 
@@ -210,7 +213,7 @@ def _install_agent(agent_dir, config, tag):
 # Decorator to handle installing agents
 # Decorated functions need to return a config
 # file for the target agent.
-def installs(agent_dir, tag, identity=None):
+def installs(agent_dir, tag, identity=None, post_install_func=None):
     def wrap(config_func):
         global available_agents
 
@@ -223,6 +226,8 @@ def installs(agent_dir, tag, identity=None):
             _install_config_file()
             _start_platform()
             _install_agent(agent_dir, config, tag)
+            if post_install_func:
+                post_install_func()
 
             autostart = prompt_response('Should agent autostart?',
                                         valid_answers=y_or_n,
@@ -430,6 +435,23 @@ def do_platform_historian():
     }
     return config
 
+
+def add_fake_device_to_configstore():
+    prompt = 'Install a fake device on the master driver?'
+    response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+    if response in y:
+        _cmd(['volttron-ctl', 'config', 'store', 'platform.driver',
+              'fake.csv', 'examples/configurations/drivers/fake.csv', '--csv'])
+        _cmd(['volttron-ctl', 'config', 'store', 'platform.driver',
+              'devices/fake', 'examples/configurations/drivers/fake.config'])
+
+
+@installs('services/core/MasterDriverAgent', 'master_driver',
+          post_install_func=add_fake_device_to_configstore)
+def do_master_driver():
+    return {}
+
+
 @installs('examples/ListenerAgent', 'listener')
 def do_listener():
     return {}
@@ -472,6 +494,11 @@ def wizard():
     if response in y:
         do_platform_historian()
 
+    prompt = 'Would you like to install a master driver?'
+    response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+    if response in y:
+        do_master_driver()
+
     prompt = 'Would you like to install a listener agent?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
@@ -484,7 +511,11 @@ def wizard():
 
 
 def main():
+    global verbose
+
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('-v', '--verbose', action='store_true')
+
     group = parser.add_mutually_exclusive_group()
 
     agent_list = '\n\t' + '\n\t'.join(sorted(available_agents.keys()))
@@ -495,6 +526,8 @@ def main():
                         help='configure listed agents')
 
     args = parser.parse_args()
+    verbose = args.verbose
+
     fail_if_instance_running()
     fail_if_not_in_src_root()
 
