@@ -65,7 +65,7 @@ from setuptools import setup, find_packages
 
 # Requirements which must be built separately with the provided options.
 option_requirements = [
-    ('pyzmq>=14.7,<15', ['--zmq=bundled']),
+    ('pyzmq>=15,<16', ['--zmq=bundled']),
 ]
 
 optional_requirements = set()
