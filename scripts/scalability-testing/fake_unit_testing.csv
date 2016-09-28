@@ -11,3 +11,4 @@ SampleLongNoDefault,SampleLongNoDefault,Enumeration,1 through 13,FALSE,,int,Stat
 SampleWritableShortNoDefault,SampleWritableShortNoDefault,%,0.00 to 100.00 (20 default),TRUE,,int,Minimum damper position during the standard mode
 SampleBoolNoDefault,SampleBoolNoDefault,On / Off,on/off,FALSE,,boolean,Status indidcator of cooling stage 1
 SampleWritableBoolNoDefault,SampleWritableBoolNoDefault,On / Off,on/off,TRUE,,boolean,Status indicator
+Heartbeat,Heartbeat,On / Off,on/off,TRUE,TRUE,boolean,Heart beat point

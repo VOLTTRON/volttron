@@ -90,10 +90,11 @@ import struct
 
 parser = ArgumentParser(description='Run a test pymodbus driver')
 parser.add_argument('config', help='device registry configuration')
-parser.add_argument('interface', help='interface address and optionally the port for the device to listen on')
+parser.add_argument('interface', help='interface address and optionally the port and subnet mask for the device to listen on')
+parser.add_argument('--no-daemon', help='do not create a daemon process', action='store_true')
+parser.add_argument('--device-id', help='specify the BACnet device id of the device.', type=int, default=1000)
 args = parser.parse_args()
 
-MODBUS_REGISTER_SIZE = 2
 
 class Register(object):
     def __init__(self, point_name, instance_number, object_type, property_name, read_only):
@@ -146,7 +147,7 @@ class DeviceAbstraction(object):
         # make a device object
         this_device = LocalDeviceObject(
             objectName="Betelgeuse",
-            objectIdentifier=599,
+            objectIdentifier=args.device_id,
             maxApduLengthAccepted=1024,
             segmentationSupported="segmentedBoth",
             vendorIdentifier=15
@@ -388,7 +389,8 @@ try:
     abstraction = DeviceAbstraction(args.interface, args.config)
     
     #Create the deamon as soon as we've loaded the device configuration.
-    createDaemon()
+    if not args.no_daemon:
+        createDaemon()
     
     application = abstraction.get_server_application()
 

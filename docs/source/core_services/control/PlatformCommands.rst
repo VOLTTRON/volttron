@@ -1,5 +1,6 @@
+.. _PlatformCommands:
 Platform Commands
------------------
+=================
 
 With the exception of packaged agent wheel files, all VOLTTRON files for
 a platform instance are stored under a single directory known as the
@@ -50,7 +51,8 @@ Full options:
       --help                show this help message and exit
       --version             show program's version number and exit
 
-volttron-ctl commands:
+volttron-ctl Commands
+---------------------
 
 ::
 
@@ -70,10 +72,13 @@ volttron-ctl commands:
           with Volttron Restricted package installed and enabled
     send                send mobile agent to and start on a remote platform
 
-| volttron-pkg commands:
-|  usage: volttron-pkg [-h] {package,repackage,configure} ...
+volttron-pkg Commands
+---------------------
 
 ::
+
+    usage: volttron-pkg [-h] [-l FILE] [-L FILE] [-q] [-v] [--verboseness LEVEL]
+                        {package,repackage,configure} ...
 
     optional arguments:
       -h, --help            show this help message and exit
@@ -124,3 +129,24 @@ enabled):
         sign                sign a package
         verify              verify an agent package
 
+volttron-cfg Commands
+---------------------
+volttron-cfg is a tool aimed at making it easier to get up and running with
+Volttron and a handful of agents. Running the tool without any arguments
+will start a *wizard* with a walk through for setting up instance configuration
+options and available agents.If only individual agents need to be configured
+they can be listed at the command line.
+
+::
+
+    usage: volttron-cfg [-h] [--list-agents | --agent AGENT [AGENT ...]]
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      --list-agents         list configurable agents
+                                listener
+                                platform_historian
+                                vc
+                                vcp
+      --agent AGENT [AGENT ...]
+                            configure listed agents

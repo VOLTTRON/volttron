@@ -60,10 +60,11 @@ import sys
 
 import pymongo
 from bson.objectid import ObjectId
-from pymongo import InsertOne
-
+from pymongo import ReplaceOne
+from pymongo.errors import BulkWriteError
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.dbutils import mongoutils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -81,7 +82,8 @@ def historian(config_path, **kwargs):
     params = connection.get('params', None)
     assert params is not None
 
-    identity = config.get('identity', kwargs.pop('identity', None))
+    topic_replacements = config.get('topic_replace_list', None)
+    _log.debug('topic_replacements are: {}'.format(topic_replacements))
 
     class MongodbHistorian(BaseHistorian):
         """This is a simple example of a historian agent that writes stuff
@@ -102,56 +104,20 @@ def historian(config_path, **kwargs):
             :param kwargs:
             :return:
             """
-
-            self._data_collection = 'data'
-            self._meta_collection = 'meta'
-            self._topic_collection = 'topics'
+            super(MongodbHistorian, self).__init__(**kwargs)
+            self.tables_def, table_names = self.parse_table_def(config)
+            self._data_collection = table_names['data_table']
+            self._meta_collection = table_names['meta_table']
+            self._topic_collection = table_names['topics_table']
+            self._agg_topic_collection = table_names['agg_topics_table']
+            self._agg_meta_collection = table_names['agg_meta_table']
             self._initial_params = connection['params']
-            self._client = MongodbHistorian.get_mongo_client(
-                connection['params'])
+            self._client = None
 
             self._topic_id_map = {}
             self._topic_name_map = {}
             self._topic_meta = {}
-
-            super(MongodbHistorian, self).__init__(**kwargs)
-
-        @staticmethod
-        def get_mongo_client(connection_params):
-
-            database_name = connection_params['database']
-            hosts = connection_params['host']
-            ports = connection_params['port']
-            user = connection_params['user']
-            passwd = connection_params['passwd']
-
-            if isinstance(hosts, list):
-                if not ports:
-                    hosts = ','.join(hosts)
-                else:
-                    if len(ports) != len(hosts):
-                        raise StandardError(
-                            'port an hosts must have the same number of items'
-                        )
-                    hostports = zip(hosts, ports)
-                    hostports = [str(e[0]) + ':' + str(e[1]) for e in
-                                 hostports]
-                    hosts = ','.join(hostports)
-            else:
-                if isinstance(ports, list):
-                    raise StandardError(
-                        'port cannot be a list if hosts is not also a list.'
-                    )
-                hosts = '{}:{}'.format(hosts, ports)
-
-            params = {'hostsandports': hosts, 'user': user,
-                      'passwd': passwd, 'database': database_name}
-
-            mongo_uri = "mongodb://{user}:{passwd}@{hostsandports}/{database}"
-            mongo_uri = mongo_uri.format(**params)
-            mongoclient = pymongo.MongoClient(mongo_uri)
-
-            return mongoclient
+            self._agg_topic_id_map = {}
 
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
@@ -183,7 +149,7 @@ def historian(config_path, **kwargs):
                     _log.debug('Updating topic: {}'.format(topic))
 
                     result = db[self._topic_collection].update_one(
-                        {'_id':ObjectId(topic_id)},
+                        {'_id': ObjectId(topic_id)},
                         {'$set': {'topic_name': topic}})
                     assert result.matched_count
                     self._topic_name_map[topic_lower] = topic
@@ -198,21 +164,33 @@ def historian(config_path, **kwargs):
                     self._topic_meta[topic_id] = meta
 
                 # Reformat to a filter tha bulk inserter.
-                bulk_publish.append(InsertOne(
-                    {'ts': ts, 'topic_id': topic_id, 'value': value}))
+                bulk_publish.append(
+                    ReplaceOne({'ts': ts, 'topic_id': topic_id},
+                               {'ts': ts, 'topic_id': topic_id,
+                                'value': value}, upsert=True))
 
-            # http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
-            result = db[self._data_collection].bulk_write(bulk_publish)
+            # bulk_publish.append(InsertOne(
+            #                    {'ts': ts, 'topic_id': topic_id, 'value':
+            # value}))
 
-            # No write errros here when
-            if not result.bulk_api_result['writeErrors']:
-                self.report_all_handled()
-            else:
-                # TODO handle when something happens during writing of data.
-                _log.error('SOME THINGS DID NOT WORK')
+            try:
+                # http://api.mongodb.org/python/current/api/pymongo
+                # /collection.html#pymongo.collection.Collection.bulk_write
+                result = db[self._data_collection].bulk_write(bulk_publish)
+            except BulkWriteError as bwe:
+                _log.error("{}".format(bwe.details))
 
-        def query_historian(self, topic, start=None, end=None, skip=0,
-                            count=None, order="FIRST_TO_LAST"):
+            else:  # No write errros here when
+                if not result.bulk_api_result['writeErrors']:
+                    self.report_all_handled()
+                else:
+                    # TODO handle when something happens during writing of
+                    # data.
+                    _log.error('SOME THINGS DID NOT WORK')
+
+        def query_historian(self, topic, start=None, end=None, agg_type=None,
+                            agg_period=None, skip=0, count=None,
+                            order="FIRST_TO_LAST"):
             """ Returns the results of the query from the mongo database.
 
             This historian stores data to the nearest second.  It will not
@@ -223,23 +201,63 @@ def historian(config_path, **kwargs):
             {"values": [(timestamp1, value1), (timestamp2, value2), ...],
              "metadata": {"key1": value1, "key2": value2, ...}}
 
-             metadata is not required (The caller will normalize this to {}
-             for you)
-             @param order:
-             @param count:
-             @param skip:
-             @param end:
-             @param start:
-             @param topic:
+            metadata is not required (The caller will normalize this to {}
+            for you)
+            @param topic: Topic or topics to query for
+            @param start: Start of query timestamp as a datetime
+            @param end: End of query timestamp as a datetime
+            @param agg_type: If this is a query for aggregate data, the type of
+            aggregation ( for example, sum, avg)
+            @param agg_period: If this is a query for aggregate data, the time
+            period of aggregation
+            @param skip: Skip this number of results
+            @param count: Limit results to this value
+            @param order: How to order the results, either "FIRST_TO_LAST" or
+            "LAST_TO_FIRST"
+            @return: Results of the query
             """
+            collection_name = self._data_collection
 
-            topic_lower = topic.lower()
-            topic_id = self._topic_id_map.get(topic_lower, None)
+            if agg_type and agg_period:
+                # query aggregate data collection instead
+                collection_name = agg_type + "_" + agg_period
 
-            if not topic_id:
-                _log.debug('Topic id was None for topic: {}'.format(topic))
+            topics_list = []
+            if isinstance(topic, str):
+                topics_list.append(topic)
+            elif isinstance(topic, list):
+                topics_list = topic
+
+            topic_ids = []
+            id_name_map = {}
+            for topic in topics_list:
+                # find topic if based on topic table entry
+                topic_id = self._topic_id_map.get(topic.lower(), None)
+
+                if agg_type:
+                    agg_type = agg_type.lower()
+                    # replace id from aggregate_topics table
+                    topic_id = self._agg_topic_id_map.get(
+                        (topic.lower(), agg_type, agg_period), None)
+                    if topic_id is None:
+                        # load agg topic id again as it might be a newly
+                        # configured aggregation
+                        self._agg_topic_id_map = mongoutils.get_agg_topic_map(
+                            self._client, self._agg_topic_collection)
+                        topic_id = self._agg_topic_id_map.get(
+                            (topic.lower(), agg_type, agg_period), None)
+                if topic_id:
+                    topic_ids.append(topic_id)
+                    id_name_map[ObjectId(topic_id)] = topic
+                else:
+                    _log.warn('No such topic {}'.format(topic))
+
+            if not topic_ids:
                 return {}
-
+            else:
+                _log.debug("Found topic id for {} as {}".format(topics_list,
+                                                                topic_ids))
+            multi_topic_query = len(topic_ids) > 1
             db = self._client.get_default_database()
 
             ts_filter = {}
@@ -256,24 +274,66 @@ def historian(config_path, **kwargs):
             if skip > 0:
                 skip_count = skip
 
-            find_params = {"topic_id": ObjectId(topic_id)}
+            find_params = {"topic_id": ObjectId(topic_ids[0])}
+            if multi_topic_query:
+                obj_ids = [ObjectId(x) for x in topic_ids]
+                find_params = {"topic_id": {"$in": obj_ids}}
             if ts_filter:
                 find_params['ts'] = ts_filter
 
-            cursor = db[self._data_collection].find(find_params)
+            _log.debug("querying table with params {}".format(find_params))
+            cursor = db[collection_name].find(find_params)
             cursor = cursor.skip(skip_count).limit(count)
-            cursor = cursor.sort([("ts", order_by)])
+            if multi_topic_query:
+                cursor = cursor.sort(
+                    [("topic_id", order_by), ("ts", order_by)])
+            else:
+                cursor = cursor.sort([("ts", order_by)])
             _log.debug('cursor count is: {}'.format(cursor.count()))
 
             # Create list of tuples for return values.
-            values = [(utils.format_timestamp(row['ts']), row['value']) for
-                      row
-                      in cursor]
+            if multi_topic_query:
+                values = [(id_name_map[row['topic_id']],
+                           utils.format_timestamp(row['ts']),
+                           row['value']) for row in cursor]
+            else:
+                values = [(utils.format_timestamp(row['ts']), row['value']) for
+                          row
+                          in cursor]
+
             if len(values) > 0:
-                return {
-                    'values': values,
-                    'metadata': self._topic_meta.get(topic_id, {})
-                }
+                # If there are results add metadata if it is a query on a
+                # single
+                # topic
+                if not multi_topic_query:
+
+                    if agg_type:
+                        # if aggregation is on single topic find the topic id
+                        # in the topics table.
+                        _log.debug("Single topic aggregate query. Try to get "
+                                   "metadata")
+                        topic_id = self._topic_id_map.get(topic.lower(), None)
+                        if topic_id:
+                            _log.debug("aggregation of a single topic, "
+                                       "found topic id in topic map. "
+                                       "topic_id={}".format(topic_id))
+                            metadata = self._topic_meta.get(topic_id, {})
+                        else:
+                            # if topic name does not have entry in topic_id_map
+                            # it is a user configured aggregation_topic_name
+                            # which denotes aggregation across multiple points
+                            metadata = {}
+                    else:
+                        # this is a query on raw data, get metadata for
+                        # topic from topic_meta map
+                        metadata = self._topic_meta.get(topic_ids[0], {})
+
+                    return {
+                        'values': values,
+                        'metadata': metadata
+                    }
+                else:
+                    return {'values': values}
             else:
                 return {}
 
@@ -287,12 +347,34 @@ def historian(config_path, **kwargs):
 
             return res
 
+        def query_topics_metadata(self, topics):
+
+            meta = {}
+            if isinstance(topics, str):
+                topic_id = self._topic_id_map.get(topics.lower())
+                if topic_id:
+                    meta = {topics: self._topic_meta.get(topic_id)}
+            elif isinstance(topics, list):
+                for topic in topics:
+                    topic_id = self._topic_id_map.get(topic.lower())
+                    if topic_id:
+                        meta[topic] = self._topic_meta.get(topic_id)
+            return meta
+
+        def query_aggregate_topics(self):
+            return mongoutils.get_agg_topics(
+                self._client,
+                self._agg_topic_collection, self._agg_meta_collection)
+
         def _load_topic_map(self):
             _log.debug('loading topic map')
             db = self._client.get_default_database()
             cursor = db[self._topic_collection].find()
 
-            for document in cursor:
+            # Hangs when using cursor as iterable.
+            # See https://github.com/VOLTTRON/volttron/issues/643
+            for num in xrange(cursor.count()):
+                document = cursor[num]
                 self._topic_id_map[document['topic_name'].lower()] = document[
                     '_id']
                 self._topic_name_map[document['topic_name'].lower()] = \
@@ -302,17 +384,56 @@ def historian(config_path, **kwargs):
             _log.debug('loading meta map')
             db = self._client.get_default_database()
             cursor = db[self._meta_collection].find()
-
-            for document in cursor:
+            # Hangs when using cursor as iterable.
+            # See https://github.com/VOLTTRON/volttron/issues/643
+            for num in xrange(cursor.count()):
+                document = cursor[num]
                 self._topic_meta[document['topic_id']] = document['meta']
 
         def historian_setup(self):
             _log.debug("HISTORIAN SETUP")
-            self._load_topic_map()
+            self._client = mongoutils.get_mongo_client(
+                connection['params'])
+            db = self._client.get_default_database()
+            db[self._data_collection].create_index(
+                [('topic_id', pymongo.DESCENDING),
+                 ('ts', pymongo.DESCENDING)],
+                unique=True, background=True)
+
+            self._topic_id_map, self._topic_name_map = \
+                mongoutils.get_topic_map(self._client, self._topic_collection)
             self._load_meta_map()
 
+            if self._agg_topic_collection in db.collection_names():
+                _log.debug("found agg_topics_collection ")
+                self._agg_topic_id_map = mongoutils.get_agg_topic_map(
+                    self._client, self._agg_topic_collection)
+            else:
+                _log.debug("no agg topics to load")
+                self._agg_topic_id_map = {}
+
+        def record_table_definitions(self, meta_table_name):
+            _log.debug("In record_table_def  table:{}".format(
+                meta_table_name))
+
+            db = self._client.get_default_database()
+            db[meta_table_name].bulk_write([
+                ReplaceOne({'table_id': 'data_table'},
+                           {'table_id': 'data_table',
+                            'table_name': self._data_collection,
+                            'table_prefix': ''}, upsert=True),
+                ReplaceOne({'table_id': 'topics_table'},
+                           {'table_id': 'topics_table',
+                            'table_name': self._topic_collection,
+                            'table_prefix': ''}, upsert=True),
+                ReplaceOne({'table_id': 'meta_table'},
+                           {'table_id': 'meta_table',
+                            'table_name': self._meta_collection,
+                            'table_prefix': ''}, upsert=True)
+            ])
+
     MongodbHistorian.__name__ = 'MongodbHistorian'
-    return MongodbHistorian(identity=identity, **kwargs)
+    return MongodbHistorian(topic_replace_list=topic_replacements, **kwargs)
 
 
 def main(argv=sys.argv):

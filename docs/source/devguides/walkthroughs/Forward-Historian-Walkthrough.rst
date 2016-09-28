@@ -30,8 +30,7 @@ recommend the following:
 Configuration
 -------------
 
-#. Set up two Volttron instances as described in `Deployment
-   Walkthrough <Deployment-Walkthrough>`__
+#. Set up two Volttron instances as described in :ref:`Deployment Walkthrough <Deployment-Walkthrough>`
 #. In each Volttron's ``auth.json`` file add the public key and location
    of the **other** Volttron instance to the ``"allow"`` array.
 #. Now the Volttron instances should be able to communicate. To avoid

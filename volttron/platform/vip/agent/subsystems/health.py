@@ -61,14 +61,16 @@ from volttron.platform.messaging import topics
 from volttron.platform.messaging.health import *
 from .base import SubsystemBase
 
-__docformat__ = 'reStructuredText'
-__version__ = '1.0'
-
 """
 The health subsystem allows an agent to store it's health in a non-intrusive
 way.
 """
+
+__docformat__ = 'reStructuredText'
+__version__ = '1.1'
+
 _log = logging.getLogger(__name__)
+
 
 class Health(SubsystemBase):
     def __init__(self, owner, core, rpc):
@@ -108,7 +110,7 @@ class Health(SubsystemBase):
         self._owner.vip.pubsub.publish("pubsub",
                                        topic=topic.format(),
                                        headers=headers,
-                                       message=statusobj.to_json())
+                                       message=statusobj.as_json())
 
     def _status_changed(self):
         """ Internal function that happens when the status changes state.
@@ -141,4 +143,20 @@ class Health(SubsystemBase):
             }
 
         """
-        return self._statusobj.to_json()
+        return self._statusobj.as_dict() #.as_json()
+
+    def get_status_json(self):
+        """"RPC method
+
+        Returns the last updated status from the object with the context.
+
+        The minimum output from the status would be:
+
+            {
+                "status": "GOOD",
+                "context": None,
+                "utc_last_update": "2016-03-31T15:40:32.685138+0000"
+            }
+
+        """
+        return self._statusobj.as_json()

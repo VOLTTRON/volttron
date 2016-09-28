@@ -104,11 +104,6 @@ def historian(config_path, **kwargs):
     assert datasets
     assert len(datasets) > 0
     
-    # This allows us to switch the identity based upon the param in the config
-    # file.
-    identity = config.get('identity', None)
-    if identity:
-        kwargs['identity'] = identity
     headers = {'content-type': 'application/json'}
         
     class OpenEISHistorian(BaseHistorian):
@@ -201,10 +196,7 @@ def historian(config_path, **kwargs):
             }
             '''           
 
-        def query_historian(self, topic, start=None, end=None, skip=0,
-                            count=None, order="FIRST_TO_LAST"):
-            raise Exception('Please use Openeis for the query interface.')
-            
+
         def historian_setup(self):
             # TODO Setup connection to openeis.
             pass

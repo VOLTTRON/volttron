@@ -62,6 +62,8 @@ import errno
 import logging
 from logging import handlers
 import logging.config
+from urlparse import urlparse
+
 import os
 import resource
 import stat
@@ -73,7 +75,7 @@ import uuid
 import gevent
 from gevent.fileobject import FileObject
 import zmq
-from zmq import curve_keypair, green
+from zmq import green
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from zmq.utils import jsonapi
@@ -85,12 +87,16 @@ from . import vip
 from .vip.agent import Agent, Core
 from .vip.agent.compat import CompatPubSub
 from .vip.router import *
-from .vip.socket import encode_key, Address
+from .vip.socket import decode_key, encode_key, Address
 from .vip.tracking import Tracker
-from .auth import AuthService
+from .auth import AuthService, AuthFile, AuthEntry
 from .control import ControlService
+from .web import MasterWebService
+from .store import ConfigStoreService
 from .agent import utils
+from .agent.known_identities import MASTER_WEB
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
+from .keystore import KeyStore, KnownHostsStore
 
 try:
     import volttron.restricted
@@ -251,18 +257,35 @@ class Router(BaseRouter):
     '''Concrete VIP router.'''
 
     def __init__(self, local_address, addresses=(),
-                 context=None, secretkey=None, default_user_id=None,
-                 monitor=False, tracker=None):
+                 context=None, secretkey=None, publickey=None,
+                 default_user_id=None, monitor=False, tracker=None,
+                 volttron_central_address=None, instance_name=None,
+                 bind_web_address=None, volttron_central_serverkey=None,
+                 developer_mode=False):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
-        self.addresses = addresses = [Address(addr) for addr in addresses]
+        self.addresses = addresses = [Address(addr) for addr in set(addresses)]
         self._secretkey = secretkey
+        self._publickey = publickey
         self.logger = logging.getLogger('vip.router')
         if self.logger.level == logging.NOTSET:
             self.logger.setLevel(logging.WARNING)
         self._monitor = monitor
         self._tracker = tracker
+        self._volttron_central_address = volttron_central_address
+        if self._volttron_central_address:
+            parsed = urlparse(self._volttron_central_address)
+
+            assert parsed.scheme in ('http', 'https', 'tcp'), \
+                "volttron central address must begin with http(s) or tcp found"
+            if parsed.scheme == 'tcp':
+                assert volttron_central_serverkey, \
+                    "volttron central serverkey must be set if address is tcp."
+        self._volttron_central_serverkey = volttron_central_serverkey
+        self._instance_name = instance_name
+        self._bind_web_address = bind_web_address
+        self._developer_mode = developer_mode
 
     def setup(self):
         sock = self.socket
@@ -277,6 +300,9 @@ class Router(BaseRouter):
             addr.identity = identity
         if not addr.domain:
             addr.domain = 'vip'
+        if not self._developer_mode:
+            addr.server = 'CURVE'
+            addr.secretkey = self._secretkey
         addr.bind(sock)
         _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:
@@ -323,6 +349,21 @@ class Router(BaseRouter):
                         value = [addr.base for addr in self.addresses]
                     else:
                         value = [self.local_address.base]
+                elif name == b'local_address':
+                    value = self.local_address.base
+                # Allow the agents to know the serverkey.
+                elif name == b'serverkey':
+                    if self._publickey is None:
+                        return None
+                    value = encode_key(self._publickey)
+                elif name == b'volttron-central-address':
+                    value = self._volttron_central_address
+                elif name == b'volttron-central-serverkey':
+                    value = self._volttron_central_serverkey
+                elif name == b'instance-name':
+                    value = self._instance_name
+                elif name == b'bind-web-address':
+                    value = self._bind_web_address
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
@@ -386,14 +427,7 @@ def start_volttron_process(opts):
         opts.log = config.expandall(opts.log)
     if opts.log_config:
         opts.log_config = config.expandall(opts.log_config)
-    opts.publish_address = config.expandall(opts.publish_address)
-    opts.subscribe_address = config.expandall(opts.subscribe_address)
-    opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
-    opts.vip_local_address = config.expandall(opts.vip_local_address)
-    if getattr(opts, 'show_config', False):
-        for name, value in sorted(vars(opts).iteritems()):
-            print(name, repr(value))
-        return
+
     # Configure logging
     level = max(1, opts.verboseness)
     if opts.monitor and level > logging.INFO:
@@ -410,6 +444,34 @@ def start_volttron_process(opts):
         error = configure_logging(opts.log_config)
         if error:
             parser.error('{}: {}'.format(*error))
+
+    opts.publish_address = config.expandall(opts.publish_address)
+    opts.subscribe_address = config.expandall(opts.subscribe_address)
+    opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
+    opts.vip_local_address = config.expandall(opts.vip_local_address)
+    if opts.instance_name is None:
+        if len(opts.vip_address) > 0:
+            opts.instance_name = opts.vip_address[0]
+    import urlparse
+    if opts.bind_web_address:
+        parsed = urlparse.urlparse(opts.bind_web_address)
+        if parsed.scheme not in ('http', 'https'):
+            raise StandardError(
+                'bind-web-address must begin with http or https.')
+        opts.bind_web_address = config.expandall(opts.bind_web_address)
+    if opts.volttron_central_address:
+        parsed = urlparse.urlparse(opts.volttron_central_address)
+        if parsed.scheme not in ('http', 'https', 'tcp'):
+            raise StandardError(
+                'volttron-central-address must begin with tcp, http or https.')
+        opts.volttron_central_address = config.expandall(
+            opts.volttron_central_address)
+    opts.volttron_central_serverkey = opts.volttron_central_serverkey
+    if getattr(opts, 'show_config', False):
+        print('volttron version: {}'.format(__version__))
+        for name, value in sorted(vars(opts).iteritems()):
+            print(name, repr(value))
+        return
 
     # Increase open files resource limit to max or 8192 if unlimited
     try:
@@ -444,44 +506,31 @@ def start_volttron_process(opts):
     # Get or generate encryption key
     if opts.developer_mode:
         secretkey = None
+        publickey = None
         _log.warning('developer mode enabled; '
                      'authentication and encryption are disabled!')
     else:
-        keyfile = os.path.join(opts.volttron_home, 'curve.key')
-        _log.debug('using key file %s', keyfile)
-        try:
-            st = os.stat(keyfile)
-        except OSError as exc:
-            if exc.errno != errno.ENOENT:
-                parser.error(str(exc))
-            # Key doesn't exist, so create it securely
-            _log.info('generating missing key file')
-            try:
-                fd = os.open(keyfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-            except OSError as exc:
-                parser.error(str(exc))
-            try:
-                key = ''.join(curve_keypair())
-                os.write(fd, key)
-            finally:
-                os.close(fd)
-        else:
-            if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
-                _log.warning('insecure mode on key file')
-            if not st.st_size:
-                _log.warning('empty key file; VIP encryption is disabled!')
-                key = ''
-            else:
-                # Allow two extra bytes in case someone opened the file with
-                # a text editor and it appended '\n' or '\r\n'.
-                if not 80 <= st.st_size <= 82:
-                    _log.warning('key file is wrong size; connections may fail')
-                with open(keyfile) as infile:
-                    key = infile.read(80)
-        publickey = key[:40]
+        keystore = KeyStore()
+        _log.debug('using key-store file %s', keystore.filename)
+        if not keystore.isvalid():
+            _log.warning('key store is invalid; connections may fail')
+        st = os.stat(keystore.filename)
+        if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+            _log.warning('insecure mode on key file')
+        publickey = decode_key(keystore.public())
         if publickey:
             _log.info('public key: %s', encode_key(publickey))
-        secretkey = key[40:]
+            # Authorize the platform key:
+            entry = AuthEntry(credentials=encode_key(publickey),
+                        user_id='platform',
+                        comments='Automatically added by platform on start')
+            AuthFile().add(entry)
+            # Add platform key to known-hosts file:
+            known_hosts = KnownHostsStore()
+            known_hosts.add(opts.vip_local_address, encode_key(publickey))
+            for addr in opts.vip_address:
+                known_hosts.add(addr, encode_key(publickey))
+        secretkey = decode_key(keystore.secret())
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
@@ -492,8 +541,15 @@ def start_volttron_process(opts):
     def router(stop):
         try:
             Router(opts.vip_local_address, opts.vip_address,
-                   secretkey=secretkey, default_user_id=b'vip.service',
-                   monitor=opts.monitor, tracker=tracker).run()
+                   secretkey=secretkey, publickey=publickey,
+                   default_user_id=b'vip.service', monitor=opts.monitor,
+                   tracker=tracker,
+                   volttron_central_address=opts.volttron_central_address,
+                   volttron_central_serverkey=opts.volttron_central_serverkey,
+                   instance_name=opts.instance_name,
+                   bind_web_address=opts.bind_web_address,
+                   developer_mode=opts.developer_mode).run()
+
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
@@ -502,11 +558,20 @@ def start_volttron_process(opts):
 
     address = 'inproc://vip'
     try:
+
+        # Start the config store before auth so we may one day have auth use it.
+        config_store = ConfigStoreService( address=address, identity='config.store')
+
+        event = gevent.event.Event()
+        config_store_task = gevent.spawn(config_store.core.run, event)
+        event.wait()
+        del event
+
         # Ensure auth service is running before router
         auth_file = os.path.join(opts.volttron_home, 'auth.json')
         auth = AuthService(
             auth_file, opts.aip, address=address, identity='auth',
-            allow_any=opts.developer_mode)
+            allow_any=opts.developer_mode, enable_store=False)
 
         event = gevent.event.Event()
         auth_task = gevent.spawn(auth.core.run, event)
@@ -528,15 +593,26 @@ def start_volttron_process(opts):
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
-            ControlService(opts.aip, address=address, identity='control', tracker=tracker, heartbeat_autostart=True),
-            PubSubService(protected_topics_file, address=address, identity='pubsub', heartbeat_autostart=True),
+            ControlService(opts.aip, address=address, identity='control',
+                           tracker=tracker, heartbeat_autostart=True,
+                           enable_store=False),
+            PubSubService(protected_topics_file, address=address,
+                          identity='pubsub', heartbeat_autostart=True,
+                          enable_store=False),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
+            MasterWebService(
+                serverkey=publickey, identity=MASTER_WEB,
+                address=address,
+                bind_web_address=opts.bind_web_address,
+                volttron_central_address=opts.volttron_central_address,
+                aip=opts.aip, enable_store=False)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
                  for service, event in zip(services, events)]
+        tasks.append(config_store_task)
         tasks.append(auth_task)
         gevent.wait(events)
         del events
@@ -556,6 +632,7 @@ def start_volttron_process(opts):
             gevent.wait(tasks)
     finally:
         opts.aip.finish()
+
 
 def main(argv=sys.argv):
     # Refuse to run as root
@@ -634,6 +711,19 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--vip-local-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for local agent VIP connections')
+    agents.add_argument(
+        '--bind-web-address', metavar='BINDWEBADDR', default=None,
+        help='Bind a web server to the specified ip:port passed')
+    agents.add_argument(
+        '--volttron-central-address', default=None,
+        help='The web address of a volttron central install instance.')
+    agents.add_argument(
+        '--volttron-central-serverkey', default=None,
+        help='The serverkey of volttron central.')
+    agents.add_argument(
+        '--instance-name', default=None,
+        help='The name of the instance that will be reported to '
+             'VOLTTRON central.')
 
     # XXX: re-implement control options
     #on
@@ -657,10 +747,11 @@ def main(argv=sys.argv):
                 super(RestrictedAction, self).__init__(
                     option_strings, dest=argparse.SUPPRESS, nargs=0,
                     const=const, help=help)
+
             def __call__(self, parser, namespace, values, option_string=None):
                 namespace.verify_agents = self.const
                 namespace.resource_monitor = self.const
-                #namespace.mobility = self.const
+                # namespace.mobility = self.const
         restrict = parser.add_argument_group('restricted options')
         restrict.add_argument(
             '--restricted', action=RestrictedAction, inverse='--no-restricted',
@@ -681,10 +772,10 @@ def main(argv=sys.argv):
         restrict.add_argument(
             '--no-resource-monitor', action='store_false',
             dest='resource_monitor', help=argparse.SUPPRESS)
-        #restrict.add_argument(
+        # restrict.add_argument(
         #    '--mobility', action='store_true', inverse='--no-mobility',
         #    help='enable agent mobility')
-        #restrict.add_argument(
+        # restrict.add_argument(
         #    '--no-mobility', action='store_false', dest='mobility',
         #    help=argparse.SUPPRESS)
 
@@ -701,12 +792,19 @@ def main(argv=sys.argv):
         subscribe_address=ipc + 'subscribe',
         vip_address=[],
         vip_local_address=ipc + 'vip.socket',
-        #allow_root=False,
-        #allow_users=None,
-        #allow_groups=None,
+        # This is used to start the web server from the web module.
+        bind_web_address=None,
+        # Used to contact volttron central when registering volttron central
+        # platform agent.
+        volttron_central_address=None,
+        volttron_central_serverkey=None,
+        instace_name=None,
+        # allow_root=False,
+        # allow_users=None,
+        # allow_groups=None,
         verify_agents=True,
         resource_monitor=True,
-        #mobility=True,
+        # mobility=True,
         developer_mode=False,
     )
 
@@ -719,8 +817,9 @@ def main(argv=sys.argv):
     opts = parser.parse_args(args)
     start_volttron_process(opts)
 
+
 def _main():
-    '''Entry point for scripts.'''
+    """ Entry point for scripts."""
     try:
         sys.exit(main())
     except KeyboardInterrupt:
