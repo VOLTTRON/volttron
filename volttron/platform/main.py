@@ -468,6 +468,7 @@ def start_volttron_process(opts):
             opts.volttron_central_address)
     opts.volttron_central_serverkey = opts.volttron_central_serverkey
     if getattr(opts, 'show_config', False):
+        print('volttron version: {}'.format(__version__))
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
         return
