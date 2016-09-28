@@ -717,6 +717,8 @@ class PlatformWrapper:
             cmd.append('--developer-mode')
         cmd.extend(['status', agent_uuid])
         res = subprocess.check_output(cmd, env=self.env)
+        #776 TODO: Timing issue where check fails
+        time.sleep(.1)
         self.logit("Subprocess res is {}".format(res))
         assert 'running' in res
         pidpos = res.index('[') + 1
@@ -772,7 +774,6 @@ class PlatformWrapper:
         pid = None
         try:
             res = subprocess.check_output(cmd, env=self.env)
-
             try:
                 pidpos = res.index('[') + 1
                 pidend = res.index(']')
