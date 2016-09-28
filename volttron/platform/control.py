@@ -289,7 +289,7 @@ class ControlService(BaseAgent):
                     ])
 
                     # get the requested data
-                    with gevent.Timeout(5):
+                    with gevent.Timeout(30):
                         data = channel.recv()
                     sha512.update(data)
                     store.write(data)
@@ -299,7 +299,7 @@ class ControlService(BaseAgent):
                     # let volttron-ctl know that we have everything
                     if size < CHUNK_SIZE:
                         channel.send_multipart([b'checksum', b'', b''])
-                        with gevent.Timeout(5):
+                        with gevent.Timeout(30):
                             checksum = channel.recv()
                         assert checksum == sha512.digest()
                         break
@@ -411,7 +411,7 @@ def install_agent(opts):
             with open(filename, 'rb') as wheel_file_data:
                 while True:
                     # get a request
-                    with gevent.Timeout(5):
+                    with gevent.Timeout(30):
                         request, file_offset, chunk_size = channel.recv_multipart()
                     if request == b'checksum':
                         channel.send(sha512.digest())

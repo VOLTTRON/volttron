@@ -777,7 +777,7 @@ class VolttronCentralPlatform(Agent):
                 with open(path, 'rb') as wheel_file_data:
                     while True:
                         # get a request
-                        with gevent.Timeout(5):
+                        with gevent.Timeout(30):
                             request, file_offset, chunk_size = channel.recv_multipart()
                         if request == b'checksum':
                             channel.send(sha512.digest())
