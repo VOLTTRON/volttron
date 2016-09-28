@@ -1,7 +1,7 @@
 #!/bin/sh
 
 export CI=travis
-export FAST_FAIL=''
+export FAST_FAIL=1
 
 # The context should already have been activated at this point.
 
