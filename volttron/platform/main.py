@@ -608,9 +608,9 @@ def start_volttron_process(opts):
                 address=address,
                 bind_web_address=opts.bind_web_address,
                 volttron_central_address=opts.volttron_central_address,
-                aip=opts.aip, enable_store=False),
-            SyslogAgent(address=address, identity='syslog', syslog_file_path='/var/log/syslog',
-                        syslog_topic = 'platforms/syslog')
+                aip=opts.aip, enable_store=False)
+            #SyslogAgent(address=address, identity='syslog', syslog_file_path='/var/log/syslog',
+            #            syslog_topic = 'platforms/syslog')
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
