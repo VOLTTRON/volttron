@@ -87,6 +87,8 @@ from .agent.utils import is_valid_identity
 from .messaging import topics
 from .packages import UnpackedPackage
 from .vip.agent import Agent
+from .keystore import KeyStore
+from .auth import AuthFile, AuthEntry
 
 try:
     from volttron.restricted import auth
@@ -301,7 +303,10 @@ class AIPplatform(object):
             else:
                 unpack(agent_wheel, dest=agent_path)
 
-            self._setup_agent_vip_id(agent_uuid, vip_identity=vip_identity)
+            final_identity = self._setup_agent_vip_id(agent_uuid,
+                                                      vip_identity=vip_identity)
+
+            self._authorize_agent_keys(agent_uuid, final_identity)
 
         except Exception:
             shutil.rmtree(agent_path)
@@ -357,6 +362,36 @@ class AIPplatform(object):
             os.remove(identity_template_filename)
             _log.debug('IDENTITY_TEMPLATE file removed.')
 
+        return final_identity
+
+
+    def _get_agent_publickey(self, agent_uuid):
+        agent_path = os.path.join(self.install_dir, agent_uuid)
+        name = self.agent_name(agent_uuid)
+        agent_path_with_name = os.path.join(agent_path, name)
+        data_dir = self._get_data_dir(agent_path_with_name)
+        keystore_path = os.path.join(data_dir, 'keystore.json')
+        keystore = KeyStore(keystore_path)
+        return keystore.public()
+
+    def _authorize_agent_keys(self, agent_uuid, identity):
+        publickey = self._get_agent_publickey(agent_uuid)
+        entry = AuthEntry(credentials=publickey, user_id=identity,
+                          comments='Automatically added on agent install')
+        AuthFile().add(entry)
+
+    def _unauthorize_agent_keys(self, agent_uuid):
+        publickey = self._get_agent_publickey(agent_uuid)
+        AuthFile().remove_by_credentials(publickey)
+
+    def _get_data_dir(self, agent_path):
+        pkg = UnpackedPackage(agent_path)
+        data_dir = os.path.join(os.path.dirname(pkg.distinfo),
+                                '{}.agent-data'.format(pkg.package_name))
+        if not os.path.exists(data_dir):
+            os.mkdir(data_dir)
+        return data_dir
+
     def get_all_agent_identities(self):
         results = set()
         for agent_uuid in self.list_agents():
@@ -390,6 +425,7 @@ class AIPplatform(object):
             raise ValueError('invalid agent')
         self.stop_agent(agent_uuid)
         self.agents.pop(agent_uuid, None)
+        self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
 
     def agent_name(self, agent_uuid):
@@ -584,6 +620,8 @@ class AIPplatform(object):
         environ['AGENT_PUB_ADDR'] = self.publish_address
         environ['AGENT_UUID'] = agent_uuid
         environ['_LAUNCHED_BY_PLATFORM'] = '1'
+        if self.env.developer_mode:
+            environ['_DEVELOPER_MODE'] = '1'
 
         #For backwards compatibility create the identity file if it does not exist.
         identity_file = os.path.join(self.install_dir, agent_uuid, "IDENTITY")
@@ -611,10 +649,8 @@ class AIPplatform(object):
             execenv = self._reserve_resources(resmon, execreqs)
         execenv.name = name or agent_path
         _log.info('starting agent %s', agent_path)
-        data_dir = os.path.join(os.path.dirname(pkg.distinfo),
-                                '{}.agent-data'.format(pkg.package_name))
-        if not os.path.exists(data_dir):
-            os.mkdir(data_dir)
+
+        data_dir = self._get_data_dir(agent_path)
         execenv.execute(argv, cwd=data_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[agent_uuid] = execenv

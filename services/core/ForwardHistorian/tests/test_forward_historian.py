@@ -91,10 +91,8 @@ def onmessage(peer, sender, bus, topic, headers, message):
 
 @pytest.mark.historian
 @pytest.mark.xfail(reason='need to see about auth stuff for this to work')
-def test_reconnect_forwarder(volttron_instance1_encrypt,
-                             volttron_instance2_encrypt):
-    from_instance = volttron_instance1_encrypt
-    to_instance = volttron_instance2_encrypt
+def test_reconnect_forwarder(get_volttron_instances):
+    from_instance, to_instance = get_volttron_instances(2, True)
     to_instance.allow_all_connections()
 
     publisher = from_instance.build_agent()

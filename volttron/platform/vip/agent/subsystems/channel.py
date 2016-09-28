@@ -150,6 +150,7 @@ class Channel(SubsystemBase):
             if channel in self._channels:
                 raise ValueError('channel %r is unavailable' % (name,))
         sock = self.context.socket(zmq.DEALER)
+        sock.hwm = 1
         sock.identity = ident = '%s.%s' % (hash(channel), hash(sock))
         sockref = weakref.ref(sock, self._destroy)
         object.__setattr__(sock, 'peer', peer)
