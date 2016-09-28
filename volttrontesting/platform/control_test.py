@@ -16,7 +16,7 @@ def test_identity_is_uuid(volttron_instance):
     agent = volttron_instance.build_agent()
     identity = agent.vip.rpc.call('control', 'agent_vip_identity',
                                   auuid).get(timeout=2)
-    assert identity == "listeneragent-3.1_1"
+    assert identity == "listeneragent-3.2_1"
 
 
 @pytest.mark.control
