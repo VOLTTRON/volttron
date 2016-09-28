@@ -13,45 +13,39 @@ exit_code=0
 
 # Break up the tests to work around the issue in #754. Breaking them up allows 
 # the files to be closed with the individual pytest processes
-py.test -v docs
-tmp_code=$?
-exit_code=$tmp_code
-echo $exit_code
-if [ $tmp_code -ne 0 ]; then
-  if [ $tmp_code -ne 5 ]; then
-    if [ ${FAST_FAIL} ]; then
-      echo "Fast failing!"
-      exit $tmp_code
+
+
+#directories that need split into individual files
+filedirs="volttrontesting/platform"
+#directories that can be called as normal (recursive)
+testdirs="docs examples scripts volttron volttrontesting/gevent volttrontesting/multiplatform volttrontesting/subsystems volttrontesting/testutils volttrontesting/zmq"
+#directories that must have their subdirectories split
+splitdirs="services/core/*"
+
+echo "TestDirs"
+for dir in $testdirs; do
+  echo "*********TESTDIR: $dir"
+  py.test -v $dir
+
+  tmp_code=$?
+  exit_code=$tmp_code
+  echo $exit_code
+  if [ $tmp_code -ne 0 ]; then
+    if [ $tmp_code -ne 5 ]; then
+      if [ ${FAST_FAIL} ]; then
+        echo "Fast failing!"
+        exit $tmp_code
+      fi
     fi
   fi
-fi
+done
 
-py.test -v examples
-tmp_code=$?
-if [ $tmp_code -ne 0 ]; then
-  if [ $tmp_code -ne 5 ]; then
-    if [ ${FAST_FAIL} ]; then
-      echo "Fast failing!"
-      exit $tmp_code
-    fi
-    exit_code=$tmp_code
-  fi
-fi
+echo "SplitDirs"
+for dir in $splitdirs; do
 
-py.test -v scripts
-tmp_code=$?
-if [ $tmp_code -ne 0 ]; then
-  if [ $tmp_code -ne 5 ]; then
-    if [ ${FAST_FAIL} ]; then
-      echo "Fast failing!"
-      exit $tmp_code
-    fi
-    exit_code=$tmp_code
-  fi
-fi
-
-for D in services/core/*; do
+for D in $dir; do
     if [ -d "${D}" ]; then
+  echo "*********SPLITDIR: $D"
         py.test -v ${D}
         tmp_code=$?
         if [ $tmp_code -ne 0 ]; then
@@ -65,33 +59,31 @@ for D in services/core/*; do
         fi
     fi
 done
+done
 
-py.test -v volttron
-tmp_code=$?
-if [ $tmp_code -ne 0 ]; then
-  if [ $tmp_code -ne 5 ]; then
-    if [ ${FAST_FAIL} ]; then
-      echo "Fast failing!"
-      exit $tmp_code
-    fi
-    exit_code=$tmp_code
-  fi
-fi
+echo "File tests"
+for dir in $filedirs; do
+  echo "File test for dir: $dir"
+  for testfile in $dir/*.py; do
+    echo "Using testfile: $testfile"
+    if [ $testfile != "volttrontesting/platform/packaging-tests.py" ]; then
+       py.test -v $testfile
 
-for D in volttrontesting/*; do
-    if [ -d "${D}" ]; then
-        py.test -v ${D}
-        tmp_code=$?
-        if [ $tmp_code -ne 0 ]; then
-          if [ $tmp_code -ne 5 ]; then
-            if [ ${FAST_FAIL} ]; then
-              echo "Fast failing!"
-              exit $tmp_code
-            fi
-            exit_code=$tmp_code
-          fi
-        fi
-    fi
+       tmp_code=$?
+       exit_code=$tmp_code
+       echo $exit_code
+       if [ $tmp_code -ne 0 ]; then
+         if [ $tmp_code -ne 5 ]; then
+           if [ ${FAST_FAIL} ]; then
+             echo "Fast failing!"
+             exit $tmp_code
+           fi
+         fi
+       fi
+       else
+         echo "Skipping $testfile"
+     fi
+   done
 done
 
 exit $exit_code
