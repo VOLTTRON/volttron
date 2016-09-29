@@ -57,57 +57,40 @@
 
 import pytest
 import gevent
+from gevent import pywsgi
 import os
-import multiprocessing
 import json
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+
+from volttrontesting.utils.utils import get_rand_http_address
+
+server_addr = get_rand_http_address()
+no_scheme = server_addr[7:]
+ip, port = no_scheme.split(':')
+point = 'forty two'
 
 driver_config_dict_string = """{
-    "driver_config": {"device_address": "http://127.0.0.1:8080"},
+    "driver_config": {"device_address": "%s"},
     "driver_type": "restful",
     "registry_config": "config://restful.csv",
     "interval": 20,
     "timezone": "UTC"
-}"""
+}""" % server_addr
 
 restful_csv_string = """Point Name,Volttron Point Name,Units,Writable,Notes,Default
 test_point,test_point,Units,True,Test point,forty two"""
 
-# driver_config = os.path.join(os.getcwd(), "services/core/MasterDriverAgent/tests/config")
-# with open(driver_config, 'w') as outfile:
-#     json.dump(driver_config_dict, outfile)
 
-MASTER_CONFIG = {}
+# return the global point value no matter what is requested
+def handle(env, start_response):
+    global point
 
-point = 'forty two'
+    if env['REQUEST_METHOD'] == 'POST':
+        data = env['wsgi.input']
+        length = env['CONTENT_LENGTH']
+        point = data.read(length)
 
-
-class Handler(BaseHTTPRequestHandler):
-
-    def _set_headers(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-
-    def do_GET(self):
-        global point
-        self._set_headers()
-
-        self.wfile.write(point)
-        self.point = 'forty two'
-
-    def do_POST(self):
-        global point
-        self._set_headers()
-        content_length = self.headers.getheader('content-length')
-        point = str(self.rfile.read(int(content_length)))
-
-        self.wfile.write(point)
-
-
-def http_server():
-    httpd = HTTPServer(('', 8080), Handler)
-    httpd.serve_forever()
+    start_response('200 OK', [('Content-Type', 'text/html')])
+    return point
 
 
 @pytest.fixture(scope='module')
@@ -135,20 +118,18 @@ def agent(request, volttron_instance1):
 
     master_uuid = volttron_instance1.install_agent(
         agent_dir="services/core/MasterDriverAgent",
-        config_file=MASTER_CONFIG,
+        config_file={},
         start=True)
     print("agent id: ", master_uuid)
     gevent.sleep(2)  # wait for the agent to start and start the devices
 
-    process = multiprocessing.Process(target=http_server)
-    process.start()
-    assert process.is_alive()
+    server = pywsgi.WSGIServer((ip, int(port)), handle)
+    server.start()
 
     def stop():
         volttron_instance1.stop_agent(master_uuid)
         agent.core.stop()
-        process.terminate()
-        #os.remove(driver_config)
+        server.stop()
 
     request.addfinalizer(stop)
     return agent
@@ -159,8 +140,9 @@ def test_restful_get(agent):
                                'get_point',
                                'campus/building/unit',
                                'test_point').get(timeout=10)
+
     assert point == 'forty two'
-    
+
 
 def test_restful_set(agent):
     # set point
@@ -177,6 +159,7 @@ def test_restful_set(agent):
                                'campus/building/unit',
                                'test_point').get(timeout=10)
     assert point == '42'
+
 
 def test_restful_revert(agent):
     # set point
@@ -199,6 +182,3 @@ def test_restful_revert(agent):
                                'campus/building/unit',
                                'test_point').get(timeout=10)
     assert point == 'forty two'
-
-    return True
-
