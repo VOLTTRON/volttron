@@ -62,7 +62,7 @@
 import os
 import sys
 
-__version__ = '3.1'
+__version__ = '4.0.0'
 
 
 def set_home(home=None):
@@ -85,6 +85,7 @@ def get_home():
             os.path.expanduser(
                 os.path.expandvars(
                     os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
+
 
 def get_address():
     """Return the VIP address of the platform

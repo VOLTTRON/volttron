@@ -29,7 +29,7 @@ from volttron.platform.vip.agent import Agent
 from volttron.platform.aip import AIPplatform
 from volttron.platform import packaging
 from volttron.platform.agent import utils
-from volttron.platform.keystore import KeyStore
+from volttron.platform.keystore import KeyStore, KnownHostsStore
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -248,7 +248,8 @@ class PlatformWrapper:
                               volttron_home=self.volttron_home)
         else:
             conn = Connection(address=self.local_vip_address, peer=peer,
-                              volttron_home=self.volttron_home)
+                              volttron_home=self.volttron_home,
+                              developer_mode=True)
         return conn
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
@@ -297,7 +298,9 @@ class PlatformWrapper:
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
-                            volttron_home=self.volttron_home, **kwargs)
+                            volttron_home=self.volttron_home,
+                            developer_mode=(not self.encrypt),
+                            **kwargs)
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
 
         # Automatically add agent's credentials to auth.json file
@@ -418,6 +421,13 @@ class PlatformWrapper:
 
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
+
+        # Add platform's public key to known hosts file
+        publickey = self.keystore.public()
+        known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
+        known_hosts = KnownHostsStore(known_hosts_file)
+        known_hosts.add(self.opts['vip_local_address'], publickey)
+        known_hosts.add(self.opts['vip_address'], publickey)
 
         # Set up the configuration file based upon the passed parameters.
         parser = configparser.ConfigParser()
@@ -578,66 +588,28 @@ class PlatformWrapper:
         aip.setup()
         return aip
 
-    # TODO Remove when verified that the other method works properly.
-    # def _install_agent(self, wheel_file, start, vip_identity):
-    #     aip = self._aip()
-    #     auuid = aip.install_agent(wheel_file, vip_identity=vip_identity)
-    #     assert auuid is not None
-    #     if start:
-    #         self.logit('STARTING: {}'.format(wheel_file))
-    #         status = self.start_agent(auuid)
-    #         # aip.start_agent(auuid)
-    #         # status = aip.agent_status(auuid)
-    #         self.logit('STATUS NOW: {}'.format(status))
-    #         assert status > 0
-    #
-    #     return auuid
-
     def _install_agent(self, wheel_file, start, vip_identity):
 
-        agent = self.build_agent()
         self.logit('Creating channel for sending the agent.')
-        channel_name = str(uuid.uuid4())
-        channel = agent.vip.channel('control',
-                                    channel_name)
         gevent.sleep(0.3)
         self.logit('calling control install agent.')
-        result = agent.vip.rpc.call('control',
-                                    'install_agent',
-                                    wheel_file,
-                                    channel_name,
-                                    vip_identity)
-        self.logit('waiting for ready')
-        response = channel.recv()
-        if response != b'ready':
-            raise ValueError('Invalid channel protocol returned {}'.format(
-                response))
-
-        with open(wheel_file, 'rb') as fin:
-            _log.debug('sending wheel to control.')
-            while True:
-                data = fin.read(8125)
-                if not data:
-                    _log.debug('Finished sending data')
-                    break
-                channel.send(data)
-
-        _log.debug('sending done message.')
-        channel.send('done')
-        try:
-            # must do this before channel closes or process will hang.
-            auuid = result.get(timeout=10)
-            _log.debug('closing channel')
-        except gevent.Timeout:
-            _log.error('Timeout in channel')
-        finally:
-            channel.close(linger=0)
-            del channel
+        self.logit("VOLTTRON_HOME SETTING: {}".format(
+            self.env['VOLTTRON_HOME']))
+        env = self.env.copy()
+        cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
+        if vip_identity:
+            cmd.extend(['--vip-identity', vip_identity])
+        if self.opts.get('developer_mode', False):
+            cmd.append('--developer-mode')
+        res = subprocess.check_output(cmd, env=env)
+        assert res, "failed to install wheel:{}".format(wheel_file)
+        agent_uuid = res.split(' ')[-2]
+        self.logit(agent_uuid)
 
         if start:
-            self.start_agent(auuid)
+             self.start_agent(agent_uuid)
 
-        return auuid
+        return agent_uuid
 
     def install_multiple_agents(self, agent_configs):
         """
@@ -718,7 +690,6 @@ class PlatformWrapper:
             self.logit('Building agent package')
             wheel_file = self.build_agentpackage(agent_dir, config_file)
             assert wheel_file
-
         agent_uuid = self._install_agent(wheel_file, start, vip_identity)
 
         assert agent_uuid is not None
@@ -732,14 +703,22 @@ class PlatformWrapper:
         self.logit('Starting agent {}'.format(agent_uuid))
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
-        cmd = ['volttron-ctl', 'start', agent_uuid]
+        cmd = ['volttron-ctl']
+        if self.opts.get('developer_mode', False):
+            cmd.append('--developer-mode')
+        cmd.extend(['start', agent_uuid])
         p = Popen(cmd, env=self.env,
                   stdout=sys.stdout, stderr=sys.stderr)
         p.wait()
 
         # Confirm agent running
-        cmd = ['volttron-ctl', 'status', agent_uuid]
+        cmd = ['volttron-ctl']
+        if self.opts.get('developer_mode', False):
+            cmd.append('--developer-mode')
+        cmd.extend(['status', agent_uuid])
         res = subprocess.check_output(cmd, env=self.env)
+        #776 TODO: Timing issue where check fails
+        time.sleep(.1)
         self.logit("Subprocess res is {}".format(res))
         assert 'running' in res
         pidpos = res.index('[') + 1
@@ -753,7 +732,10 @@ class PlatformWrapper:
         # Confirm agent running
         _log.debug("STOPPING AGENT: {}".format(agent_uuid))
         try:
-            cmd = ['volttron-ctl', 'stop', agent_uuid]
+            cmd = ['volttron-ctl']
+            if self.opts.get('developer_mode', False):
+                cmd.append('--developer-mode')
+            cmd.extend(['stop', agent_uuid])
             res = subprocess.check_output(cmd, env=self.env)
         except CalledProcessError as ex:
             _log.error("Exception: {}".format(ex))
@@ -770,7 +752,10 @@ class PlatformWrapper:
         """Remove the agent specified by agent_uuid"""
         _log.debug("REMOVING AGENT: {}".format(agent_uuid))
         try:
-            cmd = ['volttron-ctl', 'remove', agent_uuid]
+            cmd = ['volttron-ctl']
+            if self.opts.get('developer_mode', False):
+                cmd.append('--developer-mode')
+            cmd.extend(['remove', agent_uuid])
             res = subprocess.check_output(cmd, env=self.env)
         except CalledProcessError as ex:
             _log.error("Exception: {}".format(ex))
@@ -782,11 +767,13 @@ class PlatformWrapper:
     def agent_status(self, agent_uuid):
         _log.debug("AGENT_STATUS: {}".format(agent_uuid))
         # Confirm agent running
-        cmd = ['volttron-ctl', 'status', agent_uuid]
+        cmd = ['volttron-ctl']
+        if self.opts.get('developer_mode', False):
+            cmd.append('--developer-mode')
+        cmd.extend(['status', agent_uuid])
         pid = None
         try:
             res = subprocess.check_output(cmd, env=self.env)
-
             try:
                 pidpos = res.index('[') + 1
                 pidend = res.index(']')

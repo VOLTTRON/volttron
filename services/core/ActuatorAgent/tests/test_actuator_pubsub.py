@@ -171,10 +171,13 @@ def publish_agent(request, volttron_instance):
     """
     global actuator_uuid, publish_agent_v2
 
+    developer_mode = volttron_instance.opts.get('developer_mode', False);
+
     # Reset master driver config store
-    process = Popen(['volttron-ctl', 'config', 'delete',
-                     'platform.driver', '--all'],
-                    env=volttron_instance.env,
+    cmd = ['volttron-ctl', 'config', 'delete', 'platform.driver', '--all']
+    if developer_mode:
+        cmd.append('--developer-mode')
+    process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
@@ -182,10 +185,11 @@ def publish_agent(request, volttron_instance):
     assert result == 0
 
     # Add master driver configuration files to config store.
-    process = Popen(['volttron-ctl', 'config', 'store',
-                     'platform.driver',
-                     'fake.csv', 'fake_unit_testing.csv', '--csv'],
-                    env=volttron_instance.env,
+    cmd = ['volttron-ctl', 'config', 'store', 'platform.driver',
+           'fake.csv', 'fake_unit_testing.csv', '--csv']
+    if developer_mode:
+        cmd.append('--developer-mode')
+    process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
@@ -194,10 +198,11 @@ def publish_agent(request, volttron_instance):
 
     for i in xrange(4):
         config_name = "devices/fakedriver{}".format(i)
-        process = Popen(['volttron-ctl', 'config', 'store',
-                         'platform.driver',
-                         config_name, 'fake_unit_testing.config', '--json'],
-                        env=volttron_instance.env,
+        cmd = ['volttron-ctl', 'config', 'store', 'platform.driver',
+               config_name, 'fake_unit_testing.config', '--json']
+        if developer_mode:
+            cmd.append('--developer-mode')
+        process = Popen(cmd, env=volttron_instance.env,
                         cwd='scripts/scalability-testing',
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         result = process.wait()
@@ -1736,7 +1741,7 @@ def test_revert_point(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print("\n**** test_set_value_float ****")
+    print("\n**** test_revert_point ****")
     agentid = TEST_AGENT
     taskid = 'task_set_float_value'
     device = 'fakedriver2'
@@ -1845,7 +1850,6 @@ def test_revert_point(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator_pubsub
-@pytest.mark.dev
 def test_revert_device(publish_agent, cancel_schedules):
     """
     Test setting a float value of a point  through pubsub.
