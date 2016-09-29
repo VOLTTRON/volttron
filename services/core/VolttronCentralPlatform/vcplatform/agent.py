@@ -843,28 +843,36 @@ class VolttronCentralPlatform(Agent):
                                                'install_agent',
                                                f['file_name'],
                                                channel_name)
-                _log.debug('waiting for ready')
-                _log.debug('received {}'.format(channel.recv()))
-                with open(path, 'rb') as fin:
-                    _log.debug('sending wheel to control.')
+                sha512 = hashlib.sha512()
+                _log.debug('Sending wheel to control')
+
+                with open(path, 'rb') as wheel_file_data:
                     while True:
-                        data = fin.read(8125)
-
-                        if not data:
+                        # get a request
+                        with gevent.Timeout(30):
+                            request, file_offset, chunk_size = channel.recv_multipart()
+                        if request == b'checksum':
+                            channel.send(sha512.digest())
                             break
-                        channel.send(data)
-                _log.debug('sending done message.')
-                channel.send('done')
-                _log.debug('waiting for done')
-                _log.debug('closing channel')
 
-                results.append({'uuid': agent_uuid.get(timeout=10)})
-                channel.close(linger=0)
-                del channel
+                        assert request == b'fetch'
+
+                        # send a chunk of the file
+                        file_offset = int(file_offset)
+                        chunk_size = int(chunk_size)
+                        wheel_file_data.seek(file_offset)
+                        data = wheel_file_data.read(chunk_size)
+                        sha512.update(data)
+                        channel.send(data)
 
             except Exception as e:
                 results.append({'error': str(e)})
                 _log.error("EXCEPTION: " + str(e))
+            else:
+                results.append({'uuid': agent_uuid.get(timeout=10)})
+            finally:
+                channel.close(linger=0)
+                del channel
 
         shutil.rmtree(tmpdir, ignore_errors=True)
 

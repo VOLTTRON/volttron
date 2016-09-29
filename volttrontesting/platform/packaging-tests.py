@@ -1,5 +1,6 @@
 import unittest
 import os
+import pytest
 import shutil
 import sys
 import tempfile
@@ -148,6 +149,7 @@ zip_safe = False,
 
             print('successful!')
 
+    @pytest.mark.xfail(reason="#776 Needs updating")
     def test_can_extract_package(self):
         wheelhouse = os.path.join(self.tmpdir, 'extract_package')
         expected_install_at = os.path.join(wheelhouse, 'listeneragent-0.1')
@@ -174,7 +176,7 @@ zip_safe = False,
         finally:
             shutil.rmtree(installed_at)
             shutil.rmtree(wheelhouse)
-
+    @pytest.mark.xfail(reason="#776 Needs updating")
     def test_can_create_package(self):
         '''
         Tests that a proper wheel package is created from the create_package method of
@@ -210,7 +212,7 @@ zip_safe = False,
             wf.zipfile.close()
         finally:
             shutil.rmtree(package_tmp_dir)
-
+    @pytest.mark.xfail(reason="#776 Needs updating")
     def test_raises_error_if_agent_dir_not_exists(self):
         '''
         This test passes under the following conditions:
