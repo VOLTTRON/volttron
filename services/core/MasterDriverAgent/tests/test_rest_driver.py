@@ -61,18 +61,23 @@ from gevent import pywsgi
 import os
 import json
 
+from volttrontesting.utils.utils import get_rand_http_address
+
+server_addr = get_rand_http_address()
+no_scheme = server_addr[7:]
+ip, port = no_scheme.split(':')
+point = 'forty two'
+
 driver_config_dict_string = """{
-    "driver_config": {"device_address": "http://127.0.0.1:8080"},
+    "driver_config": {"device_address": "%s"},
     "driver_type": "restful",
     "registry_config": "config://restful.csv",
     "interval": 20,
     "timezone": "UTC"
-}"""
+}""" % server_addr
 
 restful_csv_string = """Point Name,Volttron Point Name,Units,Writable,Notes,Default
 test_point,test_point,Units,True,Test point,forty two"""
-
-point = 'forty two'
 
 
 # return the global point value no matter what is requested
@@ -118,7 +123,7 @@ def agent(request, volttron_instance1):
     print("agent id: ", master_uuid)
     gevent.sleep(2)  # wait for the agent to start and start the devices
 
-    server = pywsgi.WSGIServer(('127.0.0.1', 8080), handle)
+    server = pywsgi.WSGIServer((ip, int(port)), handle)
     server.start()
 
     def stop():
