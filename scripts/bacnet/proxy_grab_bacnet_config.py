@@ -64,6 +64,8 @@ import argparse
 
 import gevent
 import os
+
+from volttron.platform import get_address
 from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
@@ -80,8 +82,8 @@ if "VOLTTRON_HOME" not in os.environ:
     os.environ["VOLTTRON_HOME"] = '`/.volttron'
 
 class BACnetInteraction(Agent):
-    def __init__(self, *args):
-        super(BACnetInteraction, self).__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super(BACnetInteraction, self).__init__(*args, **kwargs)
         self.callbacks = {}
     def get_iam(self, device_id, callback, address=None):
         self.callbacks[device_id] = callback
@@ -97,7 +99,7 @@ class BACnetInteraction(Agent):
         if callback is not None:
             callback(message)
 
-agent = BACnetInteraction("bacnet_interaction")
+agent = BACnetInteraction("bacnet_interaction", address=get_address())
 gevent.spawn(agent.core.run).join(0)
 
 """

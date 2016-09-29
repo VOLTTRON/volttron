@@ -26,6 +26,7 @@ Contents:
    devguides/index
    supporting/index
    scalability/index
+   specifications/index
    roadmap/index
    specifications/index
 
