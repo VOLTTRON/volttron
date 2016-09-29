@@ -11,8 +11,8 @@ heartbeat_period = 10
 # remote vip address.
 _params = {
 	# The root of the address.
-	'vip_address': 'tcp://127.0.0.2',
-	'port': 55055,
+	'vip_address': 'tcp://127.0.0.1',
+	'port': 22916,
 	
 	# public and secret key for the standalonelistener agent.
 	# These can be created from the volttron-ctl keypair command.

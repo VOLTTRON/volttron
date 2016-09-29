@@ -2,7 +2,7 @@
 Platform Commands
 =================
 
-With the exception of packaged agent wheel files, all VOLTTRON files for
+VOLTTRON files for
 a platform instance are stored under a single directory known as the
 VOLTTRON home. This home directory is set via the VOLTTRON\_HOME
 environment variable and defaults to ~/.volttron. Multiple instances of
@@ -31,46 +31,117 @@ To specify a log file, use "-l" or "--log".
 
 ::
 
-    bin/volttron -c config.ini -l volttron.log
+    env/bin/volttron -c config.ini -l volttron.log
 
 Full options:
 
 ::
 
+    VOLTTRON platform service
+
     optional arguments:
       -c FILE, --config FILE
-                        read configuration from FILE
+                            read configuration from FILE
+      --developer-mode      run in insecure developer mode
       -l FILE, --log FILE   send log output to FILE instead of stderr
       -L FILE, --log-config FILE
-                        read logging configuration from FILE
+                            read logging configuration from FILE
+      --log-level LOGGER:LEVEL
+                            override default logger logging level
+      --monitor             monitor and log connections (implies -v)
       -q, --quiet           decrease logger verboseness; may be used multiple
-                        times
+                            times
       -v, --verbose         increase logger verboseness; may be used multiple
-                        times
+                            times
       --verboseness LEVEL   set logger verboseness
-      --help                show this help message and exit
+      -h, --help            show this help message and exit
       --version             show program's version number and exit
+
+    agent options:
+      --autostart           automatically start enabled agents and services
+      --publish-address ZMQADDR
+                            ZeroMQ URL used for pre-3.x agent publishing
+                            (deprecated)
+      --subscribe-address ZMQADDR
+                            ZeroMQ URL used for pre-3.x agent subscriptions
+                            (deprecated)
+      --vip-address ZMQADDR
+                            ZeroMQ URL to bind for VIP connections
+      --vip-local-address ZMQADDR
+                            ZeroMQ URL to bind for local agent VIP connections
+      --bind-web-address BINDWEBADDR
+                            Bind a web server to the specified ip:port passed
+      --volttron-central-address VOLTTRON_CENTRAL_ADDRESS
+                            The web address of a volttron central install
+                            instance.
+      --volttron-central-serverkey VOLTTRON_CENTRAL_SERVERKEY
+                            The serverkey of volttron central.
+      --instance-name INSTANCE_NAME
+                            The name of the instance that will be reported to
+                            VOLTTRON central.
+
+    Boolean options, which take no argument, may be inversed by prefixing the
+    option with no- (e.g. --autostart may be inversed using --no-autostart).
+
 
 volttron-ctl Commands
 ---------------------
 
 ::
 
-    install             install agent from wheel
-    tag                 set, show, or remove agent tag
-    remove              remove agent
-    list                list installed agent
-    status              show status of agents
-    clear               clear status of defunct agents
-    enable              enable agent to start automatically
-    disable             prevent agent from start automatically
-    start               start installed agent
-    stop                stop agent
-    restart             restart agent
-    run                 start any agent by path
-    shutdown            stop all agents
-          with Volttron Restricted package installed and enabled
-    send                send mobile agent to and start on a remote platform
+    usage: volttron-ctl command [OPTIONS] ...
+
+    Manage and control VOLTTRON agents.
+
+
+    commands:
+
+        install             install agent from wheel
+        tag                 set, show, or remove agent tag
+        remove              remove agent
+        list                list installed agent
+        status              show status of agents
+        clear               clear status of defunct agents
+        enable              enable agent to start automatically
+        disable             prevent agent from start automatically
+        start               start installed agent
+        stop                stop agent
+        restart             restart agent
+        run                 start any agent by path
+        auth                manage authorization entries and encryption keys
+        config              manage the platform configuration store
+        shutdown            stop all agents
+        send                send agent and start on a remote platform
+        stats               manage router message statistics tracking
+
+volttron-ctl auth subcommands
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+    subcommands:
+
+        add                 add new authentication record
+        add-known-host      add server public key to known-hosts file
+        keypair             generate CurveMQ keys for encrypting VIP connections
+        list                list authentication records
+        remove              removes one or more authentication records by indices
+        serverkey           show the serverkey for the instance
+        update              updates one authentication record by index
+
+volttron-ctl config subcommands
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+    subcommands:
+
+        store               store a configuration
+        delete              delete a configuration
+        list                list stores or configurations in a store
+        get                 get the contents of a configuration
+
+
 
 volttron-pkg Commands
 ---------------------
