@@ -395,6 +395,7 @@ def do_vcp():
     # Default instance name to the vip address.
     instance_name = config_opts.get('instance-name',
                                     config_opts.get('vip-address'))
+    instance_name = instance_name.strip('"')
 
     valid_name = False
     while not valid_name:
