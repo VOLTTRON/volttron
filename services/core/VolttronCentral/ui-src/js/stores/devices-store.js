@@ -21,8 +21,10 @@ var _warnings = {};
 var _keyboard = {
     device: null,
     active: false,
-    cmd: null
+    cmd: null,
+    started: false
 };
+var _focusedDevice = null;
 
 var _placeHolders = [ [
     {"key": "Point_Name", "value": "", "editable": true},
@@ -1072,56 +1074,84 @@ devicesStore.getKeyboard = function (deviceId) {
     return keyboard;
 }
 
+devicesStore.deviceHasFocus = function (deviceId) {
+    return _focusedDevice === deviceId;
+}
+
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
     switch (action.type) {
-        case ACTION_TYPES.HANDLE_KEY_DOWN:
+        // case ACTION_TYPES.HANDLE_KEY_DOWN:
             
-            if (_devices.length)
-            {
-                var keydown = action.keydown;
+        //     if (_devices.length)
+        //     {
+        //         var keydown = action.keydown;
 
-                var emitKeyboard = function (keyboard)
-                {
-                    if (keyboard.device === null)
-                    {
-                        keyboard.device = _devices[0].id;
-                    }
+        //         var emitKeyboard = function (keyboard)
+        //         {
+        //             devicesStore.emitChange();
+        //         }
 
-                    devicesStore.emitChange();
-                }
+        //         switch (keydown.which)
+        //         {
+        //             case 17: // control
 
-                switch (keydown.which)
-                {
-                    case 17: // control
-                        _keyboard.active = true;
-                        _keyboard.cmd = "start";
-                        emitKeyboard(_keyboard);
-                        break;
-                    case 27: // ESC
-                        _keyboard.active = false;
-                        _keyboard.cmd = null;
-                        emitKeyboard(_keyboard);
-                        break;
-                    case 13: // Enter
-                        _keyboard.cmd = "enter";
-                        emitKeyboard(_keyboard);
-                        break;
-                    // case 9:    //Tab
-                    case 32:    //Space
-                    case 40:    //Down
-                        _keyboard.cmd = (keydown.ctrlKey ? "extend_down" : "down");
-                        emitKeyboard(_keyboard);
-                        break;
-                    case 38:    //Up
-                        _keyboard.cmd = (keydown.ctrlKey ? "extend_up" : "up");
-                        emitKeyboard(_keyboard);
-                        break;
-                }
-            }
+        //                 if (!_keyboard.started)
+        //                 {
+        //                     if (_keyboard.device === null)
+        //                     {
+        //                         var focusedDevice = _devices.find(function (device) {
+        //                             return (device.registryConfig.length > 0);
+        //                         });
+
+        //                         _keyboard.device = focusedDevice.id;
+        //                     }
+
+        //                     if (_keyboard.device !== null)
+        //                     {
+        //                         _keyboard.active = true;
+        //                         _keyboard.cmd = "start";
+        //                         _keyboard.started = true;
+
+        //                         emitKeyboard(_keyboard);
+        //                     }
+        //                 }
+        //                 else
+        //                 {
+        //                     _keyboard.cmd = "resume";
+        //                     emitKeyboard(_keyboard);
+        //                 }
+        //                 break;
+        //             case 27: // ESC
+        //                 _keyboard.active = false;
+        //                 _keyboard.cmd = null;
+        //                 _keyboard.started = false;
+        //                 emitKeyboard(_keyboard);
+        //                 break;
+        //             case 13: // Enter
+        //                 _keyboard.cmd = "enter";
+        //                 _keyboard.active = false;
+        //                 emitKeyboard(_keyboard);
+        //                 break;
+        //             // case 9:    //Tab
+        //             case 32:    //Space
+        //             case 40:    //Down
+        //                 _keyboard.cmd = (keydown.shiftKey ? "extend_down" : "down");
+        //                 emitKeyboard(_keyboard);
+        //                 break;
+        //             case 38:    //Up
+        //                 _keyboard.cmd = (keydown.shiftKey ? "extend_up" : "up");
+        //                 emitKeyboard(_keyboard);
+        //                 break;
+        //             case 46:    //Delete
+        //                 _keyboard.cmd = "delete";
+        //                 emitKeyboard(_keyboard);
+        //                 break;
+        //         }
+        //     }
             
-            break;
+        //     break;
         case ACTION_TYPES.CONFIGURE_DEVICES:
             _platform = action.platform;
             _devices = [];
@@ -1186,6 +1216,23 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             }
             devicesStore.emitChange();
             break;
+            
+        case ACTION_TYPES.FOCUS_ON_DEVICE:
+            
+            var focusedDevice = devicesStore.getDeviceRef(action.deviceId, action.address);
+
+            if (focusedDevice)
+            {
+                if (_focusedDevice !== focusedDevice.id)
+                {
+                    _focusedDevice = focusedDevice.id
+
+                    devicesStore.emitChange();
+                }
+            }
+
+            break;
+
         case ACTION_TYPES.CONFIGURE_DEVICE:
             _action = "configure_device";
             _view = "Configure Device";
@@ -1233,6 +1280,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             {
                 device.registryConfig = [];
                 device.showPoints = false;
+                device.configuring = false;
             }
 
             devicesStore.emitChange();
@@ -1451,6 +1499,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             {
                 _devices.push({
                     id: deviceIdStr,
+                    name: device.device_name,
                     vendor_id: device.vendor_id,
                     address: device.address,
                     max_apdu_length: device.max_apdu_length,

@@ -18,7 +18,8 @@ var pointsWs, pointsWebsocket;
 class DevicesFound extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpDevicesSocket');
+        this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpDevicesSocket', '_setUpPointsSocket', 
+            '_focusOnDevice');
 
         this.state = {};       
     }
@@ -134,6 +135,8 @@ class DevicesFound extends BaseComponent {
     }
     _configureDevice(device) {
         
+        devicesActionCreators.focusOnDevice(device.id, device.address);
+
         device.showPoints = !device.showPoints;
 
         // Don't set up the socket again if we've already set it up once.
@@ -151,8 +154,13 @@ class DevicesFound extends BaseComponent {
             devicesActionCreators.toggleShowPoints(device);
         }
     }
+    _focusOnDevice(evt) {
+        var deviceId = evt.target.dataset.id;
+        var address = evt.target.dataset.address;
+        devicesActionCreators.focusOnDevice(deviceId, address);
+    }
     _uploadRegistryFile(evt) {
-
+        
         var csvFile = evt.target.files[0];
 
         if (!csvFile)
@@ -236,13 +244,18 @@ class DevicesFound extends BaseComponent {
                     var deviceAddress = device.address;
 
                     var tds = device.items.map(function (d, i) {
-                            return (<td key={d.key + "-" + i} className="plain">{ d.value }</td>)
-                        });
+                            return (<td 
+                                        key={d.key + "-" + i} 
+                                        className="plain"
+                                        data-id={deviceId}
+                                        data-address={deviceAddress}
+                                        onClick={this._focusOnDevice}>{ d.value }</td>)
+                        }, this);
 
                     return (
                         <tr key={deviceId + deviceAddress}>
                             <td key={"config-arrow-" + deviceId + deviceAddress} className="plain">
-                                <div className={ device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow" }
+                                <div className={ device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow" }                                    
                                     onClick={this._configureDevice.bind(this, device)}>
                                         &#9654;
                                 </div>
@@ -258,7 +271,8 @@ class DevicesFound extends BaseComponent {
                                         type="file"
                                         data-id={deviceId}
                                         data-address={deviceAddress}
-                                        onChange={this._uploadRegistryFile}/>
+                                        onChange={this._uploadRegistryFile}
+                                        onFocus={this._focusOnDevice}/>
                                 </div>
                             </td>
                         </tr>

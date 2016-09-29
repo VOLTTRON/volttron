@@ -108,18 +108,18 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
     }.bind(this));
 
 
-    var handleKeyDown = function (keydown) {
+    // var handleKeyDown = function (keydown) {
 
-        if (this.router.isActive('configure-devices'))
-        {
-            if (keydown.target.nodeName !== "INPUT")
-            {
-                devicesActionCreators.handleKeyDown(keydown);    
-            }            
-        }
-    }
+    //     if (this.router.isActive('configure-devices'))
+    //     {
+    //         if (keydown.target.nodeName !== "INPUT")
+    //         {
+    //             devicesActionCreators.handleKeyDown(keydown);    
+    //         }            
+    //     }
+    // }
 
-    document.addEventListener("keydown", handleKeyDown.bind(this));
+    // document.addEventListener("keydown", handleKeyDown.bind(this));
 });
 
 

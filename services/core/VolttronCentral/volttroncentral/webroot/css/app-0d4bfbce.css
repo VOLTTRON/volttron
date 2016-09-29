@@ -2252,7 +2252,7 @@ Interactive Layer
 }
 
 .keyboard-selected {
-    background-color: rgba(102, 153, 187, .1);
+    background-color: rgba(102, 153, 187, .3);
 }
 
 .th-inner {

@@ -55,6 +55,7 @@ module.exports = keyMirror({
     FILTER_ITEMS: null,
 
     CONFIGURE_DEVICES: null,
+    FOCUS_ON_DEVICE: null,
     ADD_DEVICES: null,
     // SCAN_FOR_DEVICES: null,
     LISTEN_FOR_IAMS: null,

@@ -8,7 +8,7 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var devicesStore = require('../stores/devices-store');
 
-
+var registryWs, registryWebsocket;
 class RegistryRow extends BaseComponent {
     constructor(props) {
         super(props);
@@ -22,8 +22,31 @@ class RegistryRow extends BaseComponent {
     componentWillUnmount() {
         
     }
-    componentWillReceiveProps(nextProps) {
+    shouldComponentUpdate(nextProps, nextState) {
+        var doUpdate = false;
 
+        if (objectListsAreDifferent(this.props.attributesList, nextProps.attributesList))
+        {
+            var newState = this._resetState(nextProps);
+
+            this.setState(newState);
+            doUpdate = true;
+        }
+        else
+        {
+            doUpdate = ((this.props.rowIndex !== nextProps.rowIndex) ||
+                (this.props.selectedCell !== nextProps.selectedCell) ||
+                (this.props.selectedCellColumn !== nextProps.selectedCellColumn) ||
+                (this.props.filterOn !== nextProps.filterOn) ||
+                (this.props.keyboardSelected !== nextProps.keyboardSelected))
+        }
+
+        if (!doUpdate)
+        {
+            doUpdate = this.state.attributesList.selected !== nextState.attributesList.selected;
+        }
+
+        return doUpdate;
     }
     _resetState(props) {
         var state = {};
@@ -43,28 +66,16 @@ class RegistryRow extends BaseComponent {
         this.setState({ attributesList: newValues });
     }
     _showProps(attributesList) {
+        
+        devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
+
         modalActionCreators.openModal(
             <EditPointForm 
                 device={this.props.device} 
                 attributes={this.state.attributesList.attributes}/>);
     }
     _selectForDelete() {
-        
-        // var pointsToDelete = this.state.pointsToDelete;
-
-        // var index = pointsToDelete.indexOf(attributesList[0].value);
-
-        // if (index < 0)
-        // {
-        //     pointsToDelete.push(attributesList[0].value);
-        // }
-        // else
-        // {
-        //     pointsToDelete.splice(index, 1);
-        // }
-
-        // this.setState({ pointsToDelete: pointsToDelete });
-
+        devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
         this.setState({selectedForDelete: !this.state.selectedForDelete})
 
     }
@@ -72,42 +83,13 @@ class RegistryRow extends BaseComponent {
 
         if ((evt.target.nodeName !== "INPUT") && (evt.target.nodeName !== "I") && (evt.target.nodeName !== "DIV"))  
         {
-            // var target;
+            devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
 
-            // if (evt.target.nodeName === "TD")
-            // {
-            //     target = evt.target.parentNode;
-            // }
-            // else if (evt.target.parentNode.nodeName === "TD")
-            // {
-            //     target = evt.target.parentNode.parentNode;
-            // }
-            // else
-            // {
-            //     target = evt.target;
-            // }
-
-            this.state.attributesList.selected = true;
-
-            this.setState({attributesList: this.state.attributesList});
-
-            // var rowIndex = target.dataset.row;
-
-            // var pointKey = this.state.registryValues[rowIndex].attributes[0].value;
-            // var selectedPoints = this.state.selectedPoints;
-
-            // var index = selectedPoints.indexOf(pointKey);
-            
-            // if (index > -1)
-            // {
-            //     selectedPoints.splice(index, 1);
-            // }
-            // else
-            // {
-            //     selectedPoints.push(pointKey);
-            // }
-
-            // this.setState({selectedPoints: selectedPoints});
+            if (!this.state.attributesList.selected)
+            {
+                this.state.attributesList.selected = true;
+                this.setState({attributesList: this.state.attributesList});
+            }
         }
     }
     render() {        
@@ -115,12 +97,12 @@ class RegistryRow extends BaseComponent {
         var registryCells = [];
         var rowIndex = this.props.rowIndex;
 
-        this.props.attributesList.attributes.forEach(function (item, columnIndex) {
+        this.state.attributesList.attributes.forEach(function (item, columnIndex) {
 
             if (item.keyProp)
             {
                 var selectedCellStyle = (item.selected ? {backgroundColor: "#F5B49D"} : {});
-                var focusedCell = (this.props.selectedCellColumn === columnIndex && this.state.selectedCell ? "focusedCell" : "");
+                var focusedCell = (this.props.selectedCellColumn === columnIndex && this.props.selectedCell ? "focusedCell" : "");
 
                 var itemCell = (!item.editable ? 
                                     <td key={item.key + "-" + rowIndex + "-" + columnIndex}><label>{ item.value }</label></td> : 
@@ -144,16 +126,6 @@ class RegistryRow extends BaseComponent {
                     <i className="fa fa-ellipsis-h"></i>
                 </div>
             </td>);
-
-        // var selectedRowClass = (this.state.selectedPoints
-        //                                     .indexOf(
-        //                                         this.state.registryValues[rowIndex]   
-        //                                             .attributes[0]
-        //                                             .value) > -1 ? 
-        //                                     "selectedRegistryPoint" : "");
-
-        var selectedRowClasses = (this.state.attributesList.selected ?
-                                    ["selectedRegistryPoint"] : [""]);
 
         var selectedRowClasses = [];
 
@@ -190,6 +162,40 @@ class RegistryRow extends BaseComponent {
     }
 };
 
+
+function objectListsAreDifferent(listA, listB)
+{
+    var diff = false;
+
+    if (listA.length !== listB.length)
+    {
+        diff = true;
+    }
+    else 
+    {
+        for (var i = 0; i < listA.length; i++)
+        {
+            for (var key in listA[i])
+            {
+                if (!listB[i].hasOwnProperty(key))
+                {
+                    diff = true;
+                    break;
+                }
+                else
+                {
+                    if (listA[i][key] !== listB[i][key])
+                    {
+                        diff = true;
+                        break;
+                    }
+                }
+            }    
+        }
+    }
+
+    return diff;
+}
 
 
 function objectIsEmpty(obj)

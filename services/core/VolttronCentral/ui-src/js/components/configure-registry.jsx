@@ -3,6 +3,7 @@
 import React from 'react';
 import BaseComponent from './base-component';
 import EditPointForm from './edit-point-form';
+import PreviewRegistryForm from './preview-registry-form';
 import NewColumnForm from './new-column-form';
 import ConfigDeviceForm from './config-device-form';
 import EditSelectButton from './control_buttons/edit-select-button';
@@ -25,7 +26,8 @@ class ConfigureRegistry extends BaseComponent {
             "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn",
             "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
             "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", 
-            "_cloneColumn", "_onStoresChange" );
+            "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice",
+            "_handleKeyDown" );
 
         this.state = this._resetState(this.props.device);
 
@@ -38,6 +40,11 @@ class ConfigureRegistry extends BaseComponent {
         this.registryTable = document.getElementsByClassName("registryConfigTable")[0];
 
         devicesStore.addChangeListener(this._onStoresChange);
+        document.addEventListener("keydown", this._handleKeyDown);
+    }
+    componentWillUnmount() {
+        devicesStore.removeChangeListener(this._onStoresChange);
+        document.removeEventListener("keydown", this._handleKeyDown);
     }
     componentDidUpdate() {
 
@@ -74,6 +81,107 @@ class ConfigureRegistry extends BaseComponent {
             this.setState(newState);
         }
     }
+    _handleKeyDown (keydown) {
+
+        console.log("Handling keydown");
+        if (keydown.target.nodeName !== "INPUT" && this.state.deviceHasFocus)
+        { 
+            if (this.state.keyboardStarted)
+            {
+                switch (keydown.which)
+                {
+                    case 27: // ESC
+                        this.setState({ keyboardRange: [-1, -1]});
+                        this.setState({ keyboardStarted: false });
+
+                        break;
+                    case 13: // Enter
+
+                        this._fetchExtendedPoints(this.state.keyboardRange);
+
+                        break;
+                    // case 9:    //Tab
+                    case 32:    //Space
+                    case 40:    //Down
+                        keydown.preventDefault();
+                        
+                        if (keydown.shiftKey) // extend down
+                        {
+                            var newIndex = this.state.keyboardRange[1] + 1;
+
+                            if (newIndex < this.state.registryValues.length)
+                            {
+                                // this.setState({ keyboardIndex: newIndex });
+
+                                if (newIndex > this.state.keyboardRange[1])
+                                {
+                                    this.state.keyboardRange[1] = newIndex;
+
+                                    this.setState({ keyboardRange: this.state.keyboardRange});    
+                                }
+                            }
+                        }
+                        else // simple down
+                        {
+                            var newIndex = this.state.keyboardRange[1] + 1;
+
+                            if (newIndex < this.state.registryValues.length)
+                            {
+                                // this.setState({ keyboardIndex: newIndex });
+                                this.setState({ keyboardRange: [newIndex, newIndex]});
+                            }
+                        }
+
+                        break;
+                    case 38:    //Up
+                        keydown.preventDefault();
+                        
+                        if (keydown.shiftKey) // extend up
+                        {
+                            var newIndex = this.state.keyboardRange[0] - 1;
+
+                            if (newIndex > -1)
+                            {
+                                // this.setState({ keyboardIndex: newIndex });
+
+                                if (newIndex < this.state.keyboardRange[0])
+                                {
+                                    this.state.keyboardRange[0] = newIndex;
+
+                                    this.setState({ keyboardRange: this.state.keyboardRange});    
+                                }
+                            }
+
+                        }
+                        else // simple up
+                        {
+                            var newIndex = this.state.keyboardRange[0] - 1;
+
+                            if (newIndex > -1)
+                            {
+                                // this.setState({ keyboardIndex: newIndex });
+                                this.setState({ keyboardRange: [newIndex, newIndex]});
+                            }
+                        }
+
+                        break;
+                    case 46:    //Delete
+                        _keyboard.cmd = "delete";
+
+                        break;
+                }
+            }
+            else if (keydown.which === 17)
+            {
+                this.setState({ keyboardRange: [0, 0]});
+                this.setState({ keyboardStarted: true });
+            }      
+        }
+        else
+        {
+            this.setState({ keyboardRange: [-1, -1] });
+        }
+    }
     _resetState(device){
     
         var state = {};    
@@ -87,7 +195,7 @@ class ConfigureRegistry extends BaseComponent {
         // state.pointNames = [];
         state.filteredList = [];
 
-        state.tableHasFocus = true;
+        state.deviceHasFocus = true;
 
         state.selectedPoints = devicesStore.getSelectedPoints(device);
 
@@ -115,86 +223,83 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onStoresChange () {
 
-        var keyboard = devicesStore.getKeyboard(this.props.device.id);
+        var deviceHasFocus = devicesStore.deviceHasFocus(this.props.device.id);
 
-        if (keyboard && keyboard.active)
-        {                            
-            switch (keyboard.cmd)
-            {
-                case "start":
-                    // this.setState({ keyboardIndex: 0 });
-                    this.setState({ keyboardRange: [0, 0]});
-                    break;
-                case "up":
-                    var newIndex = this.state.keyboardRange[0] - 1;
-
-                    if (newIndex > -1)
-                    {
-                        // this.setState({ keyboardIndex: newIndex });
-                        this.setState({ keyboardRange: [newIndex, newIndex]});
-                    }
-
-                    break;
-                case "down":
-                    var newIndex = this.state.keyboardRange[1] + 1;
-
-                    if (newIndex < this.state.registryValues.length)
-                    {
-                        // this.setState({ keyboardIndex: newIndex });
-                        this.setState({ keyboardRange: [newIndex, newIndex]});
-                    }
-                    
-                    break;
-                case "extend_up":
-                    var newIndex = this.state.keyboardRange[0] - 1;
-
-                    if (newIndex > -1)
-                    {
-                        // this.setState({ keyboardIndex: newIndex });
-
-                        if (newIndex < this.state.keyboardRange[0])
-                        {
-                            this.state.keyboardRange[0] = newIndex;
-
-                            this.setState({ keyboardRange: this.state.keyboardRange});    
-                        }
-                    }
-
-                    break;
-                case "extend_down":
-                    var newIndex = this.state.keyboardRange[1] + 1;
-
-                    if (newIndex < this.state.registryValues.length)
-                    {
-                        // this.setState({ keyboardIndex: newIndex });
-
-                        if (newIndex > this.state.keyboardRange[1])
-                        {
-                            this.state.keyboardRange[1] = newIndex;
-
-                            this.setState({ keyboardRange: this.state.keyboardRange});    
-                        }
-                    }
-
-                    break;
-                case "enter":
-
-                    this._fetchExtendedPoints(this.state.keyboardRange);
-
-                    break;
-                
-            }        
+        if (deviceHasFocus !== this.state.deviceHasFocus)
+        {
+            this.setState({ deviceHasFocus: deviceHasFocus });
         }
-        // else
-        // {
-        //     this.setState({ keyboardRange: [-1, -1] });
-        // }
     }
     _fetchExtendedPoints(keyboardRange) {
 
+        var configRequests = {};
 
+        this.state.registryValues.forEach(function (attributesList) {
 
-    }
+            if (!attributesList.selected)
+            {
+                if (attributesList.virtualIndex >= this.state.keyboardRange[0] && attributesList.virtualIndex <= this.state.keyboardRange[1])
+                {
+                    if (!configRequests.hasOwnProperty(attributesList.bacnetObjectType))
+                    {
+                        configRequests[attributesList.bacnetObjectType] = [];
+                    }
+
+                    configRequests[attributesList.bacnetObjectType].push(attributesList.index);
+
+                    attributesList.selected = true;
+                }
+            }
+
+        }, this);
+
+        this.setState({ registryValues: this.state.registryValues });
+
+        // _setUpRegistrySocket();
+
+        //TODO: hook up onmessage in configure-registry.jsx or in registry-row.jsw
+        // registryWs.send(JSON.stringify(configRequests));
+    }    
+    _setUpRegistrySocket() {
+
+        if (typeof registryWebsocket === "undefined" || registryWebsocket === null)
+        {
+            registryWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
+            if (window.WebSocket) {
+                registryWs = new WebSocket(devicesWebsocket);
+            }
+            else if (window.MozWebSocket) {
+                registryWs = MozWebSocket(devicesWebsocket);
+            }
+
+            registryWS.onmessage = function(evt)
+            {
+                // devicesActionCreators.pointDataReceived(evt.data, this.props.device);
+
+                // var warnings = devicesStore.getWarnings();
+
+                // if (!objectIsEmpty(warnings))
+                // {
+                //     for (var key in warnings)
+                //     {
+                //         var values = warnings[key].items.join(", ");
+
+                //         statusIndicatorActionCreators.openStatusIndicator(
+                //             "error", 
+                //             warnings[key].message + "ID: " + values, 
+                //             values, 
+                //             "left"
+                //         );
+                //     }
+                // }
+
+            }.bind(this);
+        }
+    }   
+    _focusOnDevice() {
+        devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
+        console.log("focused on device");
+    } 
     _onFilterBoxChange(filterValue, column) {
         this.setState({ filterOn: true });
 
@@ -492,9 +597,11 @@ class ConfigureRegistry extends BaseComponent {
             })
         });
 
+        this.setState({ selectedCells: selectedCells });
+
         if (selectedCells.length > 0)
         {
-            this.setState({ selectedCells: selectedCells });
+            // this.setState({ selectedCells: selectedCells });
             this.setState({ selectedCellColumn: column });
 
             //set focus to the first selected cell
@@ -566,51 +673,26 @@ class ConfigureRegistry extends BaseComponent {
             this.setState({ registryValues: this.state.registryValues});
         }
     }
-    // _onReplaceAll(findValue, replaceValue, column) {
-
-    //     // var selectedCellRow, selectedCells;
-
-    //     if (!this.state.selectedCellRow)
-    //     {            
-    //         this._onFindNext(findValue, column);
-    //     }
-    //     else
-    //     {
-    //         selectedCells = this.state.selectedCells;        
-
-    //         selectedCellRow = selectedCells[0];
-
-    //         // var registryValues = this.state.registryValues.slice();
-    //         // var selectedCells = this.state.selectedCells.slice();
-    //         // var selectedCellRow = this.state.selectedCellRow;
-
-    //         selectedCells.forEach((selectedCell) => {
-
-    //             this.state.registryValues[selectedCellRow].attributes[column].value = this.state.registryValues[selectedCellRow].attributes[column].value.replace(findValue, replaceValue);        
-
-    //             if (this.state.registryValues[selectedCellRow].attributes[column].value.indexOf(findValue) < 0)
-    //             {
-    //                 this.state.registryValues[selectedCellRow].attributes[column].selected = false;
-    //             }   
-    //         });
-
-    //         this.setState({ selectedCellRow: null});
-    //         this.setState({ selectedCells: [] });
-    //         this.setState({ selectedCellColumn: null });
-    //         this.setState({ registryValues: this.state.registryValues});
-    //     }
-    // }
     _onReplaceAll(findValue, replaceValue, column) {
         
         // var selectedCellRow = this.state.selectedCells[0];
 
+        var selectedCellsToKeep = [];
+
         this.state.selectedCells.forEach((selectedCell) => {
             var newValue = this.state.registryValues[selectedCell].attributes[column].value.replace(findValue, replaceValue);
-            this.state.registryValues[selectedCell].attributes[column].value = newValue;   
+            this.state.registryValues[selectedCell].attributes[column].value = newValue;  
+
+            if (this.state.registryValues[selectedCell].attributes[column].value.indexOf(findValue) < 0)
+            {
+                this.state.registryValues[selectedCell].attributes[column].selected = false; 
+
+                selectedCellsToKeep.push(selectedCell);
+            }
         });
 
         this.setState({ selectedCellRow: null});
-        this.setState({ selectedCells: [] });
+        this.setState({ selectedCells: selectedCellsToKeep });
         this.setState({ selectedCellColumn: null });
         this.setState({ registryValues: this.state.registryValues});
     }
@@ -618,7 +700,7 @@ class ConfigureRegistry extends BaseComponent {
 
         // var registryValues = this.state.registryValues.slice();
 
-        this.state.selectedCells.map((row) => {
+        this.state.selectedCells.forEach((row) => {
             this.state.registryValues[row].attributes[column].selected = false;
         }, this);
 
@@ -651,7 +733,18 @@ class ConfigureRegistry extends BaseComponent {
     _cancelRegistry() {
         devicesActionCreators.cancelRegistry(this.props.device);
     }
+    _onRegistrySave() {
+        modalActionCreators.openModal(
+            <PreviewRegistryForm 
+                device={this.props.device} 
+                attributes={this.state.registryValues.map(function (row) {
+                    return row.attributes;
+                })}
+                onsaveregistry={this._saveRegistry}>
+            </PreviewRegistryForm>);
+    }
     _saveRegistry() {
+
         devicesActionCreators.saveRegistry(this.props.device, this.state.registryValues.map(function (row) {
             return row.attributes;
         }));
@@ -703,9 +796,17 @@ class ConfigureRegistry extends BaseComponent {
         {            
             registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
 
-                var keyboardSelected = (rowIndex >= this.state.keyboardRange[0] && rowIndex <= this.state.keyboardRange[1]);
+                var virtualRow = attributesList.virtualIndex;
+
+                var keyboardSelected;
+
+                if (this.state.keyboardRange[0] !== -1 && this.state.keyboardRange[1] !== -1)
+                {
+                    keyboardSelected = (virtualRow >= this.state.keyboardRange[0] && virtualRow <= this.state.keyboardRange[1]);
+                }
 
                 return (<RegistryRow 
+                            key={"registryRow-" + attributesList.attributes[0].value}
                             attributesList={attributesList} 
                             rowIndex={rowIndex}
                             device={this.props.device}
@@ -880,7 +981,7 @@ class ConfigureRegistry extends BaseComponent {
                     name="saveConfigButton"
                     tooltip={saveTooltip}
                     fontAwesomeIcon="save"
-                    clickAction={this._saveRegistry}></ControlButton>
+                    clickAction={this._onRegistrySave}></ControlButton>
             );
 
             var cancelTooltip = {
@@ -916,7 +1017,8 @@ class ConfigureRegistry extends BaseComponent {
             
         return (
             <div className={visibilityClass}
-                tabIndex={1}>                
+                tabIndex={1}
+                onFocus={this._focusOnDevice}>
                 <div className="fixed-table-container"> 
                     <div className="header-background"></div>      
                     <div className="fixed-table-container-inner">    
@@ -938,11 +1040,25 @@ class ConfigureRegistry extends BaseComponent {
 
 function getFilteredPoints(registryValues, filterStr, column) {
 
+    var virtualCount = 0;
+
     return registryValues.map(function (row) {
 
         row.visible = (filterStr === "" || (row.attributes[column].value.trim()
                                                 .toUpperCase()
                                                 .indexOf(filterStr.trim().toUpperCase()) > -1));
+
+        if (row.visible)
+        {
+            row.virtualIndex = virtualCount;
+            ++virtualCount;
+        }
+        else
+        {
+            row.virtualIndex = -2;
+        }
+
+        
 
         return row;
     });
@@ -954,12 +1070,30 @@ function getPointsFromStore(device, keyPropsList) {
 
 function initializeList(registryConfig, keyPropsList)
 {
-    return registryConfig.map(function (row) {
+    return registryConfig.map(function (row, rowIndex) {
+
+        var bacnetObjectType, objectIndex;
+
         row.forEach(function (cell) {
             cell.keyProp = (keyPropsList.indexOf(cell.key) > -1); 
+            if (cell.key === "bacnet_object_type")
+            {
+                bacnetObjectType = cell.value;
+            }
+            else if (cell.key === "index")
+            {
+                objectIndex = cell.value;
+            }
         });
 
-        return { visible: true, attributes: row};
+        return { 
+            visible: true, 
+            virtualIndex: rowIndex, 
+            bacnetObjectType: bacnetObjectType, 
+            index: objectIndex,
+            attributes: row,
+            selected: false
+        };
     });
 }
 

@@ -92,6 +92,15 @@ var devicesActionCreators = {
             keydown: keydown
         });
     },
+    focusOnDevice: function (deviceId, address) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.FOCUS_ON_DEVICE,
+            deviceId: deviceId,
+            address: address
+        });
+
+        console.log("focused on device");
+    },
     // listDetectedDevices: function (platform) {
     //     dispatcher.dispatch({
     //         type: ACTION_TYPES.LIST_DETECTED_DEVICES,
