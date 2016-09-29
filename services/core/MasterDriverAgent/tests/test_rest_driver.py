@@ -60,7 +60,6 @@ import gevent
 from gevent import pywsgi
 import os
 import json
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 driver_config_dict_string = """{
     "driver_config": {"device_address": "http://127.0.0.1:8080"},
