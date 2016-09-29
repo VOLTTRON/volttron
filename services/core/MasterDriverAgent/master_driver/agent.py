@@ -166,18 +166,6 @@ class MasterDriverAgent(Agent):
         self.vip.config.subscribe(self.remove_driver, actions="DELETE", pattern="devices/*")
         
 
-    def starting(self, sender, **kwargs):
-        start_delay = None
-        if self.staggered_start is not None:
-            start_delay = self.staggered_start / float(len(self.driver_config_list))
-        for config_name in self.driver_config_list:
-            _log.debug("Launching driver for config "+config_name)
-            driver = DriverAgent(self, config_name)
-            gevent.spawn(driver.core.run)   
-            if start_delay is not None:
-                gevent.sleep(start_delay)
-            #driver.core.stop to kill an agent.
-
     def configure_main(self, config_name, action, contents):
         config = self.default_config.copy()
         config.update(contents)
