@@ -2,12 +2,16 @@ import gevent
 from volttron.platform.vip.agent import Agent
 from volttron.platform import get_address
 from volttron.platform.agent.utils import parse_json_config
+from volttron.platform.keystore import KeyStore
 from argparse import ArgumentParser
 from zmq.utils import jsonapi
 
 from pprint import pprint
 
-agent = Agent(address=get_address(), identity="master_driver_update_agent", enable_store=False)
+keystore = KeyStore()
+agent = Agent(address=get_address(), identity="master_driver_update_agent",
+        publickey=keystore.public(), secretkey=keystore.secret(),
+        enable_store=False)
 
 event = gevent.event.Event()
 gevent.spawn(agent.core.run, event)
