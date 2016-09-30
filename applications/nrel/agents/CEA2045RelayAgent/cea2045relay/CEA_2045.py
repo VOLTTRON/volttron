@@ -11,6 +11,8 @@ import sys
 import serial
 import initialization_scripts
 
+import hexdump
+
 def msg_decode(msg):
     '''Decode a hex message to dict'''
     # Initialize dictionary
@@ -37,6 +39,13 @@ def msg_decode(msg):
         msg_dict['opcode2'] = msg[10:12]
         msg_dict['checksum'] = msg[12:16]
         time_sleep = 0.1
+    if len(msg)>=44: #Commodity read's response message
+        msg_dict['opcode1'] = msg[8:10]
+        msg_dict['opcode2'] = msg[10:12]
+        msg_dict['checksum'] = msg[40:44]
+        msg_dict['instantenous'] = msg[16:28]
+        msg_dict['cumulative']=msg[28:40]
+
     msg_dict['size'] = len(msg)
     return msg_dict, time_sleep
 
@@ -49,6 +58,13 @@ def switch_query_response(opcode2):
         '03': "Running Heightened Grid",
         '04': "Idle Grid",
         '05': "SGD Error Condition",
+        '06': "Idle Heightned",
+        '07': "Cycling On",
+        '08': "Cycling Off",
+        '09': "Variable Following",
+        '0a': "Variable Not Following",
+        '0b': "Idle Opted Out",
+        '0c': "Running Opted Out"
         }
     return switcher.get(opcode2, "Nothing")
 
@@ -73,10 +89,10 @@ def encode_checksum(msg):
     msb = 255 - (check1 + check2)%255
     lsb = 255 - (check1 + msb)%255
     send_str = send_str + "\\" + str(hex(msb)) + "\\" + str(hex(lsb))
+    print send_str
     return send_str
 
 ## Decode checksum
-# msg = "080100021200D85F"
 def decode_checksum(msg):
     '''
         decode checksum and Check if the message has been tampered
@@ -147,7 +163,7 @@ class CEA2045Interface(object):
             'comm_status_good': "\x08\x01\x00\x02\x0E\x01\xE2\x58",
             'query_supported_msg_basic_dr': "\x08\x01\x00\x00\x7E\xCD",
             'query_supported_msg_intermediate_dr': "\x08\x02\x00\x00\x7A\xD0",
-            'send_max_payload_length': "\x08\x03\x00\x02\x19\x07\xA9\x7E",
+            'send_max_payload_length': "\x08\x03\x00\x02\x19\x23\xA9\x7E",
             'customer_override_ack': "\x08\x01\x00\x02\x03\x11\xE3\x52",
             'critical_peak_event': "\x08\x01\x00\x02\x0A\x00\xF0\x4F",
             'load_up': "\x08\x01\x00\x02\x17\x00\xC9\x69",
@@ -155,7 +171,10 @@ class CEA2045Interface(object):
             'link_nak_checksum_error' : "\x15\x03",
             'link_nak_message_timeout' : "\x15\x05",
             'comm_status_poor' : "\x08\x01\x00\x02\x0E\x02\xE0\x59",
-            'comm_status_lost' : "\x08\x01\x00\x02\x0E\x02\xE4\x57"
+            'comm_status_lost' : "\x08\x01\x00\x02\x0E\x02\xE4\x57",
+            'power_level' : "0801000206",
+            'query_power' : "\x08\x02\x00\x02\x06\x00\xF6\x4C"
+
         }
         self.special_sleep_time = {'comm_status_good': 0.04}
 
@@ -170,8 +189,6 @@ class CEA2045Interface(object):
         # You can implement other initialization functions based on your
         #  appliance and add it to initialization_scripts.py
 
-
-
     def recv_msg(self):
         '''Receive a message one byte at a time while there are bytes waiting.
         Converts the message to a dict.
@@ -181,15 +198,16 @@ class CEA2045Interface(object):
         msg_dict = ''
         while self.ser.inWaiting() > 0:
             msg += self.ser.read(1).encode('hex')
-        # print msg
+
         if msg != '':  # Done reading the message
             if decode_checksum(msg) == 0:
                 pass
-                # print "valid message"
             msg_dict, time_sleep = msg_decode(msg)
             time.sleep(time_sleep)
             return msg_dict
 
+    def set_power_level(self,msg):
+        self.power_level = str(msg)
 
     def send_msg(self, msg_option):
         '''Send one of the hard-coded messages and sleep for message required time
@@ -197,13 +215,14 @@ class CEA2045Interface(object):
         Args: msg_option - String that must be key in allowed_send_messages
         '''
 
-        if msg_option in self.allowed_send_messages:
+        if msg_option == 'power_level':
+            encoded_message  = encode_checksum((self.allowed_send_messages[msg_option]+self.power_level))
+            msg_send = self.allowed_send_messages[msg_option]+self.power_level+encoded_message[28:30]+encoded_message[33:]
+            self.ser.write(msg_send.decode('hex'))
+        elif msg_option in self.allowed_send_messages:
             self.ser.write(self.allowed_send_messages[msg_option])
-            # print "send " + self.allowed_send_messages[msg_option].encode('hex')
         else:
-            message_to_send = str(encode_checksum(msg_option))
-            self.ser.write(message_to_send.encode('hex'))
-            # print "send" + message_to_send
+            self.ser.write(msg_option.decode('hex'))
         if msg_option in self.special_sleep_time:
             time.sleep(self.special_sleep_time[msg_option])
         elif msg_option in self.allowed_send_messages:
@@ -226,7 +245,9 @@ class FakeSerial(object):
     def initialize(self, device_type):
         '''initialize the API_test device'''
         print "Initializtion called for virtual device."
-        # return 0
+
+
+
 
     def send_msg(self,msg):
         '''Append the message to the write list, update the read list
@@ -259,7 +280,6 @@ class FakeSerial(object):
             self.status_push = "\x08\x01\x00\x02\x13\x04\xCD\x65"
         elif msg == 'link_ack':
             pass
-            # print "link_ack"
         else:
             # # print "Not a recognized message; Ignoring"
             # self.read_list.append("\x15\x03")
