@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,7 +78,7 @@ from ..messaging import topics
 __all__ = ['periodic', 'BaseAgent', 'PublishMixin']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
-__copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
+__copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 min_compatible_version = '1'
 max_compatible_version = '2'
