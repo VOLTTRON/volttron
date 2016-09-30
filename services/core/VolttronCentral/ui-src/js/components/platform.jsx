@@ -9,7 +9,6 @@ var statusIndicatorActionCreators = require('../action-creators/status-indicator
 var platformsStore = require('../stores/platforms-store');
 
 var Platform = React.createClass({
-    mixins: [Router.State],
     getInitialState: function () {
         return getStateFromStores(this);
     },

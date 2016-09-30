@@ -9,6 +9,7 @@ import ConfigDeviceForm from './config-device-form';
 import EditSelectButton from './control_buttons/edit-select-button';
 import EditColumnButton from './control_buttons/edit-columns-button';
 import RegistryRow from './registry-row';
+import Immutable from 'immutable';
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var devicesStore = require('../stores/devices-store');
@@ -104,7 +105,7 @@ class ConfigureRegistry extends BaseComponent {
                     case 32:    //Space
                     case 40:    //Down
                         keydown.preventDefault();
-                        
+
                         if (keydown.shiftKey) // extend down
                         {
                             var newIndex = this.state.keyboardRange[1] + 1;
@@ -135,7 +136,7 @@ class ConfigureRegistry extends BaseComponent {
                         break;
                     case 38:    //Up
                         keydown.preventDefault();
-                        
+
                         if (keydown.shiftKey) // extend up
                         {
                             var newIndex = this.state.keyboardRange[0] - 1;
@@ -201,7 +202,7 @@ class ConfigureRegistry extends BaseComponent {
 
         if (state.registryValues.length > 0)
         {
-            state.columnNames = state.registryValues[0].attributes.map(function (columns) {
+            state.columnNames = state.registryValues[0].get("attributes").map(function (columns) {
                 return columns.key;
             });
         }
@@ -234,26 +235,28 @@ class ConfigureRegistry extends BaseComponent {
 
         var configRequests = {};
 
-        this.state.registryValues.forEach(function (attributesList) {
+        var registryValues = this.state.registryValues.map(function (attributesList) {
 
-            if (!attributesList.selected)
+            if (!attributesList.get("selected"))
             {
-                if (attributesList.virtualIndex >= this.state.keyboardRange[0] && attributesList.virtualIndex <= this.state.keyboardRange[1])
+                if (attributesList.get("virtualIndex") >= this.state.keyboardRange[0] && attributesList.get("virtualIndex") <= this.state.keyboardRange[1])
                 {
-                    if (!configRequests.hasOwnProperty(attributesList.bacnetObjectType))
+                    if (!configRequests.hasOwnProperty(attributesList.get("bacnetObjectType")))
                     {
-                        configRequests[attributesList.bacnetObjectType] = [];
+                        configRequests[attributesList.get("bacnetObjectType")] = [];
                     }
 
-                    configRequests[attributesList.bacnetObjectType].push(attributesList.index);
+                    configRequests[attributesList.get("bacnetObjectType")].push(attributesList.get("index"));
 
-                    attributesList.selected = true;
+                    attributesList = attributesList.set("selected", true);
                 }
             }
 
+            return attributesList;
+
         }, this);
 
-        this.setState({ registryValues: this.state.registryValues });
+        this.setState({ registryValues: registryValues });
 
         // _setUpRegistrySocket();
 
@@ -318,7 +321,7 @@ class ConfigureRegistry extends BaseComponent {
 
         var pointValues = [];
 
-        this.state.registryValues[0].attributes.forEach(function (attribute) {
+        this.state.registryValues[0].get("attributes").forEach(function (attribute) {
             pointValues.push({ 
                 "key" : attribute.key, 
                 "label": attribute.label,
@@ -562,21 +565,6 @@ class ConfigureRegistry extends BaseComponent {
         modalActionCreators.closeModal();
 
     }
-    // _showProps(attributesList) {
-    //     modalActionCreators.openModal(<EditPointForm 
-    //         device={this.props.device} 
-    //         selectedPoints={this.state.selectedPoints}
-    //         attributes={attributesList}/>);
-    // }
-    // _updateCell(row, column, e) {
-
-    //     var currentTarget = e.currentTarget;
-    //     var newRegistryValues = JSON.parse(JSON.stringify(this.state.registryValues));
-
-    //     newRegistryValues[row].attributes[column].value = currentTarget.value;
-
-    //     this.setState({ registryValues: newRegistryValues });
-    // }
     _removeFocus() {
         this.setState({ selectedCellRow: null});
     }
@@ -750,44 +738,6 @@ class ConfigureRegistry extends BaseComponent {
         }));
         modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device}/>);
     }
-    // _handleRowClick(evt){
-
-    //     if ((evt.target.nodeName !== "INPUT") && (evt.target.nodeName !== "I") && (evt.target.nodeName !== "DIV"))  
-    //     {
-    //         var target;
-
-    //         if (evt.target.nodeName === "TD")
-    //         {
-    //             target = evt.target.parentNode;
-    //         }
-    //         else if (evt.target.parentNode.nodeName === "TD")
-    //         {
-    //             target = evt.target.parentNode.parentNode;
-    //         }
-    //         else
-    //         {
-    //             target = evt.target;
-    //         }
-
-    //         var rowIndex = target.dataset.row;
-
-    //         var pointKey = this.state.registryValues[rowIndex].attributes[0].value;
-    //         var selectedPoints = this.state.selectedPoints;
-
-    //         var index = selectedPoints.indexOf(pointKey);
-            
-    //         if (index > -1)
-    //         {
-    //             selectedPoints.splice(index, 1);
-    //         }
-    //         else
-    //         {
-    //             selectedPoints.push(pointKey);
-    //         }
-
-    //         this.setState({selectedPoints: selectedPoints});
-    //     }
-    // }
     render() {        
         
         var registryRows, registryHeader, registryButtons;
@@ -796,7 +746,7 @@ class ConfigureRegistry extends BaseComponent {
         {            
             registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
 
-                var virtualRow = attributesList.virtualIndex;
+                var virtualRow = attributesList.get("virtualIndex");
 
                 var keyboardSelected;
 
@@ -805,15 +755,21 @@ class ConfigureRegistry extends BaseComponent {
                     keyboardSelected = (virtualRow >= this.state.keyboardRange[0] && virtualRow <= this.state.keyboardRange[1]);
                 }
 
+                var immutableProps = Immutable.fromJS({
+                    rowIndex: rowIndex,
+                    deviceId: this.props.device.id,
+                    deviceAddress: this.props.device.address,
+                    deviceName: this.props.device.name,
+                    selectedCell: (this.state.selectedCellRow === rowIndex),
+                    selectedCellColumn: this.state.selectedCellColumn,
+                    filterOn: this.state.filterOn,
+                    keyboardSelected: keyboardSelected
+                });
+
                 return (<RegistryRow 
-                            key={"registryRow-" + attributesList.attributes[0].value}
+                            key={"registryRow-" + attributesList.get("attributes").get(0).value}
                             attributesList={attributesList} 
-                            rowIndex={rowIndex}
-                            device={this.props.device}
-                            selectedCell={this.state.selectedCellRow === rowIndex}
-                            selectedCellColumn={this.state.selectedCellColumn}
-                            filterOn={this.state.filterOn}
-                            keyboardSelected={keyboardSelected}/>);
+                            immutableProps={immutableProps}/>);
                 
             }, this);
 
@@ -821,7 +777,7 @@ class ConfigureRegistry extends BaseComponent {
             var headerColumns = [];
             var tableIndex = 0;
 
-            this.state.registryValues[0].attributes.forEach(function (item, index) {
+            this.state.registryValues[0].get("attributes").forEach(function (item, index) {
             
                 if (item.keyProp)
                 {
@@ -1086,14 +1042,14 @@ function initializeList(registryConfig, keyPropsList)
             }
         });
 
-        return { 
+        return Immutable.fromJS({ 
             visible: true, 
             virtualIndex: rowIndex, 
             bacnetObjectType: bacnetObjectType, 
             index: objectIndex,
             attributes: row,
             selected: false
-        };
+        });
     });
 }
 

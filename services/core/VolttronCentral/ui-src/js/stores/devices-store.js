@@ -4,6 +4,7 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
+var Immutable = require("immutable");
 
 var devicesStore = new Store();
 
@@ -16,6 +17,32 @@ var _registryFiles = {};
 var _backupFileName = {};
 var _platform;
 var _devices = [];
+// var Device = Immutable.Record({
+//     id: undefined,
+//     name: undefined,
+//     vendor_id: undefined,
+//     address: undefined,
+//     max_apdu_length: undefined,
+//     segmentation_supported: undefined,
+//     showPoints: undefined,
+//     configuring: undefined,
+//     platformUuid: undefined,
+//     bacnetProxyUuid: undefined,
+//     registryConfig: [],
+//     keyProps: ["volttron_point_name", "units", "writable"],
+//     selectedPoints: [],
+//     items: [ 
+//         { key: "address", label: "Address", value: undefined },  
+//         { key: "deviceName", label: "Name", value: undefined },  
+//         { key: "deviceDescription", label: "Description", value: undefined }, 
+//         { key: "deviceId", label: "Device ID", value: undefined }, 
+//         { key: "vendorId", label: "Vendor ID", value: undefined }, 
+//         { key: "vendor", label: "Vendor", value: undefined },
+//         { key: "type", label: "Type", value: "BACnet" }
+//     ]
+// });
+
+
 var _newScan = false;
 var _warnings = {};
 var _keyboard = {
@@ -26,7 +53,7 @@ var _keyboard = {
 };
 var _focusedDevice = null;
 
-var _placeHolders = [ [
+var _placeHolders = Immutable.List([ [
     {"key": "Point_Name", "value": "", "editable": true},
     {"key": "Volttron_Point_Name", "value": ""},
     {"key": "Units", "value": ""},
@@ -35,7 +62,7 @@ var _placeHolders = [ [
     {"key": "Starting_Value", "value": "" },
     {"key": "Type", "value": "" },
     {"key": "Notes", "value": "" }
-] ];
+] ]);
 
 var vendorTable = {
     "0": "ASHRAE",
@@ -988,12 +1015,12 @@ devicesStore.getRegistryValues = function (device) {
     {
         if (device.registryConfig.length)
         {
-            config = JSON.parse(JSON.stringify(device.registryConfig));
+            config = device.registryConfig;
         }
     }
     else
     {
-        config = JSON.parse(JSON.stringify(_placeHolders));
+        config = _placeHolders;
     }
     
     return config;    
@@ -1308,7 +1335,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.UPDATE_REGISTRY:
             _action = "update_registry";
             _view = "Registry Configuration";
-            _device = action.device;
+            // _device = action.device;
             // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
             // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
             // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
@@ -1316,12 +1343,12 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             var i = -1;
             var keyProps = [];
 
-            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 
             if (device)
             {
                 var attributes = device.registryConfig.find(function (attributes, index) {
-                    var match = (attributes[0].value === action.attributes[0].value );
+                    var match = (attributes.get(0).value === action.attributes.get(0).value);
 
                     if (match)
                     {
@@ -1342,11 +1369,11 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
                 if (typeof attributes !== "undefined")
                 {                
-                    device.registryConfig[i] = JSON.parse(JSON.stringify(action.attributes));                    
+                    device.registryConfig[i] = action.attributes;                    
                 }
                 else
                 {
-                    device.registryConfig.push(JSON.parse(JSON.stringify(action.attributes)));
+                    device.registryConfig = device.registryConfig.push(action.attributes);
                 }
 
                 device.selectedPoints = action.selectedPoints;
@@ -1371,7 +1398,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             if (device)
             {
-                device.registryConfig = JSON.parse(JSON.stringify(action.data));
+                device.registryConfig = action.data;
                 device.showPoints = false;
             }
 
@@ -1453,7 +1480,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                         newPoint.push(cell);
                     }
 
-                    device.registryConfig.push(newPoint);
+                    device.registryConfig.push(Immutable.List(newPoint));
                 }
             }
         }
@@ -1511,7 +1538,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     registryConfig: [],
                     keyProps: ["volttron_point_name", "units", "writable"],
                     selectedPoints: [],
-                    items: [ 
+                    items: [
                         { key: "address", label: "Address", value: device.address },  
                         { key: "deviceName", label: "Name", value: device.device_name },  
                         { key: "deviceDescription", label: "Description", value: device.device_description }, 

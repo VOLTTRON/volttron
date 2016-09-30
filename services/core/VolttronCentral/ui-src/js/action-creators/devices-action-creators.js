@@ -178,10 +178,11 @@ var devicesActionCreators = {
             device: device
         });
     },
-    updateRegistry: function (device, selectedPoints, attributes) {
+    updateRegistry: function (deviceId, deviceAddress, selectedPoints, attributes) {
         dispatcher.dispatch({
             type: ACTION_TYPES.UPDATE_REGISTRY,
-            device: device,
+            deviceId: deviceId,
+            deviceAddress: deviceAddress,
             selectedPoints: selectedPoints,
             attributes: attributes
         });

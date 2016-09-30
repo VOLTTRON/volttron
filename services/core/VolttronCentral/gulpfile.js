@@ -77,6 +77,7 @@ function vendor() {
             'jquery/dist/jquery.min',
             'moment/min/moment.min.js',
             'node-uuid',
+            'react-addons-pure-render-mixin',
             'react-click-outside',
             'nvd3/build/nv.d3.min',
             'keymirror',
@@ -84,6 +85,7 @@ function vendor() {
             'react-dom/dist/react-dom',
             'react-router/umd/ReactRouter',
             'history/umd/history',
+            'immutable/dist/immutable',
         ],
     })
         .require([
@@ -95,6 +97,7 @@ function vendor() {
             { file: 'jquery/dist/jquery.min', expose: 'jquery' },
             { file: 'moment/min/moment.min.js', expose: 'moment' },
             'node-uuid',
+            'react-addons-pure-render-mixin',
             'react-click-outside',
             { file: 'nvd3/build/nv.d3.min', expose: 'nvd3' },
             'keymirror',
@@ -102,6 +105,7 @@ function vendor() {
             { file: 'react-dom/dist/react-dom', expose: 'react-dom' },
             { file: 'react-router/umd/ReactRouter', expose: 'react-router' },
             { file: 'history/umd/history', expose: 'history' },
+            { file: 'immutable/dist/immutable', expose: 'immutable' },
         ])
         .transform(function (file) {
             if (file.match('/d3/d3.')) {

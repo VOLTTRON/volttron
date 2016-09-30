@@ -51,40 +51,26 @@ class PreviewRegistryForm extends BaseComponent {
 
             var attributes = [];
 
+            var headerRow = [];
+
             this.props.attributes[0].forEach(function (item, index) {
+                headerRow.push(item.label);
+            });
 
-                attributes.push(
-                    <span key={item.key + "-header-" + index}>
-                        {item.label}
-                    </span>
-                );
-
-                if (index < this.props.attributes[0].length -1)
-                {
-                    attributes.push(<span key={"comma-header-" + index}>,</span>)
-                }
-
-            }, this);
-
+            attributes.push(<span key={"header-" + this.props.device.id}>{headerRow.join()}</span>);
             attributes.push(<br key={"br-header-" + this.props.device.id}/>)
 
             this.props.attributes.forEach(function (attributeRow, rowIndex) {
 
+                var newRow = [];
+
                 attributeRow.forEach(function (columnCell, columnIndex) {
-
-                    attributes.push(
-                            <span key={columnCell.key + "-cell-" + rowIndex + "-" + columnIndex}>
-                                {columnCell.value}
-                            </span>);
-
-                    if (columnIndex < attributeRow.length -1)
-                    {
-                        attributes.push(<span key={"comma-" + rowIndex + "-" + columnIndex}>,</span>)
-                    }
+                    newRow.push(columnCell.value);
                 });
 
-                attributes.push(<br key={"br-" + rowIndex}/>);
-            });
+                attributes.push(<span key={"row-" + rowIndex + "-" + this.props.device.id}>{newRow.join()}</span>);
+                attributes.push(<br key={"br-" + rowIndex + "-" + this.props.device.id}/>);
+            }, this);
 
             content = (<div>
                             {attributes}

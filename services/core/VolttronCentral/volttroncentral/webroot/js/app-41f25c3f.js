@@ -374,10 +374,11 @@ var devicesActionCreators = {
             device: device
         });
     },
-    updateRegistry: function updateRegistry(device, selectedPoints, attributes) {
+    updateRegistry: function updateRegistry(deviceId, deviceAddress, selectedPoints, attributes) {
         dispatcher.dispatch({
             type: ACTION_TYPES.UPDATE_REGISTRY,
-            device: device,
+            deviceId: deviceId,
+            deviceAddress: deviceAddress,
             selectedPoints: selectedPoints,
             attributes: attributes
         });
@@ -2838,6 +2839,10 @@ var _registryRow = require('./registry-row');
 
 var _registryRow2 = _interopRequireDefault(_registryRow);
 
+var _immutable = require('immutable');
+
+var _immutable2 = _interopRequireDefault(_immutable);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -3034,7 +3039,7 @@ var ConfigureRegistry = function (_BaseComponent) {
             state.selectedPoints = devicesStore.getSelectedPoints(device);
 
             if (state.registryValues.length > 0) {
-                state.columnNames = state.registryValues[0].attributes.map(function (columns) {
+                state.columnNames = state.registryValues[0].get("attributes").map(function (columns) {
                     return columns.key;
                 });
             }
@@ -3070,22 +3075,24 @@ var ConfigureRegistry = function (_BaseComponent) {
 
             var configRequests = {};
 
-            this.state.registryValues.forEach(function (attributesList) {
+            var registryValues = this.state.registryValues.map(function (attributesList) {
 
-                if (!attributesList.selected) {
-                    if (attributesList.virtualIndex >= this.state.keyboardRange[0] && attributesList.virtualIndex <= this.state.keyboardRange[1]) {
-                        if (!configRequests.hasOwnProperty(attributesList.bacnetObjectType)) {
-                            configRequests[attributesList.bacnetObjectType] = [];
+                if (!attributesList.get("selected")) {
+                    if (attributesList.get("virtualIndex") >= this.state.keyboardRange[0] && attributesList.get("virtualIndex") <= this.state.keyboardRange[1]) {
+                        if (!configRequests.hasOwnProperty(attributesList.get("bacnetObjectType"))) {
+                            configRequests[attributesList.get("bacnetObjectType")] = [];
                         }
 
-                        configRequests[attributesList.bacnetObjectType].push(attributesList.index);
+                        configRequests[attributesList.get("bacnetObjectType")].push(attributesList.get("index"));
 
-                        attributesList.selected = true;
+                        attributesList = attributesList.set("selected", true);
                     }
                 }
+
+                return attributesList;
             }, this);
 
-            this.setState({ registryValues: this.state.registryValues });
+            this.setState({ registryValues: registryValues });
 
             // _setUpRegistrySocket();
 
@@ -3153,7 +3160,7 @@ var ConfigureRegistry = function (_BaseComponent) {
 
             var pointValues = [];
 
-            this.state.registryValues[0].attributes.forEach(function (attribute) {
+            this.state.registryValues[0].get("attributes").forEach(function (attribute) {
                 pointValues.push({
                     "key": attribute.key,
                     "label": attribute.label,
@@ -3396,22 +3403,6 @@ var ConfigureRegistry = function (_BaseComponent) {
 
             modalActionCreators.closeModal();
         }
-        // _showProps(attributesList) {
-        //     modalActionCreators.openModal(<EditPointForm 
-        //         device={this.props.device} 
-        //         selectedPoints={this.state.selectedPoints}
-        //         attributes={attributesList}/>);
-        // }
-        // _updateCell(row, column, e) {
-
-        //     var currentTarget = e.currentTarget;
-        //     var newRegistryValues = JSON.parse(JSON.stringify(this.state.registryValues));
-
-        //     newRegistryValues[row].attributes[column].value = currentTarget.value;
-
-        //     this.setState({ registryValues: newRegistryValues });
-        // }
-
     }, {
         key: '_removeFocus',
         value: function _removeFocus() {
@@ -3586,45 +3577,6 @@ var ConfigureRegistry = function (_BaseComponent) {
             }));
             modalActionCreators.openModal(_react2.default.createElement(_configDeviceForm2.default, { device: this.props.device }));
         }
-        // _handleRowClick(evt){
-
-        //     if ((evt.target.nodeName !== "INPUT") && (evt.target.nodeName !== "I") && (evt.target.nodeName !== "DIV"))  
-        //     {
-        //         var target;
-
-        //         if (evt.target.nodeName === "TD")
-        //         {
-        //             target = evt.target.parentNode;
-        //         }
-        //         else if (evt.target.parentNode.nodeName === "TD")
-        //         {
-        //             target = evt.target.parentNode.parentNode;
-        //         }
-        //         else
-        //         {
-        //             target = evt.target;
-        //         }
-
-        //         var rowIndex = target.dataset.row;
-
-        //         var pointKey = this.state.registryValues[rowIndex].attributes[0].value;
-        //         var selectedPoints = this.state.selectedPoints;
-
-        //         var index = selectedPoints.indexOf(pointKey);
-
-        //         if (index > -1)
-        //         {
-        //             selectedPoints.splice(index, 1);
-        //         }
-        //         else
-        //         {
-        //             selectedPoints.push(pointKey);
-        //         }
-
-        //         this.setState({selectedPoints: selectedPoints});
-        //     }
-        // }
-
     }, {
         key: 'render',
         value: function render() {
@@ -3634,7 +3586,7 @@ var ConfigureRegistry = function (_BaseComponent) {
             if (this.state.registryValues.length) {
                 registryRows = this.state.registryValues.map(function (attributesList, rowIndex) {
 
-                    var virtualRow = attributesList.virtualIndex;
+                    var virtualRow = attributesList.get("virtualIndex");
 
                     var keyboardSelected;
 
@@ -3642,21 +3594,27 @@ var ConfigureRegistry = function (_BaseComponent) {
                         keyboardSelected = virtualRow >= this.state.keyboardRange[0] && virtualRow <= this.state.keyboardRange[1];
                     }
 
-                    return _react2.default.createElement(_registryRow2.default, {
-                        key: "registryRow-" + attributesList.attributes[0].value,
-                        attributesList: attributesList,
+                    var immutableProps = _immutable2.default.fromJS({
                         rowIndex: rowIndex,
-                        device: this.props.device,
+                        deviceId: this.props.device.id,
+                        deviceAddress: this.props.device.address,
+                        deviceName: this.props.device.name,
                         selectedCell: this.state.selectedCellRow === rowIndex,
                         selectedCellColumn: this.state.selectedCellColumn,
                         filterOn: this.state.filterOn,
-                        keyboardSelected: keyboardSelected });
+                        keyboardSelected: keyboardSelected
+                    });
+
+                    return _react2.default.createElement(_registryRow2.default, {
+                        key: "registryRow-" + attributesList.get("attributes").get(0).value,
+                        attributesList: attributesList,
+                        immutableProps: immutableProps });
                 }, this);
 
                 var headerColumns = [];
                 var tableIndex = 0;
 
-                this.state.registryValues[0].attributes.forEach(function (item, index) {
+                this.state.registryValues[0].get("attributes").forEach(function (item, index) {
 
                     if (item.keyProp) {
                         var editSelectButton = _react2.default.createElement(_editSelectButton2.default, {
@@ -3936,20 +3894,20 @@ function initializeList(registryConfig, keyPropsList) {
             }
         });
 
-        return {
+        return _immutable2.default.fromJS({
             visible: true,
             virtualIndex: rowIndex,
             bacnetObjectType: bacnetObjectType,
             index: objectIndex,
             attributes: row,
             selected: false
-        };
+        });
     });
 }
 
 exports.default = ConfigureRegistry;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":60,"./base-component":12,"./config-device-form":15,"./confirm-form":18,"./control-button":20,"./control_buttons/edit-columns-button":21,"./control_buttons/edit-select-button":22,"./control_buttons/filter-points-button":23,"./edit-point-form":28,"./new-column-form":34,"./preview-registry-form":43,"./registry-row":45,"react":undefined}],18:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":60,"./base-component":12,"./config-device-form":15,"./confirm-form":18,"./control-button":20,"./control_buttons/edit-columns-button":21,"./control_buttons/edit-select-button":22,"./control_buttons/filter-points-button":23,"./edit-point-form":28,"./new-column-form":34,"./preview-registry-form":43,"./registry-row":45,"immutable":undefined,"react":undefined}],18:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5554,7 +5512,7 @@ var EditPointForm = function (_BaseComponent) {
         key: '_onSubmit',
         value: function _onSubmit(e) {
             e.preventDefault();
-            devicesActionCreators.updateRegistry(this.props.device, this.props.selectedPoints, this.state.attributes);
+            devicesActionCreators.updateRegistry(this.props.deviceId, this.props.deviceAddress, this.props.selectedPoints, this.state.attributes);
             modalActionCreators.closeModal();
         }
     }, {
@@ -5603,7 +5561,7 @@ var EditPointForm = function (_BaseComponent) {
                 _react2.default.createElement(
                     'h1',
                     null,
-                    attributes[0].value
+                    attributes.get(0).value
                 ),
                 _react2.default.createElement(
                     'table',
@@ -7418,7 +7376,6 @@ var platformsStore = require('../stores/platforms-store');
 var Platform = React.createClass({
     displayName: 'Platform',
 
-    mixins: [Router.State],
     getInitialState: function getInitialState() {
         return getStateFromStores(this);
     },
@@ -8549,46 +8506,34 @@ var PreviewRegistryForm = function (_BaseComponent) {
 
                 var attributes = [];
 
+                var headerRow = [];
+
                 this.props.attributes[0].forEach(function (item, index) {
+                    headerRow.push(item.label);
+                });
 
-                    attributes.push(_react2.default.createElement(
-                        'span',
-                        { key: item.key + "-header-" + index },
-                        item.label
-                    ));
-
-                    if (index < this.props.attributes[0].length - 1) {
-                        attributes.push(_react2.default.createElement(
-                            'span',
-                            { key: "comma-header-" + index },
-                            ','
-                        ));
-                    }
-                }, this);
-
+                attributes.push(_react2.default.createElement(
+                    'span',
+                    { key: "header-" + this.props.device.id },
+                    headerRow.join()
+                ));
                 attributes.push(_react2.default.createElement('br', { key: "br-header-" + this.props.device.id }));
 
                 this.props.attributes.forEach(function (attributeRow, rowIndex) {
 
+                    var newRow = [];
+
                     attributeRow.forEach(function (columnCell, columnIndex) {
-
-                        attributes.push(_react2.default.createElement(
-                            'span',
-                            { key: columnCell.key + "-cell-" + rowIndex + "-" + columnIndex },
-                            columnCell.value
-                        ));
-
-                        if (columnIndex < attributeRow.length - 1) {
-                            attributes.push(_react2.default.createElement(
-                                'span',
-                                { key: "comma-" + rowIndex + "-" + columnIndex },
-                                ','
-                            ));
-                        }
+                        newRow.push(columnCell.value);
                     });
 
-                    attributes.push(_react2.default.createElement('br', { key: "br-" + rowIndex }));
-                });
+                    attributes.push(_react2.default.createElement(
+                        'span',
+                        { key: "row-" + rowIndex + "-" + this.props.device.id },
+                        newRow.join()
+                    ));
+                    attributes.push(_react2.default.createElement('br', { key: "br-" + rowIndex + "-" + this.props.device.id }));
+                }, this);
 
                 content = _react2.default.createElement(
                     'div',
@@ -9186,6 +9131,10 @@ var _baseComponent = require('./base-component');
 
 var _baseComponent2 = _interopRequireDefault(_baseComponent);
 
+var _reactAddonsPureRenderMixin = require('react-addons-pure-render-mixin');
+
+var _reactAddonsPureRenderMixin2 = _interopRequireDefault(_reactAddonsPureRenderMixin);
+
 var _editPointForm = require('./edit-point-form');
 
 var _editPointForm2 = _interopRequireDefault(_editPointForm);
@@ -9216,6 +9165,8 @@ var RegistryRow = function (_BaseComponent) {
         _this._bind('_updateCell', '_showProps', '_handleRowClick', '_selectForDelete');
 
         _this.state = _this._resetState(_this.props);
+
+        // this.shouldComponentUpdate = PureRenderMixin.shouldComponentUpdate.bind(this);
         return _this;
     }
 
@@ -9230,17 +9181,16 @@ var RegistryRow = function (_BaseComponent) {
         value: function shouldComponentUpdate(nextProps, nextState) {
             var doUpdate = false;
 
-            if (objectListsAreDifferent(this.props.attributesList, nextProps.attributesList)) {
+            // if (objectListsAreDifferent(this.props.attributesList, nextProps.attributesList))
+            if (!this.props.attributesList.equals(nextProps.attributesList)) {
                 var newState = this._resetState(nextProps);
 
                 this.setState(newState);
                 doUpdate = true;
+            } else if (!this.state.attributesList.equals(nextState.attributesList)) {
+                doUpdate = true;
             } else {
-                doUpdate = this.props.rowIndex !== nextProps.rowIndex || this.props.selectedCell !== nextProps.selectedCell || this.props.selectedCellColumn !== nextProps.selectedCellColumn || this.props.filterOn !== nextProps.filterOn || this.props.keyboardSelected !== nextProps.keyboardSelected;
-            }
-
-            if (!doUpdate) {
-                doUpdate = this.state.attributesList.selected !== nextState.attributesList.selected;
+                doUpdate = !this.props.immutableProps.equals(nextProps.immutableProps);
             }
 
             return doUpdate;
@@ -9270,16 +9220,17 @@ var RegistryRow = function (_BaseComponent) {
         key: '_showProps',
         value: function _showProps(attributesList) {
 
-            devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
+            devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
 
             modalActionCreators.openModal(_react2.default.createElement(_editPointForm2.default, {
-                device: this.props.device,
-                attributes: this.state.attributesList.attributes }));
+                deviceId: this.props.immutableProps.get("deviceId"),
+                deviceAddress: this.props.immutableProps.get("deviceAddress"),
+                attributes: this.state.attributesList.get("attributes") }));
         }
     }, {
         key: '_selectForDelete',
         value: function _selectForDelete() {
-            devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
+            devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
             this.setState({ selectedForDelete: !this.state.selectedForDelete });
         }
     }, {
@@ -9287,11 +9238,11 @@ var RegistryRow = function (_BaseComponent) {
         value: function _handleRowClick(evt) {
 
             if (evt.target.nodeName !== "INPUT" && evt.target.nodeName !== "I" && evt.target.nodeName !== "DIV") {
-                devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
+                devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
 
-                if (!this.state.attributesList.selected) {
-                    this.state.attributesList.selected = true;
-                    this.setState({ attributesList: this.state.attributesList });
+                if (!this.state.attributesList.get("selected")) {
+                    var attributesList = this.state.attributesList.set("selected", true);
+                    this.setState({ attributesList: attributesList });
                 }
             }
         }
@@ -9300,13 +9251,13 @@ var RegistryRow = function (_BaseComponent) {
         value: function render() {
 
             var registryCells = [];
-            var rowIndex = this.props.rowIndex;
+            var rowIndex = this.props.immutableProps.get("rowIndex");
 
-            this.state.attributesList.attributes.forEach(function (item, columnIndex) {
+            this.state.attributesList.get("attributes").forEach(function (item, columnIndex) {
 
                 if (item.keyProp) {
                     var selectedCellStyle = item.selected ? { backgroundColor: "#F5B49D" } : {};
-                    var focusedCell = this.props.selectedCellColumn === columnIndex && this.props.selectedCell ? "focusedCell" : "";
+                    var focusedCell = this.props.immutableProps.get("selectedCellColumn") === columnIndex && this.props.immutableProps.get("selectedCell") ? "focusedCell" : "";
 
                     var itemCell = !item.editable ? _react2.default.createElement(
                         'td',
@@ -9320,12 +9271,12 @@ var RegistryRow = function (_BaseComponent) {
                         'td',
                         { key: item.key + "-" + rowIndex + "-" + columnIndex },
                         _react2.default.createElement('input', {
-                            id: this.state.attributesList.attributes[columnIndex].key + "-" + columnIndex + "-" + rowIndex,
+                            id: this.state.attributesList.get("attributes").get(columnIndex).key + "-" + columnIndex + "-" + rowIndex,
                             type: 'text',
                             className: focusedCell,
                             style: selectedCellStyle,
                             onChange: this._updateCell.bind(this, columnIndex),
-                            value: this.state.attributesList.attributes[columnIndex].value })
+                            value: this.state.attributesList.get("attributes").get(columnIndex).value })
                     );
 
                     registryCells.push(itemCell);
@@ -9338,24 +9289,24 @@ var RegistryRow = function (_BaseComponent) {
                 _react2.default.createElement(
                     'div',
                     { className: 'propsButton',
-                        onClick: this._showProps.bind(this, this.state.attributesList.attributes) },
+                        onClick: this._showProps.bind(this, this.state.attributesList.get("attributes")) },
                     _react2.default.createElement('i', { className: 'fa fa-ellipsis-h' })
                 )
             ));
 
             var selectedRowClasses = [];
 
-            if (this.state.attributesList.selected) {
+            if (this.state.attributesList.get("selected")) {
                 selectedRowClasses.push("selectedRegistryPoint");
             }
 
-            if (this.props.keyboardSelected) {
+            if (this.props.immutableProps.get("keyboardSelected")) {
                 selectedRowClasses.push("keyboard-selected");
             }
 
             console.log("row " + rowIndex);
 
-            var visibleStyle = !this.props.filterOn || attributesList.visible ? {} : { display: "none" };
+            var visibleStyle = !this.props.immutableProps.get("filterOn") || this.state.attributesList.get("visible") ? {} : { display: "none" };
 
             return _react2.default.createElement(
                 'tr',
@@ -9381,37 +9332,13 @@ var RegistryRow = function (_BaseComponent) {
 
 ;
 
-function objectListsAreDifferent(listA, listB) {
-    var diff = false;
-
-    if (listA.length !== listB.length) {
-        diff = true;
-    } else {
-        for (var i = 0; i < listA.length; i++) {
-            for (var key in listA[i]) {
-                if (!listB[i].hasOwnProperty(key)) {
-                    diff = true;
-                    break;
-                } else {
-                    if (listA[i][key] !== listB[i][key]) {
-                        diff = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    return diff;
-}
-
 function objectIsEmpty(obj) {
     return Object.keys(obj).length === 0;
 }
 
 exports.default = RegistryRow;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":60,"./base-component":12,"./edit-point-form":28,"react":undefined}],46:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":60,"./base-component":12,"./edit-point-form":28,"react":undefined,"react-addons-pure-render-mixin":undefined}],46:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -10161,6 +10088,7 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
+var Immutable = require("immutable");
 
 var devicesStore = new Store();
 
@@ -10173,6 +10101,32 @@ var _registryFiles = {};
 var _backupFileName = {};
 var _platform;
 var _devices = [];
+// var Device = Immutable.Record({
+//     id: undefined,
+//     name: undefined,
+//     vendor_id: undefined,
+//     address: undefined,
+//     max_apdu_length: undefined,
+//     segmentation_supported: undefined,
+//     showPoints: undefined,
+//     configuring: undefined,
+//     platformUuid: undefined,
+//     bacnetProxyUuid: undefined,
+//     registryConfig: [],
+//     keyProps: ["volttron_point_name", "units", "writable"],
+//     selectedPoints: [],
+//     items: [ 
+//         { key: "address", label: "Address", value: undefined },  
+//         { key: "deviceName", label: "Name", value: undefined },  
+//         { key: "deviceDescription", label: "Description", value: undefined }, 
+//         { key: "deviceId", label: "Device ID", value: undefined }, 
+//         { key: "vendorId", label: "Vendor ID", value: undefined }, 
+//         { key: "vendor", label: "Vendor", value: undefined },
+//         { key: "type", label: "Type", value: "BACnet" }
+//     ]
+// });
+
+
 var _newScan = false;
 var _warnings = {};
 var _keyboard = {
@@ -10183,7 +10137,7 @@ var _keyboard = {
 };
 var _focusedDevice = null;
 
-var _placeHolders = [[{ "key": "Point_Name", "value": "", "editable": true }, { "key": "Volttron_Point_Name", "value": "" }, { "key": "Units", "value": "" }, { "key": "Units_Details", "value": "" }, { "key": "Writable", "value": "" }, { "key": "Starting_Value", "value": "" }, { "key": "Type", "value": "" }, { "key": "Notes", "value": "" }]];
+var _placeHolders = Immutable.List([[{ "key": "Point_Name", "value": "", "editable": true }, { "key": "Volttron_Point_Name", "value": "" }, { "key": "Units", "value": "" }, { "key": "Units_Details", "value": "" }, { "key": "Writable", "value": "" }, { "key": "Starting_Value", "value": "" }, { "key": "Type", "value": "" }, { "key": "Notes", "value": "" }]]);
 
 var vendorTable = {
     "0": "ASHRAE",
@@ -11133,10 +11087,10 @@ devicesStore.getRegistryValues = function (device) {
 
     if (device) {
         if (device.registryConfig.length) {
-            config = JSON.parse(JSON.stringify(device.registryConfig));
+            config = device.registryConfig;
         }
     } else {
-        config = JSON.parse(JSON.stringify(_placeHolders));
+        config = _placeHolders;
     }
 
     return config;
@@ -11426,7 +11380,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.UPDATE_REGISTRY:
             _action = "update_registry";
             _view = "Registry Configuration";
-            _device = action.device;
+            // _device = action.device;
             // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
             // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
             // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
@@ -11434,11 +11388,11 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             var i = -1;
             var keyProps = [];
 
-            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 
             if (device) {
                 var attributes = device.registryConfig.find(function (attributes, index) {
-                    var match = attributes[0].value === action.attributes[0].value;
+                    var match = attributes.get(0).value === action.attributes.get(0).value;
 
                     if (match) {
                         i = index;
@@ -11456,9 +11410,9 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 device.keyProps = keyProps;
 
                 if (typeof attributes !== "undefined") {
-                    device.registryConfig[i] = JSON.parse(JSON.stringify(action.attributes));
+                    device.registryConfig[i] = action.attributes;
                 } else {
-                    device.registryConfig.push(JSON.parse(JSON.stringify(action.attributes)));
+                    device.registryConfig = device.registryConfig.push(action.attributes);
                 }
 
                 device.selectedPoints = action.selectedPoints;
@@ -11482,7 +11436,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             var device = devicesStore.getDeviceRef(_device.id, _device.address);
 
             if (device) {
-                device.registryConfig = JSON.parse(JSON.stringify(action.data));
+                device.registryConfig = action.data;
                 device.showPoints = false;
             }
 
@@ -11554,7 +11508,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                         newPoint.push(cell);
                     }
 
-                    device.registryConfig.push(newPoint);
+                    device.registryConfig.push(Immutable.List(newPoint));
                 }
             }
         }
@@ -11617,7 +11571,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = devicesStore;
 
-},{"../constants/action-types":48,"../dispatcher":49,"../lib/store":53,"../stores/authorization-store":57}],61:[function(require,module,exports){
+},{"../constants/action-types":48,"../dispatcher":49,"../lib/store":53,"../stores/authorization-store":57,"immutable":undefined}],61:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');

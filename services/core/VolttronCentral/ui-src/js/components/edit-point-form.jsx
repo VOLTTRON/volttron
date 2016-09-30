@@ -47,7 +47,8 @@ class EditPointForm extends BaseComponent {
     _onSubmit(e) {
         e.preventDefault();
         devicesActionCreators.updateRegistry(
-            this.props.device, 
+            this.props.deviceId, 
+            this.props.deviceAddress,
             this.props.selectedPoints, 
             this.state.attributes
         );
@@ -83,7 +84,7 @@ class EditPointForm extends BaseComponent {
 
         return (
             <form className="edit-registry-form" onSubmit={this._onSubmit}>
-                <h1>{attributes[0].value}</h1>
+                <h1>{attributes.get(0).value}</h1>
                 <table>
                     <thead>
                         <tr>
