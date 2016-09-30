@@ -59,8 +59,6 @@ import logging
 import sys
 import gevent
 
-from gevent.subprocess import Popen
-
 from volttron.platform.vip.agent import Agent, Core, PubSub
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL
@@ -75,11 +73,17 @@ class FailoverAgent(Agent):
         super(FailoverAgent, self).__init__(**kwargs)
         config = utils.load_config(config_path)
 
-        for k, v in config.iteritems():
-            setattr(self, k, v)
+        # Config file options
+        self.agent_id = config["agent_id"]
+        self.remote_id = config["remote_id"]
+        self.remote_vip = config["remote_vip"]
+        self.agent_vip_identity = config["agent_vip_identity"]
+        self.heartbeat_period = config["heartbeat_period"]
+        self.timeout = config["timeout"]
 
         self.vc_timeout = 0
         self.remote_timeout = 0
+        self.agent_uuid = None
         self.heartbeat = None
 
         self._state = False, False
@@ -87,14 +91,20 @@ class FailoverAgent(Agent):
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
+        # Figure out the uuid to start and stop by VIP identity
         agents = self.vip.rpc.call(CONTROL, 'list_agents').get()
         uuids = [a['uuid'] for a in agents]
-
         for uuid in uuids:
             vip_id = self.vip.rpc.call(CONTROL, 'agent_vip_identity', uuid).get()
             if vip_id == self.agent_vip_identity:
                 self.agent_uuid = uuid
 
+        # We won't be able to do anything with an agent that isn't installed
+        # sys.exit() ?
+        if self.agent_uuid is None:
+            _log.error("Agent {} is not installed".format(self.agent_vip_identity))
+
+        # Start an agent to send heartbeats to the other failover instance
         heartbeat = Agent(address=self.remote_vip,
                           heartbeat_autostart=True,
                           heartbeat_period=self.heartbeat_period)
