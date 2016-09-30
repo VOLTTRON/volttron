@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -96,7 +96,7 @@ def test_can_install_listener(volttron_instance):
     print('STOPPED: ', stopped)
     removed = vi.remove_agent(auuid)
     print('REMOVED: ', removed)
-
+@pytest.mark.xfail(reason="#776 Needs updating")
 @pytest.mark.timeout(1000)
 def test_resinstall_agent(volttron_instance):
     mysql_config = {

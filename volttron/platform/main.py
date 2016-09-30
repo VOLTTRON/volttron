@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -468,6 +468,7 @@ def start_volttron_process(opts):
             opts.volttron_central_address)
     opts.volttron_central_serverkey = opts.volttron_central_serverkey
     if getattr(opts, 'show_config', False):
+        print('volttron version: {}'.format(__version__))
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
         return
