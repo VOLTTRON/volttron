@@ -1002,8 +1002,8 @@ def get_config(opts):
         if isinstance(results, str):
             _stdout.write(results)
         else:
-            import pprint
-            pprint.pprint(results, _stdout)
+            _stdout.write(json.dumps(results, indent=2))
+            _stdout.write("\n'")
 
 
 class ControlConnection(object):
