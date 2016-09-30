@@ -119,6 +119,21 @@ the agent sees a message starting with *topic_prefix*.
 
 An agent can publish to a topic *topic* with the *self.vip.pubsub.publish* method.
 
+An agent can remove a subscriptions with *self.vip.pubsub.unsubscribe*. Giving None as values
+for the prefix and callback argument will unsubscribe from everything on that bus. This
+is handy for subscriptions that must be updated base on a configuration setting.
+
+Configuration Store
+~~~~~~~~~~~~~~~~~~~
+
+Support for the configuration store is done by subscribing to configuration changes
+with *self.vip.config.subscribe*.
+
+.. code-block:: python
+
+    self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
+
+See :doc:`Agent Configuration Store <Agent-Configuration-Store>` 
 
 Heartbeat
 ~~~~~~~~~

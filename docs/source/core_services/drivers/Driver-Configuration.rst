@@ -439,8 +439,7 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample fake device configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/fake.config>`_ or 
-in the VOLTTRON repository in ``examples/configurations/drivers/fake.config``
+A sample fake device configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/fake.config``
 
 Fake Device Registry Configuration File
 ***************************************
