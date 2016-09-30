@@ -138,12 +138,16 @@ class FailoverAgent(Agent):
         self.vip.rpc.call(CONTROL, command, self.agent_uuid).get()
 
     def primary_state_machine(self, secondary_is_up, vc_is_up):
+        raise NotImplementedError("Coordination with VC not implemeted")
+
         if secondary_is_up or vc_is_up:
             self._agent_control('start_agent')
         else:
             self._agent_control('stop_agent')
 
     def secondary_state_machine(self, primary_is_up, vc_is_up):
+        raise NotImplementedError("Coordination with VC not implemeted")
+
         if not primary_is_up and vc_is_up:
             pass # verify and start master
         else:
