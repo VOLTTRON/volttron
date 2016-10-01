@@ -28,11 +28,12 @@ class ConfigureRegistry extends BaseComponent {
             "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
             "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", 
             "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice",
-            "_handleKeyDown" );
+            "_handleKeyDown", "_onSelectForDelete" );
 
         this.state = this._resetState(this.props.device);
 
         this.state.keyboardRange = [-1, -1];
+        console.log("reconstructing");
     }
     componentDidMount() {
         this.containerDiv = document.getElementsByClassName("fixed-table-container")[0];
@@ -91,9 +92,13 @@ class ConfigureRegistry extends BaseComponent {
             {
                 switch (keydown.which)
                 {
+                    case 17: // Control key            
+                        this.setState({ keyboardRange: this.state.keyboardRange});
+                        break;
                     case 27: // ESC
                         this.setState({ keyboardRange: [-1, -1]});
                         this.setState({ keyboardStarted: false });
+                        console.log("escaping");
 
                         break;
                     case 13: // Enter
@@ -172,7 +177,7 @@ class ConfigureRegistry extends BaseComponent {
                         break;
                 }
             }
-            else if (keydown.which === 17)
+            else if (keydown.which === 17) // Control key
             {
                 this.setState({ keyboardRange: [0, 0]});
                 this.setState({ keyboardStarted: true });
@@ -180,7 +185,12 @@ class ConfigureRegistry extends BaseComponent {
         }
         else
         {
-            this.setState({ keyboardRange: [-1, -1] });
+            if (this.state.keyboardRange[0] !== -1 && this.state.keyboardRange[1] !== -1)
+            {
+                this.setState({ keyboardRange: [-1, -1] });
+
+                console.log("resetting keyboard range");
+            }
         }
     }
     _resetState(device){
@@ -333,20 +343,13 @@ class ConfigureRegistry extends BaseComponent {
 
         modalActionCreators.openModal(
             <EditPointForm 
-                device={this.props.device} 
+                attributes={Immutable.List(pointValues)}
                 selectedPoints={this.state.selectedPoints}
-                attributes={pointValues}>
+                deviceId={this.props.device.id} 
+                deviceAddress={this.props.device.address}>
             </EditPointForm>);
         
     }
-    // _addPoint(pointValues) {
-        
-    //     this.state.registryValues.push({visible: true, attributes: pointValues});
-
-    //     this.setState({ registryValues: this.state.registryValues });
-
-    //     this.scrollToBottom = true;
-    // }
     _onRemovePoints() {
 
         var promptText, confirmText, confirmAction, cancelText;
@@ -378,15 +381,14 @@ class ConfigureRegistry extends BaseComponent {
         pointsToDelete.forEach(function (pointToDelete) {
 
             var index = -1;
-            var pointValue = "";
+            // var pointValue = "";
 
-            this.state.registryValues.some(function (row, i) {
-                var pointMatched = (row.attributes[0].value === pointToDelete);
+            this.state.registryValues.find(function (row, i) {
+                var pointMatched = (row.getIn(["attributes", 0]).value === pointToDelete);
 
                 if (pointMatched)
                 {
                     index = i;
-                    pointValue = row.attributes[0].value;
                 }
 
                 return pointMatched;
@@ -395,57 +397,38 @@ class ConfigureRegistry extends BaseComponent {
             if (index > -1)
             {
                 this.state.registryValues.splice(index, 1);
-                
-                index = this.state.pointsToDelete.indexOf(pointValue);
-
-                if (index > -1)
-                {
-                    this.state.pointsToDelete.splice(index, 1);
-                }
-
-                // index = this.state.pointNames.indexOf(pointValue);
-
-                // if (index > -1)
-                // {
-                //     this.state.pointNames.splice(index, 1);
-                // }
             }
         }, this);
 
         this.setState({ registryValues: this.state.registryValues });
-        this.setState({ pointsToDelete: this.state.pointsToDelete });
+        this.setState({ pointsToDelete: [] });
         // this.setState({ pointNames: this.state.pointNames });
 
         modalActionCreators.closeModal();
     }
-    // _selectForDelete(attributesList) {
+    _onSelectForDelete(pointName) {
         
-    //     var pointsToDelete = this.state.pointsToDelete;
+        var index = this.state.pointsToDelete.indexOf(pointName);
 
-    //     var index = pointsToDelete.indexOf(attributesList[0].value);
+        if (index < 0)
+        {
+            this.state.pointsToDelete.push(pointName);
+        }
+        else
+        {
+            this.state.pointsToDelete.splice(index, 1);
+        }
 
-    //     if (index < 0)
-    //     {
-    //         pointsToDelete.push(attributesList[0].value);
-    //     }
-    //     else
-    //     {
-    //         pointsToDelete.splice(index, 1);
-    //     }
+        this.setState({ pointsToDelete: this.state.pointsToDelete });
 
-    //     this.setState({ pointsToDelete: pointsToDelete });
-
-    // }
+    }
     _selectAll() {
         var allSelected = !this.state.allSelected;
-
         this.setState({ allSelected: allSelected });
-
-        this.setState({ pointsToDelete : (allSelected ? JSON.parse(JSON.stringify(this.state.pointNames)) : []) }); 
     }
     _onAddColumn(index) {
 
-        var newColumnLabel = this.state.registryValues[0].attributes[index].label + "_";
+        var newColumnLabel = this.state.registryValues[0].getIn(["attributes", index]).label + "_";
 
         modalActionCreators.openModal(
             <NewColumnForm
@@ -466,13 +449,16 @@ class ConfigureRegistry extends BaseComponent {
 
         var newRegistryValues = this.state.registryValues.map(function (row) {
 
-            row.attributes.splice(index + 1, 0, { 
+            row = row.updateIn(["attributes"], function (columnCells) {
+                return columnCells.splice(index + 1, 0, { 
                                             "key": newColumn,
                                             "label": newColumnLabel,
                                             "value": "", 
                                             "editable": true, 
                                             "keyProp": true 
                                         });
+            });
+            
             return row;
         });
 
@@ -501,17 +487,21 @@ class ConfigureRegistry extends BaseComponent {
 
         var newRegistryValues = this.state.registryValues.map(function (row) {
 
-            var clonedValue = {};
+            var clonedCell = {};
 
-            for (var key in row.attributes[index])
+            var columnCell = row.getIn(["attributes", index]);
+
+            for (var key in columnCell)
             {
-                clonedValue[key] = row.attributes[index][key];
+                clonedCell[key] = columnCell[key];
             }
 
-            clonedValue.label = newColumnLabel;
-            clonedValue.key = newColumn;
+            clonedCell.label = newColumnLabel;
+            clonedCell.key = newColumn;
 
-            row.attributes.splice(index + 1, 0, clonedValue);
+            row = row.updateIn(["attributes"], function (columnCells) {
+                return columnCells.splice(index + 1, 0, clonedCell);
+            });
 
             return row;
         });
@@ -574,9 +564,9 @@ class ConfigureRegistry extends BaseComponent {
         this.setState({ registryValues: this.state.registryValues.map(function (row, index) {
 
                 //searching i-th column in each row, and if the cell contains the target value, select it
-                row.attributes[column].selected = (row.attributes[column].value.indexOf(findValue) > -1);
+                row.get("attributes").get(column).selected = (row.get("attributes").get(column).value.indexOf(findValue) > -1);
 
-                if (row.attributes[column].selected)
+                if (row.get("attributes").get(column).selected)
                 {
                     selectedCells.push(index);
                 }
@@ -600,8 +590,6 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onFindNext(findValue, column) {
 
-        // var registryValues = this.state.registryValues.slice();
-        
         if (this.state.selectedCells.length === 0)
         {
             this._selectCells(findValue, column);
@@ -625,13 +613,22 @@ class ConfigureRegistry extends BaseComponent {
         }
         else
         {
-            // var registryValues = this.state.registryValues.slice();
-            this.state.registryValues[this.state.selectedCellRow].attributes[column].value = this.state.registryValues[this.state.selectedCellRow].attributes[column].value.replace(findValue, replaceValue);        
+            var newValue;
+
+            this.state.registryValues[this.state.selectedCellRow] = 
+                this.state.registryValues[this.state.selectedCellRow].updateIn(["attributes", column], function (item) {
+                    newValue = item.value = item.value.replace(findValue, replaceValue);
+                    return item;
+                });
 
             //If the cell no longer has the target value, deselect it and move focus to the next selected cell
-            if (this.state.registryValues[this.state.selectedCellRow].attributes[column].value.indexOf(findValue) < 0)
+            if (newValue.indexOf(findValue) < 0)
             {
-                this.state.registryValues[this.state.selectedCellRow].attributes[column].selected = false;
+                this.state.registryValues[this.state.selectedCellRow] = 
+                    this.state.registryValues[this.state.selectedCellRow].updateIn(["attributes", column], function (item) {
+                        item.selected = false;
+                        return item;
+                    });
 
                 //see if there will even be another selected cell to move to
                 var selectedCells = this.state.selectedCells.slice();
@@ -663,19 +660,26 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onReplaceAll(findValue, replaceValue, column) {
         
-        // var selectedCellRow = this.state.selectedCells[0];
-
         var selectedCellsToKeep = [];
 
         this.state.selectedCells.forEach((selectedCell) => {
-            var newValue = this.state.registryValues[selectedCell].attributes[column].value.replace(findValue, replaceValue);
-            this.state.registryValues[selectedCell].attributes[column].value = newValue;  
 
-            if (this.state.registryValues[selectedCell].attributes[column].value.indexOf(findValue) < 0)
+            // var newValue = this.state.registryValues[selectedCell].attributes[column].value.replace(findValue, replaceValue);
+
+            var newValue;
+
+            this.state.registryValues[selectedCell] = this.state.registryValues[selectedCell].updateIn(["attributes", column], function (item) {
+                newValue = item.value = item.value.replace(findValue, replaceValue);
+                return item;
+            });  
+
+            if (newValue.indexOf(findValue) < 0)
             {
-                this.state.registryValues[selectedCell].attributes[column].selected = false; 
-
-                selectedCellsToKeep.push(selectedCell);
+                this.state.registryValues[selectedCell] = this.state.registryValues[selectedCell].updateIn(["attributes", column], function (item) {
+                    item.selected = false;
+                    selectedCellsToKeep.push(selectedCell);
+                    return item;
+                }); 
             }
         });
 
@@ -689,7 +693,11 @@ class ConfigureRegistry extends BaseComponent {
         // var registryValues = this.state.registryValues.slice();
 
         this.state.selectedCells.forEach((row) => {
-            this.state.registryValues[row].attributes[column].selected = false;
+            this.state.registryValues[row] = this.state.registryValues[row].updateIn(["attributes", column], function (item) {                    
+                item.selected = false;
+                return item;
+            });
+
         }, this);
 
         this.setState({ registryValues: this.state.registryValues });
@@ -724,18 +732,25 @@ class ConfigureRegistry extends BaseComponent {
     _onRegistrySave() {
         modalActionCreators.openModal(
             <PreviewRegistryForm 
-                device={this.props.device} 
+                deviceId={this.props.device.id}
+                deviceAddress={this.props.device.address} 
+                deviceName={this.props.device.name}
                 attributes={this.state.registryValues.map(function (row) {
-                    return row.attributes;
+                    return row.get("attributes");
                 })}
                 onsaveregistry={this._saveRegistry}>
             </PreviewRegistryForm>);
     }
     _saveRegistry() {
 
-        devicesActionCreators.saveRegistry(this.props.device, this.state.registryValues.map(function (row) {
-            return row.attributes;
-        }));
+        devicesActionCreators.saveRegistry(
+                                this.props.device.id, 
+                                this.props.device.address, 
+                                this.state.registryValues.map(function (row) {
+                                        return row.get("attributes");
+                                    })
+                                );
+
         modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device}/>);
     }
     render() {        
@@ -760,6 +775,7 @@ class ConfigureRegistry extends BaseComponent {
                     deviceId: this.props.device.id,
                     deviceAddress: this.props.device.address,
                     deviceName: this.props.device.name,
+                    keyProps: this.props.device.keyProps,
                     selectedCell: (this.state.selectedCellRow === rowIndex),
                     selectedCellColumn: this.state.selectedCellColumn,
                     filterOn: this.state.filterOn,
@@ -769,7 +785,9 @@ class ConfigureRegistry extends BaseComponent {
                 return (<RegistryRow 
                             key={"registryRow-" + attributesList.get("attributes").get(0).value}
                             attributesList={attributesList} 
-                            immutableProps={immutableProps}/>);
+                            immutableProps={immutableProps}
+                            allSelected={this.state.allSelected}
+                            oncheckselect={this._onSelectForDelete}/>);
                 
             }, this);
 
@@ -795,7 +813,6 @@ class ConfigureRegistry extends BaseComponent {
                                                 replace={this._onReplace}
                                                 replaceall={this._onReplaceAll}
                                                 replaceEnabled={this.state.selectedCells.length > 0}
-                                                // onfilter={this._onFilterBoxChange} 
                                                 onclear={this._onClearFind}
                                                 onhide={this._removeFocus}
                                                 name={this.props.device.id + "-" + item.key}/>);
@@ -998,23 +1015,24 @@ function getFilteredPoints(registryValues, filterStr, column) {
 
     var virtualCount = 0;
 
-    return registryValues.map(function (row) {
+    return registryValues.map(function (row, rowIndex) {
 
-        row.visible = (filterStr === "" || (row.attributes[column].value.trim()
-                                                .toUpperCase()
-                                                .indexOf(filterStr.trim().toUpperCase()) > -1));
+        row = row.set("visible", (filterStr === "" || (row.get("attributes")
+                                                            .get(column)
+                                                            .value
+                                                            .trim()
+                                                            .toUpperCase()
+                                                            .indexOf(filterStr.trim().toUpperCase()) > -1)));
 
-        if (row.visible)
+        if (row.get("visible"))
         {
-            row.virtualIndex = virtualCount;
+            row = row.set("virtualIndex", virtualCount);
             ++virtualCount;
         }
         else
         {
-            row.virtualIndex = -2;
+            row = row.set("virtualIndex", -2);
         }
-
-        
 
         return row;
     });

@@ -57,8 +57,8 @@ class PreviewRegistryForm extends BaseComponent {
                 headerRow.push(item.label);
             });
 
-            attributes.push(<span key={"header-" + this.props.device.id}>{headerRow.join()}</span>);
-            attributes.push(<br key={"br-header-" + this.props.device.id}/>)
+            attributes.push(<span key={"header-" + this.props.deviceId}>{headerRow.join()}</span>);
+            attributes.push(<br key={"br-header-" + this.props.deviceId}/>)
 
             this.props.attributes.forEach(function (attributeRow, rowIndex) {
 
@@ -68,8 +68,8 @@ class PreviewRegistryForm extends BaseComponent {
                     newRow.push(columnCell.value);
                 });
 
-                attributes.push(<span key={"row-" + rowIndex + "-" + this.props.device.id}>{newRow.join()}</span>);
-                attributes.push(<br key={"br-" + rowIndex + "-" + this.props.device.id}/>);
+                attributes.push(<span key={"row-" + rowIndex + "-" + this.props.deviceId}>{newRow.join()}</span>);
+                attributes.push(<br key={"br-" + rowIndex + "-" + this.props.deviceId}/>);
             }, this);
 
             content = (<div>
@@ -107,7 +107,7 @@ class PreviewRegistryForm extends BaseComponent {
                 });
 
                 var registryRow = (
-                    <tr key={this.props.device.id + "-row-" + rowIndex}>
+                    <tr key={this.props.deviceId + "-row-" + rowIndex}>
                         {attributeCells}
                     </tr>
                 );
@@ -131,7 +131,7 @@ class PreviewRegistryForm extends BaseComponent {
         return (
             <form className="preview-registry-form" onSubmit={this._onSubmit}>
                 <h1>Save this registry configuration?</h1>
-                <h4>{this.props.device.address} / {this.props.device.name} / {this.props.device.id}</h4>
+                <h4>{this.props.deviceAddress} / {this.props.deviceName} / {this.props.deviceId}</h4>
                 { layoutToggle }
                 { content }
 

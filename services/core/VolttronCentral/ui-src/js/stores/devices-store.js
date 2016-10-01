@@ -1315,12 +1315,12 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.LOAD_REGISTRY:
             _action = "configure_registry";
             _view = "Registry Configuration";
-            _device = action.device;
+            // _device = action.device;
             // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
             // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
             // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
 
-            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 
             if (device)
             {
@@ -1329,7 +1329,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 device.selectedPoints = [];
             }
 
-            _registryFiles[_device.id] = action.file;             
+            _registryFiles[action.deviceId] = action.file;             
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.UPDATE_REGISTRY:
@@ -1373,7 +1373,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 }
                 else
                 {
-                    device.registryConfig = device.registryConfig.push(action.attributes);
+                    device.registryConfig.push(action.attributes);
                 }
 
                 device.selectedPoints = action.selectedPoints;
@@ -1392,9 +1392,9 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.SAVE_REGISTRY:
             _action = "configure_device";
             _view = "Configure Device";
-            _device = action.device;
+            // _device = action.device;
 
-            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 
             if (device)
             {
@@ -1416,7 +1416,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 return cell;
             });
 
-            return preppedRow;
+            return Immutable.List(preppedRow);
         });
 
 

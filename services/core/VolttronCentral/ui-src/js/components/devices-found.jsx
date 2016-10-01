@@ -219,7 +219,7 @@ class DevicesFound extends BaseComponent {
                     if (!results.meta.aborted)            
                     {
                         // this.setState({registry_config: fileName});       
-                        devicesActionCreators.loadRegistry(device, results.data, fileName);
+                        devicesActionCreators.loadRegistry(device.id, device.address, results.data, fileName);
                     }
                 }
 

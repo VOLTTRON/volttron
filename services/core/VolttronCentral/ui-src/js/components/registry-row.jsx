@@ -25,42 +25,70 @@ class RegistryRow extends BaseComponent {
     componentWillUnmount() {
         
     }
+    componentWillReceiveProps(nextProps)
+    {
+        if ((!this.props.attributesList.equals(nextProps.attributesList)) || 
+            (this.props.allSelected !== nextProps.allSelected))
+        {
+            var newState = this._resetState(nextProps, (this.props.allSelected !== nextProps.allSelected));
+            this.setState(newState);
+        }
+    }
     shouldComponentUpdate(nextProps, nextState) {
         var doUpdate = false;
 
         // if (objectListsAreDifferent(this.props.attributesList, nextProps.attributesList))
-        if (!this.props.attributesList.equals(nextProps.attributesList))
-        {
-            var newState = this._resetState(nextProps);
+        // if (!this.props.attributesList.equals(nextProps.attributesList))
+        // {
+        //     // var newState = this._resetState(nextProps);
 
-            this.setState(newState);
-            doUpdate = true;
-        }
-        else if (!this.state.attributesList.equals(nextState.attributesList))
+        //     // this.setState(newState);
+        //     doUpdate = true;
+        //     console.log("props not equal");
+        // }
+        // else 
+        if ((!this.state.attributesList.equals(nextState.attributesList)) || 
+            (this.state.selectedForDelete !== nextState.selectedForDelete))
         {
             doUpdate = true;
+            console.log("state's not equal");
         }
         else
         {
             doUpdate = (!this.props.immutableProps.equals(nextProps.immutableProps));
+
+            if (doUpdate)
+            {
+                console.log("immutable props not equal");
+            }
         }
 
         return doUpdate;
     }
-    _resetState(props) {
+    _resetState(props, updateAllSelected) {
         var state = {};
 
         state.attributesList = props.attributesList;
-        state.selectedForDelete = false;
+
+        if (updateAllSelected)
+        {
+            state.selectedForDelete = props.allSelected;
+        }
+        else
+        {
+            state.selectedForDelete = false;
+        }
 
         return state;
     }
     _updateCell(column, e) {
 
         var currentTarget = e.currentTarget;
-        var newValues = JSON.parse(JSON.stringify(this.state.attributesList));
+        
+        var newValues = this.state.attributesList.updateIn(["attributes", column, "value"], function (item) {
 
-        newValues.attributes[column].value = currentTarget.value;
+            return currentTarget.value;
+        });
 
         this.setState({ attributesList: newValues });
     }
@@ -76,8 +104,9 @@ class RegistryRow extends BaseComponent {
     }
     _selectForDelete() {
         devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
-        this.setState({selectedForDelete: !this.state.selectedForDelete})
+        this.setState({selectedForDelete: !this.state.selectedForDelete});
 
+        this.props.oncheckselect(this.state.attributesList.getIn(["attributes", 0]).value);
     }
     _handleRowClick(evt){
 
@@ -140,9 +169,10 @@ class RegistryRow extends BaseComponent {
         }
 
 
-        console.log("row " + rowIndex);
+        console.log("row " + rowIndex + " visible is " + this.state.attributesList.get("visible"));
 
         var visibleStyle = (!this.props.immutableProps.get("filterOn") || this.state.attributesList.get("visible") ? {} : {display: "none"});
+
 
         return ( 
             <tr key={"registry-row-" + rowIndex}

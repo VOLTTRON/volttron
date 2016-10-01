@@ -9,7 +9,8 @@ var controlButtonActionCreators = require('../../action-creators/control-button-
 class EditColumnButton extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind("_onFindBoxChange", "_onReplaceBoxChange", "_findNext", "_onClearEdit", "_replace", "_replaceAll");
+        this._bind("_onFindBoxChange", "_onReplaceBoxChange", "_findNext", "_onClearEdit", "_replace", "_replaceAll",
+                    "_onKeyDown");
 
         this.state = getStateFromStores(this.props.name);
     }
@@ -19,6 +20,13 @@ class EditColumnButton extends BaseComponent {
         this.setState({ findValue: findValue });        
 
         this.props.onclear(this.props.column);        
+    }
+    _onKeyDown(callback, e) {
+
+        if (e.keyCode === 13) //Enter
+        {
+            callback();
+        }
     }
     _onReplaceBoxChange(e) {
         var replaceValue = e.target.value;
@@ -122,6 +130,7 @@ class EditColumnButton extends BaseComponent {
                                         type="text"
                                         style={inputStyle}
                                         onChange={this._onFindBoxChange}
+                                        onKeyDown={this._onKeyDown.bind(this, this._findNext)}
                                         value={ this.state.findValue }
                                     />
                                 </td>
@@ -146,6 +155,7 @@ class EditColumnButton extends BaseComponent {
                                         type="text"
                                         style={inputStyle}
                                         onChange={this._onReplaceBoxChange}
+                                        onKeyDown={this._onKeyDown.bind(this, this._replace)}
                                         value={ this.state.replaceValue }
                                         disabled={ !this.props.replaceEnabled }
                                     />

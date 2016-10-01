@@ -162,10 +162,11 @@ var devicesActionCreators = {
             device: device
         });
     },
-    loadRegistry: function (device, csvData, fileName) {
+    loadRegistry: function (deviceId, deviceAddress, csvData, fileName) {
         dispatcher.dispatch({
             type: ACTION_TYPES.LOAD_REGISTRY,
-            device: device,
+            deviceId: deviceId,
+            deviceAddress: deviceAddress,
             data: csvData.filter(function (row) {
                 return row.length > 0;
             }),
@@ -187,10 +188,11 @@ var devicesActionCreators = {
             attributes: attributes
         });
     },
-    saveRegistry: function (device, values) {
+    saveRegistry: function (deviceId, deviceAddress, values) {
         dispatcher.dispatch({
             type: ACTION_TYPES.SAVE_REGISTRY,
-            device: device,
+            deviceId: deviceId,
+            deviceAddress: deviceAddress,
             data: values
         });
     },
