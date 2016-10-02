@@ -142,6 +142,11 @@ class BACnetReader(object):
 
             obj = objects[index]
             obj['index'] = index
+            if property == 'objectName':
+                if not result_map[key]:
+                    obj['object_name'] = 'MISSING OBJECT NAME'
+                else:
+                    obj['object_name'] = result_map[key]
             obj[property] = result_map[key]
             if 'object_type' not in obj:
                 obj['object_type'] = object_type
@@ -176,7 +181,6 @@ class BACnetReader(object):
                 _log.debug('ENUMERATION VALUES: {}'.format(
                     present_value_type.enumerations))
                 for k, v in present_value_type.enumerations.items():
-                    print("key {} value {}".format(k, v))
                     if v == default_value:
                         units_details += ' (default {default})'.format(
                             default=k)
@@ -191,7 +195,6 @@ class BACnetReader(object):
                 enum_strings)
 
         return units, units_details, notes
-
 
     def process_units(self, object_type, obj):
         units = ''
@@ -310,8 +313,8 @@ class BACnetReader(object):
                     self.process_unknown(object_type, obj)
 
             results = {}
-            # results['Reference Point Name'] = results[
-            #     'Volttron Point Name'] = object_name
+            results['Reference Point Name'] = results[
+                 'Volttron Point Name'] = obj['object_name']
             results['Units'] = object_units
             results['Unit Details'] = object_units_details
             results['BACnet Object Type'] = object_type
