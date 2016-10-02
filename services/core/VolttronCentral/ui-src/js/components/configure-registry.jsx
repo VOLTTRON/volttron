@@ -458,7 +458,7 @@ class ConfigureRegistry extends BaseComponent {
                                             "keyProp": true 
                                         });
             });
-            
+
             return row;
         });
 
@@ -512,7 +512,7 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onRemoveColumn(index) {
 
-        var columnHeader = this.state.registryValues[0].attributes[index].label;
+        var columnHeader = this.state.registryValues[0].getIn(["attributes", index]).label;
         var promptText = ("Are you sure you want to delete the column, " + columnHeader + "?");
         
         modalActionCreators.openModal(
@@ -527,28 +527,26 @@ class ConfigureRegistry extends BaseComponent {
     }
     _removeColumn(index) {
 
-        var registryValues = JSON.parse(JSON.stringify(this.state.registryValues));
-        var columnNames = JSON.parse(JSON.stringify(this.state.columnNames));
-        var keyPropsList = JSON.parse(JSON.stringify(this.state.keyPropsList));
+        var columnName = this.state.columnNames[index];
 
-        var columnName = columnNames[index];
+        this.state.columnNames.splice(index, 1);
 
-        columnNames.splice(index, 1);
-
-        registryValues.forEach(function (row) {
-            row.attributes.splice(index, 1);
+        var newValues = this.state.registryValues.map(function (row) {
+            return row.updateIn(["attributes"], function (butes) {
+                return butes.splice(index, 1);
+            });
         });
 
-        index = keyPropsList.indexOf(columnName);
+        index = this.state.keyPropsList.indexOf(columnName);
 
         if (index > -1)
         {
-            keyPropsList.splice(index, 1);
+            this.state.keyPropsList.splice(index, 1);
         }
 
-        this.setState({ keyPropsList: keyPropsList });
-        this.setState({ columnNames: columnNames });
-        this.setState({ registryValues: registryValues });
+        this.setState({ keyPropsList: this.state.keyPropsList });
+        this.setState({ columnNames: this.state.columnNames });
+        this.setState({ registryValues: newValues });
 
         this.resizeTable = true;
 
