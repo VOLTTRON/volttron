@@ -520,18 +520,12 @@ class VolttronCentralPlatform(Agent):
 
     @RPC.export
     def publish_bacnet_props(self, proxy_identity, address, device_id,
-                             extended=False, filter=[]):
+                             filter=[]):
 
         bn = BACnetReader(self.vip.rpc, proxy_identity, self._bacnet_response)
 
-        if extended:
-            if not filter:
-                return "Invalid filter specified!"
+        gevent.spawn(bn.read_device_properties, address, device_id, filter)
 
-            gevent.spawn(bn.read_extended_properties, address, device_id,
-                         filter)
-        else:
-            gevent.spawn(bn.read_device_primary, address, device_id)
         return "PUBLISHING"
 
     def _bacnet_response(self, context, results):
