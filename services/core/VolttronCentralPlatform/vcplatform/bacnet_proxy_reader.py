@@ -52,7 +52,7 @@ class BACnetReader(object):
         :param filter:
         :return:
         """
-
+        _log.info('read_device_extended called.')
         default_range_report = 1.0e+20
         for bac_type, indexes in filter.items():
             query = {}
@@ -62,48 +62,265 @@ class BACnetReader(object):
                                     default_range_report)
 
     def build_query_map_for_type(self, object_type, index):
+        """ Build a map that can be sent to the read_props function.
+
+            This function build keys based upon the object_type and index so
+            that the return value from the eventual read_prosps call to the
+            bacnet proxy can be read easily.
+
+            This function was a based upon the process_object function.
+            Instead of each level of the if then else structure making its
+            own call to the query map, it makes a single call and retireves
+            the properties.  This makes it  much more efficient in terms of
+            the rpc call through the bacnet proxy.
+
+        """
         query_map = {}
 
+        # Retrieve the class object for the object type.  This allows
+        # interrogation of the class to make decisions on what should be
+        # loaded into the query_map.
+        present_value_type = get_datatype(object_type, 'presentValue')
+
+        # The object name translates into the point name of the object.
         key = '{}-{}'.format(index, "objectName")
         query_map[key] = [object_type, index, "objectName"]
-
-        key = '{}-{}'.format(index, 'resolution')
-        query_map[key] = [object_type, index, "resolution"]
-
-        key = '{}-{}'.format(index, 'minPresValue')
-        query_map[key] = [object_type, index, 'minPresValue']
-
-        key = '{}-{}'.format(index, 'maxPresValue')
-        query_map[key] = [object_type, index, 'maxPresValue']
-
-        key = '{}-{}'.format(index, "relinquishDefault")
-        query_map[key] = [object_type, index, "relinquishDefault"]
 
         key = '{}-{}'.format(index, 'description')
         query_map[key] = [object_type, index, "description"]
 
-        key = '{}-{}'.format(index, 'stateText')
-        query_map[key] = [object_type, index, "stateText"]
+        if issubclass(present_value_type, Enumerated):
+            key = '{}-{}'.format(index, "relinquishDefault")
+            query_map[key] = [object_type, index, "relinquishDefault"]
 
-        key = '{}-{}'.format(index, 'units')
-        query_map[key] = [object_type, index, "units"]
+        elif issubclass(present_value_type, Boolean):
+            pass
+        elif get_datatype(object_type, 'units') is None:
+            key = '{}-{}'.format(index, 'numberOfStates')
+            query_map[key] = [object_type, index, "numberOfStates"]
 
+            key = '{}-{}'.format(index, 'stateText')
+            query_map[key] = [object_type, index, "stateText"]
 
-        # if not object_type.endswith('Value'):
-        #     key = '{}-{}'.format(index, 'resolution')
-        #     query_map[key] = [object_type, index, "resolution"]
-        # elif object_type not in ('largeAnalogValue', 'integerValue',
-        #                          'positiveIntegerValue'):
-        #     key = '{}-{}'.format(index, 'minPresValue')
-        #     query_map[key] = [object_type, index, 'minPresValue']
-        #     key = '{}-{}'.format(index, 'maxPresValue')
-        #     query_map[key] = [object_type, index, 'maxPresValue']
-        #
-        # if object_type != 'analogInput':
-        #     key = '{}-{}'.format(index, "relinquishDefault")
-        #     query_map[key] = [object_type, index, "relinquishDefault"]
+            if object_type != 'multiSTateInput':
+                key = '{}-{}'.format(index, "relinquishDefault")
+                query_map[key] = [object_type, index, "relinquishDefault"]
+            elif object_type == 'loop':
+                pass
+            else:
+                pass
+        else:
+            key = '{}-{}'.format(index, 'units')
+            query_map[key] = [object_type, index, "units"]
+
+            key = '{}-{}'.format(index, 'resolution')
+            query_map[key] = [object_type, index, "resolution"]
+
+            if object_type not in (
+                    'largeAnalogValue', 'integerValue',
+                    'positiveIntegerValue'):
+
+                key = '{}-{}'.format(index, 'minPresValue')
+                query_map[key] = [object_type, index, 'minPresValue']
+
+                key = '{}-{}'.format(index, 'maxPresValue')
+                query_map[key] = [object_type, index, 'maxPresValue']
+
+            if object_type != 'analogInput':
+                key = '{}-{}'.format(index, "relinquishDefault")
+                query_map[key] = [object_type, index, "relinquishDefault"]
 
         return query_map
+
+    def build_results(self, object_type, query_map, result_map):
+        objects = defaultdict(dict)
+        for key in query_map:
+            if key not in result_map:
+                print("MISSING KEY {}".format(key))
+                continue
+            index, property = key.split('-')
+
+            obj = objects[index]
+            obj['index'] = index
+            obj[property] = result_map[key]
+            if 'object_type' not in obj:
+                obj['object_type'] = object_type
+        print('Built objects: {}'.format(objects))
+        return objects
+
+    def process_enumerated(self, object_type, obj):
+        units = ''
+        units_details = ''
+        notes = ''
+
+        units = 'Enum'
+        present_value_type = get_datatype(object_type, 'presentValue')
+        values = present_value_type.enumerations.values()
+        min_value = min(values)
+        max_value = max(values)
+
+        vendor_range = ''
+        if hasattr(present_value_type, 'vendor_range'):
+            vendor_min, vendor_max = present_value_type.vendor_range
+            vendor_range = ' (vendor {min}-{max})'.format(min=vendor_min,
+                                                          max=vendor_max)
+
+        units_details = '{min}-{max}{vendor}'.format(min=min_value,
+                                                     max=max_value,
+                                                     vendor=vendor_range)
+
+        if not object_type.endswith('Input'):
+            default_value = obj.get("relinquishDefault")
+            if default_value:
+                _log.debug('DEFAULT VALUE IS: {}'.format(default_value))
+                _log.debug('ENUMERATION VALUES: {}'.format(
+                    present_value_type.enumerations))
+                for k, v in present_value_type.enumerations.items():
+                    print("key {} value {}".format(k, v))
+                    if v == default_value:
+                        units_details += ' (default {default})'.format(
+                            default=k)
+
+        if not notes:
+            enum_strings = []
+            for name in Enumerated.keylist(present_value_type(0)):
+                value = present_value_type.enumerations[name]
+                enum_strings.append(str(value) + '=' + name)
+
+            notes = present_value_type.__name__ + ': ' + ', '.join(
+                enum_strings)
+
+        return units, units_details, notes
+
+
+    def process_units(self, object_type, obj):
+        units = ''
+        units_details = ''
+        notes = ''
+
+        if object_type.startswith('multiState'):
+            units = 'State'
+            state_count = obj.get('numberOfStates')
+            if state_count:
+                units_detailes = 'State count: {}'.format(state_count)
+
+            enum_strings = []
+            state_list = obj.get('stateText')
+            if state_list:
+                for name in state_list[1:]:
+                    enum_strings.append(name)
+                notes = ', '.join('{}={}'.format(x, y) for x, y in
+                                             enumerate(enum_strings, start=1))
+
+            if object_type != 'multiStateInput':
+                default_value = obj.get('relinquishDefault')
+                if default_value:
+                    units_details += ' (default {default})'.format(
+                        default=default_value)
+                    units_details = units_details.strip()
+        elif object_type == 'loop':
+            units = 'Loop'
+        else:
+            units = 'UNKNOWN UNITS'
+
+        return units, units_details, notes
+
+    def process_unknown(self, object_type, obj):
+        units = obj.get('units', 'UNKNOWN UNITS')
+        units_details = ''
+        notes = ''
+        if isinstance(units, (int, long)):
+            units = 'UNKNOWN UNIT ENUM VALUE: ' + str(units)
+
+        if object_type.startswith('analog') or object_type in (
+                'largeAnalogValue', 'integerValue',
+                'positiveIntegerValue'):
+            if not object_type.endswith('Value'):
+                res_value = obj.get('resolution')
+                if res_value:
+                    notes = 'Resolution: {resolution:.6g}'.format(
+                        resolution=res_value)
+
+        if object_type not in (
+                'largeAnalogValue', 'integerValue',
+                'positiveIntegerValue'):
+
+            min_value = obj.get('minPresValue', -MAX_RANGE_REPORT)
+            max_value = obj.get('maxPresValue', MAX_RANGE_REPORT)
+
+            has_min = min_value > -MAX_RANGE_REPORT
+            has_max = max_value < MAX_RANGE_REPORT
+            if has_min and has_max:
+                units_details = '{min:.2f} to {max:.2f}'.format(
+                    min=min_value, max=max_value)
+            elif has_min:
+                units_details = 'Min: {min:.2f}'.format(
+                    min=min_value)
+            elif has_max:
+                units_details = 'Max: {max:.2f}'.format(
+                    max=max_value)
+            else:
+                units_details = 'No limits.'
+
+        if object_type != 'analogInput':
+            default_value = obj.get('relinquishDefault')
+            if default_value:
+                units_details += ' (default {default})'.format(
+                    default=default_value)
+
+                units_details = units_details.strip()
+
+        return units, units_details, notes
+
+    def emit_responses(self, device_id, objects):
+        """
+        results = {}
+        results['Reference Point Name'] = results[
+            'Volttron Point Name'] = object_name
+        results['Units'] = object_units
+        results['Unit Details'] = object_units_details
+        results['BACnet Object Type'] = obj_type
+        results['Property'] = 'presentValue'
+        results['Writable'] = writable
+        results['Index'] = index
+        results['Notes'] = object_notes
+
+        :param objects:
+        :return:
+        """
+        for index, obj in objects.items():
+            print('Object: {}'.format(obj))
+            object_type = obj['object_type']
+            present_value_type = get_datatype(object_type, 'presentValue')
+
+            object_units_details = ''
+            object_units = ''
+            object_notes = ''
+
+            if issubclass(present_value_type, Boolean):
+                object_units = 'Boolean'
+            elif issubclass(present_value_type, Enumerated):
+                object_units, object_units_details, object_notes = \
+                    self.process_enumerated(object_type, obj)
+            elif get_datatype(object_type, 'units') is None:
+                object_units, object_units_details, object_notes = \
+                    self.process_units(object_type, obj)
+            else:
+                object_units, object_units_details, object_notes = \
+                    self.process_unknown(object_type, obj)
+
+            results = {}
+            # results['Reference Point Name'] = results[
+            #     'Volttron Point Name'] = object_name
+            results['Units'] = object_units
+            results['Unit Details'] = object_units_details
+            results['BACnet Object Type'] = object_type
+            results['Property'] = 'presentValue'
+            results['Writable'] = 'FALSE'
+            results['Index'] = obj['index']
+            results['Notes'] = object_notes
+
+            self._response_function(dict(device_id=device_id), results)
 
     def process_input(self, target_address, device_id, input_items, extended):
 
@@ -111,6 +328,7 @@ class BACnetReader(object):
         results = None
         object_notes = None
         count = 0
+        output = {}
         for item in input_items:
             index = item['index']
             object_type = item['bacnet_type']
@@ -118,66 +336,44 @@ class BACnetReader(object):
             new_map = self.build_query_map_for_type(object_type, index)
             query_mapping.update(new_map)
 
-            if count >= 0:
+            if count >= 5:
                 print('QueryMap: {}'.format(query_mapping))
                 results = self.read_props(target_address, query_mapping)
+                print('RESULTS: {}'.format(results))
+                objects = self.build_results(object_type, query_mapping,
+                                             results)
+                print('OBJECTS: {}'.format(objects))
+                self.emit_responses(device_id, objects)
+                #break
                 count = 0
                 query_mapping = {}
             count += 1
 
         if query_mapping:
             results = self.read_props(target_address, query_mapping)
-            count = 0
-            query_mapping = {}
+            objects = self.build_results(object_type, query_mapping,
+                                         results)
+            print('OBJECTS: {}'.format(objects))
+            self.emit_responses(device_id, objects)
 
-            # if obj_type.startswith('analog') or obj_type in (
-            #         'largeAnalogValue', 'integerValue', 'positiveIntegerValue'):
-            #     # Value objects never have a resolution property in practice.
-            #     if not object_notes and not obj_type.endswith('Value'):
-            #         try:
-            #             res_value = self.read_prop(target_address, obj_type, index,
-            #                                        "resolution")
-            #             object_notes = 'Resolution: {resolution:.6g}'.format(
-            #                 resolution=res_value)
-            #         except (TypeError, ValueError):
-            #             pass
-            #
-            #     if obj_type not in (
-            #             'largeAnalogValue', 'integerValue',
-            #             'positiveIntegerValue'):
-            #         try:
-            #             min_value = self.read_prop(target_address, obj_type, index,
-            #                                        "minPresValue")
-            #             max_value = self.read_prop(target_address, obj_type, index,
-            #                                        "maxPresValue")
-            #
-            #             has_min = min_value > -max_range_report
-            #             has_max = max_value < max_range_report
-            #
-            #             if has_min and has_max:
-            #                 object_units_details = '{min:.2f} to {max:.2f}'.format(
-            #                     min=min_value, max=max_value)
-            #             elif has_min:
-            #                 object_units_details = 'Min: {min:.2f}'.format(
-            #                     min=min_value)
-            #             elif has_max:
-            #                 object_units_details = 'Max: {max:.2f}'.format(
-            #                     max=max_value)
-            #             else:
-            #                 object_units_details = 'No limits.'
-            #         except (TypeError, ValueError):
-            #             pass
-            #
-            #     if obj_type != 'analogInput':
-            #         try:
-            #             default_value = self.read_prop(address, obj_type, index,
-            #                                            "relinquishDefault")
-            #             object_units_details += ' (default {default})'.format(
-            #                 default=default_value)
-            #             object_units_details = object_units_details.strip()
-            #             # writable = 'TRUE'
-            #         except (TypeError, ValueError):
-            #             pass
+    def _filter_present_value_from_results(self, results):
+        """ Filter the results so that only presentValue datatypes are kept.
+
+        The results of this function have an array of dictionaries.
+
+        :param results: The results from a read_props function.
+        :return: An array of dictionaries.
+        """
+        # Currently our driver only deals with objects that have a
+        # presentValue datatype.  This gives a list of dictionary's that
+        # represent the individual lines in the config file (note not all of
+        # the properties are currently present in the dictionary)
+        presentValues = [dict(index=v[1], writable="FALSE",
+                              datatype=get_datatype(v[0], 'presentValue'),
+                              bacnet_type=v[0])
+                         for k, v in results.items()
+                         if get_datatype(v[0], 'presentValue')]
+        return presentValues
 
     def read_device_primary(self, target_address, device_id):
         """('Reference Point Name',
@@ -197,6 +393,7 @@ class BACnetReader(object):
                                 index]}
 
         """
+        _log.info('read_device_primary called.')
         try:
             object_count = self.read_prop(target_address, "device", device_id,
                                           "objectList", index=0)
@@ -209,48 +406,40 @@ class BACnetReader(object):
         _log.debug('object_count = ' + str(object_count))
 
         query_map = {}
-
-        # Build an efficient mapping of initial object to make a single call
-        # to get object type and index (offset?) into the bacnet device
-        for object_index in xrange(1, object_count + 1):
-            _log.debug('object_device_index = ' + repr(object_index))
-
-            query_map[object_index] = [
-                "device", device_id, list_property, object_index
-            ]
-
-        # results are bacnet type string (analogInput, binaryOutput, etc.) and
-        # a unique "index".  Interrogation of the type and index provide us with
-        # the properties of a specific instance (line) within the bacnet device.
-        results = self.read_props(target_address, query_map)
-
-        # Currently our driver only deals with objects that have a
-        # presentValue datatype.  This gives a list of dictionary's that
-        # represent the individual lines in the config file (note not all of
-        # the properties are currently present in the dictionary)
-        presentValues = [dict(index=v[1], writable="FALSE",
-                              datatype=get_datatype(v[0], 'presentValue'),
-                              bacnet_type=v[0])
-                         for k, v in results.items()
-                         if get_datatype(v[0], 'presentValue')]
+        count = 0
+        results = None
 
         # type_map contains a dictionary keyed off of the bacnet_type string
         # each value holds a list of the lines in the csv file that contains
         # that specific datatype.
         type_map = defaultdict(list)
-        # index map contains a key of the index for the object with the
-        # value the object dictionary for the output.
-        index_map = {}
-        # Holds the original order of the csv file so it can be returned
-        # in the same manner if necessary.
-        original_order = []
 
-        # build structures for convenient querying and responces in a
-        # deterministic way.
-        for pv in presentValues:
-            type_map[pv['bacnet_type']].append(pv)
-            original_order.append(pv['index'])
-            index_map[pv['index']] = pv
+        # Loop over each of the objects and interrogate the device for the
+        # properties types and indexes.  After this for loop type_map will
+        # hold the readable properties from the bacnet device ordered by
+        # the type i.e. type_map['analogInput'] = [300324,304050]
+        for object_index in xrange(1, object_count + 1):
+            count += 1
+
+            query_map[object_index] = [
+                "device", device_id, list_property, object_index
+            ]
+            if count >= 100:
+                results = self.read_props(target_address, query_map)
+                presentValues = self._filter_present_value_from_results(results)
+                for pv in presentValues:
+                    type_map[pv['bacnet_type']].append(pv)
+                query_map = {}
+                count = 0
+
+        if count > 0:
+            results = self.read_props(target_address, query_map)
+            presentValues = self._filter_present_value_from_results(results)
+            for pv in presentValues:
+                type_map[pv['bacnet_type']].append(pv)
+            query_map = {}
+
+        print('TYPE_MAP: {}'.format(type_map))
 
         processing_map = {
             # get data for any analog, largeAnalogValue, integerValue or
@@ -263,92 +452,8 @@ class BACnetReader(object):
         #         processing_map['*Input'](target_address, device_id, v)
 
         for k, v in type_map.items():
-            if k.startswith('analog') or k in ('largeAnalogValue',
-                                               'integerValue',
-                                               'positiveIntegerValue'):
-                _log.debug('Processing *Input')
-                processing_map['*Input'](target_address, device_id, v, False)
-
-
-                #
-                # query_names = {}
-                # count = 0
-                #
-                # for k, v in index_map.items():
-                #     # address, obj_type, index,
-                #     # "relinquishDefault"
-                #     query_names[str(k)+'-name'] = [
-                #         v['bacnet_type'], k, "objectName"
-                #     ]
-                #     query_names[str(k)+'-description'] = [
-                #         v['bacnet_type'], k, "description"
-                #     ]
-                #     query_names[str(k) + '-default'] = [
-                #         v['bacnet_type'], k, "relinquishDefault"
-                #     ]
-                #     if count > 10:
-                #         break
-                #     count += 1
-                #     # query_names[k + '-description'] = [
-                #     #     v['bacnet_type'], k, "objectName"
-                #     # ]
-                #
-                # results = self.read_props(target_address, query_names)
-                #
-                # for r, b in results.items():
-                #     print('RESULTS {}-{}'.format(r, b))
-                # #
-                # indx = len(presentValues)
-                # type_index_map = {}
-                #
-                # # Each type (analogInput, binaryOutput, etc.) is
-                # # mapped to an array of those types.
-                # type_map = defaultdict(list)
-                #
-                # while indx > 0:
-                #     indx -= 1
-                #     bacnet_type = presentValues[indx]['bacnet_type']
-                #     bacnet_index = presentValues[indx]['index']
-                #     datatype = presentValues[indx]['datatype']
-                #     if datatype is None:
-                #         _log.debug("Datatype for {} was None".format(bacnet_type))
-                #         continue
-                #
-                #     if not issubclass(presentValues[indx]['datatype'], (Enumerated,
-                #                                        Unsigned,
-                #                                        Boolean,
-                #                                        Integer,
-                #                                        Real,
-                #                                        Double)):
-                #         _log.debug("Unsupported datatype: {}".format(
-                #             presentValues[indx]['bacnet_type']))
-                #         del presentValues[indx]
-                #     else:
-                #         type_map[bacnet_type].append(presentValues[indx])
-                #         type_index_map[(bacnet_type, bacnet_index)] = presentValues[indx]
-                #
-                # params = {}
-                #
-                # process_map = {
-                #     'binaryOutput': self.process_enum
-                # }
-                #
-                # for k in type_index_map.keys():
-                #     if issubclass(type_index_map[k]['datatype'], Enumerated):
-                #         process_map[k[0]](address=target_address, obj_type=k[0],
-                #                           index=k[1], )
-                #     params[str(k)] = [
-                #         "device", device_id, "objectName", k[1]
-                #     ]
-                #
-                # results = self.read_props(target_address, params)
-                #
-                # print('Results: {}'.format(results))
-
-                # sval = buffer.getvalue()
-                # _log.debug('VALUE is: {}'.format(sval))
-                # buffer.close()
-                # return sval
+            _log.debug('Processing *Input {}'.format(k))
+            processing_map['*Input'](target_address, device_id, v, False)
 
     def process_enum(self, address, obj_type, index, present_value_type):
         """
@@ -417,7 +522,7 @@ class BACnetReader(object):
                                             'Units',
                                             'Unit Details',
                                             'BACnet Object Type',
-                                            'Propert.y',
+                                            'Property',
                                             'Writable',
                                             'Index',
                                             'Write Priority',
@@ -437,7 +542,6 @@ class BACnetReader(object):
         queries = {}
 
         for object_index in xrange(1, object_count + 1):
-            _log.debug('object_device_index = ' + repr(object_index))
 
             bac_object = self.read_prop(target_address,
                                         "device",

@@ -317,6 +317,8 @@ class VolttronCentralPlatform(Agent):
             if self._volttron_central_connection.is_connected() and \
                     self._volttron_central_connection.is_peer_connected():
                 _log.debug("Connection has been established to local peer.")
+            else:
+                _log.error('Unable to connect to local peer!')
             return self._volttron_central_connection
 
         # If we have an http address for volttron central, but haven't
@@ -518,17 +520,18 @@ class VolttronCentralPlatform(Agent):
 
     @RPC.export
     def publish_bacnet_props(self, proxy_identity, address, device_id,
-                             extended=False, filter={}):
+                             extended=False, filter=[]):
 
         bn = BACnetReader(self.vip.rpc, proxy_identity, self._bacnet_response)
-        results = dict(address=address, device_id=device_id, device_name=None,
-                       device_description=None)
 
-        # gevent.spawn(bn.read_device_properties, address, device_id)
-        if not extended:
-            gevent.spawn(bn.read_device_primary, address, device_id)
+        if extended:
+            if not filter:
+                return "Invalid filter specified!"
+
+            gevent.spawn(bn.read_extended_properties, address, device_id,
+                         filter)
         else:
-            gevent.spawn(bn.read_device_extended, address, device_id, filter)
+            gevent.spawn(bn.read_device_primary, address, device_id)
         return "PUBLISHING"
 
     def _bacnet_response(self, context, results):
@@ -545,7 +548,8 @@ class VolttronCentralPlatform(Agent):
         if proxy_identity not in self.vip.peerlist().get(timeout=5):
             raise Unreachable("Can't reach agent identity {}".format(
                 proxy_identity))
-
+        _log.info('Starting bacnet_scan with who_is request to {}'.format(
+            proxy_identity))
         self.vip.rpc.call(proxy_identity, "who_is", low_device_id=low_device_id,
                           high_device_id=high_device_id,
                           target_address=target_address).get(timeout=5.0)
