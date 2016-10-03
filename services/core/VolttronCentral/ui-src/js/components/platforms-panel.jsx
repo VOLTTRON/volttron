@@ -2,11 +2,11 @@
 
 var React = require('react');
 var Router = require('react-router');
+import PlatformsPanelItem from './platforms-panel-item';
 
 var platformsPanelStore = require('../stores/platforms-panel-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
-var PlatformsPanelItem = require('./platforms-panel-item');
 var ControlButton = require('./control-button');
 
 

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import BaseComponent from './base-component';
-import PureRenderMixin from 'react-addons-pure-render-mixin';
+// import PureRenderMixin from 'react-addons-pure-render-mixin';
 import EditPointForm from './edit-point-form';
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
@@ -37,16 +37,6 @@ class RegistryRow extends BaseComponent {
     shouldComponentUpdate(nextProps, nextState) {
         var doUpdate = false;
 
-        // if (objectListsAreDifferent(this.props.attributesList, nextProps.attributesList))
-        // if (!this.props.attributesList.equals(nextProps.attributesList))
-        // {
-        //     // var newState = this._resetState(nextProps);
-
-        //     // this.setState(newState);
-        //     doUpdate = true;
-        //     console.log("props not equal");
-        // }
-        // else 
         if ((!this.state.attributesList.equals(nextState.attributesList)) || 
             (this.state.selectedForDelete !== nextState.selectedForDelete))
         {

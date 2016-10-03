@@ -7585,8 +7585,27 @@ module.exports = Platform;
 },{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../stores/platforms-store":65,"./agent-row":11,"react":undefined,"react-router":undefined}],40:[function(require,module,exports){
 'use strict';
 
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _baseComponent = require('./base-component');
+
+var _baseComponent2 = _interopRequireDefault(_baseComponent);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
 var React = require('react');
 var Router = require('react-router');
+
 
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
@@ -7595,430 +7614,480 @@ var controlButtonActionCreators = require('../action-creators/control-button-act
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var ControlButton = require('./control-button');
 
-var PlatformsPanelItem = React.createClass({
-    displayName: 'PlatformsPanelItem',
+var PlatformsPanelItem = function (_BaseComponent) {
+    _inherits(PlatformsPanelItem, _BaseComponent);
 
-    getInitialState: function getInitialState() {
-        var state = {};
+    function PlatformsPanelItem(props) {
+        _classCallCheck(this, PlatformsPanelItem);
 
-        state.showTooltip = false;
-        state.tooltipX = null;
-        state.tooltipY = null;
-        state.checked = this.props.panelItem.hasOwnProperty("checked") ? this.props.panelItem.checked : false;
-        state.panelItem = this.props.panelItem;
-        state.children = this.props.panelChildren;
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(PlatformsPanelItem).call(this, props));
 
-        if (this.props.panelItem.type === "platform") {
-            state.notInitialized = true;
-            state.loading = false;
-            state.cancelButton = false;
+        _this._bind('_onStoresChange', '_expandAll', '_handleArrowClick', '_showCancel', '_resumeLoad', '_checkItem', '_showTooltip', '_hideTooltip', '_moveTooltip', '_onAddDevices', '_onDeviceMethodChange');
+
+        _this.state = {};
+
+        _this.state.showTooltip = false;
+        _this.state.tooltipX = null;
+        _this.state.tooltipY = null;
+        _this.state.checked = _this.props.panelItem.hasOwnProperty("checked") ? _this.props.panelItem.checked : false;
+        _this.state.panelItem = _this.props.panelItem;
+        _this.state.children = _this.props.panelChildren;
+
+        if (_this.props.panelItem.type === "platform") {
+            _this.state.notInitialized = true;
+            _this.state.loading = false;
+            _this.state.cancelButton = false;
         }
+        return _this;
+    }
 
-        return state;
-    },
-    componentDidMount: function componentDidMount() {
-        platformsPanelItemsStore.addChangeListener(this._onStoresChange);
-    },
-    componentWillUnmount: function componentWillUnmount() {
-        platformsPanelItemsStore.removeChangeListener(this._onStoresChange);
-    },
-    _onStoresChange: function _onStoresChange() {
-
-        var panelItem = platformsPanelItemsStore.getItem(this.props.itemPath);
-        var panelChildren = platformsPanelItemsStore.getChildren(this.props.panelItem, this.props.itemPath);
-
-        var loadingComplete = platformsPanelItemsStore.getLoadingComplete(this.props.panelItem);
-
-        if (loadingComplete === true || loadingComplete === null) {
-            this.setState({ panelItem: panelItem });
-            this.setState({ children: panelChildren });
-            this.setState({ checked: panelItem.checked });
-
-            if (this.props.panelItem.type === "platform") {
-                if (loadingComplete === true) {
-                    this.setState({ loading: false });
-                    this.setState({ notInitialized: false });
-                } else if (loadingComplete === null) {
-                    this.setState({ loading: false });
-                    this.setState({ notInitialized: true });
-                }
-            }
+    _createClass(PlatformsPanelItem, [{
+        key: 'componentDidMount',
+        value: function componentDidMount() {
+            platformsPanelItemsStore.addChangeListener(this._onStoresChange);
         }
-    },
-    _expandAll: function _expandAll() {
+    }, {
+        key: 'componentWillUnmount',
+        value: function componentWillUnmount() {
+            platformsPanelItemsStore.removeChangeListener(this._onStoresChange);
+        }
+    }, {
+        key: 'shouldComponentUpdate',
+        value: function shouldComponentUpdate(nextProps, nextState) {}
+    }, {
+        key: '_onStoresChange',
+        value: function _onStoresChange() {
 
-        platformsPanelActionCreators.expandAll(this.props.itemPath);
-    },
-    _handleArrowClick: function _handleArrowClick() {
+            var panelItem = platformsPanelItemsStore.getItem(this.props.itemPath);
+            var panelChildren = platformsPanelItemsStore.getChildren(this.props.panelItem, this.props.itemPath);
 
-        if (!this.state.loading) // If not loading, treat it as just a regular toggle button
-            {
-                if (this.state.panelItem.expanded === null && this.state.panelItem.type === "platform") {
-                    this.setState({ loading: true });
-                    platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
-                } else {
-                    if (this.state.panelItem.expanded) {
-                        platformsPanelActionCreators.expandAll(this.props.itemPath);
-                    } else {
-                        platformsPanelActionCreators.toggleItem(this.props.itemPath);
+            var loadingComplete = platformsPanelItemsStore.getLoadingComplete(this.props.panelItem);
+
+            if (loadingComplete === true || loadingComplete === null) {
+                this.setState({ panelItem: panelItem });
+                this.setState({ children: panelChildren });
+                this.setState({ checked: panelItem.checked });
+
+                if (this.props.panelItem.type === "platform") {
+                    if (loadingComplete === true) {
+                        this.setState({ loading: false });
+                        this.setState({ notInitialized: false });
+                    } else if (loadingComplete === null) {
+                        this.setState({ loading: false });
+                        this.setState({ notInitialized: true });
                     }
                 }
-            } else if (this.state.hasOwnProperty("loading")) // it's a platform and it's loading
-            {
-                if (this.state.loading || this.state.cancelButton) // if either loading or cancelButton is still
-                    {
-                        // true, either way, the user wants to 
-                        this.setState({ loading: false }); // get out of the loading state, so turn
-                        this.setState({ cancelButton: false }); // the toggle button back to an arrow icon
-                    }
-            }
-    },
-    _showCancel: function _showCancel() {
-
-        if (this.state.hasOwnProperty("loading") && this.state.loading === true) {
-            this.setState({ cancelButton: true });
-        }
-    },
-    _resumeLoad: function _resumeLoad() {
-
-        if (this.state.hasOwnProperty("loading")) {
-            this.setState({ cancelButton: false });
-        }
-    },
-    _checkItem: function _checkItem(e) {
-
-        var checked = e.target.checked;
-
-        if (checked) {
-            this.setState({ checked: null });
-            platformChartActionCreators.addToChart(this.props.panelItem);
-        } else {
-            this.setState({ checked: null });
-            platformChartActionCreators.removeFromChart(this.props.panelItem);
-        }
-    },
-    _showTooltip: function _showTooltip(evt) {
-        this.setState({ showTooltip: true });
-        this.setState({ tooltipX: evt.clientX - 60 });
-        this.setState({ tooltipY: evt.clientY - 70 });
-    },
-    _hideTooltip: function _hideTooltip() {
-        this.setState({ showTooltip: false });
-    },
-    _moveTooltip: function _moveTooltip(evt) {
-        this.setState({ tooltipX: evt.clientX - 60 });
-        this.setState({ tooltipY: evt.clientY - 70 });
-    },
-    _onAddDevices: function _onAddDevices(evt) {
-        devicesActionCreators.configureDevices(this.state.panelItem);
-    },
-    _onDeviceMethodChange: function _onDeviceMethodChange(evt) {
-
-        var deviceMethod = evt.target.value;
-
-        this.setState({ deviceMethod: deviceMethod });
-
-        if (deviceMethod) {
-            devicesActionCreators.addDevices(this.state.panelItem, deviceMethod);
-            controlButtonActionCreators.hideTaptip("addDevicesButton");
-        }
-    },
-    render: function render() {
-        var panelItem = this.state.panelItem;
-        var itemPath = this.props.itemPath;
-        var propChildren = this.state.children;
-        var children;
-
-        var visibleStyle = {};
-
-        if (panelItem.visible !== true) {
-            visibleStyle = {
-                display: "none"
-            };
-        }
-
-        var childClass;
-        var arrowClasses = ["arrowButton", "noRotate"];
-        var arrowContent;
-        var arrowContentStyle = {
-            width: "14px"
-        };
-
-        if (this.state.hasOwnProperty("loading")) {
-            if (this.state.cancelButton) {
-                arrowClasses.push("cancelLoading");
-            } else if (this.state.loading) {
-                arrowClasses.push("loadingSpinner");
             }
         }
+    }, {
+        key: '_expandAll',
+        value: function _expandAll() {
 
-        var DevicesButton;
+            platformsPanelActionCreators.expandAll(this.props.itemPath);
+        }
+    }, {
+        key: '_handleArrowClick',
+        value: function _handleArrowClick() {
 
-        if (["platform"].indexOf(panelItem.type) > -1) {
-            var taptipX = 20;
-            var taptipY = 100;
-
-            var tooltipX = 20;
-            var tooltipY = 70;
-
-            var devicesSelect = React.createElement(
-                'select',
+            if (!this.state.loading) // If not loading, treat it as just a regular toggle button
                 {
-                    onChange: this._onDeviceMethodChange,
-                    value: this.state.deviceMethod,
-                    autoFocus: true,
-                    required: true
-                },
-                React.createElement(
-                    'option',
-                    { value: '' },
-                    '-- Select method --'
-                ),
-                React.createElement(
-                    'option',
-                    { value: 'scanForDevices' },
-                    'Scan for Devices'
-                ),
-                React.createElement(
-                    'option',
-                    { value: 'addDevicesManually' },
-                    'Add Manually'
-                )
-            );
-
-            var devicesTaptip = {
-                "title": "Add Devices",
-                "content": devicesSelect,
-                "xOffset": taptipX,
-                "yOffset": taptipY
-            };
-
-            var devicesTooltip = {
-                "content": "Add Devices",
-                "xOffset": tooltipX,
-                "yOffset": tooltipY
-            };
-
-            DevicesButton = React.createElement(ControlButton, {
-                name: 'addDevicesButton',
-                tooltip: devicesTooltip,
-                controlclass: 'panelItemButton',
-                nocentering: true,
-                floatleft: true,
-                fontAwesomeIcon: 'cogs',
-                clickAction: this._onAddDevices });
+                    if (this.state.panelItem.expanded === null && this.state.panelItem.type === "platform") {
+                        this.setState({ loading: true });
+                        platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+                    } else {
+                        if (this.state.panelItem.expanded) {
+                            platformsPanelActionCreators.expandAll(this.props.itemPath);
+                        } else {
+                            platformsPanelActionCreators.toggleItem(this.props.itemPath);
+                        }
+                    }
+                } else if (this.state.hasOwnProperty("loading")) // it's a platform and it's loading
+                {
+                    if (this.state.loading || this.state.cancelButton) // if either loading or cancelButton is still
+                        {
+                            // true, either way, the user wants to 
+                            this.setState({ loading: false }); // get out of the loading state, so turn
+                            this.setState({ cancelButton: false }); // the toggle button back to an arrow icon
+                        }
+                }
         }
+    }, {
+        key: '_showCancel',
+        value: function _showCancel() {
 
-        var ChartCheckbox;
+            if (this.state.hasOwnProperty("loading") && this.state.loading === true) {
+                this.setState({ cancelButton: true });
+            }
+        }
+    }, {
+        key: '_resumeLoad',
+        value: function _resumeLoad() {
 
-        if (["point"].indexOf(panelItem.type) > -1) {
-            if (this.state.checked !== null) {
-                ChartCheckbox = React.createElement('input', { className: 'panelItemCheckbox',
-                    type: 'checkbox',
-                    onChange: this._checkItem,
-                    checked: this.state.checked });
+            if (this.state.hasOwnProperty("loading")) {
+                this.setState({ cancelButton: false });
+            }
+        }
+    }, {
+        key: '_checkItem',
+        value: function _checkItem(e) {
+
+            var checked = e.target.checked;
+
+            if (checked) {
+                this.setState({ checked: null });
+                platformChartActionCreators.addToChart(this.props.panelItem);
             } else {
-                ChartCheckbox = React.createElement(
-                    'div',
-                    { className: 'checkboxSpinner arrowButton' },
+                this.setState({ checked: null });
+                platformChartActionCreators.removeFromChart(this.props.panelItem);
+            }
+        }
+    }, {
+        key: '_showTooltip',
+        value: function _showTooltip(evt) {
+            this.setState({ showTooltip: true });
+            this.setState({ tooltipX: evt.clientX - 60 });
+            this.setState({ tooltipY: evt.clientY - 70 });
+        }
+    }, {
+        key: '_hideTooltip',
+        value: function _hideTooltip() {
+            this.setState({ showTooltip: false });
+        }
+    }, {
+        key: '_moveTooltip',
+        value: function _moveTooltip(evt) {
+            this.setState({ tooltipX: evt.clientX - 60 });
+            this.setState({ tooltipY: evt.clientY - 70 });
+        }
+    }, {
+        key: '_onAddDevices',
+        value: function _onAddDevices(evt) {
+            devicesActionCreators.configureDevices(this.state.panelItem);
+        }
+    }, {
+        key: '_onDeviceMethodChange',
+        value: function _onDeviceMethodChange(evt) {
+
+            var deviceMethod = evt.target.value;
+
+            this.setState({ deviceMethod: deviceMethod });
+
+            if (deviceMethod) {
+                devicesActionCreators.addDevices(this.state.panelItem, deviceMethod);
+                controlButtonActionCreators.hideTaptip("addDevicesButton");
+            }
+        }
+    }, {
+        key: 'render',
+        value: function render() {
+
+            // console.log("rendering 1");
+            var panelItem = this.state.panelItem;
+            var itemPath = this.props.itemPath;
+            var propChildren = this.state.children;
+            var children;
+
+            var visibleStyle = {};
+
+            if (panelItem.visible !== true) {
+                visibleStyle = {
+                    display: "none"
+                };
+            }
+
+            var childClass;
+            var arrowClasses = ["arrowButton", "noRotate"];
+            var arrowContent;
+            var arrowContentStyle = {
+                width: "14px"
+            };
+
+            if (this.state.hasOwnProperty("loading")) {
+                if (this.state.cancelButton) {
+                    arrowClasses.push("cancelLoading");
+                } else if (this.state.loading) {
+                    arrowClasses.push("loadingSpinner");
+                }
+            }
+
+            var DevicesButton;
+
+            if (["platform"].indexOf(panelItem.type) > -1) {
+                var taptipX = 20;
+                var taptipY = 100;
+
+                var tooltipX = 20;
+                var tooltipY = 70;
+
+                var devicesSelect = React.createElement(
+                    'select',
+                    {
+                        onChange: this._onDeviceMethodChange,
+                        value: this.state.deviceMethod,
+                        autoFocus: true,
+                        required: true
+                    },
                     React.createElement(
-                        'span',
-                        { style: arrowContentStyle },
-                        React.createElement('i', { className: 'fa fa-circle-o-notch fa-spin fa-fw' })
+                        'option',
+                        { value: '' },
+                        '-- Select method --'
+                    ),
+                    React.createElement(
+                        'option',
+                        { value: 'scanForDevices' },
+                        'Scan for Devices'
+                    ),
+                    React.createElement(
+                        'option',
+                        { value: 'addDevicesManually' },
+                        'Add Manually'
                     )
                 );
+
+                var devicesTaptip = {
+                    "title": "Add Devices",
+                    "content": devicesSelect,
+                    "xOffset": taptipX,
+                    "yOffset": taptipY
+                };
+
+                var devicesTooltip = {
+                    "content": "Add Devices",
+                    "xOffset": tooltipX,
+                    "yOffset": tooltipY
+                };
+
+                DevicesButton = React.createElement(ControlButton, {
+                    name: 'addDevicesButton',
+                    tooltip: devicesTooltip,
+                    controlclass: 'panelItemButton',
+                    nocentering: true,
+                    floatleft: true,
+                    fontAwesomeIcon: 'cogs',
+                    clickAction: this._onAddDevices });
             }
-        }
 
-        var tooltipStyle = {
-            display: panelItem.type !== "type" ? this.state.showTooltip ? "block" : "none" : "none",
-            position: "absolute",
-            top: this.state.tooltipY + "px",
-            left: this.state.tooltipX + "px"
-        };
+            var ChartCheckbox;
 
-        var toolTipClasses = this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer";
-
-        if (!this.state.loading) {
-            arrowClasses.push(panelItem.status === "GOOD" ? "status-good" : panelItem.status === "BAD" ? "status-bad" : "status-unknown");
-        }
-
-        var agentInfo;
-
-        if (panelItem.type === "agent") {
-            agentInfo = React.createElement(
-                'div',
-                null,
-                'Identity: ',
-                panelItem.identity
-            );
-        }
-
-        if (this.state.cancelButton) {
-            arrowContent = React.createElement(
-                'span',
-                { style: arrowContentStyle },
-                React.createElement('i', { className: 'fa fa-remove' })
-            );
-        } else if (this.state.loading) {
-            arrowContent = React.createElement(
-                'span',
-                { style: arrowContentStyle },
-                React.createElement('i', { className: 'fa fa-circle-o-notch fa-spin fa-fw' })
-            );
-        } else if (panelItem.status === "GOOD") {
-            arrowContent = React.createElement(
-                'span',
-                { style: arrowContentStyle },
-                '▶'
-            );
-        } else if (panelItem.status === "BAD") {
-            arrowContent = React.createElement(
-                'span',
-                { style: arrowContentStyle },
-                React.createElement('i', { className: 'fa fa-minus-circle' })
-            );
-        } else {
-            arrowContent = React.createElement(
-                'span',
-                { style: arrowContentStyle },
-                '▬'
-            );
-        }
-
-        if (this.state.panelItem.expanded === true && propChildren) {
-            children = propChildren.sort(function (a, b) {
-                if (a.name.toUpperCase() > b.name.toUpperCase()) {
-                    return 1;
+            if (["point"].indexOf(panelItem.type) > -1) {
+                if (this.state.checked !== null) {
+                    ChartCheckbox = React.createElement('input', { className: 'panelItemCheckbox',
+                        type: 'checkbox',
+                        onChange: this._checkItem,
+                        checked: this.state.checked });
+                } else {
+                    ChartCheckbox = React.createElement(
+                        'div',
+                        { className: 'checkboxSpinner arrowButton' },
+                        React.createElement(
+                            'span',
+                            { style: arrowContentStyle },
+                            React.createElement('i', { className: 'fa fa-circle-o-notch fa-spin fa-fw' })
+                        )
+                    );
                 }
-                if (a.name.toUpperCase() < b.name.toUpperCase()) {
-                    return -1;
-                }
-                return 0;
-            }).sort(function (a, b) {
-                if (a.sortOrder > b.sortOrder) {
-                    return 1;
-                }
-                if (a.sortOrder < b.sortOrder) {
-                    return -1;
-                }
-                return 0;
-            }).map(function (propChild) {
-
-                var grandchildren = [];
-                propChild.children.forEach(function (childString) {
-                    grandchildren.push(propChild[childString]);
-                });
-
-                var itemKey = propChild.hasOwnProperty("uuid") ? propChild.uuid : propChild.name + this.uuid;
-
-                return React.createElement(PlatformsPanelItem, { key: itemKey,
-                    panelItem: propChild,
-                    itemPath: propChild.path,
-                    panelChildren: grandchildren });
-            }, this.state.panelItem);
-
-            if (children.length > 0) {
-                var classIndex = arrowClasses.indexOf("noRotate");
-
-                if (classIndex > -1) {
-                    arrowClasses.splice(classIndex, 1);
-                }
-
-                arrowClasses.push("rotateDown");
-                childClass = "showItems";
             }
-        }
 
-        var itemClasses = [];
+            var tooltipStyle = {
+                display: panelItem.type !== "type" ? this.state.showTooltip ? "block" : "none" : "none",
+                position: "absolute",
+                top: this.state.tooltipY + "px",
+                left: this.state.tooltipX + "px"
+            };
 
-        if (!panelItem.hasOwnProperty("uuid")) {
-            itemClasses.push("item_type");
-        } else {
-            itemClasses.push("item_label");
-        }
+            var toolTipClasses = this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer";
 
-        if (panelItem.type === "platform" && this.state.notInitialized) {
-            itemClasses.push("not_initialized");
-        }
+            if (!this.state.loading) {
+                arrowClasses.push(panelItem.status === "GOOD" ? "status-good" : panelItem.status === "BAD" ? "status-bad" : "status-unknown");
+            }
 
-        var listItem = React.createElement(
-            'div',
-            { className: itemClasses.join(' ') },
-            panelItem.name
-        );
+            var agentInfo;
 
-        return React.createElement(
-            'li',
-            {
-                key: panelItem.uuid,
-                className: 'panel-item',
-                style: visibleStyle
-            },
-            React.createElement(
+            if (panelItem.type === "agent") {
+                agentInfo = React.createElement(
+                    'div',
+                    null,
+                    'Identity: ',
+                    panelItem.identity
+                );
+            }
+
+            if (this.state.cancelButton) {
+                arrowContent = React.createElement(
+                    'span',
+                    { style: arrowContentStyle },
+                    React.createElement('i', { className: 'fa fa-remove' })
+                );
+            } else if (this.state.loading) {
+                arrowContent = React.createElement(
+                    'span',
+                    { style: arrowContentStyle },
+                    React.createElement('i', { className: 'fa fa-circle-o-notch fa-spin fa-fw' })
+                );
+            } else if (panelItem.status === "GOOD") {
+                arrowContent = React.createElement(
+                    'span',
+                    { style: arrowContentStyle },
+                    '▶'
+                );
+            } else if (panelItem.status === "BAD") {
+                arrowContent = React.createElement(
+                    'span',
+                    { style: arrowContentStyle },
+                    React.createElement('i', { className: 'fa fa-minus-circle' })
+                );
+            } else {
+                arrowContent = React.createElement(
+                    'span',
+                    { style: arrowContentStyle },
+                    '▬'
+                );
+            }
+
+            if (this.state.panelItem.expanded === true && propChildren) {
+                children = propChildren.sort(function (a, b) {
+                    if (a.name.toUpperCase() > b.name.toUpperCase()) {
+                        return 1;
+                    }
+                    if (a.name.toUpperCase() < b.name.toUpperCase()) {
+                        return -1;
+                    }
+                    return 0;
+                }).sort(function (a, b) {
+                    if (a.sortOrder > b.sortOrder) {
+                        return 1;
+                    }
+                    if (a.sortOrder < b.sortOrder) {
+                        return -1;
+                    }
+                    return 0;
+                }).map(function (propChild) {
+
+                    var grandchildren = [];
+                    propChild.children.forEach(function (childString) {
+                        grandchildren.push(propChild[childString]);
+                    });
+
+                    var itemKey = propChild.hasOwnProperty("uuid") ? propChild.uuid : propChild.name + this.uuid;
+
+                    return React.createElement(PlatformsPanelItem, { key: itemKey,
+                        panelItem: propChild,
+                        itemPath: propChild.path,
+                        panelChildren: grandchildren });
+                }, this.state.panelItem);
+
+                if (children.length > 0) {
+                    var classIndex = arrowClasses.indexOf("noRotate");
+
+                    if (classIndex > -1) {
+                        arrowClasses.splice(classIndex, 1);
+                    }
+
+                    arrowClasses.push("rotateDown");
+                    childClass = "showItems";
+                }
+            }
+
+            var itemClasses = [];
+
+            if (!panelItem.hasOwnProperty("uuid")) {
+                itemClasses.push("item_type");
+            } else {
+                itemClasses.push("item_label");
+            }
+
+            if (panelItem.type === "platform" && this.state.notInitialized) {
+                itemClasses.push("not_initialized");
+            }
+
+            var listItem = React.createElement(
                 'div',
-                { className: 'platform-info' },
+                { className: itemClasses.join(' ') },
+                panelItem.name
+            );
+
+            return React.createElement(
+                'li',
+                {
+                    key: panelItem.uuid,
+                    className: 'panel-item',
+                    style: visibleStyle
+                },
                 React.createElement(
                     'div',
-                    { className: arrowClasses.join(' '),
-                        onDoubleClick: this._expandAll,
-                        onClick: this._handleArrowClick,
-                        onMouseEnter: this._showCancel,
-                        onMouseLeave: this._resumeLoad },
-                    arrowContent
-                ),
-                DevicesButton,
-                ChartCheckbox,
-                React.createElement(
-                    'div',
-                    { className: toolTipClasses,
-                        style: tooltipStyle },
+                    { className: 'platform-info' },
                     React.createElement(
                         'div',
-                        { className: 'tooltip_inner' },
+                        { className: arrowClasses.join(' '),
+                            onDoubleClick: this._expandAll,
+                            onClick: this._handleArrowClick,
+                            onMouseEnter: this._showCancel,
+                            onMouseLeave: this._resumeLoad },
+                        arrowContent
+                    ),
+                    DevicesButton,
+                    ChartCheckbox,
+                    React.createElement(
+                        'div',
+                        { className: toolTipClasses,
+                            style: tooltipStyle },
                         React.createElement(
                             'div',
-                            { className: 'opaque_inner' },
-                            agentInfo,
-                            'Status: ',
-                            panelItem.context ? panelItem.context : panelItem.statusLabel
+                            { className: 'tooltip_inner' },
+                            React.createElement(
+                                'div',
+                                { className: 'opaque_inner' },
+                                agentInfo,
+                                'Status: ',
+                                panelItem.context ? panelItem.context : panelItem.statusLabel
+                            )
                         )
+                    ),
+                    React.createElement(
+                        'div',
+                        { className: 'tooltip_target',
+                            onMouseEnter: this._showTooltip,
+                            onMouseLeave: this._hideTooltip,
+                            onMouseMove: this._moveTooltip },
+                        listItem
                     )
                 ),
                 React.createElement(
                     'div',
-                    { className: 'tooltip_target',
-                        onMouseEnter: this._showTooltip,
-                        onMouseLeave: this._hideTooltip,
-                        onMouseMove: this._moveTooltip },
-                    listItem
+                    { className: childClass },
+                    React.createElement(
+                        'ul',
+                        { className: 'platform-panel-list' },
+                        children
+                    )
                 )
-            ),
-            React.createElement(
-                'div',
-                { className: childClass },
-                React.createElement(
-                    'ul',
-                    { className: 'platform-panel-list' },
-                    children
-                )
-            )
-        );
-    }
-});
+            );
+        }
+    }]);
 
-module.exports = PlatformsPanelItem;
+    return PlatformsPanelItem;
+}(_baseComponent2.default);
 
-},{"../action-creators/control-button-action-creators":3,"../action-creators/devices-action-creators":4,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":63,"./control-button":20,"react":undefined,"react-router":undefined}],41:[function(require,module,exports){
+;
+
+exports.default = PlatformsPanelItem;
+
+},{"../action-creators/control-button-action-creators":3,"../action-creators/devices-action-creators":4,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":63,"./base-component":12,"./control-button":20,"react":undefined,"react-router":undefined}],41:[function(require,module,exports){
 'use strict';
+
+var _platformsPanelItem = require('./platforms-panel-item');
+
+var _platformsPanelItem2 = _interopRequireDefault(_platformsPanelItem);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var React = require('react');
 var Router = require('react-router');
 
+
 var platformsPanelStore = require('../stores/platforms-panel-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
-var PlatformsPanelItem = require('./platforms-panel-item');
 var ControlButton = require('./control-button');
 
 var PlatformsPanel = React.createClass({
@@ -8233,7 +8302,7 @@ var PlatformsPanel = React.createClass({
                 }
                 return 0;
             }).map(function (platform) {
-                return React.createElement(PlatformsPanelItem, { key: platform.uuid, panelItem: platform, itemPath: platform.path });
+                return React.createElement(_platformsPanelItem2.default, { key: platform.uuid, panelItem: platform, itemPath: platform.path });
             });
         }
 
@@ -9150,10 +9219,6 @@ var _baseComponent = require('./base-component');
 
 var _baseComponent2 = _interopRequireDefault(_baseComponent);
 
-var _reactAddonsPureRenderMixin = require('react-addons-pure-render-mixin');
-
-var _reactAddonsPureRenderMixin2 = _interopRequireDefault(_reactAddonsPureRenderMixin);
-
 var _editPointForm = require('./edit-point-form');
 
 var _editPointForm2 = _interopRequireDefault(_editPointForm);
@@ -9165,6 +9230,8 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+// import PureRenderMixin from 'react-addons-pure-render-mixin';
+
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
@@ -9208,16 +9275,6 @@ var RegistryRow = function (_BaseComponent) {
         value: function shouldComponentUpdate(nextProps, nextState) {
             var doUpdate = false;
 
-            // if (objectListsAreDifferent(this.props.attributesList, nextProps.attributesList))
-            // if (!this.props.attributesList.equals(nextProps.attributesList))
-            // {
-            //     // var newState = this._resetState(nextProps);
-
-            //     // this.setState(newState);
-            //     doUpdate = true;
-            //     console.log("props not equal");
-            // }
-            // else 
             if (!this.state.attributesList.equals(nextState.attributesList) || this.state.selectedForDelete !== nextState.selectedForDelete) {
                 doUpdate = true;
                 console.log("state's not equal");
@@ -9383,7 +9440,7 @@ function objectIsEmpty(obj) {
 
 exports.default = RegistryRow;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":60,"./base-component":12,"./edit-point-form":28,"react":undefined,"react-addons-pure-render-mixin":undefined}],46:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":60,"./base-component":12,"./edit-point-form":28,"react":undefined}],46:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
