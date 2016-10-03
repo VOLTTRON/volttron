@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,22 +53,47 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 
-'''Core package.'''
+""" Core package."""
 
 
 import os
+import sys
 
-__version__ = '3.0'
+__version__ = '4.0.0'
 
+
+def set_home(home=None):
+    """ Set the home directory with user and variables expanded.
+
+    If the home is sent in, it used.
+    Otherwise, the default value of '~/.volttron' is used.
+    """
+    os.environ["VOLTTRON_HOME"] = home or get_home()
+    
 
 def get_home():
-    '''Return the home directory with user and variables expanded.
+    """ Return the home directory with user and variables expanded.
 
     If the VOLTTRON_HOME environment variable is set, it used.
     Otherwise, the default value of '~/.volttron' is used.
-    '''
-    return os.path.normpath(os.path.expanduser(os.path.expandvars(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron'))))
+    """
+    return os.path.abspath(
+        os.path.normpath(
+            os.path.expanduser(
+                os.path.expandvars(
+                    os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
+
+
+def get_address():
+    """Return the VIP address of the platform
+    If the VOLTTRON_VIP_ADDR environment variable is set, it used.
+    Otherwise, it is derived from get_home()."""
+    address = os.environ.get('VOLTTRON_VIP_ADDR')
+    if not address:
+        abstract = '@' if sys.platform.startswith('linux') else ''
+        address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
+
+    return address

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,7 @@
 
 import sys
 import argparse
+import traceback
 from csv import DictWriter
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes.app import LocalDeviceObject, BIPSimpleApplication
@@ -163,26 +164,26 @@ def read_prop(app, address, obj_type, obj_inst, prop_id, index=None):
     return value
 
 
-def process_device_object_reference(app, address, obj_type, index, property_name, max_range_report, config_writer):
-    objectCount = read_prop(app, address, obj_type, index, property_name, index=0)
-    
-    for object_index in xrange(1,objectCount+1):
-        _log.debug('property_name index = ' + repr(object_index))
-        
-        object_reference = read_prop(app, 
-                                address, 
-                                obj_type, 
-                                index, 
-                                property_name,
-                                index=object_index)
-        
-        #Skip references to objects on other devices.
-        if object_reference.deviceIdentifier is not None:
-            continue
-        
-        sub_obj_type, sub_obj_index = object_reference.objectIdentifier
-        
-        process_object(app, address, sub_obj_type, sub_obj_index, max_range_report, config_writer)
+# def process_device_object_reference(app, address, obj_type, index, property_name, max_range_report, config_writer):
+#     objectCount = read_prop(app, address, obj_type, index, property_name, index=0)
+#
+#     for object_index in xrange(1,objectCount+1):
+#         _log.debug('property_name index = ' + repr(object_index))
+#
+#         object_reference = read_prop(app,
+#                                 address,
+#                                 obj_type,
+#                                 index,
+#                                 property_name,
+#                                 index=object_index)
+#
+#         #Skip references to objects on other devices.
+#         if object_reference.deviceIdentifier is not None:
+#             continue
+#
+#         sub_obj_type, sub_obj_index = object_reference.objectIdentifier
+#
+#         process_object(app, address, sub_obj_type, sub_obj_index, max_range_report, config_writer)
 
 def process_object(app, address, obj_type, index, max_range_report, config_writer):
     _log.debug('obj_type = ' + repr(obj_type))
@@ -190,17 +191,17 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
     
     writable = 'FALSE'
     
-    subondinate_list_property = get_datatype(obj_type, 'subordinateList')
-    if subondinate_list_property is not None:
-        _log.debug('Processing StructuredViewObject')
-        process_device_object_reference(app, address, obj_type, index, 'subordinateList', max_range_report, config_writer)
-        return
-    
-    subondinate_list_property = get_datatype(obj_type, 'zoneMembers')
-    if subondinate_list_property is not None:
-        _log.debug('Processing LifeSafetyZoneObject')
-        process_device_object_reference(app, address, obj_type, index, 'zoneMembers', max_range_report, config_writer)
-        return
+    # subondinate_list_property = get_datatype(obj_type, 'subordinateList')
+    # if subondinate_list_property is not None:
+    #     _log.debug('Processing StructuredViewObject')
+    #     process_device_object_reference(app, address, obj_type, index, 'subordinateList', max_range_report, config_writer)
+    #     return
+    #
+    # subondinate_list_property = get_datatype(obj_type, 'zoneMembers')
+    # if subondinate_list_property is not None:
+    #     _log.debug('Processing LifeSafetyZoneObject')
+    #     process_device_object_reference(app, address, obj_type, index, 'zoneMembers', max_range_report, config_writer)
+    #     return
     
     present_value_type = get_datatype(obj_type, 'presentValue')
     if present_value_type is None:
@@ -214,22 +215,27 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
                                            Real,
                                            Double)):
         _log.debug('presenValue is an unsupported type: ' + repr(present_value_type))
-        return 
-    
+        return
+
+    object_name = "NO NAME! PLEASE NAME THIS."
     try:
         object_name = read_prop(app, address, obj_type, index, "objectName")
         _log.debug('object name = ' + object_name)
     except TypeError:
-        object_name = "NO NAME! PLEASE NAME THIS."
+        pass
+    except:
+        _log.debug(traceback.format_exc())
         
 #         _log.debug('  object type = ' + obj_type)
 #         _log.debug('  object index = ' + str(index))
-    
+
+    object_notes = ''
     try:
         object_notes = read_prop(app, address, obj_type, index, "description")
-        
     except TypeError:
-        object_notes = ''
+        pass
+    except:
+        _log.debug(traceback.format_exc())
         
     object_units_details = ''
     
@@ -255,6 +261,8 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
                 pass
             except ValueError:
                 pass
+            except:
+                _log.debug(traceback.format_exc())
     
         if not object_notes:
             enum_strings=[]
@@ -276,6 +284,8 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
                 object_units_details = 'State count: {}'.format(state_count)
             except TypeError:
                 pass
+            except:
+                _log.debug(traceback.format_exc())
             
             try:
                 enum_strings=[]
@@ -298,16 +308,21 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
                     pass
                 except ValueError:
                     pass
+                except:
+                    _log.debug(traceback.format_exc())
                 
         elif obj_type == 'loop':
             object_units = 'Loop'
         else:
             object_units = 'UNKNOWN UNITS'        
     else:
+        object_units = 'UNKNOWN UNITS'
         try:
             object_units = read_prop(app, address, obj_type, index, "units")
         except TypeError:
-            object_units = 'UNKNOWN UNITS'
+            pass
+        except:
+            _log.debug(traceback.format_exc())
             
         if isinstance(object_units, (int, long)):
             object_units = 'UNKNOWN UNIT ENUM VALUE: ' + str(object_units)
@@ -340,6 +355,8 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
                     #object_units_details = '{min} to {max}'.format(min=min_value, max=max_value)            
                 except TypeError:
                     pass
+                except:
+                    _log.debug(traceback.format_exc())
             
             if obj_type != 'analogInput':
                 try:
@@ -351,6 +368,8 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
                     pass
                 except ValueError:
                     pass
+                except:
+                    _log.debug(traceback.format_exc())
    
     _log.debug('  object units = ' + str(object_units))
     _log.debug('  object units details = ' + str(object_units_details))
@@ -480,8 +499,12 @@ def main():
                                 index=object_index)
         
         obj_type, index = bac_object
-        
-        process_object(this_application, target_address, obj_type, index, args.max_range_report, config_writer)
+
+        try:
+            process_object(this_application, target_address, obj_type, index, args.max_range_report, config_writer)
+        except:
+            _log.debug("Unexpected error processing object: {} {}".format(obj_type, index))
+            _log.debug(traceback.format_exc())
         
         
         

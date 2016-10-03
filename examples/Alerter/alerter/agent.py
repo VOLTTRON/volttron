@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -97,7 +97,7 @@ class AlerterAgent(Agent):
         # set it to our identity.  If we didn't do this it would cause
         # an error.  The default identity is the uuid of the agent.
         kwargs.pop('identity')
-        super(AlerterAgent, self).__init__(identity='alerter', **kwargs)
+        super(AlerterAgent, self).__init__(**kwargs)
 
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
@@ -119,7 +119,7 @@ class AlerterAgent(Agent):
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(AlerterAgent)
+    utils.vip_main(AlerterAgent, identity='alerter')
 
 
 if __name__ == '__main__':

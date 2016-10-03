@@ -67,7 +67,7 @@ from volttron.platform.agent import utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.5'
+__version__ = '3.6'
 
 
 def sysmon_agent(config_path, **kwargs):
@@ -81,10 +81,7 @@ def sysmon_agent(config_path, **kwargs):
     :rtype: SysMonAgent
     """
     config = utils.load_config(config_path)
-    vip_identity = 'platform.sysmon'
-    # Use the identity 'platform.sysmon'. Pop the uuid off the kwargs.
-    kwargs.pop('identity', None)
-    return SysMonAgent(config, identity=vip_identity, **kwargs)
+    return SysMonAgent(config, **kwargs)
 
 
 class SysMonAgent(Agent):
@@ -185,7 +182,7 @@ class SysMonAgent(Agent):
 
 def main(argv=sys.argv):
     """Main method called by the platform."""
-    utils.vip_main(sysmon_agent)
+    utils.vip_main(sysmon_agent, identity='platform.sysmon')
 
 
 if __name__ == '__main__':

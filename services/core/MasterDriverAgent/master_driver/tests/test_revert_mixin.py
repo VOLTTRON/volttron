@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,16 +55,19 @@
 
 from master_driver.interfaces.fakedriver import Interface
 import pytest
+from volttron.platform.store import process_raw_config
 
 registry_config_string = """Point Name,Volttron Point Name,Units,Units Details,Writable,Starting Value,Type,Notes
 Float,Float,F,-100 to 300,TRUE,50,float,CO2 Reading 0.00-2000.0 ppm
 FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 ppm
 """
 
+registry_config = process_raw_config(registry_config_string, config_type="csv")
+
 @pytest.mark.revert
 def test_revert_point():
     interface = Interface()
-    interface.configure({}, registry_config_string)
+    interface.configure({}, registry_config)
     value = interface.get_point("Float")
     assert value == 50.0
     
@@ -79,7 +82,7 @@ def test_revert_point():
 @pytest.mark.revert
 def test_revert_device():
     interface = Interface()
-    interface.configure({}, registry_config_string)
+    interface.configure({}, registry_config)
     value = interface.get_point("Float")
     assert value == 50.0
     
@@ -94,7 +97,7 @@ def test_revert_device():
 @pytest.mark.revert
 def test_revert_point_no_default():
     interface = Interface()
-    interface.configure({}, registry_config_string)
+    interface.configure({}, registry_config)
     initial_value = interface.get_point("FloatNoDefault")
     
     scrape_values = interface.scrape_all()
@@ -123,7 +126,7 @@ def test_revert_point_no_default():
 @pytest.mark.revert
 def test_revert_all_no_default():
     interface = Interface()
-    interface.configure({}, registry_config_string)
+    interface.configure({}, registry_config)
     initial_value = interface.get_point("FloatNoDefault")
     
     scrape_values = interface.scrape_all()
@@ -152,7 +155,7 @@ def test_revert_all_no_default():
 @pytest.mark.revert
 def test_revert_no_default_changing_value():
     interface = Interface()
-    interface.configure({}, registry_config_string)
+    interface.configure({}, registry_config)
     initial_value = interface.get_point("FloatNoDefault")
     
     #Initialize the revert value.

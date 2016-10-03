@@ -16,7 +16,7 @@ def test_identity_is_uuid(volttron_instance):
     agent = volttron_instance.build_agent()
     identity = agent.vip.rpc.call('control', 'agent_vip_identity',
                                   auuid).get(timeout=2)
-    assert identity == auuid
+    assert identity == "listeneragent-3.2_1"
 
 
 @pytest.mark.control
@@ -31,7 +31,6 @@ def test_can_get_identity(volttron_instance):
         agent_dir="services/core/VolttronCentralPlatform", start=True)
     assert auuid is not None
 
-    agent = volttron_instance.build_agent()
-    identity = agent.vip.rpc.call('control', 'agent_vip_identity',
-                                  auuid).get(timeout=2)
+    cn = volttron_instance.build_connection(peer='control')
+    identity = cn.call('agent_vip_identity', auuid)
     assert identity == 'platform.agent'

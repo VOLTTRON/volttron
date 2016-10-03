@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -88,11 +88,24 @@ forwarder_config = {
 }
 sqlite_config = {
     "agentid": "sqlhistorian-sqlite",
-    "identity": "platform.historian",
     "connection": {
         "type": "sqlite",
         "params": {
             "database": 'test.sqlite'
+        }
+    }
+}
+mysql_config = {
+    "agentid": "sqlhistorian-mysql-1",
+    "identity": "platform.historian",
+    "connection": {
+        "type": "mysql",
+        "params": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "test_historian",
+            "user": "historian",
+            "passwd": "historian"
         }
     }
 }
@@ -103,14 +116,14 @@ volttron_instance2 = None
 @pytest.fixture(scope="module")
 def volttron_instances(request, get_volttron_instances):
     global volttron_instance1, volttron_instance2
-    #print "Fixture volttron_instance"
+    # print "Fixture volttron_instance"
     # if volttron_instance1 is None:
     volttron_instance1, volttron_instance2 = get_volttron_instances(2)
 
 
 # Fixture for setup and teardown of publish agent
 @pytest.fixture(scope="module",
-                params=['volttron_2','volttron_3'])
+                params=['volttron_2', 'volttron_3'])
 def publish_agent(request, volttron_instances, forwarder):
     global volttron_instance1, volttron_instance2
     #print "Fixture publish_agent"
@@ -119,7 +132,7 @@ def publish_agent(request, volttron_instances, forwarder):
         agent = PublishMixin(
             volttron_instance1.opts['publish_address'])
     else:
-        agent = volttron_instance1.build_agent()
+        agent = volttron_instance1.build_agent(identity='test-agent')
 
     # 2: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
@@ -134,7 +147,7 @@ def publish_agent(request, volttron_instances, forwarder):
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instances, sqlhistorian):
-    #print "Fixture query_agent"
+    # print "Fixture query_agent"
     # 1: Start a fake agent to query the sqlhistorian in volttron_instance2
     agent = volttron_instance2.build_agent()
 
@@ -150,7 +163,7 @@ def query_agent(request, volttron_instances, sqlhistorian):
 
 @pytest.fixture(scope="module")
 def sqlhistorian(request, volttron_instances):
-    #print "Fixture sqlhistorian"
+    # print "Fixture sqlhistorian"
     global volttron_instance1, volttron_instance2
     global sqlite_config
     # 1: Install historian agent
@@ -158,7 +171,8 @@ def sqlhistorian(request, volttron_instances):
     agent_uuid = volttron_instance2.install_agent(
         agent_dir="services/core/SQLHistorian",
         config_file=sqlite_config,
-        start=True)
+        start=True,
+        vip_identity='platform.historian')
     print("sqlite historian agent id: ", agent_uuid)
 
 
@@ -186,7 +200,7 @@ def forwarder(request, volttron_instances):
         forwarder_config["destination-vip"] =\
             "{}?serverkey={}&publickey={}&secretkey={}".format(
                 volttron_instance2.vip_address,
-                volttron_instance2.publickey,
+                volttron_instance2.serverkey,
                 ks.public(), ks.secret())
     else:
         forwarder_config["destination-vip"] = volttron_instance2.vip_address
@@ -207,7 +221,6 @@ def publish(publish_agent, topic, header, message):
                                          message=message).get(timeout=10)
     else:
         publish_agent.publish_json(topic, header, message)
-
 
 @pytest.mark.historian
 @pytest.mark.forwarder
@@ -640,44 +653,52 @@ def test_actuator_topic(publish_agent, query_agent):
         start=True)
     print("agent id: ", listener_uuid)
 
-    # Make query agent running in instance two subscribe to
-    # actuator_schedule_result topic
-    # query_agent.callback = types.MethodType(callback, query_agent)
-    query_agent.callback = MagicMock(name="callback")
-    # subscribe to schedule response topic
-    query_agent.vip.pubsub.subscribe(
-        peer='pubsub',
-        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-        callback=query_agent.callback).get()
+    try:
+        # Make query agent running in instance two subscribe to
+        # actuator_schedule_result topic
+        # query_agent.callback = types.MethodType(callback, query_agent)
+        query_agent.callback = MagicMock(name="callback")
+        # subscribe to schedule response topic
+        query_agent.vip.pubsub.subscribe(
+            peer='pubsub',
+            prefix=topics.ACTUATOR_SCHEDULE_RESULT,
+            callback=query_agent.callback).get()
 
-    # Now publish in volttron_instance1
+        # Now publish in volttron_instance1
 
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=2))
-    header = {
-        'type': 'NEW_SCHEDULE',
-        'requesterID': 'test-agent',  # The name of the requesting agent.
-        'taskID': 'task_schedule_response',
-        'priority': 'LOW'  # ('HIGH, 'LOW', 'LOW_PREEMPT').
-    }
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-    # reset mock to ignore any previous callback
-    publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
-    gevent.sleep(1)  # wait for topic to be forwarded and callback to happen
+        start = str(datetime.now())
+        end = str(datetime.now() + timedelta(seconds=2))
+        header = {
+            'type': 'NEW_SCHEDULE',
+            'requesterID': 'test-agent',  # The name of the requesting agent.
+            'taskID': 'task_schedule_response',
+            'priority': 'LOW'  # ('HIGH, 'LOW', 'LOW_PREEMPT').
+        }
+        msg = [
+            ['fakedriver0', start, end]
+        ]
+        # reset mock to ignore any previous callback
+        publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
+        gevent.sleep(1)  # wait for topic to be forwarded and callback to happen
 
-    # assert query_agent.callback.call_count == 1
-    print ('call args ', query_agent.callback.call_args_list)
-    # assert query_agent.callback.call_args[0][1] == 'platform.actuator'
-    assert query_agent.callback.call_args[0][3] == \
-           topics.ACTUATOR_SCHEDULE_RESULT
-    result_header = query_agent.callback.call_args[0][4]
-    result_message = query_agent.callback.call_args[0][5]
-    assert result_header['type'] == 'NEW_SCHEDULE'
-    assert result_header['taskID'] == 'task_schedule_response'
-    assert result_header['requesterID'] == 'test-agent'
-    assert result_message['result'] == 'SUCCESS'
+        # assert query_agent.callback.call_count == 1
+        print ('call args ', query_agent.callback.call_args_list)
+        # assert query_agent.callback.call_args[0][1] == 'platform.actuator'
+        assert query_agent.callback.call_args[0][3] == \
+               topics.ACTUATOR_SCHEDULE_RESULT
+        result_header = query_agent.callback.call_args[0][4]
+        result_message = query_agent.callback.call_args[0][5]
+        assert result_header['type'] == 'NEW_SCHEDULE'
+        assert result_header['taskID'] == 'task_schedule_response'
+        assert result_header['requesterID'] in ['test-agent', 'pubsub.compat']
+        assert result_message['result'] == 'SUCCESS'
+    finally:
+        volttron_instance1.stop_agent(master_uuid)
+        volttron_instance1.remove_agent(master_uuid)
+        volttron_instance1.stop_agent(actuator_uuid)
+        volttron_instance1.remove_agent(actuator_uuid)
+        volttron_instance2.stop_agent(listener_uuid)
+        volttron_instance2.remove_agent(listener_uuid)
 
 
 @pytest.mark.historian

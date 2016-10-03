@@ -11,25 +11,25 @@ from volttrontesting.utils.utils import poll_gevent_sleep
 
 
 def build_agent(platform, identity):
-    '''Build an agent, configure its keys and return the agent.'''
+    """Build an agent, configure its keys and return the agent."""
     keys = keystore.KeyStore(os.path.join(platform.volttron_home,
                                           identity + '.keys'))
     keys.generate()
     agent = platform.build_agent(identity=identity,
-                                  serverkey=platform.publickey,
-                                  publickey=keys.public(),
-                                  secretkey=keys.secret())
+                                 serverkey=platform.serverkey,
+                                 publickey=keys.public(),
+                                 secretkey=keys.secret())
     # Make publickey easily accessible for these tests
     agent.publickey = keys.public()
     return agent
 
 
 def build_two_test_agents(platform):
-    '''Returns two agents for testing authorization
+    """Returns two agents for testing authorization
 
     The first agent is the "RPC callee."
     The second agent is the unauthorized "RPC caller."
-    '''
+    """
     agent1 = build_agent(platform, 'agent1')
     gevent.sleep(1)
     agent2 = build_agent(platform, 'agent2')
@@ -44,12 +44,11 @@ def build_two_test_agents(platform):
 
 
 @pytest.mark.auth
-def test_unauthorized_rpc_call1(volttron_instance1_encrypt):
-    '''
-    Tests an agent with no capabilities calling a method that requires one
-    capability ("can_call_foo")
-    '''
-    agent1, agent2 = build_two_test_agents(volttron_instance1_encrypt)
+def test_unauthorized_rpc_call1(volttron_instance_encrypt):
+    """Tests an agent with no capabilities calling a method that
+    requires one capability ("can_call_foo")
+    """
+    agent1, agent2 = build_two_test_agents(volttron_instance_encrypt)
 
     # If the agent is not authorized, then an exception will be raised
     with pytest.raises(jsonrpc.RemoteError):
@@ -57,30 +56,28 @@ def test_unauthorized_rpc_call1(volttron_instance1_encrypt):
 
 
 @pytest.mark.auth
-def test_authorized_rpc_call1(volttron_instance1_encrypt):
-    '''
-    Tests an agent with one capability calling a method that requires that
-    same capability
-    '''
-    agent1, agent2 = build_two_test_agents(volttron_instance1_encrypt)
-    volttron_instance1_encrypt.add_capabilities(agent2.publickey, 'can_call_foo')
+def test_authorized_rpc_call1(volttron_instance_encrypt):
+    """ Tests an agent with one capability calling a method that
+    requires that same capability
+    """
+    agent1, agent2 = build_two_test_agents(volttron_instance_encrypt)
+    volttron_instance_encrypt.add_capabilities(agent2.publickey, 'can_call_foo')
     gevent.sleep(.1)
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
 
 
 @pytest.mark.auth
-def test_unauthorized_rpc_call2(volttron_instance1_encrypt):
-    '''
-    Tests an agent with one capability calling a method that requires that
-    two capabilites
-    '''
-    agent1, agent2 = build_two_test_agents(volttron_instance1_encrypt)
+def test_unauthorized_rpc_call2(volttron_instance_encrypt):
+    """Tests an agent with one capability calling a method that
+    requires that two capabilites
+    """
+    agent1, agent2 = build_two_test_agents(volttron_instance_encrypt)
 
     # Add another required capability
     agent1.vip.rpc.allow(agent1.foo, 'can_call_foo2')
 
-    volttron_instance1_encrypt.add_capabilities(agent2.publickey, 'can_call_foo')
+    volttron_instance_encrypt.add_capabilities(agent2.publickey, 'can_call_foo')
     gevent.sleep(.1)
 
     # If the agent is not authorized, then an exception will be raised
@@ -89,34 +86,33 @@ def test_unauthorized_rpc_call2(volttron_instance1_encrypt):
 
 
 @pytest.mark.auth
-def test_authorized_rpc_call2(volttron_instance1_encrypt):
-    '''
-    Tests an agent with two capability calling a method that requires those
-    same two capabilites
-    '''
-    agent1, agent2 = build_two_test_agents(volttron_instance1_encrypt)
+def test_authorized_rpc_call2(volttron_instance_encrypt):
+    """Tests an agent with two capability calling a method that
+    requires those same two capabilites
+    """
+    agent1, agent2 = build_two_test_agents(volttron_instance_encrypt)
 
     # Add another required capability
     agent1.vip.rpc.allow(agent1.foo, 'can_call_foo2')
 
-    volttron_instance1_encrypt.add_capabilities(agent2.publickey,
+    volttron_instance_encrypt.add_capabilities(agent2.publickey,
                                                 ['can_call_foo', 'can_call_foo2'])
     gevent.sleep(.1)
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
 
 
-def build_two_agents_pubsub_agents(volttron_instance1_encrypt, topic='foo'):
+def build_two_agents_pubsub_agents(volttron_instance_encrypt, topic='foo'):
     """ Return two agents for testing protected pubsub
 
     The first agent is the subscriber.
     The second agent is the publisher.
 
-    :param volttron_instance1_encrypt:
+    :param volttron_instance_encrypt:
     :param topic:
     :return:
     """
-    agent1, agent2 = build_two_test_agents(volttron_instance1_encrypt)
+    agent1, agent2 = build_two_test_agents(volttron_instance_encrypt)
 
     msgs = []
     def got_msg(peer, sender, bus, topic, headers, message):
@@ -127,16 +123,16 @@ def build_two_agents_pubsub_agents(volttron_instance1_encrypt, topic='foo'):
 
 
 @pytest.mark.auth
-def test_pubsub_not_protected(volttron_instance1_encrypt):
-    '''Tests pubsub without any topic protection '''
-    agent1, agent2, topic, msgs = build_two_agents_pubsub_agents(volttron_instance1_encrypt)
+def test_pubsub_not_protected(volttron_instance_encrypt):
+    """Tests pubsub without any topic protection """
+    agent1, agent2, topic, msgs = build_two_agents_pubsub_agents(volttron_instance_encrypt)
     agent2.vip.pubsub.publish('pubsub', topic, message='hello agent').get(timeout=1)
     assert poll_gevent_sleep(2, lambda: len(msgs) > 0 and msgs[0] == 'hello agent')
 
 
 def build_protected_pubsub(instance, topic, capabilities, topic_regex=None,
                           add_capabilities=False):
-    '''Returns dict that holds configuration for a protected-pubsub test.'''
+    """Returns dict that holds configuration for a protected-pubsub test."""
     agent1, agent2, topic, msgs = build_two_agents_pubsub_agents(instance,
                                                                  topic)
     topic_to_protect = topic_regex if topic_regex else topic
@@ -157,12 +153,11 @@ def build_protected_pubsub(instance, topic, capabilities, topic_regex=None,
             'capabilities': capabilities}
 
 
-def pubsub_unauthorized(volttron_instance1_encrypt, topic='foo', regex=None, peer='pubsub'):
-    '''
-    Tests pubsub with a protected topic and the agents are not authorized to
-    publish to the protected topic.
-    '''
-    setup = build_protected_pubsub(volttron_instance1_encrypt, topic,
+def pubsub_unauthorized(volttron_instance_encrypt, topic='foo', regex=None, peer='pubsub'):
+    """Tests pubsub with a protected topic and the agents are not
+    authorized to publish to the protected topic.
+    """
+    setup = build_protected_pubsub(volttron_instance_encrypt, topic,
                                   'can_publish_to_my_topic', regex)
 
     agent2 = setup['agent2']
@@ -171,12 +166,11 @@ def pubsub_unauthorized(volttron_instance1_encrypt, topic='foo', regex=None, pee
         agent2.vip.pubsub.publish(peer, topic, message='hello').get(timeout=1)
 
 
-def pubsub_authorized(volttron_instance1_encrypt, topic='foo', regex=None, peer='pubsub'):
-    '''
-    Tests pubsub with a protected topic and an agents is authorized to
-    publish to the protected topic.
-    '''
-    setup = build_protected_pubsub(volttron_instance1_encrypt, topic,
+def pubsub_authorized(volttron_instance_encrypt, topic='foo', regex=None, peer='pubsub'):
+    """Tests pubsub with a protected topic and an agents is
+    authorized to publish to the protected topic.
+    """
+    setup = build_protected_pubsub(volttron_instance_encrypt, topic,
                                   'can_publish_to_my_topic', regex,
                                   add_capabilities=True)
     agent1 = setup['agent1']
@@ -188,44 +182,44 @@ def pubsub_authorized(volttron_instance1_encrypt, topic='foo', regex=None, peer=
 
 
 @pytest.mark.auth
-def test_pubsub_unauthorized(volttron_instance1_encrypt):
-    pubsub_unauthorized(volttron_instance1_encrypt)
+def test_pubsub_unauthorized(volttron_instance_encrypt):
+    pubsub_unauthorized(volttron_instance_encrypt)
 
 
 @pytest.mark.auth
-def test_pubsub_authorized(volttron_instance1_encrypt):
-    pubsub_authorized(volttron_instance1_encrypt)
+def test_pubsub_authorized(volttron_instance_encrypt):
+    pubsub_authorized(volttron_instance_encrypt)
 
 
 @pytest.mark.auth
-def test_pubsub_unauthorized_none_peer(volttron_instance1_encrypt):
-    pubsub_unauthorized(volttron_instance1_encrypt, peer=None)
+def test_pubsub_unauthorized_none_peer(volttron_instance_encrypt):
+    pubsub_unauthorized(volttron_instance_encrypt, peer=None)
 
 
 @pytest.mark.auth
-def test_pubsub_authorized_none_peer(volttron_instance1_encrypt):
-    pubsub_authorized(volttron_instance1_encrypt, peer=None)
+def test_pubsub_authorized_none_peer(volttron_instance_encrypt):
+    pubsub_authorized(volttron_instance_encrypt, peer=None)
 
 
 @pytest.mark.auth
-def test_pubsub_unauthorized_regex1(volttron_instance1_encrypt):
-    pubsub_unauthorized(volttron_instance1_encrypt,
+def test_pubsub_unauthorized_regex1(volttron_instance_encrypt):
+    pubsub_unauthorized(volttron_instance_encrypt,
                         topic='foo', regex='/foo*/')
 
 
 @pytest.mark.auth
-def test_pubsub_authorized_regex1(volttron_instance1_encrypt):
-    pubsub_authorized(volttron_instance1_encrypt,
+def test_pubsub_authorized_regex1(volttron_instance_encrypt):
+    pubsub_authorized(volttron_instance_encrypt,
                       topic='foo', regex='/foo*/')
 
 
 @pytest.mark.auth
-def test_pubsub_unauthorized_regex2(volttron_instance1_encrypt):
-    pubsub_unauthorized(volttron_instance1_encrypt,
+def test_pubsub_unauthorized_regex2(volttron_instance_encrypt):
+    pubsub_unauthorized(volttron_instance_encrypt,
                         topic='foo/bar', regex='/foo\/.*/')
 
 
 @pytest.mark.auth
-def test_pubsub_authorized_regex2(volttron_instance1_encrypt):
-    pubsub_authorized(volttron_instance1_encrypt,
+def test_pubsub_authorized_regex2(volttron_instance_encrypt):
+    pubsub_authorized(volttron_instance_encrypt,
                       topic='foo/bar', regex='/foo\/.*/')

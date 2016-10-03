@@ -1,0 +1,16 @@
+# VOLTTRON SystemD unit
+# Exec Start exectues the volttron platform script built by bootstrap
+# This does not have to activate the virtualenv as the script will do that
+[Unit]
+Description=VOLTTRON Platform Service
+After=network.target
+
+[Service]
+Type=simple
+User=volttron
+Group=volttron
+WorkingDirectory=/var/lib/volttron
+ExecStart=/var/lib/volttron/env/bin/volttron -vv
+
+[Install]
+WantedBy=multi-user.target

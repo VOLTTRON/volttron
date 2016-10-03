@@ -114,16 +114,14 @@ var PlatformsPanelItem = React.createClass({
 
         var checked = e.target.checked;
 
-        platformsPanelActionCreators.checkItem(this.props.itemPath, checked);
-
-        this.setState({checked: checked});
-
         if (checked)
         {
+            this.setState({checked: null});
             platformChartActionCreators.addToChart(this.props.panelItem);
         }
         else
         {
+            this.setState({checked: null});
             platformChartActionCreators.removeFromChart(this.props.panelItem);
         }
     },
@@ -156,6 +154,10 @@ var PlatformsPanelItem = React.createClass({
 
         var childClass;
         var arrowClasses = [ "arrowButton", "noRotate" ];
+        var arrowContent;
+        var arrowContentStyle = {
+            width: "14px"
+        }
 
         if (this.state.hasOwnProperty("loading"))
         {
@@ -173,10 +175,21 @@ var PlatformsPanelItem = React.createClass({
 
         if (["point"].indexOf(panelItem.type) > -1)
         {
-            ChartCheckbox = (<input className="panelItemCheckbox"
+            if (this.state.checked !== null)
+            {
+                ChartCheckbox = (<input className="panelItemCheckbox"
                                     type="checkbox"
                                     onChange={this._checkItem}
                                     checked={this.state.checked}></input>);
+            }
+            else
+            {
+                ChartCheckbox = (
+                    <div className="checkboxSpinner arrowButton">
+                        <span style={arrowContentStyle}><i className="fa fa-circle-o-notch fa-spin fa-fw"></i></span>
+                    </div>
+                )
+            }
         }
 
         var tooltipStyle = {
@@ -193,11 +206,6 @@ var PlatformsPanelItem = React.createClass({
             arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
-        }
-
-        var arrowContent;
-        var arrowContentStyle = {
-            width: "14px"
         }
 
         if (this.state.cancelButton)
@@ -242,7 +250,7 @@ var PlatformsPanelItem = React.createClass({
                     });
 
                     return (
-                        <PlatformsPanelItem panelItem={propChild} itemPath={propChild.path} panelChildren={grandchildren}/>
+                        <PlatformsPanelItem key={propChild.uuid} panelItem={propChild} itemPath={propChild.path} panelChildren={grandchildren}/>
                     );
                 }); 
 

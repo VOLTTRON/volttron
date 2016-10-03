@@ -5,6 +5,7 @@ var dispatcher = require('../dispatcher');
 var authorizationStore = require('../stores/authorization-store');
 var platformChartStore = require('../stores/platform-chart-store');
 var platformsStore = require('../stores/platforms-store');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
@@ -24,20 +25,34 @@ var platformChartActionCreators = {
 			chartType: chartType
 		});
 	},
-	changeRefreshRate: function (rate, chartKey) {
-		dispatcher.dispatch({
-			type: ACTION_TYPES.CHANGE_CHART_REFRESH,
-			rate: rate,
-			chartKey: chartKey
-		});
-	},
+    changeRefreshRate: function (rate, chartKey) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHANGE_CHART_REFRESH,
+            rate: rate,
+            chartKey: chartKey
+        });
+    },
+    setMin: function (min, chartKey) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHANGE_CHART_MIN,
+            min: min,
+            chartKey: chartKey
+        });
+    },
+    setMax: function (max, chartKey) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHANGE_CHART_MAX,
+            max: max,
+            chartKey: chartKey
+        });
+    },
 	refreshChart: function (series) {
 
 		var authorization = authorizationStore.getAuthorization();
 
 		series.forEach(function (item) {            
             new rpc.Exchange({
-                method: 'platforms.uuid.' + item.parentUuid + '.historian.query',
+                method: 'historian.query',
                 params: {
                     topic: item.topic,
                     count: 20,
@@ -46,41 +61,28 @@ var platformChartActionCreators = {
                 authorization: authorization,
             }).promise
                 .then(function (result) {
-                	item.data = result.values;
 
-                    item.data.forEach(function (datum) {
-                        datum.name = item.name;
-                        datum.parent = item.parentPath;
-                    	datum.uuid = item.uuid;
-                    });
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.REFRESH_CHART,
-                        item: item
-                    });
-                })
-                .catch(rpc.Error, function (error) {
-
-                    var message = "Unable to update chart: " + error.message;
-
-                    if (error.code === -32602)
+                    if (result.hasOwnProperty("values"))
                     {
-                        if (error.message === "historian unavailable")
-                        {
-                            message = "Unable to update chart: The historian agent is unavailable.";
-                        }
+                    	item.data = result.values;
+
+                        item.data.forEach(function (datum) {
+                            datum.name = item.name;
+                            datum.parent = item.parentPath;
+                        	datum.uuid = item.uuid;
+                        });
+                        dispatcher.dispatch({
+                            type: ACTION_TYPES.REFRESH_CHART,
+                            item: item
+                        });
                     }
                     else
                     {
-                        var platform = platformsStore.getPlatform(item.parentUuid);
-                        var historianRunning = platformsStore.getHistorianRunning(platform);
-
-                        if (!historianRunning)
-                        {
-                            message = "Unable to update chart: The historian agent is unavailable.";
-                        }
+                        console.log("chart " + item.name + " isn't being refreshed");
                     }
-
-                    handle401(error, message);
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error);
                 });
 		});
 
@@ -90,7 +92,7 @@ var platformChartActionCreators = {
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
-            method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
+            method: 'historian.query',
             params: {
                 topic: panelItem.topic,
                 count: 20,
@@ -99,59 +101,88 @@ var platformChartActionCreators = {
             authorization: authorization,
         }).promise
             .then(function (result) {
-                panelItem.data = result.values;
 
-                panelItem.data.forEach(function (datum) {
-                    datum.name = panelItem.name;
-                    datum.parent = panelItem.parentPath;
-                    datum.uuid = panelItem.uuid;
-                });
+                if (result.hasOwnProperty("values"))
+                {    
+                    panelItem.data = result.values;
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.SHOW_CHARTS,
-                    emitChange: (emitChange === null || typeof emitChange === "undefined" ? true : emitChange)
-                });
+                    panelItem.data.forEach(function (datum) {
+                        datum.name = panelItem.name;
+                        datum.parent = panelItem.parentPath;
+                        datum.uuid = panelItem.uuid;
+                    });
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.ADD_TO_CHART,
-                    panelItem: panelItem
-                });
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.SHOW_CHARTS,
+                        emitChange: (emitChange === null || typeof emitChange === "undefined" ? true : emitChange)
+                    });
 
-                var savedCharts = platformChartStore.getPinnedCharts();
-                var inSavedChart = savedCharts.find(function (chart) {
-                    return chart.chartKey === panelItem.name;
-                });
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.ADD_TO_CHART,
+                        panelItem: panelItem
+                    });
 
-                if (inSavedChart)
+                    platformsPanelActionCreators.checkItem(panelItem.path, true);
+
+                    var savedCharts = platformChartStore.getPinnedCharts();
+                    var inSavedChart = savedCharts.find(function (chart) {
+                        return chart.chartKey === panelItem.name;
+                    });
+                    
+                    if (inSavedChart)
+                    {
+                        platformActionCreators.saveCharts(savedCharts);
+                    }
+                }
+                else
                 {
-                    platformActionCreators.saveCharts(savedCharts);
+                    var message = "Unable to load chart: An unknown problem occurred.";
+                    var orientation = "center";
+                    var error = {};
+
+                    if (panelItem.path && panelItem.path.length > 1)
+                    {
+                        var platformUuid = panelItem.path[1];
+                        var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
+
+                        if (!forwarderRunning)
+                        {
+                            message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
+                            orientation = "left";
+                        }             
+                    }
+
+                    platformsPanelActionCreators.checkItem(panelItem.path, false);
+                    handle401(error, message, null, orientation);
                 }
             })
             .catch(rpc.Error, function (error) {
 
                 var message = "Unable to load chart: " + error.message;
+                var orientation;
 
                 if (error.code === -32602)
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Unable to load chart: The historian agent is not available.";
+                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        orientation = "left";
                     }
                 }
                 else
                 {
-                    var platform = platformsStore.getPlatform(panelItem.parentUuid);
-                    var historianRunning = platformsStore.getHistorianRunning(platform);
+                    var historianRunning = platformsStore.getVcHistorianRunning();
 
                     if (!historianRunning)
                     {
-                        message = "Unable to load chart: The historian agent is not available.";
+                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        orientation = "left";
                     }
                 }
 
                 platformsPanelActionCreators.checkItem(panelItem.path, false);
-                handle401(error, message);
-            });
+                handle401(error, message, null, orientation);
+           });
     },
     removeFromChart: function(panelItem) {
 
@@ -164,6 +195,8 @@ var platformChartActionCreators = {
             type: ACTION_TYPES.REMOVE_FROM_CHART,
             panelItem: panelItem
         });        
+
+        platformsPanelActionCreators.checkItem(panelItem.path, false);
 
         if (inSavedChart)
         {
@@ -180,8 +213,8 @@ var platformChartActionCreators = {
     }
 };
 
-function handle401(error, message) {
-    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
+function handle401(error, message, highlight, orientation) {
+   if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
@@ -191,10 +224,10 @@ function handle401(error, message) {
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
         });
     }
-    else
+    else if (message)
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
-};
+}
 
 module.exports = platformChartActionCreators;

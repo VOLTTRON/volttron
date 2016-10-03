@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,10 +53,10 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 
-'''Component for the instantiation and packaging of agents.'''
+"""Component for the instantiation and packaging of agents."""
 
 
 import contextlib
@@ -83,9 +83,12 @@ except ImportError:
     import json as jsonapi
 
 from . import messaging
+from .agent.utils import is_valid_identity
 from .messaging import topics
 from .packages import UnpackedPackage
 from .vip.agent import Agent
+from .keystore import KeyStore
+from .auth import AuthFile, AuthEntry
 
 try:
     from volttron.restricted import auth
@@ -119,6 +122,7 @@ _level_map = {7: logging.DEBUG,      # LOG_DEBUG
               1: logging.CRITICAL,   # LOG_ALERT
               0: logging.CRITICAL,}  # LOG_EMERG
 
+
 def log_entries(name, agent, pid, level, stream):
     log = logging.getLogger(name)
     extra = {'processName': agent, 'process': pid}
@@ -149,6 +153,7 @@ def log_entries(name, agent, pid, level, stream):
         else:
             yield level, line
 
+
 def log_stream(name, agent, pid, path, stream):
     log = logging.getLogger(name)
     extra = {'processName': agent, 'process': pid}
@@ -163,11 +168,14 @@ def log_stream(name, agent, pid, path, stream):
 
 class IgnoreErrno(object):
     ignore = []
+
     def __init__(self, errno, *more):
         self.ignore = [errno]
         self.ignore.extend(more)
+
     def __enter__(self):
         return
+
     def __exit__(self, exc_type, exc_value, traceback):
         try:
             return exc_value.errno in self.ignore
@@ -276,7 +284,7 @@ class AIPplatform(object):
             raise
         return agent_uuid
 
-    def install_agent(self, agent_wheel):
+    def install_agent(self, agent_wheel, vip_identity=None):
         while True:
             agent_uuid = str(uuid.uuid4())
             if agent_uuid in self.agents:
@@ -294,16 +302,130 @@ class AIPplatform(object):
                 unpacker.unpack(dest=agent_path)
             else:
                 unpack(agent_wheel, dest=agent_path)
+
+            final_identity = self._setup_agent_vip_id(agent_uuid,
+                                                      vip_identity=vip_identity)
+
+            self._authorize_agent_keys(agent_uuid, final_identity)
+
         except Exception:
             shutil.rmtree(agent_path)
             raise
         return agent_uuid
+
+    def _setup_agent_vip_id(self, agent_uuid, vip_identity=None):
+        agent_path = os.path.join(self.install_dir, agent_uuid)
+        name = self.agent_name(agent_uuid)
+        pkg = UnpackedPackage(os.path.join(agent_path,  name))
+        identity_template_filename = os.path.join(pkg.distinfo, "IDENTITY_TEMPLATE")
+
+        rm_id_template = False
+
+        if not os.path.exists(identity_template_filename):
+            agent_name = self.agent_name(agent_uuid)
+            name_template = agent_name + "_{n}"
+        else:
+            with open(identity_template_filename, 'rb') as fp:
+                name_template = fp.read(64)
+
+            rm_id_template = True
+
+        if vip_identity is not None:
+            name_template = vip_identity
+
+        _log.debug(
+            'Using name template "' + name_template + '" to generate VIP ID')
+
+        final_identity = self._get_available_agent_identity(name_template)
+
+        if final_identity is None:
+            raise ValueError(
+                "Agent with VIP ID {} already installed on platform.".format(
+                    name_template))
+
+        if not is_valid_identity(final_identity):
+            raise ValueError(
+                'Invlaid identity detecated: {}'.format(
+                    ','.format(final_identity)
+                ))
+
+        identity_filename = os.path.join(agent_path, "IDENTITY")
+
+        with open(identity_filename, 'wb') as fp:
+            fp.write(final_identity)
+
+        _log.info("Agent {uuid} setup to use VIP ID {vip_identity}". format(
+            uuid=agent_uuid, vip_identity=final_identity))
+
+        # Cleanup IDENTITY_TEMPLATE file.
+        if rm_id_template:
+            os.remove(identity_template_filename)
+            _log.debug('IDENTITY_TEMPLATE file removed.')
+
+        return final_identity
+
+
+    def _get_agent_publickey(self, agent_uuid):
+        agent_path = os.path.join(self.install_dir, agent_uuid)
+        name = self.agent_name(agent_uuid)
+        agent_path_with_name = os.path.join(agent_path, name)
+        data_dir = self._get_data_dir(agent_path_with_name)
+        keystore_path = os.path.join(data_dir, 'keystore.json')
+        keystore = KeyStore(keystore_path)
+        return keystore.public()
+
+    def _authorize_agent_keys(self, agent_uuid, identity):
+        publickey = self._get_agent_publickey(agent_uuid)
+        entry = AuthEntry(credentials=publickey, user_id=identity,
+                          comments='Automatically added on agent install')
+        AuthFile().add(entry)
+
+    def _unauthorize_agent_keys(self, agent_uuid):
+        publickey = self._get_agent_publickey(agent_uuid)
+        AuthFile().remove_by_credentials(publickey)
+
+    def _get_data_dir(self, agent_path):
+        pkg = UnpackedPackage(agent_path)
+        data_dir = os.path.join(os.path.dirname(pkg.distinfo),
+                                '{}.agent-data'.format(pkg.package_name))
+        if not os.path.exists(data_dir):
+            os.mkdir(data_dir)
+        return data_dir
+
+    def get_all_agent_identities(self):
+        results = set()
+        for agent_uuid in self.list_agents():
+            try:
+                agent_identity = self.agent_identity(agent_uuid)
+            except ValueError:
+                continue
+
+            if agent_identity is not None:
+                results.add(agent_identity)
+
+        return results
+
+    def _get_available_agent_identity(self, name_template):
+        all_agent_identities = self.get_all_agent_identities()
+
+        # Provided name template is static
+        if name_template == name_template.format(n=0):
+            return name_template if name_template not in all_agent_identities else None
+
+        # Find a free ID
+        count = 1
+        while True:
+            test_name = name_template.format(n=count)
+            if test_name not in all_agent_identities:
+                return test_name
+            count += 1
 
     def remove_agent(self, agent_uuid):
         if agent_uuid not in os.listdir(self.install_dir):
             raise ValueError('invalid agent')
         self.stop_agent(agent_uuid)
         self.agents.pop(agent_uuid, None)
+        self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
 
     def agent_name(self, agent_uuid):
@@ -451,7 +573,10 @@ class AIPplatform(object):
         _log.warning('missing execution requirements: %s', execreqs_json)
         return {}
 
-    def _launch_agent(self, agent_uuid, agent_path, name=None):
+    def start_agent(self, agent_uuid):
+        name = self.agent_name(agent_uuid)
+        agent_path = os.path.join(self.install_dir, agent_uuid, name)
+
         execenv = self.agents.get(agent_uuid)
         if execenv and execenv.process.poll() is None:
             _log.warning('request to start already running agent %s', agent_path)
@@ -495,6 +620,20 @@ class AIPplatform(object):
         environ['AGENT_PUB_ADDR'] = self.publish_address
         environ['AGENT_UUID'] = agent_uuid
         environ['_LAUNCHED_BY_PLATFORM'] = '1'
+        if self.env.developer_mode:
+            environ['_DEVELOPER_MODE'] = '1'
+
+        #For backwards compatibility create the identity file if it does not exist.
+        identity_file = os.path.join(self.install_dir, agent_uuid, "IDENTITY")
+        if not os.path.exists(identity_file):
+            _log.debug('IDENTITY FILE MISSING: CREATING IDENTITY FILE WITH VALUE: {}'.format(agent_uuid))
+            with open(identity_file, 'wb') as fp:
+                fp.write(agent_uuid)
+
+        with open(identity_file, 'rb') as fp:
+            agent_vip_identity = fp.read()
+
+        environ['AGENT_VIP_IDENTITY'] = agent_vip_identity
 
         module, _, func = module.partition(':')
         if func:
@@ -510,10 +649,8 @@ class AIPplatform(object):
             execenv = self._reserve_resources(resmon, execreqs)
         execenv.name = name or agent_path
         _log.info('starting agent %s', agent_path)
-        data_dir = os.path.join(os.path.dirname(pkg.distinfo),
-                                '{}.agent-data'.format(pkg.package_name))
-        if not os.path.exists(data_dir):
-            os.mkdir(data_dir)
+
+        data_dir = self._get_data_dir(agent_path)
         execenv.execute(argv, cwd=data_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[agent_uuid] = execenv
@@ -526,28 +663,13 @@ class AIPplatform(object):
                      ((logging.INFO, line.rstrip('\r\n'))
                       for line in proc.stdout))
 
-    def launch_agent(self, agent_path):
-        while True:
-            agent_uuid = str(uuid.uuid4())
-            if not (agent_uuid in self.agents or
-                    os.path.exists(os.path.join(self.install_dir, agent_uuid))):
-                break
-        if not os.path.exists(agent_path):
-            msg = 'agent not found: {}'.format(agent_path)
-            _log.error(msg)
-            raise ValueError(msg)
-        self._launch_agent(agent_uuid, os.path.abspath(agent_path))
-
     def agent_status(self, agent_uuid):
         execenv = self.agents.get(agent_uuid)
         if execenv is None:
             return (None, None)
         return (execenv.process.pid, execenv.process.poll())
 
-    def start_agent(self, agent_uuid):
-        name = self.agent_name(agent_uuid)
-        self._launch_agent(
-            agent_uuid, os.path.join(self.install_dir, agent_uuid, name), name)
+
 
     def stop_agent(self, agent_uuid):
         try:

@@ -1,31 +1,28 @@
 '''
-    This python script will listen to the defined vip address for specific 
+        This python script will listen to the defined vip address for specific
     topics.  The user can modify the settings.py file to set the specific
     topics to listen to.
-    
+
     With a volttron activated shell this script can be run like:
-        
-        python standalonelistener.py
-    
+
+       python standalonelistener.py
+
     This script prints all output to standard  out rather than using the
     logging facilities.
-    
+
     This script will also publish a heart beat (which will be returned if
-    lisenening to the heartbeat topic).
-    
-    Example output to standard out (not the starting at {" it will all be
-    on a single line:
-        publishing heartbeat.
-        {"topic": "heartbeat/standalonelistener", 
-         "headers": {"Date": "2015-10-22 15:22:43.184351Z", "Content-Type": "text/plain"}, 
+    listening to the heartbeat topic).
+
+    Example output to standard out:
+
+        {"topic": "heartbeat/standalonelistener",
+         "headers": {"Date": "2015-10-22 15:22:43.184351Z", "Content-Type": "text/plain"},
          "message": "2015-10-22 15:22:43.184351Z"}
-        {"topic": "devices/building/campus/hotwater/heater/resistive/information/power/part_realpwr_avg", 
-         "headers": {"Date": "2015-10-22 00:45:15.480339"}, 
-         "message": [{"part_realpwr_avg": 0.0}, 
-                     {"part_realpwr_avg": {"units": "percent", "tz": "US/Pacific", "type": "float"}}]}
-                     
-    The heartbeat message is a simple plain text message with just a 
-    datestamp
+        {"topic": "devices/building/campus/hotwater/heater/resistive/information/power/part_realpwr_avg",
+         "headers": {"Date": "2015-10-22 00:45:15.480339"},
+         "message": [{"part_realpwr_avg": 0.0}, {"part_realpwr_avg": {"units": "percent", "tz": "US/Pacific", "type": "float"}}]}
+
+    The heartbeat message is a simple plain text message with just a date stamp
     
     A "data" message contains an array of 2 elements.  The first element 
     contains a dictionary of (point name: value) pairs.  The second element
@@ -40,6 +37,7 @@ import gevent
 import logging
 from gevent.core import callback
 
+from volttron.platform import get_home, set_home
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.agent import utils
@@ -50,6 +48,11 @@ from settings import remote_url, topics_prefixes_to_watch, heartbeat_period
 # Setup logging so that we could use it if we needed to.
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
+# Agents need access to VOLTTRON_HOME even if running in standalone mode
+# to keep track of keys. This sets a default home.
+set_home()
+
 logging.basicConfig(
                 level=logging.debug,
                 format='%(asctime)s   %(levelname)-8s %(message)s',

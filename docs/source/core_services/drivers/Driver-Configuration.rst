@@ -1,8 +1,5 @@
 .. _Driver-Configuration:
-<<<<<<< Updated upstream
 
-=======
->>>>>>> Stashed changes
 ====================
 Driver Configuration
 ====================
@@ -23,29 +20,20 @@ The Master Driver Agent along with Historian Agents replace the functionality of
 .. _MasterDriverConfig:
 Master Driver Agent Configuration
 ---------------------------------
-The Master Driver Agent configuration consists of a list of device configuration files to load at startup. 
-The user may optionally stagger the start of drivers to improve scalability of the platform by using the staggered_start setting.
+The Master Driver Agent configuration consists of general settings for all devices. The default values of the master driver should be sufficient for most users.
+The user may optionally change the interval between device scrapes with the driver_scrape_interval.
 
-The following example loads three driver configuration files:
+The following example sets the driver_scrape_interval to 0.05 seconds or 20 devices per second:
 
 .. code-block:: json
 
     {
-        "driver_config_list": [
-               "/home/volttron-user/configs/test_bacnet1.config",  
-               "/home/volttron-user/configs/test_bacnet2.config",
-               "/home/volttron-user/configs/test_modbus1.config"
-        ],
-        "staggered_start": 30.0
+        "driver_scrape_interval": 0.05
     }
     
+* **driver_scrape_interval** - Sets the interval between devices scrapes. Defaults to 0.02 or 50 devices per second. Useful for when the platform scrapes too many devices at once resulting in failed scrapes.
 
-* **driver_config_list** - A list of driver configuration files to load at startup.
-
-* **staggered_start** - Spread the scraping and publishing of device data over approximately N seconds. Useful for when the platform scrapes too many devices at once resulting in failed scrapes.
-
-An example master driver configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/master-driver.agent>`_ or 
-in the VOLTTRON repository in ``examples/configurations/drivers/master-driver.agent``.
+An example master driver configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/master-driver.agent``.
 
 .. _driver-configuration-file:
 Driver Configuration File
@@ -63,21 +51,17 @@ Each device configuration has the following form:
     {
         "driver_config": {"device_address": "10.1.1.5",
                           "device_id": 500},
-        
         "driver_type": "bacnet",
-        "registry_config":"/home/volttron-user/configs/vav.csv",
+        "registry_config":"config://registry_configs/vav.csv",
         "interval": 60,
-        "campus": "pnnl",
-        "building": "isb1",
-        "unit": "vav1",
-        "heart_beat_point": "heatbeat"
+        "heart_beat_point": "heartbeat"
     }
 
 The following settings are required for all device configurations:
 
     - **driver_config** - Driver specific setting go here. See below for driver specific settings.
     - **driver_type** - Type of driver to use for this device. Currently VOLTTRON includes "bacnet" and "modbus" drivers and a testing driver called "fake".
-    - **registry_config** - Registry configuration file for registers on the device. See the `Registry Configuration File`_ section below.
+    - **registry_config** - Reference to a configuration file in the configuration store for registers on the device. See the `Registry Configuration File`_ and `Adding Device Configurations to the Configuration Store`_ sections below.
 
 These settings are optional:
 
@@ -86,24 +70,109 @@ These settings are optional:
 
 These settings are used to create the topic that this device will be referenced by following the VOLTTRON convention of {campus}/{building}/{unit}. This will also be the topic published on when then device is periodically scraped for it's current state.
 
-While all of the settings are optional at least one is required:
+The topic used to reference the device is derived from the name of the device configuration in the store. See the  `Adding Device Configurations to the Configuration Store`_ section.
 
-    - **campus** - Campus portion of the device topic. (Optional)
-    - **building** - Building portion of the device topic. (Optional)
-    - **unit** - Unit portion of the device topic. (Optional)
-    - **path** - Additional topic bits after unit. Useful for specifying sub devices. (Optional)
 
-For instance with the above example the topic used to reference this device when 
-making an RPC call would be
+Registry Configuration File
+---------------------------
+Registry configuration files setup each individual point on a device. Typically this file will be in CSV format, but the exact format is driver specific. See the section for a particular driver for the registry configuration format.
 
-    ``pnnl/isb1/vav1``
+The following is a simple example of a MODBUS registry configration file:
+
+.. csv-table:: Catalyst 371
+    :header: Reference Point Name,Volttron Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Default Value,Notes
+
+    CO2Sensor,ReturnAirCO2,PPM,0.00-2000.00,>f,FALSE,1001,,CO2 Reading 0.00-2000.0 ppm
+    CO2Stpt,ReturnAirCO2Stpt,PPM,1000.00 (default),>f,TRUE,1011,1000,Setpoint to enable demand control ventilation
+    HeatCall2,HeatCall2,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
+
+Adding Device Configurations to the Configuration Store
+-------------------------------------------------------
+
+Configurations are added to the Configuration Store using the command line `volttron-ctl config store platform.driver <name> <file name> <file type>`.
+
+* **name** - The name used to refer to the file from the store.
+* **file name** - A file containing the contents of the configuration.
+* **file type** - `--raw`, `--json`, or `--csv`. Indicates the type of the file. Defaults to `--json`.
+
+The main configuration must have the name `config`
+
+Device configuration but **not** registry configurations must have a name prefixed with `devices/`. Scripts that automate the process will prefix registry configurations with `registry_configs/`, but that is not a requirement for registry files.
+
+The name of the device's configuration in the store is used to create the topic used to reference the device. For instance a configuration named ``devices/PNNL/ISB1/vav1`` will publish scrape results to ``devices/PNNL/ISB1/vav1`` and is accessible with the Actuator Agent via ``PNNL/ISB1/vav1``.
+
+The name of a registry configuration must match the name used to refer to it in the a driver configuration. The reference is not case sensitive.
+
+If the Master Driver Agent is running any changes to the configuration store will immediately affect the running devices according to the changes.
+
+Consider the following three configuration files:
+
+A master driver configuration called `master-driver.agent`:
+
+.. code-block:: json
+
+    {
+        "driver_scrape_interval": 0.05
+    }
+
+A MODBUS device configuration file called `modbus1.config`:
+
+.. code-block:: json
+
+    {
+        "driver_config": {"device_address": "10.1.1.2",
+                          "port": 502,
+                          "slave_id": 5},
+        "driver_type": "modbus",
+        "registry_config":"config://registry_configs/hvac.csv",
+        "interval": 60,
+        "timezone": "UTC",
+        "heart_beat_point": "heartbeat"
+    }
+
+A MODBUS registry configuration file called `catalyst371.csv`:
+
+.. csv-table:: catalyst371.csv
+    :header: Reference Point Name,Volttron Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Default Value,Notes
+
+    CO2Sensor,ReturnAirCO2,PPM,0.00-2000.00,>f,FALSE,1001,,CO2 Reading 0.00-2000.0 ppm
+    CO2Stpt,ReturnAirCO2Stpt,PPM,1000.00 (default),>f,TRUE,1011,1000,Setpoint to enable demand control ventilation
+    HeatCall2,HeatCall2,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
+
+To store the master driver configuration run the command
+
+``volttron-ctl config store platform.driver config master-driver.agent``
+
+To store the registry configuration run the command (note the --csv option)
+
+``volttron-ctl config store platform.driver registry_configs/hvac.csv catalyst371.csv --csv``
+
+Note the name ``registry_configs/hvac.csv`` matches the configuration reference in the file ``modbus1.config``.
+
+To store the driver configuration run the command
+
+``volttron-ctl config store platform.driver devices/my_building/hvac1 modbus1.config``
+
+
+Converting Old Style Configuration
+----------------------------------
+
+The new Master Driver no longer supports the old style of device configuration. The old ``device_list`` setting is ignored.
+
+To simplify updating to a new format ``scripts/update_master_driver_config.py`` is provide to automatically update to the new configuration format and push the results to the configuration store.
+
+With the platform running run:
+
+``python scripts/update_master_driver_config.py <old configuration>``
+
+**old_configuration** is the main configuration file in the old format. The script automatically modifies the driver files to create references to csv files and adds the csv files with the appropriate name.
 
 
 Device State Publishes
-**********************
+----------------------
 
 By default the value of each register on a device is published 4 different ways when the device state is published.
-Consider the following settings in a Driver Configuration File:
+Consider the following settings in a driver configuration stored under the name ``devices/pnnl/isb1/vav1``:
 
 .. code-block:: json
 
@@ -112,13 +181,10 @@ Consider the following settings in a Driver Configuration File:
                           "device_id": 500},
 
         "driver_type": "bacnet",
-        "registry_config":"/home/volttron-user/configs/vav.csv",
-        "campus": "pnnl",
-        "building": "isb1",
-        "unit": "vav1",
+        "registry_config":"config://registry_configs/vav.csv",
     }
 
-In the `vav.csv` file is a register with the name ``temperature``. For these examples
+In the ``vav.csv`` file is a register with the name ``temperature``. For these examples
 the current value of the register on the device happens to be 75.2 and the meta data
 is
 
@@ -142,6 +208,8 @@ When the driver publishes the device state the following 2 things will be publis
 
             [75.2, {"units": "F"}]
 
+    These publishes can be turned off by setting `publish_depth_first` and `publish_breadth_first` to `false` respectively.
+
 Also these two publishes happen once for all registers:
 
     A "depth first" publish to the topic ``devices/pnnl/isb1/vav1/all``
@@ -158,20 +226,18 @@ Also these two publishes happen once for all registers:
 
             [{"temperature": 75.2, ...}, {"temperature":{"units": "F"}, ...}]
 
-Scalability Settings
-********************
+    These publishes can be turned off by setting `publish_depth_first_all` and `publish_breadth_first_all` to `false` respectively.
+
+Device Scalability Settings
+---------------------------
 
 In order to improve the scalability of the platform unneeded device state publishes for a device can be turned off.
-All of the following setting are optional and default to `True`:
+All of the following setting are optional and default to `True`.
 
-    - **publish_depth_first_all** - Enable device state publishes to the topic
-      ``devices/<campus>/<building>/<unit>/<path>/all``
-    - **publish_breadth_first_all** - Enable device state publishes to the topic
-      ``devices/all/<path>/<unit>/<building>/<campus>``
-    - **publish_depth_first** - Enable device state publishes to the topic
-      ``devices/<campus>/<building>/<unit>/<path>/<point_name>`` for each register on the device.
-    - **publish_breadth_first** - Enable device state publishes to the topic
-      ``devices/all/<path>/<unit>/<building>/<campus>`` for each register on the device.
+    - **publish_depth_first_all** - Enable "depth first" publish of all points to a single topic.
+    - **publish_breadth_first_all** - Enable "breadth first" publish of all points to a single topic.
+    - **publish_depth_first** - Enable "depth first" device state publishes for each register on the device.
+    - **publish_breadth_first** - Enable "breadth first" device state publishes for each register on the device.
 
 It is common practice to set **publish_breadth_first_all**, **publish_depth_first**, and
 **publish_breadth_first** to `False` unless they are specifically needed by an agent running on
@@ -182,18 +248,7 @@ the platform.
 
     All Historian Agents require **publish_depth_first_all** to be set to `True` in order to capture data.
 
-Registry Configuration File
----------------------------
-Registry configuration files setup each individual point on a device. Typically this file will be in CSV format, but the exact format is driver specific. See the section for a particular driver for the registry configuration format.
 
-The following is a simple example of a MODBUS registry confugration file:
-
-.. csv-table:: Catalyst 371
-    :header: Reference Point Name,Volttron Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Default Value,Notes
-	
-    CO2Sensor,ReturnAirCO2,PPM,0.00-2000.00,>f,FALSE,1001,,CO2 Reading 0.00-2000.0 ppm
-    CO2Stpt,ReturnAirCO2Stpt,PPM,1000.00 (default),>f,TRUE,1011,1000,Setpoint to enable demand control ventilation 
-    HeatCall2,HeatCall2,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
 
 .. _MODBUS-config:
 MODBUS Driver Configuration
@@ -217,18 +272,14 @@ Here is an example device configuration file:
         "driver_config": {"device_address": "10.1.1.2",
                           "port": 502,
                           "slave_id": 5},
-        "campus": "pnnl",
-        "building": "isb2",
-        "unit": "hvac1",
         "driver_type": "modbus",
-        "registry_config":"/home/volttron-user/configs/hvac.csv",
+        "registry_config":"config://registry_configs/hvac.csv",
         "interval": 60,
         "timezone": "UTC",
         "heart_beat_point": "heartbeat"
     }
 
-A sample MODBUS configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/modbus1.config>`_ or 
-in the VOLTTRON repository in ``examples/configurations/drivers/modbus1.config``
+A sample MODBUS configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/modbus1.config``
 
 
 .. _MODBUS-Driver:
@@ -306,11 +357,8 @@ Here is an example device configuration file:
                           "min_priority": 10,
                           "max_per_request": 24
                           },
-        "campus": "pnnl",
-        "building": "isb2",
-        "unit": "vav",
         "driver_type": "bacnet",
-        "registry_config":"/home/volttron-user/configs/vav.csv",
+        "registry_config":"config://registry_configs/vav.csv",
         "interval": 5,
         "timezone": "UTC",
         "heart_beat_point": "heartbeat"
@@ -356,14 +404,14 @@ Any additional columns will be ignored. It is common practice to include a **Poi
 .. csv-table:: BACnet
 	:header: Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
 
-        2400Stevens/FCB.Local Application.PH-T,PreheatTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000119,Resolution: 0.1
-        2400Stevens/FCB.Local Application.RA-T,ReturnAirTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000120,Resolution: 0.1
-        2400Stevens/FCB.Local Application.RA-H,ReturnAirHumidity,percentRelativeHumidity,0.00 to 100.00,analogInput,presentValue,FALSE,3000124,Resolution: 0.1
-        2400Stevens/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000107,Resolution: 0.1
-        2400Stevens/FCB.Local Application.MAD-O,MixedAirDamperOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000110,Resolution: 0.1
-        2400Stevens/FCB.Local Application.PH-O,PreheatValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000111,Resolution: 0.1
-        2400Stevens/FCB.Local Application.RH-O,ReheatValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000112,Resolution: 0.1
-        2400Stevens/FCB.Local Application.SF-O,SupplyFanSpeedOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000113,Resolution: 0.1
+        Building/FCB.Local Application.PH-T,PreheatTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000119,Resolution: 0.1
+        Building/FCB.Local Application.RA-T,ReturnAirTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000120,Resolution: 0.1
+        Building/FCB.Local Application.RA-H,ReturnAirHumidity,percentRelativeHumidity,0.00 to 100.00,analogInput,presentValue,FALSE,3000124,Resolution: 0.1
+        Building/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000107,Resolution: 0.1
+        Building/FCB.Local Application.MAD-O,MixedAirDamperOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000110,Resolution: 0.1
+        Building/FCB.Local Application.PH-O,PreheatValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000111,Resolution: 0.1
+        Building/FCB.Local Application.RH-O,ReheatValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000112,Resolution: 0.1
+        Building/FCB.Local Application.SF-O,SupplyFanSpeedOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000113,Resolution: 0.1
 
 
 A sample BACnet registry file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/bacnet.csv>`_ or 
@@ -384,18 +432,14 @@ Here is an example device configuration file:
 
     {
         "driver_config": {},
-        "campus": "pnnl",
-        "building": "isb2",
-        "unit": "vav",
         "driver_type": "bacnet",
-        "registry_config":"/home/volttron-user/configs/vav.csv",
+        "registry_config":"config://registry_configs/vav.csv",
         "interval": 5,
         "timezone": "UTC",
         "heart_beat_point": "heartbeat"
     }
 
-A sample fake device configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/fake.config>`_ or 
-in the VOLTTRON repository in ``examples/configurations/drivers/fake.config``
+A sample fake device configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/fake.config``
 
 Fake Device Registry Configuration File
 ***************************************

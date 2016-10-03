@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -109,10 +109,10 @@ class AlertMonitorAgent(Agent):
         kwargs.pop('identity')
 
         _log.debug('outfile is {}'.format(os.path.abspath(self._outfile)))
-        super(AlertMonitorAgent, self).__init__(identity='alert.monitor',
-                                                **kwargs)
+        super(AlertMonitorAgent, self).__init__(**kwargs)
 
-    @PubSub.subscribe("pubsub", topics.ALERTS_BASE.format())
+    @PubSub.subscribe("pubsub", topics.ALERTS.format(agent_class='',
+                      agent_uuid=''))
     def onmessage(self, peer, sender, bus, topic, headers, message):
         with open(self._outfile, 'a') as f:
             f.write("headers: {} message: {}\n".format(headers, message))
@@ -120,7 +120,7 @@ class AlertMonitorAgent(Agent):
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(AlertMonitorAgent)
+    utils.vip_main(AlertMonitorAgent, identity='alert.monitor')
 
 
 if __name__ == '__main__':
