@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -83,7 +83,7 @@ SCHEDULE_ACTION_CANCEL = 'CANCEL_SCHEDULE'
 __authors__ = ['Robert Lutes <robert.lutes@pnnl.gov>',
                'Kyle Monson <kyle.monson@pnnl.gov>',
                'Craig Allwardt <craig.allwardt@pnnl.gov>']
-__copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
+__copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
 
@@ -92,10 +92,8 @@ def DataPub(config_path, **kwargs):
 
     The first column in the data file must be the timestamp and it is not
     published to the bus unless the config option:
-        'maintain_timestamp' - True will allow the publishing of specified
-                                   timestamps.
-                               False will use the current now time and publish
-                                   using it.
+    'maintain_timestamp' - True will allow the publishing of specified
+    timestamps. False will use the current now time and publish using it.
     '''
     conf = utils.load_config(config_path)
     has_timestamp = conf.get('has_timestamp', 1)

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,13 +61,14 @@ from volttron.platform.messaging import topics
 from volttron.platform.messaging.health import *
 from .base import SubsystemBase
 
-__docformat__ = 'reStructuredText'
-__version__ = '1.0'
-
 """
 The health subsystem allows an agent to store it's health in a non-intrusive
 way.
 """
+
+__docformat__ = 'reStructuredText'
+__version__ = '1.1'
+
 _log = logging.getLogger(__name__)
 
 
@@ -129,6 +130,22 @@ class Health(SubsystemBase):
         self._statusobj.update_status(status, context)
 
     def get_status(self):
+        """"RPC method
+
+        Returns the last updated status from the object with the context.
+
+        The minimum output from the status would be:
+
+            {
+                "status": "GOOD",
+                "context": None,
+                "utc_last_update": "2016-03-31T15:40:32.685138+0000"
+            }
+
+        """
+        return self._statusobj.as_dict() #.as_json()
+
+    def get_status_json(self):
         """"RPC method
 
         Returns the last updated status from the object with the context.

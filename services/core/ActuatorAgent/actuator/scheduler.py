@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,7 @@
 
 import bisect
 import logging
-from cPickle import dump, load
+from cPickle import dumps, loads
 from collections import defaultdict, namedtuple
 from copy import deepcopy
 from datetime import timedelta
@@ -328,41 +328,39 @@ class Schedule(object):
 
 
 class ScheduleManager(object):
-    def __init__(self, grace_time, now=None, state_file_name=None):
+    def __init__(self, grace_time, now=None, save_state_callback=None, initial_state_string=None):
         self.tasks = {}
         self.running_tasks = set()
         self.preemted_tasks = set()
-        self.grace_time = timedelta(seconds=grace_time)
-        self.state_file_name = state_file_name
+        self.set_grace_period(grace_time)
+        self.save_state_callback = save_state_callback
         if now is None:
             now = utils.get_aware_utc_now()
-        self.load_state(now)
+        self.load_state(now, initial_state_string)
 
-    def load_state(self, now):
-        if self.state_file_name is None:
+    def set_grace_period(self, seconds):
+        self.grace_time = timedelta(seconds=seconds)
+
+    def load_state(self, now, initial_state_string):
+        if initial_state_string is None:
             return
 
         try:
-            with file(self.state_file_name, 'r') as f:
-                self.tasks = load(f)
-                self._cleanup(now)
-        except IOError:
-            print ('NOTE: Unable to load state file. Starting from a fresh '
-                   'state.')
+            self.tasks = loads(initial_state_string)
+            self._cleanup(now)
         except StandardError:
             self.tasks = {}
-            print ('ERROR: Scheduler state file corrupted!')
+            _log.error ('Scheduler state file corrupted!')
 
     def save_state(self, now):
-        if self.state_file_name is None:
+        if self.save_state_callback is None:
             return
 
         try:
-            with file(self.state_file_name, 'w') as f:
-                self._cleanup(now)
-                dump(self.tasks, f)
+            self._cleanup(now)
+            self.save_state_callback(dumps(self.tasks))
         except StandardError:
-            print ('ERROR: Failed to save scheduler state!')
+            _log.error('Failed to save scheduler state!')
 
     def request_slots(self, agent_id, id_, requests, priority, now=None):
         if now is None:

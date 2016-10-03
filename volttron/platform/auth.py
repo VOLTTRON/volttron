@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -105,6 +105,11 @@ class AuthService(Agent):
     def __init__(self, auth_file, aip, *args, **kwargs):
         self.allow_any = kwargs.pop('allow_any', False)
         super(AuthService, self).__init__(*args, **kwargs)
+
+        # This agent is started before the router so we need
+        # to keep it from blocking.
+        self.core.delay_running_event_set = False
+
         self.auth_file_path = os.path.abspath(auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
         self.aip = aip
@@ -318,8 +323,7 @@ class AuthEntryInvalid(AuthException):
 
 
 class AuthEntry(object):
-    """
-    An authentication entry contains fields for authenticating and
+    """An authentication entry contains fields for authenticating and
     granting permissions to an agent that connects to the platform.
 
     :param str domain: Name assigned to locally bound address
@@ -477,8 +481,8 @@ class AuthFile(object):
         return allow_list, groups, roles, version
 
     def read(self):
-        """
-        Gets the allowed entries, groups, and roles from the auth file.
+        """Gets the allowed entries, groups, and roles from the auth
+        file.
 
         :returns: tuple of allow-entries-list, groups-dict, roles-dict
         :rtype: tuple
@@ -541,8 +545,7 @@ class AuthFile(object):
         self._write(entries, groups, roles)
 
     def read_allow_entries(self):
-        """
-        Gets the allowed entries from the auth file.
+        """Gets the allowed entries from the auth file.
 
         :returns: list of allow-entries
         :rtype: list
@@ -550,8 +553,7 @@ class AuthFile(object):
         return self.read()[0]
 
     def find_by_credentials(self, credentials):
-        """
-        Find all entries that have the given credentials
+        """Find all entries that have the given credentials
 
         :param str credentials: The credentials to search for
         :return: list of entries
@@ -605,8 +607,7 @@ class AuthFile(object):
             self.update_by_index(auth_entry, index)
 
     def add(self, auth_entry, overwrite=True):
-        """
-        Adds an AuthEntry to the auth file
+        """Adds an AuthEntry to the auth file
 
         :param auth_entry: authentication entry
         :param overwrite: set to true to overwrite matching entries
@@ -629,9 +630,19 @@ class AuthFile(object):
             entries.append(auth_entry)
             self._write(entries, groups, roles)
 
-    def remove_by_index(self, index):
+    def remove_by_credentials(self, credentials):
+        """Removes entry from auth file by credential
+
+        :para credential: entries will this credential will be
+            removed
+        :type credential: str
         """
-        Removes entry from auth file by index
+        entries, groups, roles = self.read()
+        entries = [e for e in entries if e.credentials != credentials]
+        self._write(entries, groups, roles)
+
+    def remove_by_index(self, index):
+        """Removes entry from auth file by index
 
         :param index: index of entry to remove
         :type index: int
@@ -642,8 +653,7 @@ class AuthFile(object):
         self.remove_by_indices([index])
 
     def remove_by_indices(self, indices):
-        """
-        Removes entry from auth file by indices
+        """Removes entry from auth file by indices
 
         :param indices: list of indicies of entries to remove
         :type indices: list
@@ -699,8 +709,7 @@ class AuthFile(object):
         self._set_groups_or_roles(roles, is_group=False)
 
     def update_by_index(self, auth_entry, index):
-        """
-        Updates entry will given auth entry at given index
+        """Updates entry will given auth entry at given index
 
         :param auth_entry: new authorization entry
         :param index: index of entry to update

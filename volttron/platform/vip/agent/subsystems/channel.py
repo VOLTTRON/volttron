@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -73,10 +73,6 @@ from .base import SubsystemBase
 __all__ = ['Channel']
 
 
-_log = logging.getLogger(__name__)
-_log.setLevel(logging.DEBUG)
-
-
 class Channel(SubsystemBase):
     ADDRESS = 'inproc://subsystem/channel'
 
@@ -100,10 +96,7 @@ class Channel(SubsystemBase):
             chan_sock.bind(self.ADDRESS)
             release = []
             while True:
-                logit = (0 < _log.level <= logging.DEBUG)
                 message = chan_sock.recv_multipart(copy=False)
-                if logit:
-                    _log.debug('recv {} bytes of data'.format(len(message)))
                 if not message:
                     continue
                 ident = bytes(message[0])
@@ -116,9 +109,6 @@ class Channel(SubsystemBase):
                     # XXX: Handle channel not found
                     continue
                 message[0] = name
-                if logit:
-                    _log.debug('send on out {} bytes of data'
-                               .format(len(message)))
                 vip_sock.send_vip(peer, 'channel', message, copy=False)
         core.onstart.connect(start, self)
 
@@ -134,9 +124,6 @@ class Channel(SubsystemBase):
 
     def _handle_subsystem(self, message):
         frames = message.args
-        logit = (0 < _log.level <= logging.DEBUG)
-        if logit:
-            _log.debug('recv on in %r', [bytes(x) for x in frames])
         try:
             name = frames[0]
         except IndexError:
@@ -148,8 +135,6 @@ class Channel(SubsystemBase):
             # XXX: Handle channel not found
             return
         frames[0] = ident
-        if logit:
-            _log.debug('send on in %r', [bytes(x) for x in frames])
         self.socket.send_multipart(frames, copy=False)
 
     def create(self, peer, name=None):
@@ -165,6 +150,7 @@ class Channel(SubsystemBase):
             if channel in self._channels:
                 raise ValueError('channel %r is unavailable' % (name,))
         sock = self.context.socket(zmq.DEALER)
+        sock.hwm = 1
         sock.identity = ident = '%s.%s' % (hash(channel), hash(sock))
         sockref = weakref.ref(sock, self._destroy)
         object.__setattr__(sock, 'peer', peer)

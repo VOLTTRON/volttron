@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -94,7 +94,6 @@ query_points = {
 # default table_defs
 sqlite_platform1 = {
     "agentid": "sqlhistorian-sqlite-1",
-    "identity": "platform.historian",
     "connection": {
         "type": "sqlite",
         "params": {
@@ -105,7 +104,6 @@ sqlite_platform1 = {
 # table_defs without prefix
 sqlite_platform2 = {
     "agentid": "sqlhistorian-sqlite-2",
-    "identity": "platform.historian",
     "connection": {
         "type": "sqlite",
         "params": {
@@ -122,7 +120,6 @@ sqlite_platform2 = {
 # table_defs with prefix
 sqlite_platform3 = {
     "agentid": "sqlhistorian-sqlite-3",
-    "identity": "platform.historian",
     "connection": {
         "type": "sqlite",
         "params": {
@@ -143,7 +140,6 @@ sqlite_platform3 = {
 # config without table_defs
 mysql_platform1 = {
     "agentid": "sqlhistorian-mysql-1",
-    "identity": "platform.historian",
     "connection": {
         "type": "mysql",
         "params": {
@@ -158,7 +154,6 @@ mysql_platform1 = {
 # table_defs without prefix
 mysql_platform2 = {
     "agentid": "sqlhistorian-mysql-2",
-    "identity": "platform.historian",
     "connection": {
         "type": "mysql",
         "params": {
@@ -179,7 +174,6 @@ mysql_platform2 = {
 # table_defs with prefix
 mysql_platform3 = {
     "agentid": "sqlhistorian-mysql-3",
-    "identity": "platform.historian",
     "connection": {
         "type": "mysql",
         "params": {
@@ -201,6 +195,7 @@ mysql_platform3 = {
 offset = timedelta(seconds=3)
 db_connection = None
 MICROSECOND_SUPPORT = True
+identity = None
 
 # Don't like declaring this global but I am not able to find a way
 # to introspect this using pytest request object in the clean fixture
@@ -266,9 +261,10 @@ def query_agent(request, volttron_instance):
                     sqlite_platform2,
                     sqlite_platform3
                 ])
-def sqlhistorian(request, volttron_instance):
+def sqlhistorian(request, volttron_instance, query_agent):
     global db_connection, data_table, \
-        topics_table, meta_table
+        topics_table, meta_table, identity
+    
     print("** Setting up test_sqlhistorian module **")
     # Make database connection
     print("request param", request.param)
@@ -281,8 +277,12 @@ def sqlhistorian(request, volttron_instance):
     agent_uuid = volttron_instance.install_agent(
         agent_dir="services/core/SQLHistorian",
         config_file=request.param,
-        start=True)
+        start=True,
+        vip_identity='platform.historian')
     print("agent id: ", agent_uuid)
+    identity = query_agent.vip.rpc.call(
+            'control', 'agent_vip_identity',
+            agent_uuid).get(timeout=2)
 
     # figure out table names from config
     # Set this hear so that cleanup fixture can use it
@@ -323,8 +323,10 @@ def sqlhistorian(request, volttron_instance):
             print("closed connection to db")
         if volttron_instance.is_running():
             volttron_instance.stop_agent(agent_uuid)
+        volttron_instance.remove_agent(agent_uuid)
     request.addfinalizer(stop_agent)
-    return request.param
+    return request.param['agentid']
+
 
 
 def connect_mysql(request):
@@ -382,6 +384,7 @@ def connect_mysql(request):
     # clean up any rows from older runs
     cursor = db_connection.cursor()
     cursor.execute("DELETE FROM data")
+    cursor.execute("DELETE FROM volttron_table_definitions")
     db_connection.commit()
 
 
@@ -431,12 +434,11 @@ def assert_timestamp(result, expected_date, expected_time):
 
 
 def skip_custom_tables(sqlhistorian):
-    print ("agent id is *{}*".format(sqlhistorian['agentid']))
-    if not sqlhistorian['agentid'].endswith("-1"):
+    print ("agent id is *{}*".format(sqlhistorian))
+    if not sqlhistorian.endswith("-1"):
         print "agent id ends with something other than -1"
         pytest.skip(msg="Need not repeat all test cases for custom table "
                         "names")
-
 
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
@@ -456,6 +458,8 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     :param clean: teardown function
     """
     global query_points, ALL_TOPIC, db_connection
+    
+
     # print('HOME', volttron_instance.volttron_home)
     print("\n** test_basic_function for {}**".format(
         request.keywords.node.name))
@@ -492,7 +496,7 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     gevent.sleep(1)
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['oat_point'],
                                       count=20,
@@ -505,7 +509,7 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     assert set(result['metadata'].items()) == set(float_meta.items())
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       count=20,
@@ -518,7 +522,7 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     assert set(result['metadata'].items()) == set(float_meta.items())
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['damper_point'],
                                       count=20,
@@ -529,7 +533,6 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == damper_reading)
     assert set(result['metadata'].items()) == set(percent_meta.items())
-
 
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
@@ -581,7 +584,7 @@ def test_exact_timestamp(request, sqlhistorian, publish_agent, query_agent,
     gevent.sleep(0.5)
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       start=now,
@@ -648,7 +651,7 @@ def test_exact_timestamp_with_z(request, sqlhistorian, publish_agent,
 
     # pytest.set_trace()
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       start=now,
@@ -662,7 +665,6 @@ def test_exact_timestamp_with_z(request, sqlhistorian, publish_agent,
         now_time = now_time[:-1]
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
-
 
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
@@ -715,7 +717,7 @@ def test_query_start_time(request, sqlhistorian, publish_agent, query_agent,
     # pytest.set_trace()
     # pytest.set_trace()
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['oat_point'],
                                       start=time1,
@@ -783,7 +785,7 @@ def test_query_start_time_with_z(request, sqlhistorian, publish_agent,
     gevent.sleep(0.5)
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['oat_point'],
                                       start=time1,
@@ -852,7 +854,7 @@ def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
 
     # pytest.set_trace()
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       end=time2,
@@ -868,7 +870,6 @@ def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
     # index 0
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == mixed_reading)
-
 
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
@@ -922,7 +923,7 @@ def test_query_end_time_with_z(request, sqlhistorian, publish_agent,
 
     # pytest.set_trace()
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       end=time2,
@@ -987,7 +988,7 @@ def test_zero_timestamp(request, sqlhistorian, publish_agent, query_agent,
     gevent.sleep(0.5)
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       start=now,
@@ -1011,7 +1012,7 @@ def test_zero_timestamp(request, sqlhistorian, publish_agent, query_agent,
     gevent.sleep(0.5)
 
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       start=now,
@@ -1093,7 +1094,7 @@ def test_topic_name_case_change(request, sqlhistorian, publish_agent,
     # Query the historian
     print("query time ", time1)
     result = query_agent.vip.rpc.call(
-        'platform.historian',
+        identity,
         'query',
         topic="Building/LAB/Device/OutsideAirTemperature",
         start=time1,
@@ -1150,7 +1151,7 @@ def test_invalid_query(request, sqlhistorian, publish_agent, query_agent,
 
     # Query without topic id
     try:
-        query_agent.vip.rpc.call('platform.historian',
+        query_agent.vip.rpc.call(identity,
                                  'query',
                                  # topic=query_points['mixed_point'],
                                  start=now,
@@ -1200,7 +1201,7 @@ def test_invalid_time(request, sqlhistorian, publish_agent, query_agent,
 
     try:
         # query with invalid timestamp
-        query_agent.vip.rpc.call('platform.historian',
+        query_agent.vip.rpc.call(identity,
                                  'query',
                                  topic=query_points['mixed_point'],
                                  start=now,
@@ -1264,14 +1265,14 @@ def test_analysis_topic(request, sqlhistorian, publish_agent, query_agent,
     publish(publish_agent, 'analysis/Building/LAB/Device',
             headers, all_message)
     gevent.sleep(0.5)
-    abc = dict(peer='platform.historian', method='query',
+    abc = dict(peer=identity, method='query',
                                       topic=query_points['mixed_point'],
                                       start=now,
                                       end=now,
                                       count=20,
                                       order="LAST_TO_FIRST")
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
                                       start=now,
@@ -1331,7 +1332,7 @@ def test_record_topic_query(request, sqlhistorian, publish_agent, query_agent,
 
     # pytest.set_trace()
     # Query the historian
-    result = query_agent.vip.rpc.call('platform.historian',
+    result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=topics.RECORD,
                                       start=now,
@@ -1391,7 +1392,7 @@ def test_log_topic(request, sqlhistorian, publish_agent, query_agent, clean):
 
     # Query the historian
     result = query_agent.vip.rpc.call(
-        'platform.historian',
+        identity,
         'query',
         topic="datalogger/Building/LAB/Device/MixedAirTemperature",
         start=current_time,
@@ -1443,7 +1444,7 @@ def test_log_topic_no_header(request, sqlhistorian, publish_agent, query_agent,
 
     # Query the historian
     result = query_agent.vip.rpc.call(
-        'platform.historian',
+        identity,
         'query',
         topic="datalogger/Building/LAB/Device/MixedAirTemperature",
         start=current_time,
@@ -1486,7 +1487,7 @@ def test_log_topic_timestamped_readings(request, sqlhistorian, publish_agent,
                                                     mixed_reading],
                                        'Units': 'F',
                                        'tz': 'UTC',
-                                       'type': 'float'}}
+                                       'data_type': 'float'}}
 
     # pytest.set_trace()
     # Create timestamp
@@ -1501,7 +1502,7 @@ def test_log_topic_timestamped_readings(request, sqlhistorian, publish_agent,
 
     # Query the historian
     result = query_agent.vip.rpc.call(
-        'platform.historian',
+        identity,
         'query',
         topic="datalogger/Building/LAB/Device/MixedAirTemperature",
         end='2015-12-02T00:00:00',
@@ -1510,3 +1511,99 @@ def test_log_topic_timestamped_readings(request, sqlhistorian, publish_agent,
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
     assert_timestamp(result['values'][0][0], '2015-12-02', '00:00:00.000000')
+
+@pytest.mark.sqlhistorian
+@pytest.mark.historian
+def test_get_topic_metadata(request, sqlhistorian, publish_agent,
+                            query_agent, clean):
+    """
+    Test querying for topic metadata
+    Expected result:
+     Should return a map of {topic_name:metadata}
+     Should work for a single topic string and list of topics
+     Should throw ValueError when input is not string or list
+
+
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param sqlhistorian: instance of the sql historian tested
+    :param clean: teardown function
+    """
+    # skip if this test case need not repeated for this specific sqlhistorian
+    skip_custom_tables(sqlhistorian)
+
+    global query_points
+    # print('HOME', volttron_instance.volttron_home)
+    print(
+    "\n** test_get_topic_metadata for {}**".format(request.keywords.node.name))
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    oat_reading = random.uniform(30, 100)
+    mixed_reading = oat_reading + random.uniform(-5, 5)
+
+    # Create a message for all points.
+    message = {'temp1': {'Readings': ['2015-12-02T00:00:00',
+                                                    mixed_reading],
+                                       'Units': 'F',
+                                       'tz': 'UTC',
+                                       'data_type': 'int'},
+               'temp2': {'Readings': ['2015-12-02T00:00:00',
+                                                     mixed_reading],
+                                        'Units': 'F',
+                                        'tz': 'UTC',
+                                        'data_type': 'double'},
+               }
+
+    # pytest.set_trace()
+    # Create timestamp
+    now = datetime.utcnow().isoformat() + 'Z'
+    print("now is ", now)
+    headers = {
+        headers_mod.DATE: now
+    }
+    # Publish messages
+    publish(publish_agent, "datalogger/Building/LAB/Device", headers,
+            message)
+    gevent.sleep(1)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(
+        identity,
+        'get_topics_metadata',
+        topics="datalogger/Building/LAB/Device/temp1"
+    ).get(timeout=10)
+
+    print('Query Result', result)
+    assert result['datalogger/Building/LAB/Device/temp1'] ==\
+        {'units': 'F', 'tz': 'UTC', 'type': 'int'}
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(
+        identity,
+        'get_topics_metadata',
+        topics=["datalogger/Building/LAB/Device/temp1",
+                "datalogger/Building/LAB/Device/temp2"]
+    ).get(timeout=10)
+
+    print('Query Result', result)
+    assert result['datalogger/Building/LAB/Device/temp1'] == \
+           {'units': 'F', 'tz': 'UTC', 'type': 'int'}
+    assert result['datalogger/Building/LAB/Device/temp2'] == \
+           {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+
+    try:
+        query_agent.vip.rpc.call(
+            identity,
+            'get_topics_metadata',
+            topics=123
+        ).get(timeout=10)
+
+    except RemoteError as e:
+        assert e.message == "Please provide a valid topic name string " \
+                            "or a list of topic names. Invalid input 123"
+
+
+
+

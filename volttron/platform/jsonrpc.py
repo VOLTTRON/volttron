@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -83,10 +83,21 @@ UNABLE_TO_UNREGISTER_INSTANCE = -32004
 UNAVAILABLE_PLATFORM = -32005
 UNAVAILABLE_AGENT = -32006
 
+
 def json_validate_request(jsonrequest):
     assert jsonrequest.get('id', None)
     assert jsonrequest.get('jsonrpc', None) == '2.0'
     assert jsonrequest.get('method', None)
+
+
+def json_validate_response(jsonresponse):
+    assert jsonresponse.get('id', None)
+    assert jsonresponse.get('jsonrpc', None) == '2.0'
+    result = jsonresponse.get('result', None)
+    # if result is null then there is no result so we check to see if we have
+    # an error.  If error is also None then this is an invalid response.
+    if result is None:
+        assert jsonresponse.get('error', None)
 
 
 def json_method(ident, method, args, kwargs):

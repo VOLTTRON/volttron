@@ -5,12 +5,13 @@ Some example agents are included with the platform to help explore its
 features.
 
 -  `Data Publisher <Data-Publisher>`__
--  `Listener <ListenerAgent>`__
--  `Ping-Pong <PingPongAgent>`__
+-  `Listener <ListenerAgent.html>`__
+-  `Ping-Pong <PingPongAgent.html>`__
 -  `Non-Python agents <ProcessAgent>`__
--  `Scheduling Example <SchedulerExampleAgent>`__
+-  `Scheduling Example <SchedulerExampleAgent.html>`__
 -  `Weather <WeatherAgent>`__
 -  `Multi-Node <MultiNodeExample>`__
+-  `CAgent <CAgent.html>`__
 
 More complex agents contributed by other researchers can also be found
 in the examples directory. It is recommended that developers new to

@@ -8,7 +8,7 @@ var statusIndicatorStore = require('../stores/status-indicator-store');
 var StatusIndicator = React.createClass({
 
 	getInitialState: function () {
-        var state = getStateFromStores();
+        var state = statusIndicatorStore.getStatusMessage();
 
         state.errors = (state.status === "error");
         state.fadeOut = false;
@@ -91,9 +91,40 @@ var StatusIndicator = React.createClass({
 			height: "2rem"
 		}
 
-        var textStyle = {
-            fontWeight: "bold"
+        var messageStyle = {
+            padding: "0px 20px"
         }
+
+        var statusMessage = (<b>{this.state.statusMessage}</b>);
+
+        if (this.state.hasOwnProperty("highlight"))
+        {
+            var highlight = this.state.highlight;
+            var wholeMessage = this.state.statusMessage;
+
+            var startIndex = wholeMessage.indexOf(highlight);
+
+            if (startIndex > -1)
+            {
+                var newMessage = [];
+
+                if (startIndex === 0)
+                {
+                    newMessage.push(<b>{wholeMessage.substring(0, highlight.length)}</b>);
+                    newMessage.push(<span>{wholeMessage.substring(highlight.length)}</span>);
+                }
+                else
+                {
+                    newMessage.push(<span>{wholeMessage.substring(0, startIndex)}</span>);
+                    newMessage.push(<b>{wholeMessage.substring(startIndex, startIndex + highlight.length)}</b>);
+                    newMessage.push(<span>{wholeMessage.substring(startIndex + highlight.length)}</span>);
+                }
+
+                statusMessage = newMessage;
+            }
+        }
+
+        messageStyle.textAlign = (this.state.hasOwnProperty("align") ? this.state.align : "left");
 
 		return (
 		
@@ -103,7 +134,7 @@ var StatusIndicator = React.createClass({
         	>
 				<div style={colorStyle}/>
 				<br/>
-				<span style={textStyle}>{this.state.statusMessage}</span>
+				<div style={messageStyle}>{statusMessage}</div>
                 <div style={spacerStyle}></div>  
                 <div style={buttonDivStyle}>
 	                <button
@@ -114,18 +145,11 @@ var StatusIndicator = React.createClass({
 	                    Close
 	                </button>
                 </div>
-			</div>
-        
+			</div>       
 			
 		);
 	},
 });
 
-function getStateFromStores() {
-    return {
-        status: statusIndicatorStore.getStatus(),
-        statusMessage: statusIndicatorStore.getStatusMessage(),
-    };
-}
 
 module.exports = StatusIndicator;

@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 import os
 import requests
@@ -6,12 +7,19 @@ import tempfile
 
 import pytest
 import gevent
+from volttron.platform.messaging.health import STATUS_GOOD
+from volttron.platform.vip.connection import Connection
+from volttrontesting.utils.platformwrapper import PlatformWrapper
 from zmq.utils import jsonapi
 
 from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
+from volttron.platform.agent.known_identities import (
+    VOLTTRON_CENTRAL_PLATFORM, VOLTTRON_CENTRAL)
 from volttron.platform.keystore import KeyStore
 from volttron.platform.web import DiscoveryInfo
+from volttrontesting.fixtures.volttron_platform_fixtures import (
+    get_rand_ip_and_port,
+)
 
 
 def get_new_keypair():
@@ -23,7 +31,9 @@ def get_new_keypair():
 
 def add_to_auth(volttron_home, publickey, capabilities=None):
     authfile = AuthFile(os.path.join(volttron_home, 'auth.json'))
-    entry = AuthEntry(credentials=publickey, capabilities=capabilities)
+    entry = AuthEntry(
+        credentials=publickey, mechanism="CURVE", capabilities=capabilities
+    )
     authfile.add(entry)
 
 
@@ -52,7 +62,64 @@ def get_auth_token(jsonrpc_address):
                   params).json()['result']
 
 
+def values_not_none(keylist, lookup):
+    for k in keylist:
+        names = k.split('.')
+        obj = lookup
+        for i in xrange(len(names)):
+            if i == len(names) - 1:
+                return names[i] in obj and obj[names[i]] is not None
+            try:
+                obj = obj[names[i]]
+            except KeyError:
+                return False
+    # passes a None keylist?
+    return False
+
+
+def contains_keys(keylist, lookup):
+    for k in keylist:
+        names = k.split('.')
+        obj = lookup
+        for i in xrange(len(names)):
+            if i == len(names) - 1:
+                return names[i] in obj
+            try:
+                obj = obj[names[i]]
+            except KeyError:
+                return False
+    # passes a None keylist?
+    return False
+
+
 @pytest.mark.pa
+def test_listagents(pa_instance):
+    try:
+        wrapper, agent_uuid = pa_instance
+
+        os.environ['VOLTTRON_HOME'] = wrapper.volttron_home
+        agent = Connection(wrapper.local_vip_address, VOLTTRON_CENTRAL_PLATFORM)
+        params = dict(id='foo', method='list_agents')
+        agent_list = agent.call(
+            'route_request', 'foo', 'list_agents', None)
+        assert 1 <= len(agent_list)
+        expected_keys = ['name', 'uuid', 'tag', 'priority', 'process_id', 'health',
+                         'health.status', 'heatlh.context', 'health.last_updated',
+                         'error_code', 'permissions', 'permissions.can_restart',
+                         'permissions.can_remove', 'can_stop', 'can_start']
+        expected_key_set = set(expected_keys)
+        none_key_set = set(['tag', 'priority', 'health.context', 'error_code'])
+        not_none_key_set = expected_key_set.difference(none_key_set)
+        for a in agent_list:
+            assert contains_keys(expected_keys, a)
+            assert values_not_none(not_none_key_set, a)
+    finally:
+        os.environ.pop('VOLTTRON_HOME')
+
+
+
+@pytest.mark.pa
+@pytest.mark.xfail(reason="Need to upgrade")
 def test_manage_agent(pa_instance):
     """ Test that we can manage a `VolttronCentralPlatform`.
 
@@ -64,7 +131,7 @@ def test_manage_agent(pa_instance):
     publickey, secretkey = get_new_keypair()
 
     agent = wrapper.build_agent(
-        serverkey=wrapper.publickey, publickey=publickey, secretkey=secretkey)
+        serverkey=wrapper.serverkey, publickey=publickey, secretkey=secretkey)
     peers = agent.vip.peerlist().get(timeout=2)
     assert VOLTTRON_CENTRAL_PLATFORM in peers
 
@@ -72,11 +139,12 @@ def test_manage_agent(pa_instance):
     # platform.agent on the instance.
     papublickey = agent.vip.rpc.call(
         VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address,
-        wrapper.publickey, agent.core.publickey).get(timeout=2)
+        wrapper.serverkey, agent.core.publickey).get(timeout=2)
     assert papublickey
 
 
 @pytest.mark.pa
+@pytest.mark.xfail(reason="Need to upgrade")
 def test_can_get_agentlist(pa_instance):
     """ Test that we can retrieve an agent list from an agent.
 
@@ -86,7 +154,7 @@ def test_can_get_agentlist(pa_instance):
     publickey, secretkey = get_new_keypair()
 
     agent = wrapper.build_agent(
-        serverkey=wrapper.publickey, publickey=publickey, secretkey=secretkey)
+        serverkey=wrapper.serverkey, publickey=publickey, secretkey=secretkey)
     peers = agent.vip.peerlist().get(timeout=2)
     assert VOLTTRON_CENTRAL_PLATFORM in peers
 
@@ -94,7 +162,7 @@ def test_can_get_agentlist(pa_instance):
     # platform.agent on the instance.
     papublickey = agent.vip.rpc.call(
         VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address,
-        wrapper.publickey, agent.core.publickey).get(timeout=2)
+        wrapper.serverkey, agent.core.publickey).get(timeout=2)
     assert papublickey
 
     agentlist = agent.vip.rpc.call(
@@ -113,13 +181,15 @@ def test_can_get_agentlist(pa_instance):
     # make sure can stop is determined to be false
     assert retagent['permissions']['can_stop'] == False
 
+
 @pytest.mark.pa
+@pytest.mark.xfail(reason="Need to upgrade")
 def test_agent_can_be_managed(pa_instance):
     wrapper = pa_instance[0]
     publickey, secretkey = get_new_keypair()
     add_to_auth(wrapper.volttron_home, publickey, capabilities=['managed_by'])
     agent = wrapper.build_agent(
-        serverkey=wrapper.publickey, publickey=publickey, secretkey=secretkey)
+        serverkey=wrapper.serverkey, publickey=publickey, secretkey=secretkey)
     peers = agent.vip.peerlist().get(timeout=2)
     assert VOLTTRON_CENTRAL_PLATFORM in peers
 
@@ -132,8 +202,30 @@ def test_agent_can_be_managed(pa_instance):
     print(wrapper.vip_address)
     returnedid = agent.vip.rpc.call(
         VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address,
-        wrapper.publickey, agent.core.publickey).get(timeout=2)
+        wrapper.serverkey, agent.core.publickey).get(timeout=2)
     assert returnedid
+
+
+@pytest.mark.pa
+def test_reconfigure_agent(pa_instance):
+    wrapper = pa_instance[0]
+    connection = wrapper.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
+    auuid = str(uuid.uuid4())
+    assert connection.is_connected()
+    connection.call('reconfigure', **{'instance-uuid': auuid})
+    assert auuid == connection.call('get_instance_uuid')
+
+
+@pytest.mark.pa
+def test_status_good_when_agent_starts(pa_instance):
+    wrapper = pa_instance[0]
+    connection = wrapper.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
+
+    assert connection.is_connected()
+    status = connection.call('health.get_status')
+    assert isinstance(status, dict)
+    assert status
+    assert STATUS_GOOD == status['status']
 
 
 # @pytest.mark.pa
@@ -161,13 +253,13 @@ def test_agent_can_be_managed(pa_instance):
     # ks = KeyStore(tf.name)
     # ks.generate()
     #
-    # entry = AuthEntry(credentials=ks.public())
+    # entry = AuthEntry(credentials="CURVE:{}".format(ks.public()))
     # authfile = AuthFile(os.path.join(pa_wrapper.volttron_home, "auth.json"))
     # authfile.add(entry)
     # gevent.sleep(0.1)
     #
     # agent = pa_wrapper.build_agent(
-    #     serverkey=pa_wrapper.publickey,
+    #     serverkey=pa_wrapper.serverkey,
     #     secretkey=ks.secret(),
     #     publickey=ks.public()
     # )
@@ -179,7 +271,7 @@ def test_agent_can_be_managed(pa_instance):
     # print('Calling manage')
     # registered_uuid = agent.vip.rpc.call(
     #     PLATFORM_ID, 'manage', pa_wrapper.vip_address,
-    #     pa_wrapper.publickey).get(timeout=2)
+    #     pa_wrapper.serverkey).get(timeout=2)
     #
     # assert registered_uuid
 
@@ -192,7 +284,7 @@ def test_agent_can_be_managed(pa_instance):
 #
 #     # This agent will act as a volttron central agent for the purposes
 #     # of this test.
-#     vc_agent = wrapper.build_agent(serverkey=wrapper.publickey,
+#     vc_agent = wrapper.build_agent(serverkey=wrapper.serverkey,
 #                                    secretkey=secretkey,
 #                                    publickey=publickey)
 #

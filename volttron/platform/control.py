@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,9 +69,15 @@ import shutil
 import sys
 import tempfile
 import traceback
+import StringIO
+import uuid
+import base64
+import hashlib
 
 import gevent
 import gevent.event
+from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.platform import get_home, get_address
 
 from .agent import utils
 from .agent.known_identities import CONTROL_CONNECTION
@@ -97,10 +103,13 @@ _stderr = sys.stderr
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
+CHUNK_SIZE = 4096
+
 
 class ControlService(BaseAgent):
     def __init__(self, aip, *args, **kwargs):
         tracker = kwargs.pop('tracker', None)
+        kwargs["enable_store"] = False
         super(ControlService, self).__init__(*args, **kwargs)
         self._aip = aip
         self._tracker = tracker
@@ -115,6 +124,13 @@ class ControlService(BaseAgent):
         self.vip.rpc.export(lambda: self._tracker.stats, 'stats.get')
 
     @RPC.export
+    def serverkey(self):
+        q = Query(self.core)
+        pk = q.query('serverkey').get(timeout=1)
+        del q
+        return pk
+
+    @RPC.export
     def clear_status(self, clear_all=False):
         self._aip.clear_status(clear_all)
 
@@ -124,6 +140,13 @@ class ControlService(BaseAgent):
             raise TypeError("expected a string for 'uuid'; got {!r}".format(
                 type(uuid).__name__))
         return self._aip.agent_status(uuid)
+
+    @RPC.export
+    def agent_name(self, uuid):
+        if not isinstance(uuid, basestring):
+            raise TypeError("expected a string for 'uuid'; got {!r}".format(
+                type(uuid).__name__))
+        return self._aip.agent_name(uuid)
 
     @RPC.export
     def status_agents(self):
@@ -205,7 +228,7 @@ class ControlService(BaseAgent):
         return self._aip.agent_identity(uuid)
 
     @RPC.export
-    def install_agent(self, filename, channel_name):
+    def install_agent(self, filename, channel_name, vip_identity=None):
         """ Installs an agent on the instance instance.
 
         The installation of an agent through this method involves sending
@@ -216,17 +239,26 @@ class ControlService(BaseAgent):
 
             # client creates channel to this agent (control)
             channel = agent.vip.channel('control', 'channel_name')
-            # client waits for a ready response from control note this will
-            # block until the repsonse is received.
-            response = channel.recv()
+
             # Begin sending data
+            sha512 = hashlib.sha512()
             while True:
-                wheeldata = fin.read(8125)
-                if not wheeldata:
-                    break
-                channel.send(wheeldata)
-            # send the done message
-            channel.send('done')
+                request, file_offset, chunk_size = channel.recv_multipart()
+
+                # Control has all of the file. Send hash for for it to verify.
+                if request == b'checksum':
+                    channel.send(hash)
+                assert request == b'fetch'
+
+                # send a chunk of the file
+                file_offset = int(file_offset)
+                chunk_size = int(chunk_size)
+                file.seek(file_offset)
+                data = file.read(chunk_size)
+                sha512.update(data)
+                channel.send(data)
+
+            agent_uuid = agent_uuid.get(timeout=10)
             # close and delete the channel
             channel.close(linger=0)
             del channel
@@ -237,32 +269,55 @@ class ControlService(BaseAgent):
             The name of the channel that the agent file will be sent on.
 
         """
+
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         channel = self.vip.channel(peer, channel_name)
-        # Send synchronization message to inform peer of readiness
-        channel.send('ready')
-        tmpdir = tempfile.mkdtemp()
         try:
+            tmpdir = tempfile.mkdtemp()
             path = os.path.join(tmpdir, os.path.basename(filename))
             store = open(path, 'wb')
-            _log.debug('Begining to receive data.')
+            file_offset = 0
+            sha512 = hashlib.sha512()
+
             try:
                 while True:
-                    data = channel.recv()
-                    _log.debug(data)
-                    if data == 'done':
-                        _log.debug('done receiving data')
-                        break
+                    # request a chunk of the file
+                    channel.send_multipart([
+                        b'fetch',
+                        bytes(file_offset),
+                        bytes(CHUNK_SIZE)
+                    ])
+
+                    # get the requested data
+                    with gevent.Timeout(30):
+                        data = channel.recv()
+                    sha512.update(data)
                     store.write(data)
-                # Send done synchronization message
-                channel.send('done')
+                    size = len(data)
+                    file_offset += size
+
+                    # let volttron-ctl know that we have everything
+                    if size < CHUNK_SIZE:
+                        channel.send_multipart([b'checksum', b'', b''])
+                        with gevent.Timeout(30):
+                            checksum = channel.recv()
+                        assert checksum == sha512.digest()
+                        break
+
+            except AssertionError:
+                _log.warning("Checksum mismatch on received file")
+                raise
+            except gevent.Timeout:
+                _log.warning("Gevent timeout trying to receive data")
+                raise
             finally:
                 store.close()
+                _log.debug('Closing channel on server')
                 channel.close(linger=0)
                 del channel
-            agent_uuid = self._aip.install_agent(path)
-            _log.debug('AGENT UUID: {}'.format(agent_uuid))
-            return agent_uuid #self._aip.install_agent(path)
+
+            agent_uuid = self._aip.install_agent(path, vip_identity=vip_identity)
+            return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -279,11 +334,11 @@ def log_to_file(file, level=logging.WARNING,
     root.addHandler(handler)
 
 
-Agent = collections.namedtuple('Agent', 'name tag uuid')
+Agent = collections.namedtuple('Agent', 'name tag uuid vip_identity')
 
 
 def _list_agents(aip):
-    return [Agent(name, aip.agent_tag(uuid), uuid)
+    return [Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid))
             for uuid, name in aip.list_agents().iteritems()]
 
 
@@ -326,23 +381,72 @@ def filter_agent(agents, pattern, opts):
 
 def install_agent(opts):
     aip = opts.aip
-    for wheel in opts.wheel:
+    filename = opts.wheel
+    tag = opts.tag
+    vip_identity = opts.vip_identity
+
+    if opts.vip_address.startswith('ipc://'):
+        _log.info("Installing wheel locally without channel subsystem")
+        filename = config.expandall(filename)
+        agent_uuid = aip.install_agent(filename,
+                                       vip_identity=vip_identity)
+
+        if tag:
+            opts.connection.call('tag_agent', agent_uuid, tag)
+
+    else:
         try:
-            tag, filename = wheel.split('=', 1)
-        except ValueError:
-            tag, filename = None, wheel
-        try:
-            uuid = aip.install_agent(filename)
-            if tag:
-                aip.tag_agent(uuid, tag)
+            _log.debug('Creating channel for sending the agent.')
+            channel_name = str(uuid.uuid4())
+            channel = opts.connection.server.vip.channel('control',
+                                                          channel_name)
+            _log.debug('calling control install agent.')
+            agent_uuid = opts.connection.call_no_get('install_agent',
+                                                     filename,
+                                                     channel_name,
+                                                     vip_identity=vip_identity)
+
+            _log.debug('Sending wheel to control')
+            sha512 = hashlib.sha512()
+            with open(filename, 'rb') as wheel_file_data:
+                while True:
+                    # get a request
+                    with gevent.Timeout(30):
+                        request, file_offset, chunk_size = channel.recv_multipart()
+                    if request == b'checksum':
+                        channel.send(sha512.digest())
+                        break
+
+                    assert request == b'fetch'
+
+                    # send a chunk of the file
+                    file_offset = int(file_offset)
+                    chunk_size = int(chunk_size)
+                    wheel_file_data.seek(file_offset)
+                    data = wheel_file_data.read(chunk_size)
+                    sha512.update(data)
+                    channel.send(data)
+
+            agent_uuid = agent_uuid.get(timeout=10)
+
         except Exception as exc:
             if opts.debug:
                 traceback.print_exc()
             _stderr.write(
                 '{}: error: {}: {}\n'.format(opts.command, exc, filename))
             return 10
-        name = aip.agent_name(uuid)
-        _stdout.write('Installed {} as {} {}\n'.format(filename, uuid, name))
+        else:
+            if tag:
+                opts.connection.call('tag_agent',
+                                     agent_uuid,
+                                     tag)
+        finally:
+            _log.debug('closing channel')
+            channel.close(linger=0)
+            del channel
+
+    name = opts.connection.call('agent_name', agent_uuid)
+    _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
 
 
 def tag_agent(opts):
@@ -420,12 +524,14 @@ def list_agents(opts):
     agents.sort()
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:>3}\n'
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>3}\n'
     _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'TAG', tag_width, 'PRI'))
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width, 'TAG', tag_width, 'PRI'))
     for agent in agents:
         priority = opts.aip.agent_priority(agent.uuid) or ''
         _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
                                  agent.tag or '', tag_width, priority))
 
 
@@ -457,15 +563,17 @@ def status_agents(opts):
         n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:>6}\n'
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
     _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'TAG', tag_width, 'STATUS'))
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width, 'TAG', tag_width, 'STATUS'))
     for agent in agents:
         try:
             pid, stat = status[agent.uuid]
         except KeyError:
             pid = stat = None
         _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
                                  agent.tag or '', tag_width,
                                  ('running [{}]'.format(pid)
                                   if stat is None else str(
@@ -628,6 +736,13 @@ def do_stats(opts):
         call('stats.' + opts.op)
         _stdout.write(
             '%sabled\n' % ('en' if call('stats.enabled') else 'dis'))
+
+
+def show_serverkey(opts):
+    q = Query(opts.connection.server.core)
+    pk = q.query('serverkey').get(timeout=2)
+    del q
+    return pk
 
 
 def _get_auth_file(volttron_home):
@@ -793,9 +908,9 @@ def remove_auth(opts):
     try:
         auth_file.remove_by_indices(opts.indices)
         if len(opts.indices) > 1:
-            msg = 'removed entries at indices {}'
+            msg = 'removed entries at indices {}'.format(opts.indices)
         else:
-            msg = msg = 'removed entry at index {}'
+            msg = msg = 'removed entry at index {}'.format(opts.indices)
         _stdout.write(msg + '\n')
     except AuthException as err:
         _stderr.write('ERROR: %s\n' % err.message)
@@ -842,16 +957,65 @@ def update_auth(opts):
 #            with open(wheel) as file:
 #                client.send_and_start_agent(file)
 
+def add_config_to_store(opts):
+    opts.connection.peer = "config.store"
+    call = opts.connection.call
 
-class Connection(object):
-    def __init__(self, address, peer='control', publickey=None,
-                 secretkey=None,
-                 serverkey=None):
+    file_contents = opts.infile.read()
+
+    call("manage_store", opts.identity, opts.name, file_contents, config_type=opts.config_type)
+
+def delete_config_from_store(opts):
+    opts.connection.peer = "config.store"
+    call = opts.connection.call
+    if opts.delete_store:
+        call("manage_delete_store", opts.identity)
+        return
+
+    if opts.name is None:
+        _stderr.write('ERROR: must specify a configuration when not deleting entire store\n')
+        return
+
+    call("manage_delete_config", opts.identity, opts.name)
+
+
+def list_store(opts):
+    opts.connection.peer = "config.store"
+    call = opts.connection.call
+    results = []
+    if opts.identity is None:
+        results = call("manage_list_stores")
+    else:
+        results = call("manage_list_configs", opts.identity)
+
+    for item in results:
+        _stdout.write(item+"\n")
+
+def get_config(opts):
+    opts.connection.peer = "config.store"
+    call = opts.connection.call
+    results = call("manage_get", opts.identity, opts.name, raw=opts.raw)
+
+    if opts.raw:
+        _stdout.write(results)
+    else:
+        if isinstance(results, str):
+            _stdout.write(results)
+        else:
+            _stdout.write(json.dumps(results, indent=2))
+            _stdout.write("\n'")
+
+
+class ControlConnection(object):
+    def __init__(self, address, peer='control', developer_mode=False,
+                 publickey=None, secretkey=None, serverkey=None):
         self.address = address
         self.peer = peer
         self._server = BaseAgent(address=self.address, publickey=publickey,
                                  secretkey=secretkey, serverkey=serverkey,
-                                 identity=CONTROL_CONNECTION)
+                                 enable_store=False,
+                                 identity=CONTROL_CONNECTION,
+                                 developer_mode=developer_mode)
         self._greenlet = None
 
     @property
@@ -865,6 +1029,10 @@ class Connection(object):
     def call(self, method, *args, **kwargs):
         return self.server.vip.rpc.call(
             self.peer, method, *args, **kwargs).get()
+
+    def call_no_get(self, method, *args, **kwargs):
+        return self.server.vip.rpc.call(
+            self.peer, method, *args, **kwargs)
 
     def notify(self, method, *args, **kwargs):
         return self.server.vip.rpc.notify(
@@ -886,12 +1054,9 @@ def get_keys(opts):
     '''Gets keys from keystore and known-hosts store'''
     hosts = KnownHostsStore(opts.known_hosts_file)
     serverkey = hosts.serverkey(opts.vip_address)
-    publickey = None
-    secretkey = None
-    if opts.keystore:
-        key_store = KeyStore(opts.keystore_file)
-        publickey = key_store.public()
-        secretkey = key_store.secret()
+    key_store = KeyStore(opts.keystore_file)
+    publickey = key_store.public()
+    secretkey = key_store.secret()
     return {'publickey': publickey, 'secretkey': secretkey,
             'serverkey': serverkey}
 
@@ -903,13 +1068,8 @@ def main(argv=sys.argv):
                          'potential damage.\n' % os.path.basename(argv[0]))
         sys.exit(77)
 
-    volttron_home = os.path.normpath(config.expandall(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+    volttron_home = get_home()
     os.environ['VOLTTRON_HOME'] = volttron_home
-
-    vip_path = '$VOLTTRON_HOME/run/vip.socket'
-    if sys.platform.startswith('linux'):
-        vip_path = '@' + vip_path
 
     global_args = config.ArgumentParser(description='global options',
                                         add_help=False)
@@ -919,19 +1079,19 @@ def main(argv=sys.argv):
                              help='read configuration from FILE')
     global_args.add_argument('--debug', action='store_true',
                              help='show tracbacks for errors rather than a brief message')
+    global_args.add_argument('--developer-mode', action='store_true',
+                             help='run in insecure developer mode')
     global_args.add_argument('-t', '--timeout', type=float, metavar='SECS',
                              help='timeout in seconds for remote calls (default: %(default)g)')
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
-    global_args.add_argument('-k', '--keystore', action='store_true',
-                             help='use public and secret keys from keystore')
     global_args.add_argument('--keystore-file', metavar='FILE',
                              help='use keystore from FILE')
     global_args.add_argument('--known-hosts-file', metavar='FILE',
                              help='get known-host server keys from FILE')
     global_args.set_defaults(
-        vip_address='ipc://' + vip_path,
+        vip_address=get_address(),
         timeout=30,
         keystore_file=os.path.join(volttron_home, 'keystore'),
         known_hosts_file=os.path.join(volttron_home, 'known_hosts')
@@ -976,20 +1136,24 @@ def main(argv=sys.argv):
         volttron_home=volttron_home,
     )
 
-    subparsers = parser.add_subparsers(title='commands', metavar='',
+    top_level_subparsers = parser.add_subparsers(title='commands', metavar='',
                                        dest='command')
 
     def add_parser(*args, **kwargs):
         parents = kwargs.get('parents', [])
         parents.append(global_args)
         kwargs['parents'] = parents
-        return subparsers.add_parser(*args, **kwargs)
+        subparser = kwargs.pop("subparser", top_level_subparsers)
+        return subparser.add_parser(*args, **kwargs)
 
     install = add_parser('install', help='install agent from wheel',
-                         epilog='The wheel argument can take the form tag=wheelfile to tag the '
+                         epilog='Optionally you may specify the --tag argument to tag the '
                                 'agent during install without requiring a separate call to '
-                                'the tag command.')
-    install.add_argument('wheel', nargs='+', help='path to agent wheel')
+                                'the tag command. ')
+    install.add_argument('wheel', help='path to agent wheel')
+    install.add_argument('--tag', help='tag for the installed agent')
+    install.add_argument('--vip-identity', help='VIP IDENTITY for the installed agent. '
+                         'Overrides any previously configured VIP IDENTITY.')
     if HAVE_RESTRICTED:
         install.add_argument('--verify', action='store_true',
                              dest='verify_agents',
@@ -1082,6 +1246,107 @@ def main(argv=sys.argv):
                          help=argparse.SUPPRESS)
     run.set_defaults(func=run_agent)
 
+    auth_cmds = add_parser("auth",
+            help="manage authorization entries and encryption keys")
+
+    auth_subparsers = auth_cmds.add_subparsers(title='subcommands',
+            metavar='', dest='store_commands')
+
+    auth_add = add_parser('add', help='add new authentication record',
+            subparser=auth_subparsers)
+    auth_add.set_defaults(func=add_auth)
+
+    auth_add_known_host = add_parser('add-known-host', subparser=auth_subparsers,
+            help='add server public key to known-hosts file')
+    auth_add_known_host.add_argument('--host', required=True,
+            help='hostname or IP address with optional port')
+    auth_add_known_host.add_argument('--server-key', required=True)
+    auth_add_known_host.set_defaults(func=add_server_key)
+
+    auth_keypair = add_parser('keypair', subparser=auth_subparsers,
+            help='generate CurveMQ keys for encrypting VIP connections')
+    auth_keypair.set_defaults(func=gen_keypair)
+
+    auth_list = add_parser('list', help='list authentication records',
+            subparser=auth_subparsers)
+    auth_list.set_defaults(func=list_auth)
+
+    auth_remove = add_parser('remove', subparser=auth_subparsers,
+            help='removes one or more authentication records by indices')
+    auth_remove.add_argument('indices', nargs='+', type=int,
+            help='index or indices of record(s) to remove')
+    auth_remove.set_defaults(func=remove_auth)
+
+    auth_serverkey = add_parser('serverkey', subparser=auth_subparsers,
+            help="show the serverkey for the instance")
+    auth_serverkey.set_defaults(func=show_serverkey)
+
+    auth_update = add_parser('update', subparser=auth_subparsers,
+            help='updates one authentication record by index')
+    auth_update.add_argument('index', type=int,
+            help='index of record to update')
+    auth_update.set_defaults(func=update_auth)
+
+
+    config_store = add_parser("config",
+                              help="manage the platform configuration store")
+
+    config_store_subparsers = config_store.add_subparsers(title='subcommands', metavar='',
+                                                          dest='store_commands')
+
+    config_store_store = add_parser("store",
+                                    help="store a configuration",
+                                    subparser=config_store_subparsers)
+
+    config_store_store.add_argument('identity',
+                                    help='VIP IDENTITY of the store')
+    config_store_store.add_argument('name',
+                                    help='name used to reference the configuration by in the store')
+    config_store_store.add_argument('infile', nargs='?', type=argparse.FileType('r'), default=sys.stdin,
+                                    help='file containing the contents of the configuration')
+    config_store_store.add_argument('--raw', const="raw", dest="config_type" , action="store_const",
+                                    help='interpret the input file as raw data')
+    config_store_store.add_argument('--json', const="json", dest="config_type", action="store_const",
+                                    help='interpret the input file as json')
+    config_store_store.add_argument('--csv', const="csv", dest="config_type", action="store_const",
+                                    help='interpret the input file as csv')
+
+    config_store_store.set_defaults(func=add_config_to_store,
+                                    config_type="json")
+
+    config_store_delete = add_parser("delete",
+                                    help="delete a configuration",
+                                    subparser=config_store_subparsers)
+    config_store_delete.add_argument('identity',
+                                    help='VIP IDENTITY of the store')
+    config_store_delete.add_argument('name', nargs='?',
+                                    help='name used to reference the configuration by in the store')
+    config_store_delete.add_argument('--all', dest="delete_store", action="store_true",
+                                    help='delete all configurations in the store')
+
+    config_store_delete.set_defaults(func=delete_config_from_store)
+
+    config_store_list = add_parser("list",
+                                     help="list stores or configurations in a store",
+                                     subparser=config_store_subparsers)
+
+    config_store_list.add_argument('identity', nargs='?',
+                                    help='VIP IDENTITY of the store to list')
+
+    config_store_list.set_defaults(func=list_store)
+
+    config_store_get = add_parser("get",
+                                    help="get the contents of a configuration",
+                                    subparser=config_store_subparsers)
+
+    config_store_get.add_argument('identity',
+                                    help='VIP IDENTITY of the store')
+    config_store_get.add_argument('name',
+                                    help='name used to reference the configuration by in the store')
+    config_store_get.add_argument('--raw', action="store_true",
+                                    help='get the configuration as raw data')
+    config_store_get.set_defaults(func=get_config)
+
     shutdown = add_parser('shutdown',
                           help='stop all agents')
     shutdown.add_argument('--platform', action='store_true',
@@ -1093,41 +1358,12 @@ def main(argv=sys.argv):
     send.add_argument('wheel', nargs='+', help='agent package to send')
     send.set_defaults(func=send_agent)
 
-    keypair = add_parser('keypair',
-                         help='generate CurveMQ keys for encrypting VIP connections')
-    keypair.set_defaults(func=gen_keypair)
-
-    add_known_host = add_parser('add-known-host',
-                                help='add server public key to known-hosts file')
-    add_known_host.add_argument('--host', required=True,
-                                help='hostname or IP address with optional port')
-    add_known_host.add_argument('--server-key', required=True)
-    add_known_host.set_defaults(func=add_server_key)
-
     stats = add_parser('stats',
                        help='manage router message statistics tracking')
     op = stats.add_argument(
         'op', choices=['status', 'enable', 'disable', 'dump', 'pprint'],
         nargs='?')
     stats.set_defaults(func=do_stats, op='status')
-
-    auth_list = add_parser('auth-list', help='list authentication records')
-    auth_list.set_defaults(func=list_auth)
-
-    auth_add = add_parser('auth-add', help='add new authentication record')
-    auth_add.set_defaults(func=add_auth)
-
-    auth_remove = add_parser('auth-remove',
-                             help='removes one or more authentication records by indices')
-    auth_remove.add_argument('indices', nargs='+', type=int,
-                             help='index or indices of record(s) to remove')
-    auth_remove.set_defaults(func=remove_auth)
-
-    auth_update = add_parser('auth-update',
-                             help='updates one authentication record by index')
-    auth_update.add_argument('index', type=int,
-                             help='index of record to update')
-    auth_update.set_defaults(func=update_auth)
 
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
@@ -1172,7 +1408,9 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = Connection(opts.vip_address, **get_keys(opts))
+    opts.connection = ControlConnection(opts.vip_address,
+                                        developer_mode=opts.developer_mode,
+                                        **get_keys(opts))
 
     try:
         with gevent.Timeout(opts.timeout):

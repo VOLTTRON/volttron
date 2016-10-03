@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,37 +54,14 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+import requests
+
 import gevent
 import pytest
 import time
 
-from zmq import curve_keypair
-
-from volttron.platform.vip.agent import Agent, PubSub, Core
-from volttron.platform.vip.socket import encode_key
-from volttrontesting.utils.platformwrapper import PlatformWrapper
-
-
-@pytest.mark.wrapper
-def test_can_add_vc_to_instance(get_volttron_instances):
-    wrapper = get_volttron_instances(1)[0]
-    agent_count = len(wrapper.list_agents())
-    vc_uuid = wrapper.add_vc()
-    assert vc_uuid
-    assert agent_count+1 == len(wrapper.list_agents())
-    assert wrapper.is_agent_running(vc_uuid)
-
-
-@pytest.mark.wrapper
-def test_can_connect_to_instance(volttron_instance):
-    assert volttron_instance is not None
-    assert volttron_instance.is_running()
-    assert not volttron_instance.list_agents()
-    message = 'Pinging Hello'
-    agent = volttron_instance.build_agent()
-    response = agent.vip.ping('', message).get(timeout=3)
-    agent.core.stop()
-    assert response[0] == message
+from volttrontesting.utils.platformwrapper import start_wrapper_platform, \
+    PlatformWrapper
 
 
 @pytest.mark.wrapper
@@ -119,7 +96,34 @@ def test_can_install_listener(volttron_instance):
     print('STOPPED: ', stopped)
     removed = vi.remove_agent(auuid)
     print('REMOVED: ', removed)
-
+@pytest.mark.xfail(reason="#776 Needs updating")
+@pytest.mark.timeout(1000)
+def test_resinstall_agent(volttron_instance):
+    mysql_config = {
+        "connection": {
+            "type": "mysql",
+            "params": {
+                "host": "localhost",
+                "port": 3306,
+                "database": "test_historian",
+                "user": "historian",
+                "passwd": "historian"
+            }
+        }
+    }
+    for i in range(0,50):
+        print("Counter: {}".format(i))
+        # auuid = volttron_instance.install_agent(
+        #     agent_dir="examples/ListenerAgent",
+        #     vip_identity='test_listener',
+        #     start=True)
+        auuid = volttron_instance.install_agent(
+            agent_dir="services/core/SQLHistorian",
+            config_file=mysql_config,
+            start=True,
+            vip_identity='test_historian')
+        assert volttron_instance.is_agent_running(auuid)
+        volttron_instance.remove_agent(auuid)
 
 @pytest.mark.wrapper
 def test_can_stop_vip_heartbeat(volttron_instance):
@@ -161,25 +165,6 @@ def test_can_ping_pubsub(volttron_instance):
     print('ROUTER RESP: ', resp)
     resp = agent.vip.ping('pubsub', 'hello').get(timeout=5)
     print('PUBSUB RESP: ', resp)
-
-
-@pytest.mark.wrapper
-def test_can_call_rpc_method(volttron_instance):
-    config = dict(agentid="Central Platform", report_status_period=15)
-    agent_uuid = volttron_instance.install_agent(
-        agent_dir='services/core/VolttronCentralPlatform',
-        config_file=config,
-        start=True)
-    assert agent_uuid is not None
-    assert volttron_instance.is_agent_running(agent_uuid)
-
-    agent = volttron_instance.build_agent()
-
-    agent_list = agent.vip.rpc.call('platform.agent',
-                                    method='list_agents').get(timeout=5)
-
-    print('The agent list is: {}'.format(agent_list))
-    assert agent_list is not None
 
 
 @pytest.mark.wrapper
@@ -238,6 +223,12 @@ def test_can_publish(volttron_instance):
     # eveluate the global messages.
     gevent.sleep(0.1)
     assert messages['test/world']['message'] == 'got data'
+
+
+@pytest.mark.wrapper
+def test_fixture_returns_single_if_one_requested(get_volttron_instances):
+    wrapper = get_volttron_instances(1, False)
+    assert isinstance(wrapper, PlatformWrapper)
 
 
 def test_can_ping_router(volttron_instance):

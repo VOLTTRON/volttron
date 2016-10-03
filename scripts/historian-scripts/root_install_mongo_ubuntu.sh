@@ -4,6 +4,19 @@
 # https://docs.mongodb.org/manual/tutorial/install-mongodb-on-ubuntu/
 os_version=""
 mongo_version=3.2
+function exit_on_error {
+    rc=$?
+    if [[ $rc != 0 ]]
+    then
+        printf "\n## Script could not complete successfully because of above error## \n"
+        exit $rc
+    fi
+
+}
+
+# validate sudo access
+sudo -v
+exit_on_error
 
 while true; do
     printf "Enter 1 or 2 based on the version of Ubuntu you are running\n"
@@ -31,20 +44,22 @@ elif [ $mongo_version == 3.2 ]
 then
     sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv EA312927
 fi
-
+exit_on_error
 echo "deb http://repo.mongodb.org/apt/"$os_version"/mongodb-org/"$mongo_version" multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-"$mongo_version".list
-
+exit_on_error
 
 sudo apt-get update
+exit_on_error
 
 sudo apt-get install -y mongodb-org
+exit_on_error
 
 #Using default config so commenting below two lines
 #sudo cp ./services/core/MongodbHistorian/tests/mongod.conf /etc/mongod.conf
 #sudo chown root.root /etc/mongod.conf
 
 sudo service mongod restart
-
+exit_on_error
 ## Create users for the database.
 
 printf "\n## Setting up admin user' ##\n"
@@ -95,4 +110,6 @@ while true; do
 done
 
 mongo admin --eval 'db.createUser( {user: "'$admin_user'", pwd: "'$admin_passwd'", roles: [ { role: "userAdminAnyDatabase", db: "admin" }]});'
-mongo $db_name -u $admin_user -p $admin_passwd --authenticationDatabase admin --eval 'use '"$db_name"'; db.createUser( {user: "'$volttron_user'", pwd: "'$volttron_passwd'", roles: [ { role: "readWrite", db: "'$db_name'" }]});'
+exit_on_error
+mongo $db_name -u $admin_user -p $admin_passwd --authenticationDatabase admin --eval 'db.createUser( {user: "'$volttron_user'", pwd: "'$volttron_passwd'", roles: [ { role: "readWrite", db: "'$db_name'" }]});'
+exit_on_error
