@@ -160,10 +160,7 @@ class FailoverAgent(Agent):
         remote_is_up = self.remote_timeout > 0
         current_state = remote_is_up, vc_is_up
 
-        # think about this
-        if current_state != self._state:
-            self._state_machine(*current_state)
-            self._state = current_state
+        self._state_machine(current_state)
 
     def _agent_control(self, command):
         try:
@@ -171,38 +168,52 @@ class FailoverAgent(Agent):
         except RemoteError as e:
             _log.error("Error calling {} on control".format(command))
 
-    def primary_state_machine(self, secondary_is_up, vc_is_up):
+    def primary_state_machine(self, current_state):
         raise NotImplementedError("Coordination with VC not implemeted")
+
+        secondary_is_up, vc_is_up = current_state
         if secondary_is_up or vc_is_up:
             self._agent_control('start_agent')
         else:
             self._agent_control('stop_agent')
 
-    def secondary_state_machine(self, primary_is_up, vc_is_up):
+    def secondary_state_machine(self, current_state):
         raise NotImplementedError("Coordination with VC not implemeted")
 
+        primary_is_up, vc_is_up = current_state
         if not primary_is_up and vc_is_up:
             pass # verify and start master
         else:
             self._agent_control('stop_agent')
 
-    def simple_primary_state_machine(self, secondary_is_up, vc_is_up):
-        _log.warn('Starting agent {}'.format(self.agent_vip_identity))
+    def simple_primary_state_machine(self, current_state):
+        if current_state != self._state:
+            self._state = current_state
+            _log.warn('Starting agent {}'.format(self.agent_vip_identity))
+
         proc_info = self.vip.rpc.call(CONTROL,
                                       'agent_status',
                                       self.agent_uuid).get()
+
         is_running = proc_info[0] > 0 and proc_info[1] == None
         if not is_running:
             self._agent_control('start_agent')
 
-    def simple_secondary_state_machine(self, primary_is_up, vc_is_up):
+    def simple_secondary_state_machine(self, current_state):
+        primary_is_up, _ = current_state
+
         if primary_is_up:
-            _log.warn('Primary is active stopping agent {}'
-                      .format(self.agent_vip_identity))
+            if current_state != self._state:
+                self._state = current_state
+                _log.warn('Primary is active stopping agent {}'
+                          .format(self.agent_vip_identity))
             self._agent_control('stop_agent')
+
         else:
-            _log.warn('Primary is inactive starting agent {}'
-                      .format(self.agent_vip_identity))
+            if current_state != self._state:
+                self._state = current_state
+                _log.warn('Primary is inactive starting agent {}'
+                          .format(self.agent_vip_identity))
             proc_info = self.vip.rpc.call(CONTROL,
                                           'agent_status',
                                           self.agent_uuid).get()
