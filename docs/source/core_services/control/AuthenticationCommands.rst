@@ -51,7 +51,7 @@ An authentication record consist of following parameters
 	comments []: 
 	enabled [True]: 
 
-Note: In the current VOLTTRON deployment, only capabilities parameter is used to allow authorization of exported RPC methods. Rest of the parameters are placeholder for future authentication features.
+Note: Domain, roles and groups parameters are not being used in VOLTTRON 4.0 version and are placeholders for future implementation.
 
 
 
