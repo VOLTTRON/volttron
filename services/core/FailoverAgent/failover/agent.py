@@ -81,6 +81,8 @@ class FailoverAgent(Agent):
         self.agent_id = config["agent_id"]
         self.remote_id = config["remote_id"]
         self.remote_vip = config["remote_vip"]
+        self.remote_serverkey = config["remote_serverkey"]
+
         self.agent_vip_identity = config["agent_vip_identity"]
         self.heartbeat_period = config["heartbeat_period"]
         self.timeout = config["timeout"]
