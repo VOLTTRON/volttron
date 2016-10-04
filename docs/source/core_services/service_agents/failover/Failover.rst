@@ -56,21 +56,23 @@ primary and secondary configuration files are shown below.
 
 ::
 
-    {                                          |    {
-        "agent_id": "primary",                 |        "agent_id": "secondary",
-        "remote_id": "secondary",              |        "remote_id": "primary",
-        "remote_vip": "tcp://127.0.0.1:8001",  |        "remote_vip": "tcp://127.0.0.1:8000",
-                                               |
-        "volttron_ctl_tag": "master",          |        "volttron_ctl_tag": "master",
-                                               |
-        "heartbeat_period": 10,                |        "heartbeat_period": 10,
-                                               |
-        "timeout": 120                         |        "timeout": 120
-    }                                          |    }
+    {                                           |    {
+        "agent_id": "primary",                  |        "agent_id": "secondary",
+        "remote_id": "secondary",               |        "remote_id": "primary",
+        "remote_vip": "tcp://127.0.0.1:8001",   |        "remote_vip": "tcp://127.0.0.1:8000",
+        "remote_serverkey": "",                 |        "remote_serverkey": "",
+                                                |
+        "agent_vip_identity": "platform.driver",|        "agent_vip_identity": "platform.driver",
+                                                |
+        "heartbeat_period": 10,                 |        "heartbeat_period": 10,
+                                                |
+        "timeout": 120                          |        "timeout": 120
+    }                                           |    }
 
 - **agent_id** - primary/secondary **or** simple_primary/simple_secondary
 - **remote_id** - primary/secondary **or** simple_primary/simple_secondary
-- **remove_vip** - Address where *remote_id* can be reached. Don't forget add keys if you are using encryption.
-- **volttron_ctl_tag** - The tag of the agent that we want to manage.
+- **remove_vip** - Address where *remote_id* can be reached.
+- **remote_serverkey** - The public key of the platform where *remote_id* lives.
+- **agent_vip_identity** - The vip identity of the agent that we want to manage.
 - **heartbeat_period** - Send a message to *remote_id* with this period. Measured in seconds.
 - **timeout** - Consider a platform inactive if a heartbeat has not been received for *timeout* seconds.
