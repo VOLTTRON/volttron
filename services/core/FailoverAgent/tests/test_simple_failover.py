@@ -10,35 +10,23 @@ simple_primary_config = {
     "agent_id": "simple_primary",
     "remote_id": "simple_secondary",
     # "remote_vip": "",
+    # "remote_serverkey":"",
     "agent_vip_identity": "listener",
     "heartbeat_period": 1,
-    "timeout": 5
+    "timeout": 3
 }
 
 simple_secondary_config = {
     "agent_id": "simple_secondary",
     "remote_id": "simple_primary",
     # "remote_vip": "",
+    # "remote_serverkey": "",
     "agent_vip_identity": "listener",
     "heartbeat_period": 1,
-    "timeout": 5
+    "timeout": 3
 }
 
-primary_failover = None
-
-def tcp_to(instance):
-    if not instance.encrypt:
-        return instance.vip_address
-
-    tmp = tempfile.NamedTemporaryFile()
-    key = KeyStore(tmp.name)
-    key.generate()
-
-    return "{}?serverkey={}&publickey={}&secretkey={}".format(
-        instance.vip_address,
-        instance.serverkey,
-        key.public(),
-        key.secret())
+uuid_primary = None
 
 
 def all_agents_running(instance):
@@ -48,52 +36,44 @@ def all_agents_running(instance):
 
 
 @pytest.fixture
-def simple_failover(request, get_volttron_instances):
+def simple_failover(get_volttron_instances):
     global simple_primary_config
     global simple_secondary_config
-    global primary_failover
+    global uuid_primary
 
     primary, secondary = get_volttron_instances(2)
+
+    if primary.encrypt == False:
+        pytest.skip("Only encrypted communication allowed for failovers")
+
     primary.allow_all_connections()
     secondary.allow_all_connections()
 
     # configure primary
-    primary_listener = primary.install_agent(agent_dir="examples/ListenerAgent",
+    uuid = primary.install_agent(agent_dir="examples/ListenerAgent",
                                  vip_identity="listener",
                                  start=False)
 
-    simple_primary_config["remote_vip"] = tcp_to(secondary)
-    primary_failover = primary.install_agent(agent_dir="services/core/FailoverAgent",
+    simple_primary_config["remote_vip"] = secondary.vip_address
+    simple_primary_config["remote_serverkey"] = secondary.serverkey
+    uuid_primary = primary.install_agent(agent_dir="services/core/FailoverAgent",
                                          config_file=simple_primary_config)
 
     # configure secondary
-    secondary_listener = secondary.install_agent(agent_dir="examples/ListenerAgent",
+    uuid = secondary.install_agent(agent_dir="examples/ListenerAgent",
                                    vip_identity="listener",
                                    start=False)
 
-    simple_secondary_config["remote_vip"] = tcp_to(primary)
-    secondary_failover = secondary.install_agent(agent_dir="services/core/FailoverAgent",
-                                                 config_file=simple_secondary_config)
+    simple_secondary_config["remote_vip"] = primary.vip_address
+    simple_secondary_config["remote_serverkey"] = primary.serverkey
+    secondary.install_agent(agent_dir="services/core/FailoverAgent",
+                            config_file=simple_secondary_config)
 
-    def stop():
-        primary.stop_agent(primary_listener)
-        primary.stop_agent(primary_failover)
-        primary.remove_agent(primary_listener)
-        primary.remove_agent(primary_failover)
-        primary.shutdown_platform()
-
-        secondary.stop_agent(secondary_listener)
-        secondary.stop_agent(secondary_failover)
-        secondary.remove_agent(secondary_listener)
-        secondary.remove_agent(secondary_failover)
-        secondary.shutdown_platform()
-
-    request.addfinalizer(stop)
     return primary, secondary
 
 
 def test_simple_failover(simple_failover):
-    global primary_failover
+    global uuid_primary
 
     primary, secondary = simple_failover
 
@@ -103,13 +83,13 @@ def test_simple_failover(simple_failover):
     assert not all_agents_running(secondary)
     
     # make sure the secondary will take over
-    primary.stop_agent(primary_failover)
+    primary.stop_agent(uuid_primary)
     gevent.sleep(5)
     assert not all_agents_running(primary)
     assert all_agents_running(secondary)
 
     # secondary should stop its listener
-    primary.start_agent(primary_failover)
+    primary.start_agent(uuid_primary)
     gevent.sleep(5)
     assert all_agents_running(primary)
     assert not all_agents_running(secondary)

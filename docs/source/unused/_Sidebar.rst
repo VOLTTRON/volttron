@@ -20,7 +20,6 @@ VOLTTRON Core Services
 `Drivers <VOLTTRON-Drivers>`__
 
 -  `Master Driver <Master-Driver-Agent>`__
--  `Failover <failover>`__
 -  `BACnet Proxy <BACnet-Proxy-Agent>`__
 -  `BACnet Driver <BACnet-Driver>`__
 -  `Modbus Drivers <Modbus-Driver>`__
