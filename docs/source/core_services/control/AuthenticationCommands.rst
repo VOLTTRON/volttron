@@ -51,7 +51,7 @@ An authentication record consist of following parameters
 	comments []: 
 	enabled [True]: 
 
-Note: Domain, roles and groups parameters are not being used in VOLTTRON 4.0 version and are placeholders for future implementation.
+Note: Domain, roles and groups parameters are not currently being used in VOLTTRON and are placeholders for future implementation.
 
 
 
