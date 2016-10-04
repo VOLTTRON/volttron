@@ -2861,6 +2861,7 @@ var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
 var registryWs, registryWebsocket;
+var _defaultColumnWidth = "200px";
 
 var ConfigureRegistry = function (_BaseComponent) {
     _inherits(ConfigureRegistry, _BaseComponent);
@@ -2870,12 +2871,11 @@ var ConfigureRegistry = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(ConfigureRegistry).call(this, props));
 
-        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForDelete");
+        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForDelete", "_resizeColumn");
 
         _this.state = _this._resetState(_this.props.device);
 
         _this.state.keyboardRange = [-1, -1];
-        console.log("reconstructing");
         return _this;
     }
 
@@ -2934,7 +2934,6 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_handleKeyDown',
         value: function _handleKeyDown(keydown) {
 
-            console.log("Handling keydown");
             if (keydown.target.nodeName !== "INPUT" && this.state.deviceHasFocus) {
                 if (this.state.keyboardStarted) {
                     switch (keydown.which) {
@@ -2946,7 +2945,6 @@ var ConfigureRegistry = function (_BaseComponent) {
                             // ESC
                             this.setState({ keyboardRange: [-1, -1] });
                             this.setState({ keyboardStarted: false });
-                            console.log("escaping");
 
                             break;
                         case 13:
@@ -3027,10 +3025,25 @@ var ConfigureRegistry = function (_BaseComponent) {
             } else {
                 if (this.state.keyboardRange[0] !== -1 && this.state.keyboardRange[1] !== -1) {
                     this.setState({ keyboardRange: [-1, -1] });
-
-                    console.log("resetting keyboard range");
                 }
             }
+        }
+    }, {
+        key: '_resizeColumn',
+        value: function _resizeColumn(columnIndex, targetWidth) {
+
+            var newRegistryValues = this.state.registryValues.map(function (row) {
+
+                row = row.updateIn(["attributes", columnIndex], function (cell) {
+                    cell.columnWidth = targetWidth;
+
+                    return cell;
+                });
+
+                return row;
+            });
+
+            this.setState({ registryValues: newRegistryValues });
         }
     }, {
         key: '_resetState',
@@ -3052,8 +3065,8 @@ var ConfigureRegistry = function (_BaseComponent) {
             state.selectedPoints = devicesStore.getSelectedPoints(device);
 
             if (state.registryValues.length > 0) {
-                state.columnNames = state.registryValues[0].get("attributes").map(function (columns) {
-                    return columns.key;
+                state.columnNames = state.registryValues[0].get("attributes").map(function (column) {
+                    return column.key;
                 });
             }
 
@@ -3293,7 +3306,8 @@ var ConfigureRegistry = function (_BaseComponent) {
                         "label": newColumnLabel,
                         "value": "",
                         "editable": true,
-                        "keyProp": true
+                        "keyProp": true,
+                        "columnWidth": _defaultColumnWidth
                     });
                 });
 
@@ -3372,8 +3386,8 @@ var ConfigureRegistry = function (_BaseComponent) {
             this.state.columnNames.splice(index, 1);
 
             var newValues = this.state.registryValues.map(function (row) {
-                return row.updateIn(["attributes"], function (butes) {
-                    return butes.splice(index, 1);
+                return row.updateIn(["attributes"], function (columnCells) {
+                    return columnCells.splice(index, 1);
                 });
             });
 
@@ -3617,7 +3631,8 @@ var ConfigureRegistry = function (_BaseComponent) {
                         attributesList: attributesList,
                         immutableProps: immutableProps,
                         allSelected: this.state.allSelected,
-                        oncheckselect: this._onSelectForDelete });
+                        oncheckselect: this._onSelectForDelete,
+                        onresizecolumn: this._resizeColumn });
                 }, this);
 
                 var headerColumns = [];
@@ -3646,10 +3661,14 @@ var ConfigureRegistry = function (_BaseComponent) {
 
                         var headerCell;
 
+                        var columnWidth = {
+                            width: item.columnWidth
+                        };
+
                         if (tableIndex === 0) {
-                            var firstColumnWidth = {
-                                width: item.length * 10 + "px"
-                            };
+                            // var firstColumnWidth = {
+                            //     width: (item.length * 10) + "px"
+                            // }
 
                             var filterPointsTooltip = {
                                 content: "Filter Points",
@@ -3693,7 +3712,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                             if (item.editable) {
                                 headerCell = _react2.default.createElement(
                                     'th',
-                                    { key: "header-" + item.key + "-" + index, style: firstColumnWidth },
+                                    { key: "header-" + item.key + "-" + index, style: columnWidth },
                                     _react2.default.createElement(
                                         'div',
                                         { className: 'th-inner zztop' },
@@ -3708,7 +3727,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                             } else {
                                 headerCell = _react2.default.createElement(
                                     'th',
-                                    { key: "header-" + item.key + "-" + index, style: firstColumnWidth },
+                                    { key: "header-" + item.key + "-" + index, style: columnWidth },
                                     _react2.default.createElement(
                                         'div',
                                         { className: 'th-inner zztop' },
@@ -3723,7 +3742,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                             if (item.editable) {
                                 headerCell = _react2.default.createElement(
                                     'th',
-                                    { key: "header-" + item.key + "-" + index },
+                                    { key: "header-" + item.key + "-" + index, style: columnWidth },
                                     _react2.default.createElement(
                                         'div',
                                         { className: 'th-inner' },
@@ -3735,7 +3754,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                             } else {
                                 headerCell = _react2.default.createElement(
                                     'th',
-                                    { key: "header-" + item.key + "-" + index },
+                                    { key: "header-" + item.key + "-" + index, style: columnWidth },
                                     _react2.default.createElement(
                                         'div',
                                         { className: 'th-inner' },
@@ -3747,6 +3766,11 @@ var ConfigureRegistry = function (_BaseComponent) {
 
                         ++tableIndex;
                         headerColumns.push(headerCell);
+
+                        if (index + 1 < this.state.registryValues[0].get("attributes").size) {
+                            var resizeHandle = _react2.default.createElement('th', { className: 'resize-handle-th' });
+                            headerColumns.push(resizeHandle);
+                        }
                     }
                 }, this);
 
@@ -3895,6 +3919,17 @@ function initializeList(registryConfig, keyPropsList) {
 
         row.forEach(function (cell) {
             cell.keyProp = keyPropsList.indexOf(cell.key) > -1;
+
+            if (cell.keyProp) {
+                if (rowIndex === 0) {
+                    var minWidth = cell.value.length * 10;
+
+                    cell.columnWidth = (minWidth > 200 ? minWidth : 200) + "px";
+                } else {
+                    cell.columnWidth = cell.hasOwnProperty("columnWidth") ? cell.columnWidth : _defaultColumnWidth;
+                }
+            }
+
             if (cell.key === "bacnet_object_type") {
                 bacnetObjectType = cell.value;
             } else if (cell.key === "index") {
@@ -9181,7 +9216,7 @@ var RegistryRow = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(RegistryRow).call(this, props));
 
-        _this._bind('_updateCell', '_showProps', '_handleRowClick', '_selectForDelete');
+        _this._bind('_updateCell', '_showProps', '_handleRowClick', '_selectForDelete', '_grabResizeHandle');
 
         _this.state = _this._resetState(_this.props);
 
@@ -9208,16 +9243,6 @@ var RegistryRow = function (_BaseComponent) {
         value: function shouldComponentUpdate(nextProps, nextState) {
             var doUpdate = false;
 
-            // if (objectListsAreDifferent(this.props.attributesList, nextProps.attributesList))
-            // if (!this.props.attributesList.equals(nextProps.attributesList))
-            // {
-            //     // var newState = this._resetState(nextProps);
-
-            //     // this.setState(newState);
-            //     doUpdate = true;
-            //     console.log("props not equal");
-            // }
-            // else 
             if (!this.state.attributesList.equals(nextState.attributesList) || this.state.selectedForDelete !== nextState.selectedForDelete) {
                 doUpdate = true;
                 console.log("state's not equal");
@@ -9237,6 +9262,12 @@ var RegistryRow = function (_BaseComponent) {
             var state = {};
 
             state.attributesList = props.attributesList;
+
+            state.deviceId = this.props.immutableProps.get("deviceId");
+            state.deviceAddress = this.props.immutableProps.get("deviceAddress");
+            state.rowIndex = this.props.immutableProps.get("rowIndex");
+
+            state.devicePrefix = "dvc" + state.deviceId + "-" + state.deviceAddress + "-" + state.rowIndex + "-";
 
             if (updateAllSelected) {
                 state.selectedForDelete = props.allSelected;
@@ -9292,6 +9323,33 @@ var RegistryRow = function (_BaseComponent) {
             }
         }
     }, {
+        key: '_grabResizeHandle',
+        value: function _grabResizeHandle(columnIndex, evt) {
+            var target = evt.target;
+
+            var targetColumn = this.refs[this.state.devicePrefix + columnIndex];
+
+            var onMouseMove = function onMouseMove(evt) {
+                // console.log(evt.clientX);
+            };
+
+            var onMouseUp = function (evt) {
+                var clientRect = targetColumn.getClientRects();
+
+                var targetWidth = evt.clientX - clientRect[0].left;
+
+                this.props.onresizecolumn(columnIndex, targetWidth + "px");
+
+                document.removeEventListener("mousemove", onMouseMove);
+                document.removeEventListener("mouseup", onMouseUp);
+            }.bind(this);
+
+            document.addEventListener("mousemove", onMouseMove);
+            document.addEventListener("mouseup", onMouseUp);
+
+            evt.preventDefault();
+        }
+    }, {
         key: 'render',
         value: function render() {
 
@@ -9301,12 +9359,13 @@ var RegistryRow = function (_BaseComponent) {
             this.state.attributesList.get("attributes").forEach(function (item, columnIndex) {
 
                 if (item.keyProp) {
-                    var selectedCellStyle = item.selected ? { backgroundColor: "#F5B49D" } : {};
+                    var selectedCellStyle = item.selected ? { backgroundColor: "#F5B49D", width: "100%" } : { width: "100%" };
                     var focusedCell = this.props.immutableProps.get("selectedCellColumn") === columnIndex && this.props.immutableProps.get("selectedCell") ? "focusedCell" : "";
 
                     var itemCell = !item.editable ? _react2.default.createElement(
                         'td',
-                        { key: item.key + "-" + rowIndex + "-" + columnIndex },
+                        { key: item.key + "-" + rowIndex + "-" + columnIndex,
+                            ref: this.state.devicePrefix + columnIndex },
                         _react2.default.createElement(
                             'label',
                             null,
@@ -9314,7 +9373,8 @@ var RegistryRow = function (_BaseComponent) {
                         )
                     ) : _react2.default.createElement(
                         'td',
-                        { key: item.key + "-" + rowIndex + "-" + columnIndex },
+                        { key: item.key + "-" + rowIndex + "-" + columnIndex,
+                            ref: this.state.devicePrefix + columnIndex },
                         _react2.default.createElement('input', {
                             id: this.state.attributesList.get("attributes").get(columnIndex).key + "-" + columnIndex + "-" + rowIndex,
                             type: 'text',
@@ -9325,6 +9385,13 @@ var RegistryRow = function (_BaseComponent) {
                     );
 
                     registryCells.push(itemCell);
+
+                    if (columnIndex + 1 < this.state.attributesList.get("attributes").size) {
+                        var resizeHandle = _react2.default.createElement('td', {
+                            className: 'resize-handle-td',
+                            onMouseDown: this._grabResizeHandle.bind(this, columnIndex) });
+                        registryCells.push(resizeHandle);
+                    }
                 }
             }, this);
 
@@ -9705,6 +9772,8 @@ module.exports = keyMirror({
     CANCEL_REGISTRY: null,
     SAVE_REGISTRY: null,
     SAVE_CONFIG: null,
+
+    RESIZE_TABLE_COLUMN: null,
 
     // ADD_CONTROL_BUTTON: null,
     // REMOVE_CONTROL_BUTTON: null,
@@ -11518,6 +11587,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         if (data) {
             var point = JSON.parse(data);
             var deviceId = "59";
+            // var deviceId = point.device_id;
             var deviceAddress = "10.0.2.6";
             var addPoint = true;
 

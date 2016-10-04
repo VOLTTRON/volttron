@@ -1271,11 +1271,18 @@ a.view__item:hover::before {
     cursor: ew-resize;
 }
 
-.resize-handle:hover {
+.resize-handle:hover, .resize-handle-td:hover, .resize-handle-th:hover {
     width: 3px;
     background-color: #C7C7C7;
 }
 
+
+.resize-handle-td, .resize-handle-th {
+    width: 3px;
+    background-color: #ddd;
+    padding: 0;
+    cursor: ew-resize;
+}
 
 .view--list .view__item + .view__item {
     margin-top: 0.5em;

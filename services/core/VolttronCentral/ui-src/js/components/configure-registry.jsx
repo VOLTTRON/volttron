@@ -20,6 +20,8 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 
 
 var registryWs, registryWebsocket;
+var _defaultColumnWidth = "200px";
+
 class ConfigureRegistry extends BaseComponent {    
     constructor(props) {
         super(props);
@@ -28,12 +30,11 @@ class ConfigureRegistry extends BaseComponent {
             "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
             "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", 
             "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice",
-            "_handleKeyDown", "_onSelectForDelete" );
+            "_handleKeyDown", "_onSelectForDelete", "_resizeColumn" );
 
         this.state = this._resetState(this.props.device);
 
         this.state.keyboardRange = [-1, -1];
-        console.log("reconstructing");
     }
     componentDidMount() {
         this.containerDiv = document.getElementsByClassName("fixed-table-container")[0];
@@ -85,7 +86,6 @@ class ConfigureRegistry extends BaseComponent {
     }
     _handleKeyDown (keydown) {
 
-        console.log("Handling keydown");
         if (keydown.target.nodeName !== "INPUT" && this.state.deviceHasFocus)
         { 
             if (this.state.keyboardStarted)
@@ -98,7 +98,6 @@ class ConfigureRegistry extends BaseComponent {
                     case 27: // ESC
                         this.setState({ keyboardRange: [-1, -1]});
                         this.setState({ keyboardStarted: false });
-                        console.log("escaping");
 
                         break;
                     case 13: // Enter
@@ -188,10 +187,23 @@ class ConfigureRegistry extends BaseComponent {
             if (this.state.keyboardRange[0] !== -1 && this.state.keyboardRange[1] !== -1)
             {
                 this.setState({ keyboardRange: [-1, -1] });
-
-                console.log("resetting keyboard range");
             }
         }
+    }
+    _resizeColumn(columnIndex, targetWidth) {
+
+        var newRegistryValues = this.state.registryValues.map(function (row) {
+
+            row = row.updateIn(["attributes", columnIndex], function (cell) {
+                cell.columnWidth = targetWidth;
+                
+                return cell;
+            });
+
+            return row;
+        });
+
+        this.setState({ registryValues: newRegistryValues });
     }
     _resetState(device){
     
@@ -212,8 +224,8 @@ class ConfigureRegistry extends BaseComponent {
 
         if (state.registryValues.length > 0)
         {
-            state.columnNames = state.registryValues[0].get("attributes").map(function (columns) {
-                return columns.key;
+            state.columnNames = state.registryValues[0].get("attributes").map(function (column) {
+                return column.key;
             });
         }
 
@@ -451,12 +463,13 @@ class ConfigureRegistry extends BaseComponent {
 
             row = row.updateIn(["attributes"], function (columnCells) {
                 return columnCells.splice(index + 1, 0, { 
-                                            "key": newColumn,
-                                            "label": newColumnLabel,
-                                            "value": "", 
-                                            "editable": true, 
-                                            "keyProp": true 
-                                        });
+                    "key": newColumn,
+                    "label": newColumnLabel,
+                    "value": "", 
+                    "editable": true, 
+                    "keyProp": true,
+                    "columnWidth": _defaultColumnWidth
+                });
             });
 
             return row;
@@ -532,8 +545,8 @@ class ConfigureRegistry extends BaseComponent {
         this.state.columnNames.splice(index, 1);
 
         var newValues = this.state.registryValues.map(function (row) {
-            return row.updateIn(["attributes"], function (butes) {
-                return butes.splice(index, 1);
+            return row.updateIn(["attributes"], function (columnCells) {
+                return columnCells.splice(index, 1);
             });
         });
 
@@ -785,7 +798,8 @@ class ConfigureRegistry extends BaseComponent {
                             attributesList={attributesList} 
                             immutableProps={immutableProps}
                             allSelected={this.state.allSelected}
-                            oncheckselect={this._onSelectForDelete}/>);
+                            oncheckselect={this._onSelectForDelete}
+                            onresizecolumn={this._resizeColumn}/>);
                 
             }, this);
 
@@ -817,11 +831,15 @@ class ConfigureRegistry extends BaseComponent {
 
                     var headerCell;
 
+                    var columnWidth = {
+                        width: item.columnWidth
+                    }
+
                     if (tableIndex === 0)
                     {
-                        var firstColumnWidth = {
-                            width: (item.length * 10) + "px"
-                        }
+                        // var firstColumnWidth = {
+                        //     width: (item.length * 10) + "px"
+                        // }
 
                         var filterPointsTooltip = {
                             content: "Filter Points",
@@ -865,7 +883,7 @@ class ConfigureRegistry extends BaseComponent {
 
                         if (item.editable)
                         {                        
-                            headerCell = ( <th key={"header-" + item.key + "-" + index} style={firstColumnWidth}>
+                            headerCell = ( <th key={"header-" + item.key + "-" + index} style={columnWidth}>
                                                 <div className="th-inner zztop">
                                                     { item.label } 
                                                     { filterButton } 
@@ -878,7 +896,7 @@ class ConfigureRegistry extends BaseComponent {
                         }
                         else
                         {
-                            headerCell = ( <th key={"header-" + item.key + "-" + index} style={firstColumnWidth}>
+                            headerCell = ( <th key={"header-" + item.key + "-" + index} style={columnWidth}>
                                                 <div className="th-inner zztop">
                                                     { item.label } 
                                                     { filterButton } 
@@ -892,7 +910,7 @@ class ConfigureRegistry extends BaseComponent {
                     {
                         if (item.editable)
                         {
-                            headerCell = ( <th key={"header-" + item.key + "-" + index}>
+                            headerCell = ( <th key={"header-" + item.key + "-" + index} style={columnWidth}>
                                                 <div className="th-inner" >
                                                     { item.label }
                                                     { editSelectButton }
@@ -902,7 +920,7 @@ class ConfigureRegistry extends BaseComponent {
                         }
                         else
                         {
-                            headerCell = ( <th key={"header-" + item.key + "-" + index}>
+                            headerCell = ( <th key={"header-" + item.key + "-" + index} style={columnWidth}>
                                                 <div className="th-inner" >
                                                     { item.label }
                                                 </div>
@@ -912,6 +930,12 @@ class ConfigureRegistry extends BaseComponent {
 
                     ++tableIndex;
                     headerColumns.push(headerCell);
+
+                    if ((index + 1) < this.state.registryValues[0].get("attributes").size)
+                    {
+                        var resizeHandle = <th className="resize-handle-th"></th>;
+                        headerColumns.push(resizeHandle);
+                    }
                 }
             }, this);  
 
@@ -1048,6 +1072,21 @@ function initializeList(registryConfig, keyPropsList)
 
         row.forEach(function (cell) {
             cell.keyProp = (keyPropsList.indexOf(cell.key) > -1); 
+            
+            if (cell.keyProp)
+            {
+                if (rowIndex === 0)
+                {
+                    var minWidth = (cell.value.length * 10);
+
+                    cell.columnWidth = (minWidth > 200 ? minWidth : 200) + "px"
+                }
+                else
+                {
+                    cell.columnWidth = ( cell.hasOwnProperty("columnWidth") ? cell.columnWidth : _defaultColumnWidth ) ;
+                }
+            }
+
             if (cell.key === "bacnet_object_type")
             {
                 bacnetObjectType = cell.value;

@@ -1441,6 +1441,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         {
             var point = JSON.parse(data);
             var deviceId = "59";
+            // var deviceId = point.device_id;
             var deviceAddress = "10.0.2.6"
             var addPoint = true;
 
