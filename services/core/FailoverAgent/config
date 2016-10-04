@@ -1,0 +1,11 @@
+{
+    "agent_id": "primary",
+    "remote_id": "secondary",
+    "remote_vip": "tcp://127.0.0.1:8001",
+
+    "agent_vip_identity": "platform.driver",
+
+    "heartbeat_period": 10,
+
+    "timeout": 120
+}
