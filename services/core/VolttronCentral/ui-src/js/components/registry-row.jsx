@@ -2,7 +2,7 @@
 
 import React from 'react';
 import BaseComponent from './base-component';
-import PureRenderMixin from 'react-addons-pure-render-mixin';
+// import PureRenderMixin from 'react-addons-pure-render-mixin';
 import EditPointForm from './edit-point-form';
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');

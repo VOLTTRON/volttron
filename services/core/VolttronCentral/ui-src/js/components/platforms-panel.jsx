@@ -2,11 +2,12 @@
 
 var React = require('react');
 var Router = require('react-router');
+import PlatformsPanelItem from './platforms-panel-item';
+import Immutable from 'immutable';
 
 var platformsPanelStore = require('../stores/platforms-panel-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
-var PlatformsPanelItem = require('./platforms-panel-item');
 var ControlButton = require('./control-button');
 
 
@@ -233,7 +234,10 @@ var PlatformsPanel = React.createClass({
                 })
                 .map(function (platform) {
                     return (
-                        <PlatformsPanelItem key={platform.uuid} panelItem={platform} itemPath={platform.path}/>
+                        <PlatformsPanelItem 
+                            key={platform.uuid} 
+                            panelItem={Immutable.fromJS(platform)}
+                            itemPath={platform.path}/>
                     );
                 });
         }
