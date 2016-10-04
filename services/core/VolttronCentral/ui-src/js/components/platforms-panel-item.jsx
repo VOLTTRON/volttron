@@ -3,6 +3,7 @@
 var React = require('react');
 var Router = require('react-router');
 import BaseComponent from './base-component';
+import Immutable from 'immutable';
 
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
@@ -24,11 +25,11 @@ class PlatformsPanelItem extends BaseComponent {
         this.state.showTooltip = false;
         this.state.tooltipX = null;
         this.state.tooltipY = null;
-        this.state.checked = (this.props.panelItem.hasOwnProperty("checked") ? this.props.panelItem.checked : false);
+        this.state.checked = (this.props.panelItem.hasOwnProperty("checked") ? this.props.panelItem.get("checked") : false);
         this.state.panelItem = this.props.panelItem;
-        this.state.children = this.props.panelChildren;
+        this.state.children = Immutable.fromJS(this.props.panelChildren);
 
-        if (this.props.panelItem.type === "platform")
+        if (this.props.panelItem.get("type") === "platform")
         {
             this.state.notInitialized = true;
             this.state.loading = false;
@@ -43,21 +44,58 @@ class PlatformsPanelItem extends BaseComponent {
     }
     shouldComponentUpdate(nextProps, nextState) {
 
+        var doUpdate = false;
+
+        if ((this.state.showTooltip !== nextState.showTooltip) ||
+            (this.state.tooltipX !== nextState.tooltipX) ||
+            (this.state.tooltipY !== nextState.tooltipY) ||
+            (this.state.checked !== nextState.checked) ||
+            (this.state.notInitialized !== nextState.notInitialized) ||
+            (this.state.loading !== nextState.loading) ||
+            (this.state.cancelButton !== nextState.cancelButton) ||
+            (!this.state.panelItem.equals(nextState.panelItem)))
+        {
+            doUpdate = true;
+        }
+        else
+        {
+            if (typeof this.state.children === "undefined")
+            { 
+                if (typeof nextState.children !== "undefined")
+                {
+                    doUpdate = true;
+                }
+            }
+            else
+            {
+                if (!this.state.children.equals(nextState.children))
+                {
+                    doUpdate = true;
+                }
+            }
+        }
+
+        return doUpdate;
     }
     _onStoresChange () {
 
-        var panelItem = platformsPanelItemsStore.getItem(this.props.itemPath);
-        var panelChildren = platformsPanelItemsStore.getChildren(this.props.panelItem, this.props.itemPath);
+        var panelItem = Immutable.fromJS(platformsPanelItemsStore.getItem(this.props.itemPath));
+        var panelChildren = Immutable.fromJS(
+                                platformsPanelItemsStore.getChildren(
+                                    this.props.panelItem.toJS(), 
+                                    this.props.itemPath)
+                                );
 
-        var loadingComplete = platformsPanelItemsStore.getLoadingComplete(this.props.panelItem);
+        var loadingComplete = 
+            platformsPanelItemsStore.getLoadingComplete(this.props.panelItem.toJS());
 
         if (loadingComplete === true || loadingComplete === null)
         {
             this.setState({panelItem: panelItem});
             this.setState({children: panelChildren});
-            this.setState({checked: panelItem.checked});
+            this.setState({checked: panelItem.get("checked")});
 
-            if (this.props.panelItem.type === "platform")
+            if (this.props.panelItem.get("type") === "platform")
             {
                 if (loadingComplete === true)
                 {
@@ -80,14 +118,17 @@ class PlatformsPanelItem extends BaseComponent {
         
         if (!this.state.loading) // If not loading, treat it as just a regular toggle button
         {
-            if (this.state.panelItem.expanded === null && this.state.panelItem.type === "platform") 
+            if (this.state.panelItem.get("expanded") === null && 
+                this.state.panelItem.get("type") === "platform") 
             {
                 this.setState({loading: true});
-                platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+                platformsPanelActionCreators.loadChildren(
+                    this.props.panelItem.get("type"), this.props.panelItem.toJS()
+                );
             }
             else
             {
-                if (this.state.panelItem.expanded)
+                if (this.state.panelItem.get("expanded"))
                 {
                     platformsPanelActionCreators.expandAll(this.props.itemPath);
                 }
@@ -127,12 +168,12 @@ class PlatformsPanelItem extends BaseComponent {
         if (checked)
         {
             this.setState({checked: null});
-            platformChartActionCreators.addToChart(this.props.panelItem);
+            platformChartActionCreators.addToChart(this.props.panelItem.toJS());
         }
         else
         {
             this.setState({checked: null});
-            platformChartActionCreators.removeFromChart(this.props.panelItem);
+            platformChartActionCreators.removeFromChart(this.props.panelItem.toJS());
         }
     }
     _showTooltip (evt) {
@@ -148,7 +189,7 @@ class PlatformsPanelItem extends BaseComponent {
         this.setState({tooltipY: evt.clientY - 70});
     }
     _onAddDevices (evt) {
-        devicesActionCreators.configureDevices(this.state.panelItem);
+        devicesActionCreators.configureDevices(this.state.panelItem.toJS());
     }
     _onDeviceMethodChange (evt) {
 
@@ -158,13 +199,13 @@ class PlatformsPanelItem extends BaseComponent {
 
         if (deviceMethod)
         {
-            devicesActionCreators.addDevices(this.state.panelItem, deviceMethod);
+            devicesActionCreators.addDevices(this.state.panelItem.toJS(), deviceMethod);
             controlButtonActionCreators.hideTaptip("addDevicesButton");
         }
     }
     render () {
 
-        // console.log("rendering 1");
+        console.log("rendering " + this.state.panelItem.get("name"));
         var panelItem = this.state.panelItem;
         var itemPath = this.props.itemPath;
         var propChildren = this.state.children;
@@ -172,7 +213,7 @@ class PlatformsPanelItem extends BaseComponent {
 
         var visibleStyle = {};
 
-        if (panelItem.visible !== true)
+        if (panelItem.get("visible") !== true)
         {
             visibleStyle = {
                 display: "none"
@@ -200,7 +241,7 @@ class PlatformsPanelItem extends BaseComponent {
 
         var DevicesButton;
 
-        if (["platform"].indexOf(panelItem.type) > -1)
+        if (["platform"].indexOf(panelItem.get("type")) > -1)
         {
             var taptipX = 20;
             var taptipY = 100;
@@ -248,7 +289,7 @@ class PlatformsPanelItem extends BaseComponent {
         
         var ChartCheckbox;
 
-        if (["point"].indexOf(panelItem.type) > -1)
+        if (["point"].indexOf(panelItem.get("type")) > -1)
         {
             if (this.state.checked !== null)
             {
@@ -268,7 +309,7 @@ class PlatformsPanelItem extends BaseComponent {
         }
 
         var tooltipStyle = {
-            display: (panelItem.type !== "type" ? (this.state.showTooltip ? "block" : "none") : "none"),
+            display: (panelItem.get("type") !== "type" ? (this.state.showTooltip ? "block" : "none") : "none"),
             position: "absolute",
             top: this.state.tooltipY + "px",
             left: this.state.tooltipX + "px"
@@ -278,16 +319,16 @@ class PlatformsPanelItem extends BaseComponent {
 
         if (!this.state.loading)
         {
-            arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
-                                ( (panelItem.status === "BAD") ? "status-bad" : 
+            arrowClasses.push( ((panelItem.get("status") === "GOOD") ? "status-good" :
+                                ( (panelItem.get("status") === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
         }
 
         var agentInfo;
 
-        if (panelItem.type === "agent")
+        if (panelItem.get("type") === "agent")
         {
-            agentInfo = <div>Identity:&nbsp;{panelItem.identity}</div>;
+            agentInfo = <div>Identity:&nbsp;{panelItem.get("identity")}</div>;
         } 
 
         if (this.state.cancelButton)
@@ -298,11 +339,11 @@ class PlatformsPanelItem extends BaseComponent {
         {
             arrowContent = <span style={arrowContentStyle}><i className="fa fa-circle-o-notch fa-spin fa-fw"></i></span>;
         }
-        else if (panelItem.status === "GOOD")
+        else if (panelItem.get("status") === "GOOD")
         {
             arrowContent = <span style={arrowContentStyle}>&#9654;</span>;
         } 
-        else if (panelItem.status === "BAD") 
+        else if (panelItem.get("status") === "BAD") 
         {
             arrowContent = <span style={arrowContentStyle}><i className="fa fa-minus-circle"></i></span>;
         }
@@ -311,32 +352,34 @@ class PlatformsPanelItem extends BaseComponent {
             arrowContent = <span style={arrowContentStyle}>&#9644;</span>;
         }
           
-        if (this.state.panelItem.expanded === true && propChildren)
+        if (this.state.panelItem.get("expanded") === true && propChildren)
         {
             children = propChildren
                 .sort(function (a, b) {
-                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                    if (a.get("name").toUpperCase() > b.get("name").toUpperCase()) { return 1; }
+                    if (a.get("name").toUpperCase() < b.get("name").toUpperCase()) { return -1; }
                     return 0;
                 })
                 .sort(function (a, b) {
-                    if (a.sortOrder > b.sortOrder) { return 1; }
-                    if (a.sortOrder < b.sortOrder) { return -1; }
+                    if (a.get("sortOrder") > b.get("sortOrder")) { return 1; }
+                    if (a.get("sortOrder") < b.get("sortOrder")) { return -1; }
                     return 0;
                 })
                 .map(function (propChild) {
                     
                     var grandchildren = [];
-                    propChild.children.forEach(function (childString) {
-                        grandchildren.push(propChild[childString]);
+                    propChild.get("children").forEach(function (childString) {
+                        grandchildren.push(propChild.get(childString));
                     });
 
-                    var itemKey = (propChild.hasOwnProperty("uuid") ? propChild.uuid : (propChild.name + this.uuid))
+                    var itemKey = (propChild.hasOwnProperty("uuid") ? 
+                                    propChild.get("uuid") : 
+                                        (propChild.get("name") + this.get("uuid")))
 
                     return (
                         <PlatformsPanelItem key={itemKey} 
                             panelItem={propChild} 
-                            itemPath={propChild.path} 
+                            itemPath={propChild.get("path").toJS()} 
                             panelChildren={grandchildren}/>
                     );
                 }, this.state.panelItem); 
@@ -366,19 +409,19 @@ class PlatformsPanelItem extends BaseComponent {
             itemClasses.push("item_label");
         }
 
-        if (panelItem.type === "platform" && this.state.notInitialized)
+        if (panelItem.get("type") === "platform" && this.state.notInitialized)
         {
             itemClasses.push("not_initialized");
         }
 
         var listItem = 
                 <div className={itemClasses.join(' ')}>
-                    {panelItem.name}
+                    {panelItem.get("name")}
                 </div>;
 
         return (
             <li
-                key={panelItem.uuid}
+                key={panelItem.get("uuid")}
                 className="panel-item"
                 style={visibleStyle}
             >
@@ -397,7 +440,7 @@ class PlatformsPanelItem extends BaseComponent {
                         <div className="tooltip_inner">
                             <div className="opaque_inner">
                                 {agentInfo}
-                                Status:&nbsp;{(panelItem.context ? panelItem.context : panelItem.statusLabel)}
+                                Status:&nbsp;{(panelItem.get("context")) ? panelItem.get("context") : panelItem.get("statusLabel")}
                             </div>
                         </div>
                     </div>

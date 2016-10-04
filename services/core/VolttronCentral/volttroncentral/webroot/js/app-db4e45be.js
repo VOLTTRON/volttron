@@ -7595,6 +7595,10 @@ var _baseComponent = require('./base-component');
 
 var _baseComponent2 = _interopRequireDefault(_baseComponent);
 
+var _immutable = require('immutable');
+
+var _immutable2 = _interopRequireDefault(_immutable);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -7629,11 +7633,11 @@ var PlatformsPanelItem = function (_BaseComponent) {
         _this.state.showTooltip = false;
         _this.state.tooltipX = null;
         _this.state.tooltipY = null;
-        _this.state.checked = _this.props.panelItem.hasOwnProperty("checked") ? _this.props.panelItem.checked : false;
+        _this.state.checked = _this.props.panelItem.hasOwnProperty("checked") ? _this.props.panelItem.get("checked") : false;
         _this.state.panelItem = _this.props.panelItem;
-        _this.state.children = _this.props.panelChildren;
+        _this.state.children = _immutable2.default.fromJS(_this.props.panelChildren);
 
-        if (_this.props.panelItem.type === "platform") {
+        if (_this.props.panelItem.get("type") === "platform") {
             _this.state.notInitialized = true;
             _this.state.loading = false;
             _this.state.cancelButton = false;
@@ -7653,22 +7657,41 @@ var PlatformsPanelItem = function (_BaseComponent) {
         }
     }, {
         key: 'shouldComponentUpdate',
-        value: function shouldComponentUpdate(nextProps, nextState) {}
+        value: function shouldComponentUpdate(nextProps, nextState) {
+
+            var doUpdate = false;
+
+            if (this.state.showTooltip !== nextState.showTooltip || this.state.tooltipX !== nextState.tooltipX || this.state.tooltipY !== nextState.tooltipY || this.state.checked !== nextState.checked || this.state.notInitialized !== nextState.notInitialized || this.state.loading !== nextState.loading || this.state.cancelButton !== nextState.cancelButton || !this.state.panelItem.equals(nextState.panelItem)) {
+                doUpdate = true;
+            } else {
+                if (typeof this.state.children === "undefined") {
+                    if (typeof nextState.children !== "undefined") {
+                        doUpdate = true;
+                    }
+                } else {
+                    if (!this.state.children.equals(nextState.children)) {
+                        doUpdate = true;
+                    }
+                }
+            }
+
+            return doUpdate;
+        }
     }, {
         key: '_onStoresChange',
         value: function _onStoresChange() {
 
-            var panelItem = platformsPanelItemsStore.getItem(this.props.itemPath);
-            var panelChildren = platformsPanelItemsStore.getChildren(this.props.panelItem, this.props.itemPath);
+            var panelItem = _immutable2.default.fromJS(platformsPanelItemsStore.getItem(this.props.itemPath));
+            var panelChildren = _immutable2.default.fromJS(platformsPanelItemsStore.getChildren(this.props.panelItem.toJS(), this.props.itemPath));
 
-            var loadingComplete = platformsPanelItemsStore.getLoadingComplete(this.props.panelItem);
+            var loadingComplete = platformsPanelItemsStore.getLoadingComplete(this.props.panelItem.toJS());
 
             if (loadingComplete === true || loadingComplete === null) {
                 this.setState({ panelItem: panelItem });
                 this.setState({ children: panelChildren });
-                this.setState({ checked: panelItem.checked });
+                this.setState({ checked: panelItem.get("checked") });
 
-                if (this.props.panelItem.type === "platform") {
+                if (this.props.panelItem.get("type") === "platform") {
                     if (loadingComplete === true) {
                         this.setState({ loading: false });
                         this.setState({ notInitialized: false });
@@ -7691,11 +7714,11 @@ var PlatformsPanelItem = function (_BaseComponent) {
 
             if (!this.state.loading) // If not loading, treat it as just a regular toggle button
                 {
-                    if (this.state.panelItem.expanded === null && this.state.panelItem.type === "platform") {
+                    if (this.state.panelItem.get("expanded") === null && this.state.panelItem.get("type") === "platform") {
                         this.setState({ loading: true });
-                        platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+                        platformsPanelActionCreators.loadChildren(this.props.panelItem.get("type"), this.props.panelItem.toJS());
                     } else {
-                        if (this.state.panelItem.expanded) {
+                        if (this.state.panelItem.get("expanded")) {
                             platformsPanelActionCreators.expandAll(this.props.itemPath);
                         } else {
                             platformsPanelActionCreators.toggleItem(this.props.itemPath);
@@ -7735,10 +7758,10 @@ var PlatformsPanelItem = function (_BaseComponent) {
 
             if (checked) {
                 this.setState({ checked: null });
-                platformChartActionCreators.addToChart(this.props.panelItem);
+                platformChartActionCreators.addToChart(this.props.panelItem.toJS());
             } else {
                 this.setState({ checked: null });
-                platformChartActionCreators.removeFromChart(this.props.panelItem);
+                platformChartActionCreators.removeFromChart(this.props.panelItem.toJS());
             }
         }
     }, {
@@ -7762,7 +7785,7 @@ var PlatformsPanelItem = function (_BaseComponent) {
     }, {
         key: '_onAddDevices',
         value: function _onAddDevices(evt) {
-            devicesActionCreators.configureDevices(this.state.panelItem);
+            devicesActionCreators.configureDevices(this.state.panelItem.toJS());
         }
     }, {
         key: '_onDeviceMethodChange',
@@ -7773,7 +7796,7 @@ var PlatformsPanelItem = function (_BaseComponent) {
             this.setState({ deviceMethod: deviceMethod });
 
             if (deviceMethod) {
-                devicesActionCreators.addDevices(this.state.panelItem, deviceMethod);
+                devicesActionCreators.addDevices(this.state.panelItem.toJS(), deviceMethod);
                 controlButtonActionCreators.hideTaptip("addDevicesButton");
             }
         }
@@ -7781,7 +7804,7 @@ var PlatformsPanelItem = function (_BaseComponent) {
         key: 'render',
         value: function render() {
 
-            // console.log("rendering 1");
+            console.log("rendering " + this.state.panelItem.get("name"));
             var panelItem = this.state.panelItem;
             var itemPath = this.props.itemPath;
             var propChildren = this.state.children;
@@ -7789,7 +7812,7 @@ var PlatformsPanelItem = function (_BaseComponent) {
 
             var visibleStyle = {};
 
-            if (panelItem.visible !== true) {
+            if (panelItem.get("visible") !== true) {
                 visibleStyle = {
                     display: "none"
                 };
@@ -7812,7 +7835,7 @@ var PlatformsPanelItem = function (_BaseComponent) {
 
             var DevicesButton;
 
-            if (["platform"].indexOf(panelItem.type) > -1) {
+            if (["platform"].indexOf(panelItem.get("type")) > -1) {
                 var taptipX = 20;
                 var taptipY = 100;
 
@@ -7869,7 +7892,7 @@ var PlatformsPanelItem = function (_BaseComponent) {
 
             var ChartCheckbox;
 
-            if (["point"].indexOf(panelItem.type) > -1) {
+            if (["point"].indexOf(panelItem.get("type")) > -1) {
                 if (this.state.checked !== null) {
                     ChartCheckbox = React.createElement('input', { className: 'panelItemCheckbox',
                         type: 'checkbox',
@@ -7889,7 +7912,7 @@ var PlatformsPanelItem = function (_BaseComponent) {
             }
 
             var tooltipStyle = {
-                display: panelItem.type !== "type" ? this.state.showTooltip ? "block" : "none" : "none",
+                display: panelItem.get("type") !== "type" ? this.state.showTooltip ? "block" : "none" : "none",
                 position: "absolute",
                 top: this.state.tooltipY + "px",
                 left: this.state.tooltipX + "px"
@@ -7898,17 +7921,17 @@ var PlatformsPanelItem = function (_BaseComponent) {
             var toolTipClasses = this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer";
 
             if (!this.state.loading) {
-                arrowClasses.push(panelItem.status === "GOOD" ? "status-good" : panelItem.status === "BAD" ? "status-bad" : "status-unknown");
+                arrowClasses.push(panelItem.get("status") === "GOOD" ? "status-good" : panelItem.get("status") === "BAD" ? "status-bad" : "status-unknown");
             }
 
             var agentInfo;
 
-            if (panelItem.type === "agent") {
+            if (panelItem.get("type") === "agent") {
                 agentInfo = React.createElement(
                     'div',
                     null,
                     'Identity: ',
-                    panelItem.identity
+                    panelItem.get("identity")
                 );
             }
 
@@ -7924,13 +7947,13 @@ var PlatformsPanelItem = function (_BaseComponent) {
                     { style: arrowContentStyle },
                     React.createElement('i', { className: 'fa fa-circle-o-notch fa-spin fa-fw' })
                 );
-            } else if (panelItem.status === "GOOD") {
+            } else if (panelItem.get("status") === "GOOD") {
                 arrowContent = React.createElement(
                     'span',
                     { style: arrowContentStyle },
                     '▶'
                 );
-            } else if (panelItem.status === "BAD") {
+            } else if (panelItem.get("status") === "BAD") {
                 arrowContent = React.createElement(
                     'span',
                     { style: arrowContentStyle },
@@ -7944,35 +7967,35 @@ var PlatformsPanelItem = function (_BaseComponent) {
                 );
             }
 
-            if (this.state.panelItem.expanded === true && propChildren) {
+            if (this.state.panelItem.get("expanded") === true && propChildren) {
                 children = propChildren.sort(function (a, b) {
-                    if (a.name.toUpperCase() > b.name.toUpperCase()) {
+                    if (a.get("name").toUpperCase() > b.get("name").toUpperCase()) {
                         return 1;
                     }
-                    if (a.name.toUpperCase() < b.name.toUpperCase()) {
+                    if (a.get("name").toUpperCase() < b.get("name").toUpperCase()) {
                         return -1;
                     }
                     return 0;
                 }).sort(function (a, b) {
-                    if (a.sortOrder > b.sortOrder) {
+                    if (a.get("sortOrder") > b.get("sortOrder")) {
                         return 1;
                     }
-                    if (a.sortOrder < b.sortOrder) {
+                    if (a.get("sortOrder") < b.get("sortOrder")) {
                         return -1;
                     }
                     return 0;
                 }).map(function (propChild) {
 
                     var grandchildren = [];
-                    propChild.children.forEach(function (childString) {
-                        grandchildren.push(propChild[childString]);
+                    propChild.get("children").forEach(function (childString) {
+                        grandchildren.push(propChild.get(childString));
                     });
 
-                    var itemKey = propChild.hasOwnProperty("uuid") ? propChild.uuid : propChild.name + this.uuid;
+                    var itemKey = propChild.hasOwnProperty("uuid") ? propChild.get("uuid") : propChild.get("name") + this.get("uuid");
 
                     return React.createElement(PlatformsPanelItem, { key: itemKey,
                         panelItem: propChild,
-                        itemPath: propChild.path,
+                        itemPath: propChild.get("path").toJS(),
                         panelChildren: grandchildren });
                 }, this.state.panelItem);
 
@@ -7996,20 +8019,20 @@ var PlatformsPanelItem = function (_BaseComponent) {
                 itemClasses.push("item_label");
             }
 
-            if (panelItem.type === "platform" && this.state.notInitialized) {
+            if (panelItem.get("type") === "platform" && this.state.notInitialized) {
                 itemClasses.push("not_initialized");
             }
 
             var listItem = React.createElement(
                 'div',
                 { className: itemClasses.join(' ') },
-                panelItem.name
+                panelItem.get("name")
             );
 
             return React.createElement(
                 'li',
                 {
-                    key: panelItem.uuid,
+                    key: panelItem.get("uuid"),
                     className: 'panel-item',
                     style: visibleStyle
                 },
@@ -8039,7 +8062,7 @@ var PlatformsPanelItem = function (_BaseComponent) {
                                 { className: 'opaque_inner' },
                                 agentInfo,
                                 'Status: ',
-                                panelItem.context ? panelItem.context : panelItem.statusLabel
+                                panelItem.get("context") ? panelItem.get("context") : panelItem.get("statusLabel")
                             )
                         )
                     ),
@@ -8072,12 +8095,16 @@ var PlatformsPanelItem = function (_BaseComponent) {
 
 exports.default = PlatformsPanelItem;
 
-},{"../action-creators/control-button-action-creators":3,"../action-creators/devices-action-creators":4,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":63,"./base-component":12,"./control-button":20,"react":undefined,"react-router":undefined}],41:[function(require,module,exports){
+},{"../action-creators/control-button-action-creators":3,"../action-creators/devices-action-creators":4,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":63,"./base-component":12,"./control-button":20,"immutable":undefined,"react":undefined,"react-router":undefined}],41:[function(require,module,exports){
 'use strict';
 
 var _platformsPanelItem = require('./platforms-panel-item');
 
 var _platformsPanelItem2 = _interopRequireDefault(_platformsPanelItem);
+
+var _immutable = require('immutable');
+
+var _immutable2 = _interopRequireDefault(_immutable);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -8302,7 +8329,10 @@ var PlatformsPanel = React.createClass({
                 }
                 return 0;
             }).map(function (platform) {
-                return React.createElement(_platformsPanelItem2.default, { key: platform.uuid, panelItem: platform, itemPath: platform.path });
+                return React.createElement(_platformsPanelItem2.default, {
+                    key: platform.uuid,
+                    panelItem: _immutable2.default.fromJS(platform),
+                    itemPath: platform.path });
             });
         }
 
@@ -8349,7 +8379,7 @@ var PlatformsPanel = React.createClass({
 
 module.exports = PlatformsPanel;
 
-},{"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":63,"../stores/platforms-panel-store":64,"./control-button":20,"./platforms-panel-item":40,"react":undefined,"react-router":undefined}],42:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":63,"../stores/platforms-panel-store":64,"./control-button":20,"./platforms-panel-item":40,"immutable":undefined,"react":undefined,"react-router":undefined}],42:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
