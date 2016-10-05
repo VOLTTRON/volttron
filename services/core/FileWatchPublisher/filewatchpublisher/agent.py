@@ -121,7 +121,7 @@ class FileWatchPublisher(Agent):
 
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
-        _log.info("Starting FileWatchPublisher agent")
+        _log.info("Starting "+self.__class__.__name__+" agent")
         for item in self.config:
             file = item["file"]
             self.core.spawn(watch_file_with_fullpath, file, self.read_file)
