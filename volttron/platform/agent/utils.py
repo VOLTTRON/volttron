@@ -71,7 +71,7 @@ import os
 import pytz
 import re
 import stat
-import string
+import time
 from volttron.platform import get_home, get_address
 from dateutil.parser import parse
 from dateutil.tz import tzutc
@@ -499,3 +499,7 @@ def fix_sqlite3_datetime(sql=None):
     if sql is None:
         import sqlite3 as sql
     sql.register_converter("timestamp", parse)
+
+
+def get_current_timestamp():
+    return time.mktime(datetime.datetime.now().timetuple())
