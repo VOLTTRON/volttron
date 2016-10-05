@@ -505,34 +505,11 @@ def _calc_min_uuid_length(agents):
 
 
 def list_agents(opts):
-    agents = _list_agents(opts.aip)
-    if opts.pattern:
-        filtered = set()
-        for pattern, match in filter_agents(agents, opts.pattern, opts):
-            if not match:
-                _stderr.write(
-                    '{}: error: agent not found: {}\n'.format(opts.command,
-                                                              pattern))
-            filtered |= match
-        agents = list(filtered)
-    if not agents:
-        return
-    if not opts.min_uuid_len:
-        n = None
-    else:
-        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
-    agents.sort()
-    name_width = max(5, max(len(agent.name) for agent in agents))
-    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:{}} {:>3}\n'
-    _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width, 'TAG', tag_width, 'PRI'))
-    for agent in agents:
-        priority = opts.aip.agent_priority(agent.uuid) or ''
-        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                 agent.vip_identity, identity_width,
-                                 agent.tag or '', tag_width, priority))
+
+    def get_priority(agent):
+        return opts.aip.agent_priority(agent.uuid) or ''
+
+    _show_filtered_agents(opts, 'PRI', get_priority)
 
 
 def status_agents(opts):
@@ -545,39 +522,20 @@ def status_agents(opts):
             agents[uuid] = agent = Agent(name, None, uuid)
         status[uuid] = stat
     agents = agents.values()
-    if opts.pattern:
-        filtered = set()
-        for pattern, match in filter_agents(agents, opts.pattern, opts):
-            if not match:
-                _stderr.write(
-                    '{}: error: agent not found: {}\n'.format(opts.command,
-                                                              pattern))
-            filtered |= match
-        agents = list(filtered)
-    if not agents:
-        return
-    agents.sort()
-    if not opts.min_uuid_len:
-        n = 36
-    else:
-        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
-    name_width = max(5, max(len(agent.name) for agent in agents))
-    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
-    _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width, 'TAG', tag_width, 'STATUS'))
-    for agent in agents:
+
+    def get_status(agent):
         try:
             pid, stat = status[agent.uuid]
         except KeyError:
             pid = stat = None
-        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                 agent.vip_identity, identity_width,
-                                 agent.tag or '', tag_width,
-                                 ('running [{}]'.format(pid)
-                                  if stat is None else str(
-                                     stat)) if pid else ''))
+
+        if stat:
+            return str(stat)
+        if pid:
+            return 'running [{}]'.format(pid)
+        return ''
+
+    _show_filtered_agents(opts, 'STATUS', get_status, agents)
 
 
 def clear_status(opts):
