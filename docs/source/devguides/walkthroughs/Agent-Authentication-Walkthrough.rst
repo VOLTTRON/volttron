@@ -22,8 +22,8 @@ Authentication record is created by using volttron-ctl auth add command and ente
         enabled [True]:
 
 The simplest way of creating an authentication record is by entering the user_id and credential values.
-User_id is a arbitrary string for VOLTTRON to identify the agent. Credential is the public key string
-for the agent. Create a public/private key pair for the agent and enter public key for credential argument.
+User_id is a arbitrary string for VOLTTRON to identify the agent. Credential is the encoded public key string
+for the agent. Create a public/private key pair for the agent and enter encoded public key for credential parameter.
 
 ::
 
@@ -36,21 +36,21 @@ for the agent. Create a public/private key pair for the agent and enter public k
         roles (delimit multiple entries with comma) []:
         groups (delimit multiple entries with comma) []:
         mechanism [NULL]:
-        credentials []: "public-key-for-my-test-agent"
+        credentials []: "encoded-public-key-for-my-test-agent"
         comments []:
         enabled [True]:
 
 
-I next sections, we will discuss each argument, its purpose and what all values it can take.
+I next sections, we will discuss each parameter, its purpose and what all values it can take.
 
 Domain:
 -------
-Domain argument is currently not being used in VOLTTRON and is placeholder for future implementation.
+Domain is the name assigned to locally bound address. Domain parameter is currently not being used in VOLTTRON and is placeholder for future implementation.
 
 Address:
 ---------
 By specifying address, administrator can allow an agent to connect with VOLTTRON only if that agent is running on that address.
-Address argument can take either a string or an array of strings representing ip addresses.
+Address parameter can take either a string or an array of strings representing ip addresses.
 It can also take regular expression representing a subnet address.
 
 ::
@@ -67,4 +67,101 @@ those agents will be identified by this user_id. It is primarily used for identi
 
 Capabilities:
 -------------
-Capability argument take is
+Capability is an arbitrary string used by an agent to describe its exported RPC method. It is used to limit the access
+to that RPC method to only those agents who have that capailbity listed in their authentication record.
+
+
+If administrator wants to authorize an agent to access an exported RPC method with capability of another agent,
+he/she can list that capability string in this parameter. Capability parameter takes an string or an array of strings
+listing all the capabilities this agent is authorized to access. Listing capabilities here will allow this agent to
+access corresponding exported RPC methods of other agents.
+
+For example, if there is an AgentA with capability enables exported RPC method and AgentB needs to access that method then
+AgentA'code and AgentB's authentication record would be as follow:
+
+
+AgentA's capability enabled exported RPC method:
+
+::
+
+   @RPC.export
+   @RPC.allow('can_call_bar')
+   def bar(self):
+      return 'If you can see this, then you have the required capabilities'
+
+
+AgentB's atuhentication record to access bar method:
+
+::
+
+    volttron-ctl auth add
+
+        domain []:
+        address []:
+        user_id []: "agent-b"
+        capabilities (delimit multiple entries with comma) []: "can_call_bar"
+        roles (delimit multiple entries with comma) []:
+        groups (delimit multiple entries with comma) []:
+        mechanism [NULL]:
+        credentials []: "encoded-public-key-for-agent-b"
+        comments []:
+        enabled [True]:
+
+
+Similarly, capability parameter can take an array of string:
+
+::
+
+    capabilities (delimit multiple entries with comma) []: "can_call_bar"
+    capabilities (delimit multiple entries with comma) []: ["can_call_method1","can_call_method2"]
+
+
+Roles:
+-------
+These are authorized roles for this agent.
+Roles parameter is currently not being used in VOLTTRON and is placeholder for future implementation.
+
+Groups:
+-------
+These are authorized groups for this agent. Groups parameter is currently not being used in VOLTTRON and is placeholder for future implementation.
+
+Mechanism:
+-----------
+Mechanism is the authentication method by which the agent will communicate with VOLTTRON platform.
+It takes one of the following strings:
+
+"NULL": No authentication
+"PLAIN": username/password
+"CURVE": CurveMQ public.private keys
+
+NOTE: Currently VOLTTRON uses only CURVE mechanism to authenticate agents. NULL and PLAIN values will be implemented in future.
+
+::
+
+    mechanism [NULL]: "CURVE"
+
+Credentials:
+-------------
+
+Value of credential parameter depends on the value of mechanism parameter: `None` if mechanism is 'NULL'; password if mechanism is 'PLAIN';
+encoded public key if mechanism is 'CURVE' (see `volttron.platform.vip.socket.encode_key` for method to encode public key
+
+Note: Currently VOLTTRON uses only CURVE mechanism to authenticate agents. Hence, only valid value for credentials parameter is encoded public key.
+::
+
+    credentials []: "encoded-public-key-for-agent"
+
+
+Comments:
+----------
+Comments is arbitrary string to associate with authentication record
+
+
+Enabled:
+---------
+TRUE of FALSE value to enable or disable the authentication record.
+Record will only be used if this value is True
+
+
+
+
