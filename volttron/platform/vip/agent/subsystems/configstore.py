@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -61,6 +61,7 @@ import inspect
 
 from .base import SubsystemBase
 from volttron.platform.storeutils import list_unique_links, check_for_config_link
+from volttron.platform.vip.agent import errors
 
 from collections import defaultdict
 from copy import deepcopy
@@ -109,7 +110,15 @@ class ConfigStore(SubsystemBase):
 
     def _onconfig(self, sender, **kwargs):
         if not self._initialized:
-            self._rpc().call("config.store", "get_configs").get()
+            try:
+                self._rpc().call("config.store", "get_configs").get()
+            except errors.Unreachable as e:
+                _log.error("Connected platform does not support the Configuration Store feature.")
+                return
+            except errors.VIPError as e:
+                _log.error("Error retrieving agent configurations: {}".format(e))
+                return
+
 
         affected_configs = {}
         for config_name in self._store:
@@ -315,7 +324,12 @@ class ConfigStore(SubsystemBase):
         """
         # Handle case were we are called during "onstart".
         if not self._initialized:
-            self._rpc().call("config.store", "get_configs").get()
+            try:
+                self._rpc().call("config.store", "get_configs").get()
+            except errors.Unreachable as e:
+                _log.error("Connected platform does not support the Configuration Store feature.")
+            except errors.VIPError as e:
+                _log.error("Error retrieving agent configurations: {}".format(e))
 
         all_map = self._default_name_map.copy()
         all_map.update(self._name_map)
@@ -338,8 +352,16 @@ class ConfigStore(SubsystemBase):
         The contents of the configuration specified.
         """
         #Handle case were we are called during "onstart".
+
+        #If we fail to initialize we don't raise an exception as there still
+        #may be a default configuration to grab.
         if not self._initialized:
-            self._rpc().call("config.store", "get_configs").get()
+            try:
+                self._rpc().call("config.store", "get_configs").get()
+            except errors.Unreachable as e:
+                _log.error("Connected platform does not support the Configuration Store feature.")
+            except errors.VIPError as e:
+                _log.error("Error retrieving agent configurations: {}".format(e))
 
         config_name = config_name.lower()
 

@@ -14,4 +14,5 @@ VOLTTRON Core Services
     service_agents/index
     security/index
     restricted/index
+    config_store/index
     

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -165,18 +165,6 @@ class MasterDriverAgent(Agent):
         self.vip.config.subscribe(self.update_driver, actions=["NEW", "UPDATE"], pattern="devices/*")
         self.vip.config.subscribe(self.remove_driver, actions="DELETE", pattern="devices/*")
         
-
-    def starting(self, sender, **kwargs):
-        start_delay = None
-        if self.staggered_start is not None:
-            start_delay = self.staggered_start / float(len(self.driver_config_list))
-        for config_name in self.driver_config_list:
-            _log.debug("Launching driver for config "+config_name)
-            driver = DriverAgent(self, config_name)
-            gevent.spawn(driver.core.run)   
-            if start_delay is not None:
-                gevent.sleep(start_delay)
-            #driver.core.stop to kill an agent.
 
     def configure_main(self, config_name, action, contents):
         config = self.default_config.copy()
