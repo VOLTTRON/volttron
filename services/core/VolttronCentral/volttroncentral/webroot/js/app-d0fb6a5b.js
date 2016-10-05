@@ -3646,7 +3646,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                     });
 
                     return _react2.default.createElement(_registryRow2.default, {
-                        key: "registryRow-" + attributesList.get("attributes").get(0).value,
+                        key: "registryRow-" + attributesList.get("attributes").get(0).value + "-" + rowIndex,
                         attributesList: attributesList,
                         immutableProps: immutableProps,
                         allSelected: this.state.allSelected,
@@ -3788,7 +3788,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                         headerColumns.push(headerCell);
 
                         if (index + 1 < this.state.registryValues[0].get("attributes").size) {
-                            var resizeHandle = _react2.default.createElement('th', { className: 'resize-handle-th' });
+                            var resizeHandle = _react2.default.createElement('th', { key: "resize-" + item.key + "-" + index, className: 'resize-handle-th' });
                             headerColumns.push(resizeHandle);
                         }
                     }
@@ -9516,7 +9516,7 @@ var RegistryRow = function (_BaseComponent) {
                     registryCells.push(itemCell);
 
                     if (columnIndex + 1 < this.state.attributesList.get("attributes").size) {
-                        var resizeHandle = _react2.default.createElement('td', {
+                        var resizeHandle = _react2.default.createElement('td', { key: "resize-" + rowIndex + "-" + columnIndex,
                             className: 'resize-handle-td',
                             onMouseDown: this._grabResizeHandle.bind(this, columnIndex) });
                         registryCells.push(resizeHandle);

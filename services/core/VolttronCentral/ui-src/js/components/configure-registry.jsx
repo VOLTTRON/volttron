@@ -809,7 +809,7 @@ class ConfigureRegistry extends BaseComponent {
                 });
 
                 return (<RegistryRow 
-                            key={"registryRow-" + attributesList.get("attributes").get(0).value}
+                            key={"registryRow-" + attributesList.get("attributes").get(0).value + "-" + rowIndex}
                             attributesList={attributesList} 
                             immutableProps={immutableProps}
                             allSelected={this.state.allSelected}
@@ -949,7 +949,7 @@ class ConfigureRegistry extends BaseComponent {
 
                     if ((index + 1) < this.state.registryValues[0].get("attributes").size)
                     {
-                        var resizeHandle = <th className="resize-handle-th"></th>;
+                        var resizeHandle = <th key={"resize-" + item.key + "-" + index} className="resize-handle-th"></th>;
                         headerColumns.push(resizeHandle);
                     }
                 }

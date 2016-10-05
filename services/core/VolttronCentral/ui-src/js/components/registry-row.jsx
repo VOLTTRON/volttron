@@ -176,7 +176,7 @@ class RegistryRow extends BaseComponent {
                 if ((columnIndex + 1) < this.state.attributesList.get("attributes").size)
                 {
                     var resizeHandle = (
-                        <td 
+                        <td key={"resize-" + rowIndex + "-" + columnIndex}
                             className="resize-handle-td"
                             onMouseDown={this._grabResizeHandle.bind(this, columnIndex)}></td>
                     );
