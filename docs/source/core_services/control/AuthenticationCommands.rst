@@ -29,6 +29,7 @@ All authentication sub-commands can be viewed by entering following command.
     	add-known-host      add server public key to known-hosts file
  	    keypair             generate CurveMQ keys for encrypting VIP connections
 	    list                list authentication records
+        publickey           show public key for each agent
     	remove              removes one or more authentication records by indices
     	serverkey           show the serverkey for the instance
     	update              updates one authentication record by index
