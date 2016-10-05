@@ -41,7 +41,7 @@ for the agent. Create a public/private key pair for the agent and enter encoded 
         enabled [True]:
 
 
-I next sections, we will discuss each parameter, its purpose and what all values it can take.
+In next sections, we will discuss each parameter, its purpose and what all values it can take.
 
 Domain:
 -------
