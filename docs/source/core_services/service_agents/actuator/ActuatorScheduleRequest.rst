@@ -22,7 +22,7 @@ An agent can request a task schedule by publishing to the
     #python
     {
         'type': 'NEW_SCHEDULE',
-        'requesterID': <Agent ID>, #The name of the requesting agent.
+        'requesterID': <Ignored, VIP Identity used internally>
         'taskID': <unique task ID>, #The desired task ID for this task. It must be unique among all other scheduled tasks.
         'priority': <task priority>, #The desired task priority, must be 'HIGH', 'LOW', or 'LOW_PREEMPT'
     }
@@ -91,7 +91,7 @@ A task may be canceled by publishing to the
     #python
     {
         'type': 'CANCEL_SCHEDULE',
-        'requesterID': <Agent ID>, #The name of the requesting agent.
+        'requesterID': <Ignored, VIP Identity used internally>
         'taskID': <unique task ID>, #The desired task ID for this task. It must be unique among all other scheduled tasks.
     }
 

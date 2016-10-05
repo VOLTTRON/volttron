@@ -34,7 +34,7 @@ def setup_control_connection(request, get_volttron_instances):
                                         secretkey=ks.secret())
     else:
         control_connection = Connection(address=wrapper.local_vip_address,
-                                        peer=CONTROL)
+                                        peer=CONTROL, developer_mode=True)
     # Sleep a couple seconds to wait for things to startup
     gevent.sleep(2)
     return wrapper, control_connection

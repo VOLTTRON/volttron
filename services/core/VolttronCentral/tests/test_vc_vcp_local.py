@@ -35,7 +35,6 @@ def setup_first(request, get_volttron_instances):
     return wrapper
 
 
-@pytest.mark.dev
 def test_agentlist(setup_first):
     wrapper = setup_first
 
@@ -46,7 +45,6 @@ def test_agentlist(setup_first):
         cn_vcp.kill()
 
 
-@pytest.mark.dev
 def test_discovered(setup_first):
     wrapper = setup_first
 

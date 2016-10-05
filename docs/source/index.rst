@@ -24,8 +24,10 @@ Contents:
    overview/index
    core_services/index
    devguides/index
+   sample_applications/index
    supporting/index
    scalability/index
+   specifications/index
    roadmap/index
    specifications/index
 

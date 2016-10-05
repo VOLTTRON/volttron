@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,7 +57,7 @@
 #}}}
 
 
-'''Module for storing local public and secret keys and remote public keys'''
+"""Module for storing local public and secret keys and remote public keys"""
 
 
 import json
@@ -75,7 +75,7 @@ _log = logging.getLogger(__name__)
 
 
 class BaseJSONStore(object):
-    '''JSON-file-backed store for dictionaries'''
+    """JSON-file-backed store for dictionaries"""
 
     def __init__(self, filename, permissions=0o600):
         self.filename = filename
@@ -154,7 +154,12 @@ class KeyStore(BaseJSONStore):
 
 
 class KnownHostsStore(BaseJSONStore):
-    '''Handle storage and retrival of known hosts'''
+    """Handle storage and retrival of known hosts"""
+
+    def __init__(self, filename=None):
+        if filename is None:
+            filename = os.path.join(get_home(), 'known_hosts')
+        super(KnownHostsStore, self).__init__(filename)
 
     def add(self, addr, server_key):
         self.update({self._parse_addr(addr): server_key})

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -71,19 +71,26 @@ import os
 import pytz
 import re
 import stat
-import string
+import time
 from volttron.platform import get_home, get_address
 from dateutil.parser import parse
 from dateutil.tz import tzutc
 from tzlocal import get_localzone
 from zmq.utils import jsonapi
-from ..lib.inotify.green import inotify, IN_MODIFY
+
+try:
+    from ..lib.inotify.green import inotify, IN_MODIFY
+except AttributeError:
+    # inotify library is not available on OS X/MacOS.
+    # @TODO Integrate with the OS X FS Events API
+    inotify = None
+    IN_MODIFY = None
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
-__copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
+__copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
 _comment_re = re.compile(
@@ -130,7 +137,20 @@ def strip_comments(string):
 
 def load_config(config_path):
     """Load a JSON-encoded configuration file."""
-    return parse_json_config(open(config_path).read())
+    if config_path is None:
+        _log.info("AGENT_CONFIG does not exist in environment. load_config returning empty configuration.")
+        return {}
+
+    if not os.path.exists(config_path):
+        _log.info("Config file specified by AGENT_CONFIG does not exist. load_config returning empty configuration.")
+        return {}
+
+    try:
+        with open(config_path) as f:
+            return parse_json_config(f.read())
+    except StandardError as e:
+        _log.error("Problem parsing agent configuration")
+        raise
 
 def parse_json_config(config_str):
     """Parse a JSON-encoded configuration file."""
@@ -231,6 +251,7 @@ def vip_main(agent_class, identity=None, **kwargs):
         Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt,)
 
         config = os.environ.get('AGENT_CONFIG')
+        developer_mode = '_DEVELOPER_MODE' in os.environ
         identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
         if identity is not None:
             if not is_valid_identity(identity):
@@ -245,7 +266,8 @@ def vip_main(agent_class, identity=None, **kwargs):
 
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
-                            volttron_home=volttron_home, **kwargs)
+                            volttron_home=volttron_home,
+                            developer_mode=developer_mode, **kwargs)
         try:
             run = agent.run
         except AttributeError:
@@ -393,7 +415,7 @@ def get_utc_seconds_from_epoch(timestamp=datetime.now(tz=tzutc())):
     # convert to UTC first.
     seconds_from_epoch = calendar.timegm(timestamp.utctimetuple())
     # timetuple loses microsecond accuracy so we have to put it back.
-    seconds_from_epoch += timestamp.microsecond / 1000000
+    seconds_from_epoch += timestamp.microsecond / 1000000.0
     return seconds_from_epoch
 
 
@@ -425,16 +447,29 @@ def process_timestamp(timestamp_string, topic=''):
 
 
 def watch_file(fullpath, callback):
-    """Run callback method whenever the file changes"""
+    """Run callback method whenever the file changes
+
+        Not available on OS X/MacOS.
+    """
     dirname, filename = os.path.split(fullpath)
-    with inotify() as inot:
-        inot.add_watch(dirname, IN_MODIFY)
-        for event in inot:
-            if event.name == filename and event.mask & IN_MODIFY:
-                callback()
+    if inotify is None:
+        _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
+    else:
+        with inotify() as inot:
+            inot.add_watch(dirname, IN_MODIFY)
+            for event in inot:
+                if event.name == filename and event.mask & IN_MODIFY:
+                    callback()
 
 
 def create_file_if_missing(path, permission=0o660, contents=None):
+    dirname = os.path.dirname(path)
+    if dirname and not os.path.exists(dirname):
+        try:
+            os.makedirs(dirname)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
     try:
         open(path)
     except IOError as exc:

@@ -78,7 +78,8 @@ import psutil
 
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (
-    get_aware_utc_now, format_timestamp, parse_timestamp_string)
+    get_aware_utc_now, format_timestamp, parse_timestamp_string,
+    get_utc_seconds_from_epoch)
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.topics import (LOGGER, PLATFORM_VCP_DEVICES,
                                                 PLATFORM)
@@ -172,6 +173,7 @@ class VolttronCentralPlatform(Agent):
 
         # This is scheduled after first call to the reconnect function
         self._scheduled_connection_event = None
+        self._publish_bacnet_iam = False
 
     @RPC.export
     def reconfigure(self, **kwargs):
@@ -274,7 +276,6 @@ class VolttronCentralPlatform(Agent):
             now = get_aware_utc_now()
             next_update_time = now + datetime.timedelta(
                 seconds=self._volttron_central_reconnect_interval)
-
             self._scheduled_connection_event = self.core.schedule(
                 next_update_time, self._periodic_attempt_registration)
 
@@ -317,6 +318,8 @@ class VolttronCentralPlatform(Agent):
             if self._volttron_central_connection.is_connected() and \
                     self._volttron_central_connection.is_peer_connected():
                 _log.debug("Connection has been established to local peer.")
+            else:
+                _log.error('Unable to connect to local peer!')
             return self._volttron_central_connection
 
         # If we have an http address for volttron central, but haven't
@@ -517,46 +520,63 @@ class VolttronCentralPlatform(Agent):
         raise NotManagedError("Could not connect to specified volttron central")
 
     @RPC.export
-    def publish_bacnet_props(self, proxy_identity, address, device_id):
+    def publish_bacnet_props(self, proxy_identity, address, device_id,
+                             filter=[]):
 
         bn = BACnetReader(self.vip.rpc, proxy_identity, self._bacnet_response)
-        results = dict(address=address, device_id=device_id, device_name=None,
-                       device_description=None)
 
-        gevent.spawn(bn.read_device_properties, address, device_id)
+        gevent.spawn(bn.read_device_properties, address, device_id, filter)
+
         return "PUBLISHING"
 
     def _bacnet_response(self, context, results):
+        message=dict(results=results)
         if context is not None:
-            results.update(context)
-        gevent.spawn(self._pub_to_vc, "configure", message=results)
+            message.update(context)
+        gevent.spawn(self._pub_to_vc, "configure", message=message)
 
 
     @RPC.export
     def start_bacnet_scan(self, proxy_identity, low_device_id=None,
-                          high_device_id=None, target_address=None):
+                          high_device_id=None, target_address=None,
+                          scan_length=5):
         """This function is a wrapper around the bacnet proxy scan.
         """
         if proxy_identity not in self.vip.peerlist().get(timeout=5):
             raise Unreachable("Can't reach agent identity {}".format(
                 proxy_identity))
-
+        _log.info('Starting bacnet_scan with who_is request to {}'.format(
+            proxy_identity))
         self.vip.rpc.call(proxy_identity, "who_is", low_device_id=low_device_id,
                           high_device_id=high_device_id,
                           target_address=target_address).get(timeout=5.0)
-        return "STARTED"
+        timestamp = get_utc_seconds_from_epoch()
+        self._publish_bacnet_iam = True
+        self._pub_to_vc("iam", message=dict(status="STARTED IAM",
+                                            timestamp=timestamp))
+
+        def stop_iam():
+            stop_timestamp = get_utc_seconds_from_epoch()
+            self._pub_to_vc("iam", message=dict(
+                status="FINISHED IAM",
+                timestamp=stop_timestamp
+            ))
+            self._publish_bacnet_iam = False
+
+        gevent.spawn_later(scan_length, stop_iam)
+
 
     @PubSub.subscribe('pubsub', topics.BACNET_I_AM)
     def _iam_handler(self, peer, sender, bus, topic, headers, message):
-        print('sender: {}'.format(sender))
-        proxy_identity = sender
-        address = message['address']
-        device_id = message['device_id']
-        bn = BACnetReader(self.vip.rpc, proxy_identity, None)
-        message['device_name'] = bn.read_device_name(address, device_id)
-        message['device_description'] = bn.read_device_description(address,
-                                                                   device_id)
-        self._pub_to_vc("iam", message=message)
+        if self._publish_bacnet_iam:
+            proxy_identity = sender
+            address = message['address']
+            device_id = message['device_id']
+            bn = BACnetReader(self.vip.rpc, proxy_identity)
+            message['device_name'] = bn.read_device_name(address, device_id)
+            message['device_description'] = bn.read_device_description(address,
+                                                                       device_id)
+            self._pub_to_vc("iam", message=message)
 
     def _pub_to_vc(self, topic_leaf, headers=None, message=None):
         vc = self._vc_connection()
@@ -838,28 +858,36 @@ class VolttronCentralPlatform(Agent):
                                                'install_agent',
                                                f['file_name'],
                                                channel_name)
-                _log.debug('waiting for ready')
-                _log.debug('received {}'.format(channel.recv()))
-                with open(path, 'rb') as fin:
-                    _log.debug('sending wheel to control.')
+                sha512 = hashlib.sha512()
+                _log.debug('Sending wheel to control')
+
+                with open(path, 'rb') as wheel_file_data:
                     while True:
-                        data = fin.read(8125)
-
-                        if not data:
+                        # get a request
+                        with gevent.Timeout(30):
+                            request, file_offset, chunk_size = channel.recv_multipart()
+                        if request == b'checksum':
+                            channel.send(sha512.digest())
                             break
-                        channel.send(data)
-                _log.debug('sending done message.')
-                channel.send('done')
-                _log.debug('waiting for done')
-                _log.debug('closing channel')
 
-                results.append({'uuid': agent_uuid.get(timeout=10)})
-                channel.close(linger=0)
-                del channel
+                        assert request == b'fetch'
+
+                        # send a chunk of the file
+                        file_offset = int(file_offset)
+                        chunk_size = int(chunk_size)
+                        wheel_file_data.seek(file_offset)
+                        data = wheel_file_data.read(chunk_size)
+                        sha512.update(data)
+                        channel.send(data)
 
             except Exception as e:
                 results.append({'error': str(e)})
                 _log.error("EXCEPTION: " + str(e))
+            else:
+                results.append({'uuid': agent_uuid.get(timeout=10)})
+            finally:
+                channel.close(linger=0)
+                del channel
 
         shutil.rmtree(tmpdir, ignore_errors=True)
 

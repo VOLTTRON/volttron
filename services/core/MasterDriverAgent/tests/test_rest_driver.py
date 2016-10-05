@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,79 +57,79 @@
 
 import pytest
 import gevent
+from gevent import pywsgi
 import os
-import multiprocessing
 import json
-from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
-driver_config_dict = {
-    "driver_config": {"device_address": "http://127.0.0.1:8080"},
-    "campus": "campus",
-    "building": "building",
-    "unit": "unit",
-    "driver_type": "restful",
-    "registry_config": os.path.join(os.getcwd(), "services/core/MasterDriverAgent/tests/restful.csv"),
-    "interval": 20,
-    "timezone": "UTC"
-}
+from volttrontesting.utils.utils import get_rand_http_address
 
-driver_config = os.path.join(os.getcwd(), "services/core/MasterDriverAgent/tests/config")
-with open(driver_config, 'w') as outfile:
-    json.dump(driver_config_dict, outfile)
-
-MASTER_CONFIG = {"driver_config_list": [driver_config]}
-
+server_addr = get_rand_http_address()
+no_scheme = server_addr[7:]
+ip, port = no_scheme.split(':')
 point = 'forty two'
 
+driver_config_dict_string = """{
+    "driver_config": {"device_address": "%s"},
+    "driver_type": "restful",
+    "registry_config": "config://restful.csv",
+    "interval": 20,
+    "timezone": "UTC"
+}""" % server_addr
 
-class Handler(BaseHTTPRequestHandler):
-
-    def _set_headers(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-
-    def do_GET(self):
-        global point
-        self._set_headers()
-
-        self.wfile.write(point)
-        self.point = 'forty two'
-
-    def do_POST(self):
-        global point
-        self._set_headers()
-        content_length = self.headers.getheader('content-length')
-        point = str(self.rfile.read(int(content_length)))
-
-        self.wfile.write(point)
+restful_csv_string = """Point Name,Volttron Point Name,Units,Writable,Notes,Default
+test_point,test_point,Units,True,Test point,forty two"""
 
 
-def http_server():
-    httpd = HTTPServer(('', 8080), Handler)
-    httpd.serve_forever()
+# return the global point value no matter what is requested
+def handle(env, start_response):
+    global point
+
+    if env['REQUEST_METHOD'] == 'POST':
+        data = env['wsgi.input']
+        length = env['CONTENT_LENGTH']
+        point = data.read(length)
+
+    start_response('200 OK', [('Content-Type', 'text/html')])
+    return point
 
 
 @pytest.fixture(scope='module')
 def agent(request, volttron_instance1):
+    agent = volttron_instance1.build_agent()
+    # Clean out master driver configurations.
+    agent.vip.rpc.call('config.store',
+                       'manage_delete_store',
+                       'platform.driver').get(timeout=10)
+
+    #Add test configurations.
+    agent.vip.rpc.call('config.store',
+                       'manage_store',
+                       'platform.driver',
+                       "devices/campus/building/unit",
+                       driver_config_dict_string,
+                       "json").get(timeout=10)
+
+    agent.vip.rpc.call('config.store',
+                       'manage_store',
+                       'platform.driver',
+                       "restful.csv",
+                       restful_csv_string,
+                       "csv").get(timeout=10)
+
     master_uuid = volttron_instance1.install_agent(
         agent_dir="services/core/MasterDriverAgent",
-        config_file=MASTER_CONFIG,
+        config_file={},
         start=True)
     print("agent id: ", master_uuid)
     gevent.sleep(2)  # wait for the agent to start and start the devices
-    
-    agent = volttron_instance1.build_agent()
 
-    process = multiprocessing.Process(target=http_server)
-    process.start()
-    assert process.is_alive()
+    server = pywsgi.WSGIServer((ip, int(port)), handle)
+    server.start()
 
     def stop():
         volttron_instance1.stop_agent(master_uuid)
         agent.core.stop()
-        process.terminate()
-        os.remove(driver_config)
+        server.stop()
 
     request.addfinalizer(stop)
     return agent
@@ -140,8 +140,9 @@ def test_restful_get(agent):
                                'get_point',
                                'campus/building/unit',
                                'test_point').get(timeout=10)
+
     assert point == 'forty two'
-    
+
 
 def test_restful_set(agent):
     # set point
@@ -158,6 +159,7 @@ def test_restful_set(agent):
                                'campus/building/unit',
                                'test_point').get(timeout=10)
     assert point == '42'
+
 
 def test_restful_revert(agent):
     # set point
@@ -180,6 +182,3 @@ def test_restful_revert(agent):
                                'campus/building/unit',
                                'test_point').get(timeout=10)
     assert point == 'forty two'
-
-    return True
-

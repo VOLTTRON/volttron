@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -295,7 +295,7 @@ def historian(config_path, **kwargs):
                 _log.debug(
                     "Setting up to forward to {}".format(destination_vip))
                 event = gevent.event.Event()
-                agent = Agent(address=destination_vip)
+                agent = Agent(address=destination_vip, enable_store=False)
                 agent.core.onstart.connect(lambda *a, **kw: event.set(),
                                            event)
                 gevent.spawn(agent.core.run)

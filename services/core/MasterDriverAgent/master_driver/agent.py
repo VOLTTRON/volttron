@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -63,6 +63,7 @@ from volttron.platform.agent import math_utils
 from driver import DriverAgent
 import resource
 from datetime import datetime
+import bisect
 
 from driver_locks import configure_socket_lock, configure_publish_lock
 
@@ -80,9 +81,9 @@ def master_driver_agent(config_path, **kwargs):
         except KeyError:
             return config.get(name, default)
         
-    max_open_sockets = get_config('max_open_sockets', None)
+
     # Increase open files resource limit to max or 8192 if unlimited
-    limit = None
+    system_socket_limit = None
     
     try:
         soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
@@ -91,83 +92,219 @@ def master_driver_agent(config_path, **kwargs):
     else:
         if soft != hard and soft != resource.RLIM_INFINITY:
             try:
-                limit = 8192 if hard == resource.RLIM_INFINITY else hard
-                resource.setrlimit(resource.RLIMIT_NOFILE, (limit, hard))
+                system_socket_limit = 8192 if hard == resource.RLIM_INFINITY else hard
+                resource.setrlimit(resource.RLIMIT_NOFILE, (system_socket_limit, hard))
             except OSError:
                 _log.exception('error setting open file limits')
             else:
                 _log.debug('open file resource limit increased from %d to %d',
-                           soft, limit)
+                           soft, system_socket_limit)
         if soft == hard:
-            limit = soft
-                
-    if max_open_sockets is not None:
-        configure_socket_lock(max_open_sockets)
-        _log.info("maximum concurrently open sockets limited to " + str(max_open_sockets))
-    elif limit is not None:
-        max_open_sockets = int(limit*0.8)
-        _log.info("maximum concurrently open sockets limited to " + str(max_open_sockets) + 
-                  " (derived from system limits)")
-        configure_socket_lock(max_open_sockets)
-    else:
-        configure_socket_lock()
-        _log.warn("No limit set on the maximum number of concurrently open sockets. "
-                  "Consider setting max_open_sockets if you plan to work with 800+ modbus devices.")
-        
-    
+            system_socket_limit = soft
+
+    max_open_sockets = get_config('max_open_sockets', None)
+
     #TODO: update the default after scalability testing.
     max_concurrent_publishes = get_config('max_concurrent_publishes', 10000)
-    if max_concurrent_publishes < 1:
-        _log.warn("No limit set on the maximum number of concurrent driver publishes. "
-                  "Consider setting max_concurrent_publishes if you plan to work with many devices.")
-    else:
-        _log.info("maximum concurrent driver publishes limited to " + str(max_concurrent_publishes))
-    configure_publish_lock(max_concurrent_publishes)
 
     driver_config_list = get_config('driver_config_list')
     
     scalability_test = get_config('scalability_test', False)
     scalability_test_iterations = get_config('scalability_test_iterations', 3)
+
+    driver_scrape_interval = get_config('driver_scrape_interval', 0.02)
+
+    if config.get("driver_config_list") is not None:
+        _log.warning("Master driver configured with old setting. This is no longer supported.")
+        _log.warning('Use the script "scripts/update_master_driver_config.py" to convert the configuration.')
+
     
-    staggered_start = get_config('staggered_start', None)
-    
-    return MasterDriverAgent(driver_config_list, scalability_test, scalability_test_iterations, staggered_start,
+    return MasterDriverAgent(driver_config_list, scalability_test,
+                             scalability_test_iterations,
+                             driver_scrape_interval,
+                             max_open_sockets,
+                             max_concurrent_publishes,
+                             system_socket_limit,
                              heartbeat_autostart=True, **kwargs)
 
 class MasterDriverAgent(Agent):
     def __init__(self, driver_config_list, scalability_test = False,
-                 scalability_test_iterations = 3, staggered_start = None,
+                 scalability_test_iterations = 3,
+                 driver_scrape_interval = 0.02,
+                 max_open_sockets = None,
+                 max_concurrent_publishes = 10000,
+                 system_socket_limit = None,
                  **kwargs):
         super(MasterDriverAgent, self).__init__(**kwargs)
         self.instances = {}
         self.scalability_test = scalability_test
         self.scalability_test_iterations = scalability_test_iterations
-        self.driver_config_list = driver_config_list
-        self.staggered_start = staggered_start
+        try:
+            self.driver_scrape_interval = float(driver_scrape_interval)
+        except ValueError:
+            self.driver_scrape_interval = 0.05
+        self.system_socket_limit = system_socket_limit
+        self.freed_time_slots = []
+        self._name_map = {}
+
+
         if scalability_test:
             self.waiting_to_finish = set()
             self.test_iterations = 0
             self.test_results = []
             self.current_test_start = None
+
+        self.default_config = {"scalability_test": scalability_test,
+                               "scalability_test_iterations": scalability_test_iterations,
+                               "max_open_sockets": max_open_sockets,
+                               "max_concurrent_publishes": max_concurrent_publishes,
+                               "driver_scrape_interval": driver_scrape_interval}
+
+        self.vip.config.set_default("config", self.default_config)
+        self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
+        self.vip.config.subscribe(self.update_driver, actions=["NEW", "UPDATE"], pattern="devices/*")
+        self.vip.config.subscribe(self.remove_driver, actions="DELETE", pattern="devices/*")
         
-    @Core.receiver('onstart')
-    def starting(self, sender, **kwargs):
-        start_delay = None
-        if self.staggered_start is not None:
-            start_delay = self.staggered_start / float(len(self.driver_config_list))
-        for config_name in self.driver_config_list:
-            _log.debug("Launching driver for config "+config_name)
-            driver = DriverAgent(self, config_name)
-            gevent.spawn(driver.core.run)   
-            if start_delay is not None:
-                gevent.sleep(start_delay)
-            #driver.core.stop to kill an agent. 
+
+    def configure_main(self, config_name, action, contents):
+        config = self.default_config.copy()
+        config.update(contents)
+
+        if action == "NEW":
+            try:
+                self.max_open_sockets = config["max_open_sockets"]
+                if self.max_open_sockets is not None:
+                    max_open_sockets = int(self.max_open_sockets)
+                    configure_socket_lock(max_open_sockets)
+                    _log.info("maximum concurrently open sockets limited to " + str(max_open_sockets))
+                elif self.system_socket_limit is not None:
+                    max_open_sockets = int(self.system_socket_limit * 0.8)
+                    _log.info("maximum concurrently open sockets limited to " + str(max_open_sockets) +
+                              " (derived from system limits)")
+                    configure_socket_lock(max_open_sockets)
+                else:
+                    configure_socket_lock()
+                    _log.warn("No limit set on the maximum number of concurrently open sockets. "
+                              "Consider setting max_open_sockets if you plan to work with 800+ modbus devices.")
+
+                self.max_concurrent_publishes = config['max_concurrent_publishes']
+                max_concurrent_publishes = int(self.max_concurrent_publishes)
+                if max_concurrent_publishes < 1:
+                    _log.warn("No limit set on the maximum number of concurrent driver publishes. "
+                              "Consider setting max_concurrent_publishes if you plan to work with many devices.")
+                else:
+                    _log.info("maximum concurrent driver publishes limited to " + str(max_concurrent_publishes))
+                configure_publish_lock(max_concurrent_publishes)
+
+                self.scalability_test = bool(config["scalability_test"])
+                self.scalability_test_iterations = int(config["scalability_test_iterations"])
+
+                if self.scalability_test:
+                    self.waiting_to_finish = set()
+                    self.test_iterations = 0
+                    self.test_results = []
+                    self.current_test_start = None
+
+            except ValueError as e:
+                _log.error("ERROR PROCESSING STARTUP CRITICAL CONFIGURATION SETTINGS: {}".format(e))
+                _log.error("MASTER DRIVER SHUTTING DOWN")
+                sys.exit(1)
+
+        else:
+            if self.max_open_sockets != config["max_open_sockets"]:
+                _log.info("The master driver must be restarted for changes to the max_open_sockets setting to take effect")
+
+            if self.max_concurrent_publishes != config["max_concurrent_publishes"]:
+                _log.info("The master driver must be restarted for changes to the max_concurrent_publishes setting to take effect")
+
+            if self.scalability_test != bool(config["scalability_test"]):
+                if not self.scalability_test:
+                    _log.info(
+                        "The master driver must be restarted with scalability_test set to true in order to run a test.")
+                if self.scalability_test:
+                    _log.info(
+                        "A scalability test may not be interrupted. Restarting the driver is required to stop the test.")
+            try:
+                if self.scalability_test_iterations != int(config["scalability_test_iterations"]) and self.scalability_test:
+                    _log.info(
+                "A scalability test must be restarted for the scalability_test_iterations setting to take effect.")
+            except ValueError:
+                pass
+
+        try:
+            driver_scrape_interval = float(config["driver_scrape_interval"])
+        except ValueError as e:
+            _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
+            _log.error("Master driver settings unchanged")
+            # TODO: set a health status for the agent
+            return
+
+        if self.driver_scrape_interval == driver_scrape_interval:
+            #Setting unchanged.
+            return
+
+        if self.scalability_test and action == "UPDATE":
+            _log.info("Running scalability test. Settings may not be changed without restart.")
+            return
+
+        self.driver_scrape_interval = driver_scrape_interval
+
+        _log.info("Setting time delta between driver device scrapes to  " + str(driver_scrape_interval))
+
+        #Reset all scrape schedules
+        self.freed_time_slots = []
+        time_slot = 0
+        for driver in self.instances.itervalues():
+            driver.update_scrape_schedule(time_slot, self.driver_scrape_interval)
+            time_slot+=1
+
+    def derive_device_topic(self, config_name):
+        _, topic = config_name.split('/', 1)
+        return topic
+
+    def stop_driver(self, device_topic):
+        real_name = self._name_map.pop(device_topic.lower(), device_topic)
+
+        driver = self.instances.pop(real_name, None)
+
+        if driver is None:
+            return
+
+        _log.info("Stopping driver: {}".format(real_name))
+
+        try:
+            driver.core.stop(timeout=5.0)
+        except StandardError as e:
+            _log.error("Failure during {} driver shutdown: {}".format(real_name, e))
+
+        bisect.insort(self.freed_time_slots, driver.time_slot)
+
+
+    def update_driver(self, config_name, action, contents):
+        topic = self.derive_device_topic(config_name)
+        self.stop_driver(topic)
+
+        slot = len(self.instances)
+
+        if self.freed_time_slots:
+            slot = self.freed_time_slots.pop(0)
+
+        _log.info("Starting driver: {}".format(topic))
+        driver = DriverAgent(self, contents, slot, self.driver_scrape_interval, topic)
+        gevent.spawn(driver.core.run)
+        self.instances[topic] = driver
+        self._name_map[topic.lower()] = topic
+
+
+    def remove_driver(self, config_name, action, contents):
+        topic = self.derive_device_topic(config_name)
+        self.stop_driver(topic)
                
     
-    def device_startup_callback(self, topic, driver):
-        _log.debug("Driver hooked up for "+topic)
-        topic = topic.strip('/')
-        self.instances[topic] = driver
+    # def device_startup_callback(self, topic, driver):
+    #     _log.debug("Driver hooked up for "+topic)
+    #     topic = topic.strip('/')
+    #     self.instances[topic] = driver
         
     def scrape_starting(self, topic):
         if not self.scalability_test:

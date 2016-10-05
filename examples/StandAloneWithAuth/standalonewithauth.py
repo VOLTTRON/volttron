@@ -1,4 +1,4 @@
-'''
+"""
     This python script is copied from the StandAloneListener agent.
     It demonstrates how to limit which agents can call an exported method
     (via RPC) based on capabilities.
@@ -7,8 +7,8 @@
 
         python standalonewithauth.py
 
-    You will need to modify settings.py to have the correct agent_public and 
-    agent_secret values or you can modify VOLTTRON_HOME/auth.json to match 
+    You will need to modify settings.py to have the correct agent_public and
+    agent_secret values or you can modify VOLTTRON_HOME/auth.json to match
     the following:
 
 {
@@ -19,7 +19,7 @@
 
     (You will still need to change the 'server_key' value in settings.py)
 
-'''
+"""
 from datetime import datetime
 import os
 import sys

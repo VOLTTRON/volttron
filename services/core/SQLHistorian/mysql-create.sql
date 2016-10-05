@@ -18,3 +18,10 @@ CREATE TABLE topics (topic_id INTEGER NOT NULL AUTO_INCREMENT,
 CREATE TABLE meta(topic_id INTEGER NOT NULL,
                   metadata TEXT NOT NULL,
                   PRIMARY KEY(topic_id));
+
+#Use the below syntax for creating user and grant access to the historian database
+
+CREATE USER 'username'@'localhost' IDENTIFIED BY 'password';
+
+#GRANT <access or ALL PRIVILEGES> ON <dbname>.<tablename or *> TO 'username'@'host'
+GRANT SELECT, CREATE, INDEX, INSERT ON test_historian.* TO 'user'@'localhost';

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -70,8 +70,8 @@ from volttrontesting.platform.auth_control_test import assert_auth_entries_same
 
 
 @pytest.fixture(scope='function')
-def auth_file_platform_tuple(volttron_instance1_encrypt):
-    platform = volttron_instance1_encrypt
+def auth_file_platform_tuple(volttron_instance_encrypt):
+    platform = volttron_instance_encrypt
     auth_file = AuthFile(os.path.join(platform.volttron_home, 'auth.json'))
 
     allow_entries, groups, roles = auth_file.read()
@@ -141,17 +141,36 @@ def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
 
 
 @pytest.mark.auth
+def test_remove_auth_by_credentials(auth_file_platform_tuple, auth_entry1,
+                                    auth_entry2, auth_entry3):
+    auth_file, platform = auth_file_platform_tuple
+
+    # add entries
+    auth_file.add(auth_entry1)
+    auth_file.add(auth_entry2)
+    auth_entry3.credentials = auth_entry2.credentials
+    auth_file.add(auth_entry3)
+    entries = auth_file.read_allow_entries()
+    entries_len = len(entries)
+
+    # remove entries
+    auth_file.remove_by_credentials(auth_entry2.credentials)
+    entries = auth_file.read_allow_entries()
+    assert entries_len - 2 == len(entries)
+
+
+@pytest.mark.auth
 def test_remove_invalid_index(auth_file_platform_tuple):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
-        auth_file.remove_by_index(1)
+        auth_file.remove_by_index(2)
 
 
 @pytest.mark.auth
 def test_update_invalid_index(auth_file_platform_tuple, auth_entry1):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
-        auth_file.update_by_index(auth_entry1, 1)
+        auth_file.update_by_index(auth_entry1, 2)
 
 
 @pytest.mark.auth

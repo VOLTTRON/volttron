@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,19 +53,27 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
-from os import environ
 from os import path
 import sys
 import json
 
-#from distutils.core import setup
 from setuptools import setup, find_packages
+
+import re
+VERSIONFILE="volttron/platform/__init__.py"
+verstrline = open(VERSIONFILE, "rt").read()
+VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
+mo = re.search(VSRE, verstrline, re.M)
+if mo:
+    verstr = mo.group(1)
+else:
+    raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
 
 # Requirements which must be built separately with the provided options.
 option_requirements = [
-    ('pyzmq>=14.7,<15', ['--zmq=bundled']),
+    ('pyzmq>=15,<16', ['--zmq=bundled']),
 ]
 
 optional_requirements = set()
@@ -87,13 +95,12 @@ local_requirements = [
 
 # Standard requirements
 requirements = [
-    'BACpypes==0.13.2',
+    'BACpypes>0.13,<0.14',
     'gevent>=0.13,<2',
     'monotonic',
     'pymodbus>=1.2,<2',
     'setuptools',
     'simplejson>=3.3,<4',
-    'Smap==2.0.24c780d',
     'wheel>=0.24,<2',
 ]
 
@@ -106,15 +113,15 @@ install_requires = (
 
 if __name__ == '__main__':
     setup(
-        name = 'volttron',
-        version = '3.5.0',
-        description = 'Agent Execution Platform',
-        author = 'Volttron Team',
-        author_email = 'volttron@pnnl.gov',
-        url = 'https://github.com/VOLTTRON/volttron',
-        packages = find_packages('.'),
-        install_requires = install_requires,
-        entry_points = {
+        name='volttron',
+        version=verstr,
+        description='Agent Execution Platform',
+        author='Volttron Team',
+        author_email='volttron@pnnl.gov',
+        url='https://github.com/VOLTTRON/volttron',
+        packages=find_packages('.'),
+        install_requires=install_requires,
+        entry_points={
             'console_scripts': [
                 'volttron = volttron.platform.main:_main',
                 'volttron-ctl = volttron.platform.control:_main',
@@ -122,5 +129,5 @@ if __name__ == '__main__':
                 'volttron-cfg = volttron.platform.config:_main',
             ]
         },
-        zip_safe = False,
+        zip_safe=False,
     )

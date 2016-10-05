@@ -14,7 +14,7 @@ When a Task is preempted the ActuatorAgent will publish to
     #python
     {
         'type': 'CANCEL_SCHEDULE',
-        'requesterID': <Agent ID for the preempted Task>,
+        'requesterID': <Agent VIP identity for the preempted Task>,
         'taskID': <Task ID for the preempted Task>
     }
 
@@ -28,7 +28,7 @@ And the message (after parsing the json):
         'info': '',
         'data': 
         {
-            'agentID': <Agent ID of preempting task>,
+            'agentID': <Agent VIP identity of preempting task>,
             'taskID': <Task ID of preempting task>
         }
     }

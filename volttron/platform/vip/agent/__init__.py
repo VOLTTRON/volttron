@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -92,7 +92,8 @@ class Agent(object):
                  publickey=None, secretkey=None, serverkey=None,
                  heartbeat_autostart=False, heartbeat_period=60,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, enable_store=True, enable_web=False):
+                 agent_uuid=None, enable_store=True, developer_mode=False,
+                 enable_web=False):
 
         if identity is not None and not is_valid_identity(identity):
             _log.warn('Deprecation warining')
@@ -103,7 +104,8 @@ class Agent(object):
         self.core = Core(self, identity=identity, address=address,
                          context=context, publickey=publickey,
                          secretkey=secretkey, serverkey=serverkey,
-                         volttron_home=volttron_home, agent_uuid=agent_uuid)
+                         volttron_home=volttron_home, agent_uuid=agent_uuid,
+                         developer_mode=developer_mode)
         self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
                                     heartbeat_period, enable_store, enable_web)
         self.core.setup()

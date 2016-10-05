@@ -5,6 +5,7 @@
 .svn
 .metadata
 parser.out
+/.cache
 /.idea
 /env/
 /Agents/*/{build,dist}/

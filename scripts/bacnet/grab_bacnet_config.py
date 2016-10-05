@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -165,12 +165,12 @@ def read_prop(app, address, obj_type, obj_inst, prop_id, index=None):
 
 
 # def process_device_object_reference(app, address, obj_type, index, property_name, max_range_report, config_writer):
-#     objectCount = read_prop(app, address, obj_type, index, property_name, index=0)
+#     objectCount = _read_prop(app, address, obj_type, index, property_name, index=0)
 #
 #     for object_index in xrange(1,objectCount+1):
 #         _log.debug('property_name index = ' + repr(object_index))
 #
-#         object_reference = read_prop(app,
+#         object_reference = _read_prop(app,
 #                                 address,
 #                                 obj_type,
 #                                 index,
