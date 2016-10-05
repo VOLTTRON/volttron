@@ -78,7 +78,8 @@ import psutil
 
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (
-    get_aware_utc_now, format_timestamp, parse_timestamp_string)
+    get_aware_utc_now, format_timestamp, parse_timestamp_string,
+    get_utc_seconds_from_epoch)
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.topics import (LOGGER, PLATFORM_VCP_DEVICES,
                                                 PLATFORM)
@@ -172,6 +173,7 @@ class VolttronCentralPlatform(Agent):
 
         # This is scheduled after first call to the reconnect function
         self._scheduled_connection_event = None
+        self._publish_bacnet_iam = False
 
     @RPC.export
     def reconfigure(self, **kwargs):
@@ -274,7 +276,6 @@ class VolttronCentralPlatform(Agent):
             now = get_aware_utc_now()
             next_update_time = now + datetime.timedelta(
                 seconds=self._volttron_central_reconnect_interval)
-
             self._scheduled_connection_event = self.core.schedule(
                 next_update_time, self._periodic_attempt_registration)
 
@@ -529,14 +530,16 @@ class VolttronCentralPlatform(Agent):
         return "PUBLISHING"
 
     def _bacnet_response(self, context, results):
+        message=dict(results=results)
         if context is not None:
-            results.update(context)
-        gevent.spawn(self._pub_to_vc, "configure", message=results)
+            message.update(context)
+        gevent.spawn(self._pub_to_vc, "configure", message=message)
 
 
     @RPC.export
     def start_bacnet_scan(self, proxy_identity, low_device_id=None,
-                          high_device_id=None, target_address=None):
+                          high_device_id=None, target_address=None,
+                          scan_length=5):
         """This function is a wrapper around the bacnet proxy scan.
         """
         if proxy_identity not in self.vip.peerlist().get(timeout=5):
@@ -547,19 +550,33 @@ class VolttronCentralPlatform(Agent):
         self.vip.rpc.call(proxy_identity, "who_is", low_device_id=low_device_id,
                           high_device_id=high_device_id,
                           target_address=target_address).get(timeout=5.0)
-        return "STARTED"
+        timestamp = get_utc_seconds_from_epoch()
+        self._publish_bacnet_iam = True
+        self._pub_to_vc("iam", message=dict(status="STARTED IAM",
+                                            timestamp=timestamp))
+
+        def stop_iam():
+            stop_timestamp = get_utc_seconds_from_epoch()
+            self._pub_to_vc("iam", message=dict(
+                status="FINISHED IAM",
+                timestamp=stop_timestamp
+            ))
+            self._publish_bacnet_iam = False
+
+        gevent.spawn_later(scan_length, stop_iam)
+
 
     @PubSub.subscribe('pubsub', topics.BACNET_I_AM)
     def _iam_handler(self, peer, sender, bus, topic, headers, message):
-        print('sender: {}'.format(sender))
-        proxy_identity = sender
-        address = message['address']
-        device_id = message['device_id']
-        bn = BACnetReader(self.vip.rpc, proxy_identity)
-        message['device_name'] = bn.read_device_name(address, device_id)
-        message['device_description'] = bn.read_device_description(address,
-                                                                   device_id)
-        self._pub_to_vc("iam", message=message)
+        if self._publish_bacnet_iam:
+            proxy_identity = sender
+            address = message['address']
+            device_id = message['device_id']
+            bn = BACnetReader(self.vip.rpc, proxy_identity)
+            message['device_name'] = bn.read_device_name(address, device_id)
+            message['device_description'] = bn.read_device_description(address,
+                                                                       device_id)
+            self._pub_to_vc("iam", message=message)
 
     def _pub_to_vc(self, topic_leaf, headers=None, message=None):
         vc = self._vc_connection()

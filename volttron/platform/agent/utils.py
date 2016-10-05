@@ -499,7 +499,3 @@ def fix_sqlite3_datetime(sql=None):
     if sql is None:
         import sqlite3 as sql
     sql.register_converter("timestamp", parse)
-
-
-def get_current_timestamp():
-    return time.mktime(datetime.datetime.now().timetuple())

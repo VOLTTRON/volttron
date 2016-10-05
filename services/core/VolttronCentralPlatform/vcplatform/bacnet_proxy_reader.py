@@ -8,6 +8,8 @@ from bacpypes.object import get_datatype
 from bacpypes.primitivedata import (Enumerated, Unsigned, Boolean, Integer,
                                     Real, Double)
 
+from volttron.platform.jsonrpc import RemoteError
+
 _log = logging.getLogger(__name__)
 
 # Deals with the largest numbers that can be reported.
@@ -353,7 +355,7 @@ class BACnetReader(object):
 
         return units, units_details, notes
 
-    def _emit_responses(self, device_id, objects):
+    def _emit_responses(self, device_id, target_address, objects):
         """
         results = {}
         results['Reference Point Name'] = results[
@@ -369,6 +371,7 @@ class BACnetReader(object):
         :param objects:
         :return:
         """
+
         for index, obj in objects.items():
             object_type = obj['object_type']
             present_value_type = get_datatype(object_type, 'presentValue')
@@ -399,8 +402,8 @@ class BACnetReader(object):
             results['Writable'] = 'FALSE'
             results['Index'] = obj['index']
             results['Notes'] = object_notes
-
-            self._response_function(dict(device_id=device_id), results)
+            self._response_function(dict(device_id=device_id,
+                                         address=target_address), results)
 
     def _process_input(self, target_address, device_id, input_items):
 
@@ -417,13 +420,17 @@ class BACnetReader(object):
             query_mapping.update(new_map)
 
             if count >= 25:
-                results = self._read_props(target_address, query_mapping)
-                objects = self._build_results(object_type, query_mapping,
-                                              results)
-                _log.debug('Built bacnet Objects: {}'.format(objects))
-                self._emit_responses(device_id, objects)
-                #break
-                count = 0
+                try:
+
+                    results = self._read_props(target_address, query_mapping)
+                    objects = self._build_results(object_type, query_mapping,
+                                                  results)
+                    _log.debug('Built bacnet Objects: {}'.format(objects))
+                    self._emit_responses(device_id, target_address, objects)
+                    #break
+                    count = 0
+                except RemoteError as e:
+                    _log.error('REMOTE ERROR: {}'.format(e))
                 query_mapping = {}
             count += 1
 
@@ -432,7 +439,11 @@ class BACnetReader(object):
             objects = self._build_results(object_type, query_mapping,
                                           results)
             _log.debug('Built bacnet Objects: {}'.format(objects))
-            self._emit_responses(device_id, objects)
+            self._emit_responses(device_id, target_address, objects)
+
+        self._response_function(dict(device_id=device_id,
+                                     address=target_address,
+                                     status="COMPLETE"), {})
 
     def _filter_present_value_from_results(self, results):
         """ Filter the results so that only presentValue datatypes are kept.
