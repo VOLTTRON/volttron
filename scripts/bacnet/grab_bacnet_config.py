@@ -165,12 +165,12 @@ def read_prop(app, address, obj_type, obj_inst, prop_id, index=None):
 
 
 # def process_device_object_reference(app, address, obj_type, index, property_name, max_range_report, config_writer):
-#     objectCount = read_prop(app, address, obj_type, index, property_name, index=0)
+#     objectCount = _read_prop(app, address, obj_type, index, property_name, index=0)
 #
 #     for object_index in xrange(1,objectCount+1):
 #         _log.debug('property_name index = ' + repr(object_index))
 #
-#         object_reference = read_prop(app,
+#         object_reference = _read_prop(app,
 #                                 address,
 #                                 obj_type,
 #                                 index,
