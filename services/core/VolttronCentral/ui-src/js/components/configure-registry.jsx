@@ -21,6 +21,8 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 
 var registryWs, registryWebsocket;
 var _defaultColumnWidth = "200px";
+var _tableWidth;
+var _table;
 
 class ConfigureRegistry extends BaseComponent {    
     constructor(props) {
@@ -30,7 +32,7 @@ class ConfigureRegistry extends BaseComponent {
             "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
             "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", 
             "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice",
-            "_handleKeyDown", "_onSelectForDelete", "_resizeColumn" );
+            "_handleKeyDown", "_onSelectForDelete", "_resizeColumn", "_initializeTable" );
 
         this.state = this._resetState(this.props.device);
 
@@ -190,7 +192,7 @@ class ConfigureRegistry extends BaseComponent {
             }
         }
     }
-    _resizeColumn(columnIndex, targetWidth) {
+    _resizeColumn(columnIndex, targetWidth, movement) {
 
         var newRegistryValues = this.state.registryValues.map(function (row) {
 
@@ -202,8 +204,18 @@ class ConfigureRegistry extends BaseComponent {
 
             return row;
         });
+        
+        var tableWidth = movement + _tableWidth;
 
+        this.setState({ tableWidth: tableWidth + "px"});
         this.setState({ registryValues: newRegistryValues });
+    }
+    _setTableTarget(table) {
+        _table = table;
+    }
+    _initializeTable() {
+        var clientRect = _table.getClientRects();
+        _tableWidth = clientRect[0].width;
     }
     _resetState(device){
     
@@ -236,6 +248,9 @@ class ConfigureRegistry extends BaseComponent {
         state.selectedCellRow = null;
         state.selectedCellColumn = null;
         state.filterOn = false;
+
+        state.tableWidth = (this.hasOwnProperty("state") ? (this.state.tableWidth ? this.state.tableWidth : "100%") : "100%");
+        state.resizingTable = false;
 
         this.scrollToBottom = false;
         this.resizeTable = false;
@@ -799,7 +814,8 @@ class ConfigureRegistry extends BaseComponent {
                             immutableProps={immutableProps}
                             allSelected={this.state.allSelected}
                             oncheckselect={this._onSelectForDelete}
-                            onresizecolumn={this._resizeColumn}/>);
+                            onresizecolumn={this._resizeColumn}
+                            oninitializetable={this._initializeTable}/>);
                 
             }, this);
 
@@ -1008,8 +1024,17 @@ class ConfigureRegistry extends BaseComponent {
 
         var visibilityClass = ( this.props.device.showPoints ? 
                                     "collapsible-registry-values slow-show" : 
-                                        "collapsible-registry-values slow-hide" );        
-            
+                                        "collapsible-registry-values slow-hide" );  
+
+
+        var tableStyle = {
+            width: this.state.tableWidth
+        };
+
+        var handleStyle = {
+            backgroundColor: (this.state.resizingTable ? "#AAA" : "#DDD")
+        }
+
         return (
             <div className={visibilityClass}
                 tabIndex={1}
@@ -1017,7 +1042,10 @@ class ConfigureRegistry extends BaseComponent {
                 <div className="fixed-table-container"> 
                     <div className="header-background"></div>      
                     <div className="fixed-table-container-inner">    
-                        <table className="registryConfigTable">
+                        <table 
+                            style={tableStyle}
+                            ref={this._setTableTarget}
+                            className="registryConfigTable">
                             <thead>
                                 { registryHeader }                                
                             </thead>

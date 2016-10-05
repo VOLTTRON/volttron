@@ -205,7 +205,6 @@ class PlatformsPanelItem extends BaseComponent {
     }
     render () {
 
-        console.log("rendering " + this.state.panelItem.get("name"));
         var panelItem = this.state.panelItem;
         var itemPath = this.props.itemPath;
         var propChildren = this.state.children;

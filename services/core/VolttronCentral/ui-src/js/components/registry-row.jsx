@@ -39,16 +39,16 @@ class RegistryRow extends BaseComponent {
             (this.state.selectedForDelete !== nextState.selectedForDelete))
         {
             doUpdate = true;
-            console.log("state's not equal");
+            // console.log("state's not equal");
         }
         else
         {
             doUpdate = (!this.props.immutableProps.equals(nextProps.immutableProps));
 
-            if (doUpdate)
-            {
-                console.log("immutable props not equal");
-            }
+            // if (doUpdate)
+            // {
+            //     console.log("immutable props not equal");
+            // }
         }
 
         return doUpdate;
@@ -116,28 +116,27 @@ class RegistryRow extends BaseComponent {
         }
     }
     _grabResizeHandle(columnIndex, evt) {
-        var target = evt.target;
 
-        var targetColumn = this.refs[this.state.devicePrefix + columnIndex];        
+        var targetColumn = this.refs[this.state.devicePrefix + columnIndex];
+
+        var originalClientX = evt.clientX;
+        var clientRect = targetColumn.getClientRects();
+        var originalTargetWidth = clientRect[0].width;
+
+        this.props.oninitializetable();
 
         var onMouseMove = function (evt)
         {            
-            // console.log(evt.clientX);
-        };                    
+            var movement = evt.clientX - originalClientX;
+            var targetWidth = originalTargetWidth + movement;
+            this.props.onresizecolumn(columnIndex, targetWidth + "px", movement);
+        }.bind(this);                    
 
         var onMouseUp = function (evt)
         {
-            var clientRect = targetColumn.getClientRects();
-
-            var targetWidth = evt.clientX - clientRect[0].left;
-
-            this.props.onresizecolumn(columnIndex, targetWidth + "px");
-
             document.removeEventListener("mousemove", onMouseMove);
-            document.removeEventListener("mouseup", onMouseUp);
-
-            
-        }.bind(this);                  
+            document.removeEventListener("mouseup", onMouseUp);            
+        }                  
 
         document.addEventListener("mousemove", onMouseMove);
         document.addEventListener("mouseup", onMouseUp);
@@ -186,8 +185,12 @@ class RegistryRow extends BaseComponent {
             }
         }, this);
 
+        var propsButtonStyle = {
+            width: "10px"
+        }
+
         registryCells.push(
-            <td key={"propsButton-" + rowIndex}>
+            <td key={"propsButton-" + rowIndex} style={propsButtonStyle}>
                 <div className="propsButton"
                     onClick={this._showProps.bind(this, this.state.attributesList.get("attributes"))}>
                     <i className="fa fa-ellipsis-h"></i>
@@ -205,9 +208,6 @@ class RegistryRow extends BaseComponent {
         {
             selectedRowClasses.push("keyboard-selected");
         }
-
-
-        console.log("row " + rowIndex + " visible is " + this.state.attributesList.get("visible"));
 
         var visibleStyle = (!this.props.immutableProps.get("filterOn") || this.state.attributesList.get("visible") ? {} : {display: "none"});
 

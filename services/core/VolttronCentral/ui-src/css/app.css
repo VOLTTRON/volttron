@@ -1262,23 +1262,20 @@ a.view__item:hover::before {
 
 .resize-handle {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 3px;
+    bottom: 0;    
     background-color: #ddd;
-    
+    left: 0;
+    top: 0;
+    width: 3px;    
     cursor: ew-resize;
 }
 
 .resize-handle:hover, .resize-handle-td:hover, .resize-handle-th:hover {
-    width: 3px;
     background-color: #C7C7C7;
 }
 
-
 .resize-handle-td, .resize-handle-th {
-    width: 3px;
+    width: 2px;
     background-color: #ddd;
     padding: 0;
     cursor: ew-resize;
@@ -2204,6 +2201,7 @@ Interactive Layer
     overflow-x: hidden;
     overflow-y: auto;
     height: 100%;
+    width: 100%;
 }
 
 .header-background {

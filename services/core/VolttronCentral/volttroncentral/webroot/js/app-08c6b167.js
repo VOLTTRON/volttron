@@ -2862,6 +2862,8 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 
 var registryWs, registryWebsocket;
 var _defaultColumnWidth = "200px";
+var _tableWidth;
+var _table;
 
 var ConfigureRegistry = function (_BaseComponent) {
     _inherits(ConfigureRegistry, _BaseComponent);
@@ -2871,7 +2873,7 @@ var ConfigureRegistry = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(ConfigureRegistry).call(this, props));
 
-        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForDelete", "_resizeColumn");
+        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForDelete", "_resizeColumn", "_initializeTable");
 
         _this.state = _this._resetState(_this.props.device);
 
@@ -3030,7 +3032,7 @@ var ConfigureRegistry = function (_BaseComponent) {
         }
     }, {
         key: '_resizeColumn',
-        value: function _resizeColumn(columnIndex, targetWidth) {
+        value: function _resizeColumn(columnIndex, targetWidth, movement) {
 
             var newRegistryValues = this.state.registryValues.map(function (row) {
 
@@ -3043,7 +3045,21 @@ var ConfigureRegistry = function (_BaseComponent) {
                 return row;
             });
 
+            var tableWidth = movement + _tableWidth;
+
+            this.setState({ tableWidth: tableWidth + "px" });
             this.setState({ registryValues: newRegistryValues });
+        }
+    }, {
+        key: '_setTableTarget',
+        value: function _setTableTarget(table) {
+            _table = table;
+        }
+    }, {
+        key: '_initializeTable',
+        value: function _initializeTable() {
+            var clientRect = _table.getClientRects();
+            _tableWidth = clientRect[0].width;
         }
     }, {
         key: '_resetState',
@@ -3077,6 +3093,9 @@ var ConfigureRegistry = function (_BaseComponent) {
             state.selectedCellRow = null;
             state.selectedCellColumn = null;
             state.filterOn = false;
+
+            state.tableWidth = this.hasOwnProperty("state") ? this.state.tableWidth ? this.state.tableWidth : "100%" : "100%";
+            state.resizingTable = false;
 
             this.scrollToBottom = false;
             this.resizeTable = false;
@@ -3632,7 +3651,8 @@ var ConfigureRegistry = function (_BaseComponent) {
                         immutableProps: immutableProps,
                         allSelected: this.state.allSelected,
                         oncheckselect: this._onSelectForDelete,
-                        onresizecolumn: this._resizeColumn });
+                        onresizecolumn: this._resizeColumn,
+                        oninitializetable: this._initializeTable });
                 }, this);
 
                 var headerColumns = [];
@@ -3851,6 +3871,14 @@ var ConfigureRegistry = function (_BaseComponent) {
 
             var visibilityClass = this.props.device.showPoints ? "collapsible-registry-values slow-show" : "collapsible-registry-values slow-hide";
 
+            var tableStyle = {
+                width: this.state.tableWidth
+            };
+
+            var handleStyle = {
+                backgroundColor: this.state.resizingTable ? "#AAA" : "#DDD"
+            };
+
             return _react2.default.createElement(
                 'div',
                 { className: visibilityClass,
@@ -3865,7 +3893,10 @@ var ConfigureRegistry = function (_BaseComponent) {
                         { className: 'fixed-table-container-inner' },
                         _react2.default.createElement(
                             'table',
-                            { className: 'registryConfigTable' },
+                            {
+                                style: tableStyle,
+                                ref: this._setTableTarget,
+                                className: 'registryConfigTable' },
                             _react2.default.createElement(
                                 'thead',
                                 null,
@@ -7839,7 +7870,6 @@ var PlatformsPanelItem = function (_BaseComponent) {
         key: 'render',
         value: function render() {
 
-            console.log("rendering " + this.state.panelItem.get("name"));
             var panelItem = this.state.panelItem;
             var itemPath = this.props.itemPath;
             var propChildren = this.state.children;
@@ -9342,13 +9372,14 @@ var RegistryRow = function (_BaseComponent) {
 
             if (!this.state.attributesList.equals(nextState.attributesList) || this.state.selectedForDelete !== nextState.selectedForDelete) {
                 doUpdate = true;
-                console.log("state's not equal");
+                // console.log("state's not equal");
             } else {
                 doUpdate = !this.props.immutableProps.equals(nextProps.immutableProps);
 
-                if (doUpdate) {
-                    console.log("immutable props not equal");
-                }
+                // if (doUpdate)
+                // {
+                //     console.log("immutable props not equal");
+                // }
             }
 
             return doUpdate;
@@ -9422,24 +9453,25 @@ var RegistryRow = function (_BaseComponent) {
     }, {
         key: '_grabResizeHandle',
         value: function _grabResizeHandle(columnIndex, evt) {
-            var target = evt.target;
 
             var targetColumn = this.refs[this.state.devicePrefix + columnIndex];
 
-            var onMouseMove = function onMouseMove(evt) {
-                // console.log(evt.clientX);
-            };
+            var originalClientX = evt.clientX;
+            var clientRect = targetColumn.getClientRects();
+            var originalTargetWidth = clientRect[0].width;
 
-            var onMouseUp = function (evt) {
-                var clientRect = targetColumn.getClientRects();
+            this.props.oninitializetable();
 
-                var targetWidth = evt.clientX - clientRect[0].left;
+            var onMouseMove = function (evt) {
+                var movement = evt.clientX - originalClientX;
+                var targetWidth = originalTargetWidth + movement;
+                this.props.onresizecolumn(columnIndex, targetWidth + "px", movement);
+            }.bind(this);
 
-                this.props.onresizecolumn(columnIndex, targetWidth + "px");
-
+            var onMouseUp = function onMouseUp(evt) {
                 document.removeEventListener("mousemove", onMouseMove);
                 document.removeEventListener("mouseup", onMouseUp);
-            }.bind(this);
+            };
 
             document.addEventListener("mousemove", onMouseMove);
             document.addEventListener("mouseup", onMouseUp);
@@ -9492,9 +9524,13 @@ var RegistryRow = function (_BaseComponent) {
                 }
             }, this);
 
+            var propsButtonStyle = {
+                width: "10px"
+            };
+
             registryCells.push(_react2.default.createElement(
                 'td',
-                { key: "propsButton-" + rowIndex },
+                { key: "propsButton-" + rowIndex, style: propsButtonStyle },
                 _react2.default.createElement(
                     'div',
                     { className: 'propsButton',
@@ -9512,8 +9548,6 @@ var RegistryRow = function (_BaseComponent) {
             if (this.props.immutableProps.get("keyboardSelected")) {
                 selectedRowClasses.push("keyboard-selected");
             }
-
-            console.log("row " + rowIndex + " visible is " + this.state.attributesList.get("visible"));
 
             var visibleStyle = !this.props.immutableProps.get("filterOn") || this.state.attributesList.get("visible") ? {} : { display: "none" };
 
@@ -11744,7 +11778,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 if (alreadyInList.address !== device.address) {
                     warningMsg = {
                         key: "duplicate_id",
-                        message: "Duplicate device IDs found. What the heck? Your network may not be set up correctly. ",
+                        message: "Duplicate device IDs found. Your network may not be set up correctly. ",
                         value: deviceIdStr
                     };
                 } else // If the IDs are the same and the addresses are the same, assume

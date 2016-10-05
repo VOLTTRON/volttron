@@ -1512,7 +1512,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 {
                     warningMsg = { 
                         key: "duplicate_id", 
-                        message: "Duplicate device IDs found. What the heck? Your network may not be set up correctly. ",
+                        message: "Duplicate device IDs found. Your network may not be set up correctly. ",
                         value: deviceIdStr 
                     };
                 }
