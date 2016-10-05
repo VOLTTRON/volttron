@@ -18,7 +18,7 @@ A simple configuration for FileWatchPublisher with two files to monitor is as fo
     [
         {
             "file": "/var/log/syslog",
-            "topic": "platforms/syslog"
+            "topic": "platform/syslog"
         },
         {
             "file": "/home/volttron/tempfile.txt",
