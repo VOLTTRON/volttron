@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -301,9 +301,9 @@ class Interface(BasicRevert, BaseInterface):
                 
         return result_dict
     
-    def parse_config(self, config_string):
-        f = StringIO(config_string)
-        configDict = DictReader(f)
+    def parse_config(self, configDict):
+        if configDict is None:
+            return
         
         for regDef in configDict:
             #Skip lines that have no address yet.

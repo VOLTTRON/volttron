@@ -1,5 +1,5 @@
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -186,13 +186,9 @@ class Interface(BaseInterface):
         self.set_point(point_name, None, priority=priority)
         
     
-    def parse_config(self, config_string):
-        if config_string is None:
+    def parse_config(self, configDict):
+        if configDict is None:
             return
-        
-        f = StringIO(config_string)
-        
-        configDict = DictReader(f)
         
         for regDef in configDict:
             #Skip lines that have no address yet.

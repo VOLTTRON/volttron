@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -95,6 +95,20 @@ sqlite_config = {
         }
     }
 }
+mysql_config = {
+    "agentid": "sqlhistorian-mysql-1",
+    "identity": "platform.historian",
+    "connection": {
+        "type": "mysql",
+        "params": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "test_historian",
+            "user": "historian",
+            "passwd": "historian"
+        }
+    }
+}
 
 volttron_instance1 = None
 volttron_instance2 = None
@@ -109,7 +123,7 @@ def volttron_instances(request, get_volttron_instances):
 
 # Fixture for setup and teardown of publish agent
 @pytest.fixture(scope="module",
-                params=['volttron_2','volttron_3'])
+                params=['volttron_2', 'volttron_3'])
 def publish_agent(request, volttron_instances, forwarder):
     global volttron_instance1, volttron_instance2
     #print "Fixture publish_agent"
@@ -118,7 +132,7 @@ def publish_agent(request, volttron_instances, forwarder):
         agent = PublishMixin(
             volttron_instance1.opts['publish_address'])
     else:
-        agent = volttron_instance1.build_agent()
+        agent = volttron_instance1.build_agent(identity='test-agent')
 
     # 2: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
@@ -207,7 +221,6 @@ def publish(publish_agent, topic, header, message):
                                          message=message).get(timeout=10)
     else:
         publish_agent.publish_json(topic, header, message)
-
 
 @pytest.mark.historian
 @pytest.mark.forwarder
@@ -677,7 +690,7 @@ def test_actuator_topic(publish_agent, query_agent):
         result_message = query_agent.callback.call_args[0][5]
         assert result_header['type'] == 'NEW_SCHEDULE'
         assert result_header['taskID'] == 'task_schedule_response'
-        assert result_header['requesterID'] == 'test-agent'
+        assert result_header['requesterID'] in ['test-agent', 'pubsub.compat']
         assert result_message['result'] == 'SUCCESS'
     finally:
         volttron_instance1.stop_agent(master_uuid)

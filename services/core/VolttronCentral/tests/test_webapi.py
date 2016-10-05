@@ -73,8 +73,7 @@ def test_auto_register_platform(vc_instance):
     response = tester.do_rpc("list_platforms")
     jsondata = response.json()
     # Specific platform not the same as vcp on the platform
-    platform_uuid2= jsondata['result'][0]['uuid']
-    assert platform_uuid == platform_uuid2
+    assert platform_uuid in [result['uuid'] for result in jsondata['result']]
 
 
 @pytest.mark.vc

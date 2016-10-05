@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -148,17 +148,18 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
     
     writable = 'FALSE'
     
-    subondinate_list_property = get_datatype(obj_type, 'subordinateList')
-    if subondinate_list_property is not None:
-        _log.debug('Processing StructuredViewObject')
-        # process_device_object_reference(address, obj_type, index, 'subordinateList', max_range_report, config_writer)
-        return
-    
-    subondinate_list_property = get_datatype(obj_type, 'zoneMembers')
-    if subondinate_list_property is not None:
-        _log.debug('Processing LifeSafetyZoneObject')
-        # process_device_object_reference(address, obj_type, index, 'zoneMembers', max_range_report, config_writer)
-        return
+    # TODO: Eventually we will have a device that will want to use this code so leave it here.
+    #subondinate_list_property = get_datatype(obj_type, 'subordinateList')
+    #if subondinate_list_property is not None:
+    #    _log.debug('Processing StructuredViewObject')
+    #    process_device_object_reference(address, obj_type, index, 'subordinateList', max_range_report, config_writer)
+    #    return
+    #
+    #subondinate_list_property = get_datatype(obj_type, 'zoneMembers')
+    #if subondinate_list_property is not None:
+    #    _log.debug('Processing LifeSafetyZoneObject')
+    #    process_device_object_reference(address, obj_type, index, 'zoneMembers', max_range_report, config_writer)
+    #    return
     
     present_value_type = get_datatype(obj_type, 'presentValue')
     if present_value_type is None:

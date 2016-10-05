@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -228,6 +228,7 @@ from threading import Thread
 import pytz
 import re
 from dateutil.parser import parse
+from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from volttron.platform.agent.utils import process_timestamp, \
     fix_sqlite3_datetime, get_aware_utc_now
 from volttron.platform.messaging import topics, headers as headers_mod
@@ -285,6 +286,7 @@ class BaseHistorianAgent(Agent):
         _log.info('Topic string replace list: {}'
                   .format(self._topic_replace_list))
 
+        self.volttron_table_defs = 'volttron_table_definitions'
         self._backup_storage_limit_gb = backup_storage_limit_gb
         self._started = False
         self._retry_period = retry_period
@@ -341,6 +343,27 @@ class BaseHistorianAgent(Agent):
             # means that the agent didn't start up properly so the pubsub
             # subscriptions never got finished.
             pass
+
+    def parse_table_def(self, config):
+        default_table_def = {"table_prefix": "",
+                             "data_table": "data",
+                             "topics_table": "topics",
+                             "meta_table": "meta"}
+        tables_def = config.get('tables_def', None)
+        if not tables_def:
+            tables_def = default_table_def
+        table_names = dict(tables_def)
+
+        table_prefix = tables_def.get('table_prefix', None)
+        table_prefix = table_prefix + "_" if table_prefix else ""
+        if table_prefix:
+            for key, value in table_names.items():
+                table_names[key] = table_prefix + table_names[key]
+        table_names["agg_topics_table"] = table_prefix + \
+            "aggregate_" + tables_def["topics_table"]
+        table_names["agg_meta_table"] = table_prefix + \
+            "aggregate_" + tables_def["meta_table"]
+        return tables_def, table_names
 
     def _get_topic(self, input_topic):
         output_topic = input_topic
@@ -407,9 +430,10 @@ class BaseHistorianAgent(Agent):
             return
 
         source = 'log'
-        _log.debug(
-            "Queuing {topic} from {source} for publish".format(topic=topic,
-                                                               source=source))
+        # _log.debug(
+        #     "Queuing {topic} from {source} for publish".format(topic=topic,
+        #
+        # source=source))
         for point, item in data.iteritems():
             #             ts_path = location + '/' + point
             if 'Readings' not in item or 'Units' not in item:
@@ -459,9 +483,6 @@ class BaseHistorianAgent(Agent):
         # we strip it off to get the base device
         parts = topic.split('/')
         device = '/'.join(parts[1:-1])  # '/'.join(reversed(parts[2:]))
-
-        _log.debug("found topic {}".format(topic))
-
         self._capture_data(peer, sender, bus, topic, headers, message, device)
 
     def _capture_analysis_data(self, peer, sender, bus, topic, headers,
@@ -595,6 +616,9 @@ class BaseHistorianAgent(Agent):
         # Sets up the concrete historian
         self.historian_setup()
 
+        # Record the names of data, topics, meta tables in a metadata table
+        self.record_table_definitions(self.volttron_table_defs)
+
         # now that everything is setup we need to make sure that the topics
         # are synchronized between
 
@@ -627,7 +651,6 @@ class BaseHistorianAgent(Agent):
             wait_for_input = True
             start_time = datetime.utcnow()
 
-            _log.debug("Calling publish_to_historian.")
             while True:
                 to_publish_list = backupdb.get_outstanding_to_publish(
                     self._submit_size_limit)
@@ -731,6 +754,17 @@ class BaseHistorianAgent(Agent):
            connections in the publishing thread.
         """
 
+    def record_table_definitions(self, meta_table_name):
+        """
+        Record the table or collection names in which data, topics and
+        metadata are stored into the metadata table.  This is essentially
+        information from information from configuration item
+        'table_defs'. The metadata table contents will be used by the
+        corresponding aggregate historian(if any)
+        :param meta_table_name: table name into which the table names and
+        table name prefix for data, topics, and meta tables should be inserted
+        """
+
 
 class BackupDatabase:
     """
@@ -801,8 +835,6 @@ class BackupDatabase:
             for timestamp, value in values:
                 if timestamp is None:
                     timestamp = get_aware_utc_now()
-                _log.debug("Inserting into outstanding table with timestamp "
-                           "{}".format(timestamp))
                 c.execute(
                     '''INSERT OR REPLACE INTO outstanding
                     values(NULL, ?, ?, ?, ?)''',
@@ -944,13 +976,86 @@ class BaseQueryHistorianAgent(Agent):
     """
 
     @RPC.export
-    def query(self, topic=None, start=None, end=None, skip=0,
-              count=None, order="FIRST_TO_LAST"):
+    def get_topic_list(self):
+        """RPC call
+
+        :return: List of topics in the data store.
+        :rtype: list
+        """
+        return self.query_topic_list()
+
+    @abstractmethod
+    def query_topic_list(self):
+        """
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_topic_list`
+        to actually topic list from the data store.
+
+        :return: List of topics in the data store.
+        :rtype: list
+        """
+
+    @RPC.export
+    def get_aggregate_topics(self):
+        """RPC call
+
+        :return: List of aggregate topics in the data store. Each list
+        element contains (topic_name, aggregation_type,
+        aggregation_time_period, metadata)
+        :rtype: list
+        """
+        return self.query_aggregate_topics()
+
+    @abstractmethod
+    def query_aggregate_topics(self):
+        """
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_aggregate_topics`
+        to find out the available aggregates in the data store
+
+        :return: List of tuples containing (topic_name, aggregation_type,
+        aggregation_time_period, metadata)
+        :rtype: list
+        """
+
+    @RPC.export
+    def get_topics_metadata(self, topics):
+
+        """RPC call
+        :param topics:
+        :return: List of aggregate topics in the data store. Each list
+        element contains (topic_name, aggregation_type,
+        aggregation_time_period, metadata)
+        :rtype: list
+        """
+        if isinstance(topics, str) or isinstance(topics, list):
+            return self.query_topics_metadata(topics)
+        else:
+            raise ValueError(
+                "Please provide a valid topic name string or "
+                "a list of topic names. Invalid input {}".format(topics))
+
+    @abstractmethod
+    def query_topics_metadata(self, topics):
+        """
+        This function is called by
+        :py:meth:`BaseQueryHistorianAgent.get_topics_metadata`
+        to find out the available aggregates in the data store
+
+        :return: dictionary of dictionaries, with the format
+        {topic_name: {metadata_key:metadata_value, ...},
+         topic_name: {metadata_key:metadata_value, ...} ...}
+        :rtype: list
+        """
+
+    @RPC.export
+    def query(self, topic=None, start=None, end=None, agg_type=None,
+              agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
         """RPC call
 
         Call this method to query an Historian for time series data.
 
-        :param topic: Topic to query for.
+        :param topic: Topic or topics to query for.
         :param start: Start time of the query. Defaults to None which is the
         beginning of time.
         :param end: End time of the query.  Defaults to None which is the
@@ -959,9 +1064,13 @@ class BaseQueryHistorianAgent(Agent):
         :param count: Limit results to this value.
         :param order: How to order the results, either "FIRST_TO_LAST" or
         "LAST_TO_FIRST"
-        :type topic: str
+        :type topic: str or list
         :type start: str
         :type end: str
+        :param agg_type: If this is a query for aggregate data, the type of
+        aggregation ( for example, sum, avg)
+        :param agg_period: If this is a query for aggregate data, the time
+        period of aggregation
         :type skip: int
         :type count: int
         :type order: str
@@ -997,6 +1106,20 @@ class BaseQueryHistorianAgent(Agent):
         if topic is None:
             raise TypeError('"Topic" required')
 
+        if agg_type:
+            if not agg_period:
+                raise TypeError("You should provide both aggregation type"
+                                "(agg_type) and aggregation time period"
+                                "(agg_period) to query aggregate data")
+        else:
+            if agg_period:
+                raise TypeError("You should provide both aggregation type"
+                                "(agg_type) and aggregation time period"
+                                "(agg_period) to query aggregate data")
+
+        if agg_period:
+            agg_period = AggregateHistorian.normalize_aggregation_time_period(
+                agg_period)
         if start is not None:
             try:
                 start = parse(start)
@@ -1012,36 +1135,18 @@ class BaseQueryHistorianAgent(Agent):
         if start:
             _log.debug("start={}".format(start))
 
-        results = self.query_historian(topic, start, end, skip, count, order)
+        results = self.query_historian(topic, start, end, agg_type,
+                                       agg_period, skip, count, order)
         metadata = results.get("metadata", None)
         values = results.get("values", None)
-        if values is not None and metadata is None:
+        if values and metadata is None:
             results['metadata'] = {}
+
         return results
 
-    @RPC.export
-    def get_topic_list(self):
-        """RPC call
-
-        :return: List of topics in the data store.
-        :rtype: list
-        """
-        return self.query_topic_list()
-
     @abstractmethod
-    def query_topic_list(self):
-        """
-        This function is called by
-        :py:meth:`BaseQueryHistorianAgent.get_topic_list`
-        to actually topic list from the data store.
-
-        :return: List of topics in the data store.
-        :rtype: list
-        """
-
-    @abstractmethod
-    def query_historian(self, topic, start=None, end=None, skip=0, count=None,
-                        order=None):
+    def query_historian(self, topic, start=None, end=None, agg_type=None,
+                        agg_period=None, skip=0, count=None, order=None):
         """
         This function is called by :py:meth:`BaseQueryHistorianAgent.query`
         to actually query the data store
@@ -1064,14 +1169,18 @@ class BaseQueryHistorianAgent(Agent):
         "metadata" is not required. The caller will normalize this to {} for
         you if it is missing.
 
-        :param topic: Topic to query for.
+        :param topic: Topic or list of topics to query for.
         :param start: Start of query timestamp as a datetime.
         :param end: End of query timestamp as a datetime.
+        :param agg_type: If this is a query for aggregate data, the type of
+        aggregation ( for example, sum, avg)
+        :param agg_period: If this is a query for aggregate data, the time
+        period of aggregation
         :param skip: Skip this number of results.
         :param count: Limit results to this value.
         :param order: How to order the results, either "FIRST_TO_LAST" or
         "LAST_TO_FIRST"
-        :type topic: str
+        :type topic: str or list
         :type start: datetime
         :type end: datetime
         :type skip: int

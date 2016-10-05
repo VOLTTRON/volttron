@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -83,6 +83,7 @@ def process_store(identity, store):
     """Parses raw store data and returns contents.
     Called at startup to initialize the parsed version of the store."""
     results = {}
+    name_map = {}
     sync_store = False
     for config_name, config_data in store.items():
         config_type = config_data["type"]
@@ -97,11 +98,19 @@ def process_store(identity, store):
             sync_store = True
             del store[config_name]
 
+        if config_name.lower() in name_map:
+            _log.error("Conflicting names in store, dropping {}".format(config_name))
+            sync_store = True
+            del store[config_name]
+
+        else:
+            name_map[config_name.lower()] = config_name
+
     if sync_store:
         _log.warning("Removing invalid configurations for Agent {}".format(identity))
         store.sync()
 
-    return results
+    return results, name_map
 
 def process_raw_config(config_string, config_type="raw"):
     """Parses raw config string into python objects"""
@@ -149,8 +158,11 @@ class ConfigStoreService(Agent):
             agent_identity = os.path.basename(root)
             _log.info("Processing store for agent {}".format(agent_identity))
             store = PersistentDict(filename=store_path, flag='c', format='json')
-            parsed_configs = process_store(agent_identity, store)
-            self.store[agent_identity] = {"configs": parsed_configs, "store": store, "lock": Semaphore()}
+            parsed_configs, name_map = process_store(agent_identity, store)
+            self.store[agent_identity] = {"configs": parsed_configs,
+                                          "store": store,
+                                          "name_map": name_map,
+                                          "lock": Semaphore()}
 
 
 
@@ -174,9 +186,11 @@ class ConfigStoreService(Agent):
         agent_configs = agent_store["configs"]
         agent_disk_store = agent_store["store"]
         agent_store_lock = agent_store["lock"]
+        agent_name_map = agent_store["name_map"]
 
         agent_configs.clear()
         agent_disk_store.clear()
+        agent_name_map.clear()
 
         # Sync will delete the file if the store is empty.
         agent_disk_store.async_sync()
@@ -216,14 +230,20 @@ class ConfigStoreService(Agent):
 
         agent_configs = agent_store["configs"]
         agent_disk_store = agent_store["store"]
+        agent_name_map = agent_store["name_map"]
 
-        if config_name not in agent_disk_store:
+        config_name = strip_config_name(config_name)
+        config_name_lower = config_name.lower()
+
+        if config_name_lower not in agent_name_map:
             raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(config_name, identity))
 
-        if raw:
-            return agent_disk_store[config_name]["data"]
+        real_config_name = agent_name_map[config_name_lower]
 
-        return agent_configs[config_name]
+        if raw:
+            return agent_disk_store[real_config_name]["data"]
+
+        return agent_configs[real_config_name]
 
     @RPC.export
     def set_config(self, config_name, contents, trigger_callback=False):
@@ -245,7 +265,7 @@ class ConfigStoreService(Agent):
             # Initialize a new store.
             store_path = os.path.join(self.store_path, identity + store_ext)
             store = PersistentDict(filename=store_path, flag='c', format='json')
-            agent_store = {"configs": {}, "store": store, "lock": Semaphore()}
+            agent_store = {"configs": {}, "store": store, "name_map": {}, "lock": Semaphore()}
             self.store[identity] = agent_store
 
         agent_configs = agent_store["configs"]
@@ -283,12 +303,19 @@ class ConfigStoreService(Agent):
         agent_configs = agent_store["configs"]
         agent_disk_store = agent_store["store"]
         agent_store_lock = agent_store["lock"]
+        agent_name_map = agent_store["name_map"]
 
-        if config_name not in agent_disk_store:
+        config_name = strip_config_name(config_name)
+        config_name_lower = config_name.lower()
+
+        if config_name_lower not in agent_name_map:
             raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(config_name, identity))
 
-        agent_configs.pop(config_name)
-        agent_disk_store.pop(config_name)
+        real_config_name = agent_name_map[config_name_lower]
+
+        agent_configs.pop(real_config_name)
+        agent_disk_store.pop(real_config_name)
+        agent_name_map.pop(config_name_lower)
 
         #Sync will delete the file if the store is empty.
         agent_disk_store.async_sync()
@@ -334,23 +361,29 @@ class ConfigStoreService(Agent):
             #Initialize a new store.
             store_path = os.path.join(self.store_path, identity+ store_ext)
             store = PersistentDict(filename=store_path, flag='c', format='json')
-            agent_store = {"configs": {}, "store": store, "lock": Semaphore()}
+            agent_store = {"configs": {}, "store": store, "name_map": {}, "lock": Semaphore()}
             self.store[identity] = agent_store
 
         agent_configs = agent_store["configs"]
         agent_disk_store = agent_store["store"]
         agent_store_lock = agent_store["lock"]
+        agent_name_map = agent_store["name_map"]
 
         config_name = strip_config_name(config_name)
-        config_name = config_name.lower()
+        config_name_lower = config_name.lower()
 
-        if config_name not in agent_configs:
+        if config_name_lower not in agent_name_map:
             action = "NEW"
 
         if check_for_recursion(config_name, parsed, agent_configs):
             raise ValueError("Recursive configuration references detected.")
 
+        if config_name_lower in agent_name_map:
+            old_config_name = agent_name_map[config_name_lower]
+            del agent_configs[old_config_name]
+
         agent_configs[config_name] = parsed
+        agent_name_map[config_name_lower] = config_name
         agent_disk_store[config_name] = {"type": config_type, "data": raw}
 
         agent_disk_store.async_sync()
