@@ -55,26 +55,13 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import gevent
-from volttron.platform.vip.agent import Agent
-from volttron.platform import get_address
 from volttron.platform.agent.utils import parse_json_config
-from volttron.platform.keystore import KeyStore
 from argparse import ArgumentParser
 from zmq.utils import jsonapi
 import os
 import shutil
 
 from pprint import pprint
-
-# keystore = KeyStore()
-# agent = Agent(address=get_address(), identity="master_driver_update_agent",
-#         publickey=keystore.public(), secretkey=keystore.secret(),
-#         enable_store=False)
-#
-# event = gevent.event.Event()
-# gevent.spawn(agent.core.run, event)
-# event.wait()
 
 def process_driver_config(config_path, csv_name_map, csv_contents):
     print "Processing config:", config_path
