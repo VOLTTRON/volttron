@@ -52,7 +52,7 @@ An authentication record consist of following parameters
 	comments []: 
 	enabled [True]: 
 
-Note: Domain, roles and groups parameters are not currently being used in VOLTTRON and are placeholders for future implementation.
+For more details on how to create authentication record, please see section :ref:`Agent Authentication<AgentAuthentication>`
 
 
 
