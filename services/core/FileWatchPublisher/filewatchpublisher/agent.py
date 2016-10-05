@@ -99,11 +99,11 @@ class FileWatchPublisher(Agent):
 	        "publish_file": [
                 {
                     "file": "/var/log/syslog",
-                    "topic": "platforms/syslog",
+                    "topic": "platform/syslog",
                 },
                 {
-                    "file": "volttron.log",
-                    "topic": "platforms/log",
+                    "file": "/home/volttron/tempfile.txt",
+                    "topic": "temp/filepublisher",
                 }
 	        ]
         }
