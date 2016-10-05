@@ -935,6 +935,26 @@ def update_auth(opts):
 
 
 def _show_filtered_agents(opts, field_name, field_callback, agents=None):
+    """Provides generic way to filter and display agent information.
+
+    The agents will be filtered by the provided opts.pattern and the
+    following fields will be displayed:
+      * UUID (or part of the UUID)
+      * agent name
+      * VIP identiy
+      * tag
+      * field_name
+
+    @param:Namespace:opts:
+        Options from argparse
+    @param:string:field_name:
+        Name of field to display about agents
+    @param:function:field_callback:
+        Function that takes an Agent as an argument and returns data
+        to display
+    @param:list:agents:
+        List of agents to filter and display
+    """
     if not agents:
         agents = _list_agents(opts.aip)
     if opts.pattern:
