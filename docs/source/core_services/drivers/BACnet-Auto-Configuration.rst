@@ -188,19 +188,19 @@ On a successful run you will see output similar to this:
     DEBUG:<u>main</u>:device_name = MS-NCE2560-0
     DEBUG:<u>main</u>:description = 
     DEBUG:<u>main</u>:objectCount = 32
-    DEBUG:<u>main</u>:object name = MyBuilding/FCB.Local Application.Room Real Temp 2
+    DEBUG:<u>main</u>:object name = Building/FCB.Local Application.Room Real Temp 2
     DEBUG:<u>main</u>:  object type = analogInput
     DEBUG:<u>main</u>:  object index = 3000274
     DEBUG:<u>main</u>:  object units = degreesFahrenheit
     DEBUG:<u>main</u>:  object units details = -50.00 to 250.00
     DEBUG:<u>main</u>:  object notes = Resolution: 0.1
-    DEBUG:<u>main</u>:object name = MyBuilding/FCB.Local Application.Room Real Temp 1
+    DEBUG:<u>main</u>:object name = Building/FCB.Local Application.Room Real Temp 1
     DEBUG:<u>main</u>:  object type = analogInput
     DEBUG:<u>main</u>:  object index = 3000275
     DEBUG:<u>main</u>:  object units = degreesFahrenheit
     DEBUG:<u>main</u>:  object units details = -50.00 to 250.00
     DEBUG:<u>main</u>:  object notes = Resolution: 0.1
-    DEBUG:<u>main</u>:object name = MyBuilding/FCB.Local Application.OSA
+    DEBUG:<u>main</u>:object name = Building/FCB.Local Application.OSA
     DEBUG:<u>main</u>:  object type = analogInput
     DEBUG:<u>main</u>:  object index = 3000276
     DEBUG:<u>main</u>:  object units = degreesFahrenheit
@@ -213,7 +213,7 @@ and will finish something like this:
 ::
 
     ...
-    DEBUG:<u>main</u>:object name = MyBuilding/FCB.Local Application.MOTOR1-C
+    DEBUG:<u>main</u>:object name = Building/FCB.Local Application.MOTOR1-C
     DEBUG:<u>main</u>:  object type = binaryOutput
     DEBUG:<u>main</u>:  object index = 3000263
     DEBUG:<u>main</u>:  object units = Enum
