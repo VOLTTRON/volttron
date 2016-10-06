@@ -159,7 +159,7 @@ Converting Old Style Configuration
 
 The new Master Driver no longer supports the old style of device configuration. The old ``device_list`` setting is ignored.
 
-To simplify updating to a new format ``scripts/update_master_driver_config.py`` is provide to automatically update to the new configuration format and push the results to the configuration store.
+To simplify updating to the new format ``scripts/update_master_driver_config.py`` is provide to automatically update to the new configuration format.
 
 With the platform running run:
 
@@ -167,6 +167,12 @@ With the platform running run:
 
 **old_configuration** is the main configuration file in the old format. The script automatically modifies the driver files to create references to csv files and adds the csv files with the appropriate name.
 
+The output from ``scripts/update_master_driver_config.py`` can be automatically added to the configuration store
+for the Master Driver agent with ``scripts/install_master_driver_configs.py``.
+
+Creating and naming configuration files in the form needed by ``scripts/install_master_driver_configs.py``
+can speed up the process of changing and updating a large number of configurations. See the ``--help``
+message for ``scripts/install_master_driver_configs.py`` for more details.
 
 Device State Publishes
 ----------------------
@@ -404,14 +410,14 @@ Any additional columns will be ignored. It is common practice to include a **Poi
 .. csv-table:: BACnet
 	:header: Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
 
-        2400Stevens/FCB.Local Application.PH-T,PreheatTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000119,Resolution: 0.1
-        2400Stevens/FCB.Local Application.RA-T,ReturnAirTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000120,Resolution: 0.1
-        2400Stevens/FCB.Local Application.RA-H,ReturnAirHumidity,percentRelativeHumidity,0.00 to 100.00,analogInput,presentValue,FALSE,3000124,Resolution: 0.1
-        2400Stevens/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000107,Resolution: 0.1
-        2400Stevens/FCB.Local Application.MAD-O,MixedAirDamperOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000110,Resolution: 0.1
-        2400Stevens/FCB.Local Application.PH-O,PreheatValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000111,Resolution: 0.1
-        2400Stevens/FCB.Local Application.RH-O,ReheatValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000112,Resolution: 0.1
-        2400Stevens/FCB.Local Application.SF-O,SupplyFanSpeedOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000113,Resolution: 0.1
+        Building/FCB.Local Application.PH-T,PreheatTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000119,Resolution: 0.1
+        Building/FCB.Local Application.RA-T,ReturnAirTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000120,Resolution: 0.1
+        Building/FCB.Local Application.RA-H,ReturnAirHumidity,percentRelativeHumidity,0.00 to 100.00,analogInput,presentValue,FALSE,3000124,Resolution: 0.1
+        Building/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000107,Resolution: 0.1
+        Building/FCB.Local Application.MAD-O,MixedAirDamperOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000110,Resolution: 0.1
+        Building/FCB.Local Application.PH-O,PreheatValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000111,Resolution: 0.1
+        Building/FCB.Local Application.RH-O,ReheatValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000112,Resolution: 0.1
+        Building/FCB.Local Application.SF-O,SupplyFanSpeedOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000113,Resolution: 0.1
 
 
 A sample BACnet registry file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/bacnet.csv>`_ or 
@@ -439,8 +445,7 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample fake device configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/fake.config>`_ or 
-in the VOLTTRON repository in ``examples/configurations/drivers/fake.config``
+A sample fake device configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/fake.config``
 
 Fake Device Registry Configuration File
 ***************************************

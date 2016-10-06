@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -364,8 +364,7 @@ class AIPplatform(object):
 
         return final_identity
 
-
-    def _get_agent_publickey(self, agent_uuid):
+    def get_agent_publickey(self, agent_uuid):
         agent_path = os.path.join(self.install_dir, agent_uuid)
         name = self.agent_name(agent_uuid)
         agent_path_with_name = os.path.join(agent_path, name)
@@ -375,13 +374,13 @@ class AIPplatform(object):
         return keystore.public()
 
     def _authorize_agent_keys(self, agent_uuid, identity):
-        publickey = self._get_agent_publickey(agent_uuid)
+        publickey = self.get_agent_publickey(agent_uuid)
         entry = AuthEntry(credentials=publickey, user_id=identity,
                           comments='Automatically added on agent install')
         AuthFile().add(entry)
 
     def _unauthorize_agent_keys(self, agent_uuid):
-        publickey = self._get_agent_publickey(agent_uuid)
+        publickey = self.get_agent_publickey(agent_uuid)
         AuthFile().remove_by_credentials(publickey)
 
     def _get_data_dir(self, agent_path):

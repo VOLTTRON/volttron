@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -90,7 +90,7 @@ __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
-__copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
+__copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
 _comment_re = re.compile(
@@ -460,6 +460,21 @@ def watch_file(fullpath, callback):
             for event in inot:
                 if event.name == filename and event.mask & IN_MODIFY:
                     callback()
+
+def watch_file_with_fullpath(fullpath, callback):
+    """Run callback method whenever the file changes
+
+        Not available on OS X/MacOS.
+    """
+    dirname, filename = os.path.split(fullpath)
+    if inotify is None:
+        _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
+    else:
+        with inotify() as inot:
+            inot.add_watch(dirname, IN_MODIFY)
+            for event in inot:
+                if event.name == filename and event.mask & IN_MODIFY:
+                    callback(fullpath)
 
 
 def create_file_if_missing(path, permission=0o660, contents=None):

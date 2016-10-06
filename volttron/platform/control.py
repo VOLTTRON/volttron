@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -72,6 +72,7 @@ import traceback
 import StringIO
 import uuid
 import base64
+import hashlib
 
 import gevent
 import gevent.event
@@ -101,6 +102,8 @@ _stderr = sys.stderr
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
+
+CHUNK_SIZE = 4096
 
 
 class ControlService(BaseAgent):
@@ -225,6 +228,10 @@ class ControlService(BaseAgent):
         return self._aip.agent_identity(uuid)
 
     @RPC.export
+    def install_agent_local(self, filename, vip_identity=None):
+        return self._aip.install_agent(filename, vip_identity=vip_identity)
+
+    @RPC.export
     def install_agent(self, filename, channel_name, vip_identity=None):
         """ Installs an agent on the instance instance.
 
@@ -236,17 +243,26 @@ class ControlService(BaseAgent):
 
             # client creates channel to this agent (control)
             channel = agent.vip.channel('control', 'channel_name')
-            # client waits for a ready response from control note this will
-            # block until the repsonse is received.
-            response = channel.recv()
+
             # Begin sending data
+            sha512 = hashlib.sha512()
             while True:
-                wheeldata = fin.read(8125)
-                if not wheeldata:
-                    break
-                channel.send(wheeldata)
-            # send the done message
-            channel.send('done')
+                request, file_offset, chunk_size = channel.recv_multipart()
+
+                # Control has all of the file. Send hash for for it to verify.
+                if request == b'checksum':
+                    channel.send(hash)
+                assert request == b'fetch'
+
+                # send a chunk of the file
+                file_offset = int(file_offset)
+                chunk_size = int(chunk_size)
+                file.seek(file_offset)
+                data = file.read(chunk_size)
+                sha512.update(data)
+                channel.send(data)
+
+            agent_uuid = agent_uuid.get(timeout=10)
             # close and delete the channel
             channel.close(linger=0)
             del channel
@@ -264,23 +280,40 @@ class ControlService(BaseAgent):
             tmpdir = tempfile.mkdtemp()
             path = os.path.join(tmpdir, os.path.basename(filename))
             store = open(path, 'wb')
-            _log.debug('Begining to receive data.')
-            bytecount = 0
-            # Send synchronization message to inform peer of readiness
-            channel.send('ready')
+            file_offset = 0
+            sha512 = hashlib.sha512()
+
             try:
                 while True:
-                    data = channel.recv()
-                    bytecount += len(data)
-                    if data == 'done':
-                        _log.debug("Received {} bytes of data".format(
-                            bytecount))
-                        _log.debug('done receiving data')
-                        break
+                    # request a chunk of the file
+                    channel.send_multipart([
+                        b'fetch',
+                        bytes(file_offset),
+                        bytes(CHUNK_SIZE)
+                    ])
+
+                    # get the requested data
+                    with gevent.Timeout(30):
+                        data = channel.recv()
+                    sha512.update(data)
                     store.write(data)
-                # Send done synchronization message
-                _log.debug('Sending done back!')
-                channel.send('done')
+                    size = len(data)
+                    file_offset += size
+
+                    # let volttron-ctl know that we have everything
+                    if size < CHUNK_SIZE:
+                        channel.send_multipart([b'checksum', b'', b''])
+                        with gevent.Timeout(30):
+                            checksum = channel.recv()
+                        assert checksum == sha512.digest()
+                        break
+
+            except AssertionError:
+                _log.warning("Checksum mismatch on received file")
+                raise
+            except gevent.Timeout:
+                _log.warning("Gevent timeout trying to receive data")
+                raise
             finally:
                 store.close()
                 _log.debug('Closing channel on server')
@@ -288,7 +321,7 @@ class ControlService(BaseAgent):
                 del channel
 
             agent_uuid = self._aip.install_agent(path, vip_identity=vip_identity)
-            return agent_uuid #self._aip.install_agent(path)
+            return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
@@ -359,8 +392,9 @@ def install_agent(opts):
     if opts.vip_address.startswith('ipc://'):
         _log.info("Installing wheel locally without channel subsystem")
         filename = config.expandall(filename)
-        agent_uuid = aip.install_agent(filename,
-                                       vip_identity=vip_identity)
+        agent_uuid = opts.connection.call('install_agent_local',
+                                          filename,
+                                          vip_identity=vip_identity)
 
         if tag:
             opts.connection.call('tag_agent', agent_uuid, tag)
@@ -376,37 +410,45 @@ def install_agent(opts):
                                                      filename,
                                                      channel_name,
                                                      vip_identity=vip_identity)
-            _log.debug('waiting for ready')
-            _log.debug('received {}'.format(channel.recv()))
 
+            _log.debug('Sending wheel to control')
+            sha512 = hashlib.sha512()
             with open(filename, 'rb') as wheel_file_data:
-                _log.debug('sending wheel to control.')
                 while True:
-                    data = wheel_file_data.read(8125)
-
-                    if not data:
+                    # get a request
+                    with gevent.Timeout(30):
+                        request, file_offset, chunk_size = channel.recv_multipart()
+                    if request == b'checksum':
+                        channel.send(sha512.digest())
                         break
-                    channel.send(data)
 
-            _log.debug('sending done message.')
-            channel.send('done')
-            _log.debug('closing channel')
+                    assert request == b'fetch'
+
+                    # send a chunk of the file
+                    file_offset = int(file_offset)
+                    chunk_size = int(chunk_size)
+                    wheel_file_data.seek(file_offset)
+                    data = wheel_file_data.read(chunk_size)
+                    sha512.update(data)
+                    channel.send(data)
 
             agent_uuid = agent_uuid.get(timeout=10)
 
-            channel.close(linger=0)
-            del channel
-
-            if tag:
-                opts.connection.call('tag_agent',
-                                     agent_uuid,
-                                     tag)
         except Exception as exc:
             if opts.debug:
                 traceback.print_exc()
             _stderr.write(
                 '{}: error: {}: {}\n'.format(opts.command, exc, filename))
             return 10
+        else:
+            if tag:
+                opts.connection.call('tag_agent',
+                                     agent_uuid,
+                                     tag)
+        finally:
+            _log.debug('closing channel')
+            channel.close(linger=0)
+            del channel
 
     name = opts.connection.call('agent_name', agent_uuid)
     _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
@@ -897,6 +939,67 @@ def update_auth(opts):
         _stderr.write('ERROR: %s\n' % err.message)
 
 
+def _show_filtered_agents(opts, field_name, field_callback, agents=None):
+    """Provides generic way to filter and display agent information.
+
+    The agents will be filtered by the provided opts.pattern and the
+    following fields will be displayed:
+      * UUID (or part of the UUID)
+      * agent name
+      * VIP identiy
+      * tag
+      * field_name
+
+    @param:Namespace:opts:
+        Options from argparse
+    @param:string:field_name:
+        Name of field to display about agents
+    @param:function:field_callback:
+        Function that takes an Agent as an argument and returns data
+        to display
+    @param:list:agents:
+        List of agents to filter and display
+    """
+    if not agents:
+        agents = _list_agents(opts.aip)
+    if opts.pattern:
+        filtered = set()
+        for pattern, match in filter_agents(agents, opts.pattern, opts):
+            if not match:
+                _stderr.write(
+                    '{}: error: agent not found: {}\n'.format(opts.command,
+                                                              pattern))
+            filtered |= match
+        agents = list(filtered)
+    if not agents:
+        return
+    agents.sort()
+    if not opts.min_uuid_len:
+        n = 36
+    else:
+        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+    name_width = max(5, max(len(agent.name) for agent in agents))
+    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
+    _stderr.write(
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+            'TAG', tag_width, field_name))
+    for agent in agents:
+        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
+                                 agent.tag or '', tag_width,
+                                 field_callback(agent)))
+
+
+def get_agent_publickey(opts):
+
+    def get_key(agent):
+        return opts.aip.get_agent_publickey(agent.uuid)
+
+    _show_filtered_agents(opts, 'PUBLICKEY', get_key)
+
+
 # XXX: reimplement over VIP
 # def send_agent(opts):
 #    _log.debug("send_agent: "+ str(opts))
@@ -965,8 +1068,8 @@ def get_config(opts):
         if isinstance(results, str):
             _stdout.write(results)
         else:
-            import pprint
-            pprint.pprint(results, _stdout)
+            _stdout.write(json.dumps(results, indent=2))
+            _stdout.write("\n'")
 
 
 class ControlConnection(object):
@@ -1233,6 +1336,14 @@ def main(argv=sys.argv):
     auth_list = add_parser('list', help='list authentication records',
             subparser=auth_subparsers)
     auth_list.set_defaults(func=list_auth)
+
+    auth_publickey = add_parser('publickey', parents=[filterable],
+            subparser=auth_subparsers, help='show public key for each agent')
+    auth_publickey.add_argument('pattern', nargs='*',
+                       help='UUID or name of agent')
+    auth_publickey.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
+                       help='show at least N characters of UUID (0 to show all)')
+    auth_publickey.set_defaults(func=get_agent_publickey, min_uuid_len=1)
 
     auth_remove = add_parser('remove', subparser=auth_subparsers,
             help='removes one or more authentication records by indices')

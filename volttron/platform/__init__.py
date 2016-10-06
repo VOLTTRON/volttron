@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@
 import os
 import sys
 
-__version__ = '3.1'
+__version__ = '4.0.0'
 
 
 def set_home(home=None):
@@ -85,6 +85,7 @@ def get_home():
             os.path.expanduser(
                 os.path.expandvars(
                     os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
+
 
 def get_address():
     """Return the VIP address of the platform

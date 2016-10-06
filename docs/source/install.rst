@@ -27,12 +27,6 @@ On **Arch Linux**, the following command will install the dependencies:
 Source Code
 -----------
 
-To work with the latest devlopment code clone from the develop branch by using
-the following git command.
-
-.. code-block:: bash
-
-    git clone https://github.com/VOLTTRON/volttron/ -b develop
 
 To work with the latest stable code clone the master branch using the following
 git command.
@@ -40,6 +34,17 @@ git command.
 .. code-block:: bash
 
     git clone https://github.com/VOLTTRON/volttron/
+
+
+To work with the latest devlopment code clone from the develop branch by using
+the following git command.
+
+
+.. code-block:: bash
+
+    git clone -b develop https://github.com/VOLTTRON/volttron/
+
+
 
 Bootstrap
 ---------
@@ -83,7 +88,7 @@ root directory using an activated command prompt:
 
 .. code-block:: bash
 
-    py.test
+    ./ci-integration/run-tests.sh
 
 
 Execution
@@ -106,4 +111,4 @@ volttron.log execute the following.
 Next Steps
 ----------
 
-* :doc:`agent-development`  
+* :doc:`Agent-Development`

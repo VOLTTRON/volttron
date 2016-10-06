@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -64,6 +64,8 @@ import argparse
 
 import gevent
 import os
+
+from volttron.platform import get_address, get_home
 from volttron.platform.vip.agent import Agent, PubSub
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
@@ -76,10 +78,12 @@ _log = logging.getLogger(__name__)
 
 if "VOLTTRON_HOME" not in os.environ:
     os.environ["VOLTTRON_HOME"] = '`/.volttron'
+vip_address = get_address()
+volttron_home = get_home()
 
 class BACnetInteraction(Agent):
-    def __init__(self, callback, *args):
-        super(BACnetInteraction, self).__init__(*args)
+    def __init__(self, callback, *args, **kwargs):
+        super(BACnetInteraction, self).__init__(*args, **kwargs)
         self.callbacks = {}
     def send_iam(self, low_device_id=None, high_device_id=None, address=None):
         self.vip.rpc.call("platform.bacnet_proxy", "who_is",
@@ -91,7 +95,7 @@ class BACnetInteraction(Agent):
     def iam_handler(self, peer, sender, bus,  topic, headers, message):
         pprint(message)
 
-agent = BACnetInteraction("bacnet_interaction")
+agent = BACnetInteraction("bacnet_interaction", address=vip_address, volttron_home=volttron_home)
 gevent.spawn(agent.core.run).join(0)
 
 """

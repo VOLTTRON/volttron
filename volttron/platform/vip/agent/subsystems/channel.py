@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -150,6 +150,7 @@ class Channel(SubsystemBase):
             if channel in self._channels:
                 raise ValueError('channel %r is unavailable' % (name,))
         sock = self.context.socket(zmq.DEALER)
+        sock.hwm = 1
         sock.identity = ident = '%s.%s' % (hash(channel), hash(sock))
         sockref = weakref.ref(sock, self._destroy)
         object.__setattr__(sock, 'peer', peer)

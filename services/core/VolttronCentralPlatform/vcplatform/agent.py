@@ -762,37 +762,14 @@ class VolttronCentralPlatform(Agent):
                         fout.write(
                             base64.decodestring(f['file'].split('base64,')[1]))
 
-                _log.debug('Creating channel for sending the agent.')
-                channel_name = str(uuid.uuid4())
-                channel = self.vip.channel('control',
-                                           channel_name)
-                _log.debug('calling control install agent.')
-                agent_uuid = self.vip.rpc.call('control',
-                                               'install_agent',
-                                               f['file_name'],
-                                               channel_name)
-                _log.debug('waiting for ready')
-                _log.debug('received {}'.format(channel.recv()))
-                with open(path, 'rb') as fin:
-                    _log.debug('sending wheel to control.')
-                    while True:
-                        data = fin.read(8125)
-
-                        if not data:
-                            break
-                        channel.send(data)
-                _log.debug('sending done message.')
-                channel.send('done')
-                _log.debug('waiting for done')
-                _log.debug('closing channel')
-
-                results.append({'uuid': agent_uuid.get(timeout=10)})
-                channel.close(linger=0)
-                del channel
+                _log.debug('Calling control install agent.')
+                uuid = self.vip.rpc.call('control', 'install_agent_local', path).get()
 
             except Exception as e:
                 results.append({'error': str(e)})
                 _log.error("EXCEPTION: " + str(e))
+            else:
+                results.append({'uuid': uuid})
 
         shutil.rmtree(tmpdir, ignore_errors=True)
 
