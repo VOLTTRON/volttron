@@ -1,12 +1,14 @@
+.. _AgentStatus:
+
 Agent List Display
 ~~~~~~~~~~~~~~~~~~
 
 ::
 
-      AGENT             TAG      PRI
+      AGENT             IDENTITY     TAG      PRI
 
-    d listeneragent-3.0 listener  30
-    2 testeragent-0.1  
+    d listeneragent-3.0 listeneragent-3.0_1   30
+    2 testeragent-0.1   testeragent-0.1_1
 
 ``volttron-ctl list`` shows the agents which have been installed on the
 platform along with their uuid, associated `tag <AgentTag>`__, and

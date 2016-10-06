@@ -762,45 +762,14 @@ class VolttronCentralPlatform(Agent):
                         fout.write(
                             base64.decodestring(f['file'].split('base64,')[1]))
 
-                _log.debug('Creating channel for sending the agent.')
-                channel_name = str(uuid.uuid4())
-                channel = self.vip.channel('control',
-                                           channel_name)
-                _log.debug('calling control install agent.')
-                agent_uuid = self.vip.rpc.call('control',
-                                               'install_agent',
-                                               f['file_name'],
-                                               channel_name)
-                sha512 = hashlib.sha512()
-                _log.debug('Sending wheel to control')
-
-                with open(path, 'rb') as wheel_file_data:
-                    while True:
-                        # get a request
-                        with gevent.Timeout(30):
-                            request, file_offset, chunk_size = channel.recv_multipart()
-                        if request == b'checksum':
-                            channel.send(sha512.digest())
-                            break
-
-                        assert request == b'fetch'
-
-                        # send a chunk of the file
-                        file_offset = int(file_offset)
-                        chunk_size = int(chunk_size)
-                        wheel_file_data.seek(file_offset)
-                        data = wheel_file_data.read(chunk_size)
-                        sha512.update(data)
-                        channel.send(data)
+                _log.debug('Calling control install agent.')
+                uuid = self.vip.rpc.call('control', 'install_agent_local', path).get()
 
             except Exception as e:
                 results.append({'error': str(e)})
                 _log.error("EXCEPTION: " + str(e))
             else:
-                results.append({'uuid': agent_uuid.get(timeout=10)})
-            finally:
-                channel.close(linger=0)
-                del channel
+                results.append({'uuid': uuid})
 
         shutil.rmtree(tmpdir, ignore_errors=True)
 
