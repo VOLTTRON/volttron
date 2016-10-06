@@ -228,6 +228,10 @@ class ControlService(BaseAgent):
         return self._aip.agent_identity(uuid)
 
     @RPC.export
+    def install_agent_local(self, filename, vip_identity=None):
+        return self._aip.install_agent(filename, vip_identity=vip_identity)
+
+    @RPC.export
     def install_agent(self, filename, channel_name, vip_identity=None):
         """ Installs an agent on the instance instance.
 
@@ -388,8 +392,9 @@ def install_agent(opts):
     if opts.vip_address.startswith('ipc://'):
         _log.info("Installing wheel locally without channel subsystem")
         filename = config.expandall(filename)
-        agent_uuid = aip.install_agent(filename,
-                                       vip_identity=vip_identity)
+        agent_uuid = opts.connection.call('install_agent_local',
+                                          filename,
+                                          vip_identity=vip_identity)
 
         if tag:
             opts.connection.call('tag_agent', agent_uuid, tag)
@@ -934,6 +939,67 @@ def update_auth(opts):
         _stderr.write('ERROR: %s\n' % err.message)
 
 
+def _show_filtered_agents(opts, field_name, field_callback, agents=None):
+    """Provides generic way to filter and display agent information.
+
+    The agents will be filtered by the provided opts.pattern and the
+    following fields will be displayed:
+      * UUID (or part of the UUID)
+      * agent name
+      * VIP identiy
+      * tag
+      * field_name
+
+    @param:Namespace:opts:
+        Options from argparse
+    @param:string:field_name:
+        Name of field to display about agents
+    @param:function:field_callback:
+        Function that takes an Agent as an argument and returns data
+        to display
+    @param:list:agents:
+        List of agents to filter and display
+    """
+    if not agents:
+        agents = _list_agents(opts.aip)
+    if opts.pattern:
+        filtered = set()
+        for pattern, match in filter_agents(agents, opts.pattern, opts):
+            if not match:
+                _stderr.write(
+                    '{}: error: agent not found: {}\n'.format(opts.command,
+                                                              pattern))
+            filtered |= match
+        agents = list(filtered)
+    if not agents:
+        return
+    agents.sort()
+    if not opts.min_uuid_len:
+        n = 36
+    else:
+        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+    name_width = max(5, max(len(agent.name) for agent in agents))
+    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
+    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
+    _stderr.write(
+        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+            'TAG', tag_width, field_name))
+    for agent in agents:
+        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.vip_identity, identity_width,
+                                 agent.tag or '', tag_width,
+                                 field_callback(agent)))
+
+
+def get_agent_publickey(opts):
+
+    def get_key(agent):
+        return opts.aip.get_agent_publickey(agent.uuid)
+
+    _show_filtered_agents(opts, 'PUBLICKEY', get_key)
+
+
 # XXX: reimplement over VIP
 # def send_agent(opts):
 #    _log.debug("send_agent: "+ str(opts))
@@ -1270,6 +1336,14 @@ def main(argv=sys.argv):
     auth_list = add_parser('list', help='list authentication records',
             subparser=auth_subparsers)
     auth_list.set_defaults(func=list_auth)
+
+    auth_publickey = add_parser('publickey', parents=[filterable],
+            subparser=auth_subparsers, help='show public key for each agent')
+    auth_publickey.add_argument('pattern', nargs='*',
+                       help='UUID or name of agent')
+    auth_publickey.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
+                       help='show at least N characters of UUID (0 to show all)')
+    auth_publickey.set_defaults(func=get_agent_publickey, min_uuid_len=1)
 
     auth_remove = add_parser('remove', subparser=auth_subparsers,
             help='removes one or more authentication records by indices')
