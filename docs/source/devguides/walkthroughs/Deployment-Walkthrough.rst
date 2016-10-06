@@ -23,7 +23,7 @@ Notes/Tips:
 -  Aside from installing the required packages with apt-get, ``sudo`` is
    not required and should not be used. VOLTTRON is designed to be run
    as a non-root user and running with sudo is not supported.
--  The convenience `scripts <Scripts>`__ have been developed to simplify
+-  The convenience :ref:`scripts <Scripts>` have been developed to simplify
    many of the of the repetitive multi-step processes. For instance,
    ``scripts/core/make-listener`` can be modified for any agent and make
    it one command to stop, remove, build, install, configure, tag,
