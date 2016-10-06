@@ -20,11 +20,13 @@ var devicesActionCreators = {
             platform: platform
         });
     },
-    scanForDevices: function (platformUuid, bacnetProxyUuid, low, high, address) {
+    scanForDevices: function (platformUuid, platformAgentUuid, bacnetProxyIdentity, low, high, address) {
 
         var authorization = authorizationStore.getAuthorization();
 
-        var params = {};
+        var params = {
+            proxy_identity: bacnetProxyIdentity
+        };
 
         if (low)
         {
@@ -42,7 +44,7 @@ var devicesActionCreators = {
         }
 
         return new rpc.Exchange({
-            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.who_is',
+            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + platformAgentUuid + '.start_bacnet_scan',
             authorization: authorization,
             params: params,
         }).promise
@@ -50,7 +52,7 @@ var devicesActionCreators = {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.LISTEN_FOR_IAMS,
                     platformUuid: platformUuid,
-                    bacnetProxyUuid: bacnetProxyUuid,
+                    bacnetProxyIdentity: bacnetProxyIdentity,
                     low_device_id: low,
                     high_device_id: high,
                     target_address: address
@@ -72,11 +74,10 @@ var devicesActionCreators = {
             device: device
         });
     },
-    pointReceived: function (data, platform, bacnet) {
+    pointReceived: function (data, platform) {
         dispatcher.dispatch({
             type: ACTION_TYPES.POINT_RECEIVED,
             platform: platform,
-            bacnet: bacnet,
             data: data
         });
     },
@@ -107,7 +108,7 @@ var devicesActionCreators = {
     //         platform: platform
     //     });
     // },
-    configureDevice: function (device) {
+    configureDevice: function (device, bacnetIdentity, platformAgentUuid) {
         
         var authorization = authorizationStore.getAuthorization();
 
@@ -115,12 +116,12 @@ var devicesActionCreators = {
             // expanded:false, 
             // "filter":[3000124], 
             device_id: Number(device.id), 
-            proxy_identity: "platform.bacnet_proxy", 
+            proxy_identity: bacnetIdentity, 
             address: device.address
         }
 
         return new rpc.Exchange({
-            method: 'platform.uuid.' + device.platformUuid + '.agent.uuid.' + device.bacnetProxyUuid + '.publish_bacnet_props',
+            method: 'platform.uuid.' + device.platformUuid + '.agent.uuid.' + platformAgentUuid + '.publish_bacnet_props',
             authorization: authorization,
             params: params,
         }).promise

@@ -59,7 +59,7 @@ class ConfigureDevices extends BaseComponent {
         }
         else
         {
-            this.setState({devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyUuid)});
+            this.setState({devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyIdentity)});
         }
     }
     _onDeviceMethodChange(evt) {
@@ -77,8 +77,8 @@ class ConfigureDevices extends BaseComponent {
         }
     }
     _onProxySelect(evt) {
-        var selectedProxyUuid = evt.target.value;
-        this.setState({ selectedProxyUuid: selectedProxyUuid });
+        var selectedProxyIdentity = evt.target.value;
+        this.setState({ selectedProxyIdentity: selectedProxyIdentity });
     }
     _onDeviceStart(evt) {
 
@@ -102,9 +102,12 @@ class ConfigureDevices extends BaseComponent {
         this.setState({ address: evt.target.value });
     }
     _onStartScan(evt) {
+        var platformAgentUuid = platformsStore.getPlatformAgentUuid(this.state.platform.uuid);
+
         devicesActionCreators.scanForDevices(
             this.state.platform.uuid, 
-            this.state.selectedProxyUuid,
+            platformAgentUuid,
+            this.state.selectedProxyIdentity,
             this.state.deviceStart, 
             this.state.deviceEnd, 
             this.state.address
@@ -177,7 +180,7 @@ class ConfigureDevices extends BaseComponent {
             {
                 var proxies = this.state.bacnetProxies.map(function (proxy) {
                     return (
-                        <option key={proxy.uuid} value={proxy.uuid}>{proxy.name}</option>
+                        <option key={proxy.identity} value={proxy.identity}>{proxy.name}</option>
                     );
                 });
 
@@ -190,7 +193,7 @@ class ConfigureDevices extends BaseComponent {
                             <select
                                 style={wideStyle}
                                 onChange={this._onProxySelect}
-                                value={this.state.selectedProxyUuid}
+                                value={this.state.selectedProxyIdentity}
                                 autoFocus
                                 required
                             >
@@ -316,7 +319,7 @@ class ConfigureDevices extends BaseComponent {
                         devicesloaded={this._onDevicesLoaded} 
                         platform={this.state.platform} 
                         canceled={this.state.canceled}
-                        bacnet={this.state.selectedProxyUuid}/>
+                        bacnet={this.state.selectedProxyIdentity}/>
                 );
             }
 
@@ -379,7 +382,7 @@ function getInitialState() {
         
         if (state.deviceMethod === "scanForDevices")
         {
-            state.selectedProxyUuid = state.bacnetProxies[0].uuid;
+            state.selectedProxyIdentity = state.bacnetProxies[0].identity;
         }
 
         state.scanning = false;

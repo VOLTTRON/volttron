@@ -8,6 +8,7 @@ var ConfirmForm = require('./confirm-form');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var platformsStore = require('../stores/platforms-store');
 var devicesStore = require('../stores/devices-store');
 
 var CsvParse = require('babyparse');
@@ -109,7 +110,7 @@ class DevicesFound extends BaseComponent {
 
         pointsWs.onmessage = function(evt)
         {
-            devicesActionCreators.pointReceived(evt.data, this.props.platform, this.props.bacnet);
+            devicesActionCreators.pointReceived(evt.data, this.props.platform);
 
             var warnings = devicesStore.getWarnings();
 
@@ -145,9 +146,11 @@ class DevicesFound extends BaseComponent {
         // If so, set up the socket and set configuring to true.
         if (device.showPoints && !device.configuring)
         {
+            var platformAgentUuid = platformsStore.getPlatformAgentUuid(device.platformUuid);
+
             this._setUpPointsSocket();
             device.configuring = true;
-            devicesActionCreators.configureDevice(device);
+            devicesActionCreators.configureDevice(device, this.props.bacnet, platformAgentUuid);
         }
         else
         {

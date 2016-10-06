@@ -1043,11 +1043,11 @@ devicesStore.getWarnings = function () {
     return _warnings;
 };
 
-devicesStore.getDevices = function (platform, bacnetUuid) {
+devicesStore.getDevices = function (platform, bacnetIdentity) {
 
     var devices = _devices.filter(function (device) {
         return ((device.platformUuid === platform.uuid) 
-            && (device.bacnetProxyUuid === bacnetUuid));
+            && (device.bacnetProxyIdentity === bacnetIdentity));
     });
 
     return JSON.parse(JSON.stringify(devices));
@@ -1218,12 +1218,16 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     };
                 }
             }
-            devicesStore.emitChange();
+
+            if (_devices.length)
+            {
+                devicesStore.emitChange();
+            }
             break;
         case ACTION_TYPES.POINT_RECEIVED:
             _action = "point_received";
             _view = "Devices Found";
-            var warning = loadPoint(action.data, action.platform, action.bacnet);
+            var warning = loadPoint(action.data, action.platform);
 
             if (!objectIsEmpty(warning))
             {
@@ -1433,55 +1437,59 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                             cell.key === "index");
     }
 
-    function loadPoint(data, platform, bacnetUuid) 
+    function loadPoint(data, platform) 
     {
         var warningMsg = {};
 
         if (data)
         {
-            var point = JSON.parse(data);
-            var deviceId = "59";
-            // var deviceId = point.device_id;
-            var deviceAddress = "10.0.2.6"
-            var addPoint = true;
+            console.log(data);
+            var pointData = JSON.parse(data);  
 
-            var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
+            if (!pointData.hasOwnProperty("status"))
+            { 
+                var deviceId = pointData.device_id.toString();
+                var deviceAddress = pointData.address;
+                var addPoint = true;
 
-            if (device)
-            {
-                var pointInList = device.registryConfig.find(function (point) {
-                    var indexCell = point.find(function (cell) {
-                        return cell.key === "index";
-                    })
+                var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
 
-                    var match = false;
-
-                    if (indexCell)
-                    {
-                        match = (indexCell.value === point.Index);
-                    }
-
-                    return match;
-                });
-            
-                if (typeof pointInList === "undefined") 
+                if (device)
                 {
-                    var newPoint = [];
+                    var pointInList = device.registryConfig.find(function (point) {
+                        var indexCell = point.find(function (cell) {
+                            return cell.key === "index";
+                        })
 
-                    for (var key in point)
+                        var match = false;
+
+                        if (indexCell)
+                        {
+                            match = (indexCell.value === pointData.results.Index);
+                        }
+
+                        return match;
+                    });
+                
+                    if (typeof pointInList === "undefined") 
                     {
-                        var cell = {
-                            key: key.toLowerCase().replace(/ /g, "_"),
-                            label: key,
-                            value: (point[key] === null ? "" : point[key])
-                        };
+                        var newPoint = [];
 
-                        prepCell(cell);
+                        for (var key in pointData.results)
+                        {
+                            var cell = {
+                                key: key.toLowerCase().replace(/ /g, "_"),
+                                label: key,
+                                value: (pointData.results[key] === null ? "" : pointData.results[key])
+                            };
 
-                        newPoint.push(cell);
+                            prepCell(cell);
+
+                            newPoint.push(cell);
+                        }
+
+                        device.registryConfig.push(Immutable.List(newPoint));
                     }
-
-                    device.registryConfig.push(Immutable.List(newPoint));
                 }
             }
         }
@@ -1494,61 +1502,65 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         return Object.keys(obj).length === 0;
     }
 
-    function loadDevice(data, platform, bacnetUuid) 
+    function loadDevice(data, platform, bacnetIdentity) 
     {
         var warningMsg = {};
 
         if (data)
         {
             var device = JSON.parse(data);
-            var deviceIdStr = device.device_id.toString();
-            var addDevice = true;
 
-            var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
-
-            if (alreadyInList)
+            if (device.hasOwnProperty("device_id") && !device.hasOwnProperty("results"))
             {
-                if (alreadyInList.address !== device.address)
+                var deviceIdStr = device.device_id.toString();
+                var addDevice = true;
+
+                var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
+
+                if (alreadyInList)
                 {
-                    warningMsg = { 
-                        key: "duplicate_id", 
-                        message: "Duplicate device IDs found. Your network may not be set up correctly. ",
-                        value: deviceIdStr 
-                    };
-                }
-                else // If the IDs are the same and the addresses are the same, assume
-                {   // it's an IAM for a device we already know about
+                    if (alreadyInList.address !== device.address)
+                    {
+                        warningMsg = { 
+                            key: "duplicate_id", 
+                            message: "Duplicate device IDs found. Your network may not be set up correctly. ",
+                            value: deviceIdStr 
+                        };
+                    }
+                    else // If the IDs are the same and the addresses are the same, assume
+                    {   // it's an IAM for a device we already know about
 
-                    addDevice = false;
+                        addDevice = false;
+                    }
                 }
-            }
-            
-            if (addDevice) 
-            {
-                _devices.push({
-                    id: deviceIdStr,
-                    name: device.device_name,
-                    vendor_id: device.vendor_id,
-                    address: device.address,
-                    max_apdu_length: device.max_apdu_length,
-                    segmentation_supported: device.segmentation_supported,
-                    showPoints: false,
-                    configuring: false,
-                    platformUuid: platform.uuid,
-                    bacnetProxyUuid: bacnetUuid,
-                    registryConfig: [],
-                    keyProps: ["volttron_point_name", "units", "writable"],
-                    selectedPoints: [],
-                    items: [
-                        { key: "address", label: "Address", value: device.address },  
-                        { key: "deviceName", label: "Name", value: device.device_name },  
-                        { key: "deviceDescription", label: "Description", value: device.device_description }, 
-                        { key: "deviceId", label: "Device ID", value: deviceIdStr }, 
-                        { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
-                        { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
-                        { key: "type", label: "Type", value: "BACnet" }
-                    ]
-                });
+                
+                if (addDevice) 
+                {
+                    _devices.push({
+                        id: deviceIdStr,
+                        name: device.device_name,
+                        vendor_id: device.vendor_id,
+                        address: device.address,
+                        max_apdu_length: device.max_apdu_length,
+                        segmentation_supported: device.segmentation_supported,
+                        showPoints: false,
+                        configuring: false,
+                        platformUuid: platform.uuid,
+                        bacnetProxyIdentity: bacnetIdentity,
+                        registryConfig: [],
+                        keyProps: ["volttron_point_name", "units", "writable"],
+                        selectedPoints: [],
+                        items: [
+                            { key: "address", label: "Address", value: device.address },  
+                            { key: "deviceName", label: "Name", value: device.device_name },  
+                            { key: "deviceDescription", label: "Description", value: device.device_description }, 
+                            { key: "deviceId", label: "Device ID", value: deviceIdStr }, 
+                            { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
+                            { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
+                            { key: "type", label: "Type", value: "BACnet" }
+                        ]
+                    });
+                }
             }
         }
 

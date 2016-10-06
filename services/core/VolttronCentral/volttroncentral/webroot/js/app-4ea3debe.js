@@ -224,11 +224,13 @@ var devicesActionCreators = {
             platform: platform
         });
     },
-    scanForDevices: function scanForDevices(platformUuid, bacnetProxyUuid, low, high, address) {
+    scanForDevices: function scanForDevices(platformUuid, platformAgentUuid, bacnetProxyIdentity, low, high, address) {
 
         var authorization = authorizationStore.getAuthorization();
 
-        var params = {};
+        var params = {
+            proxy_identity: bacnetProxyIdentity
+        };
 
         if (low) {
             params.low_device_id = Number(low);
@@ -243,14 +245,14 @@ var devicesActionCreators = {
         }
 
         return new rpc.Exchange({
-            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + bacnetProxyUuid + '.who_is',
+            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + platformAgentUuid + '.start_bacnet_scan',
             authorization: authorization,
             params: params
         }).promise.then(function (result) {
             dispatcher.dispatch({
                 type: ACTION_TYPES.LISTEN_FOR_IAMS,
                 platformUuid: platformUuid,
-                bacnetProxyUuid: bacnetProxyUuid,
+                bacnetProxyIdentity: bacnetProxyIdentity,
                 low_device_id: low,
                 high_device_id: high,
                 target_address: address
@@ -270,11 +272,10 @@ var devicesActionCreators = {
             device: device
         });
     },
-    pointReceived: function pointReceived(data, platform, bacnet) {
+    pointReceived: function pointReceived(data, platform) {
         dispatcher.dispatch({
             type: ACTION_TYPES.POINT_RECEIVED,
             platform: platform,
-            bacnet: bacnet,
             data: data
         });
     },
@@ -305,7 +306,7 @@ var devicesActionCreators = {
     //         platform: platform
     //     });
     // },
-    configureDevice: function configureDevice(device) {
+    configureDevice: function configureDevice(device, bacnetIdentity, platformAgentUuid) {
 
         var authorization = authorizationStore.getAuthorization();
 
@@ -313,12 +314,12 @@ var devicesActionCreators = {
             // expanded:false, 
             // "filter":[3000124], 
             device_id: Number(device.id),
-            proxy_identity: "platform.bacnet_proxy",
+            proxy_identity: bacnetIdentity,
             address: device.address
         };
 
         return new rpc.Exchange({
-            method: 'platform.uuid.' + device.platformUuid + '.agent.uuid.' + device.bacnetProxyUuid + '.publish_bacnet_props',
+            method: 'platform.uuid.' + device.platformUuid + '.agent.uuid.' + platformAgentUuid + '.publish_bacnet_props',
             authorization: authorization,
             params: params
         }).promise.then(function (result) {
@@ -2356,7 +2357,7 @@ var ConfigureDevices = function (_BaseComponent) {
                     clearTimeout(this._scanTimeout);
                 }
             } else {
-                this.setState({ devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyUuid) });
+                this.setState({ devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyIdentity) });
             }
         }
     }, {
@@ -2374,8 +2375,8 @@ var ConfigureDevices = function (_BaseComponent) {
     }, {
         key: '_onProxySelect',
         value: function _onProxySelect(evt) {
-            var selectedProxyUuid = evt.target.value;
-            this.setState({ selectedProxyUuid: selectedProxyUuid });
+            var selectedProxyIdentity = evt.target.value;
+            this.setState({ selectedProxyIdentity: selectedProxyIdentity });
         }
     }, {
         key: '_onDeviceStart',
@@ -2405,7 +2406,9 @@ var ConfigureDevices = function (_BaseComponent) {
     }, {
         key: '_onStartScan',
         value: function _onStartScan(evt) {
-            devicesActionCreators.scanForDevices(this.state.platform.uuid, this.state.selectedProxyUuid, this.state.deviceStart, this.state.deviceEnd, this.state.address);
+            var platformAgentUuid = platformsStore.getPlatformAgentUuid(this.state.platform.uuid);
+
+            devicesActionCreators.scanForDevices(this.state.platform.uuid, platformAgentUuid, this.state.selectedProxyIdentity, this.state.deviceStart, this.state.deviceEnd, this.state.address);
 
             this.setState({ scanning: true });
             this.setState({ scanStarted: true });
@@ -2488,7 +2491,7 @@ var ConfigureDevices = function (_BaseComponent) {
                     var proxies = this.state.bacnetProxies.map(function (proxy) {
                         return _react2.default.createElement(
                             'option',
-                            { key: proxy.uuid, value: proxy.uuid },
+                            { key: proxy.identity, value: proxy.identity },
                             proxy.name
                         );
                     });
@@ -2514,7 +2517,7 @@ var ConfigureDevices = function (_BaseComponent) {
                                 {
                                     style: wideStyle,
                                     onChange: this._onProxySelect,
-                                    value: this.state.selectedProxyUuid,
+                                    value: this.state.selectedProxyIdentity,
                                     autoFocus: true,
                                     required: true
                                 },
@@ -2684,7 +2687,7 @@ var ConfigureDevices = function (_BaseComponent) {
                         devicesloaded: this._onDevicesLoaded,
                         platform: this.state.platform,
                         canceled: this.state.canceled,
-                        bacnet: this.state.selectedProxyUuid });
+                        bacnet: this.state.selectedProxyIdentity });
                 }
 
                 deviceContent = _react2.default.createElement(
@@ -2781,7 +2784,7 @@ function getInitialState() {
         state.devices = [];
 
         if (state.deviceMethod === "scanForDevices") {
-            state.selectedProxyUuid = state.bacnetProxies[0].uuid;
+            state.selectedProxyIdentity = state.bacnetProxies[0].identity;
         }
 
         state.scanning = false;
@@ -5097,6 +5100,7 @@ var ConfirmForm = require('./confirm-form');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var platformsStore = require('../stores/platforms-store');
 var devicesStore = require('../stores/devices-store');
 
 var CsvParse = require('babyparse');
@@ -5194,7 +5198,7 @@ var DevicesFound = function (_BaseComponent) {
             }
 
             pointsWs.onmessage = function (evt) {
-                devicesActionCreators.pointReceived(evt.data, this.props.platform, this.props.bacnet);
+                devicesActionCreators.pointReceived(evt.data, this.props.platform);
 
                 var warnings = devicesStore.getWarnings();
 
@@ -5225,9 +5229,11 @@ var DevicesFound = function (_BaseComponent) {
             // if we're going to show points but haven't started configuring yet.
             // If so, set up the socket and set configuring to true.
             if (device.showPoints && !device.configuring) {
+                var platformAgentUuid = platformsStore.getPlatformAgentUuid(device.platformUuid);
+
                 this._setUpPointsSocket();
                 device.configuring = true;
-                devicesActionCreators.configureDevice(device);
+                devicesActionCreators.configureDevice(device, this.props.bacnet, platformAgentUuid);
             } else {
                 devicesActionCreators.toggleShowPoints(device);
             }
@@ -5516,7 +5522,7 @@ function objectIsEmpty(obj) {
 
 exports.default = DevicesFound;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":60,"./base-component":12,"./configure-registry":17,"./confirm-form":18,"babyparse":undefined,"react":undefined}],28:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":60,"../stores/platforms-store":65,"./base-component":12,"./configure-registry":17,"./confirm-form":18,"babyparse":undefined,"react":undefined}],28:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -11352,10 +11358,10 @@ devicesStore.getWarnings = function () {
     return _warnings;
 };
 
-devicesStore.getDevices = function (platform, bacnetUuid) {
+devicesStore.getDevices = function (platform, bacnetIdentity) {
 
     var devices = _devices.filter(function (device) {
-        return device.platformUuid === platform.uuid && device.bacnetProxyUuid === bacnetUuid;
+        return device.platformUuid === platform.uuid && device.bacnetProxyIdentity === bacnetIdentity;
     });
 
     return JSON.parse(JSON.stringify(devices));
@@ -11519,12 +11525,15 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     };
                 }
             }
-            devicesStore.emitChange();
+
+            if (_devices.length) {
+                devicesStore.emitChange();
+            }
             break;
         case ACTION_TYPES.POINT_RECEIVED:
             _action = "point_received";
             _view = "Devices Found";
-            var warning = loadPoint(action.data, action.platform, action.bacnet);
+            var warning = loadPoint(action.data, action.platform);
 
             if (!objectIsEmpty(warning)) {
                 if (_warnings.hasOwnProperty(warning.key)) {
@@ -11710,49 +11719,52 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         cell.editable = !(cell.key === "point_name" || cell.key === "reference_point_name" || cell.key === "object_type" || cell.key === "index");
     }
 
-    function loadPoint(data, platform, bacnetUuid) {
+    function loadPoint(data, platform) {
         var warningMsg = {};
 
         if (data) {
-            var point = JSON.parse(data);
-            var deviceId = "59";
-            // var deviceId = point.device_id;
-            var deviceAddress = "10.0.2.6";
-            var addPoint = true;
+            console.log(data);
+            var pointData = JSON.parse(data);
 
-            var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
+            if (!pointData.hasOwnProperty("status")) {
+                var deviceId = pointData.device_id.toString();
+                var deviceAddress = pointData.address;
+                var addPoint = true;
 
-            if (device) {
-                var pointInList = device.registryConfig.find(function (point) {
-                    var indexCell = point.find(function (cell) {
-                        return cell.key === "index";
+                var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
+
+                if (device) {
+                    var pointInList = device.registryConfig.find(function (point) {
+                        var indexCell = point.find(function (cell) {
+                            return cell.key === "index";
+                        });
+
+                        var match = false;
+
+                        if (indexCell) {
+                            match = indexCell.value === pointData.results.Index;
+                        }
+
+                        return match;
                     });
 
-                    var match = false;
+                    if (typeof pointInList === "undefined") {
+                        var newPoint = [];
 
-                    if (indexCell) {
-                        match = indexCell.value === point.Index;
+                        for (var key in pointData.results) {
+                            var cell = {
+                                key: key.toLowerCase().replace(/ /g, "_"),
+                                label: key,
+                                value: pointData.results[key] === null ? "" : pointData.results[key]
+                            };
+
+                            prepCell(cell);
+
+                            newPoint.push(cell);
+                        }
+
+                        device.registryConfig.push(Immutable.List(newPoint));
                     }
-
-                    return match;
-                });
-
-                if (typeof pointInList === "undefined") {
-                    var newPoint = [];
-
-                    for (var key in point) {
-                        var cell = {
-                            key: key.toLowerCase().replace(/ /g, "_"),
-                            label: key,
-                            value: point[key] === null ? "" : point[key]
-                        };
-
-                        prepCell(cell);
-
-                        newPoint.push(cell);
-                    }
-
-                    device.registryConfig.push(Immutable.List(newPoint));
                 }
             }
         }
@@ -11764,48 +11776,51 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         return Object.keys(obj).length === 0;
     }
 
-    function loadDevice(data, platform, bacnetUuid) {
+    function loadDevice(data, platform, bacnetIdentity) {
         var warningMsg = {};
 
         if (data) {
             var device = JSON.parse(data);
-            var deviceIdStr = device.device_id.toString();
-            var addDevice = true;
 
-            var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
+            if (device.hasOwnProperty("device_id") && !device.hasOwnProperty("results")) {
+                var deviceIdStr = device.device_id.toString();
+                var addDevice = true;
 
-            if (alreadyInList) {
-                if (alreadyInList.address !== device.address) {
-                    warningMsg = {
-                        key: "duplicate_id",
-                        message: "Duplicate device IDs found. Your network may not be set up correctly. ",
-                        value: deviceIdStr
-                    };
-                } else // If the IDs are the same and the addresses are the same, assume
-                    {
-                        // it's an IAM for a device we already know about
+                var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
 
-                        addDevice = false;
-                    }
-            }
+                if (alreadyInList) {
+                    if (alreadyInList.address !== device.address) {
+                        warningMsg = {
+                            key: "duplicate_id",
+                            message: "Duplicate device IDs found. Your network may not be set up correctly. ",
+                            value: deviceIdStr
+                        };
+                    } else // If the IDs are the same and the addresses are the same, assume
+                        {
+                            // it's an IAM for a device we already know about
 
-            if (addDevice) {
-                _devices.push({
-                    id: deviceIdStr,
-                    name: device.device_name,
-                    vendor_id: device.vendor_id,
-                    address: device.address,
-                    max_apdu_length: device.max_apdu_length,
-                    segmentation_supported: device.segmentation_supported,
-                    showPoints: false,
-                    configuring: false,
-                    platformUuid: platform.uuid,
-                    bacnetProxyUuid: bacnetUuid,
-                    registryConfig: [],
-                    keyProps: ["volttron_point_name", "units", "writable"],
-                    selectedPoints: [],
-                    items: [{ key: "address", label: "Address", value: device.address }, { key: "deviceName", label: "Name", value: device.device_name }, { key: "deviceDescription", label: "Description", value: device.device_description }, { key: "deviceId", label: "Device ID", value: deviceIdStr }, { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] }, { key: "type", label: "Type", value: "BACnet" }]
-                });
+                            addDevice = false;
+                        }
+                }
+
+                if (addDevice) {
+                    _devices.push({
+                        id: deviceIdStr,
+                        name: device.device_name,
+                        vendor_id: device.vendor_id,
+                        address: device.address,
+                        max_apdu_length: device.max_apdu_length,
+                        segmentation_supported: device.segmentation_supported,
+                        showPoints: false,
+                        configuring: false,
+                        platformUuid: platform.uuid,
+                        bacnetProxyIdentity: bacnetIdentity,
+                        registryConfig: [],
+                        keyProps: ["volttron_point_name", "units", "writable"],
+                        selectedPoints: [],
+                        items: [{ key: "address", label: "Address", value: device.address }, { key: "deviceName", label: "Name", value: device.device_name }, { key: "deviceDescription", label: "Description", value: device.device_description }, { key: "deviceId", label: "Device ID", value: deviceIdStr }, { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] }, { key: "type", label: "Type", value: "BACnet" }]
+                    });
+                }
             }
         }
 
@@ -13311,6 +13326,33 @@ platformsStore.getRunningBacnetProxies = function (uuid) {
     }
 
     return bacnetProxies;
+};
+
+platformsStore.getPlatformAgentUuid = function (uuid) {
+    var platformAgentUuid;
+
+    if (_platforms) {
+        if (_platforms.length) {
+            var foundPlatform = _platforms.find(function (platform) {
+                return platform.uuid === uuid;
+            });
+
+            if (foundPlatform) {
+                if (foundPlatform.hasOwnProperty("agents")) {
+                    var platformAgent = foundPlatform.agents.find(function (agent) {
+
+                        return agent.name.toLowerCase().indexOf("vcplatformagent") > -1 && agent.actionPending === false && agent.process_id !== null && agent.return_code === null;
+                    });
+
+                    if (typeof platformAgent !== "undefined") {
+                        platformAgentUuid = platformAgent.uuid;
+                    }
+                }
+            }
+        }
+    }
+
+    return platformAgentUuid;
 };
 
 platformsStore.getForwarderRunning = function (platformUuid) {
