@@ -105,6 +105,7 @@ PLATFORM = _('platform/{subtopic}')
 PLATFORM_SHUTDOWN = PLATFORM(subtopic='shutdown')
 PLATFORM_VCP_DEVICES = _('platforms/{platform_uuid}/devices/{topic}')
 
+RECORD_BASE = _('record')
 RECORD = _('record/{subtopic}')
 
 AGENT_SHUTDOWN = _('agent/{agent}/shutdown')
@@ -147,7 +148,8 @@ ACTUATOR_SCHEDULE_ANNOUNCE = _(ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace('{device}'
 
 # Added by CHA to be used as the root of all actuators for working within
 # base_historian.py.
-ACTUATOR = _(_DEVICES_VALUE.replace('{node}', 'actuators'))
+ACTUATOR_BASE = _('actuators')
+ACTUATOR = _(_DEVICES_VALUE.replace('{node}', ACTUATOR_BASE))
 ACTUATOR_ERROR = _(_DEVICES_VALUE.replace('{node}', 'actuators/error'))
 ACTUATOR_VALUE = _(_DEVICES_VALUE.replace('{node}', 'actuators/value'))
 
