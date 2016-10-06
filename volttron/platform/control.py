@@ -534,7 +534,7 @@ def status_agents(opts):
         except KeyError:
             pid = stat = None
 
-        if stat:
+        if stat is not None:
             return str(stat)
         if pid:
             return 'running [{}]'.format(pid)
