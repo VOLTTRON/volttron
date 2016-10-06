@@ -1,7 +1,7 @@
 {
     "agentid": "sqlhistorian-mysql",
 
-    #DEPRECATION WARNING: Do not use this file. Instead use the new method provided by
+    #DEPRECATION WARNING: Do not use the "identity" setting. Instead use the new method provided by
     # the platform to set an agent's identity.
     #See scripts/core/make-sqlite-historian.sh for an example of how this is done.
 
@@ -11,7 +11,8 @@
     #Using the identity configuration setting will override the value provided
     #by the platform. This new value will not be reported correctly by 'volttron-ctl status'
 
-    "identity": "platform.historian",
+    #"identity": "platform.historian",
+    
     "connection": {
         "type": "mysql",
         "params": {
