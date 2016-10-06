@@ -228,6 +228,10 @@ class ControlService(BaseAgent):
         return self._aip.agent_identity(uuid)
 
     @RPC.export
+    def install_agent_local(self, filename, vip_identity=None):
+        return self._aip.install_agent(filename, vip_identity=vip_identity)
+
+    @RPC.export
     def install_agent(self, filename, channel_name, vip_identity=None):
         """ Installs an agent on the instance instance.
 
@@ -388,8 +392,9 @@ def install_agent(opts):
     if opts.vip_address.startswith('ipc://'):
         _log.info("Installing wheel locally without channel subsystem")
         filename = config.expandall(filename)
-        agent_uuid = aip.install_agent(filename,
-                                       vip_identity=vip_identity)
+        agent_uuid = opts.connection.call('install_agent_local',
+                                          filename,
+                                          vip_identity=vip_identity)
 
         if tag:
             opts.connection.call('tag_agent', agent_uuid, tag)

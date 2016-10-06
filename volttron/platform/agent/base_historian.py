@@ -473,7 +473,6 @@ class BaseHistorianAgent(Agent):
         """
 
         if not ALL_REX.match(topic):
-            _log.debug("Unmatched topic: {}".format(topic))
             return
 
         # Anon the topic if necessary.
