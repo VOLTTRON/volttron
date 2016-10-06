@@ -65,6 +65,7 @@ from volttron.platform import get_address, get_home
 from volttron.platform.vip.agent import Agent, PubSub
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
+from volttron.platform.vip.agent import errors
 
 
 from pprint import pprint
@@ -136,9 +137,12 @@ def main():
         kwargs['low_device_id'] = int(args.range[0])
         kwargs['high_device_id'] = int(args.range[1])
 
-    agent.send_iam(**kwargs)
-
-    gevent.sleep(args.timeout)
+    try:
+        agent.send_iam(**kwargs)
+    except errors.Unreachable:
+        _log.error("There is no BACnet proxy Agent running on the platform with the VIP IDENTITY {}".format(args.proxy_id))
+    else:
+        gevent.sleep(args.timeout)
         
 try:
     main()
