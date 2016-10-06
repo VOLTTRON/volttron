@@ -89,7 +89,8 @@ class FailoverAgent(Agent):
             _log.error("agent_id must be either 'primary' or 'secondary'")
 
         # Modify ids if we're using the simple option
-        use_simple = config["simple_behavior"]
+        # Defaults to true pending vc coordination
+        use_simple = config.get("simple_behavior", True)
         if use_simple:
             self.agent_id = "simple_" + self.agent_id
             self.remote_id = "simple_" + self.remote_id
