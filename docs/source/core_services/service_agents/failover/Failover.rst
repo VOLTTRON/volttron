@@ -3,7 +3,7 @@ Failover Agent
 
 Introduction
 ------------
-The failover agent provides a generic high availability option to Volttron.
+The failover agent provides a generic high availability option to VOLTTRON.
 When the **primary** platform becomes inactive the **secondary** platform
 will start an installed agent.
 
@@ -58,7 +58,8 @@ primary and secondary configuration files are shown below.
 
     {                                           |    {
         "agent_id": "primary",                  |        "agent_id": "secondary",
-        "remote_id": "secondary",               |        "remote_id": "primary",
+        "simple_behavior": true,                |        "simple_behavior": true,
+                                                |
         "remote_vip": "tcp://127.0.0.1:8001",   |        "remote_vip": "tcp://127.0.0.1:8000",
         "remote_serverkey": "",                 |        "remote_serverkey": "",
                                                 |
@@ -69,8 +70,8 @@ primary and secondary configuration files are shown below.
         "timeout": 120                          |        "timeout": 120
     }                                           |    }
 
-- **agent_id** - primary/secondary **or** simple_primary/simple_secondary
-- **remote_id** - primary/secondary **or** simple_primary/simple_secondary
+- **agent_id** - primary **or** secondary
+- **simple_behavior** - Switch to turn on or off simple behavior. Both instances should match.
 - **remote_vip** - Address where *remote_id* can be reached.
 - **remote_serverkey** - The public key of the platform where *remote_id* lives.
 - **agent_vip_identity** - The vip identity of the agent that we want to manage.

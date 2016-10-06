@@ -7,8 +7,8 @@ from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.keystore import KeyStore
 
 simple_primary_config = {
-    "agent_id": "simple_primary",
-    "remote_id": "simple_secondary",
+    "agent_id": "primary",
+    "simple_behavior": True,
     # "remote_vip": "",
     # "remote_serverkey":"",
     "agent_vip_identity": "listener",
@@ -17,8 +17,8 @@ simple_primary_config = {
 }
 
 simple_secondary_config = {
-    "agent_id": "simple_secondary",
-    "remote_id": "simple_primary",
+    "agent_id": "secondary",
+    "simple_behavior": True,
     # "remote_vip": "",
     # "remote_serverkey": "",
     "agent_vip_identity": "listener",

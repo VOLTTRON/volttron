@@ -77,9 +77,23 @@ class FailoverAgent(Agent):
         super(FailoverAgent, self).__init__(**kwargs)
         config = utils.load_config(config_path)
 
-        # Config file options
-        self.agent_id = config["agent_id"]
-        self.remote_id = config["remote_id"]
+        # Get agent and remote ids
+        agent_id = config["agent_id"]
+        if agent_id == "primary":
+            self.agent_id = "primary"
+            self.remote_id = "secondary"
+        elif agent_id == "secondary":
+            self.agent_id = "secondary"
+            self.remote_id = "primary"
+        else:
+            _log.error("agent_id must be either 'primary' or 'secondary'")
+
+        # Modify ids if we're using the simple option
+        use_simple = config["simple_behavior"]
+        if use_simple:
+            self.agent_id = "simple_" + self.agent_id
+            self.remote_id = "simple_" + self.remote_id
+
         self.remote_vip = config["remote_vip"]
         self.remote_serverkey = config["remote_serverkey"]
 
