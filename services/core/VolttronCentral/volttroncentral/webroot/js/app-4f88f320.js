@@ -7705,7 +7705,7 @@ var PlatformsPanelItem = function (_BaseComponent) {
         _this.state.showTooltip = false;
         _this.state.tooltipX = null;
         _this.state.tooltipY = null;
-        _this.state.checked = _this.props.panelItem.hasOwnProperty("checked") ? _this.props.panelItem.get("checked") : false;
+        _this.state.checked = typeof _this.props.panelItem.get("checked") !== "undefined" ? _this.props.panelItem.get("checked") : false;
         _this.state.panelItem = _this.props.panelItem;
         _this.state.children = _immutable2.default.fromJS(_this.props.panelChildren);
 
@@ -7962,24 +7962,39 @@ var PlatformsPanelItem = function (_BaseComponent) {
             }
 
             var ChartCheckbox;
+            var inputStyle;
+            var spinnerStyle;
 
             if (["point"].indexOf(panelItem.get("type")) > -1) {
                 if (this.state.checked !== null) {
-                    ChartCheckbox = React.createElement('input', { className: 'panelItemCheckbox',
-                        type: 'checkbox',
-                        onChange: this._checkItem,
-                        checked: this.state.checked });
+                    spinnerStyle = {
+                        display: "none"
+                    };
                 } else {
-                    ChartCheckbox = React.createElement(
+                    inputStyle = {
+                        display: "none"
+                    };
+                }
+
+                ChartCheckbox = React.createElement(
+                    'div',
+                    null,
+                    React.createElement('input', { className: 'panelItemCheckbox',
+                        type: 'checkbox',
+                        style: inputStyle,
+                        onChange: this._checkItem,
+                        checked: typeof this.state.checked === "undefined" || this.state.checked === null ? false : this.state.checked }),
+                    React.createElement(
                         'div',
-                        { className: 'checkboxSpinner arrowButton' },
+                        { className: 'checkboxSpinner arrowButton',
+                            style: spinnerStyle },
                         React.createElement(
                             'span',
                             { style: arrowContentStyle },
                             React.createElement('i', { className: 'fa fa-circle-o-notch fa-spin fa-fw' })
                         )
-                    );
-                }
+                    )
+                );
             }
 
             var tooltipStyle = {
@@ -8062,7 +8077,7 @@ var PlatformsPanelItem = function (_BaseComponent) {
                         grandchildren.push(propChild.get(childString));
                     });
 
-                    var itemKey = propChild.hasOwnProperty("uuid") ? propChild.get("uuid") : propChild.get("name") + this.get("uuid");
+                    var itemKey = typeof propChild.get("uuid") !== "undefined" ? propChild.get("uuid") : propChild.get("name") + this.get("uuid");
 
                     return React.createElement(PlatformsPanelItem, { key: itemKey,
                         panelItem: propChild,
@@ -8084,7 +8099,7 @@ var PlatformsPanelItem = function (_BaseComponent) {
 
             var itemClasses = [];
 
-            if (!panelItem.hasOwnProperty("uuid")) {
+            if (!panelItem.get("uuid")) {
                 itemClasses.push("item_type");
             } else {
                 itemClasses.push("item_label");

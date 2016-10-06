@@ -25,7 +25,7 @@ class PlatformsPanelItem extends BaseComponent {
         this.state.showTooltip = false;
         this.state.tooltipX = null;
         this.state.tooltipY = null;
-        this.state.checked = (this.props.panelItem.hasOwnProperty("checked") ? this.props.panelItem.get("checked") : false);
+        this.state.checked = (typeof this.props.panelItem.get("checked") !== "undefined" ? this.props.panelItem.get("checked") : false);
         this.state.panelItem = this.props.panelItem;
         this.state.children = Immutable.fromJS(this.props.panelChildren);
 
@@ -287,24 +287,37 @@ class PlatformsPanelItem extends BaseComponent {
         }
         
         var ChartCheckbox;
+        var inputStyle;
+        var spinnerStyle;
 
         if (["point"].indexOf(panelItem.get("type")) > -1)
         {
             if (this.state.checked !== null)
             {
-                ChartCheckbox = (<input className="panelItemCheckbox"
-                                    type="checkbox"
-                                    onChange={this._checkItem}
-                                    checked={this.state.checked}></input>);
+                spinnerStyle = {
+                    display: "none"
+                }
             }
             else
             {
-                ChartCheckbox = (
-                    <div className="checkboxSpinner arrowButton">
+                inputStyle = {
+                    display: "none"
+                }
+            }
+
+            ChartCheckbox = (
+                <div>
+                    <input className="panelItemCheckbox"
+                        type="checkbox"
+                        style={inputStyle}
+                        onChange={this._checkItem}
+                        checked={ ((typeof this.state.checked === "undefined" || this.state.checked === null) ? false : this.state.checked) }></input>
+                    <div className="checkboxSpinner arrowButton"
+                        style={spinnerStyle}>                        
                         <span style={arrowContentStyle}><i className="fa fa-circle-o-notch fa-spin fa-fw"></i></span>
                     </div>
-                )
-            }
+                </div>
+            );            
         }
 
         var tooltipStyle = {
@@ -371,7 +384,7 @@ class PlatformsPanelItem extends BaseComponent {
                         grandchildren.push(propChild.get(childString));
                     });
 
-                    var itemKey = (propChild.hasOwnProperty("uuid") ? 
+                    var itemKey = (typeof propChild.get("uuid") !== "undefined" ? 
                                     propChild.get("uuid") : 
                                         (propChild.get("name") + this.get("uuid")))
 
@@ -399,7 +412,7 @@ class PlatformsPanelItem extends BaseComponent {
 
         var itemClasses = [];
 
-        if (!panelItem.hasOwnProperty("uuid"))
+        if (!panelItem.get("uuid"))
         {
             itemClasses.push("item_type");
         }
