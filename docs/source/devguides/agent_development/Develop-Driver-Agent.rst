@@ -13,8 +13,8 @@ Agent <../../core_services/drivers/Driver-Configuration>`.
 Each of these driver sub-agents is responsible for creating an interface
 to a single device. Creating that interface is facilitated by an
 instance of an interface class. Currently there are two interface
-classes included: `Modbus <Modbus-Driver>`__ and
-`BACnet <BACnet-Driver>`__.
+classes included: :ref:`Modbus <Modbus-Driver>` and
+:ref:`BACnet <BACnet-Driver>`.
 
 Existing Drivers
 ----------------
