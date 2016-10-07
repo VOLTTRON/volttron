@@ -148,6 +148,7 @@ class FailoverAgent(Agent):
                     self.last_connected = self.timestamp()
 
         self.core.periodic(self.heartbeat_period, periodic)
+        self.core.periodic(1, self.check_pulse)
 
     def timestamp(self):
         return time.mktime(datetime.datetime.now().timetuple())
@@ -166,7 +167,6 @@ class FailoverAgent(Agent):
         elif topic.startswith('heartbeat/' + self.remote_id):
             self.remote_timeout = self.timeout
 
-    @Core.periodic(1)
     def check_pulse(self):
         self.vc_timeout -= 1
         self.remote_timeout -= 1
