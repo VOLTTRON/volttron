@@ -822,6 +822,10 @@ br + .form__control-help {
     content: "\f0b0";
 }
 
+.fa-keyboard-o:before {
+    content: "\f11c";
+}
+
 .fa-circle-o-notch:before {
   content: "\f1ce";
 }
@@ -2156,6 +2160,37 @@ svg.nvd3-svg {
     display: none;
 }
 
+.displayNone {
+    display: none;
+}
+
+.keyboard_help_button {
+    position: absolute;
+    top: 40px;
+    right: -30px;
+    cursor: pointer;
+}
+
+.keyboard_help_button > div:last-child {
+    width: 20px;
+    height: 20px;
+}
+
+.keyboard_help_button tr {
+    height: 20px;
+}
+
+.keyboard_help_button td {
+    line-height: 10px;
+}
+
+.keyboard_help_button .centeredDiv {
+    line-height: 20px;
+}
+
+.opaque_inner {
+    background: rgba(255,255,255,1)
+}
 
 /****
 Interactive Layer

@@ -152,7 +152,7 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
     // document.addEventListener("keydown", handleKeyDown.bind(this));
 });
 
-},{"./action-creators/devices-action-creators":4,"./components/configure-devices":16,"./components/dashboard":25,"./components/login-form":30,"./components/navigation":32,"./components/page-not-found":35,"./components/platform":39,"./components/platform-charts":37,"./components/platform-manager":38,"./components/platforms":42,"./stores/authorization-store":57,"./stores/devices-store":60,"./stores/platforms-panel-items-store":63,"react":undefined,"react-dom":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./action-creators/devices-action-creators":4,"./components/configure-devices":16,"./components/dashboard":26,"./components/login-form":31,"./components/navigation":33,"./components/page-not-found":36,"./components/platform":40,"./components/platform-charts":38,"./components/platform-manager":39,"./components/platforms":43,"./stores/authorization-store":58,"./stores/devices-store":61,"./stores/platforms-panel-items-store":64,"react":undefined,"react-dom":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -178,7 +178,7 @@ var consoleActionCreators = {
 
 module.exports = consoleActionCreators;
 
-},{"../constants/action-types":48,"../dispatcher":49,"../lib/rpc/exchange":51}],3:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50,"../lib/rpc/exchange":52}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -201,7 +201,7 @@ var controlButtonActionCreators = {
 
 module.exports = controlButtonActionCreators;
 
-},{"../constants/action-types":48,"../dispatcher":49}],4:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -417,7 +417,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = devicesActionCreators;
 
-},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":48,"../dispatcher":49,"../lib/rpc":52,"../stores/authorization-store":57}],5:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":49,"../dispatcher":50,"../lib/rpc":53,"../stores/authorization-store":58}],5:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -439,7 +439,7 @@ var modalActionCreators = {
 
 module.exports = modalActionCreators;
 
-},{"../constants/action-types":48,"../dispatcher":49}],6:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -885,7 +885,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = platformActionCreators;
 
-},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":48,"../dispatcher":49,"../lib/rpc":52,"../stores/authorization-store":57,"../stores/platform-chart-store":62,"../stores/platforms-panel-items-store":63,"../stores/platforms-store":65}],7:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":49,"../dispatcher":50,"../lib/rpc":53,"../stores/authorization-store":58,"../stores/platform-chart-store":63,"../stores/platforms-panel-items-store":64,"../stores/platforms-store":66}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1097,7 +1097,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = platformChartActionCreators;
 
-},{"../action-creators/platform-action-creators":6,"../action-creators/platforms-panel-action-creators":9,"../action-creators/status-indicator-action-creators":10,"../constants/action-types":48,"../dispatcher":49,"../lib/rpc":52,"../stores/authorization-store":57,"../stores/platform-chart-store":62,"../stores/platforms-panel-items-store":63,"../stores/platforms-store":65}],8:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":6,"../action-creators/platforms-panel-action-creators":9,"../action-creators/status-indicator-action-creators":10,"../constants/action-types":49,"../dispatcher":50,"../lib/rpc":53,"../stores/authorization-store":58,"../stores/platform-chart-store":63,"../stores/platforms-panel-items-store":64,"../stores/platforms-store":66}],8:[function(require,module,exports){
 'use strict';
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
@@ -1306,7 +1306,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = platformManagerActionCreators;
 
-},{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../constants/action-types":48,"../dispatcher":49,"../lib/rpc":52,"../stores/authorization-store":57}],9:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../constants/action-types":49,"../dispatcher":50,"../lib/rpc":53,"../stores/authorization-store":58}],9:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1499,7 +1499,7 @@ function handle401(error, message, highlight, orientation) {
 
 module.exports = platformsPanelActionCreators;
 
-},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":48,"../dispatcher":49,"../lib/rpc":52,"../stores/authorization-store":57,"../stores/platforms-panel-items-store":63}],10:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":10,"../constants/action-types":49,"../dispatcher":50,"../lib/rpc":53,"../stores/authorization-store":58,"../stores/platforms-panel-items-store":64}],10:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1525,7 +1525,7 @@ var actionStatusCreators = {
 
 module.exports = actionStatusCreators;
 
-},{"../constants/action-types":48,"../dispatcher":49}],11:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50}],11:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1635,7 +1635,7 @@ var AgentRow = React.createClass({
 
 module.exports = AgentRow;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"./remove-agent-form":46,"react":undefined}],12:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"./remove-agent-form":47,"react":undefined}],12:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2019,7 +2019,7 @@ function getStateFromStores() {
 
 module.exports = Composer;
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":58,"react":undefined}],15:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":59,"react":undefined}],15:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2799,7 +2799,7 @@ function getInitialState() {
 
 exports.default = ConfigureDevices;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":60,"../stores/platforms-store":65,"./base-component":12,"./devices-found":27,"react":undefined}],17:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":61,"../stores/platforms-store":66,"./base-component":12,"./devices-found":28,"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -2839,6 +2839,10 @@ var _editSelectButton2 = _interopRequireDefault(_editSelectButton);
 var _editColumnsButton = require('./control_buttons/edit-columns-button');
 
 var _editColumnsButton2 = _interopRequireDefault(_editColumnsButton);
+
+var _keyboardHelpButton = require('./control_buttons/keyboard-help-button');
+
+var _keyboardHelpButton2 = _interopRequireDefault(_keyboardHelpButton);
 
 var _registryRow = require('./registry-row');
 
@@ -3882,6 +3886,15 @@ var ConfigureRegistry = function (_BaseComponent) {
                 backgroundColor: this.state.resizingTable ? "#AAA" : "#DDD"
             };
 
+            var keyboardHelpButton;
+
+            if (registryRows) {
+                if (registryRows.length) {
+                    keyboardHelpButton = _react2.default.createElement(_keyboardHelpButton2.default, {
+                        deviceInfo: this.props.device.id + "-" + this.props.device.address });
+                }
+            }
+
             return _react2.default.createElement(
                 'div',
                 { className: visibilityClass,
@@ -3910,7 +3923,8 @@ var ConfigureRegistry = function (_BaseComponent) {
                                 null,
                                 registryRows
                             )
-                        )
+                        ),
+                        keyboardHelpButton
                     )
                 ),
                 registryButtons
@@ -3984,7 +3998,7 @@ function initializeList(registryConfig, keyPropsList) {
 
 exports.default = ConfigureRegistry;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":60,"./base-component":12,"./config-device-form":15,"./confirm-form":18,"./control-button":20,"./control_buttons/edit-columns-button":21,"./control_buttons/edit-select-button":22,"./control_buttons/filter-points-button":23,"./edit-point-form":28,"./new-column-form":34,"./preview-registry-form":43,"./registry-row":45,"immutable":undefined,"react":undefined}],18:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../stores/devices-store":61,"./base-component":12,"./config-device-form":15,"./confirm-form":18,"./control-button":20,"./control_buttons/edit-columns-button":21,"./control_buttons/edit-select-button":22,"./control_buttons/filter-points-button":23,"./control_buttons/keyboard-help-button":24,"./edit-point-form":29,"./new-column-form":35,"./preview-registry-form":44,"./registry-row":46,"immutable":undefined,"react":undefined}],18:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4078,7 +4092,7 @@ var Console = React.createClass({
 
 module.exports = Console;
 
-},{"./composer":14,"./conversation":24,"react":undefined}],20:[function(require,module,exports){
+},{"./composer":14,"./conversation":25,"react":undefined}],20:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4311,7 +4325,7 @@ var ControlButton = React.createClass({
 
         var centering = this.props.hasOwnProperty("nocentering") && this.props.nocentering === true ? "" : "centeredDiv";
 
-        var outerClasses = this.props.hasOwnProperty("floatleft") && this.props.floatleft === true ? "floatLeft" : "inlineBlock";
+        var outerClasses = this.props.hasOwnProperty("outerclass") && this.props.outerclass ? this.props.outerclass : this.props.hasOwnProperty("floatleft") && this.props.floatleft === true ? "floatLeft" : "inlineBlock";
 
         return React.createElement(
             'div',
@@ -4337,7 +4351,7 @@ var ControlButton = React.createClass({
 
 module.exports = OutsideClick(ControlButton);
 
-},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":59,"react":undefined,"react-click-outside":undefined,"react-router":undefined}],21:[function(require,module,exports){
+},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":60,"react":undefined,"react-click-outside":undefined,"react-router":undefined}],21:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -4888,6 +4902,326 @@ module.exports = FilterPointsButton;
 },{"../control-button":20,"react":undefined}],24:[function(require,module,exports){
 'use strict';
 
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _baseComponent = require('../base-component');
+
+var _baseComponent2 = _interopRequireDefault(_baseComponent);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var ControlButton = require('../control-button');
+var controlButtonActionCreators = require('../../action-creators/control-button-action-creators');
+
+var KeyboardHelpButton = function (_BaseComponent) {
+    _inherits(KeyboardHelpButton, _BaseComponent);
+
+    function KeyboardHelpButton(props) {
+        _classCallCheck(this, KeyboardHelpButton);
+
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(KeyboardHelpButton).call(this, props));
+
+        _this._bind("_onFindBoxChange", "_onReplaceBoxChange", "_findNext", "_onClearEdit", "_replace", "_replaceAll", "_onKeyDown");
+
+        _this.state = {
+            buttonName: "keyboard-help-" + _this.props.deviceInfo
+        };
+        return _this;
+    }
+
+    _createClass(KeyboardHelpButton, [{
+        key: '_onFindBoxChange',
+        value: function _onFindBoxChange(e) {
+            var findValue = e.target.value;
+
+            this.setState({ findValue: findValue });
+
+            this.props.onclear(this.props.column);
+        }
+    }, {
+        key: '_onKeyDown',
+        value: function _onKeyDown(callback, e) {
+
+            if (e.keyCode === 13) //Enter
+                {
+                    callback();
+                }
+        }
+    }, {
+        key: '_onReplaceBoxChange',
+        value: function _onReplaceBoxChange(e) {
+            var replaceValue = e.target.value;
+
+            this.setState({ replaceValue: replaceValue });
+        }
+    }, {
+        key: '_findNext',
+        value: function _findNext() {
+
+            if (this.state.findValue === "") {
+                this.props.onclear(this.props.column);
+            } else {
+                this.props.findnext(this.state.findValue, this.props.column);
+            }
+        }
+    }, {
+        key: '_onClearEdit',
+        value: function _onClearEdit(e) {
+
+            this.props.onclear(this.props.column);
+            this.setState({ findValue: "" });
+            this.setState({ replaceValue: "" });
+            controlButtonActionCreators.hideTaptip(this.state.buttonName);
+        }
+    }, {
+        key: '_replace',
+        value: function _replace() {
+            if (this.props.replaceEnabled) {
+                this.props.replace(this.state.findValue, this.state.replaceValue, this.props.column);
+            }
+        }
+    }, {
+        key: '_replaceAll',
+        value: function _replaceAll() {
+            if (this.props.replaceEnabled) {
+                this.props.replaceall(this.state.findValue, this.state.replaceValue, this.props.column);
+            }
+        }
+    }, {
+        key: 'render',
+        value: function render() {
+
+            var shortcutsBoxContainer = {
+                position: "relative"
+            };
+
+            var inputStyle = {
+                width: "100%",
+                marginLeft: "10px",
+                fontWeight: "normal"
+            };
+
+            var divWidth = {
+                width: "85%"
+            };
+
+            var clearTooltip = {
+                content: "Clear Search",
+                x: 50,
+                y: 0
+            };
+
+            var findTooltip = {
+                content: "Find Next",
+                x: 100,
+                y: 0
+            };
+
+            var replaceTooltip = {
+                content: "Replace",
+                x: 100,
+                y: 80
+            };
+
+            var replaceAllTooltip = {
+                content: "Replace All",
+                x: 100,
+                y: 80
+            };
+
+            var buttonsStyle = {
+                marginTop: "8px"
+            };
+
+            var replaceEnabled = !this.props.replaceEnabled ? "disableReplace" : "";
+
+            var shortcutsBox = _react2.default.createElement(
+                'div',
+                { style: shortcutsBoxContainer },
+                _react2.default.createElement(
+                    'table',
+                    null,
+                    _react2.default.createElement(
+                        'tbody',
+                        null,
+                        _react2.default.createElement(
+                            'tr',
+                            null,
+                            _react2.default.createElement(
+                                'td',
+                                null,
+                                _react2.default.createElement(
+                                    'b',
+                                    null,
+                                    'Ctrl'
+                                )
+                            ),
+                            _react2.default.createElement(
+                                'td',
+                                { className: 'plain' },
+                                'Activate keyboard commands for device table that has focus.'
+                            )
+                        ),
+                        _react2.default.createElement(
+                            'tr',
+                            null,
+                            _react2.default.createElement(
+                                'td',
+                                null,
+                                _react2.default.createElement(
+                                    'b',
+                                    null,
+                                    'ESC'
+                                )
+                            ),
+                            _react2.default.createElement(
+                                'td',
+                                { className: 'plain' },
+                                'Deactivate keyboard commands.'
+                            )
+                        ),
+                        _react2.default.createElement(
+                            'tr',
+                            null,
+                            _react2.default.createElement(
+                                'td',
+                                null,
+                                _react2.default.createElement(
+                                    'b',
+                                    null,
+                                    'Up'
+                                )
+                            ),
+                            _react2.default.createElement(
+                                'td',
+                                { className: 'plain' },
+                                'Move keyboard selection up one row.'
+                            )
+                        ),
+                        _react2.default.createElement(
+                            'tr',
+                            null,
+                            _react2.default.createElement(
+                                'td',
+                                null,
+                                _react2.default.createElement(
+                                    'b',
+                                    null,
+                                    'Down'
+                                )
+                            ),
+                            _react2.default.createElement(
+                                'td',
+                                { className: 'plain' },
+                                'Move keyboard selection down one row.'
+                            )
+                        ),
+                        _react2.default.createElement(
+                            'tr',
+                            null,
+                            _react2.default.createElement(
+                                'td',
+                                null,
+                                _react2.default.createElement(
+                                    'b',
+                                    null,
+                                    'Shift+Up'
+                                )
+                            ),
+                            _react2.default.createElement(
+                                'td',
+                                { className: 'plain' },
+                                'Extend keyboard selection up one row.'
+                            )
+                        ),
+                        _react2.default.createElement(
+                            'tr',
+                            null,
+                            _react2.default.createElement(
+                                'td',
+                                null,
+                                _react2.default.createElement(
+                                    'b',
+                                    null,
+                                    'Shift+Down'
+                                )
+                            ),
+                            _react2.default.createElement(
+                                'td',
+                                { className: 'plain' },
+                                'Extend keyboard selection down one row.'
+                            )
+                        ),
+                        _react2.default.createElement(
+                            'tr',
+                            null,
+                            _react2.default.createElement(
+                                'td',
+                                null,
+                                _react2.default.createElement(
+                                    'b',
+                                    null,
+                                    'Enter'
+                                )
+                            ),
+                            _react2.default.createElement(
+                                'td',
+                                { className: 'plain' },
+                                'Lock in keyboard selections.'
+                            )
+                        )
+                    )
+                )
+            );
+
+            var keyboardHelpTaptip = {
+                "title": "Keyboard Shortcuts",
+                "content": shortcutsBox,
+                "x": -240,
+                "y": -260,
+                "styles": [{ "key": "width", "value": "500px" }]
+            };
+
+            var keyboardHelpTooltip = {
+                "content": "Keyboard Shortcuts",
+                "x": -20,
+                "y": -100
+            };
+
+            return _react2.default.createElement(ControlButton, {
+                name: this.state.buttonName,
+                taptip: keyboardHelpTaptip,
+                tooltip: keyboardHelpTooltip,
+                fontAwesomeIcon: 'keyboard-o',
+                outerclass: 'keyboard_help_button',
+                controlclass: 'keyboard-help' });
+        }
+    }]);
+
+    return KeyboardHelpButton;
+}(_baseComponent2.default);
+
+;
+
+exports.default = KeyboardHelpButton;
+
+},{"../../action-creators/control-button-action-creators":3,"../base-component":12,"../control-button":20,"react":undefined}],25:[function(require,module,exports){
+'use strict';
+
 var $ = require('jquery');
 var React = require('react');
 var ReactDOM = require('react-dom');
@@ -4936,7 +5270,7 @@ function getStateFromStores() {
 
 module.exports = Conversation;
 
-},{"../stores/console-store":58,"./exchange":29,"jquery":undefined,"react":undefined,"react-dom":undefined}],25:[function(require,module,exports){
+},{"../stores/console-store":59,"./exchange":30,"jquery":undefined,"react":undefined,"react-dom":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5003,7 +5337,7 @@ function getStateFromStores() {
 
 module.exports = Dashboard;
 
-},{"../stores/platform-chart-store":62,"./platform-chart":36,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
+},{"../stores/platform-chart-store":63,"./platform-chart":37,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5067,7 +5401,7 @@ var RegisterPlatformForm = React.createClass({
 
 module.exports = RegisterPlatformForm;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"react":undefined}],27:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"react":undefined}],28:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -5522,7 +5856,7 @@ function objectIsEmpty(obj) {
 
 exports.default = DevicesFound;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":60,"../stores/platforms-store":65,"./base-component":12,"./configure-registry":17,"./confirm-form":18,"babyparse":undefined,"react":undefined}],28:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":61,"../stores/platforms-store":66,"./base-component":12,"./configure-registry":17,"./confirm-form":18,"babyparse":undefined,"react":undefined}],29:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -5715,7 +6049,7 @@ var EditPointForm = function (_BaseComponent) {
 
 exports.default = EditPointForm;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"./base-component":12,"react":undefined}],29:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"./base-component":12,"react":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5789,7 +6123,7 @@ var Exchange = React.createClass({
 
 module.exports = Exchange;
 
-},{"react":undefined}],30:[function(require,module,exports){
+},{"react":undefined}],31:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5850,7 +6184,7 @@ var LoginForm = React.createClass({
 
 module.exports = LoginForm;
 
-},{"../action-creators/platform-manager-action-creators":8,"react":undefined,"react-router":undefined}],31:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":8,"react":undefined,"react-router":undefined}],32:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5880,7 +6214,7 @@ var Modal = React.createClass({
 
 module.exports = Modal;
 
-},{"../action-creators/modal-action-creators":5,"react":undefined}],32:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"react":undefined}],33:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -5982,7 +6316,7 @@ function getStateFromStores() {
 
 module.exports = Navigation;
 
-},{"../action-creators/platform-manager-action-creators":8,"../action-creators/platforms-panel-action-creators":9,"../stores/authorization-store":57,"react":undefined,"react-router":undefined}],33:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":8,"../action-creators/platforms-panel-action-creators":9,"../stores/authorization-store":58,"react":undefined,"react-router":undefined}],34:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -6276,7 +6610,7 @@ var NewChartForm = React.createClass({
 
 module.exports = NewChartForm;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":62,"../stores/platforms-panel-items-store":63,"./combo-box":13,"react":undefined}],34:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":63,"../stores/platforms-panel-items-store":64,"./combo-box":13,"react":undefined}],35:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -6433,7 +6767,7 @@ var NewColumnForm = function (_BaseComponent) {
 
 exports.default = NewColumnForm;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"./base-component":12,"react":undefined}],35:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"./base-component":12,"react":undefined}],36:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -6456,7 +6790,7 @@ var PageNotFound = React.createClass({
 
 module.exports = PageNotFound;
 
-},{"react":undefined}],36:[function(require,module,exports){
+},{"react":undefined}],37:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7110,7 +7444,7 @@ var GraphLineChart = OutsideClick(React.createClass({
 
 module.exports = PlatformChart;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":62,"./confirm-form":18,"./control-button":20,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-click-outside":undefined,"react-dom":undefined,"react-router":undefined}],37:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platform-chart-store":63,"./confirm-form":18,"./control-button":20,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-click-outside":undefined,"react-dom":undefined,"react-router":undefined}],38:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7201,7 +7535,7 @@ var PlatformCharts = React.createClass({
 
 module.exports = PlatformCharts;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../stores/platform-chart-store":62,"./new-chart-form":33,"./platform-chart":36,"react":undefined}],38:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"../stores/platform-chart-store":63,"./new-chart-form":34,"./platform-chart":37,"react":undefined}],39:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -7453,7 +7787,7 @@ function getStateFromStores() {
 
 exports.default = PlatformManager;
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"../stores/authorization-store":57,"../stores/console-store":58,"../stores/modal-store":61,"../stores/platforms-panel-store":64,"../stores/platforms-store":65,"../stores/status-indicator-store":66,"./console":19,"./modal":31,"./navigation":32,"./platforms-panel":41,"./status-indicator":47,"jquery":undefined,"react":undefined,"react-dom":undefined,"react-router":undefined}],39:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"../stores/authorization-store":58,"../stores/console-store":59,"../stores/modal-store":62,"../stores/platforms-panel-store":65,"../stores/platforms-store":66,"../stores/status-indicator-store":67,"./console":19,"./modal":32,"./navigation":33,"./platforms-panel":42,"./status-indicator":48,"jquery":undefined,"react":undefined,"react-dom":undefined,"react-router":undefined}],40:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -7654,7 +7988,7 @@ function getStateFromStores(component) {
 
 module.exports = Platform;
 
-},{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../stores/platforms-store":65,"./agent-row":11,"react":undefined,"react-router":undefined}],40:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":6,"../action-creators/status-indicator-action-creators":10,"../stores/platforms-store":66,"./agent-row":11,"react":undefined,"react-router":undefined}],41:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -8181,7 +8515,7 @@ var PlatformsPanelItem = function (_BaseComponent) {
 
 exports.default = PlatformsPanelItem;
 
-},{"../action-creators/control-button-action-creators":3,"../action-creators/devices-action-creators":4,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":63,"./base-component":12,"./control-button":20,"immutable":undefined,"react":undefined,"react-router":undefined}],41:[function(require,module,exports){
+},{"../action-creators/control-button-action-creators":3,"../action-creators/devices-action-creators":4,"../action-creators/platform-chart-action-creators":7,"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":64,"./base-component":12,"./control-button":20,"immutable":undefined,"react":undefined,"react-router":undefined}],42:[function(require,module,exports){
 'use strict';
 
 var _platformsPanelItem = require('./platforms-panel-item');
@@ -8465,7 +8799,7 @@ var PlatformsPanel = React.createClass({
 
 module.exports = PlatformsPanel;
 
-},{"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":63,"../stores/platforms-panel-store":64,"./control-button":20,"./platforms-panel-item":40,"immutable":undefined,"react":undefined,"react-router":undefined}],42:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":9,"../stores/platforms-panel-items-store":64,"../stores/platforms-panel-store":65,"./control-button":20,"./platforms-panel-item":41,"immutable":undefined,"react":undefined,"react-router":undefined}],43:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -8610,7 +8944,7 @@ function getStateFromStores() {
 
 module.exports = Platforms;
 
-},{"../action-creators/modal-action-creators":5,"../components/deregister-platform-confirmation":26,"../components/register-platform-form":44,"../stores/platforms-store":65,"react":undefined,"react-router":undefined}],43:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../components/deregister-platform-confirmation":27,"../components/register-platform-form":45,"../stores/platforms-store":66,"react":undefined,"react-router":undefined}],44:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -8884,7 +9218,7 @@ var PreviewRegistryForm = function (_BaseComponent) {
 
 exports.default = PreviewRegistryForm;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"./base-component":12,"react":undefined}],44:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"./base-component":12,"react":undefined}],45:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -9318,7 +9652,7 @@ var RegisterPlatformForm = React.createClass({
 
 module.exports = RegisterPlatformForm;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"react":undefined}],45:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-manager-action-creators":8,"react":undefined}],46:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -9602,7 +9936,7 @@ function objectIsEmpty(obj) {
 
 exports.default = RegistryRow;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":60,"./base-component":12,"./edit-point-form":28,"react":undefined}],46:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":61,"./base-component":12,"./edit-point-form":29,"react":undefined}],47:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -9672,7 +10006,7 @@ var RemoveAgentForm = React.createClass({
 
 module.exports = RemoveAgentForm;
 
-},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"react":undefined}],47:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":5,"../action-creators/platform-action-creators":6,"react":undefined}],48:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -9849,7 +10183,7 @@ var StatusIndicator = React.createClass({
 
 module.exports = StatusIndicator;
 
-},{"../action-creators/status-indicator-action-creators":10,"../stores/status-indicator-store":66,"react":undefined}],48:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":10,"../stores/status-indicator-store":67,"react":undefined}],49:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('keymirror');
@@ -9935,7 +10269,7 @@ module.exports = keyMirror({
     RECEIVE_CHART_TOPICS: null
 });
 
-},{"keymirror":undefined}],49:[function(require,module,exports){
+},{"keymirror":undefined}],50:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -9954,7 +10288,7 @@ dispatcher.dispatch = function (action) {
 
 module.exports = dispatcher;
 
-},{"../constants/action-types":48,"flux":undefined}],50:[function(require,module,exports){
+},{"../constants/action-types":49,"flux":undefined}],51:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -9969,7 +10303,7 @@ RpcError.prototype.constructor = RpcError;
 
 module.exports = RpcError;
 
-},{}],51:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -10053,7 +10387,7 @@ function RpcExchange(request, redactedParams) {
 
 module.exports = RpcExchange;
 
-},{"../../constants/action-types":48,"../../dispatcher":49,"../xhr":55,"./error":50,"node-uuid":undefined}],52:[function(require,module,exports){
+},{"../../constants/action-types":49,"../../dispatcher":50,"../xhr":56,"./error":51,"node-uuid":undefined}],53:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -10061,7 +10395,7 @@ module.exports = {
     Exchange: require('./exchange')
 };
 
-},{"./error":50,"./exchange":51}],53:[function(require,module,exports){
+},{"./error":51,"./exchange":52}],54:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -10088,7 +10422,7 @@ Store.prototype.removeChangeListener = function (callback) {
 
 module.exports = Store;
 
-},{"events":undefined}],54:[function(require,module,exports){
+},{"events":undefined}],55:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -10101,7 +10435,7 @@ XhrError.prototype.constructor = XhrError;
 
 module.exports = XhrError;
 
-},{}],55:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -10109,7 +10443,7 @@ module.exports = {
     Error: require('./error')
 };
 
-},{"./error":54,"./request":56}],56:[function(require,module,exports){
+},{"./error":55,"./request":57}],57:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -10139,7 +10473,7 @@ function XhrRequest(opts) {
 
 module.exports = XhrRequest;
 
-},{"./error":54,"bluebird":undefined,"jquery":undefined}],57:[function(require,module,exports){
+},{"./error":55,"bluebird":undefined,"jquery":undefined}],58:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -10185,7 +10519,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = authorizationStore;
 
-},{"../constants/action-types":48,"../dispatcher":49,"../lib/store":53}],58:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50,"../lib/store":54}],59:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -10277,7 +10611,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = consoleStore;
 
-},{"../constants/action-types":48,"../dispatcher":49,"../lib/store":53,"../stores/authorization-store":57}],59:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50,"../lib/store":54,"../stores/authorization-store":58}],60:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -10345,7 +10679,7 @@ controlButtonStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = controlButtonStore;
 
-},{"../constants/action-types":48,"../dispatcher":49,"../lib/store":53,"../stores/authorization-store":57}],60:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50,"../lib/store":54,"../stores/authorization-store":58}],61:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -11845,7 +12179,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = devicesStore;
 
-},{"../constants/action-types":48,"../dispatcher":49,"../lib/store":53,"../stores/authorization-store":57,"immutable":undefined}],61:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50,"../lib/store":54,"../stores/authorization-store":58,"immutable":undefined}],62:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -11877,7 +12211,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = modalStore;
 
-},{"../constants/action-types":48,"../dispatcher":49,"../lib/store":53}],62:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50,"../lib/store":54}],63:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -12282,7 +12616,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = chartStore;
 
-},{"../constants/action-types":48,"../dispatcher":49,"../lib/store":53,"../stores/authorization-store":57,"./platforms-store.js":65}],63:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50,"../lib/store":54,"../stores/authorization-store":58,"./platforms-store.js":66}],64:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -13198,7 +13532,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = platformsPanelItemsStore;
 
-},{"../constants/action-types":48,"../dispatcher":49,"../lib/store":53,"../stores/platform-chart-store":62}],64:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50,"../lib/store":54,"../stores/platform-chart-store":63}],65:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -13230,7 +13564,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = platformsPanelStore;
 
-},{"../constants/action-types":48,"../dispatcher":49,"../lib/store":53}],65:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50,"../lib/store":54}],66:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -13407,7 +13741,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = platformsStore;
 
-},{"../constants/action-types":48,"../dispatcher":49,"../lib/store":53,"./authorization-store":57}],66:[function(require,module,exports){
+},{"../constants/action-types":49,"../dispatcher":50,"../lib/store":54,"./authorization-store":58}],67:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -13464,4 +13798,4 @@ statusIndicatorStore.dispatchToken = dispatcher.register(function (action) {
 
 module.exports = statusIndicatorStore;
 
-},{"../constants/action-types":48,"../dispatcher":49,"../lib/store":53}]},{},[1]);
+},{"../constants/action-types":49,"../dispatcher":50,"../lib/store":54}]},{},[1]);

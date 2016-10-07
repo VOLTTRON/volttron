@@ -242,8 +242,9 @@ var ControlButton = React.createClass({
         var centering = (this.props.hasOwnProperty("nocentering") && (this.props.nocentering === true) ?
                             "" : "centeredDiv");
 
-        var outerClasses = (this.props.hasOwnProperty("floatleft") && (this.props.floatleft === true) ?
-                            "floatLeft" : "inlineBlock");
+        var outerClasses = ((this.props.hasOwnProperty("outerclass") && this.props.outerclass) ? this.props.outerclass :
+                                (this.props.hasOwnProperty("floatleft") && (this.props.floatleft === true) ?
+                                    "floatLeft" : "inlineBlock") );
 
         return (
             <div className={outerClasses}>

@@ -8,6 +8,7 @@ import NewColumnForm from './new-column-form';
 import ConfigDeviceForm from './config-device-form';
 import EditSelectButton from './control_buttons/edit-select-button';
 import EditColumnButton from './control_buttons/edit-columns-button';
+import KeyboardHelpButton from './control_buttons/keyboard-help-button';
 import RegistryRow from './registry-row';
 import Immutable from 'immutable';
 
@@ -1034,6 +1035,19 @@ class ConfigureRegistry extends BaseComponent {
         var handleStyle = {
             backgroundColor: (this.state.resizingTable ? "#AAA" : "#DDD")
         }
+        
+        var keyboardHelpButton;
+
+        if (registryRows)
+        {
+            if (registryRows.length)
+            {
+                keyboardHelpButton = (
+                    <KeyboardHelpButton 
+                        deviceInfo={this.props.device.id + "-" + this.props.device.address}/>
+                    );
+            }
+        }
 
         return (
             <div className={visibilityClass}
@@ -1053,6 +1067,7 @@ class ConfigureRegistry extends BaseComponent {
                                 { registryRows }
                             </tbody>
                         </table>
+                        {keyboardHelpButton}
                     </div>
                 </div>
                 { registryButtons }
