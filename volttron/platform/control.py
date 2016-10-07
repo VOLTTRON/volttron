@@ -136,9 +136,11 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def agent_status(self, uuid):
+        identity = bytes(self.vip.rpc.context.vip_message.peer)
         if not isinstance(uuid, basestring):
-            raise TypeError("expected a string for 'uuid'; got {!r}".format(
-                type(uuid).__name__))
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                type(uuid).__name__, identity))
         return self._aip.agent_status(uuid)
 
     @RPC.export
