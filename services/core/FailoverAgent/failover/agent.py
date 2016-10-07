@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,7 +68,7 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL
 
 utils.setup_logging()
-_log = logging.getLogger()
+_log = logging.getLogger(__name__)
 
 
 class FailoverAgent(Agent):
@@ -77,9 +77,24 @@ class FailoverAgent(Agent):
         super(FailoverAgent, self).__init__(**kwargs)
         config = utils.load_config(config_path)
 
-        # Config file options
-        self.agent_id = config["agent_id"]
-        self.remote_id = config["remote_id"]
+        # Get agent and remote ids
+        agent_id = config["agent_id"]
+        if agent_id == "primary":
+            self.agent_id = "primary"
+            self.remote_id = "secondary"
+        elif agent_id == "secondary":
+            self.agent_id = "secondary"
+            self.remote_id = "primary"
+        else:
+            _log.error("agent_id must be either 'primary' or 'secondary'")
+
+        # Modify ids if we're using the simple option
+        # Defaults to true pending vc coordination
+        use_simple = config.get("simple_behavior", True)
+        if use_simple:
+            self.agent_id = "simple_" + self.agent_id
+            self.remote_id = "simple_" + self.remote_id
+
         self.remote_vip = config["remote_vip"]
         self.remote_serverkey = config["remote_serverkey"]
 
@@ -169,6 +184,15 @@ class FailoverAgent(Agent):
             _log.error("Error calling {} on control".format(command))
 
     def primary_state_machine(self, current_state):
+        """Function representing the state machine for a primary
+        instace.
+
+        Start the target agent if either the secondary instance or
+        Volttron Central are active. Otherwise stop the target agent.
+
+        :param current_state: Indicates if remote platforms are active.
+        :type current_state: tuple of booleans
+        """
         raise NotImplementedError("Coordination with VC not implemeted")
 
         secondary_is_up, vc_is_up = current_state
@@ -178,6 +202,19 @@ class FailoverAgent(Agent):
             self._agent_control('stop_agent')
 
     def secondary_state_machine(self, current_state):
+        """Function representing the state machine for a secondary
+        instance.
+
+        If this agent stops getting heartbeats from the primary, it will
+        ask Volttron Central for verification that the primary is inactive
+        before starting the target agent.
+
+        The target agent will be stopped if both the primary instance
+        and Volttron Central are not communicating.
+
+        :param current_state: Indicates if remote platforms are active.
+        :type current_state: tuple of booleans
+        """
         raise NotImplementedError("Coordination with VC not implemeted")
 
         primary_is_up, vc_is_up = current_state
@@ -187,6 +224,12 @@ class FailoverAgent(Agent):
             self._agent_control('stop_agent')
 
     def simple_primary_state_machine(self, current_state):
+        """Function representing the state machine for a simple primary
+        instance. Always tries to start the target agent.
+
+        :param current_state: Indicates if remote platforms are active. Ingored.
+        :type current_state: tuple of booleans
+        """
         if current_state != self._state:
             self._state = current_state
             _log.warn('Starting agent {}'.format(self.agent_vip_identity))
@@ -200,6 +243,14 @@ class FailoverAgent(Agent):
             self._agent_control('start_agent')
 
     def simple_secondary_state_machine(self, current_state):
+        """Function representing the state machine for a simple secondary
+        instance. Starts the target agent if the simple primary is not
+        communicating.
+
+        :param current_state: Indicates if remote platforms are
+            active. Ignores the Volttron Central status.
+        :type current_state: tuple of booleans
+        """
         primary_is_up, _ = current_state
 
         if primary_is_up:
