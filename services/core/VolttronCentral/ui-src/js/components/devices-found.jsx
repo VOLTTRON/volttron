@@ -5,6 +5,7 @@ import BaseComponent from './base-component';
 import ConfigureRegistry from './configure-registry';
 
 var ConfirmForm = require('./confirm-form');
+var ControlButton = require('./control-button');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -20,9 +21,11 @@ class DevicesFound extends BaseComponent {
     constructor(props) {
         super(props);
         this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpDevicesSocket', '_setUpPointsSocket', 
-            '_focusOnDevice');
+            '_focusOnDevice', '_showFileButtonTooltip');
 
-        this.state = {};       
+        this.state = {
+            triggerTooltip: {}
+        };       
     }
     componentDidMount() {
         // devicesStore.addChangeListener(this._onStoresChange);
@@ -162,6 +165,19 @@ class DevicesFound extends BaseComponent {
         var address = evt.target.dataset.address;
         devicesActionCreators.focusOnDevice(deviceId, address);
     }
+    _showFileButtonTooltip(showTooltip, evt) {
+        var deviceId = evt.target.dataset.id;
+        var rowIndex = evt.target.dataset.row;
+
+        var triggerTooltip = {};
+
+        if (showTooltip)
+        {
+            triggerTooltip[deviceId] = Number(rowIndex);
+        }
+
+        this.setState({ triggerTooltip: triggerTooltip })
+    }
     _uploadRegistryFile(evt) {
         
         var csvFile = evt.target.files[0];
@@ -173,6 +189,8 @@ class DevicesFound extends BaseComponent {
 
         var deviceId = evt.target.dataset.id;
         var deviceAddress = evt.target.dataset.address;
+
+        devicesActionCreators.focusOnDevice(deviceId, deviceAddress);
 
         var device = this.props.devices.find(function (device) {
             return ((device.id === deviceId) && (device.address === deviceAddress));
@@ -241,7 +259,7 @@ class DevicesFound extends BaseComponent {
         if (this.props.devices.length)
         {
             var devices = 
-                this.props.devices.map(function (device) {
+                this.props.devices.map(function (device, rowIndex) {
 
                     var deviceId = device.id;
                     var deviceAddress = device.address;
@@ -255,27 +273,53 @@ class DevicesFound extends BaseComponent {
                                         onClick={this._focusOnDevice}>{ d.value }</td>)
                         }, this);
 
+                    var arrowTooltip = {
+                        content: (!device.configuring ? "Get Device Points" : "Hide/Show"),
+                        "x": 40,
+                        "yOffset": 140
+                    }
+
+                    var fileUploadTooltip = {
+                        content: "Upload Registry File (CSV)",
+                        "x": -20,
+                        "y": -120
+                    }
+
+                    var triggerTooltip = (this.state.triggerTooltip[deviceId] === rowIndex);
+
                     return (
                         <tr key={deviceId + deviceAddress}>
                             <td key={"config-arrow-" + deviceId + deviceAddress} className="plain">
-                                <div className={ device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow" }                                    
-                                    onClick={this._configureDevice.bind(this, device)}>
-                                        &#9654;
-                                </div>
+
+                                <ControlButton
+                                    name={"config-arrow-" + deviceId + "-" + rowIndex}
+                                    tooltip={arrowTooltip}
+                                    controlclass={ device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow" }
+                                    icon="&#9654;"
+                                    clickAction={this._configureDevice.bind(this, device)}/>
+
                             </td>
 
                             { tds }
 
                             <td key={"file-upload-" + deviceId + deviceAddress} className="plain">
                                 <div className="fileButton">
-                                    <div><i className="fa fa-file"></i></div>
+                                    <ControlButton
+                                        name={"file-upload-" + deviceId + "-" + rowIndex}
+                                        tooltip={fileUploadTooltip}
+                                        controlclass="file-button"
+                                        fontAwesomeIcon="file"
+                                        triggerTooltip={triggerTooltip}/>
                                     <input 
                                         className="uploadButton" 
                                         type="file"
                                         data-id={deviceId}
                                         data-address={deviceAddress}
+                                        data-row={rowIndex}
                                         onChange={this._uploadRegistryFile}
-                                        onFocus={this._focusOnDevice}/>
+                                        onFocus={this._focusOnDevice}
+                                        onMouseEnter={this._showFileButtonTooltip.bind(this, true)}
+                                        onMouseLeave={this._showFileButtonTooltip.bind(this, false)}/>
                                 </div>
                             </td>
                         </tr>

@@ -33,7 +33,7 @@ class ConfigureRegistry extends BaseComponent {
             "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
             "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", 
             "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice",
-            "_handleKeyDown", "_onSelectForDelete", "_resizeColumn", "_initializeTable" );
+            "_handleKeyDown", "_onSelectForDelete", "_resizeColumn", "_initializeTable", "_removeSelectedPoints" );
 
         this.state = this._resetState(this.props.device);
 
@@ -89,13 +89,19 @@ class ConfigureRegistry extends BaseComponent {
     }
     _handleKeyDown (keydown) {
 
-        if (keydown.target.nodeName !== "INPUT" && this.state.deviceHasFocus)
+        if ((keydown.target.nodeName !== "INPUT" || 
+            keydown.target.className === "uploadButton" ||
+            keydown.target.className === "registryCheckbox") && this.state.deviceHasFocus)
         { 
             if (this.state.keyboardStarted)
             {
                 switch (keydown.which)
                 {
-                    case 17: // Control key            
+                    case 17: // Control key
+
+                        this.state.keyboardRange = (this.state.keyboardRange[0] === -1 && this.state.keyboardRange[1] === -1 ?
+                                                        [0,0] : this.state.keyboardRange);
+
                         this.setState({ keyboardRange: this.state.keyboardRange});
                         break;
                     case 27: // ESC
@@ -174,8 +180,8 @@ class ConfigureRegistry extends BaseComponent {
 
                         break;
                     case 46:    //Delete
-                        _keyboard.cmd = "delete";
-
+                        this._removeSelectedPoints(this.state.keyboardRange);
+                        this.setState({ keyboardRange: [-1, -1] })
                         break;
                 }
             }
@@ -300,7 +306,27 @@ class ConfigureRegistry extends BaseComponent {
 
         //TODO: hook up onmessage in configure-registry.jsx or in registry-row.jsw
         // registryWs.send(JSON.stringify(configRequests));
-    }    
+    }   
+    _removeSelectedPoints(keyboardRange) {
+
+        var pointNames = this.state.registryValues.filter(function (attributesList) {
+    
+            return (attributesList.get("virtualIndex") >= this.state.keyboardRange[0] &&
+                 attributesList.get("virtualIndex") <= this.state.keyboardRange[1]);
+
+        }, this)
+            .map(function (selectedPoints) {
+                return selectedPoints.getIn(["attributes", 0]).value
+            });
+
+        if (this.state.pointsToDelete.length)
+        {
+            pointNames = pointNames.concat(this.state.pointsToDelete);
+        }
+
+        this._onRemovePoints(pointNames);
+    } 
+
     _setUpRegistrySocket() {
 
         if (typeof registryWebsocket === "undefined" || registryWebsocket === null)
@@ -378,15 +404,17 @@ class ConfigureRegistry extends BaseComponent {
             </EditPointForm>);
         
     }
-    _onRemovePoints() {
+    _onRemovePoints(pointNames) {
 
         var promptText, confirmText, confirmAction, cancelText;
 
-        if (this.state.pointsToDelete.length > 0)
+        var pointsToDelete = (pointNames.length > 0 ? pointNames : this.state.pointsToDelete);
+
+        if (pointsToDelete.length > 0)
         {
-            promptText = "Are you sure you want to delete these points? " + this.state.pointsToDelete.join(", ");
+            promptText = "Are you sure you want to delete these points? " + pointsToDelete.join(", ");
             confirmText = "Delete";
-            confirmAction = this._removePoints.bind(this, this.state.pointsToDelete);
+            confirmAction = this._removePoints.bind(this, pointsToDelete);
         }  
         else
         {
@@ -428,7 +456,13 @@ class ConfigureRegistry extends BaseComponent {
             }
         }, this);
 
-        this.setState({ registryValues: this.state.registryValues });
+        var newRegistryValues = this.state.registryValues.map(function (row, i) {
+            row = row.set("virtualIndex", i);
+
+            return row;
+        });
+
+        this.setState({ registryValues: newRegistryValues });
         this.setState({ pointsToDelete: [] });
         // this.setState({ pointNames: this.state.pointNames });
 
@@ -837,6 +871,7 @@ class ConfigureRegistry extends BaseComponent {
 
                     var editColumnButton = (<EditColumnButton 
                                                 column={index} 
+                                                columnwidth={item.columnWidth}
                                                 tooltipMsg="Edit Column"
                                                 findnext={this._onFindNext}
                                                 replace={this._onReplace}

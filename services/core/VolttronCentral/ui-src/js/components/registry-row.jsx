@@ -8,12 +8,13 @@ var devicesActionCreators = require('../action-creators/devices-action-creators'
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var devicesStore = require('../stores/devices-store');
+import Immutable from 'immutable';
 
 var registryWs, registryWebsocket;
 class RegistryRow extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind('_updateCell', '_showProps', '_handleRowClick', '_selectForDelete', '_grabResizeHandle');
+        this._bind('_updateCell', '_showProps', '_handleRowClick', '_selectForDelete', '_grabResizeHandle', '_stopPropagation');
 
         this.state = this._resetState(this.props);  
 
@@ -79,12 +80,38 @@ class RegistryRow extends BaseComponent {
 
         var currentTarget = e.currentTarget;
         
-        var newValues = this.state.attributesList.updateIn(["attributes", column, "value"], function (item) {
+        var newValues = this.state.attributesList.updateIn(["attributes", column], function (item) {
 
-            return currentTarget.value;
+            item.value = currentTarget.value;
+
+            return item;
         });
 
         this.setState({ attributesList: newValues });
+
+        // var currentTarget = e.currentTarget;
+        
+        // var attributesCopy = this.state.attributesList.toJS();
+
+        // // var newValues = attributesCopy.updateIn(["attributes", column], function (item) {
+
+        // //     item.value = currentTarget.value;
+
+        // //     return item;
+        // // });
+
+        // var newValues = {
+        //     visible: attributesCopy.visible, 
+        //     virtualIndex: attributesCopy.virtualIndex, 
+        //     bacnetObjectType: attributesCopy.bacnetObjectType, 
+        //     index: attributesCopy.index,
+        //     attributes: attributesCopy.attributes,
+        //     selected: attributesCopy.selected
+        // };
+
+        // newValues.attributes[column].value = currentTarget.value;
+
+        // this.setState({ attributesList: Immutable.fromJS(newValues) });
     }
     _showProps(attributesList) {
         
@@ -104,8 +131,12 @@ class RegistryRow extends BaseComponent {
     }
     _handleRowClick(evt){
 
-        if ((evt.target.nodeName !== "INPUT") && (evt.target.nodeName !== "I") && (evt.target.nodeName !== "DIV"))  
+        if ((evt.target.nodeName !== "INPUT") && 
+            (evt.target.nodeName !== "I") && 
+            (evt.target.nodeName !== "DIV") &&
+            (evt.target.className !== "resize-handle-td"))  
         {
+
             devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
 
             if (!this.state.attributesList.get("selected"))
@@ -115,7 +146,15 @@ class RegistryRow extends BaseComponent {
             }
         }
     }
+    _stopPropagation(evt) {
+        
+        evt.stopPropagation();
+        evt.nativeEvent.stopImmediatePropagation();
+    }
     _grabResizeHandle(columnIndex, evt) {
+        
+        evt.stopPropagation();
+        evt.nativeEvent.stopImmediatePropagation();
 
         var targetColumn = this.refs[this.state.devicePrefix + columnIndex];
 
@@ -135,13 +174,11 @@ class RegistryRow extends BaseComponent {
         var onMouseUp = function (evt)
         {
             document.removeEventListener("mousemove", onMouseMove);
-            document.removeEventListener("mouseup", onMouseUp);            
-        }                  
+            document.removeEventListener("mouseup", onMouseUp);        
+        }
 
         document.addEventListener("mousemove", onMouseMove);
         document.addEventListener("mouseup", onMouseUp);
-
-        evt.preventDefault();
     }
     render() {        
         
@@ -215,11 +252,12 @@ class RegistryRow extends BaseComponent {
         return ( 
             <tr key={"registry-row-" + rowIndex}
                 data-row={rowIndex}
-                onClick={this._handleRowClick}
+                onClickCapture={this._handleRowClick}
                 className={selectedRowClasses.join(" ")}
                 style={visibleStyle}>
                 <td key={"checkbox-" + rowIndex}>
                     <input type="checkbox"
+                        className="registryCheckbox"
                         onChange={this._selectForDelete}
                         checked={this.state.selectedForDelete}>
                     </input>

@@ -108,7 +108,7 @@ class EditColumnButton extends BaseComponent {
             marginTop: "8px"
         }
 
-        var replaceEnabled = (!this.props.replaceEnabled ? "disableReplace" : "");
+        var replaceEnabled = (!this.props.replaceEnabled ? "disableReplace plain" : "plain");
 
         var editBox = (
             <div style={editBoxContainer}>
@@ -134,7 +134,7 @@ class EditColumnButton extends BaseComponent {
                                         value={ this.state.findValue }
                                     />
                                 </td>
-                                <td>
+                                <td className="plain">
                                     <div style={buttonsStyle}>
                                         <ControlButton 
                                             fontAwesomeIcon="step-forward"

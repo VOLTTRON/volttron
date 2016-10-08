@@ -131,9 +131,13 @@ var ControlButton = React.createClass({
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
 
-        if (!(this.props.tooltip.hasOwnProperty("x") && this.props.tooltip.hasOwnProperty("y")))
+        if (!this.props.tooltip.hasOwnProperty("x"))
         {
             this.setState({tooltipX: evt.clientX - this.state.tooltipOffsetX});
+        }
+
+        if (!this.props.tooltip.hasOwnProperty("y"))
+        {
             this.setState({tooltipY: evt.clientY - this.state.tooltipOffsetY});
         }
     },
@@ -163,14 +167,16 @@ var ControlButton = React.createClass({
         }
         else if (this.props.tooltip)
         {
+            var showTooltip = (this.state.showTooltip || this.props.triggerTooltip);
+
         	var tooltipStyle = {
-	            display: (this.state.showTooltip ? "block" : "none"),
+	            display: (showTooltip ? "block" : "none"),
 	            position: "absolute",
 	            top: this.state.tooltipY + "px",
 	            left: this.state.tooltipX + "px"
 	        };
 
-	        var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
+	        var toolTipClasses = (showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
 
 	        tooltipShow = this._showTooltip;
 	        tooltipHide = this._hideTooltip;

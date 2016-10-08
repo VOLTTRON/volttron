@@ -2505,7 +2505,7 @@ var ConfigureDevices = function (_BaseComponent) {
                             _react2.default.createElement(
                                 'b',
                                 null,
-                                'BACNet Proxy Agent: '
+                                'BACNet Proxy Agent '
                             )
                         ),
                         _react2.default.createElement(
@@ -2702,7 +2702,7 @@ var ConfigureDevices = function (_BaseComponent) {
                             _react2.default.createElement(
                                 'b',
                                 null,
-                                'Instance: '
+                                'Platform: '
                             )
                         ),
                         _react2.default.createElement(
@@ -2880,7 +2880,7 @@ var ConfigureRegistry = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(ConfigureRegistry).call(this, props));
 
-        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForDelete", "_resizeColumn", "_initializeTable");
+        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForDelete", "_resizeColumn", "_initializeTable", "_removeSelectedPoints");
 
         _this.state = _this._resetState(_this.props.device);
 
@@ -2943,11 +2943,14 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_handleKeyDown',
         value: function _handleKeyDown(keydown) {
 
-            if (keydown.target.nodeName !== "INPUT" && this.state.deviceHasFocus) {
+            if ((keydown.target.nodeName !== "INPUT" || keydown.target.className === "uploadButton" || keydown.target.className === "registryCheckbox") && this.state.deviceHasFocus) {
                 if (this.state.keyboardStarted) {
                     switch (keydown.which) {
                         case 17:
-                            // Control key            
+                            // Control key
+
+                            this.state.keyboardRange = this.state.keyboardRange[0] === -1 && this.state.keyboardRange[1] === -1 ? [0, 0] : this.state.keyboardRange;
+
                             this.setState({ keyboardRange: this.state.keyboardRange });
                             break;
                         case 27:
@@ -3022,8 +3025,8 @@ var ConfigureRegistry = function (_BaseComponent) {
                             break;
                         case 46:
                             //Delete
-                            _keyboard.cmd = "delete";
-
+                            this._removeSelectedPoints(this.state.keyboardRange);
+                            this.setState({ keyboardRange: [-1, -1] });
                             break;
                     }
                 } else if (keydown.which === 17) // Control key
@@ -3152,6 +3155,23 @@ var ConfigureRegistry = function (_BaseComponent) {
             // registryWs.send(JSON.stringify(configRequests));
         }
     }, {
+        key: '_removeSelectedPoints',
+        value: function _removeSelectedPoints(keyboardRange) {
+
+            var pointNames = this.state.registryValues.filter(function (attributesList) {
+
+                return attributesList.get("virtualIndex") >= this.state.keyboardRange[0] && attributesList.get("virtualIndex") <= this.state.keyboardRange[1];
+            }, this).map(function (selectedPoints) {
+                return selectedPoints.getIn(["attributes", 0]).value;
+            });
+
+            if (this.state.pointsToDelete.length) {
+                pointNames = pointNames.concat(this.state.pointsToDelete);
+            }
+
+            this._onRemovePoints(pointNames);
+        }
+    }, {
         key: '_setUpRegistrySocket',
         value: function _setUpRegistrySocket() {
 
@@ -3230,14 +3250,16 @@ var ConfigureRegistry = function (_BaseComponent) {
         }
     }, {
         key: '_onRemovePoints',
-        value: function _onRemovePoints() {
+        value: function _onRemovePoints(pointNames) {
 
             var promptText, confirmText, confirmAction, cancelText;
 
-            if (this.state.pointsToDelete.length > 0) {
-                promptText = "Are you sure you want to delete these points? " + this.state.pointsToDelete.join(", ");
+            var pointsToDelete = pointNames.length > 0 ? pointNames : this.state.pointsToDelete;
+
+            if (pointsToDelete.length > 0) {
+                promptText = "Are you sure you want to delete these points? " + pointsToDelete.join(", ");
                 confirmText = "Delete";
-                confirmAction = this._removePoints.bind(this, this.state.pointsToDelete);
+                confirmAction = this._removePoints.bind(this, pointsToDelete);
             } else {
                 promptText = "Select points to delete.";
                 cancelText = "OK";
@@ -3275,7 +3297,13 @@ var ConfigureRegistry = function (_BaseComponent) {
                 }
             }, this);
 
-            this.setState({ registryValues: this.state.registryValues });
+            var newRegistryValues = this.state.registryValues.map(function (row, i) {
+                row = row.set("virtualIndex", i);
+
+                return row;
+            });
+
+            this.setState({ registryValues: newRegistryValues });
             this.setState({ pointsToDelete: [] });
             // this.setState({ pointNames: this.state.pointNames });
 
@@ -3677,6 +3705,7 @@ var ConfigureRegistry = function (_BaseComponent) {
 
                         var editColumnButton = _react2.default.createElement(_editColumnsButton2.default, {
                             column: index,
+                            columnwidth: item.columnWidth,
                             tooltipMsg: 'Edit Column',
                             findnext: this._onFindNext,
                             replace: this._onReplace,
@@ -4206,8 +4235,11 @@ var ControlButton = React.createClass({
     _showTooltip: function _showTooltip(evt) {
         this.setState({ showTooltip: true });
 
-        if (!(this.props.tooltip.hasOwnProperty("x") && this.props.tooltip.hasOwnProperty("y"))) {
+        if (!this.props.tooltip.hasOwnProperty("x")) {
             this.setState({ tooltipX: evt.clientX - this.state.tooltipOffsetX });
+        }
+
+        if (!this.props.tooltip.hasOwnProperty("y")) {
             this.setState({ tooltipY: evt.clientY - this.state.tooltipOffsetY });
         }
     },
@@ -4239,14 +4271,16 @@ var ControlButton = React.createClass({
                 backgroundColor: "#ccc"
             };
         } else if (this.props.tooltip) {
+            var showTooltip = this.state.showTooltip || this.props.triggerTooltip;
+
             var tooltipStyle = {
-                display: this.state.showTooltip ? "block" : "none",
+                display: showTooltip ? "block" : "none",
                 position: "absolute",
                 top: this.state.tooltipY + "px",
                 left: this.state.tooltipX + "px"
             };
 
-            var toolTipClasses = this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer";
+            var toolTipClasses = showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer";
 
             tooltipShow = this._showTooltip;
             tooltipHide = this._hideTooltip;
@@ -4497,7 +4531,7 @@ var EditColumnButton = function (_BaseComponent) {
                 marginTop: "8px"
             };
 
-            var replaceEnabled = !this.props.replaceEnabled ? "disableReplace" : "";
+            var replaceEnabled = !this.props.replaceEnabled ? "disableReplace plain" : "plain";
 
             var editBox = _react2.default.createElement(
                 'div',
@@ -4540,7 +4574,7 @@ var EditColumnButton = function (_BaseComponent) {
                                 ),
                                 _react2.default.createElement(
                                     'td',
-                                    null,
+                                    { className: 'plain' },
                                     _react2.default.createElement(
                                         'div',
                                         { style: buttonsStyle },
@@ -5121,7 +5155,7 @@ var KeyboardHelpButton = function (_BaseComponent) {
                                 _react2.default.createElement(
                                     'b',
                                     null,
-                                    'Down'
+                                    'Down / Space'
                                 )
                             ),
                             _react2.default.createElement(
@@ -5182,6 +5216,24 @@ var KeyboardHelpButton = function (_BaseComponent) {
                                 'td',
                                 { className: 'plain' },
                                 'Lock in keyboard selections.'
+                            )
+                        ),
+                        _react2.default.createElement(
+                            'tr',
+                            null,
+                            _react2.default.createElement(
+                                'td',
+                                null,
+                                _react2.default.createElement(
+                                    'b',
+                                    null,
+                                    'Delete'
+                                )
+                            ),
+                            _react2.default.createElement(
+                                'td',
+                                { className: 'plain' },
+                                'Remove selected rows.'
                             )
                         )
                     )
@@ -5431,6 +5483,7 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var ConfirmForm = require('./confirm-form');
+var ControlButton = require('./control-button');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -5450,9 +5503,11 @@ var DevicesFound = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DevicesFound).call(this, props));
 
-        _this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpDevicesSocket', '_setUpPointsSocket', '_focusOnDevice');
+        _this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpDevicesSocket', '_setUpPointsSocket', '_focusOnDevice', '_showFileButtonTooltip');
 
-        _this.state = {};
+        _this.state = {
+            triggerTooltip: {}
+        };
         return _this;
     }
 
@@ -5580,6 +5635,20 @@ var DevicesFound = function (_BaseComponent) {
             devicesActionCreators.focusOnDevice(deviceId, address);
         }
     }, {
+        key: '_showFileButtonTooltip',
+        value: function _showFileButtonTooltip(showTooltip, evt) {
+            var deviceId = evt.target.dataset.id;
+            var rowIndex = evt.target.dataset.row;
+
+            var triggerTooltip = {};
+
+            if (showTooltip) {
+                triggerTooltip[deviceId] = Number(rowIndex);
+            }
+
+            this.setState({ triggerTooltip: triggerTooltip });
+        }
+    }, {
         key: '_uploadRegistryFile',
         value: function _uploadRegistryFile(evt) {
 
@@ -5591,6 +5660,8 @@ var DevicesFound = function (_BaseComponent) {
 
             var deviceId = evt.target.dataset.id;
             var deviceAddress = evt.target.dataset.address;
+
+            devicesActionCreators.focusOnDevice(deviceId, deviceAddress);
 
             var device = this.props.devices.find(function (device) {
                 return device.id === deviceId && device.address === deviceAddress;
@@ -5646,7 +5717,7 @@ var DevicesFound = function (_BaseComponent) {
 
             var devicesContainer;
             if (this.props.devices.length) {
-                var devices = this.props.devices.map(function (device) {
+                var devices = this.props.devices.map(function (device, rowIndex) {
 
                     var deviceId = device.id;
                     var deviceAddress = device.address;
@@ -5664,18 +5735,32 @@ var DevicesFound = function (_BaseComponent) {
                         );
                     }, this);
 
+                    var arrowTooltip = {
+                        content: !device.configuring ? "Get Device Points" : "Hide/Show",
+                        "x": 40,
+                        "yOffset": 140
+                    };
+
+                    var fileUploadTooltip = {
+                        content: "Upload Registry File (CSV)",
+                        "x": -20,
+                        "y": -120
+                    };
+
+                    var triggerTooltip = this.state.triggerTooltip[deviceId] === rowIndex;
+
                     return _react2.default.createElement(
                         'tr',
                         { key: deviceId + deviceAddress },
                         _react2.default.createElement(
                             'td',
                             { key: "config-arrow-" + deviceId + deviceAddress, className: 'plain' },
-                            _react2.default.createElement(
-                                'div',
-                                { className: device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow",
-                                    onClick: this._configureDevice.bind(this, device) },
-                                '▶'
-                            )
+                            _react2.default.createElement(ControlButton, {
+                                name: "config-arrow-" + deviceId + "-" + rowIndex,
+                                tooltip: arrowTooltip,
+                                controlclass: device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow",
+                                icon: '▶',
+                                clickAction: this._configureDevice.bind(this, device) })
                         ),
                         tds,
                         _react2.default.createElement(
@@ -5684,18 +5769,22 @@ var DevicesFound = function (_BaseComponent) {
                             _react2.default.createElement(
                                 'div',
                                 { className: 'fileButton' },
-                                _react2.default.createElement(
-                                    'div',
-                                    null,
-                                    _react2.default.createElement('i', { className: 'fa fa-file' })
-                                ),
+                                _react2.default.createElement(ControlButton, {
+                                    name: "file-upload-" + deviceId + "-" + rowIndex,
+                                    tooltip: fileUploadTooltip,
+                                    controlclass: 'file-button',
+                                    fontAwesomeIcon: 'file',
+                                    triggerTooltip: triggerTooltip }),
                                 _react2.default.createElement('input', {
                                     className: 'uploadButton',
                                     type: 'file',
                                     'data-id': deviceId,
                                     'data-address': deviceAddress,
+                                    'data-row': rowIndex,
                                     onChange: this._uploadRegistryFile,
-                                    onFocus: this._focusOnDevice })
+                                    onFocus: this._focusOnDevice,
+                                    onMouseEnter: this._showFileButtonTooltip.bind(this, true),
+                                    onMouseLeave: this._showFileButtonTooltip.bind(this, false) })
                             )
                         )
                     );
@@ -5856,7 +5945,7 @@ function objectIsEmpty(obj) {
 
 exports.default = DevicesFound;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":61,"../stores/platforms-store":66,"./base-component":12,"./configure-registry":17,"./confirm-form":18,"babyparse":undefined,"react":undefined}],29:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":61,"../stores/platforms-store":66,"./base-component":12,"./configure-registry":17,"./confirm-form":18,"./control-button":20,"babyparse":undefined,"react":undefined}],29:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -9673,6 +9762,10 @@ var _editPointForm = require('./edit-point-form');
 
 var _editPointForm2 = _interopRequireDefault(_editPointForm);
 
+var _immutable = require('immutable');
+
+var _immutable2 = _interopRequireDefault(_immutable);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -9688,6 +9781,7 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var devicesStore = require('../stores/devices-store');
 
+
 var registryWs, registryWebsocket;
 
 var RegistryRow = function (_BaseComponent) {
@@ -9698,7 +9792,7 @@ var RegistryRow = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(RegistryRow).call(this, props));
 
-        _this._bind('_updateCell', '_showProps', '_handleRowClick', '_selectForDelete', '_grabResizeHandle');
+        _this._bind('_updateCell', '_showProps', '_handleRowClick', '_selectForDelete', '_grabResizeHandle', '_stopPropagation');
 
         _this.state = _this._resetState(_this.props);
 
@@ -9766,12 +9860,38 @@ var RegistryRow = function (_BaseComponent) {
 
             var currentTarget = e.currentTarget;
 
-            var newValues = this.state.attributesList.updateIn(["attributes", column, "value"], function (item) {
+            var newValues = this.state.attributesList.updateIn(["attributes", column], function (item) {
 
-                return currentTarget.value;
+                item.value = currentTarget.value;
+
+                return item;
             });
 
             this.setState({ attributesList: newValues });
+
+            // var currentTarget = e.currentTarget;
+
+            // var attributesCopy = this.state.attributesList.toJS();
+
+            // // var newValues = attributesCopy.updateIn(["attributes", column], function (item) {
+
+            // //     item.value = currentTarget.value;
+
+            // //     return item;
+            // // });
+
+            // var newValues = {
+            //     visible: attributesCopy.visible, 
+            //     virtualIndex: attributesCopy.virtualIndex, 
+            //     bacnetObjectType: attributesCopy.bacnetObjectType, 
+            //     index: attributesCopy.index,
+            //     attributes: attributesCopy.attributes,
+            //     selected: attributesCopy.selected
+            // };
+
+            // newValues.attributes[column].value = currentTarget.value;
+
+            // this.setState({ attributesList: Immutable.fromJS(newValues) });
         }
     }, {
         key: '_showProps',
@@ -9796,7 +9916,8 @@ var RegistryRow = function (_BaseComponent) {
         key: '_handleRowClick',
         value: function _handleRowClick(evt) {
 
-            if (evt.target.nodeName !== "INPUT" && evt.target.nodeName !== "I" && evt.target.nodeName !== "DIV") {
+            if (evt.target.nodeName !== "INPUT" && evt.target.nodeName !== "I" && evt.target.nodeName !== "DIV" && evt.target.className !== "resize-handle-td") {
+
                 devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
 
                 if (!this.state.attributesList.get("selected")) {
@@ -9806,8 +9927,18 @@ var RegistryRow = function (_BaseComponent) {
             }
         }
     }, {
+        key: '_stopPropagation',
+        value: function _stopPropagation(evt) {
+
+            evt.stopPropagation();
+            evt.nativeEvent.stopImmediatePropagation();
+        }
+    }, {
         key: '_grabResizeHandle',
         value: function _grabResizeHandle(columnIndex, evt) {
+
+            evt.stopPropagation();
+            evt.nativeEvent.stopImmediatePropagation();
 
             var targetColumn = this.refs[this.state.devicePrefix + columnIndex];
 
@@ -9830,8 +9961,6 @@ var RegistryRow = function (_BaseComponent) {
 
             document.addEventListener("mousemove", onMouseMove);
             document.addEventListener("mouseup", onMouseUp);
-
-            evt.preventDefault();
         }
     }, {
         key: 'render',
@@ -9910,13 +10039,14 @@ var RegistryRow = function (_BaseComponent) {
                 'tr',
                 { key: "registry-row-" + rowIndex,
                     'data-row': rowIndex,
-                    onClick: this._handleRowClick,
+                    onClickCapture: this._handleRowClick,
                     className: selectedRowClasses.join(" "),
                     style: visibleStyle },
                 _react2.default.createElement(
                     'td',
                     { key: "checkbox-" + rowIndex },
                     _react2.default.createElement('input', { type: 'checkbox',
+                        className: 'registryCheckbox',
                         onChange: this._selectForDelete,
                         checked: this.state.selectedForDelete })
                 ),
@@ -9936,7 +10066,7 @@ function objectIsEmpty(obj) {
 
 exports.default = RegistryRow;
 
-},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":61,"./base-component":12,"./edit-point-form":29,"react":undefined}],47:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/modal-action-creators":5,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":61,"./base-component":12,"./edit-point-form":29,"immutable":undefined,"react":undefined}],47:[function(require,module,exports){
 'use strict';
 
 var React = require('react');

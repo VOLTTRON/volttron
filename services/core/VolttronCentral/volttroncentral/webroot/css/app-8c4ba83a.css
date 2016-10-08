@@ -963,6 +963,11 @@ br + .form__control-help {
     transform: translateY(0%);   
 }
 
+.file-button > .centeredDiv,
+.configure-arrow > .centeredDiv {
+    transform: translateY(-20%);   
+}
+
 .status-good {
     color: #A1D490;
 }
@@ -2189,7 +2194,8 @@ svg.nvd3-svg {
 }
 
 .opaque_inner {
-    background: rgba(255,255,255,1)
+    background: rgba(255,255,255,1);
+    border-radius: inherit;
 }
 
 /****
@@ -2502,7 +2508,6 @@ td.buffer_row {
 .fileButton {
     position: relative;
     cursor: pointer;
-    overflow: hidden;
     height: 20px;
     width: 20px;
     text-align: center;

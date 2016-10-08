@@ -129,7 +129,7 @@ class KeyboardHelpButton extends BaseComponent {
                             <td className="plain">Move keyboard selection up one row.</td>
                         </tr>
                         <tr>
-                            <td><b>Down</b></td>
+                            <td><b>Down / Space</b></td>
                             <td className="plain">Move keyboard selection down one row.</td>
                         </tr>
                         <tr>
@@ -143,6 +143,10 @@ class KeyboardHelpButton extends BaseComponent {
                         <tr>
                             <td><b>Enter</b></td>
                             <td className="plain">Lock in keyboard selections.</td>
+                        </tr>
+                        <tr>
+                            <td><b>Delete</b></td>
+                            <td className="plain">Remove selected rows.</td>
                         </tr>
                     </tbody>
                 </table>

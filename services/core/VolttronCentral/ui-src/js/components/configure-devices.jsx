@@ -186,7 +186,7 @@ class ConfigureDevices extends BaseComponent {
 
                 proxySelect = (
                     <tr>
-                        <td className="plain"><b>BACNet Proxy Agent: </b></td>
+                        <td className="plain"><b>BACNet Proxy Agent </b></td>
 
                         <td className="plain"
                             colSpan={4}>
@@ -327,7 +327,7 @@ class ConfigureDevices extends BaseComponent {
                 <div className="device-box device-scan">
                     <div style={platformNameStyle}>
                         <div style={scanOptionsStyle}>
-                            <b>Instance: </b>
+                            <b>Platform: </b>
                         </div>
                         <div style={scanOptionsStyle}>{platform.name}</div>
                     </div>
