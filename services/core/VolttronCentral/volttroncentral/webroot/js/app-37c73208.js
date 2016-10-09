@@ -9773,8 +9773,6 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-// import PureRenderMixin from 'react-addons-pure-render-mixin';
-
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
@@ -9792,11 +9790,9 @@ var RegistryRow = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(RegistryRow).call(this, props));
 
-        _this._bind('_updateCell', '_showProps', '_handleRowClick', '_selectForDelete', '_grabResizeHandle', '_stopPropagation');
+        _this._bind('_handleRowClick', '_selectForDelete');
 
         _this.state = _this._resetState(_this.props);
-
-        // this.shouldComponentUpdate = PureRenderMixin.shouldComponentUpdate.bind(this);
         return _this;
     }
 
@@ -9821,14 +9817,8 @@ var RegistryRow = function (_BaseComponent) {
 
             if (!this.state.attributesList.equals(nextState.attributesList) || this.state.selectedForDelete !== nextState.selectedForDelete) {
                 doUpdate = true;
-                // console.log("state's not equal");
             } else {
                 doUpdate = !this.props.immutableProps.equals(nextProps.immutableProps);
-
-                // if (doUpdate)
-                // {
-                //     console.log("immutable props not equal");
-                // }
             }
 
             return doUpdate;
@@ -9868,30 +9858,7 @@ var RegistryRow = function (_BaseComponent) {
             });
 
             this.setState({ attributesList: newValues });
-
-            // var currentTarget = e.currentTarget;
-
-            // var attributesCopy = this.state.attributesList.toJS();
-
-            // // var newValues = attributesCopy.updateIn(["attributes", column], function (item) {
-
-            // //     item.value = currentTarget.value;
-
-            // //     return item;
-            // // });
-
-            // var newValues = {
-            //     visible: attributesCopy.visible, 
-            //     virtualIndex: attributesCopy.virtualIndex, 
-            //     bacnetObjectType: attributesCopy.bacnetObjectType, 
-            //     index: attributesCopy.index,
-            //     attributes: attributesCopy.attributes,
-            //     selected: attributesCopy.selected
-            // };
-
-            // newValues.attributes[column].value = currentTarget.value;
-
-            // this.setState({ attributesList: Immutable.fromJS(newValues) });
+            this.forceUpdate();
         }
     }, {
         key: '_showProps',
@@ -9925,13 +9892,6 @@ var RegistryRow = function (_BaseComponent) {
                     this.setState({ attributesList: attributesList });
                 }
             }
-        }
-    }, {
-        key: '_stopPropagation',
-        value: function _stopPropagation(evt) {
-
-            evt.stopPropagation();
-            evt.nativeEvent.stopImmediatePropagation();
         }
     }, {
         key: '_grabResizeHandle',

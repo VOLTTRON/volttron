@@ -2,7 +2,6 @@
 
 import React from 'react';
 import BaseComponent from './base-component';
-// import PureRenderMixin from 'react-addons-pure-render-mixin';
 import EditPointForm from './edit-point-form';
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
@@ -14,11 +13,9 @@ var registryWs, registryWebsocket;
 class RegistryRow extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind('_updateCell', '_showProps', '_handleRowClick', '_selectForDelete', '_grabResizeHandle', '_stopPropagation');
+        this._bind('_handleRowClick', '_selectForDelete');
 
         this.state = this._resetState(this.props);  
-
-        // this.shouldComponentUpdate = PureRenderMixin.shouldComponentUpdate.bind(this);
     }
     componentDidMount() {
     }
@@ -40,16 +37,10 @@ class RegistryRow extends BaseComponent {
             (this.state.selectedForDelete !== nextState.selectedForDelete))
         {
             doUpdate = true;
-            // console.log("state's not equal");
         }
         else
         {
             doUpdate = (!this.props.immutableProps.equals(nextProps.immutableProps));
-
-            // if (doUpdate)
-            // {
-            //     console.log("immutable props not equal");
-            // }
         }
 
         return doUpdate;
@@ -88,30 +79,8 @@ class RegistryRow extends BaseComponent {
         });
 
         this.setState({ attributesList: newValues });
+        this.forceUpdate();
 
-        // var currentTarget = e.currentTarget;
-        
-        // var attributesCopy = this.state.attributesList.toJS();
-
-        // // var newValues = attributesCopy.updateIn(["attributes", column], function (item) {
-
-        // //     item.value = currentTarget.value;
-
-        // //     return item;
-        // // });
-
-        // var newValues = {
-        //     visible: attributesCopy.visible, 
-        //     virtualIndex: attributesCopy.virtualIndex, 
-        //     bacnetObjectType: attributesCopy.bacnetObjectType, 
-        //     index: attributesCopy.index,
-        //     attributes: attributesCopy.attributes,
-        //     selected: attributesCopy.selected
-        // };
-
-        // newValues.attributes[column].value = currentTarget.value;
-
-        // this.setState({ attributesList: Immutable.fromJS(newValues) });
     }
     _showProps(attributesList) {
         
@@ -145,11 +114,6 @@ class RegistryRow extends BaseComponent {
                 this.setState({attributesList: attributesList});
             }
         }
-    }
-    _stopPropagation(evt) {
-        
-        evt.stopPropagation();
-        evt.nativeEvent.stopImmediatePropagation();
     }
     _grabResizeHandle(columnIndex, evt) {
         
