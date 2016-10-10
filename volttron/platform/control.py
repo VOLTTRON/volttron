@@ -791,7 +791,7 @@ def list_auth(opts, indices=None):
 
 def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                          capabilities=None, roles=None, groups=None,
-                         mechanism='NULL', credentials=None, comments=None,
+                         mechanism='CURVE', credentials=None, comments=None,
                          enabled=True, **kwargs):
     class Asker(object):
         def __init__(self):
