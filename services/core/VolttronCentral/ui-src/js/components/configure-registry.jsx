@@ -1180,7 +1180,7 @@ function initializeList(registryConfig, keyPropsList)
             virtualIndex: rowIndex, 
             bacnetObjectType: bacnetObjectType, 
             index: objectIndex,
-            attributes: row,
+            attributes: Immutable.List(row),
             selected: false
         });
     });

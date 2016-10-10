@@ -1410,6 +1410,60 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             break;
     }
 
+    function sortPointColumns(row)
+    {
+        var sortedPoint = [];
+
+        var indexCell = row.find(function (cell) {
+            return cell.key === "index";
+        })
+
+        if (typeof indexCell !== "undefined")
+        {
+            sortedPoint.push(indexCell);
+        }
+
+        var referencePointNameCell = row.find(function (cell) {
+            return cell.key === "reference_point_name";
+        })
+
+        if (typeof referencePointNameCell !== "undefined")
+        {
+            sortedPoint.push(referencePointNameCell);
+        }
+
+        var pointNameCell = row.find(function (cell) {
+            return cell.key === "point_name";
+        })
+
+        if (typeof pointNameCell !== "undefined")
+        {
+            sortedPoint.push(pointNameCell);
+        }
+
+        var volttronPointNameCell = row.find(function (cell) {
+            return cell.key === "volttron_point_name";
+        })
+
+        if (typeof volttronPointNameCell !== "undefined")
+        {
+            sortedPoint.push(volttronPointNameCell);
+        }
+
+        for (var i = 0; i < row.length; ++i)
+        {
+            if (row[i].key !== "index" && 
+                row[i].key !== "reference_point_name" && 
+                row[i].key !== "point_name" && 
+                row[i].key !== "volttron_point_name")
+            {
+                sortedPoint.push(row[i]);
+            }
+        }
+
+        return sortedPoint;
+    }
+
     function getPreppedData(data) {
 
         var preppedData = data.map(function (row) {
@@ -1420,7 +1474,10 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 return cell;
             });
 
-            return Immutable.List(preppedRow);
+            var sortedRow = sortPointColumns(preppedRow);
+
+            // return Immutable.List(sortedRow);
+            return sortedRow;
         });
 
 
@@ -1488,7 +1545,10 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                             newPoint.push(cell);
                         }
 
-                        device.registryConfig.push(Immutable.List(newPoint));
+                        var sortedPoint = sortPointColumns(newPoint);
+
+                        // device.registryConfig.push(Immutable.List(sortedPoint));
+                        device.registryConfig.push(sortedPoint);
                     }
                 }
             }
