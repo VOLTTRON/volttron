@@ -4,7 +4,7 @@ How to authenticate an agent to communicate with VOLTTRON platform:
 ======================================================================
 
 An administrator can allow an agent to communicate with VOLTTRON platform by creating an authentication record for that agent.
-Authentication record is created by using volttron-ctl auth add command and entering values to asked arguments.
+An authentication record is created by using :code:`volttron-ctl auth add` command and entering values to asked arguments.
 
 ::
 
@@ -31,12 +31,12 @@ for the agent. Create a public/private key pair for the agent and enter encoded 
 
         domain []:
         address []:
-        user_id []: "my-test-agent"
+        user_id []: my-test-agent
         capabilities (delimit multiple entries with comma) []:
         roles (delimit multiple entries with comma) []:
         groups (delimit multiple entries with comma) []:
-        mechanism [NULL]:
-        credentials []: "encoded-public-key-for-my-test-agent"
+        mechanism [NULL]: CURVE
+        credentials []: encoded-public-key-for-my-test-agent
         comments []:
         enabled [True]:
 
@@ -50,14 +50,13 @@ Domain is the name assigned to locally bound address. Domain parameter is curren
 Address:
 ---------
 By specifying address, administrator can allow an agent to connect with VOLTTRON only if that agent is running on that address.
-Address parameter can take either a string or an array of strings representing ip addresses.
-It can also take regular expression representing a subnet address.
+Address parameter can take a string representing an IP addresses.
+It can also take a regular expression representing a range of IP addresses.
 
 ::
 
-    address []: "192.168.111.1"
-    address []: ["192.168.111.101","192.168.111.102"]
-    address []: "/192.168.*/"
+    address []: 192.168.111.1
+    address []: /192.168.*/
 
 User_id:
 ---------
@@ -77,7 +76,7 @@ listing all the capabilities this agent is authorized to access. Listing capabil
 access corresponding exported RPC methods of other agents.
 
 For example, if there is an AgentA with capability enables exported RPC method and AgentB needs to access that method then
-AgentA'code and AgentB's authentication record would be as follow:
+AgentA's code and AgentB's authentication record would be as follow:
 
 
 AgentA's capability enabled exported RPC method:
@@ -98,12 +97,12 @@ AgentB's atuhentication record to access bar method:
 
         domain []:
         address []:
-        user_id []: "agent-b"
-        capabilities (delimit multiple entries with comma) []: "can_call_bar"
+        user_id []: agent-b
+        capabilities (delimit multiple entries with comma) []: can_call_bar
         roles (delimit multiple entries with comma) []:
         groups (delimit multiple entries with comma) []:
-        mechanism [NULL]:
-        credentials []: "encoded-public-key-for-agent-b"
+        mechanism [NULL]: CURVE
+        credentials []: encoded-public-key-for-agent-b
         comments []:
         enabled [True]:
 
@@ -112,8 +111,8 @@ Similarly, capability parameter can take an array of string:
 
 ::
 
-    capabilities (delimit multiple entries with comma) []: "can_call_bar"
-    capabilities (delimit multiple entries with comma) []: ["can_call_method1","can_call_method2"]
+    capabilities (delimit multiple entries with comma) []: can_call_bar
+    capabilities (delimit multiple entries with comma) []: can_call_method1, can_call_method2
 
 
 Roles:
@@ -130,15 +129,15 @@ Mechanism:
 Mechanism is the authentication method by which the agent will communicate with VOLTTRON platform.
 It takes one of the following strings:
 
-"NULL": No authentication
-"PLAIN": username/password
-"CURVE": CurveMQ public.private keys
+- NULL: No authentication
+- PLAIN: username/password
+- CURVE: CurveMQ public.private keys
 
-NOTE: Currently VOLTTRON uses only CURVE mechanism to authenticate agents. NULL and PLAIN values will be implemented in future.
+NOTE: Currently VOLTTRON uses only CURVE mechanism to authenticate agents.
 
 ::
 
-    mechanism [NULL]: "CURVE"
+    mechanism [NULL]: CURVE
 
 Credentials:
 -------------
@@ -149,7 +148,7 @@ encoded public key if mechanism is 'CURVE' (see `volttron.platform.vip.socket.en
 Note: Currently VOLTTRON uses only CURVE mechanism to authenticate agents. Hence, only valid value for credentials parameter is encoded public key.
 ::
 
-    credentials []: "encoded-public-key-for-agent"
+    credentials []: encoded-public-key-for-agent
 
 
 Comments:
