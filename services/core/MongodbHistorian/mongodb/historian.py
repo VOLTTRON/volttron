@@ -59,6 +59,7 @@ import logging
 import sys
 from collections import OrderedDict
 from datetime import datetime
+from collections import defaultdict
 
 import pymongo
 from bson.objectid import ObjectId
@@ -277,88 +278,48 @@ def historian(config_path, **kwargs):
             if skip > 0:
                 skip_count = skip
 
-            find_params = {"topic_id": ObjectId(topic_ids[0])}
-            if multi_topic_query:
-                obj_ids = [ObjectId(x) for x in topic_ids]
-                find_params = {"topic_id": {"$in": obj_ids}}
+
+            find_params = {}
             if ts_filter:
-                find_params['ts'] = ts_filter
+                find_params= {'ts': ts_filter}
 
-            _log.debug("querying table with params {}".format(find_params))
-            if multi_topic_query:
-                sort_dict = OrderedDict()
-                sort_dict["topic_id"] = order_by
-                sort_dict["ts"] = order_by
-                cursor = db[collection_name].aggregate([
-                    {"$match": find_params},
-                    {"$skip": skip_count},
-                    {"$sort": sort_dict},
-                    {"$limit": count},
-                    {"$project": {
-                        "_id": 0,
-                        "topic_id": 1,
-                        "timestamp": {'$dateToString':
-                                      {'format':
-                                       "%Y-%m-%dT%H:%M:%S.%L000+00:00",
-                                       "date": "$ts"}},
-                        "value": 1
-                    }}
-                ])
-            else:
-                cursor = db[collection_name].aggregate([
-                    {"$match": find_params},
+            values = defaultdict(list)
+            for x in topic_ids:
+                find_params['topic_id'] = ObjectId(x)
+                _log.debug("querying table with params {}".format(find_params))
+                pipeline = [{"$match": find_params},
+                            {"$skip": skip_count},
+                            {"$sort": {"ts": order_by}},
+                            {"$limit": count},
+                            {"$project":
+                                 {"_id": 0,
+                                  "timestamp": {'$dateToString': {
+                                      'format': "%Y-%m-%dT%H:%M:%S.%L000+00:00",
+                                      "date": "$ts"}},
+                                  "value": 1}
+                             }]
+                _log.debug("pipeline for agg query is {}".format(
+                    pipeline))
+                cursor = db[collection_name].aggregate(pipeline)
 
-                    {"$skip": skip_count},
-                    {"$sort": {"ts": order_by}},
-                    {"$limit": count},
-                    {"$project": {
-                        "_id": 0,
-                        "timestamp": {
-                            '$dateToString':
-                                {
-                                    'format':
-                                        "%Y-%m-%dT%H:%M:%S.%L000+00:00",
-                                    "date": "$ts"}},
-                        "value": 1}}
-                ])
-
-            _log.debug("Time after find and sort {}".format(
-                datetime.utcnow() - start_time))
-
-            # Create list of tuples for return values.
-            if multi_topic_query:
-                previous_topic = ""
-                values = {}
                 rows = list(cursor)
                 _log.debug("Time after fetch {}".format(
                     datetime.utcnow() - start_time))
                 for row in rows:
-                    current_topic = id_name_map[row['topic_id']]
-                    if current_topic != previous_topic:
-                        values[current_topic] = []
-                        previous_topic = current_topic
-                    values[current_topic].append(
+                    values[id_name_map[x]].append(
                         (row['timestamp'], row['value']))
                 _log.debug("Time taken to load into values {}".format(
                     datetime.utcnow() - start_time))
-            else:
 
-                # impl3 - project and format using mongo
-                values = []
-                rows = list(cursor)
-                _log.debug("Time after fetch {}".format(
-                    datetime.utcnow() - start_time))
-                for row in rows:
-                    values.append((row['timestamp'], row['value']))
-                _log.debug("Time taken to load into values {}".format(
-                    datetime.utcnow() - start_time))
+            _log.debug("Time taken to load all values {}".format(
+                datetime.utcnow() - start_time))
 
             if len(values) > 0:
                 # If there are results add metadata if it is a query on a
                 # single
                 # topic
                 if not multi_topic_query:
-
+                    values = values.values()[0]
                     if agg_type:
                         # if aggregation is on single topic find the topic id
                         # in the topics table.

@@ -60,6 +60,7 @@ import logging
 import sqlite3
 import threading
 from datetime import datetime
+from collections import defaultdict
 
 import os
 import re
@@ -237,14 +238,6 @@ class SqlLiteFuncts(DbDriver):
 
         where_clauses = ["WHERE topic_id = ?"]
         args = [topic_ids[0]]
-        if len(topic_ids) > 1:
-            where_str = "WHERE topic_id IN ("
-            for _ in topic_ids:
-                where_str += "?, "
-            where_str = where_str[:-2]  # strip last comma and space
-            where_str += ") "
-            where_clauses = [where_str]
-            args = topic_ids
 
         if start is not None:
             start_str = start.isoformat(' ')
@@ -268,7 +261,7 @@ class SqlLiteFuncts(DbDriver):
 
         # can't have an offset without a limit
         # -1 = no limit and allows the user to
-        # provied just an offset
+        # provide just an offset
         if count is None:
             count = -1
 
@@ -290,23 +283,15 @@ class SqlLiteFuncts(DbDriver):
         c = sqlite3.connect(
             self.__database,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-        rows = c.execute(real_query, args)
-        if len(topic_ids) > 1:
-            previous_topic = ""
-            values = {}
-            for row in rows:
-                current_topic = id_name_map[row[0]]
-                if current_topic != previous_topic:
-                    values[current_topic] = []
-                    previous_topic = current_topic
-                values[current_topic].append(
-                    (utils.format_timestamp(row[1]), jsonapi.loads(row[2])))
-        else:
-            values = [(utils.format_timestamp(ts),
-                       jsonapi.loads(value)) for topic_id, ts, value in rows]
+        values = defaultdict(list)
+        for topic_id in topic_ids:
+            rows = c.execute(real_query, args)
+            for _id, ts, value in rows:
+                values[id_name_map[topic_id]].append(
+                    (utils.format_timestamp(ts), jsonapi.loads(value)))
 
         _log.debug("QueryResults: " + str(values))
-        return {'values': values}
+        return values
 
     def insert_meta_query(self):
         return '''INSERT OR REPLACE INTO ''' + self.meta_table + \

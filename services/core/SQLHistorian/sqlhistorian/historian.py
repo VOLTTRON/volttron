@@ -307,18 +307,18 @@ def historian(config_path, **kwargs):
                 topic_ids))
             multi_topic_query = len(topic_ids) > 1
 
-            results = self.reader.query(
+            values = self.reader.query(
                 topic_ids, id_name_map, start=start, end=end,
                 agg_type=agg_type,
                 agg_period=agg_period, skip=skip, count=count,
                 order=order)
-
-            values = results.get('values', [])
             metadata = {}
+
             if len(values) > 0:
                 # If there are results add metadata if it is a query on a
                 # single topic
                 if not multi_topic_query:
+                    values = values.values()[0]
                     if agg_type:
                         # if aggregation is on single topic find the topic id
                         # in the topics table that corresponds to agg_topic_id

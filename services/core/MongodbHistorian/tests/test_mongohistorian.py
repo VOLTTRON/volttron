@@ -661,3 +661,65 @@ def test_empty_result(volttron_instance, database_client):
     finally:
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
+
+@pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_multi_topic(volttron_instance, database_client):
+    """
+    Test basic functionality of sql historian. Inserts three points as part
+    of all topic and checks
+    if all three got into the database
+    :param volttron_instance: The instance against which the test is run
+    """
+    global query_points, db_connection
+
+    agent_uuid = install_historian_agent(volttron_instance,
+                                         mongo_agent_config())
+
+    try:
+        # print('HOME', volttron_instance.volttron_home)
+        print("\n** test_basic_function **")
+
+        publish_agent = volttron_instance.build_agent()
+
+        # Publish data to message bus that should be recorded in the mongo
+        # database.
+        expected_result ={}
+        values_dict ={}
+        values_dict[query_points['oat_point']] = []
+        values_dict[query_points['mixed_point']] = []
+        for x in range(0, 5):
+            expected = publish_fake_data(publish_agent)
+            gevent.sleep(0.5)
+            if x < 3:
+                values_dict[query_points['oat_point']].append(
+                    [expected["datetime"].isoformat()[:-3] + '000+00:00',
+                     expected["oat_point"]])
+                values_dict[query_points['mixed_point']].append(
+                    [expected["datetime"].isoformat()[:-3] + '000+00:00',
+                     expected["mixed_point"]])
+        expected_result["values"] = values_dict
+        expected_result["metadata"] = {}
+
+        # Query the historian
+        result = publish_agent.vip.rpc.call(
+            'platform.historian',
+            'query',
+            topic=[query_points['mixed_point'],
+                   query_points['oat_point']],
+            count=3,
+            order="FIRST_TO_LAST").get(timeout=100)
+
+        # print("expected result {}".format(expected_result))
+        # print("result {}".format(result))
+        assert result["metadata"] == expected_result["metadata"]
+        assert result["values"][query_points['mixed_point']] == \
+               expected_result["values"][query_points['mixed_point']]
+        assert result["values"][query_points['oat_point']] == \
+               expected_result["values"][query_points['oat_point']]
+
+
+
+    finally:
+        volttron_instance.stop_agent(agent_uuid)
+        volttron_instance.remove_agent(agent_uuid)
