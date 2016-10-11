@@ -185,6 +185,8 @@ def publish_test_data(publish_agent, start_time, start_reading, count):
 
     float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
     for i in range(0, count):
+        print("publishing reading {} at time {}".format(reading,
+                                                        time.isoformat()))
         # Create a message for all points.
         all_message = [{'in_temp': reading,
                         'out_temp': reading},
@@ -215,13 +217,17 @@ def get_expected_sum(query_agent, topic, end_time, minutes_delta):
         count=20,
         order="FIRST_TO_LAST").get(timeout=100)
     expected_data = 0
-    print("data_values between {} and {} is {}".format(
-        start_time, end_time, data_values))
-    for d in data_values['values']:
-        if isinstance(topic, list) and len(topic) > 1:
-            expected_data += int(d[2])
-        else:
+    print("data_values between {} and {}  for topics {} is {}".format(
+        start_time, end_time, topic, data_values))
+    if isinstance(topic, list) and len(topic) > 1:
+        for t in topic:
+            list_for_t = data_values['values'].get(t, [])
+            for l in list_for_t:
+                expected_data += int(l[1])
+    else:
+        for d in data_values['values']:
             expected_data += int(d[1])
+
     return expected_data
 
 
@@ -340,24 +346,21 @@ def test_get_supported_aggregations(aggregate_agent, query_agent):
         AGG_AGENT_VIP,
         'get_supported_aggregations').get(timeout=10)
 
-
     assert result
     print result
-    conn =  aggregate_agent.get("connection")
+    conn = aggregate_agent.get("connection")
     if conn:
         if conn.get("type") == "mysql":
             assert result == ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'BIT_AND',
-                              'BIT_OR','BIT_XOR', 'GROUP_CONCAT', 'STD',
+                              'BIT_OR', 'BIT_XOR', 'GROUP_CONCAT', 'STD',
                               'STDDEV', 'STDDEV_POP', 'STDDEV_SAMP',
                               'VAR_POP', 'VAR_SAMP', 'VARIANCE']
         elif conn.get("type") == "sqlite":
             assert result == ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'TOTAL',
                               'GROUP_CONCAT']
         elif conn.get("type") == "mongodb":
-            assert result ==['SUM', 'COUNT', 'AVG', 'MIN', 'MAX',
-                             'STDDEVPOP', 'STDDEVSAMP']
-
-
+            assert result == ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX',
+                              'STDDEVPOP', 'STDDEVSAMP']
 
 
 @pytest.mark.aggregator
@@ -542,8 +545,8 @@ def test_single_topic(aggregate_agent, query_agent):
         assert (result2['values'][0][0] == result1['values'][0][0])
         assert (result2['values'][1][0] == result1['values'][1][0])
 
-        diff = compute_timediff_seconds(result2['values'][0][0],
-                                        result2['values'][1][0])
+        diff = compute_timediff_seconds(result2['values'][1][0],
+                                        result2['values'][0][0])
         assert diff == 60
 
         assert (result1['metadata']) == (result2['metadata']) == \
@@ -585,8 +588,8 @@ def test_single_topic(aggregate_agent, query_agent):
         assert (result2['values'][0][0] == result1['values'][0][0])
         assert (result2['values'][1][0] == result1['values'][1][0])
 
-        diff = compute_timediff_seconds(result2['values'][0][0],
-                                        result2['values'][1][0])
+        diff = compute_timediff_seconds(result2['values'][1][0],
+                                        result2['values'][0][0])
         assert diff == 120
 
         # Now verify the computed sum
@@ -637,8 +640,8 @@ def compute_timediff_seconds(time1_str, time2_str):
                                   '%Y-%m-%dT%H:%M:%S.%f')
     datetime2 = datetime.strptime(time2_str,
                                   '%Y-%m-%dT%H:%M:%S.%f')
-    print("time difference {}".format((datetime2 - datetime1)))
-    diff = (datetime2 - datetime1).total_seconds()
+    print("time difference {}".format((datetime1 - datetime2)))
+    diff = (datetime1 - datetime2).total_seconds()
     return diff
 
 
@@ -696,8 +699,7 @@ def test_multiple_topic_pattern(aggregate_agent, query_agent):
             count=20,
             order="FIRST_TO_LAST").get(timeout=100)
 
-        print(result1)
-
+        print("result1 {}".format(result1))
         # Now verify the computed sum
         expected_sum = get_expected_sum(query_agent,
                                         ['device1/in_temp',
@@ -868,7 +870,7 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
         assert set(result[0][3]) == {"device1/in_temp", "device1/out_temp"}
 
         # Reconfigure changing topic names list for the same aggregate topic
-        start_time = datetime.utcnow() - timedelta(minutes=1)
+        start_time = datetime.utcnow()
         publish_test_data(query_agent, start_time, 0, 5)
 
         # Update topic names
@@ -881,6 +883,7 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
                                  aggregate_agent).get()
 
         print ("After configure\n\n")
+        gevent.sleep(2)
 
         result1 = query_agent.vip.rpc.call(
             'platform.historian',

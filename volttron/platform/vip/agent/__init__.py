@@ -91,10 +91,10 @@ class Agent(object):
                  agent_uuid=None, enable_store=True, developer_mode=False):
 
         if identity is not None and not is_valid_identity(identity):
-            _log.warn('Deprecation warining')
+            _log.warn('Deprecation warning')
             _log.warn(
                 'All characters in {identity} are not in the valid set.'.format(
-                    idenity=identity))
+                    identity=identity))
 
         self.core = Core(self, identity=identity, address=address,
                          context=context, publickey=publickey,

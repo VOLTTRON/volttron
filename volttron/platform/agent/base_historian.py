@@ -304,9 +304,9 @@ class BaseHistorianAgent(Agent):
         subscriptions = [
             (topics.DRIVER_TOPIC_BASE, self._capture_device_data),
             (topics.LOGGER_BASE, self._capture_log_data),
-            (topics.ACTUATOR, self._capture_actuator_data),
+            #(topics.ACTUATOR, self._capture_actuator_data),
             (topics.ANALYSIS_TOPIC_BASE, self._capture_analysis_data),
-            (topics.RECORD, self._capture_record_data)
+            (topics.RECORD_BASE, self._capture_record_data)
         ]
 
         for prefix, cb in subscriptions:

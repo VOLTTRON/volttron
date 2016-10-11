@@ -137,15 +137,19 @@ class ControlService(BaseAgent):
     @RPC.export
     def agent_status(self, uuid):
         if not isinstance(uuid, basestring):
-            raise TypeError("expected a string for 'uuid'; got {!r}".format(
-                type(uuid).__name__))
+            identity = bytes(self.vip.rpc.context.vip_message.peer)
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                type(uuid).__name__, identity))
         return self._aip.agent_status(uuid)
 
     @RPC.export
     def agent_name(self, uuid):
         if not isinstance(uuid, basestring):
-            raise TypeError("expected a string for 'uuid'; got {!r}".format(
-                type(uuid).__name__))
+            identity = bytes(self.vip.rpc.context.vip_message.peer)
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                type(uuid).__name__, identity))
         return self._aip.agent_name(uuid)
 
     @RPC.export
@@ -155,15 +159,19 @@ class ControlService(BaseAgent):
     @RPC.export
     def start_agent(self, uuid):
         if not isinstance(uuid, basestring):
-            raise TypeError("expected a string for 'uuid'; got {!r}".format(
-                type(uuid).__name__))
+            identity = bytes(self.vip.rpc.context.vip_message.peer)
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                type(uuid).__name__, identity))
         self._aip.start_agent(uuid)
 
     @RPC.export
     def stop_agent(self, uuid):
         if not isinstance(uuid, basestring):
-            raise TypeError("expected a string for 'uuid'; got {!r}".format(
-                type(uuid).__name__))
+            identity = bytes(self.vip.rpc.context.vip_message.peer)
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                type(uuid).__name__, identity))
         self._aip.stop_agent(uuid)
 
     @RPC.export
@@ -191,28 +199,38 @@ class ControlService(BaseAgent):
     @RPC.export
     def tag_agent(self, uuid, tag):
         if not isinstance(uuid, basestring):
-            raise TypeError("expected a string for 'uuid'; got {!r}".format(
-                type(uuid).__name__))
+            identity = bytes(self.vip.rpc.context.vip_message.peer)
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                type(uuid).__name__, identity))
         if not isinstance(tag, (type(None), basestring)):
-            raise TypeError("expected a string or null for 'tag'; "
-                            'got {!r}'.format(type(tag).__name__))
+            identity = bytes(self.vip.rpc.context.vip_message.peer)
+            raise TypeError("expected a string for 'tag';"
+                            "got {!r} from identity: {}".format(
+                type(uuid).__name__, identity))
         return self._aip.tag_agent(uuid, tag)
 
     @RPC.export
     def remove_agent(self, uuid):
         if not isinstance(uuid, basestring):
-            raise TypeError("expected a string for 'uuid'; got {!r}".format(
-                type(uuid).__name__))
+            identity = bytes(self.vip.rpc.context.vip_message.peer)
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                type(uuid).__name__, identity))
         self._aip.remove_agent(uuid)
 
     @RPC.export
     def prioritize_agent(self, uuid, priority='50'):
         if not isinstance(uuid, basestring):
-            raise TypeError("expected a string for 'uuid'; got {!r}".format(
-                type(uuid).__name__))
+            identity = bytes(self.vip.rpc.context.vip_message.peer)
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                type(uuid).__name__, identity))
         if not isinstance(priority, (type(None), basestring)):
-            raise TypeError("expected a string or null for 'priority'; "
-                            'got {!r}'.format(type(priority).__name__))
+            identity = bytes(self.vip.rpc.context.vip_message.peer)
+            raise TypeError("expected a string or null for 'priority';"
+                            "got {!r} from identity: {}".format(
+                type(uuid).__name__, identity))
         self._aip.prioritize_agent(uuid, priority)
 
     @RPC.export
@@ -223,8 +241,10 @@ class ControlService(BaseAgent):
         @return:
         """
         if not isinstance(uuid, basestring):
-            raise TypeError("expected a string for 'uuid'; got {!r}".format(
-                type(uuid).__name__))
+            identity = bytes(self.vip.rpc.context.vip_message.peer)
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                type(uuid).__name__, identity))
         return self._aip.agent_identity(uuid)
 
     @RPC.export
@@ -771,7 +791,7 @@ def list_auth(opts, indices=None):
 
 def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                          capabilities=None, roles=None, groups=None,
-                         mechanism='NULL', credentials=None, comments=None,
+                         mechanism='CURVE', credentials=None, comments=None,
                          enabled=True, **kwargs):
     class Asker(object):
         def __init__(self):
