@@ -85,6 +85,21 @@ def historian(config_path, **kwargs):
     params = connection.get('params', None)
     assert params is not None
 
+    identity_from_platform = kwargs.pop('identity', None)
+    identity = config.get('identity')
+
+    if identity is not None:
+        _log.warning("DEPRECATION WARNING: Setting a historian's VIP IDENTITY"
+                     " from its configuration file will no longer be supported after VOLTTRON 4.0")
+        _log.warning("DEPRECATION WARNING: Using the identity configuration setting will override"
+                     " the value provided by the platform. This new value will not be reported"
+                     " correctly by 'volttron-ctl status'")
+        _log.warning("DEPRECATION WARNING: Please remove 'identity' from your configuration file"
+                     " and use the new method provided by the platform to set an agent's identity."
+                     " See scripts/core/make-mongo-historian.sh for an example of how this is done.")
+    else:
+        identity = identity_from_platform
+
     topic_replacements = config.get('topic_replace_list', None)
     _log.debug('topic_replacements are: {}'.format(topic_replacements))
 
@@ -450,7 +465,7 @@ def historian(config_path, **kwargs):
             ])
 
     MongodbHistorian.__name__ = 'MongodbHistorian'
-    return MongodbHistorian(topic_replace_list=topic_replacements, **kwargs)
+    return MongodbHistorian(identity=identity, topic_replace_list=topic_replacements, **kwargs)
 
 
 def main(argv=sys.argv):
