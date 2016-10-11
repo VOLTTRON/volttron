@@ -102,13 +102,13 @@ class FailoverAgent(Agent):
         self.heartbeat_period = config["heartbeat_period"]
         self.timeout = config["timeout"]
 
-        self.vc_timeout = 0
-        self.remote_timeout = 0
+        self.vc_timeout = self.timeout
+        self.remote_timeout = self.timeout
         self.agent_uuid = None
         self.heartbeat = None
         self.last_connected = None
 
-        self._state = False, False
+        self._state = True, True
         self._state_machine = getattr(self, self.agent_id + '_state_machine')
 
     @Core.receiver("onstart")
