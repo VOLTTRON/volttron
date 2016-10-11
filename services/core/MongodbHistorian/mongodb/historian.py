@@ -57,9 +57,8 @@ from __future__ import absolute_import, print_function
 
 import logging
 import sys
-from collections import OrderedDict
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
 
 import pymongo
 from bson.objectid import ObjectId
@@ -90,13 +89,21 @@ def historian(config_path, **kwargs):
 
     if identity is not None:
         _log.warning("DEPRECATION WARNING: Setting a historian's VIP IDENTITY"
-                     " from its configuration file will no longer be supported after VOLTTRON 4.0")
-        _log.warning("DEPRECATION WARNING: Using the identity configuration setting will override"
-                     " the value provided by the platform. This new value will not be reported"
-                     " correctly by 'volttron-ctl status'")
-        _log.warning("DEPRECATION WARNING: Please remove 'identity' from your configuration file"
-                     " and use the new method provided by the platform to set an agent's identity."
-                     " See scripts/core/make-mongo-historian.sh for an example of how this is done.")
+                     " from its configuration file will no longer be "
+                     "supported after VOLTTRON 4.0")
+        _log.warning(
+            "DEPRECATION WARNING: Using the identity configuration setting "
+            "will override"
+            " the value provided by the platform. This new value will not be "
+            "reported"
+            " correctly by 'volttron-ctl status'")
+        _log.warning(
+            "DEPRECATION WARNING: Please remove 'identity' from your "
+            "configuration file"
+            " and use the new method provided by the platform to set an "
+            "agent's identity."
+            " See scripts/core/make-mongo-historian.sh for an example of how "
+            "this is done.")
     else:
         identity = identity_from_platform
 
@@ -293,10 +300,9 @@ def historian(config_path, **kwargs):
             if skip > 0:
                 skip_count = skip
 
-
             find_params = {}
             if ts_filter:
-                find_params= {'ts': ts_filter}
+                find_params = {'ts': ts_filter}
 
             values = defaultdict(list)
             for x in topic_ids:
@@ -307,11 +313,12 @@ def historian(config_path, **kwargs):
                             {"$sort": {"ts": order_by}},
                             {"$limit": count},
                             {"$project":
-                                 {"_id": 0,
-                                  "timestamp": {'$dateToString': {
-                                      'format': "%Y-%m-%dT%H:%M:%S.%L000+00:00",
-                                      "date": "$ts"}},
-                                  "value": 1}
+                                {"_id": 0,
+                                    "timestamp": {'$dateToString': {
+                                        'format':
+                                            "%Y-%m-%dT%H:%M:%S.%L000+00:00",
+                                        "date": "$ts"}},
+                                    "value": 1}
                              }]
                 _log.debug("pipeline for agg query is {}".format(
                     pipeline))
@@ -465,7 +472,8 @@ def historian(config_path, **kwargs):
             ])
 
     MongodbHistorian.__name__ = 'MongodbHistorian'
-    return MongodbHistorian(identity=identity, topic_replace_list=topic_replacements, **kwargs)
+    return MongodbHistorian(identity=identity,
+                            topic_replace_list=topic_replacements, **kwargs)
 
 
 def main(argv=sys.argv):

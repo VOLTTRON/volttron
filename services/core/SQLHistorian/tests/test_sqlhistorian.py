@@ -70,11 +70,11 @@ from datetime import datetime, timedelta
 import gevent
 import pytest
 import re
-from volttron.platform.messaging import headers as headers_mod
-from volttron.platform.messaging import topics
+from volttron.platform.agent import PublishMixin
 from volttron.platform.agent import utils
 from volttron.platform.jsonrpc import RemoteError
-from volttron.platform.agent import PublishMixin
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
 
 try:

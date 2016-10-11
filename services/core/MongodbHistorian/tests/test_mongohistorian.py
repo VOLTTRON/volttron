@@ -252,7 +252,7 @@ def publish_minute_data_for_two_hours(agent):
                 'MixedAirTemperature': mixed_reading,
                 'DamperSignal': damper_reading},
                 {'OutsideAirTemperature':
-                    {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+                     {'units': 'F', 'tz': 'UTC', 'type': 'float'},
                  'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
                                          'type': 'float'},
                  'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
@@ -369,7 +369,7 @@ def test_insert_duplicate(volttron_instance, database_client):
         oat_reading = random.uniform(30, 100)
         all_message = [{'OutsideAirTemperature': oat_reading},
                        {'OutsideAirTemperature':
-                       {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+                            {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
         publisher = volttron_instance.build_agent()
         # Create timestamp (no parameter to isoformat so the result is a T
@@ -427,7 +427,7 @@ def test_analysis_topic(volttron_instance, database_client):
         oat_reading = random.uniform(30, 100)
         message = [{'FluffyWidgets': oat_reading},
                    {'FluffyWidgets':
-                    {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+                        {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
         publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC, message)
         gevent.sleep(0.1)
@@ -465,7 +465,7 @@ def test_get_topic_map(volttron_instance, database_client):
         oat_reading = random.uniform(30, 100)
         all_message = [{'OutsideAirTemperature': oat_reading},
                        {'OutsideAirTemperature':
-                        {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+                            {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
         publisher = volttron_instance.build_agent()
         publisheddt = publish_data(publisher, ALL_TOPIC, all_message)
@@ -541,7 +541,7 @@ def test_basic_function(volttron_instance, database_client):
                                             order="LAST_TO_FIRST").get(
             timeout=100)
         assert expected['datetime'].isoformat()[:-3] + '000+00:00' == \
-            result['values'][0][0]
+               result['values'][0][0]
         assert result['values'][0][1] == expected['oat_point']
 
         result = publish_agent.vip.rpc.call('platform.historian',
@@ -586,7 +586,7 @@ def test_topic_name_case_change(volttron_instance, database_client):
         oat_reading = random.uniform(30, 100)
         message = [{'FluffyWidgets': oat_reading},
                    {'FluffyWidgets':
-                    {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+                        {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
         publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC, message)
         gevent.sleep(0.1)
@@ -612,7 +612,7 @@ def test_topic_name_case_change(volttron_instance, database_client):
 
         message = [{'Fluffywidgets': oat_reading},
                    {'Fluffywidgets':
-                    {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+                        {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
         publisheddt = publish_data(publisher,
                                    BASE_ANALYSIS_TOPIC, message)
         gevent.sleep(0.1)
@@ -662,6 +662,7 @@ def test_empty_result(volttron_instance, database_client):
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
 
+
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_multi_topic(volttron_instance, database_client):
@@ -684,8 +685,8 @@ def test_multi_topic(volttron_instance, database_client):
 
         # Publish data to message bus that should be recorded in the mongo
         # database.
-        expected_result ={}
-        values_dict ={}
+        expected_result = {}
+        values_dict = {}
         values_dict[query_points['oat_point']] = []
         values_dict[query_points['mixed_point']] = []
         for x in range(0, 5):

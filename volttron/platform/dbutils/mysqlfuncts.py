@@ -275,7 +275,7 @@ class MySqlFuncts(DbDriver):
 
         _log.debug("About to do real_query")
         values = defaultdict(list)
-        for topic_id in topic_ids :
+        for topic_id in topic_ids:
             args[0] = topic_id
             real_query = query.format(where=where_statement,
                                       limit=limit_statement,

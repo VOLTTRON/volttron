@@ -85,13 +85,21 @@ def historian(config_path, **kwargs):
 
     if identity is not None:
         _log.warning("DEPRECATION WARNING: Setting a historian's VIP IDENTITY"
-                     " from its configuration file will no longer be supported after VOLTTRON 4.0")
-        _log.warning("DEPRECATION WARNING: Using the identity configuration setting will override"
-                     " the value provided by the platform. This new value will not be reported"
-                     " correctly by 'volttron-ctl status'")
-        _log.warning("DEPRECATION WARNING: Please remove 'identity' from your configuration file"
-                     " and use the new method provided by the platform to set an agent's identity."
-                     " See scripts/core/make-sqlite-historian.sh for an example of how this is done.")
+                     " from its configuration file will no longer be "
+                     "supported after VOLTTRON 4.0")
+        _log.warning(
+            "DEPRECATION WARNING: Using the identity configuration setting "
+            "will override"
+            " the value provided by the platform. This new value will not be "
+            "reported"
+            " correctly by 'volttron-ctl status'")
+        _log.warning(
+            "DEPRECATION WARNING: Please remove 'identity' from your "
+            "configuration file"
+            " and use the new method provided by the platform to set an "
+            "agent's identity."
+            " See scripts/core/make-sqlite-historian.sh for an example of "
+            "how this is done.")
     else:
         identity = identity_from_platform
 

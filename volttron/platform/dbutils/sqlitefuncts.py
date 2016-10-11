@@ -59,8 +59,8 @@ import errno
 import logging
 import sqlite3
 import threading
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
 
 import os
 import re
