@@ -521,7 +521,7 @@ class Core(BasicCore):
 
         keystore_path = os.path.join(keystore_dir, 'keystore.json')
         keystore = KeyStore(keystore_path)
-        return keystore.public(), keystore.secret()
+        return keystore.public, keystore.secret
 
     def _get_keys_from_addr(self):
         url = list(urlparse.urlsplit(self.address))

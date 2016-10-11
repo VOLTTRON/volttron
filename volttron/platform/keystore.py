@@ -140,17 +140,27 @@ class KeyStore(BaseJSONStore):
                 key = None
         return key
 
+    @property
     def public(self):
         """Return encoded public key"""
         return self._get_key('public')
 
+    @public.setter
+    def public(self, encoded_public_key):
+        self.update({'public': encoded_public_key, 'secret': self.secret})
+
+    @property
     def secret(self):
         """Return encoded secret key"""
         return self._get_key('secret')
 
+    @secret.setter
+    def secret(self, encoded_secret_key):
+        self.update({'public': self.public, 'secret': encoded_secret_key})
+
     def isvalid(self):
         """Check if key pair is valid"""
-        return self.public() and self.secret()
+        return self.public and self.secret
 
 
 class KnownHostsStore(BaseJSONStore):
