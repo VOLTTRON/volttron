@@ -3,8 +3,6 @@ import tempfile
 import pytest
 import gevent
 
-from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.keystore import KeyStore
 
 simple_primary_config = {
     "agent_id": "primary",

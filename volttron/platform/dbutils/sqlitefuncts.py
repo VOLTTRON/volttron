@@ -292,8 +292,15 @@ class SqlLiteFuncts(DbDriver):
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         rows = c.execute(real_query, args)
         if len(topic_ids) > 1:
-            values = [(id_name_map[topic_id], utils.format_timestamp(ts),
-                       jsonapi.loads(value)) for topic_id, ts, value in rows]
+            previous_topic = ""
+            values = {}
+            for row in rows:
+                current_topic = id_name_map[row[0]]
+                if current_topic != previous_topic:
+                    values[current_topic] = []
+                    previous_topic = current_topic
+                values[current_topic].append(
+                    (utils.format_timestamp(row[1]), jsonapi.loads(row[2])))
         else:
             values = [(utils.format_timestamp(ts),
                        jsonapi.loads(value)) for topic_id, ts, value in rows]
@@ -319,7 +326,6 @@ class SqlLiteFuncts(DbDriver):
 
     def get_aggregation_list(self):
         return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'TOTAL', 'GROUP_CONCAT']
-
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
         _log.debug("In sqlitefuncts insert aggregate topic")
