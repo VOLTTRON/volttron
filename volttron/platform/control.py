@@ -1060,7 +1060,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
 def get_agent_publickey(opts):
 
     def get_key(agent):
-        return opts.aip.get_agent_keypair(agent.uuid)[0]
+        return opts.aip.get_agent_keystore(agent.uuid).public
 
     _show_filtered_agents(opts, 'PUBLICKEY', get_key)
 
