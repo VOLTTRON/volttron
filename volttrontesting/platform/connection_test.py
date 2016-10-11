@@ -30,8 +30,8 @@ def setup_control_connection(request, get_volttron_instances):
         control_connection = Connection(address=wrapper.vip_address,
                                         peer=CONTROL,
                                         serverkey=wrapper.serverkey,
-                                        publickey=ks.public(),
-                                        secretkey=ks.secret())
+                                        publickey=ks.public,
+                                        secretkey=ks.secret)
     else:
         control_connection = Connection(address=wrapper.local_vip_address,
                                         peer=CONTROL, developer_mode=True)

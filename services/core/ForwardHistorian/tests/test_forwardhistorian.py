@@ -193,7 +193,7 @@ def forwarder(request, volttron_instances):
 
         # add public key of instance1 to instance2 auth file
         authfile = AuthFile(volttron_instance2.volttron_home + "/auth.json")
-        entry = AuthEntry(credentials=ks.public())
+        entry = AuthEntry(credentials=ks.public)
         authfile.add(entry)
 
         # setup destination address to include keys
@@ -201,7 +201,7 @@ def forwarder(request, volttron_instances):
             "{}?serverkey={}&publickey={}&secretkey={}".format(
                 volttron_instance2.vip_address,
                 volttron_instance2.serverkey,
-                ks.public(), ks.secret())
+                ks.public, ks.secret)
     else:
         forwarder_config["destination-vip"] = volttron_instance2.vip_address
     # 1: Install historian agent

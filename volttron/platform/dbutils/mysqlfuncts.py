@@ -57,11 +57,11 @@
 import ast
 import logging
 
-from mysql.connector import Error as MysqlError
-from mysql.connector import errorcode as mysql_errorcodes
 import pytz
 import re
 from basedb import DbDriver
+from mysql.connector import Error as MysqlError
+from mysql.connector import errorcode as mysql_errorcodes
 from volttron.platform.agent import utils
 from zmq.utils import jsonapi
 
@@ -292,10 +292,17 @@ class MySqlFuncts(DbDriver):
         rows = self.select(real_query, args)
         if rows:
             if len(topic_ids) > 1:
-                values = [(id_name_map[topic_id],
-                           utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
-                           jsonapi.loads(value))
-                          for topic_id, ts, value in rows]
+                previous_topic = ""
+                values = {}
+                for row in rows:
+                    current_topic = id_name_map[row[0]]
+                    if current_topic != previous_topic:
+                        values[current_topic] = []
+                        previous_topic = current_topic
+                    values[current_topic].append(
+                        (utils.format_timestamp(row[1].replace(
+                            tzinfo=pytz.UTC)),
+                         jsonapi.loads(row[2])))
             else:
                 values = [(utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
                            jsonapi.loads(value))
