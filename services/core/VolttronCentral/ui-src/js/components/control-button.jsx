@@ -4,13 +4,11 @@ var React = require('react');
 var Router = require('react-router');
 var controlButtonStore = require('../stores/control-button-store');
 var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
+var OutsideClick = require('react-click-outside');
 
 
 var ControlButton = React.createClass({
-    mixins: [
-        require('react-onclickoutside')
-    ],
-	getInitialState: function () {
+    getInitialState: function () {
 		var state = {};
 
 		state.showTaptip = false;
@@ -133,9 +131,13 @@ var ControlButton = React.createClass({
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
 
-        if (!(this.props.tooltip.hasOwnProperty("x") && this.props.tooltip.hasOwnProperty("y")))
+        if (!this.props.tooltip.hasOwnProperty("x"))
         {
             this.setState({tooltipX: evt.clientX - this.state.tooltipOffsetX});
+        }
+
+        if (!this.props.tooltip.hasOwnProperty("y"))
+        {
             this.setState({tooltipY: evt.clientY - this.state.tooltipOffsetY});
         }
     },
@@ -165,14 +167,16 @@ var ControlButton = React.createClass({
         }
         else if (this.props.tooltip)
         {
+            var showTooltip = (this.state.showTooltip || this.props.triggerTooltip);
+
         	var tooltipStyle = {
-	            display: (this.state.showTooltip ? "block" : "none"),
+	            display: (showTooltip ? "block" : "none"),
 	            position: "absolute",
 	            top: this.state.tooltipY + "px",
 	            left: this.state.tooltipX + "px"
 	        };
 
-	        var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
+	        var toolTipClasses = (showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
 
 	        tooltipShow = this._showTooltip;
 	        tooltipHide = this._hideTooltip;
@@ -241,8 +245,15 @@ var ControlButton = React.createClass({
 
         var controlButtonClass = (this.props.controlclass ? this.props.controlclass : "control_button");
 
+        var centering = (this.props.hasOwnProperty("nocentering") && (this.props.nocentering === true) ?
+                            "" : "centeredDiv");
+
+        var outerClasses = ((this.props.hasOwnProperty("outerclass") && this.props.outerclass) ? this.props.outerclass :
+                                (this.props.hasOwnProperty("floatleft") && (this.props.floatleft === true) ?
+                                    "floatLeft" : "inlineBlock") );
+
         return (
-            <div className="inlineBlock">
+            <div className={outerClasses}>
             	{taptip}
             	{tooltip}
                 <div className={controlButtonClass}
@@ -250,7 +261,7 @@ var ControlButton = React.createClass({
                     onMouseEnter={tooltipShow}
                     onMouseLeave={tooltipHide}
                     style={selectedStyle}>
-                    <div className="centeredDiv">
+                    <div className={centering}>
                         {buttonIcon}
                     </div>
                 </div>                  
@@ -265,4 +276,4 @@ var ControlButton = React.createClass({
 
 
 
-module.exports = ControlButton;
+module.exports = OutsideClick(ControlButton);

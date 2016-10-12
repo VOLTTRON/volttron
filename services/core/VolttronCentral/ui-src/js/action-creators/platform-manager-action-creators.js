@@ -25,6 +25,11 @@ var platformManagerActionCreators = {
             },
         }, ['password']).promise
             .then(function (result) {
+                
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.WILL_INITIALIZE_PLATFORMS
+                });
+
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_AUTHORIZATION,
                     authorization: result,

@@ -29,7 +29,7 @@ var Dashboard = React.createClass({
         pinnedCharts.forEach(function (pinnedChart) {
             if (pinnedChart.data.length > 0)
             {
-                var platformChart = <PlatformChart chart={pinnedChart} chartKey={pinnedChart.chartKey} hideControls={true}/>
+                var platformChart = <PlatformChart key={pinnedChart.chartKey} chart={pinnedChart} chartKey={pinnedChart.chartKey} hideControls={true}/>
                 platformCharts.push(platformChart);
             }
         });        

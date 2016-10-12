@@ -171,7 +171,7 @@ br + .form__control-help {
     margin-left: 1em;
 }
 
-.platform-manager {
+.platform-manager, .public-exterior {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -190,7 +190,7 @@ br + .form__control-help {
     text-align: center;
 }
 
-.platform-manager--console-open .modal__overlay {
+.console-open .modal__overlay {
     bottom: 50%;
 }
 
@@ -262,16 +262,16 @@ br + .form__control-help {
     background-color: #f8f8f8;
 }
 
-.platform-manager--console-open .main {
+.console-open .main {
     height: 50%;
     z-index: 3;
 }
 
-.platform-manager--modal-open .main {
+.modal-open .main {
     overflow: hidden;
 }
 
-.platform-manager--modal-open .main > * {
+.modal-open .main > * {
     -webkit-filter: blur(0.25rem) saturate(0);
     filter: blur(0.25rem) saturate(0);
 }
@@ -283,7 +283,7 @@ br + .form__control-help {
     border-bottom: 1px solid #ddd;
 }
 
-.platform-manager--not-logged-in .navigation {
+.not-logged-in .navigation {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -314,19 +314,19 @@ br + .form__control-help {
     color: #999;
 }
 
-.platform-manager--not-logged-in .logo__tm {
+.not-logged-in .logo__tm {
     position: absolute;
     margin: 0.3em 0 0 0.15em;
 }
 
-.platform-manager--logged-in .logo__tm {
+.logged-in .logo__tm {
     vertical-align: top;
     position: relative;
     top: 0.3em;
     left: 0.15em;
 }
 
-.platform-manager--not-logged-in .logo__central {
+.not-logged-in .logo__central {
     margin: 0 0 0 0.35em;
 }
 
@@ -347,11 +347,11 @@ br + .form__control-help {
     color: #bbb;
 }
 
-.platform-manager--not-logged-in .logo__beta {
+.not-logged-in .logo__beta {
     display: block;
 }
 
-.platform-manager--logged-in .logo__beta::before {
+.logged-in .logo__beta::before {
     content: " ";
 }
 
@@ -377,7 +377,7 @@ br + .form__control-help {
     border-color: #45b;
 }
 
-.platform-manager--not-logged-in .logo {
+.not-logged-in .logo {
     width: 100%;
     text-align: center;
     position: absolute;
@@ -501,7 +501,7 @@ br + .form__control-help {
     cursor: pointer;
 }
 
-.arrowButton {
+.arrowButton, .panelItemButton {
     float: left;
     margin-right: 5px;
     cursor: pointer;
@@ -528,8 +528,17 @@ br + .form__control-help {
     margin-bottom: 1px;
 }
 
-.cancelLoading {
+.cancelLoading, .cancelScanning {
     color: red;
+}
+
+.cancelScanning {
+    font-size: 2em;
+    line-height: 14px;
+    width: 30px;
+    vertical-align: top;
+    cursor: pointer;
+    margin: 0px 6px;
 }
 
 .rotateRight {
@@ -564,6 +573,27 @@ br + .form__control-help {
     50% { transform: rotate(1deg) translateX(1px);}
     100% { transform: rotate(-1deg) translateX(-1px);}
 }
+
+.configure-arrow {
+    color: gray;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 16px;
+    display: inline-block;
+    width: 16px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.rotateConfigure{
+    animation: arrow-down-from-right .1s;
+    animation-fill-mode: forwards;
+}
+
+@keyframes arrow-down-from-left { 
+    from {transform: rotate(0deg); } 
+    to {transform: rotate(-90deg); } 
+} 
 
 .showItems {
     /*-webkit-animation: agent-reveal 1s;
@@ -627,6 +657,15 @@ br + .form__control-help {
     font-weight: bold;
 }
 
+.centerContent {
+    text-align: center;
+}
+
+.propsButton {
+    cursor: pointer;
+    text-align: center;
+}
+
 .tooltip_inner, .taptip_inner {
     background-color: rgba(255, 255, 255, .8);
     padding: 10px;
@@ -635,8 +674,6 @@ br + .form__control-help {
     border: 1px black solid;
     box-shadow: 0px 2px 10px 2px #ccc;
 }
-
-
 
 .tooltip_point, .taptip_point {
     /*color: #ffffff;
@@ -726,6 +763,67 @@ br + .form__control-help {
 .fa-close:before,
 .fa-times:before {
   content: "\f00d";
+}
+
+.fa-plus:before {
+    content: "\f067";
+}
+
+.fa-minus:before {
+    content: "\f068";
+}
+
+.fa-clone:before {
+    content: "\f24d";
+}
+
+.fa-bars:before {
+    content: "\f0c9";
+}
+
+.fa-edit:before {
+    content: "\f044";
+}
+
+.fa-step-forward:before {
+    content: "\f051";
+}
+
+.fa-fast-forward:before {
+    content: "\f050";
+}
+
+.fa-save:before,
+.fa-floppy-o:before {
+    content: "\f0c7";
+}
+
+.fa-ellipsis-h:before {
+    content: "\f141";
+}
+
+.fa-pencil:before {
+    content: "\f040";
+}
+
+.fa-cog:before {
+    content: "\f013";
+}
+
+.fa-cogs:before {
+  content: "\f085";
+}
+
+.fa-file:before {
+    content: "\f15b";
+}
+
+.fa-filter:before {
+    content: "\f0b0";
+}
+
+.fa-keyboard-o:before {
+    content: "\f11c";
 }
 
 .fa-circle-o-notch:before {
@@ -835,6 +933,10 @@ br + .form__control-help {
     display: inline-block;
 }
 
+.floatLeft {
+    float: left;
+}
+
 .displayBlock {
     display: block;
 }
@@ -852,6 +954,18 @@ br + .form__control-help {
 
 .centeredDiv {
     text-align: center;
+    position: relative;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.edit_column_button > .centeredDiv {
+    transform: translateY(0%);   
+}
+
+.file-button > .centeredDiv,
+.configure-arrow > .centeredDiv {
+    transform: translateY(-20%);   
 }
 
 .status-good {
@@ -1097,6 +1211,11 @@ br + .form__control-help {
     width: 30%;
 }
 
+.zztop {
+    z-index: 200;
+    background-color: rgba(248, 248, 248, .7);
+}
+
 .formLabel {
     text-transform: uppercase;
     font-weight: bold;
@@ -1152,20 +1271,24 @@ a.view__item:hover::before {
 
 .resize-handle {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 3px;
+    bottom: 0;    
     background-color: #ddd;
-    
+    left: 0;
+    top: 0;
+    width: 3px;    
     cursor: ew-resize;
 }
 
-.resize-handle:hover {
-    width: 3px;
+.resize-handle:hover, .resize-handle-td:hover, .resize-handle-th:hover {
     background-color: #C7C7C7;
 }
 
+.resize-handle-td, .resize-handle-th {
+    width: 2px;
+    background-color: #ddd;
+    padding: 0;
+    cursor: ew-resize;
+}
 
 .view--list .view__item + .view__item {
     margin-top: 0.5em;
@@ -1229,7 +1352,7 @@ a.view__item:hover::before {
     padding: 0.25em 0.75em 0.25em;
 }
 
-.platform-manager--console-open .toggle {
+.console-open .toggle {
     top: 50%;
     bottom: auto;
     border-radius: 0 0 0.3333rem 0.3333rem;
@@ -2042,6 +2165,38 @@ svg.nvd3-svg {
     display: none;
 }
 
+.displayNone {
+    display: none;
+}
+
+.keyboard_help_button {
+    position: absolute;
+    top: 40px;
+    right: -30px;
+    cursor: pointer;
+}
+
+.keyboard_help_button > div:last-child {
+    width: 20px;
+    height: 20px;
+}
+
+.keyboard_help_button tr {
+    height: 20px;
+}
+
+.keyboard_help_button td {
+    line-height: 10px;
+}
+
+.keyboard_help_button .centeredDiv {
+    line-height: 20px;
+}
+
+.opaque_inner {
+    background: rgba(255,255,255,1);
+    border-radius: inherit;
+}
 
 /****
 Interactive Layer
@@ -2051,4 +2206,325 @@ Interactive Layer
 }
 .nvd3 line.nv-guideline {
     stroke: #ccc;
+}
+
+.collapsible-registry-values.slow-show {
+    height: 100%;
+}
+
+.collapsible-registry-values.slow-hide {
+    height: 0;
+}
+
+.slow-hide > .fixed-table-container {
+    visibility: hidden;
+    height: 0;
+}
+
+.slow-show > .fixed-table-container {
+    height: 100%;
+}
+
+.slow-hide > .registry-buttons {
+    visibility: hidden;
+}
+
+.fixed-table-container {
+    width: 100%;
+    /*height: 60vh;*/
+    /* above is decorative or flexible */
+    position: relative; /* could be absolute or relative */
+    padding-top: 30px; /* height of header */
+    /*overflow-x: auto;*/
+}
+
+.fixed-table-container-inner {
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: 100%;
+    width: 100%;
+}
+
+.header-background {
+    height: 30px; /* height of header */
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+}
+
+.registryConfigTable {
+    background-color: white;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    margin-top: 2px;
+}
+
+.registryConfigTable > tbody > tr > td > input {
+    border: none;
+}
+
+.registryConfigTable > tbody > tr {
+    cursor: cell;
+}
+
+.registryConfigTable > tbody > tr > td > label {
+    cursor: cell;
+}
+
+.registryConfigTable > tbody > tr:not(.selectedRegistryPoint):hover {
+    background-color: rgba(102, 153, 187, .3);
+}
+
+.registryConfigTable > tbody > tr > td > input {
+    cursor: auto;
+}
+
+.registryConfigTable > tbody > tr:first-child > td:last-child {
+    border-top: 1px solid #ddd;
+}
+
+.registryConfigTable > thead > tr > th > div > div > div > .tooltip_inner {
+    white-space: nowrap;
+}
+
+.disableReplace {
+    opacity: .4;
+}
+
+.selectedRegistryPoint {
+    background-color: rgba(102, 153, 187, .5) !important;
+}
+
+.keyboard-selected {
+    background-color: rgba(102, 153, 187, .3);
+}
+
+.th-inner {
+    position: absolute;
+    top: 0;
+    line-height: 30px; /* height of header */
+    text-align: left;
+    padding-left: 5px;
+    margin-left: -5px;
+}
+
+.filter_box {
+    margin: 15px 5px 15px 40px;
+}
+
+.focusedCell {
+    box-sizing: border-box;
+}
+
+.focusedCell:focus {
+    border: 2px #9DDEF5 solid;
+}
+
+.opSelector { 
+    padding: 10px; 
+    margin:-5px -20px -5px -5px; 
+}
+
+.opList { 
+    width: 100%; 
+    list-style-type: none;
+    padding-left: 0px;
+    margin: 0px;
+    overflow: hidden;
+    line-height: 20px;
+}
+
+.opListItem {
+    height: 18px;
+    width: 100%;
+    font-weight: normal;
+    padding-left: 10px; 
+    box-sizing: border-box;  
+    cursor: pointer; 
+}
+
+.opListItem.remove {
+    border-bottom: none;
+    border-bottom-right-radius: 5px;
+    border-bottom-left-radius: 5px;
+}
+
+.opListItem.edit { 
+    border-top-right-radius: 5px;
+border-top-left-radius: 5px;
+}
+
+.opListItem.add, .clone, .edit {
+    border-bottom: 1px black solid;
+}
+
+.opListItem:hover { 
+     background-color: aquamarine; 
+}
+
+.edit_button, 
+.filter_button, 
+.add_point_button, 
+.remove_point_button {
+    display: inline-block;    
+    cursor: pointer;    
+    height: 18px;    
+    color: #878787;
+    transform: translateY(25%);
+}
+
+.filter_button, 
+.add_point_button, 
+.remove_point_button {
+    margin: 0px 1px;
+    width: 10px;
+    padding: 2px 0px;
+}
+
+.edit_button {
+    margin: 0px;
+    width: 15px;
+    padding: 2px 2px;
+}
+
+.edit_column_button {
+    visibility: hidden;
+}
+
+th.plain,
+td.plain {
+    border-left: none;
+    border-bottom: none;
+}
+
+.device-box {
+    width: 100%;
+    float: left;
+    clear: both;
+}
+
+.device-scan {
+    margin-bottom: 0px;
+}
+
+.detectDevicesContainer {
+    width: 450px;
+}
+
+.devicesFoundContainer {
+    width: 800px;
+}
+
+.configDeviceContainer {
+    width: 600px;
+}
+
+.detectDevicesBox {    
+    border: 1px solid black;
+}
+
+.devicesFoundBox {    
+    padding: 10px 0px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.devicesFoundBox > table > tbody > tr {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    cursor: default;
+}
+
+.devicesFoundBox > table > tbody > tr > td:last-child {
+    padding-right: 0px;
+}
+
+.no-devices {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 0.3333rem;
+    background-color: #fff;
+}
+
+/*.configDeviceBox {    
+    padding: 60px 100px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    border: 1px solid black;
+}*/
+
+.uneditableAttributes {
+    padding: 0px 140px 0px 140px;
+    margin-top: 20px;
+}
+
+.uneditableAttributes > table > tbody > tr > td {
+    height: 10px;
+    line-height: 1;
+    padding-left: 60px;
+    padding-right: 0px;
+}
+
+.uneditableAttributes > table > tbody > tr:first-child > td {
+    padding-top: 20px;
+}
+
+.uneditableAttributes > table > tbody > tr:not(:first-child) > td {
+    padding-top: 5px;
+}
+
+.uneditableAttributes > table > tbody > tr:last-child > td {
+    padding-bottom: 20px;
+}
+.uneditableAttributes > table > tbody > tr:not(:last-child) > td {
+    padding-bottom: 0px;
+}
+
+.table_label {
+    font-weight: bold;
+}
+
+td.buffer_row {
+    height: 80px;
+    vertical-align: top;
+}
+
+.uploadButton {
+    position: absolute;
+    opacity: 0;
+    -moz-opactiy: 0;
+    top: 0;
+    right: 0;
+    z-index: 99;
+    cursor: pointer;
+}
+
+.fileButton {
+    position: relative;
+    cursor: pointer;
+    height: 20px;
+    width: 20px;
+    text-align: center;
+}
+
+.buttonWrapper {
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    height: 20px;
+    width: 66px;
+    text-align: center;
+    -webkit-appearance: button;
+    background-color: buttonface;
+    border: 2px outset buttonface;
+}
+
+.buttonWrapper, .fileButton > div {
+    line-height: 20px;
 }

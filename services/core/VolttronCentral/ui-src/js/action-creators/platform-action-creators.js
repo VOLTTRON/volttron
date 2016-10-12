@@ -394,7 +394,7 @@ var platformActionCreators = {
                 .catch(rpc.Error, function (error) {
                     handle401(error, "Unable to delete chart: " + error.message);
                 });
-        }.find(chartToDelete);
+        }.bind(chartToDelete);
 
         platformActionCreators.handleChartsForUser(doDeleteChart);
     },

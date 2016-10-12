@@ -55,7 +55,7 @@ function js() {
         bundleExternal: false,
         entries: './ui-src/js/app',
         extensions: ['.jsx'],
-        transform: ['reactify'],
+        transform: ['babelify'],
     })
         .bundle()
         .pipe(source('app.js'))
@@ -77,25 +77,35 @@ function vendor() {
             'jquery/dist/jquery.min',
             'moment/min/moment.min.js',
             'node-uuid',
-            'react-onclickoutside',
+            'react-addons-pure-render-mixin',
+            'react-click-outside',
             'nvd3/build/nv.d3.min',
-            'react/dist/react.min',
-            'react-router/umd/ReactRouter.min',
+            'keymirror',
+            'react/dist/react',
+            'react-dom/dist/react-dom',
+            'react-router/umd/ReactRouter',
+            'history/umd/history',
+            'immutable/dist/immutable',
         ],
     })
         .require([
             { file: 'bluebird/js/browser/bluebird.min', expose: 'bluebird' },
+            { file: 'babyparse/babyparse.js', expose: 'babyparse' },
             { file: 'd3/d3', expose: 'd3' },
             'events',
             'flux',
             { file: 'jquery/dist/jquery.min', expose: 'jquery' },
             { file: 'moment/min/moment.min.js', expose: 'moment' },
             'node-uuid',
-            'react-onclickoutside',
+            'react-addons-pure-render-mixin',
+            'react-click-outside',
             { file: 'nvd3/build/nv.d3.min', expose: 'nvd3' },
-            { file: 'react/dist/react.min', expose: 'react' },
-            'react/lib/keyMirror',
-            { file: 'react-router/umd/ReactRouter.min', expose: 'react-router' },
+            'keymirror',
+            { file: 'react/dist/react', expose: 'react' },
+            { file: 'react-dom/dist/react-dom', expose: 'react-dom' },
+            { file: 'react-router/umd/ReactRouter', expose: 'react-router' },
+            { file: 'history/umd/history', expose: 'history' },
+            { file: 'immutable/dist/immutable', expose: 'immutable' },
         ])
         .transform(function (file) {
             if (file.match('/d3/d3.')) {
