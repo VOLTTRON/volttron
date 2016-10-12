@@ -1317,24 +1317,25 @@ def test_record_topic_query(request, sqlhistorian, publish_agent, query_agent,
     print("now is ", now)
 
     # Publish messages
-    publish(publish_agent, topics.RECORD, None, 1)
+    publish(publish_agent, topics.RECORD(subtopic="test"), None, 1)
     # sleep 1 second so that records gets inserted with unique timestamp
     # even in case of older mysql
     gevent.sleep(1)
 
-    publish(publish_agent, topics.RECORD, None, 'value0')
+    publish(publish_agent, topics.RECORD(subtopic="test"), None, 'value0')
     # sleep 1 second so that records gets inserted with unique timestamp
     # even in case of older mysql
     gevent.sleep(1)
 
-    publish(publish_agent, topics.RECORD, None, {'key': 'value'})
+    publish(publish_agent, topics.RECORD(subtopic="test"), None,
+            {'key': 'value'})
     gevent.sleep(0.5)
 
     # pytest.set_trace()
     # Query the historian
     result = query_agent.vip.rpc.call(identity,
                                       'query',
-                                      topic=topics.RECORD,
+                                      topic=topics.RECORD(subtopic="test"),
                                       start=now,
                                       count=20,
                                       order="FIRST_TO_LAST").get(timeout=10)

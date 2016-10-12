@@ -69,7 +69,7 @@ from volttron.platform.web import build_vip_address_string
 
 _log = logging.getLogger(__name__)
 
-__version__ = '1.0.2'
+__version__ = '1.0.3'
 __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 
 
@@ -93,8 +93,8 @@ class Connection(object):
         self.volttron_home = volttron_home
 
         if self.volttron_home is None:
-            _log.warn('Connection is using default VOLTTRON_HOME')
             self.volttron_home = os.path.abspath(platform.get_home())
+
         if address.startswith('ipc'):
             full_address = address
         else:

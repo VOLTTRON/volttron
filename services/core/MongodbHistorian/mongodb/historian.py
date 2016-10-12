@@ -57,6 +57,8 @@ from __future__ import absolute_import, print_function
 
 import logging
 import sys
+from collections import OrderedDict
+from datetime import datetime
 
 import pymongo
 from bson.objectid import ObjectId
@@ -81,6 +83,21 @@ def historian(config_path, **kwargs):
 
     params = connection.get('params', None)
     assert params is not None
+
+    identity_from_platform = kwargs.pop('identity', None)
+    identity = config.get('identity')
+
+    if identity is not None:
+        _log.warning("DEPRECATION WARNING: Setting a historian's VIP IDENTITY"
+                     " from its configuration file will no longer be supported after VOLTTRON 4.0")
+        _log.warning("DEPRECATION WARNING: Using the identity configuration setting will override"
+                     " the value provided by the platform. This new value will not be reported"
+                     " correctly by 'volttron-ctl status'")
+        _log.warning("DEPRECATION WARNING: Please remove 'identity' from your configuration file"
+                     " and use the new method provided by the platform to set an agent's identity."
+                     " See scripts/core/make-mongo-historian.sh for an example of how this is done.")
+    else:
+        identity = identity_from_platform
 
     topic_replacements = config.get('topic_replace_list', None)
     _log.debug('topic_replacements are: {}'.format(topic_replacements))
@@ -216,6 +233,7 @@ def historian(config_path, **kwargs):
             "LAST_TO_FIRST"
             @return: Results of the query
             """
+            start_time = datetime.utcnow()
             collection_name = self._data_collection
 
             if agg_type and agg_period:
@@ -282,24 +300,73 @@ def historian(config_path, **kwargs):
                 find_params['ts'] = ts_filter
 
             _log.debug("querying table with params {}".format(find_params))
-            cursor = db[collection_name].find(find_params)
-            cursor = cursor.skip(skip_count).limit(count)
             if multi_topic_query:
-                cursor = cursor.sort(
-                    [("topic_id", order_by), ("ts", order_by)])
+                sort_dict = OrderedDict()
+                sort_dict["topic_id"] = order_by
+                sort_dict["ts"] = order_by
+                cursor = db[collection_name].aggregate([
+                    {"$match": find_params},
+                    {"$skip": skip_count},
+                    {"$sort": sort_dict},
+                    {"$limit": count},
+                    {"$project": {
+                        "_id": 0,
+                        "topic_id": 1,
+                        "timestamp": {'$dateToString':
+                                      {'format':
+                                       "%Y-%m-%dT%H:%M:%S.%L000+00:00",
+                                       "date": "$ts"}},
+                        "value": 1
+                    }}
+                ])
             else:
-                cursor = cursor.sort([("ts", order_by)])
-            _log.debug('cursor count is: {}'.format(cursor.count()))
+                cursor = db[collection_name].aggregate([
+                    {"$match": find_params},
+
+                    {"$skip": skip_count},
+                    {"$sort": {"ts": order_by}},
+                    {"$limit": count},
+                    {"$project": {
+                        "_id": 0,
+                        "timestamp": {
+                            '$dateToString':
+                                {
+                                    'format':
+                                        "%Y-%m-%dT%H:%M:%S.%L000+00:00",
+                                    "date": "$ts"}},
+                        "value": 1}}
+                ])
+
+            _log.debug("Time after find and sort {}".format(
+                datetime.utcnow() - start_time))
 
             # Create list of tuples for return values.
             if multi_topic_query:
-                values = [(id_name_map[row['topic_id']],
-                           utils.format_timestamp(row['ts']),
-                           row['value']) for row in cursor]
+                previous_topic = ""
+                values = {}
+                rows = list(cursor)
+                _log.debug("Time after fetch {}".format(
+                    datetime.utcnow() - start_time))
+                for row in rows:
+                    current_topic = id_name_map[row['topic_id']]
+                    if current_topic != previous_topic:
+                        values[current_topic] = []
+                        previous_topic = current_topic
+                    values[current_topic].append(
+                        (row['timestamp'], row['value']))
+                _log.debug("Time taken to load into values {}".format(
+                    datetime.utcnow() - start_time))
             else:
-                values = [(utils.format_timestamp(row['ts']), row['value']) for
-                          row
-                          in cursor]
+
+                # impl3 - project and format using mongo
+                values = []
+                rows = list(cursor)
+                _log.debug("Time after fetch {}".format(
+                    datetime.utcnow() - start_time))
+                for row in rows:
+                    values.append((row['timestamp'], row['value']))
+                _log.debug("Time taken to load into values {}".format(
+                    datetime.utcnow() - start_time))
 
             if len(values) > 0:
                 # If there are results add metadata if it is a query on a
@@ -326,6 +393,8 @@ def historian(config_path, **kwargs):
                     else:
                         # this is a query on raw data, get metadata for
                         # topic from topic_meta map
+                        _log.debug("Single topic regular query. Get "
+                                   "metadata from meta map")
                         metadata = self._topic_meta.get(topic_ids[0], {})
 
                     return {
@@ -333,6 +402,8 @@ def historian(config_path, **kwargs):
                         'metadata': metadata
                     }
                 else:
+                    _log.debug("return values without metadata for multi "
+                               "topic query")
                     return {'values': values}
             else:
                 return {}
@@ -433,7 +504,7 @@ def historian(config_path, **kwargs):
             ])
 
     MongodbHistorian.__name__ = 'MongodbHistorian'
-    return MongodbHistorian(topic_replace_list=topic_replacements, **kwargs)
+    return MongodbHistorian(identity=identity, topic_replace_list=topic_replacements, **kwargs)
 
 
 def main(argv=sys.argv):

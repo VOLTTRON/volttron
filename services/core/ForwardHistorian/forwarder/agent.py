@@ -295,7 +295,7 @@ def historian(config_path, **kwargs):
                 _log.debug(
                     "Setting up to forward to {}".format(destination_vip))
                 event = gevent.event.Event()
-                agent = Agent(address=destination_vip)
+                agent = Agent(address=destination_vip, enable_store=False)
                 agent.core.onstart.connect(lambda *a, **kw: event.set(),
                                            event)
                 gevent.spawn(agent.core.run)
