@@ -123,8 +123,8 @@ def main():
     agent = BACnetInteraction(args.proxy_id,
                               address=get_address(),
                               volttron_home=get_home(),
-                              publickey=keystore.public(),
-                              secretkey=keystore.secret(),
+                              publickey=keystore.public,
+                              secretkey=keystore.secret,
                               enable_store=False)
 
     event = gevent.event.Event()
