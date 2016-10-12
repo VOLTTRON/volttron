@@ -785,9 +785,9 @@ def gen_keypair(opts):
 
 
 def add_server_key(opts):
-    store = KnownHostsStore(opts.known_hosts_file)
+    store = KnownHostsStore()
     store.add(opts.host, opts.server_key)
-    _stdout.write('server key written to {}\n'.format(opts.known_hosts_file))
+    _stdout.write('server key written to {}\n'.format(store.filename))
 
 
 def do_stats(opts):
@@ -1183,9 +1183,9 @@ def priority(value):
 
 def get_keys(opts):
     '''Gets keys from keystore and known-hosts store'''
-    hosts = KnownHostsStore(opts.known_hosts_file)
+    hosts = KnownHostsStore()
     serverkey = hosts.serverkey(opts.vip_address)
-    key_store = KeyStore(opts.keystore_file)
+    key_store = KeyStore()
     publickey = key_store.public
     secretkey = key_store.secret
     return {'publickey': publickey, 'secretkey': secretkey,
@@ -1217,15 +1217,9 @@ def main(argv=sys.argv):
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
-    global_args.add_argument('--keystore-file', metavar='FILE',
-                             help='use keystore from FILE')
-    global_args.add_argument('--known-hosts-file', metavar='FILE',
-                             help='get known-host server keys from FILE')
     global_args.set_defaults(
         vip_address=get_address(),
         timeout=30,
-        keystore_file=os.path.join(volttron_home, 'keystore'),
-        known_hosts_file=os.path.join(volttron_home, 'known_hosts')
     )
 
     filterable = config.ArgumentParser(add_help=False)
@@ -1413,7 +1407,10 @@ def main(argv=sys.argv):
 
     auth_keypair = add_parser('keypair', subparser=auth_subparsers,
             help='generate CurveMQ keys for encrypting VIP connections')
-    auth_keypair.set_defaults(func=gen_keypair)
+    auth_keypair.add_argument('keystore_file', metavar='keystore-file',
+            help='path to save keystore file', nargs='?')
+    auth_keypair.set_defaults(func=gen_keypair,
+            keystore_file=KeyStore.get_default_path())
 
     auth_list = add_parser('list', help='list authentication records',
             subparser=auth_subparsers)
