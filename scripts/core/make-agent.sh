@@ -73,8 +73,10 @@ echo $PACK $SOURCE $CONFIG $TAG
 # Install and start HIST.
 $PACK $SOURCE $CONFIG $TAG
 
-echo "$START"
-$START
+if [ -z "$NO_START" ]; then
+  echo "$START"
+  $START
+fi
 
 if [ "$1" = "enable" ]
 then

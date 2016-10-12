@@ -53,104 +53,107 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 #}}}
 
 import logging
-import argparse
+import sys
 
-import gevent
-from volttron.platform.keystore import KeyStore
-
-from volttron.platform import get_address, get_home
-from volttron.platform.vip.agent import Agent, PubSub
-from volttron.platform.messaging import topics
+from datetime import datetime
+from volttron.platform.agent.utils import watch_file_with_fullpath
+from volttron.platform.vip.agent import Agent, RPC, Core
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent import errors
 
-
-from pprint import pprint
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
-class BACnetInteraction(Agent):
-    def __init__(self, proxy_id, *args, **kwargs):
-        super(BACnetInteraction, self).__init__(*args, **kwargs)
-        self.proxy_id = proxy_id
-
-    def send_iam(self, low_device_id=None, high_device_id=None, address=None):
-        self.vip.rpc.call(self.proxy_id, "who_is",
-                           low_device_id=low_device_id,
-                           high_device_id=high_device_id,
-                           target_address=address).get(timeout=5.0)
-
-    @PubSub.subscribe('pubsub', topics.BACNET_I_AM)
-    def iam_handler(self, peer, sender, bus,  topic, headers, message):
-        pprint(message)
+__version__ = '3.6'
 
 
-"""
-Simple utility to scrape device registers and write them to a configuration file.
-"""
+def file_watch_publisher(config_path, **kwargs):
+    """Load the FileWatchPublisher agent configuration and returns and instance
+    of the agent created using that configuration.
+
+    :param config_path: Path to a configuration file.
+
+    :type config_path: str
+    :returns: FileWatchPublisher agent instance
+    :rtype: FileWatchPublisher agent
+    """
+    config = utils.load_config(config_path)
+    return FileWatchPublisher(config, **kwargs)
 
 
+class FileWatchPublisher(Agent):
+    """Monitors files for changes and publishes added lines
+        on corresponding topics.
 
-def main():
-    # parse the command line arguments
-    arg_parser = argparse.ArgumentParser(description=__doc__)
+    :param config: Configuration dict
+    :type config: dict
 
-    arg_parser.add_argument("--address",
-                            help="Target only device(s) at <address> for request")
+    Example configuration:
+
+    .. code-block:: python
+
+        {
+	        "publish_file": [
+                {
+                    "file": "/var/log/syslog",
+                    "topic": "platform/syslog",
+                },
+                {
+                    "file": "/home/volttron/tempfile.txt",
+                    "topic": "temp/filepublisher",
+                }
+	        ]
+        }
+    """
+    def __init__(self, config, **kwargs):
+        super(FileWatchPublisher, self).__init__(**kwargs)
+        self.config = config
+        self.file_topic = {}
+        self.file_end_position = {}
+        for item in self.config:
+            file =  item["file"]
+            self.file_topic[file] = item["topic"]
+            with open(file, 'r') as f:
+                self.file_end_position[file] = self.get_end_position(f)
+
+    @Core.receiver('onstart')
+    def starting(self, sender, **kwargs):
+        _log.info("Starting "+self.__class__.__name__+" agent")
+        for item in self.config:
+            file = item["file"]
+            self.core.spawn(watch_file_with_fullpath, file, self.read_file)
+
+    def read_file(self,file):
+        _log.debug('loading file %s', file)
+        with open(file, 'r') as f:
+            f.seek(self.file_end_position[file])
+            for line in f:
+                self.publish_file(line.strip(),self.file_topic[file])
+            self.file_end_position[file] = self.get_end_position(f)
+
+    def publish_file(self, line, topic):
+        message = {'timestamp':  datetime.utcnow().isoformat() + 'Z',
+                   'line': line}
+        _log.debug('publishing message {} on topic {}'.format(message, topic))
+        self.vip.pubsub.publish(peer="pubsub", topic=topic,
+                                message=message)
+
+    def get_end_position(self, f):
+        f.seek(0,2)
+        return f.tell()
 
 
-    arg_parser.add_argument("--range", type=int, nargs=2, metavar=('LOW', 'HIGH'),
-                            help="Lower and upper limit on device ID in results")
+def main(argv=sys.argv):
+    """Main method called by the platform."""
+    utils.vip_main(file_watch_publisher, identity='platform.filewatchpublisher')
 
-    arg_parser.add_argument("--timeout", type=int, metavar=('SECONDS'),
-                            help="Time, in seconds, to wait for responses. Default: %(default)s",
-                            default=5)
 
-    arg_parser.add_argument("--proxy-id",
-                            help="VIP IDENTITY of the BACnet proxy agent.",
-                            default="platform.bacnet_proxy")
-    
-    args = arg_parser.parse_args()
-
-    _log.debug("initialization")
-    _log.debug("    - args: %r", args)
-
-    keystore = KeyStore()
-    agent = BACnetInteraction(args.proxy_id,
-                              address=get_address(),
-                              volttron_home=get_home(),
-                              publickey=keystore.public(),
-                              secretkey=keystore.secret(),
-                              enable_store=False)
-
-    event = gevent.event.Event()
-    gevent.spawn(agent.core.run, event)
-    event.wait()
-
-    kwargs = {'address': args.address}
-
-    if args.range is not None:
-        kwargs['low_device_id'] = int(args.range[0])
-        kwargs['high_device_id'] = int(args.range[1])
-
+if __name__ == '__main__':
+    # Entry point for script
     try:
-        agent.send_iam(**kwargs)
-    except errors.Unreachable:
-        _log.error("There is no BACnet proxy Agent running on the platform with the VIP IDENTITY {}".format(args.proxy_id))
-    else:
-        gevent.sleep(args.timeout)
-        
-try:
-    main()
-except Exception, e:
-    _log.exception("an error has occurred: %s", e)
-finally:
-    _log.debug("finally")
-    
-
-    
-
+        sys.exit(main())
+    except KeyboardInterrupt:
+        pass

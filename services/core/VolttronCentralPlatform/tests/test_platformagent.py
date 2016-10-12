@@ -26,7 +26,7 @@ def get_new_keypair():
     tf = tempfile.NamedTemporaryFile()
     ks = KeyStore(tf.name)
     ks.generate()
-    return ks.public(), ks.secret()
+    return ks.public, ks.secret
 
 
 def add_to_auth(volttron_home, publickey, capabilities=None):

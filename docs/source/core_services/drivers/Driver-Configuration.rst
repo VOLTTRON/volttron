@@ -159,14 +159,24 @@ Converting Old Style Configuration
 
 The new Master Driver no longer supports the old style of device configuration. The old ``device_list`` setting is ignored.
 
-To simplify updating to a new format ``scripts/update_master_driver_config.py`` is provide to automatically update to the new configuration format and push the results to the configuration store.
+To simplify updating to the new format ``scripts/update_master_driver_config.py`` is provide to automatically update to the new configuration format.
 
 With the platform running run:
 
-``python scripts/update_master_driver_config.py <old configuration>``
+``python scripts/update_master_driver_config.py <old configuration> <output>``
 
 **old_configuration** is the main configuration file in the old format. The script automatically modifies the driver files to create references to csv files and adds the csv files with the appropriate name.
 
+**output** is the target output directory.
+
+If the ``--keep-old`` switch is used the old configurations in the output directory (if any) will not be deleted before before new configurations are created. Matching names will still be overwritten.
+
+The output from ``scripts/update_master_driver_config.py`` can be automatically added to the configuration store
+for the Master Driver agent with ``scripts/install_master_driver_configs.py``.
+
+Creating and naming configuration files in the form needed by ``scripts/install_master_driver_configs.py``
+can speed up the process of changing and updating a large number of configurations. See the ``--help``
+message for ``scripts/install_master_driver_configs.py`` for more details.
 
 Device State Publishes
 ----------------------

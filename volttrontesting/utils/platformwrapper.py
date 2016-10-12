@@ -240,8 +240,8 @@ class PlatformWrapper:
             keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
             keys = KeyStore(keyfile)
             keys.generate()
-            publickey = keys.public()
-            secretkey = keys.secret()
+            publickey = keys.public
+            secretkey = keys.secret
         if self.encrypt:
             conn = Connection(address=address, peer=peer, publickey=publickey,
                               secretkey=secretkey, serverkey=serverkey,
@@ -280,8 +280,8 @@ class PlatformWrapper:
                 keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
                 keys = KeyStore(keyfile)
                 keys.generate()
-                publickey=keys.public()
-                secretkey=keys.secret()
+                publickey=keys.public
+                secretkey=keys.secret
 
         if address is None:
             if not self.encrypt:
@@ -423,7 +423,7 @@ class PlatformWrapper:
         config = {}
 
         # Add platform's public key to known hosts file
-        publickey = self.keystore.public()
+        publickey = self.keystore.public
         known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
         known_hosts = KnownHostsStore(known_hosts_file)
         known_hosts.add(self.opts['vip_local_address'], publickey)
@@ -484,7 +484,7 @@ class PlatformWrapper:
         # A negative means that the process exited with an error.
         assert self.p_process.poll() is None
 
-        self.serverkey = self.keystore.public()
+        self.serverkey = self.keystore.public
         assert self.serverkey
         agent = self.build_agent()
 
