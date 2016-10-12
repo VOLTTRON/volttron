@@ -91,7 +91,7 @@ from abc import ABCMeta
 
 from authenticate import Authenticate
 from sessions import SessionHandler
-from volttron.platform.vip.connection import Connection
+from volttron.platform.vip.agent.connection import Connection
 from volttron.utils.persistance import load_create_store
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
