@@ -110,10 +110,14 @@ class KeyStore(BaseJSONStore):
 
     def __init__(self, filename=None):
         if filename is None:
-            filename = os.path.join(get_home(), 'keystore')
+            filename = self.get_default_path()
         super(KeyStore, self).__init__(filename)
         if not self.isvalid():
             self.generate()
+
+    @staticmethod
+    def get_default_path():
+        return os.path.join(get_home(), 'keystore')
 
     def generate(self):
         """Generate new key pair"""

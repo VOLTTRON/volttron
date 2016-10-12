@@ -12,7 +12,7 @@
     'handlers': {
         'rotating': {
             'class': 'logging.handlers.TimedRotatingFileHandler',
-            'level': 'DEBUG',
+            'level': 'INFO',
             'formatter': 'agent',
             'filename': 'volttron.log',
             'encoding': 'utf-8',
@@ -22,6 +22,6 @@
     },
     'root': {
         'handlers': ['rotating'],
-        'level': 'DEBUG',
+        'level': 'INFO',
     },
 }
