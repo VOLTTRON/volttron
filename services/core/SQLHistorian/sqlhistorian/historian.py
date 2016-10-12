@@ -87,19 +87,15 @@ def historian(config_path, **kwargs):
         _log.warning("DEPRECATION WARNING: Setting a historian's VIP IDENTITY"
                      " from its configuration file will no longer be "
                      "supported after VOLTTRON 4.0")
-        _log.warning(
-            "DEPRECATION WARNING: Using the identity configuration setting "
-            "will override"
-            " the value provided by the platform. This new value will not be "
-            "reported"
-            " correctly by 'volttron-ctl status'")
-        _log.warning(
-            "DEPRECATION WARNING: Please remove 'identity' from your "
-            "configuration file"
-            " and use the new method provided by the platform to set an "
-            "agent's identity."
-            " See scripts/core/make-sqlite-historian.sh for an example of "
-            "how this is done.")
+        _log.warning("DEPRECATION WARNING: Using the identity configuration "
+                     "setting will override the value provided by the "
+                     "platform. This new value will not be reported correctly"
+                     " by 'volttron-ctl status'")
+        _log.warning("DEPRECATION WARNING: Please remove 'identity' from your "
+                     "configuration file and use the new method provided by "
+                     "the platform to set an agent's identity. See "
+                     "scripts/core/make-sqlite-historian.sh for an example "
+                     "of how this is done.")
     else:
         identity = identity_from_platform
 
@@ -147,11 +143,9 @@ def historian(config_path, **kwargs):
             :return:
             """
             _log.info("Starting historian with identity: {}".format(
-                self.core.identity
-            ))
+                self.core.identity))
             _log.debug("starting Thread is: {}".format(
-                threading.currentThread().getName())
-            )
+                threading.currentThread().getName()))
 
             topic_id_map, topic_name_map = self.reader.get_topic_map()
             self.topic_id_map.update(topic_id_map)
@@ -160,9 +154,7 @@ def historian(config_path, **kwargs):
 
             if self.core.identity == 'platform.historian':
                 if 'platform.agent' in self.vip.peerlist().get(timeout=2):
-                    _log.info(
-                        'Registering with platform.agent as a  service.'
-                    )
+                    _log.info('Registering with platform.agent as a  service.')
                     self.vip.rpc.call('platform.agent', 'register_service',
                                       self.core.identity).get(timeout=2)
                 else:
@@ -174,8 +166,9 @@ def historian(config_path, **kwargs):
 
         def publish_to_historian(self, to_publish_list):
             thread_name = threading.currentThread().getName()
-            _log.debug("publish_to_historian number of items: {} Thread: {}"
-                       .format(len(to_publish_list), thread_name))
+            _log.debug(
+                "publish_to_historian number of items: {} Thread: {}".format(
+                    len(to_publish_list), thread_name))
 
             try:
                 real_published = []
@@ -191,8 +184,8 @@ def historian(config_path, **kwargs):
                     topic_id = self.topic_id_map.get(lowercase_name, None)
                     db_topic_name = self.topic_name_map.get(lowercase_name,
                                                             None)
-                    _log.debug('topic is {}, db topic is {}'
-                               .format(topic, db_topic_name))
+                    _log.debug('topic is {}, db topic is {}'.format(
+                        topic, db_topic_name))
                     if topic_id is None:
                         _log.debug('Inserting topic: {}'.format(topic))
                         # Insert topic name as is in db
@@ -210,9 +203,9 @@ def historian(config_path, **kwargs):
 
                     old_meta = self.topic_meta.get(topic_id, {})
                     if set(old_meta.items()) != set(meta.items()):
-                        _log.debug('Updating meta for topic: {} {}'.format(
-                            topic, meta
-                        ))
+                        _log.debug(
+                            'Updating meta for topic: {} {}'.format(topic,
+                                                                    meta))
                         self.writer.insert_meta(topic_id, meta)
                         self.topic_meta[topic_id] = meta
 
@@ -223,16 +216,15 @@ def historian(config_path, **kwargs):
                 if len(real_published) > 0:
                     if self.writer.commit():
                         _log.debug('published {} data values'.format(
-                            len(to_publish_list))
-                        )
+                            len(to_publish_list)))
                         self.report_all_handled()
                     else:
                         msg = 'commit error. rolling back {} values.'
                         _log.debug(msg.format(len(to_publish_list)))
                         self.writer.rollback()
                 else:
-                    _log.debug('Unable to publish {}'.format(len(
-                        to_publish_list)))
+                    _log.debug(
+                        'Unable to publish {}'.format(len(to_publish_list)))
             except:
                 self.writer.rollback()
                 # Raise to the platform so it is logged properly.
@@ -241,8 +233,7 @@ def historian(config_path, **kwargs):
         def query_topic_list(self):
 
             _log.debug("query_topic_list Thread is: {}".format(
-                threading.currentThread().getName())
-            )
+                threading.currentThread().getName()))
             if len(self.topic_name_map) > 0:
                 return self.topic_name_map.values()
             else:
@@ -288,8 +279,7 @@ def historian(config_path, **kwargs):
             @return: Results of the query
             """
             _log.debug("query_historian Thread is: {}".format(
-                threading.currentThread().getName())
-            )
+                threading.currentThread().getName()))
             results = dict()
             topics_list = []
             if isinstance(topic, str):
@@ -326,15 +316,14 @@ def historian(config_path, **kwargs):
                           'empty result'.format(topics_list))
                 return results
 
-            _log.debug("Querying db reader with topic_ids {} ".format(
-                topic_ids))
+            _log.debug(
+                "Querying db reader with topic_ids {} ".format(topic_ids))
             multi_topic_query = len(topic_ids) > 1
 
-            values = self.reader.query(
-                topic_ids, id_name_map, start=start, end=end,
-                agg_type=agg_type,
-                agg_period=agg_period, skip=skip, count=count,
-                order=order)
+            values = self.reader.query(topic_ids, id_name_map, start=start,
+                                       end=end, agg_type=agg_type,
+                                       agg_period=agg_period, skip=skip,
+                                       count=count, order=order)
             metadata = {}
 
             if len(values) > 0:
@@ -363,10 +352,7 @@ def historian(config_path, **kwargs):
                         # this is a query on raw data, get metadata for
                         # topic from topic_meta map
                         metadata = self.topic_meta.get(topic_ids[0], {})
-                return {
-                    'values': values,
-                    'metadata': metadata
-                }
+                return {'values': values, 'metadata': metadata}
             else:
                 results = dict()
             return results
