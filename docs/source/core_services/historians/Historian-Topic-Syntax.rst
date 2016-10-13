@@ -39,8 +39,8 @@ topic is what is read and published to a historian. Both the all topic
 have the same header information, but the message body for each is
 slightly different. For a complete working example of these messages
 please see
-https://github.com/VOLTTRON/volttron/blob/develop/examples/ExampleSubscriber/subscriber/subscriber_agent.py
-
+- :py:mod:`examples.ExampleSubscriber.subscriber.subscriber_agent`
+- :py:mod:`services
 ::
 
     # Header contains the data associated with the message.
@@ -55,22 +55,24 @@ https://github.com/VOLTTRON/volttron/blob/develop/examples/ExampleSubscriber/sub
     }
 
     # Individual Point topic
-    # Messages contains a two element list.  The first element contains an individual reading.  The second
-    # element contains a list of meta data.
+    # Messages contains a two element list.  The first element contains an
+    # individual reading.  The second element contains a list of meta data.
     {
         [52.5, {'units': 'F', 'tz': 'UTC', 'type': 'float'}]
     }
 
     # ALL TOPIC
-    # Messages contains a two element list.  The first element contains a dictionary of all points 
-    # under a #specific parent.  While the second element contains a dictionary of meta data for each of the specified points.  For example devices/pnnl/building/OutsideAirTemperature and 
-    # devices/pnnl/building/MixedAirTemperature ALL message would be created like:
+    # Messages contains a two element list.  The first element contains a
+    # dictionary of all points under a #specific parent.  While the second
+    # element contains a dictionary of meta data for each of the specified
+    # points.  For example devices/pnnl/building/OutsideAirTemperature and
+    # devices/pnnl/building/MixedAirTemperature ALL message would be created as:
     {
         [
             {"OutsideAirTemperature ": 52.5, "MixedAirTemperature ": 58.5},
             {
-                 "OutsideAirTemperature ": {'units': 'F', 'tz': 'UTC', 'type': 'float'}, 
-                 "MixedAirTemperature ": {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+                "OutsideAirTemperature ": {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+                "MixedAirTemperature ": {'units': 'F', 'tz': 'UTC', 'type': 'float'}
             }
         ],
         ...

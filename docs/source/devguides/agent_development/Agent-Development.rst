@@ -199,6 +199,7 @@ To verify it has been installed, use the following command:
 This will result in output similar to the following:
 
 .. code-block:: bash
+
       AGENT           IDENTITY              TAG       PRI
     5 testeragent-0.1 testeragent-0.1_1   testagent
 
