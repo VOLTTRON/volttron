@@ -99,7 +99,7 @@ def install_configs(input_directory, keep=False):
 
     keystore = KeyStore()
     agent = Agent(address=get_address(), identity="master_driver_update_agent",
-                  publickey=keystore.public(), secretkey=keystore.secret(),
+                  publickey=keystore.public, secretkey=keystore.secret,
                   enable_store=False)
 
     event = gevent.event.Event()
