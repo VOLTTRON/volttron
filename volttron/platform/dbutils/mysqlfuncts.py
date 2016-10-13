@@ -56,6 +56,7 @@
 # }}}
 import ast
 import logging
+from collections import defaultdict
 
 import pytz
 import re
@@ -235,14 +236,6 @@ class MySqlFuncts(DbDriver):
 
         where_clauses = ["WHERE topic_id = %s"]
         args = [topic_ids[0]]
-        if len(topic_ids) > 1:
-            where_str = "WHERE topic_id IN ("
-            for _ in topic_ids:
-                where_str += "%s, "
-            where_str = where_str[:-2]  # strip last comma and space
-            where_str += ") "
-            where_clauses = [where_str]
-            args = topic_ids
 
         if start is not None:
             where_clauses.append("ts >= %s")
@@ -262,13 +255,13 @@ class MySqlFuncts(DbDriver):
 
         where_statement = ' AND '.join(where_clauses)
 
-        order_by = 'ORDER BY topic_id ASC, ts ASC'
+        order_by = 'ORDER BY ts ASC'
         if order == 'LAST_TO_FIRST':
             order_by = ' ORDER BY topic_id DESC, ts DESC'
 
         # can't have an offset without a limit
         # -1 = no limit and allows the user to
-        # provied just an offset
+        # provide just an offset
         if count is None:
             count = 100
 
@@ -281,36 +274,24 @@ class MySqlFuncts(DbDriver):
             args.append(skip)
 
         _log.debug("About to do real_query")
+        values = defaultdict(list)
+        for topic_id in topic_ids:
+            args[0] = topic_id
+            real_query = query.format(where=where_statement,
+                                      limit=limit_statement,
+                                      offset=offset_statement,
+                                      order_by=order_by)
+            _log.debug("Real Query: " + real_query)
+            _log.debug("args: " + str(args))
 
-        real_query = query.format(where=where_statement,
-                                  limit=limit_statement,
-                                  offset=offset_statement,
-                                  order_by=order_by)
-        _log.debug("Real Query: " + real_query)
-        _log.debug("args: " + str(args))
-
-        rows = self.select(real_query, args)
-        if rows:
-            if len(topic_ids) > 1:
-                previous_topic = ""
-                values = {}
-                for row in rows:
-                    current_topic = id_name_map[row[0]]
-                    if current_topic != previous_topic:
-                        values[current_topic] = []
-                        previous_topic = current_topic
-                    values[current_topic].append(
-                        (utils.format_timestamp(row[1].replace(
-                            tzinfo=pytz.UTC)),
-                         jsonapi.loads(row[2])))
-            else:
-                values = [(utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
-                           jsonapi.loads(value))
-                          for topic_id, ts, value in rows]
-        else:
-            values = {}
-        _log.debug("query result values {}".format(values))
-        return {'values': values}
+            rows = self.select(real_query, args)
+            if rows:
+                for _id, ts, value in rows:
+                    values[id_name_map[topic_id]].append(
+                        (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
+                         jsonapi.loads(value)))
+            _log.debug("query result values {}".format(values))
+        return values
 
     def insert_meta_query(self):
         return '''REPLACE INTO ''' + self.meta_table + ''' values(%s, %s)'''

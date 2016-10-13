@@ -101,6 +101,13 @@ The new Agent must implement the following methods:
 - :py:meth:`BaseHistorianAgent.publish_to_historian`
 - :py:meth:`BaseQueryHistorianAgent.query_topic_list`
 - :py:meth:`BaseQueryHistorianAgent.query_historian`
+- :py:meth:`BaseQueryHistorianAgent.query_topics_metadata`
+
+If this historian has a corresponding  AggregateHistorian
+(see :py:class:`AggregateHistorian`) implement the following method in addition
+to the above ones:
+- :py:meth:`BaseQueryHistorianAgent.record_table_definitions`
+- :py:meth:`BaseQueryHistorianAgent.query_aggregate_topics`
 
 While not required this method may be overridden as needed:
 - :py:meth:`BaseHistorianAgent.historian_setup`
@@ -123,9 +130,14 @@ subscribes to all Historian related topics on the message bus. Whenever
 subscribed data comes in it is published to a Queue to be be processed by the
 publishing thread as soon as possible.
 
-At startup the publishing thread calls
-:py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
+At startup the publishing thread calls two methods:
+
+- :py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
 Historian a chance to setup any connections in the thread.
+- :py:meth:`BaseQueryHistorianAgent.record_table_definitions` to give the
+implemented Historian a chance to record the table/collection names into a
+meta table/collection with the named passed as parameter. The implemented
+historian is responsible for creating the meta table if it does not exist.
 
 The process thread then enters the following logic loop:
 ::
@@ -196,11 +208,15 @@ if everything was published.
 Querying Data
 -------------
 
-When an request is made to query data the
+- When an request is made to query data the
 :py:meth:`BaseQueryHistorianAgent.query_historian` method is called.
-When a request is made for the list of topics in the store
-:py:meth:`BaseQueryHistorianAgent.query_topic_list`
-will be called.
+- When a request is made for the list of topics in the store
+:py:meth:`BaseQueryHistorianAgent.query_topic_list` will be called.
+- When a request is made to get the metadata of a topic
+:py:meth:`BaseQueryHistorianAgent.query_topics_metadata` will be called.
+- When a request is made for the list of aggregate topics available
+:py:meth:`BaseQueryHistorianAgent.query_aggregate_topics` will be called
+
 
 Other Notes
 -----------
@@ -254,14 +270,17 @@ class BaseHistorianAgent(Agent):
     the same thread.
 
     By default the base historian will listen to 4 separate root topics (
-    datalogger/*, record/*, actuators/*, and device/*.  Messages that are
-    published to actuator are assumed to be part of the actuation process.
+    datalogger/*, record/*, analysis/*, and device/*.
     Messages published to datalogger will be assumed to be timepoint data that
     is composed of units and specific types with the assumption that they have
     the ability to be graphed easily. Messages published to devices
-    are data that comes directly from drivers.  Finally Messages that are
-    published to record will be handled as string data and can be customized
-    to the user specific situation.
+    are data that comes directly from drivers. Data sent to analysis/* topis
+    is result of anaylsis done by applications. The format of data sent to
+    analysis/* topics is similar to data sent to device/* topics.
+    Messages that are published to record will be handled as string data and
+    can be customized to the user specific situation. Refer to
+    `Historian-Topic-Syntax
+    </core_services/historians/Historian-Topic-Syntax.html>`_ for data syntax
 
     This base historian will cache all received messages to a local database
     before publishing it to the historian.  This allows recovery for
@@ -753,6 +772,7 @@ class BaseHistorianAgent(Agent):
            connections in the publishing thread.
         """
 
+    @abstractmethod
     def record_table_definitions(self, meta_table_name):
         """
         Record the table or collection names in which data, topics and
@@ -1149,17 +1169,33 @@ class BaseQueryHistorianAgent(Agent):
         """
         This function is called by :py:meth:`BaseQueryHistorianAgent.query`
         to actually query the data store
-        and must return the results of a query in the form:
+        and must return the results of a query in the following format:
 
+        Single topic query:
+        *******************
         .. code-block:: python
 
             {
-            "values": [(timestamp1: value1),
-                        (timestamp2: value2),
+            "values": [(timestamp1, value1),
+                        (timestamp2:,value2),
                         ...],
              "metadata": {"key1": value1,
                           "key2": value2,
                           ...}
+            }
+        Multiple topics query:
+        **********************
+        .. code-block:: python
+
+            {
+            "values": {topic_name:[(timestamp1, value1),
+                        (timestamp2:,value2),
+                        ...],
+                       topic_name:[(timestamp1, value1),
+                        (timestamp2:,value2),
+                        ...],
+                        ...}
+             "metadata": {} #empty metadata
             }
 
         Timestamps must be strings formatted by
@@ -1172,13 +1208,16 @@ class BaseQueryHistorianAgent(Agent):
         :param start: Start of query timestamp as a datetime.
         :param end: End of query timestamp as a datetime.
         :param agg_type: If this is a query for aggregate data, the type of
-        aggregation ( for example, sum, avg)
+            aggregation ( for example, sum, avg)
         :param agg_period: If this is a query for aggregate data, the time
-        period of aggregation
+            period of aggregation
         :param skip: Skip this number of results.
-        :param count: Limit results to this value.
+        :param count: Limit results to this value. When the query is for
+            multiple topics, count applies to individual topics. For
+            example, a query on 2 topics with count=5 will return 5 records
+            for each topic
         :param order: How to order the results, either "FIRST_TO_LAST" or
-        "LAST_TO_FIRST"
+            "LAST_TO_FIRST"
         :type topic: str or list
         :type start: datetime
         :type end: datetime
