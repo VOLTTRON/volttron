@@ -309,8 +309,11 @@ the X button next to the chart on the Charts page. Removing a chart
 removes it from the Charts page and the Dashboard.
 
 .. |Terminator Setup| image:: files/terminator-setup.png
+                      :target: ../../_images/terminator-setup.png
 .. |VC Config| image:: files/vc-config.png
+               :target: ../../_images/vc-config.png
 .. |Platform Config| image:: files/platform-config.png
+                     :target: ../../_images/platform-config.png
 .. |Login Screen| image:: files/login-screen.png
 .. |Logout Button| image:: files/logout-button.png
 .. |Platforms| image:: files/platforms.png
