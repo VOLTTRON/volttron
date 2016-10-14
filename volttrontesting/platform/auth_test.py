@@ -127,9 +127,10 @@ def test_pubsub_not_protected(volttron_instance_encrypt):
     """Tests pubsub without any topic protection """
     agent1, agent2, topic, msgs = build_two_agents_pubsub_agents(volttron_instance_encrypt)
     agent2.vip.pubsub.publish('pubsub', topic, message='hello agent').get(timeout=1)
-    gevent.sleep(1.0)
+    gevent.sleep(2.0)
     assert len(msgs) > 0
     assert msgs[0] == 'hello agent'
+    #This was the old method for checking for the results. Not sure which method is better.
     #assert poll_gevent_sleep(2, lambda: len(msgs) > 0 and msgs[0] == 'hello agent')
 
 
