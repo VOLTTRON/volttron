@@ -1070,9 +1070,12 @@ class BaseQueryHistorianAgent(Agent):
         """
         This function is called by
         :py:meth:`BaseQueryHistorianAgent.get_topics_metadata`
-        to find out the available aggregates in the data store
+        to find out the metadata for the given topics
 
+        :param topics: single topic or list of topics
+        :type topics: str or list
         :return: dictionary with the format
+
         .. code-block:: python
 
                  {topic_name: {metadata_key:metadata_value, ...},
