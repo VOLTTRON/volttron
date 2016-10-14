@@ -320,7 +320,6 @@ def setup(app):
     app.connect('build-finished', clean_apirst)
     app.connect('autodoc-process-docstring', inherit_docstring)
 
-
 script_dir = os.path.dirname(os.path.realpath(__file__))
 apidocs_base_dir =os.path.abspath(script_dir + "/apidocs")
 def generate_apidoc(app):
