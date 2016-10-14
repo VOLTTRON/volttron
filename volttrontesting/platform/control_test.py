@@ -28,9 +28,10 @@ def test_can_get_identity(volttron_instance):
     @return:
     """
     auuid = volttron_instance.install_agent(
-        agent_dir="services/core/VolttronCentralPlatform", start=True)
+        agent_dir="examples/ListenerAgent", start=True,
+        vip_identity="test_can_get_identity")
     assert auuid is not None
 
     cn = volttron_instance.build_connection(peer='control')
     identity = cn.call('agent_vip_identity', auuid)
-    assert identity == 'platform.agent'
+    assert identity == 'test_can_get_identity'
