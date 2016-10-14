@@ -57,6 +57,18 @@ Assumptions
 
 -  Device driver agent is already developed
 
+Installation:
+--------------
+
+1. Install VOLTTRON on a VM or different system than the one
+   running Matlab.
+
+    Follow link: http://volttron.readthedocs.io/en/develop/install.html
+
+2. Clone VOLTTRON applications under volttron/applications.
+
+    Clone link: https://github.com/VOLTTRON/volttron-applications
+
 Configuration
 -------------
 
@@ -78,26 +90,17 @@ Configuration
    '{"commands":{"device1":[["point1",value1]],"device2":[["point2",value2]]}}';
 
 Steps to test integration:
---------------------------
+---------------------------
 
-1. Install VOLTTRON on a VM or different system than the one
-   running Matlab.
+1. Start VOLTTRON
 
-    Follow link: http://volttron.readthedocs.io/en/develop/install.html
+2. Run Actuator
 
-2. Clone VOLTTRON applications under volttron/applications.
+3. Run device driver agent
 
-    Clone link: https://github.com/VOLTTRON/volttron-applications
+4. Run DrivenMatlabAgent with the new config file.
 
-3. Start VOLTTRON
-
-4. Run Actuator
-
-5. Run device driver agent
-
-6. Run DrivenMatlabAgent with the new config file.
-
-7. Run example.m
+5. Run example.m
 
 Now whenever device driver publish state of devices listed in config
 file of DrivenMatlabAgent, DrivenMatlabAgent will send it to Matlab
