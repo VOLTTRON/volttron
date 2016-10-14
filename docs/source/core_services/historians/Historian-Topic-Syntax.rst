@@ -66,7 +66,7 @@ please see
 
     # ALL TOPIC
     # Messages contains a two element list.  The first element contains a
-    # dictionary of all points under a #specific parent.  While the second
+    # dictionary of all points under a specific parent.  While the second
     # element contains a dictionary of meta data for each of the specified
     # points.  For example devices/pnnl/building/OutsideAirTemperature and
     # devices/pnnl/building/MixedAirTemperature ALL message would be created as:
