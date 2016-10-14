@@ -444,14 +444,13 @@ class Core(BasicCore):
         self.__connected = False
 
     def _set_keys(self):
-        """
-        Implements logic for setting encryption keys and putting
+        """Implements logic for setting encryption keys and putting
         those keys in the parameters of the VIP address
         """
         if self.developer_mode:
             self.publickey = None
             self.secretkey = None
-            self.serverkye = None
+            self.serverkey = None
             return
 
         self._set_server_key()

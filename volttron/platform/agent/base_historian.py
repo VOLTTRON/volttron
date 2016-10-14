@@ -133,12 +133,11 @@ publishing thread as soon as possible.
 At startup the publishing thread calls two methods:
 
 - :py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
-  Historian a chance to setup any connections in the thread.
-
+Historian a chance to setup any connections in the thread.
 - :py:meth:`BaseQueryHistorianAgent.record_table_definitions` to give the
-  implemented Historian a chance to record the table/collection names into a
-  meta table/collection with the named passed as parameter. The implemented
-  historian is responsible for creating the meta table if it does not exist.
+implemented Historian a chance to record the table/collection names into a
+meta table/collection with the named passed as parameter. The implemented
+historian is responsible for creating the meta table if it does not exist.
 
 The process thread then enters the following logic loop:
 ::
@@ -767,7 +766,6 @@ class BaseHistorianAgent(Agent):
         :py:meth:`BaseHistorianAgent.report_handled` must be called to
         report records as being published.
         """
-        pass
 
     def historian_setup(self):
         """Optional setup routine, run in the processing thread before
@@ -1073,6 +1071,7 @@ class BaseQueryHistorianAgent(Agent):
         This function is called by
         :py:meth:`BaseQueryHistorianAgent.get_topics_metadata`
         to find out the available aggregates in the data store
+
         :return: dictionary with the format
         .. code-block:: python
 
