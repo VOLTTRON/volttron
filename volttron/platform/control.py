@@ -809,10 +809,19 @@ def do_stats(opts):
 
 
 def show_serverkey(opts):
+    """ 
+    write serverkey to standard out.
+
+    return 0 if success, 1 if false
+    """
     q = Query(opts.connection.server.core)
     pk = q.query('serverkey').get(timeout=2)
     del q
-    return pk
+    if pk is not None:
+        _stdout.write('%s\n' % pk)
+	return 0
+
+    return 1
 
 
 def _get_auth_file(volttron_home):
