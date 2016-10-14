@@ -334,7 +334,6 @@ def generate_apidoc(app):
 
     os.makedirs(apidocs_base_dir, 0755)
     file_name = os.path.join(script_dir,"../docs_exclude_list.txt" )
-    application_excludes = []
     services_excludes = []
     volttron_excludes = []
     examples_excludes = []
@@ -343,9 +342,7 @@ def generate_apidoc(app):
         with open(file_name,'r') as file:
             for line in file:
                 print "line is {}".format(line)
-                if line.startswith('applications'):
-                    _add_to_excludes(application_excludes, line)
-                elif line.startswith('services'):
+                if line.startswith('services'):
                     _add_to_excludes(services_excludes, line)
                 elif line.startswith('volttron'):
                     _add_to_excludes(volttron_excludes, line)
@@ -353,8 +350,7 @@ def generate_apidoc(app):
                     _add_to_excludes(examples_excludes, line)
     print ("processed exclude list")
     print ("services {}".format(services_excludes))
-    print ("applications {}".format(application_excludes))
-    print ("applications {}".format(volttron_excludes))
+    print ("volttron excludes {}".format(volttron_excludes))
 
     # generate api-docs for  services/core
     docs_subdir=os.path.join(apidocs_base_dir, "services")
@@ -365,11 +361,6 @@ def generate_apidoc(app):
     docs_subdir = os.path.join(apidocs_base_dir, "examples")
     agent_dirs = glob(script_dir + "/../../examples/*/")
     run_apidoc(docs_subdir, agent_dirs, examples_excludes)
-
-    # generate api-docs for applications
-    docs_subdir = os.path.join(apidocs_base_dir, "applications")
-    agent_dirs = glob(script_dir + "/../../applications/*/*/")
-    run_apidoc(docs_subdir, agent_dirs, application_excludes)
 
     # generate api-docs for platform core and drivers
 
