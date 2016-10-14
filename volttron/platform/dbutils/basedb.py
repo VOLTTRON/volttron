@@ -221,6 +221,7 @@ class DbDriver(object):
     def get_aggregation_list(self):
         """
         Return list of aggregation supported by the specific data store
+
         :return: list of aggregations
         """
         pass
@@ -250,6 +251,7 @@ class DbDriver(object):
     def insert_stmt(self, stmt, args):
         """
         Executes an insert statement with arguments
+
         :param stmt: insert statement
         :param args: insert arguments
         :return: True if execution completes. False if unable to connect to
@@ -513,6 +515,7 @@ class DbDriver(object):
         :type order: str
         :return: result of the query in the format:
         .. code-block:: python
+
             {
             topic_name:[(timestamp1, value1),
                         (timestamp2:,value2),
