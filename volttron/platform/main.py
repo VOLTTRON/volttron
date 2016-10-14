@@ -98,7 +98,6 @@ from .agent.known_identities import MASTER_WEB
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 
-
 try:
     import volttron.restricted
 except ImportError:
