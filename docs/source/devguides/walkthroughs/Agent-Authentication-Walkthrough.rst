@@ -89,7 +89,7 @@ AgentA's capability enabled exported RPC method:
       return 'If you can see this, then you have the required capabilities'
 
 
-AgentB's atuhentication record to access bar method:
+AgentB's authentication record to access bar method:
 
 ::
 
