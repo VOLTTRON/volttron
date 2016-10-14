@@ -343,6 +343,12 @@ class BasicCore(object):
         self.greenlet.link(lambda glt: greenlet.kill())
         return greenlet
 
+    def spawn_later(self, seconds, func, *args, **kwargs):
+        assert self.greenlet is not None
+        greenlet = gevent.spawn_later(seconds, func, *args, **kwargs)
+        self.greenlet.link(lambda glt: greenlet.kill())
+        return greenlet
+
     def spawn_in_thread(self, func, *args, **kwargs):
         result = gevent.event.AsyncResult()
 

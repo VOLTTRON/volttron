@@ -64,7 +64,6 @@ import random
 import re
 import weakref
 
-import gevent
 from zmq import green as zmq
 from zmq import SNDMORE
 from zmq.utils import jsonapi
@@ -141,7 +140,7 @@ class PubSub(SubsystemBase):
     def _peer_add(self, sender, peer, **kwargs):
         # Delay sync by some random amount to prevent reply storm.
         delay = random.random()
-        gevent.spawn_later(delay, self.synchronize, peer)
+        self.core().spawn_later(delay, self.synchronize, peer)
 
     def _peer_drop(self, sender, peer, **kwargs):
         self._sync(peer, {})
