@@ -87,8 +87,11 @@ def file_watch_publisher(config_path, **kwargs):
 
 
 class FileWatchPublisher(Agent):
-    """Monitors files for changes and publishes added lines
-        on corresponding topics.
+    """Monitors files from configuration for changes and
+    publishes added lines on corresponding topics.
+    Ignores if a file does not exist and move to next file
+    in configuration with an error message.
+    Exists if all files does not exist.
 
     :param config: Configuration dict
     :type config: dict
