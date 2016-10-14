@@ -276,8 +276,8 @@ class BaseHistorianAgent(Agent):
     Messages published to datalogger will be assumed to be timepoint data that
     is composed of units and specific types with the assumption that they have
     the ability to be graphed easily. Messages published to devices
-    are data that comes directly from drivers. Data sent to analysis/* topis
-    is result of anaylsis done by applications. The format of data sent to
+    are data that comes directly from drivers. Data sent to analysis/* topics
+    is result of analysis done by applications. The format of data sent to
     analysis/* topics is similar to data sent to device/* topics.
     Messages that are published to record will be handled as string data and
     can be customized to the user specific situation. Refer to
