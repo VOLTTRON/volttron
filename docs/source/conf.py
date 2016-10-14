@@ -318,8 +318,6 @@ def setup(app):
     """
     app.connect('builder-inited', generate_apidoc)
     app.connect('build-finished', clean_apirst)
-    app.connect('autodoc-process-docstring', inherit_docstring)
-
 
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -363,15 +361,15 @@ def generate_apidoc(app):
     agent_dirs = glob(script_dir+"/../../services/core/*/")
     run_apidoc(docs_subdir, agent_dirs, services_excludes)
 
-    # # generate api-docs for examples
-    # docs_subdir = os.path.join(apidocs_base_dir, "examples")
-    # agent_dirs = glob(script_dir + "/../../examples/*/")
-    # run_apidoc(docs_subdir, agent_dirs, examples_excludes)
-    #
-    # # generate api-docs for applications
-    # docs_subdir = os.path.join(apidocs_base_dir, "applications")
-    # agent_dirs = glob(script_dir + "/../../applications/*/*/")
-    # run_apidoc(docs_subdir, agent_dirs, application_excludes)
+    # generate api-docs for examples
+    docs_subdir = os.path.join(apidocs_base_dir, "examples")
+    agent_dirs = glob(script_dir + "/../../examples/*/")
+    run_apidoc(docs_subdir, agent_dirs, examples_excludes)
+
+    # generate api-docs for applications
+    docs_subdir = os.path.join(apidocs_base_dir, "applications")
+    agent_dirs = glob(script_dir + "/../../applications/*/*/")
+    run_apidoc(docs_subdir, agent_dirs, application_excludes)
 
     # generate api-docs for platform core and drivers
 
@@ -424,8 +422,3 @@ def clean_apirst(app, exception):
     import shutil
     print("Cleanup: Removing apidocs directory {}".format(apidocs_base_dir))
     shutil.rmtree(apidocs_base_dir)
-
-def inherit_docstring(app, what, name, obj, options, lines):
-    print ("inherit_doc what {}".format(what))
-    print ("inherit_doc name {}".format(name))
-    print ("inherit_doc options {}".format(options))
