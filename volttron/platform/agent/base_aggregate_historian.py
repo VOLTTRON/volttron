@@ -474,9 +474,9 @@ class AggregateHistorian(Agent):
     @abstractmethod
     def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):
         """
-        Collects the aggregate data by querying the historian's data store
+        Collect the aggregate data by querying the historian's data store
         :param topic_ids: list of topic ids for which aggregation should be
-        performed.
+                          performed.
         :param agg_type: type of aggregation
         :param start_time: start time for query (inclusive)
         :param end_time:  end time for query (exclusive)
@@ -489,6 +489,9 @@ class AggregateHistorian(Agent):
     def insert_aggregate(self, agg_topic_id, agg_type, agg_time_period,
                          end_time, value, topic_ids):
         """
+        Insert aggregate data collected for a specific  time period into
+        database. Data is inserted into <agg_type>_<period> table
+
         :param agg_topic_id: If len(topic_ids) is 1. This would be the same
         as the topic_ids[0]. Else this id corresponds to the unique topic name
         given by user for this aggregation across multiple points.

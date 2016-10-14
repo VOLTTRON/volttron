@@ -69,7 +69,13 @@ from zmq.utils import jsonapi
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-
+"""
+Implementation of Mysql database operation for
+:py:class:`sqlhistorian.historian.SQLHistorian` and
+:py:class:`sqlaggregator.aggregator.SQLAggregateHistorian`
+For method details please refer to base class
+:py:class:`volttron.platform.dbutils.basedb.DbDriver`
+"""
 class MySqlFuncts(DbDriver):
     def __init__(self, connect_params, table_names):
         # kwargs['dbapimodule'] = 'mysql.connector'
@@ -213,13 +219,7 @@ class MySqlFuncts(DbDriver):
     def query(self, topic_ids, id_name_map, start=None, end=None, skip=0,
               agg_type=None,
               agg_period=None, count=None, order="FIRST_TO_LAST"):
-        """This function should return the results of a query in the form:
-        {"values": [(timestamp1, value1), (timestamp2, value2), ...],
-         "metadata": {"key1": value1, "key2": value2, ...}}
 
-         metadata is not required (The caller will normalize this to {}
-         for you)
-        """
         table_name = self.data_table
         if agg_type and agg_period:
             table_name = agg_type + "_" + agg_period
@@ -331,7 +331,6 @@ class MySqlFuncts(DbDriver):
         %s)'''
 
     def get_topic_map(self):
-        _log.debug("in get_topic_map")
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + ";"
         rows = self.select(q, None)
         _log.debug("loading topic map from db")
@@ -396,15 +395,6 @@ class MySqlFuncts(DbDriver):
         return id_map
 
     def create_aggregate_store(self, agg_type, agg_time_period):
-        """
-        Create the data structure (table or collection) that is going to store
-        the aggregate data for the give aggregation type and aggregation
-        time period
-        @param agg_type: The type of aggregation. For example, avg, sum etc.
-        @param agg_time_period: The time period of aggregation
-        @:return - If aggregation_topic_name is given return an topic id
-        after inserting aggregation_topic_name in topics table else return None
-        """
         table_name = agg_type + '''_''' + agg_time_period
         if self.MICROSECOND_SUPPORT is None:
             self.init_microsecond_support()
@@ -427,15 +417,6 @@ class MySqlFuncts(DbDriver):
                ''' values(%s, %s, %s, %s)'''
 
     def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
-        """
-        This function should return the results of a aggregation query
-        @param topic_ids: list of single topics
-        @param agg_type: type of aggregation
-        @param start: start time
-        @param end: end time
-        @return: aggregate value, count of number of records over which
-        aggregation was computed
-        """
         if isinstance(agg_type, str):
             if agg_type.upper() not in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM']:
                 raise ValueError(

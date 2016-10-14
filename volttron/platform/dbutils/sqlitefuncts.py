@@ -72,6 +72,14 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
+
+"""
+Implementation of SQLite3 database operation for
+:py:class:`sqlhistorian.historian.SQLHistorian` and
+:py:class:`sqlaggregator.aggregator.SQLAggregateHistorian`
+For method details please refer to base class
+:py:class:`volttron.platform.dbutils.basedb.DbDriver`
+"""
 class SqlLiteFuncts(DbDriver):
     def __init__(self, connect_params, table_names):
         database = connect_params['database']
@@ -209,21 +217,24 @@ class SqlLiteFuncts(DbDriver):
     def query(self, topic_ids, id_name_map, start=None, end=None,
               agg_type=None, agg_period=None, skip=0, count=None,
               order="FIRST_TO_LAST"):
-        """This function should return the results of a query in the form:
-        {"values": [(timestamp1, value1), (timestamp2, value2), ...],
-         "metadata": {"key1": value1, "key2": value2, ...}}
+        """
+        This function should return the results of a query in the form:
 
-         metadata is not required (The caller will normalize this to {}
-         for you)
-         @param topic_ids: topic_ids to query data for
-         @param id_name_map: dictionary containing topic_id:topic_name
-         @param start:
-         @param end:
-         @param agg_type:
-         @param agg_period:
-         @param skip:
-         @param count:
-         @param order:
+        .. code-block:: python
+
+            {"values": [(timestamp1, value1), (timestamp2, value2), ...],
+             "metadata": {"key1": value1, "key2": value2, ...}}
+
+        metadata is not required (The caller will normalize this to {} for you)
+        @param topic_ids: topic_ids to query data for
+        @param id_name_map: dictionary containing topic_id:topic_name
+        @param start:
+        @param end:
+        @param agg_type:
+        @param agg_period:
+        @param skip:
+        @param count:
+        @param order:
         """
         table_name = self.data_table
         if agg_type and agg_period:

@@ -258,13 +258,16 @@ class ControlService(BaseAgent):
     @RPC.export
     def install_agent(self, filename, channel_name, vip_identity=None,
                       publickey=None, secretkey=None, add_auth=True):
-        """ Installs an agent on the instance instance.
+        """
+        Installs an agent on the instance instance.
 
         The installation of an agent through this method involves sending
         the binary data of the agent file through a channel.  The following
         example is the protocol for sending the agent across the wire:
 
         Example Protocol:
+
+        .. code-block:: python
 
             # client creates channel to this agent (control)
             channel = agent.vip.channel('control', 'channel_name')
@@ -292,15 +295,15 @@ class ControlService(BaseAgent):
             channel.close(linger=0)
             del channel
 
-        @param:string:filename:
+        :param:string:filename:
             The name of the agent packaged file that is being written.
-        @param:string:channel_name:
+        :param:string:channel_name:
             The name of the channel that the agent file will be sent on.
-        @param:string:publickey:
+        :param:string:publickey:
             Encoded public key the installed agent will use
-        @param:string:secretkey:
+        :param:string:secretkey:
             Encoded secret key the installed agent will use
-        @param:bool:add_auth:
+        :param:bool:add_auth:
             Add the agent's credentials to the authorized-agent list
         """
 
