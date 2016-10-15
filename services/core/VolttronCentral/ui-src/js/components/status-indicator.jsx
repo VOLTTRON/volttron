@@ -8,12 +8,22 @@ var statusIndicatorStore = require('../stores/status-indicator-store');
 var StatusIndicator = React.createClass({
 
 	getInitialState: function () {
-        var state = statusIndicatorStore.getStatusMessage();
+        var state = this.props.status;
 
         state.errors = (state.status === "error");
         state.fadeOut = false;
 
         return state;
+    },
+    componentWillReceiveProps: function (nextProps) {
+        if ((nextProps.status.statusMessage !== this.props.status.statusMessage) ||
+            (nextProps.status.status !== this.props.status.status))
+        {
+            var state = nextProps.status;
+
+            state.errors = (state.status === "error");
+            state.fadeOut = false;
+        }
     },
     componentDidMount: function () {        
         if (!this.state.errors)

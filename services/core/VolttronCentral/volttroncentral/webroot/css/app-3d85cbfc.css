@@ -1,3 +1,207 @@
+.dd__wrapper {
+  position: relative;
+}
+
+.dd__opened {
+  border-radius: 3px;
+  border-color: #373C43;
+  color: #373C43;
+}
+
+.dd__disabled {
+  border-color: #6D757B;
+  color: #6D757B;
+}
+
+.dd__error {
+	border-color: #E9596A;
+}
+
+	.dd__selectControl {
+		display: -ms-flexbox;
+		display: flex;
+		-ms-flex-align: center;
+		    align-items: center;
+    font-size: 14px;
+		padding: 8px;
+    border: 1px solid #373C43;
+    border-radius: 3px;
+    background-color: #FFF;
+    color: #373C43;
+		line-height: 20px;
+		cursor: pointer;
+		overflow: hidden
+	}
+
+	.dd__error .dd__selectControl {
+  color: #E9596A;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+}
+
+	.dd__disabled .dd__selectControl {
+  cursor: default;
+}
+
+		.dd__selected {
+			display: -ms-flexbox;
+			display: flex;
+			-ms-flex-positive: 1;
+			    flex-grow: 1;
+			-ms-flex-wrap: wrap;
+			    flex-wrap: wrap;
+      overflow: hidden
+		}
+
+		.dd__multi .dd__selected {
+  margin-top: -2px;
+}
+
+			.dd__search {
+				display: inline-block;
+				-ms-flex-align: center;
+				    -ms-grid-row-align: center;
+				    align-items: center;
+				-ms-flex-positive: 1;
+				    flex-grow: 1;
+				border: 1px solid transparent;
+				outline: 0;
+        opacity: 0;
+        min-height: 20px;
+        word-break: break-word
+			}
+
+			.dd__multi .dd__search {
+  margin-top: 2px;
+}
+
+			.dd__opened .dd__search {
+  opacity: 1;
+}
+
+			.dd__placeholder {
+				border: 1px solid transparent;
+				color: #6D757B
+			}
+
+			.dd__multi .dd__placeholder {
+  margin-top: 2px;
+}
+
+			.dd__error .dd__placeholder {
+  color: #E9596A;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+}
+
+			.dd__selectedItem {
+				display: -ms-flexbox;
+				display: flex;
+				border: 1px solid transparent
+			}
+
+			.dd__multi .dd__selectedItem {
+  border-color: #A9B6D2;
+  background-color: #E3EAF6;
+  border-radius: 2px;
+  margin-top: 2px;
+  margin-right: 2px;
+  padding: 0 4px;
+}
+
+				.dd__crossIcon {
+					margin-left: 5px;
+				}
+
+		.dd__expandIcon {
+			width: 9px;
+			height: 15px;
+      -ms-flex-negative: 0;
+          flex-shrink: 0;
+			fill: #2D3136
+		}
+
+		.dd__error .dd__expandIcon {
+  fill: #E9596A;
+}
+
+	.dd__list {
+		display: none;
+		position: absolute !important;
+		background-color: #FFF;
+		overflow: auto;
+		z-index: 1;
+		-webkit-overflow-scrolling: touch;
+    min-width: 100%;
+    border: 1px solid #373C43;
+    border-radius: 3px;
+    box-shadow: 0 3px 7px 0 rgba(#000, 0.08);
+
+		/* Without this property, Chrome repaints the entire Grid any time a new row or column is added.
+	     Firefox only repaints the new row or column (regardless of this property).
+	     Safari and IE don't support the property at all. */
+	  will-change: transform
+	}
+
+	.dd__opened .dd__list {
+  display: block;
+}
+
+	.dd__opened .dd__list:empty {
+  display: none;
+}
+
+	.dd__listVirtualized {
+	  overflow-y: auto;
+	  overflow-x: hidden;
+
+		:global(.Grid__innerScrollContainer) {
+		  overflow: hidden;
+		  position: relative;
+		}
+	}
+
+	.dd__openTobottom {
+		top: 100%;
+		margin-top: 5px;
+	}
+
+	.dd__openTotop {
+		bottom: 100%;
+		margin-bottom: 5px;
+	}
+
+		.dd__optionVirtualized {
+			position: absolute;
+		}
+
+			.dd__option {
+				padding: 10px;
+        line-height: 20px;
+				white-space: nowrap;
+				cursor: pointer
+			}
+
+			.dd__option:hover {
+  background-color: #F1F1F1;
+}
+
+			.dd__selectedOption {
+				background-color: #F1F1F1;
+			}
+
+      .dd__optionDisabled {
+        cursor: default
+      }
+
+      .dd__optionDisabled:hover {
+  background-color: transparent;
+}
+
 /* Montserrat-Bold
    Copyright (c) 2011-2012, Julieta Ulanovsky (julieta.ulanovsky@gmail.com), with Reserved Font Names 'Montserrat'
    SIL Open Font License, 1.1 (http://scripts.sil.org/OFL) */
@@ -2198,6 +2402,26 @@ svg.nvd3-svg {
     border-radius: inherit;
 }
 
+
+/***react-select-me styles ***/
+
+.view .dd__selectControl {
+    font-size: inherit;
+    padding: 4px 6px 4px 4px;
+    border-radius: 0px;
+    line-height: 18px;
+}
+
+.view .dd__expandIcon {
+    margin-left: 8px;
+}
+
+.view .dd__option {
+    line-height: 18px;
+}
+
+/***/
+
 /****
 Interactive Layer
 */
@@ -2423,6 +2647,7 @@ td.plain {
 
 .detectDevicesBox {    
     border: 1px solid black;
+    padding: 2px;
 }
 
 .devicesFoundBox {    

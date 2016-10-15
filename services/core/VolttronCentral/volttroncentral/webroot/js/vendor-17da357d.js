@@ -70,7 +70,7 @@ Entity.prototype.encode = function encode(data, enc, /* internal */ reporter) {
   return this._getEncoder(enc).encode(data, reporter);
 };
 
-},{"../asn1":1,"inherits":92,"vm":135}],3:[function(require,module,exports){
+},{"../asn1":1,"inherits":95,"vm":184}],3:[function(require,module,exports){
 var inherits = require('inherits');
 var Reporter = require('../base').Reporter;
 var Buffer = require('buffer').Buffer;
@@ -188,7 +188,7 @@ EncoderBuffer.prototype.join = function join(out, offset) {
   return out;
 };
 
-},{"../base":4,"buffer":45,"inherits":92}],4:[function(require,module,exports){
+},{"../base":4,"buffer":45,"inherits":95}],4:[function(require,module,exports){
 var base = exports;
 
 base.Reporter = require('./reporter').Reporter;
@@ -819,7 +819,7 @@ Node.prototype._isPrintstr = function isPrintstr(str) {
   return /^[A-Za-z0-9 '\(\)\+,\-\.\/:=\?]*$/.test(str);
 };
 
-},{"../base":4,"minimalistic-assert":96}],6:[function(require,module,exports){
+},{"../base":4,"minimalistic-assert":99}],6:[function(require,module,exports){
 var inherits = require('inherits');
 
 function Reporter(options) {
@@ -923,7 +923,7 @@ ReporterError.prototype.rethrow = function rethrow(msg) {
   return this;
 };
 
-},{"inherits":92}],7:[function(require,module,exports){
+},{"inherits":95}],7:[function(require,module,exports){
 var constants = require('../constants');
 
 exports.tagClass = {
@@ -1311,7 +1311,7 @@ function derDecodeLen(buf, primitive, fail) {
   return len;
 }
 
-},{"../../asn1":1,"inherits":92}],10:[function(require,module,exports){
+},{"../../asn1":1,"inherits":95}],10:[function(require,module,exports){
 var decoders = exports;
 
 decoders.der = require('./der');
@@ -1369,7 +1369,7 @@ PEMDecoder.prototype.decode = function decode(data, options) {
   return DERDecoder.prototype.decode.call(this, input, options);
 };
 
-},{"../../asn1":1,"./der":9,"buffer":45,"inherits":92}],12:[function(require,module,exports){
+},{"../../asn1":1,"./der":9,"buffer":45,"inherits":95}],12:[function(require,module,exports){
 var inherits = require('inherits');
 var Buffer = require('buffer').Buffer;
 
@@ -1665,7 +1665,7 @@ function encodeTag(tag, primitive, cls, reporter) {
   return res;
 }
 
-},{"../../asn1":1,"buffer":45,"inherits":92}],13:[function(require,module,exports){
+},{"../../asn1":1,"buffer":45,"inherits":95}],13:[function(require,module,exports){
 var encoders = exports;
 
 encoders.der = require('./der');
@@ -1696,7 +1696,7 @@ PEMEncoder.prototype.encode = function encode(data, options) {
   return out.join('\n');
 };
 
-},{"../../asn1":1,"./der":12,"buffer":45,"inherits":92}],15:[function(require,module,exports){
+},{"../../asn1":1,"./der":12,"buffer":45,"inherits":95}],15:[function(require,module,exports){
 var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 ;(function (exports) {
@@ -5587,7 +5587,7 @@ function xorTest (a, b) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"./aes":19,"./ghash":24,"buffer":45,"buffer-xor":44,"cipher-base":46,"inherits":92}],21:[function(require,module,exports){
+},{"./aes":19,"./ghash":24,"buffer":45,"buffer-xor":44,"cipher-base":46,"inherits":95}],21:[function(require,module,exports){
 var ciphers = require('./encrypter')
 exports.createCipher = exports.Cipher = ciphers.createCipher
 exports.createCipheriv = exports.Cipheriv = ciphers.createCipheriv
@@ -5741,7 +5741,7 @@ exports.createDecipher = createDecipher
 exports.createDecipheriv = createDecipheriv
 
 }).call(this,require("buffer").Buffer)
-},{"./aes":19,"./authCipher":20,"./modes":25,"./modes/cbc":26,"./modes/cfb":27,"./modes/cfb1":28,"./modes/cfb8":29,"./modes/ctr":30,"./modes/ecb":31,"./modes/ofb":32,"./streamCipher":33,"buffer":45,"cipher-base":46,"evp_bytestokey":81,"inherits":92}],23:[function(require,module,exports){
+},{"./aes":19,"./authCipher":20,"./modes":25,"./modes/cbc":26,"./modes/cfb":27,"./modes/cfb1":28,"./modes/cfb8":29,"./modes/ctr":30,"./modes/ecb":31,"./modes/ofb":32,"./streamCipher":33,"buffer":45,"cipher-base":46,"evp_bytestokey":84,"inherits":95}],23:[function(require,module,exports){
 (function (Buffer){
 var aes = require('./aes')
 var Transform = require('cipher-base')
@@ -5867,7 +5867,7 @@ exports.createCipheriv = createCipheriv
 exports.createCipher = createCipher
 
 }).call(this,require("buffer").Buffer)
-},{"./aes":19,"./authCipher":20,"./modes":25,"./modes/cbc":26,"./modes/cfb":27,"./modes/cfb1":28,"./modes/cfb8":29,"./modes/ctr":30,"./modes/ecb":31,"./modes/ofb":32,"./streamCipher":33,"buffer":45,"cipher-base":46,"evp_bytestokey":81,"inherits":92}],24:[function(require,module,exports){
+},{"./aes":19,"./authCipher":20,"./modes":25,"./modes/cbc":26,"./modes/cfb":27,"./modes/cfb1":28,"./modes/cfb8":29,"./modes/ctr":30,"./modes/ecb":31,"./modes/ofb":32,"./streamCipher":33,"buffer":45,"cipher-base":46,"evp_bytestokey":84,"inherits":95}],24:[function(require,module,exports){
 (function (Buffer){
 var zeros = new Buffer(16)
 zeros.fill(0)
@@ -6345,7 +6345,7 @@ StreamCipher.prototype._final = function () {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"./aes":19,"buffer":45,"cipher-base":46,"inherits":92}],34:[function(require,module,exports){
+},{"./aes":19,"buffer":45,"cipher-base":46,"inherits":95}],34:[function(require,module,exports){
 var ebtk = require('evp_bytestokey')
 var aes = require('browserify-aes/browser')
 var DES = require('browserify-des')
@@ -6420,7 +6420,7 @@ function getCiphers () {
 }
 exports.listCiphers = exports.getCiphers = getCiphers
 
-},{"browserify-aes/browser":21,"browserify-aes/modes":25,"browserify-des":35,"browserify-des/modes":36,"evp_bytestokey":81}],35:[function(require,module,exports){
+},{"browserify-aes/browser":21,"browserify-aes/modes":25,"browserify-des":35,"browserify-des/modes":36,"evp_bytestokey":84}],35:[function(require,module,exports){
 (function (Buffer){
 var CipherBase = require('cipher-base')
 var des = require('des.js')
@@ -6467,7 +6467,7 @@ DES.prototype._final = function () {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":45,"cipher-base":46,"des.js":54,"inherits":92}],36:[function(require,module,exports){
+},{"buffer":45,"cipher-base":46,"des.js":55,"inherits":95}],36:[function(require,module,exports){
 exports['des-ecb'] = {
   key: 8,
   iv: 0
@@ -6537,7 +6537,7 @@ function getr(priv) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"bn.js":16,"buffer":45,"randombytes":109}],38:[function(require,module,exports){
+},{"bn.js":16,"buffer":45,"randombytes":112}],38:[function(require,module,exports){
 (function (Buffer){
 'use strict'
 exports['RSA-SHA224'] = exports.sha224WithRSAEncryption = {
@@ -6720,7 +6720,7 @@ module.exports = {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"./algos":38,"./sign":41,"./verify":42,"buffer":45,"create-hash":49,"inherits":92,"stream":122}],40:[function(require,module,exports){
+},{"./algos":38,"./sign":41,"./verify":42,"buffer":45,"create-hash":50,"inherits":95,"stream":171}],40:[function(require,module,exports){
 'use strict'
 exports['1.3.132.0.10'] = 'secp256k1'
 
@@ -6923,7 +6923,7 @@ module.exports.getKey = getKey
 module.exports.makeKey = makeKey
 
 }).call(this,require("buffer").Buffer)
-},{"./curves":40,"bn.js":16,"browserify-rsa":37,"buffer":45,"create-hmac":52,"elliptic":64,"parse-asn1":100}],42:[function(require,module,exports){
+},{"./curves":40,"bn.js":16,"browserify-rsa":37,"buffer":45,"create-hmac":53,"elliptic":67,"parse-asn1":103}],42:[function(require,module,exports){
 (function (Buffer){
 // much of this based on https://github.com/indutny/self-signed/blob/gh-pages/lib/rsa.js
 var curves = require('./curves')
@@ -7030,7 +7030,7 @@ function checkValue (b, q) {
 module.exports = verify
 
 }).call(this,require("buffer").Buffer)
-},{"./curves":40,"bn.js":16,"buffer":45,"elliptic":64,"parse-asn1":100}],43:[function(require,module,exports){
+},{"./curves":40,"bn.js":16,"buffer":45,"elliptic":67,"parse-asn1":103}],43:[function(require,module,exports){
 arguments[4][18][0].apply(exports,arguments)
 },{"dup":18}],44:[function(require,module,exports){
 (function (Buffer){
@@ -8598,7 +8598,7 @@ function blitBuffer (src, dst, offset, length) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"base64-js":15,"ieee754":90,"isarray":94}],46:[function(require,module,exports){
+},{"base64-js":15,"ieee754":93,"isarray":97}],46:[function(require,module,exports){
 (function (Buffer){
 var Transform = require('stream').Transform
 var inherits = require('inherits')
@@ -8692,7 +8692,57 @@ CipherBase.prototype._toString = function (value, enc, final) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":45,"inherits":92,"stream":122,"string_decoder":134}],47:[function(require,module,exports){
+},{"buffer":45,"inherits":95,"stream":171,"string_decoder":183}],47:[function(require,module,exports){
+/*!
+  Copyright (c) 2016 Jed Watson.
+  Licensed under the MIT License (MIT), see
+  http://jedwatson.github.io/classnames
+*/
+/* global define */
+
+(function () {
+	'use strict';
+
+	var hasOwn = {}.hasOwnProperty;
+
+	function classNames () {
+		var classes = [];
+
+		for (var i = 0; i < arguments.length; i++) {
+			var arg = arguments[i];
+			if (!arg) continue;
+
+			var argType = typeof arg;
+
+			if (argType === 'string' || argType === 'number') {
+				classes.push(arg);
+			} else if (Array.isArray(arg)) {
+				classes.push(classNames.apply(null, arg));
+			} else if (argType === 'object') {
+				for (var key in arg) {
+					if (hasOwn.call(arg, key) && arg[key]) {
+						classes.push(key);
+					}
+				}
+			}
+		}
+
+		return classes.join(' ');
+	}
+
+	if (typeof module !== 'undefined' && module.exports) {
+		module.exports = classNames;
+	} else if (typeof define === 'function' && typeof define.amd === 'object' && define.amd) {
+		// register as 'classnames', consistent with npm package name
+		define('classnames', [], function () {
+			return classNames;
+		});
+	} else {
+		window.classNames = classNames;
+	}
+}());
+
+},{}],48:[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -8803,7 +8853,7 @@ function objectToString(o) {
 }
 
 }).call(this,{"isBuffer":require("../../is-buffer/index.js")})
-},{"../../is-buffer/index.js":93}],48:[function(require,module,exports){
+},{"../../is-buffer/index.js":96}],49:[function(require,module,exports){
 (function (Buffer){
 var elliptic = require('elliptic');
 var BN = require('bn.js');
@@ -8929,7 +8979,7 @@ function formatReturnValue(bn, enc, len) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"bn.js":16,"buffer":45,"elliptic":64}],49:[function(require,module,exports){
+},{"bn.js":16,"buffer":45,"elliptic":67}],50:[function(require,module,exports){
 (function (Buffer){
 'use strict';
 var inherits = require('inherits')
@@ -8985,7 +9035,7 @@ module.exports = function createHash (alg) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"./md5":51,"buffer":45,"cipher-base":46,"inherits":92,"ripemd160":113,"sha.js":115}],50:[function(require,module,exports){
+},{"./md5":52,"buffer":45,"cipher-base":46,"inherits":95,"ripemd160":162,"sha.js":164}],51:[function(require,module,exports){
 (function (Buffer){
 'use strict';
 var intSize = 4;
@@ -9022,7 +9072,7 @@ function hash(buf, fn, hashSize, bigEndian) {
 }
 exports.hash = hash;
 }).call(this,require("buffer").Buffer)
-},{"buffer":45}],51:[function(require,module,exports){
+},{"buffer":45}],52:[function(require,module,exports){
 'use strict';
 /*
  * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
@@ -9179,7 +9229,7 @@ function bit_rol(num, cnt)
 module.exports = function md5(buf) {
   return helpers.hash(buf, core_md5, 16);
 };
-},{"./helpers":50}],52:[function(require,module,exports){
+},{"./helpers":51}],53:[function(require,module,exports){
 (function (Buffer){
 'use strict';
 var createHash = require('create-hash/browser');
@@ -9251,7 +9301,7 @@ module.exports = function createHmac(alg, key) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":45,"create-hash/browser":49,"inherits":92,"stream":122}],53:[function(require,module,exports){
+},{"buffer":45,"create-hash/browser":50,"inherits":95,"stream":171}],54:[function(require,module,exports){
 'use strict'
 
 exports.randomBytes = exports.rng = exports.pseudoRandomBytes = exports.prng = require('randombytes')
@@ -9330,7 +9380,7 @@ var publicEncrypt = require('public-encrypt')
   }
 })
 
-},{"browserify-cipher":34,"browserify-sign":39,"browserify-sign/algos":38,"create-ecdh":48,"create-hash":49,"create-hmac":52,"diffie-hellman":60,"pbkdf2":101,"public-encrypt":103,"randombytes":109}],54:[function(require,module,exports){
+},{"browserify-cipher":34,"browserify-sign":39,"browserify-sign/algos":38,"create-ecdh":49,"create-hash":50,"create-hmac":53,"diffie-hellman":61,"pbkdf2":104,"public-encrypt":106,"randombytes":112}],55:[function(require,module,exports){
 'use strict';
 
 exports.utils = require('./des/utils');
@@ -9339,7 +9389,7 @@ exports.DES = require('./des/des');
 exports.CBC = require('./des/cbc');
 exports.EDE = require('./des/ede');
 
-},{"./des/cbc":55,"./des/cipher":56,"./des/des":57,"./des/ede":58,"./des/utils":59}],55:[function(require,module,exports){
+},{"./des/cbc":56,"./des/cipher":57,"./des/des":58,"./des/ede":59,"./des/utils":60}],56:[function(require,module,exports){
 'use strict';
 
 var assert = require('minimalistic-assert');
@@ -9406,7 +9456,7 @@ proto._update = function _update(inp, inOff, out, outOff) {
   }
 };
 
-},{"inherits":92,"minimalistic-assert":96}],56:[function(require,module,exports){
+},{"inherits":95,"minimalistic-assert":99}],57:[function(require,module,exports){
 'use strict';
 
 var assert = require('minimalistic-assert');
@@ -9549,7 +9599,7 @@ Cipher.prototype._finalDecrypt = function _finalDecrypt() {
   return this._unpad(out);
 };
 
-},{"minimalistic-assert":96}],57:[function(require,module,exports){
+},{"minimalistic-assert":99}],58:[function(require,module,exports){
 'use strict';
 
 var assert = require('minimalistic-assert');
@@ -9694,7 +9744,7 @@ DES.prototype._decrypt = function _decrypt(state, lStart, rStart, out, off) {
   utils.rip(l, r, out, off);
 };
 
-},{"../des":54,"inherits":92,"minimalistic-assert":96}],58:[function(require,module,exports){
+},{"../des":55,"inherits":95,"minimalistic-assert":99}],59:[function(require,module,exports){
 'use strict';
 
 var assert = require('minimalistic-assert');
@@ -9751,7 +9801,7 @@ EDE.prototype._update = function _update(inp, inOff, out, outOff) {
 EDE.prototype._pad = DES.prototype._pad;
 EDE.prototype._unpad = DES.prototype._unpad;
 
-},{"../des":54,"inherits":92,"minimalistic-assert":96}],59:[function(require,module,exports){
+},{"../des":55,"inherits":95,"minimalistic-assert":99}],60:[function(require,module,exports){
 'use strict';
 
 exports.readUInt32BE = function readUInt32BE(bytes, off) {
@@ -10009,7 +10059,7 @@ exports.padSplit = function padSplit(num, size, group) {
   return out.join(' ');
 };
 
-},{}],60:[function(require,module,exports){
+},{}],61:[function(require,module,exports){
 (function (Buffer){
 var generatePrime = require('./lib/generatePrime')
 var primes = require('./lib/primes.json')
@@ -10055,7 +10105,7 @@ exports.DiffieHellmanGroup = exports.createDiffieHellmanGroup = exports.getDiffi
 exports.createDiffieHellman = exports.DiffieHellman = createDiffieHellman
 
 }).call(this,require("buffer").Buffer)
-},{"./lib/dh":61,"./lib/generatePrime":62,"./lib/primes.json":63,"buffer":45}],61:[function(require,module,exports){
+},{"./lib/dh":62,"./lib/generatePrime":63,"./lib/primes.json":64,"buffer":45}],62:[function(require,module,exports){
 (function (Buffer){
 var BN = require('bn.js');
 var MillerRabin = require('miller-rabin');
@@ -10223,7 +10273,7 @@ function formatReturnValue(bn, enc) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"./generatePrime":62,"bn.js":16,"buffer":45,"miller-rabin":95,"randombytes":109}],62:[function(require,module,exports){
+},{"./generatePrime":63,"bn.js":16,"buffer":45,"miller-rabin":98,"randombytes":112}],63:[function(require,module,exports){
 var randomBytes = require('randombytes');
 module.exports = findPrime;
 findPrime.simpleSieve = simpleSieve;
@@ -10330,7 +10380,7 @@ function findPrime(bits, gen) {
 
 }
 
-},{"bn.js":16,"miller-rabin":95,"randombytes":109}],63:[function(require,module,exports){
+},{"bn.js":16,"miller-rabin":98,"randombytes":112}],64:[function(require,module,exports){
 module.exports={
     "modp1": {
         "gen": "02",
@@ -10365,7 +10415,36 @@ module.exports={
         "prime": "ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48361c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552bb9ed529077096966d670c354e4abc9804f1746c08ca18217c32905e462e36ce3be39e772c180e86039b2783a2ec07a28fb5c55df06f4c52c9de2bcbf6955817183995497cea956ae515d2261898fa051015728e5a8aaac42dad33170d04507a33a85521abdf1cba64ecfb850458dbef0a8aea71575d060c7db3970f85a6e1e4c7abf5ae8cdb0933d71e8c94e04a25619dcee3d2261ad2ee6bf12ffa06d98a0864d87602733ec86a64521f2b18177b200cbbe117577a615d6c770988c0bad946e208e24fa074e5ab3143db5bfce0fd108e4b82d120a92108011a723c12a787e6d788719a10bdba5b2699c327186af4e23c1a946834b6150bda2583e9ca2ad44ce8dbbbc2db04de8ef92e8efc141fbecaa6287c59474e6bc05d99b2964fa090c3a2233ba186515be7ed1f612970cee2d7afb81bdd762170481cd0069127d5b05aa993b4ea988d8fddc186ffb7dc90a6c08f4df435c93402849236c3fab4d27c7026c1d4dcb2602646dec9751e763dba37bdf8ff9406ad9e530ee5db382f413001aeb06a53ed9027d831179727b0865a8918da3edbebcf9b14ed44ce6cbaced4bb1bdb7f1447e6cc254b332051512bd7af426fb8f401378cd2bf5983ca01c64b92ecf032ea15d1721d03f482d7ce6e74fef6d55e702f46980c82b5a84031900b1c9e59e7c97fbec7e8f323a97a7e36cc88be0f1d45b7ff585ac54bd407b22b4154aacc8f6d7ebf48e1d814cc5ed20f8037e0a79715eef29be32806a1d58bb7c5da76f550aa3d8a1fbff0eb19ccb1a313d55cda56c9ec2ef29632387fe8d76e3c0468043e8f663f4860ee12bf2d5b0b7474d6e694f91e6dbe115974a3926f12fee5e438777cb6a932df8cd8bec4d073b931ba3bc832b68d9dd300741fa7bf8afc47ed2576f6936ba424663aab639c5ae4f5683423b4742bf1c978238f16cbe39d652de3fdb8befc848ad922222e04a4037c0713eb57a81a23f0c73473fc646cea306b4bcbc8862f8385ddfa9d4b7fa2c087e879683303ed5bdd3a062b3cf5b3a278a66d2a13f83f44f82ddf310ee074ab6a364597e899a0255dc164f31cc50846851df9ab48195ded7ea1b1d510bd7ee74d73faf36bc31ecfa268359046f4eb879f924009438b481c6cd7889a002ed5ee382bc9190da6fc026e479558e4475677e9aa9e3050e2765694dfc81f56e880b96e7160c980dd98edd3dfffffffffffffffff"
     }
 }
-},{}],64:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
+'use strict';
+module.exports = !!(typeof window !== 'undefined' && window.document && window.document.createElement);
+},{}],66:[function(require,module,exports){
+'use strict';
+
+var canUseDOM = require('./inDOM');
+
+var size;
+
+module.exports = function (recalc) {
+  if (!size || recalc) {
+    if (canUseDOM) {
+      var scrollDiv = document.createElement('div');
+
+      scrollDiv.style.position = 'absolute';
+      scrollDiv.style.top = '-9999px';
+      scrollDiv.style.width = '50px';
+      scrollDiv.style.height = '50px';
+      scrollDiv.style.overflow = 'scroll';
+
+      document.body.appendChild(scrollDiv);
+      size = scrollDiv.offsetWidth - scrollDiv.clientWidth;
+      document.body.removeChild(scrollDiv);
+    }
+  }
+
+  return size;
+};
+},{"./inDOM":65}],67:[function(require,module,exports){
 'use strict';
 
 var elliptic = exports;
@@ -10381,7 +10460,7 @@ elliptic.curves = require('./elliptic/curves');
 elliptic.ec = require('./elliptic/ec');
 elliptic.eddsa = require('./elliptic/eddsa');
 
-},{"../package.json":80,"./elliptic/curve":67,"./elliptic/curves":70,"./elliptic/ec":71,"./elliptic/eddsa":74,"./elliptic/hmac-drbg":77,"./elliptic/utils":79,"brorand":17}],65:[function(require,module,exports){
+},{"../package.json":83,"./elliptic/curve":70,"./elliptic/curves":73,"./elliptic/ec":74,"./elliptic/eddsa":77,"./elliptic/hmac-drbg":80,"./elliptic/utils":82,"brorand":17}],68:[function(require,module,exports){
 'use strict';
 
 var BN = require('bn.js');
@@ -10734,7 +10813,7 @@ BasePoint.prototype.dblp = function dblp(k) {
   return r;
 };
 
-},{"../../elliptic":64,"bn.js":16}],66:[function(require,module,exports){
+},{"../../elliptic":67,"bn.js":16}],69:[function(require,module,exports){
 'use strict';
 
 var curve = require('../curve');
@@ -11146,7 +11225,7 @@ Point.prototype.eq = function eq(other) {
 Point.prototype.toP = Point.prototype.normalize;
 Point.prototype.mixedAdd = Point.prototype.add;
 
-},{"../../elliptic":64,"../curve":67,"bn.js":16,"inherits":92}],67:[function(require,module,exports){
+},{"../../elliptic":67,"../curve":70,"bn.js":16,"inherits":95}],70:[function(require,module,exports){
 'use strict';
 
 var curve = exports;
@@ -11156,7 +11235,7 @@ curve.short = require('./short');
 curve.mont = require('./mont');
 curve.edwards = require('./edwards');
 
-},{"./base":65,"./edwards":66,"./mont":68,"./short":69}],68:[function(require,module,exports){
+},{"./base":68,"./edwards":69,"./mont":71,"./short":72}],71:[function(require,module,exports){
 'use strict';
 
 var curve = require('../curve');
@@ -11334,7 +11413,7 @@ Point.prototype.getX = function getX() {
   return this.x.fromRed();
 };
 
-},{"../../elliptic":64,"../curve":67,"bn.js":16,"inherits":92}],69:[function(require,module,exports){
+},{"../../elliptic":67,"../curve":70,"bn.js":16,"inherits":95}],72:[function(require,module,exports){
 'use strict';
 
 var curve = require('../curve');
@@ -12245,7 +12324,7 @@ JPoint.prototype.isInfinity = function isInfinity() {
   return this.z.cmpn(0) === 0;
 };
 
-},{"../../elliptic":64,"../curve":67,"bn.js":16,"inherits":92}],70:[function(require,module,exports){
+},{"../../elliptic":67,"../curve":70,"bn.js":16,"inherits":95}],73:[function(require,module,exports){
 'use strict';
 
 var curves = exports;
@@ -12452,7 +12531,7 @@ defineCurve('secp256k1', {
   ]
 });
 
-},{"../elliptic":64,"./precomputed/secp256k1":78,"hash.js":84}],71:[function(require,module,exports){
+},{"../elliptic":67,"./precomputed/secp256k1":81,"hash.js":87}],74:[function(require,module,exports){
 'use strict';
 
 var BN = require('bn.js');
@@ -12676,7 +12755,7 @@ EC.prototype.getKeyRecoveryParam = function(e, signature, Q, enc) {
   throw new Error('Unable to find valid recovery factor');
 };
 
-},{"../../elliptic":64,"./key":72,"./signature":73,"bn.js":16}],72:[function(require,module,exports){
+},{"../../elliptic":67,"./key":75,"./signature":76,"bn.js":16}],75:[function(require,module,exports){
 'use strict';
 
 var BN = require('bn.js');
@@ -12785,7 +12864,7 @@ KeyPair.prototype.inspect = function inspect() {
          ' pub: ' + (this.pub && this.pub.inspect()) + ' >';
 };
 
-},{"bn.js":16}],73:[function(require,module,exports){
+},{"bn.js":16}],76:[function(require,module,exports){
 'use strict';
 
 var BN = require('bn.js');
@@ -12922,7 +13001,7 @@ Signature.prototype.toDER = function toDER(enc) {
   return utils.encode(res, enc);
 };
 
-},{"../../elliptic":64,"bn.js":16}],74:[function(require,module,exports){
+},{"../../elliptic":67,"bn.js":16}],77:[function(require,module,exports){
 'use strict';
 
 var hash = require('hash.js');
@@ -13042,7 +13121,7 @@ EDDSA.prototype.isPoint = function isPoint(val) {
   return val instanceof this.pointClass;
 };
 
-},{"../../elliptic":64,"./key":75,"./signature":76,"hash.js":84}],75:[function(require,module,exports){
+},{"../../elliptic":67,"./key":78,"./signature":79,"hash.js":87}],78:[function(require,module,exports){
 'use strict';
 
 var elliptic = require('../../elliptic');
@@ -13140,7 +13219,7 @@ KeyPair.prototype.getPublic = function getPublic(enc) {
 
 module.exports = KeyPair;
 
-},{"../../elliptic":64}],76:[function(require,module,exports){
+},{"../../elliptic":67}],79:[function(require,module,exports){
 'use strict';
 
 var BN = require('bn.js');
@@ -13208,7 +13287,7 @@ Signature.prototype.toHex = function toHex() {
 
 module.exports = Signature;
 
-},{"../../elliptic":64,"bn.js":16}],77:[function(require,module,exports){
+},{"../../elliptic":67,"bn.js":16}],80:[function(require,module,exports){
 'use strict';
 
 var hash = require('hash.js');
@@ -13324,7 +13403,7 @@ HmacDRBG.prototype.generate = function generate(len, enc, add, addEnc) {
   return utils.encode(res, enc);
 };
 
-},{"../elliptic":64,"hash.js":84}],78:[function(require,module,exports){
+},{"../elliptic":67,"hash.js":87}],81:[function(require,module,exports){
 module.exports = {
   doubles: {
     step: 4,
@@ -14106,7 +14185,7 @@ module.exports = {
   }
 };
 
-},{}],79:[function(require,module,exports){
+},{}],82:[function(require,module,exports){
 'use strict';
 
 var utils = exports;
@@ -14281,7 +14360,7 @@ function intFromLE(bytes) {
 utils.intFromLE = intFromLE;
 
 
-},{"bn.js":16}],80:[function(require,module,exports){
+},{"bn.js":16}],83:[function(require,module,exports){
 module.exports={
   "_args": [
     [
@@ -14382,7 +14461,7 @@ module.exports={
   "version": "6.2.3"
 }
 
-},{}],81:[function(require,module,exports){
+},{}],84:[function(require,module,exports){
 (function (Buffer){
 var md5 = require('create-hash/md5')
 module.exports = EVP_BytesToKey
@@ -14454,7 +14533,7 @@ function EVP_BytesToKey (password, salt, keyLen, ivLen) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":45,"create-hash/md5":51}],82:[function(require,module,exports){
+},{"buffer":45,"create-hash/md5":52}],85:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -14506,7 +14585,7 @@ var invariant = function (condition, format, a, b, c, d, e, f) {
 
 module.exports = invariant;
 }).call(this,require('_process'))
-},{"_process":102}],83:[function(require,module,exports){
+},{"_process":105}],86:[function(require,module,exports){
 (function (process){
 /**
  * Copyright (c) 2014-2015, Facebook, Inc.
@@ -14740,7 +14819,7 @@ var Dispatcher = (function () {
 
 module.exports = Dispatcher;
 }).call(this,require('_process'))
-},{"_process":102,"fbjs/lib/invariant":82}],84:[function(require,module,exports){
+},{"_process":105,"fbjs/lib/invariant":85}],87:[function(require,module,exports){
 var hash = exports;
 
 hash.utils = require('./hash/utils');
@@ -14757,7 +14836,7 @@ hash.sha384 = hash.sha.sha384;
 hash.sha512 = hash.sha.sha512;
 hash.ripemd160 = hash.ripemd.ripemd160;
 
-},{"./hash/common":85,"./hash/hmac":86,"./hash/ripemd":87,"./hash/sha":88,"./hash/utils":89}],85:[function(require,module,exports){
+},{"./hash/common":88,"./hash/hmac":89,"./hash/ripemd":90,"./hash/sha":91,"./hash/utils":92}],88:[function(require,module,exports){
 var hash = require('../hash');
 var utils = hash.utils;
 var assert = utils.assert;
@@ -14850,7 +14929,7 @@ BlockHash.prototype._pad = function pad() {
   return res;
 };
 
-},{"../hash":84}],86:[function(require,module,exports){
+},{"../hash":87}],89:[function(require,module,exports){
 var hmac = exports;
 
 var hash = require('../hash');
@@ -14900,7 +14979,7 @@ Hmac.prototype.digest = function digest(enc) {
   return this.outer.digest(enc);
 };
 
-},{"../hash":84}],87:[function(require,module,exports){
+},{"../hash":87}],90:[function(require,module,exports){
 var hash = require('../hash');
 var utils = hash.utils;
 
@@ -15046,7 +15125,7 @@ var sh = [
   8, 5, 12, 9, 12, 5, 14, 6, 8, 13, 6, 5, 15, 13, 11, 11
 ];
 
-},{"../hash":84}],88:[function(require,module,exports){
+},{"../hash":87}],91:[function(require,module,exports){
 var hash = require('../hash');
 var utils = hash.utils;
 var assert = utils.assert;
@@ -15612,7 +15691,7 @@ function g1_512_lo(xh, xl) {
   return r;
 }
 
-},{"../hash":84}],89:[function(require,module,exports){
+},{"../hash":87}],92:[function(require,module,exports){
 var utils = exports;
 var inherits = require('inherits');
 
@@ -15871,7 +15950,7 @@ function shr64_lo(ah, al, num) {
 };
 exports.shr64_lo = shr64_lo;
 
-},{"inherits":92}],90:[function(require,module,exports){
+},{"inherits":95}],93:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = nBytes * 8 - mLen - 1
@@ -15957,7 +16036,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],91:[function(require,module,exports){
+},{}],94:[function(require,module,exports){
 
 var indexOf = [].indexOf;
 
@@ -15968,7 +16047,7 @@ module.exports = function(arr, obj){
   }
   return -1;
 };
-},{}],92:[function(require,module,exports){
+},{}],95:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -15993,7 +16072,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],93:[function(require,module,exports){
+},{}],96:[function(require,module,exports){
 /**
  * Determine if an object is Buffer
  *
@@ -16012,14 +16091,14 @@ module.exports = function (obj) {
     ))
 }
 
-},{}],94:[function(require,module,exports){
+},{}],97:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],95:[function(require,module,exports){
+},{}],98:[function(require,module,exports){
 var bn = require('bn.js');
 var brorand = require('brorand');
 
@@ -16134,7 +16213,7 @@ MillerRabin.prototype.getDivisor = function getDivisor(n, k) {
   return false;
 };
 
-},{"bn.js":16,"brorand":17}],96:[function(require,module,exports){
+},{"bn.js":16,"brorand":17}],99:[function(require,module,exports){
 module.exports = assert;
 
 function assert(val, msg) {
@@ -16147,7 +16226,7 @@ assert.equal = function assertEqual(l, r, msg) {
     throw new Error(msg || ('Assertion failed: ' + l + ' != ' + r));
 };
 
-},{}],97:[function(require,module,exports){
+},{}],100:[function(require,module,exports){
 module.exports={"2.16.840.1.101.3.4.1.1": "aes-128-ecb",
 "2.16.840.1.101.3.4.1.2": "aes-128-cbc",
 "2.16.840.1.101.3.4.1.3": "aes-128-ofb",
@@ -16161,7 +16240,7 @@ module.exports={"2.16.840.1.101.3.4.1.1": "aes-128-ecb",
 "2.16.840.1.101.3.4.1.43": "aes-256-ofb",
 "2.16.840.1.101.3.4.1.44": "aes-256-cfb"
 }
-},{}],98:[function(require,module,exports){
+},{}],101:[function(require,module,exports){
 // from https://github.com/indutny/self-signed/blob/gh-pages/lib/asn1.js
 // Fedor, you are amazing.
 
@@ -16280,7 +16359,7 @@ exports.signature = asn1.define('signature', function () {
   )
 })
 
-},{"asn1.js":1}],99:[function(require,module,exports){
+},{"asn1.js":1}],102:[function(require,module,exports){
 (function (Buffer){
 // adapted from https://github.com/apatil/pemstrip
 var findProc = /Proc-Type: 4,ENCRYPTED\r?\nDEK-Info: AES-((?:128)|(?:192)|(?:256))-CBC,([0-9A-H]+)\r?\n\r?\n([0-9A-z\n\r\+\/\=]+)\r?\n/m
@@ -16314,7 +16393,7 @@ module.exports = function (okey, password) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"browserify-aes":21,"buffer":45,"evp_bytestokey":81}],100:[function(require,module,exports){
+},{"browserify-aes":21,"buffer":45,"evp_bytestokey":84}],103:[function(require,module,exports){
 (function (Buffer){
 var asn1 = require('./asn1')
 var aesid = require('./aesid.json')
@@ -16419,7 +16498,7 @@ function decrypt (data, password) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"./aesid.json":97,"./asn1":98,"./fixProc":99,"browserify-aes":21,"buffer":45,"pbkdf2":101}],101:[function(require,module,exports){
+},{"./aesid.json":100,"./asn1":101,"./fixProc":102,"browserify-aes":21,"buffer":45,"pbkdf2":104}],104:[function(require,module,exports){
 (function (Buffer){
 var createHmac = require('create-hmac')
 var MAX_ALLOC = Math.pow(2, 30) - 1 // default in iojs
@@ -16503,7 +16582,7 @@ function pbkdf2Sync (password, salt, iterations, keylen, digest) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":45,"create-hmac":52}],102:[function(require,module,exports){
+},{"buffer":45,"create-hmac":53}],105:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -16563,7 +16642,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],103:[function(require,module,exports){
+},{}],106:[function(require,module,exports){
 exports.publicEncrypt = require('./publicEncrypt');
 exports.privateDecrypt = require('./privateDecrypt');
 
@@ -16574,7 +16653,7 @@ exports.privateEncrypt = function privateEncrypt(key, buf) {
 exports.publicDecrypt = function publicDecrypt(key, buf) {
   return exports.privateDecrypt(key, buf, true);
 };
-},{"./privateDecrypt":105,"./publicEncrypt":106}],104:[function(require,module,exports){
+},{"./privateDecrypt":108,"./publicEncrypt":109}],107:[function(require,module,exports){
 (function (Buffer){
 var createHash = require('create-hash');
 module.exports = function (seed, len) {
@@ -16593,7 +16672,7 @@ function i2ops(c) {
   return out;
 }
 }).call(this,require("buffer").Buffer)
-},{"buffer":45,"create-hash":49}],105:[function(require,module,exports){
+},{"buffer":45,"create-hash":50}],108:[function(require,module,exports){
 (function (Buffer){
 var parseKeys = require('parse-asn1');
 var mgf = require('./mgf');
@@ -16704,7 +16783,7 @@ function compare(a, b){
   return dif;
 }
 }).call(this,require("buffer").Buffer)
-},{"./mgf":104,"./withPublic":107,"./xor":108,"bn.js":16,"browserify-rsa":37,"buffer":45,"create-hash":49,"parse-asn1":100}],106:[function(require,module,exports){
+},{"./mgf":107,"./withPublic":110,"./xor":111,"bn.js":16,"browserify-rsa":37,"buffer":45,"create-hash":50,"parse-asn1":103}],109:[function(require,module,exports){
 (function (Buffer){
 var parseKeys = require('parse-asn1');
 var randomBytes = require('randombytes');
@@ -16802,7 +16881,7 @@ function nonZero(len, crypto) {
   return out;
 }
 }).call(this,require("buffer").Buffer)
-},{"./mgf":104,"./withPublic":107,"./xor":108,"bn.js":16,"browserify-rsa":37,"buffer":45,"create-hash":49,"parse-asn1":100,"randombytes":109}],107:[function(require,module,exports){
+},{"./mgf":107,"./withPublic":110,"./xor":111,"bn.js":16,"browserify-rsa":37,"buffer":45,"create-hash":50,"parse-asn1":103,"randombytes":112}],110:[function(require,module,exports){
 (function (Buffer){
 var bn = require('bn.js');
 function withPublic(paddedMsg, key) {
@@ -16815,7 +16894,7 @@ function withPublic(paddedMsg, key) {
 
 module.exports = withPublic;
 }).call(this,require("buffer").Buffer)
-},{"bn.js":16,"buffer":45}],108:[function(require,module,exports){
+},{"bn.js":16,"buffer":45}],111:[function(require,module,exports){
 module.exports = function xor(a, b) {
   var len = a.length;
   var i = -1;
@@ -16824,7 +16903,7 @@ module.exports = function xor(a, b) {
   }
   return a
 };
-},{}],109:[function(require,module,exports){
+},{}],112:[function(require,module,exports){
 (function (process,global,Buffer){
 'use strict'
 
@@ -16864,7 +16943,6384 @@ function randomBytes (size, cb) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"_process":102,"buffer":45}],110:[function(require,module,exports){
+},{"_process":105,"buffer":45}],113:[function(require,module,exports){
+module.exports = require('react/lib/shallowCompare');
+},{"react/lib/shallowCompare":160}],114:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * This HOC decorates a virtualized component and responds to arrow-key events by scrolling one row or column at a time.
+ */
+var ArrowKeyStepper = function (_Component) {
+  _inherits(ArrowKeyStepper, _Component);
+
+  function ArrowKeyStepper(props, context) {
+    _classCallCheck(this, ArrowKeyStepper);
+
+    var _this = _possibleConstructorReturn(this, (ArrowKeyStepper.__proto__ || Object.getPrototypeOf(ArrowKeyStepper)).call(this, props, context));
+
+    _this.state = {
+      scrollToColumn: 0,
+      scrollToRow: 0
+    };
+
+    _this._columnStartIndex = 0;
+    _this._columnStopIndex = 0;
+    _this._rowStartIndex = 0;
+    _this._rowStopIndex = 0;
+
+    _this._onKeyDown = _this._onKeyDown.bind(_this);
+    _this._onSectionRendered = _this._onSectionRendered.bind(_this);
+    return _this;
+  }
+
+  _createClass(ArrowKeyStepper, [{
+    key: 'render',
+    value: function render() {
+      var _props = this.props;
+      var className = _props.className;
+      var children = _props.children;
+      var _state = this.state;
+      var scrollToColumn = _state.scrollToColumn;
+      var scrollToRow = _state.scrollToRow;
+
+
+      return _react2.default.createElement(
+        'div',
+        {
+          className: className,
+          onKeyDown: this._onKeyDown
+        },
+        children({
+          onSectionRendered: this._onSectionRendered,
+          scrollToColumn: scrollToColumn,
+          scrollToRow: scrollToRow
+        })
+      );
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+  }, {
+    key: '_onKeyDown',
+    value: function _onKeyDown(event) {
+      var _props2 = this.props;
+      var columnCount = _props2.columnCount;
+      var rowCount = _props2.rowCount;
+
+      // The above cases all prevent default event event behavior.
+      // This is to keep the grid from scrolling after the snap-to update.
+
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          this.setState({
+            scrollToRow: Math.min(this._rowStopIndex + 1, rowCount - 1)
+          });
+          break;
+        case 'ArrowLeft':
+          event.preventDefault();
+          this.setState({
+            scrollToColumn: Math.max(this._columnStartIndex - 1, 0)
+          });
+          break;
+        case 'ArrowRight':
+          event.preventDefault();
+          this.setState({
+            scrollToColumn: Math.min(this._columnStopIndex + 1, columnCount - 1)
+          });
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          this.setState({
+            scrollToRow: Math.max(this._rowStartIndex - 1, 0)
+          });
+          break;
+      }
+    }
+  }, {
+    key: '_onSectionRendered',
+    value: function _onSectionRendered(_ref) {
+      var columnStartIndex = _ref.columnStartIndex;
+      var columnStopIndex = _ref.columnStopIndex;
+      var rowStartIndex = _ref.rowStartIndex;
+      var rowStopIndex = _ref.rowStopIndex;
+
+      this._columnStartIndex = columnStartIndex;
+      this._columnStopIndex = columnStopIndex;
+      this._rowStartIndex = rowStartIndex;
+      this._rowStopIndex = rowStopIndex;
+    }
+  }]);
+
+  return ArrowKeyStepper;
+}(_react.Component);
+
+ArrowKeyStepper.propTypes = {
+  children: _react.PropTypes.func.isRequired,
+  className: _react.PropTypes.string,
+  columnCount: _react.PropTypes.number.isRequired,
+  rowCount: _react.PropTypes.number.isRequired
+};
+exports.default = ArrowKeyStepper;
+},{"react":"react","react-addons-shallow-compare":113}],115:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.ArrowKeyStepper = exports.default = undefined;
+
+var _ArrowKeyStepper2 = require('./ArrowKeyStepper');
+
+var _ArrowKeyStepper3 = _interopRequireDefault(_ArrowKeyStepper2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _ArrowKeyStepper3.default;
+exports.ArrowKeyStepper = _ArrowKeyStepper3.default;
+},{"./ArrowKeyStepper":114}],116:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+var _detectElementResize = require('../vendor/detectElementResize');
+
+var _detectElementResize2 = _interopRequireDefault(_detectElementResize);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * Decorator component that automatically adjusts the width and height of a single child.
+ * Child component should not be declared as a child but should rather be specified by a `ChildComponent` property.
+ * All other properties will be passed through to the child component.
+ */
+var AutoSizer = function (_Component) {
+  _inherits(AutoSizer, _Component);
+
+  function AutoSizer(props) {
+    _classCallCheck(this, AutoSizer);
+
+    var _this = _possibleConstructorReturn(this, (AutoSizer.__proto__ || Object.getPrototypeOf(AutoSizer)).call(this, props));
+
+    _this.state = {
+      height: 0,
+      width: 0
+    };
+
+    _this._onResize = _this._onResize.bind(_this);
+    _this._setRef = _this._setRef.bind(_this);
+    return _this;
+  }
+
+  _createClass(AutoSizer, [{
+    key: 'componentDidMount',
+    value: function componentDidMount() {
+      // Delay access of parentNode until mount.
+      // This handles edge-cases where the component has already been unmounted before its ref has been set,
+      // As well as libraries like react-lite which have a slightly different lifecycle.
+      this._parentNode = this._autoSizer.parentNode;
+
+      // Defer requiring resize handler in order to support server-side rendering.
+      // See issue #41
+      this._detectElementResize = (0, _detectElementResize2.default)();
+      this._detectElementResize.addResizeListener(this._parentNode, this._onResize);
+
+      this._onResize();
+    }
+  }, {
+    key: 'componentWillUnmount',
+    value: function componentWillUnmount() {
+      if (this._detectElementResize) {
+        this._detectElementResize.removeResizeListener(this._parentNode, this._onResize);
+      }
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      var _props = this.props;
+      var children = _props.children;
+      var disableHeight = _props.disableHeight;
+      var disableWidth = _props.disableWidth;
+      var _state = this.state;
+      var height = _state.height;
+      var width = _state.width;
+
+      // Outer div should not force width/height since that may prevent containers from shrinking.
+      // Inner component should overflow and use calculated width/height.
+      // See issue #68 for more information.
+
+      var outerStyle = { overflow: 'visible' };
+
+      if (!disableHeight) {
+        outerStyle.height = 0;
+      }
+
+      if (!disableWidth) {
+        outerStyle.width = 0;
+      }
+
+      return _react2.default.createElement(
+        'div',
+        {
+          ref: this._setRef,
+          style: outerStyle
+        },
+        children({ height: height, width: width })
+      );
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+  }, {
+    key: '_onResize',
+    value: function _onResize() {
+      var onResize = this.props.onResize;
+
+      // Gaurd against AutoSizer component being removed from the DOM immediately after being added.
+      // This can result in invalid style values which can result in NaN values if we don't handle them.
+      // See issue #150 for more context.
+
+      var boundingRect = this._parentNode.getBoundingClientRect();
+      var height = boundingRect.height || 0;
+      var width = boundingRect.width || 0;
+
+      var style = window.getComputedStyle(this._parentNode);
+      var paddingLeft = parseInt(style.paddingLeft, 10) || 0;
+      var paddingRight = parseInt(style.paddingRight, 10) || 0;
+      var paddingTop = parseInt(style.paddingTop, 10) || 0;
+      var paddingBottom = parseInt(style.paddingBottom, 10) || 0;
+
+      this.setState({
+        height: height - paddingTop - paddingBottom,
+        width: width - paddingLeft - paddingRight
+      });
+
+      onResize({ height: height, width: width });
+    }
+  }, {
+    key: '_setRef',
+    value: function _setRef(autoSizer) {
+      this._autoSizer = autoSizer;
+    }
+  }]);
+
+  return AutoSizer;
+}(_react.Component);
+
+AutoSizer.propTypes = {
+  /**
+   * Function responsible for rendering children.
+   * This function should implement the following signature:
+   * ({ height, width }) => PropTypes.element
+   */
+  children: _react.PropTypes.func.isRequired,
+
+  /** Disable dynamic :height property */
+  disableHeight: _react.PropTypes.bool,
+
+  /** Disable dynamic :width property */
+  disableWidth: _react.PropTypes.bool,
+
+  /** Callback to be invoked on-resize: ({ height, width }) */
+  onResize: _react.PropTypes.func.isRequired
+};
+AutoSizer.defaultProps = {
+  onResize: function onResize() {}
+};
+exports.default = AutoSizer;
+},{"../vendor/detectElementResize":158,"react":"react","react-addons-shallow-compare":113}],117:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.AutoSizer = exports.default = undefined;
+
+var _AutoSizer2 = require('./AutoSizer');
+
+var _AutoSizer3 = _interopRequireDefault(_AutoSizer2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _AutoSizer3.default;
+exports.AutoSizer = _AutoSizer3.default;
+},{"./AutoSizer":116}],118:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+var _reactDom = require('react-dom');
+
+var _reactDom2 = _interopRequireDefault(_reactDom);
+
+var _defaultCellSizeCache = require('./defaultCellSizeCache');
+
+var _defaultCellSizeCache2 = _interopRequireDefault(_defaultCellSizeCache);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * Measures a Grid cell's contents by rendering them in a way that is not visible to the user.
+ * Either a fixed width or height may be provided if it is desirable to measure only in one direction.
+ */
+var CellMeasurer = function (_Component) {
+  _inherits(CellMeasurer, _Component);
+
+  function CellMeasurer(props, state) {
+    _classCallCheck(this, CellMeasurer);
+
+    var _this = _possibleConstructorReturn(this, (CellMeasurer.__proto__ || Object.getPrototypeOf(CellMeasurer)).call(this, props, state));
+
+    _this._cellSizeCache = props.cellSizeCache || new _defaultCellSizeCache2.default();
+
+    _this.getColumnWidth = _this.getColumnWidth.bind(_this);
+    _this.getRowHeight = _this.getRowHeight.bind(_this);
+    _this.resetMeasurements = _this.resetMeasurements.bind(_this);
+    _this.resetMeasurementForColumn = _this.resetMeasurementForColumn.bind(_this);
+    _this.resetMeasurementForRow = _this.resetMeasurementForRow.bind(_this);
+    return _this;
+  }
+
+  _createClass(CellMeasurer, [{
+    key: 'getColumnWidth',
+    value: function getColumnWidth(_ref) {
+      var index = _ref.index;
+
+      if (this._cellSizeCache.hasColumnWidth(index)) {
+        return this._cellSizeCache.getColumnWidth(index);
+      }
+
+      var rowCount = this.props.rowCount;
+
+
+      var maxWidth = 0;
+
+      for (var rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+        var _measureCell2 = this._measureCell({
+          clientWidth: true,
+          columnIndex: index,
+          rowIndex: rowIndex
+        });
+
+        var width = _measureCell2.width;
+
+
+        maxWidth = Math.max(maxWidth, width);
+      }
+
+      this._cellSizeCache.setColumnWidth(index, maxWidth);
+
+      return maxWidth;
+    }
+  }, {
+    key: 'getRowHeight',
+    value: function getRowHeight(_ref2) {
+      var index = _ref2.index;
+
+      if (this._cellSizeCache.hasRowHeight(index)) {
+        return this._cellSizeCache.getRowHeight(index);
+      }
+
+      var columnCount = this.props.columnCount;
+
+
+      var maxHeight = 0;
+
+      for (var columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+        var _measureCell3 = this._measureCell({
+          clientHeight: true,
+          columnIndex: columnIndex,
+          rowIndex: index
+        });
+
+        var height = _measureCell3.height;
+
+
+        maxHeight = Math.max(maxHeight, height);
+      }
+
+      this._cellSizeCache.setRowHeight(index, maxHeight);
+
+      return maxHeight;
+    }
+  }, {
+    key: 'resetMeasurementForColumn',
+    value: function resetMeasurementForColumn(columnIndex) {
+      this._cellSizeCache.clearColumnWidth(columnIndex);
+    }
+  }, {
+    key: 'resetMeasurementForRow',
+    value: function resetMeasurementForRow(rowIndex) {
+      this._cellSizeCache.clearRowHeight(rowIndex);
+    }
+  }, {
+    key: 'resetMeasurements',
+    value: function resetMeasurements() {
+      this._cellSizeCache.clearAllColumnWidths();
+      this._cellSizeCache.clearAllRowHeights();
+    }
+  }, {
+    key: 'componentDidMount',
+    value: function componentDidMount() {
+      this._renderAndMount();
+    }
+  }, {
+    key: 'componentWillReceiveProps',
+    value: function componentWillReceiveProps(nextProps) {
+      var cellSizeCache = this.props.cellSizeCache;
+
+
+      if (cellSizeCache !== nextProps.cellSizeCache) {
+        this._cellSizeCache = nextProps.cellSizeCache;
+      }
+
+      this._updateDivDimensions(nextProps);
+    }
+  }, {
+    key: 'componentWillUnmount',
+    value: function componentWillUnmount() {
+      this._unmountContainer();
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      var children = this.props.children;
+
+
+      return children({
+        getColumnWidth: this.getColumnWidth,
+        getRowHeight: this.getRowHeight,
+        resetMeasurements: this.resetMeasurements,
+        resetMeasurementForColumn: this.resetMeasurementForColumn,
+        resetMeasurementForRow: this.resetMeasurementForRow
+      });
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+  }, {
+    key: '_getContainerNode',
+    value: function _getContainerNode(props) {
+      var container = props.container;
+
+
+      if (container) {
+        return _reactDom2.default.findDOMNode(typeof container === 'function' ? container() : container);
+      } else {
+        return document.body;
+      }
+    }
+  }, {
+    key: '_measureCell',
+    value: function _measureCell(_ref3) {
+      var _ref3$clientHeight = _ref3.clientHeight;
+      var clientHeight = _ref3$clientHeight === undefined ? false : _ref3$clientHeight;
+      var _ref3$clientWidth = _ref3.clientWidth;
+      var clientWidth = _ref3$clientWidth === undefined ? true : _ref3$clientWidth;
+      var columnIndex = _ref3.columnIndex;
+      var rowIndex = _ref3.rowIndex;
+      var cellRenderer = this.props.cellRenderer;
+
+
+      var rendered = cellRenderer({
+        columnIndex: columnIndex,
+        rowIndex: rowIndex
+      });
+
+      // Handle edge case where this method is called before the CellMeasurer has completed its initial render (and mounted).
+      this._renderAndMount();
+
+      // @TODO Keep an eye on this for future React updates as the interface may change:
+      // https://twitter.com/soprano/status/737316379712331776
+      _reactDom2.default.unstable_renderSubtreeIntoContainer(this, rendered, this._div);
+
+      var measurements = {
+        height: clientHeight && this._div.clientHeight,
+        width: clientWidth && this._div.clientWidth
+      };
+
+      _reactDom2.default.unmountComponentAtNode(this._div);
+
+      return measurements;
+    }
+  }, {
+    key: '_renderAndMount',
+    value: function _renderAndMount() {
+      if (!this._div) {
+        this._div = document.createElement('div');
+        this._div.style.display = 'inline-block';
+        this._div.style.position = 'absolute';
+        this._div.style.visibility = 'hidden';
+        this._div.style.zIndex = -1;
+
+        this._updateDivDimensions(this.props);
+
+        this._containerNode = this._getContainerNode(this.props);
+        this._containerNode.appendChild(this._div);
+      }
+    }
+  }, {
+    key: '_unmountContainer',
+    value: function _unmountContainer() {
+      if (this._div) {
+        this._containerNode.removeChild(this._div);
+
+        this._div = null;
+      }
+
+      this._containerNode = null;
+    }
+  }, {
+    key: '_updateDivDimensions',
+    value: function _updateDivDimensions(props) {
+      var height = props.height;
+      var width = props.width;
+
+
+      if (height && height !== this._divHeight) {
+        this._divHeight = height;
+        this._div.style.height = height + 'px';
+      }
+
+      if (width && width !== this._divWidth) {
+        this._divWidth = width;
+        this._div.style.width = width + 'px';
+      }
+    }
+  }]);
+
+  return CellMeasurer;
+}(_react.Component);
+
+CellMeasurer.propTypes = {
+  /**
+   * Renders a cell given its indices.
+   * Should implement the following interface: ({ columnIndex: number, rowIndex: number }): PropTypes.node
+   */
+  cellRenderer: _react.PropTypes.func.isRequired,
+
+  /**
+   * Optional, custom caching strategy for cell sizes.
+   */
+  cellSizeCache: _react.PropTypes.object,
+
+  /**
+   * Function responsible for rendering a virtualized component.
+   * This function should implement the following signature:
+   * ({ getColumnWidth, getRowHeight, resetMeasurements }) => PropTypes.element
+   */
+  children: _react.PropTypes.func.isRequired,
+
+  /**
+   * Number of columns in grid.
+   */
+  columnCount: _react.PropTypes.number.isRequired,
+
+  /**
+   * A Node, Component instance, or function that returns either.
+   * If this property is not specified the document body will be used.
+   */
+  container: _react2.default.PropTypes.oneOfType([_react2.default.PropTypes.func, _react2.default.PropTypes.node]),
+
+  /**
+   * Assign a fixed :height in order to measure dynamic text :width only.
+   */
+  height: _react.PropTypes.number,
+
+  /**
+   * Number of rows in grid.
+   */
+  rowCount: _react.PropTypes.number.isRequired,
+
+  /**
+   * Assign a fixed :width in order to measure dynamic text :height only.
+   */
+  width: _react.PropTypes.number
+};
+exports.default = CellMeasurer;
+},{"./defaultCellSizeCache":119,"react":"react","react-addons-shallow-compare":113,"react-dom":"react-dom"}],119:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+/**
+ * Default CellMeasurer `cellSizeCache` implementation.
+ * Permanently caches all cell sizes (identified by column and row index) unless explicitly cleared.
+ * Can be configured to handle uniform cell widths and/or heights as a way of optimizing certain use cases.
+ */
+var CellSizeCache = function () {
+  function CellSizeCache() {
+    var _ref = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+    var _ref$uniformRowHeight = _ref.uniformRowHeight;
+    var uniformRowHeight = _ref$uniformRowHeight === undefined ? false : _ref$uniformRowHeight;
+    var _ref$uniformColumnWid = _ref.uniformColumnWidth;
+    var uniformColumnWidth = _ref$uniformColumnWid === undefined ? false : _ref$uniformColumnWid;
+
+    _classCallCheck(this, CellSizeCache);
+
+    this._uniformRowHeight = uniformRowHeight;
+    this._uniformColumnWidth = uniformColumnWidth;
+
+    this._cachedColumnWidths = {};
+    this._cachedRowHeights = {};
+  }
+
+  _createClass(CellSizeCache, [{
+    key: "clearAllColumnWidths",
+    value: function clearAllColumnWidths() {
+      this._cachedColumnWidth = undefined;
+      this._cachedColumnWidths = {};
+    }
+  }, {
+    key: "clearAllRowHeights",
+    value: function clearAllRowHeights() {
+      this._cachedRowHeight = undefined;
+      this._cachedRowHeights = {};
+    }
+  }, {
+    key: "clearColumnWidth",
+    value: function clearColumnWidth(index) {
+      this._cachedColumnWidth = undefined;
+
+      delete this._cachedColumnWidths[index];
+    }
+  }, {
+    key: "clearRowHeight",
+    value: function clearRowHeight(index) {
+      this._cachedRowHeight = undefined;
+
+      delete this._cachedRowHeights[index];
+    }
+  }, {
+    key: "getColumnWidth",
+    value: function getColumnWidth(index) {
+      return this._uniformColumnWidth ? this._cachedColumnWidth : this._cachedColumnWidths[index];
+    }
+  }, {
+    key: "getRowHeight",
+    value: function getRowHeight(index) {
+      return this._uniformRowHeight ? this._cachedRowHeight : this._cachedRowHeights[index];
+    }
+  }, {
+    key: "hasColumnWidth",
+    value: function hasColumnWidth(index) {
+      return this._uniformColumnWidth ? !!this._cachedColumnWidth : !!this._cachedColumnWidths[index];
+    }
+  }, {
+    key: "hasRowHeight",
+    value: function hasRowHeight(index) {
+      return this._uniformRowHeight ? !!this._cachedRowHeight : !!this._cachedRowHeights[index];
+    }
+  }, {
+    key: "setColumnWidth",
+    value: function setColumnWidth(index, width) {
+      this._cachedColumnWidth = width;
+      this._cachedColumnWidths[index] = width;
+    }
+  }, {
+    key: "setRowHeight",
+    value: function setRowHeight(index, height) {
+      this._cachedRowHeight = height;
+      this._cachedRowHeights[index] = height;
+    }
+  }]);
+
+  return CellSizeCache;
+}();
+
+exports.default = CellSizeCache;
+},{}],120:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.defaultCellSizeCache = exports.CellMeasurer = exports.default = undefined;
+
+var _CellMeasurer2 = require('./CellMeasurer');
+
+var _CellMeasurer3 = _interopRequireDefault(_CellMeasurer2);
+
+var _defaultCellSizeCache2 = require('./defaultCellSizeCache');
+
+var _defaultCellSizeCache3 = _interopRequireDefault(_defaultCellSizeCache2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _CellMeasurer3.default;
+exports.CellMeasurer = _CellMeasurer3.default;
+exports.defaultCellSizeCache = _defaultCellSizeCache3.default;
+},{"./CellMeasurer":118,"./defaultCellSizeCache":119}],121:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _CollectionView = require('./CollectionView');
+
+var _CollectionView2 = _interopRequireDefault(_CollectionView);
+
+var _calculateSizeAndPositionData2 = require('./utils/calculateSizeAndPositionData');
+
+var _calculateSizeAndPositionData3 = _interopRequireDefault(_calculateSizeAndPositionData2);
+
+var _getUpdatedOffsetForIndex = require('../utils/getUpdatedOffsetForIndex');
+
+var _getUpdatedOffsetForIndex2 = _interopRequireDefault(_getUpdatedOffsetForIndex);
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * Renders scattered or non-linear data.
+ * Unlike Grid, which renders checkerboard data, Collection can render arbitrarily positioned- even overlapping- data.
+ */
+var Collection = function (_Component) {
+  _inherits(Collection, _Component);
+
+  function Collection(props, context) {
+    _classCallCheck(this, Collection);
+
+    var _this = _possibleConstructorReturn(this, (Collection.__proto__ || Object.getPrototypeOf(Collection)).call(this, props, context));
+
+    _this._cellMetadata = [];
+    _this._lastRenderedCellIndices = [];
+
+    // Cell cache during scroll (for perforamnce)
+    _this._cellCache = [];
+
+    _this._isScrollingChange = _this._isScrollingChange.bind(_this);
+    return _this;
+  }
+
+  /** See Collection#recomputeCellSizesAndPositions */
+
+
+  _createClass(Collection, [{
+    key: 'recomputeCellSizesAndPositions',
+    value: function recomputeCellSizesAndPositions() {
+      this._cellCache = [];
+      this._collectionView.recomputeCellSizesAndPositions();
+    }
+
+    /** React lifecycle methods */
+
+  }, {
+    key: 'render',
+    value: function render() {
+      var _this2 = this;
+
+      var props = _objectWithoutProperties(this.props, []);
+
+      return _react2.default.createElement(_CollectionView2.default, _extends({
+        cellLayoutManager: this,
+        isScrollingChange: this._isScrollingChange,
+        ref: function ref(_ref) {
+          _this2._collectionView = _ref;
+        }
+      }, props));
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+
+    /** CellLayoutManager interface */
+
+  }, {
+    key: 'calculateSizeAndPositionData',
+    value: function calculateSizeAndPositionData() {
+      var _props = this.props;
+      var cellCount = _props.cellCount;
+      var cellSizeAndPositionGetter = _props.cellSizeAndPositionGetter;
+      var sectionSize = _props.sectionSize;
+
+
+      var data = (0, _calculateSizeAndPositionData3.default)({
+        cellCount: cellCount,
+        cellSizeAndPositionGetter: cellSizeAndPositionGetter,
+        sectionSize: sectionSize
+      });
+
+      this._cellMetadata = data.cellMetadata;
+      this._sectionManager = data.sectionManager;
+      this._height = data.height;
+      this._width = data.width;
+    }
+
+    /**
+     * Returns the most recently rendered set of cell indices.
+     */
+
+  }, {
+    key: 'getLastRenderedIndices',
+    value: function getLastRenderedIndices() {
+      return this._lastRenderedCellIndices;
+    }
+
+    /**
+     * Calculates the minimum amount of change from the current scroll position to ensure the specified cell is (fully) visible.
+     */
+
+  }, {
+    key: 'getScrollPositionForCell',
+    value: function getScrollPositionForCell(_ref2) {
+      var align = _ref2.align;
+      var cellIndex = _ref2.cellIndex;
+      var height = _ref2.height;
+      var scrollLeft = _ref2.scrollLeft;
+      var scrollTop = _ref2.scrollTop;
+      var width = _ref2.width;
+      var cellCount = this.props.cellCount;
+
+
+      if (cellIndex >= 0 && cellIndex < cellCount) {
+        var cellMetadata = this._cellMetadata[cellIndex];
+
+        scrollLeft = (0, _getUpdatedOffsetForIndex2.default)({
+          align: align,
+          cellOffset: cellMetadata.x,
+          cellSize: cellMetadata.width,
+          containerSize: width,
+          currentOffset: scrollLeft,
+          targetIndex: cellIndex
+        });
+
+        scrollTop = (0, _getUpdatedOffsetForIndex2.default)({
+          align: align,
+          cellOffset: cellMetadata.y,
+          cellSize: cellMetadata.height,
+          containerSize: height,
+          currentOffset: scrollTop,
+          targetIndex: cellIndex
+        });
+      }
+
+      return {
+        scrollLeft: scrollLeft,
+        scrollTop: scrollTop
+      };
+    }
+  }, {
+    key: 'getTotalSize',
+    value: function getTotalSize() {
+      return {
+        height: this._height,
+        width: this._width
+      };
+    }
+  }, {
+    key: 'cellRenderers',
+    value: function cellRenderers(_ref3) {
+      var _this3 = this;
+
+      var height = _ref3.height;
+      var isScrolling = _ref3.isScrolling;
+      var width = _ref3.width;
+      var x = _ref3.x;
+      var y = _ref3.y;
+      var _props2 = this.props;
+      var cellGroupRenderer = _props2.cellGroupRenderer;
+      var cellRenderer = _props2.cellRenderer;
+
+      // Store for later calls to getLastRenderedIndices()
+
+      this._lastRenderedCellIndices = this._sectionManager.getCellIndices({
+        height: height,
+        width: width,
+        x: x,
+        y: y
+      });
+
+      return cellGroupRenderer({
+        cellCache: this._cellCache,
+        cellRenderer: cellRenderer,
+        cellSizeAndPositionGetter: function cellSizeAndPositionGetter(_ref4) {
+          var index = _ref4.index;
+          return _this3._sectionManager.getCellMetadata({ index: index });
+        },
+        indices: this._lastRenderedCellIndices,
+        isScrolling: isScrolling
+      });
+    }
+  }, {
+    key: '_isScrollingChange',
+    value: function _isScrollingChange(isScrolling) {
+      if (!isScrolling) {
+        this._cellCache = [];
+      }
+    }
+  }]);
+
+  return Collection;
+}(_react.Component);
+
+Collection.propTypes = {
+  'aria-label': _react.PropTypes.string,
+
+  /**
+   * Number of cells in Collection.
+   */
+  cellCount: _react.PropTypes.number.isRequired,
+
+  /**
+   * Responsible for rendering a group of cells given their indices.
+   * Should implement the following interface: ({
+   *   cellSizeAndPositionGetter:Function,
+   *   indices: Array<number>,
+   *   cellRenderer: Function
+   * }): Array<PropTypes.node>
+   */
+  cellGroupRenderer: _react.PropTypes.func.isRequired,
+
+  /**
+   * Responsible for rendering a cell given an row and column index.
+   * Should implement the following interface: ({ index: number, key: string, style: object }): PropTypes.element
+   */
+  cellRenderer: _react.PropTypes.func.isRequired,
+
+  /**
+   * Callback responsible for returning size and offset/position information for a given cell (index).
+   * ({ index: number }): { height: number, width: number, x: number, y: number }
+   */
+  cellSizeAndPositionGetter: _react.PropTypes.func.isRequired,
+
+  /**
+   * Optionally override the size of the sections a Collection's cells are split into.
+   */
+  sectionSize: _react.PropTypes.number
+};
+Collection.defaultProps = {
+  'aria-label': 'grid',
+  cellGroupRenderer: defaultCellGroupRenderer
+};
+exports.default = Collection;
+
+
+function defaultCellGroupRenderer(_ref5) {
+  var cellCache = _ref5.cellCache;
+  var cellRenderer = _ref5.cellRenderer;
+  var cellSizeAndPositionGetter = _ref5.cellSizeAndPositionGetter;
+  var indices = _ref5.indices;
+  var isScrolling = _ref5.isScrolling;
+
+  return indices.map(function (index) {
+    var cellMetadata = cellSizeAndPositionGetter({ index: index });
+
+    var cellRendererProps = {
+      index: index,
+      isScrolling: isScrolling,
+      key: index,
+      style: {
+        height: cellMetadata.height,
+        left: cellMetadata.x,
+        position: 'absolute',
+        top: cellMetadata.y,
+        width: cellMetadata.width
+      }
+    };
+
+    // Avoid re-creating cells while scrolling.
+    // This can lead to the same cell being created many times and can cause performance issues for "heavy" cells.
+    // If a scroll is in progress- cache and reuse cells.
+    // This cache will be thrown away once scrolling complets.
+    if (isScrolling) {
+      if (!(index in cellCache)) {
+        cellCache[index] = cellRenderer(cellRendererProps);
+      }
+
+      return cellCache[index];
+    } else {
+      return cellRenderer(cellRendererProps);
+    }
+  }).filter(function (renderedCell) {
+    return !!renderedCell;
+  });
+}
+},{"../utils/getUpdatedOffsetForIndex":157,"./CollectionView":122,"./utils/calculateSizeAndPositionData":126,"react":"react","react-addons-shallow-compare":113}],122:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _classnames = require('classnames');
+
+var _classnames2 = _interopRequireDefault(_classnames);
+
+var _createCallbackMemoizer = require('../utils/createCallbackMemoizer');
+
+var _createCallbackMemoizer2 = _interopRequireDefault(_createCallbackMemoizer);
+
+var _scrollbarSize = require('dom-helpers/util/scrollbarSize');
+
+var _scrollbarSize2 = _interopRequireDefault(_scrollbarSize);
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+// @TODO It would be nice to refactor Grid to use this code as well.
+
+/**
+ * Specifies the number of miliseconds during which to disable pointer events while a scroll is in progress.
+ * This improves performance and makes scrolling smoother.
+ */
+var IS_SCROLLING_TIMEOUT = 150;
+
+/**
+ * Controls whether the Grid updates the DOM element's scrollLeft/scrollTop based on the current state or just observes it.
+ * This prevents Grid from interrupting mouse-wheel animations (see issue #2).
+ */
+var SCROLL_POSITION_CHANGE_REASONS = {
+  OBSERVED: 'observed',
+  REQUESTED: 'requested'
+};
+
+/**
+ * Monitors changes in properties (eg. cellCount) and state (eg. scroll offsets) to determine when rendering needs to occur.
+ * This component does not render any visible content itself; it defers to the specified :cellLayoutManager.
+ */
+
+var CollectionView = function (_Component) {
+  _inherits(CollectionView, _Component);
+
+  function CollectionView(props, context) {
+    _classCallCheck(this, CollectionView);
+
+    var _this = _possibleConstructorReturn(this, (CollectionView.__proto__ || Object.getPrototypeOf(CollectionView)).call(this, props, context));
+
+    _this.state = {
+      calculateSizeAndPositionDataOnNextUpdate: false,
+      isScrolling: false,
+      scrollLeft: 0,
+      scrollTop: 0
+    };
+
+    // Invokes callbacks only when their values have changed.
+    _this._onSectionRenderedMemoizer = (0, _createCallbackMemoizer2.default)();
+    _this._onScrollMemoizer = (0, _createCallbackMemoizer2.default)(false);
+
+    // Bind functions to instance so they don't lose context when passed around.
+    _this._invokeOnSectionRenderedHelper = _this._invokeOnSectionRenderedHelper.bind(_this);
+    _this._onScroll = _this._onScroll.bind(_this);
+    _this._updateScrollPositionForScrollToCell = _this._updateScrollPositionForScrollToCell.bind(_this);
+    return _this;
+  }
+
+  /**
+   * Forced recompute of cell sizes and positions.
+   * This function should be called if cell sizes have changed but nothing else has.
+   * Since cell positions are calculated by callbacks, the collection view has no way of detecting when the underlying data has changed.
+   */
+
+
+  _createClass(CollectionView, [{
+    key: 'recomputeCellSizesAndPositions',
+    value: function recomputeCellSizesAndPositions() {
+      this.setState({
+        calculateSizeAndPositionDataOnNextUpdate: true
+      });
+    }
+
+    /* ---------------------------- Component lifecycle methods ---------------------------- */
+
+  }, {
+    key: 'componentDidMount',
+    value: function componentDidMount() {
+      var _props = this.props;
+      var cellLayoutManager = _props.cellLayoutManager;
+      var scrollLeft = _props.scrollLeft;
+      var scrollToCell = _props.scrollToCell;
+      var scrollTop = _props.scrollTop;
+
+      // If this component was first rendered server-side, scrollbar size will be undefined.
+      // In that event we need to remeasure.
+
+      if (!this._scrollbarSizeMeasured) {
+        this._scrollbarSize = (0, _scrollbarSize2.default)();
+        this._scrollbarSizeMeasured = true;
+        this.setState({});
+      }
+
+      if (scrollToCell >= 0) {
+        this._updateScrollPositionForScrollToCell();
+      } else if (scrollLeft >= 0 || scrollTop >= 0) {
+        this._setScrollPosition({ scrollLeft: scrollLeft, scrollTop: scrollTop });
+      }
+
+      // Update onSectionRendered callback.
+      this._invokeOnSectionRenderedHelper();
+
+      var _cellLayoutManager$ge = cellLayoutManager.getTotalSize();
+
+      var totalHeight = _cellLayoutManager$ge.height;
+      var totalWidth = _cellLayoutManager$ge.width;
+
+      // Initialize onScroll callback.
+
+      this._invokeOnScrollMemoizer({
+        scrollLeft: scrollLeft || 0,
+        scrollTop: scrollTop || 0,
+        totalHeight: totalHeight,
+        totalWidth: totalWidth
+      });
+    }
+  }, {
+    key: 'componentDidUpdate',
+    value: function componentDidUpdate(prevProps, prevState) {
+      var _props2 = this.props;
+      var height = _props2.height;
+      var scrollToCell = _props2.scrollToCell;
+      var width = _props2.width;
+      var _state = this.state;
+      var scrollLeft = _state.scrollLeft;
+      var scrollPositionChangeReason = _state.scrollPositionChangeReason;
+      var scrollToAlignment = _state.scrollToAlignment;
+      var scrollTop = _state.scrollTop;
+
+      // Make sure requested changes to :scrollLeft or :scrollTop get applied.
+      // Assigning to scrollLeft/scrollTop tells the browser to interrupt any running scroll animations,
+      // And to discard any pending async changes to the scroll position that may have happened in the meantime (e.g. on a separate scrolling thread).
+      // So we only set these when we require an adjustment of the scroll position.
+      // See issue #2 for more information.
+
+      if (scrollPositionChangeReason === SCROLL_POSITION_CHANGE_REASONS.REQUESTED) {
+        if (scrollLeft >= 0 && scrollLeft !== prevState.scrollLeft && scrollLeft !== this._scrollingContainer.scrollLeft) {
+          this._scrollingContainer.scrollLeft = scrollLeft;
+        }
+        if (scrollTop >= 0 && scrollTop !== prevState.scrollTop && scrollTop !== this._scrollingContainer.scrollTop) {
+          this._scrollingContainer.scrollTop = scrollTop;
+        }
+      }
+
+      // Update scroll offsets if the current :scrollToCell values requires it
+      if (height !== prevProps.height || scrollToAlignment !== prevProps.scrollToAlignment || scrollToCell !== prevProps.scrollToCell || width !== prevProps.width) {
+        this._updateScrollPositionForScrollToCell();
+      }
+
+      // Update onRowsRendered callback if start/stop indices have changed
+      this._invokeOnSectionRenderedHelper();
+    }
+  }, {
+    key: 'componentWillMount',
+    value: function componentWillMount() {
+      var cellLayoutManager = this.props.cellLayoutManager;
+
+
+      cellLayoutManager.calculateSizeAndPositionData();
+
+      // If this component is being rendered server-side, getScrollbarSize() will return undefined.
+      // We handle this case in componentDidMount()
+      this._scrollbarSize = (0, _scrollbarSize2.default)();
+      if (this._scrollbarSize === undefined) {
+        this._scrollbarSizeMeasured = false;
+        this._scrollbarSize = 0;
+      } else {
+        this._scrollbarSizeMeasured = true;
+      }
+    }
+  }, {
+    key: 'componentWillUnmount',
+    value: function componentWillUnmount() {
+      if (this._disablePointerEventsTimeoutId) {
+        clearTimeout(this._disablePointerEventsTimeoutId);
+      }
+    }
+
+    /**
+     * @private
+     * This method updates scrollLeft/scrollTop in state for the following conditions:
+     * 1) Empty content (0 rows or columns)
+     * 2) New scroll props overriding the current state
+     * 3) Cells-count or cells-size has changed, making previous scroll offsets invalid
+     */
+
+  }, {
+    key: 'componentWillUpdate',
+    value: function componentWillUpdate(nextProps, nextState) {
+      if (nextProps.cellCount === 0 && (nextState.scrollLeft !== 0 || nextState.scrollTop !== 0)) {
+        this._setScrollPosition({
+          scrollLeft: 0,
+          scrollTop: 0
+        });
+      } else if (nextProps.scrollLeft !== this.props.scrollLeft || nextProps.scrollTop !== this.props.scrollTop) {
+        this._setScrollPosition({
+          scrollLeft: nextProps.scrollLeft,
+          scrollTop: nextProps.scrollTop
+        });
+      }
+
+      if (nextProps.cellCount !== this.props.cellCount || nextProps.cellLayoutManager !== this.props.cellLayoutManager || nextState.calculateSizeAndPositionDataOnNextUpdate) {
+        nextProps.cellLayoutManager.calculateSizeAndPositionData();
+      }
+
+      if (nextState.calculateSizeAndPositionDataOnNextUpdate) {
+        this.setState({
+          calculateSizeAndPositionDataOnNextUpdate: false
+        });
+      }
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      var _this2 = this;
+
+      var _props3 = this.props;
+      var autoHeight = _props3.autoHeight;
+      var cellCount = _props3.cellCount;
+      var cellLayoutManager = _props3.cellLayoutManager;
+      var className = _props3.className;
+      var height = _props3.height;
+      var horizontalOverscanSize = _props3.horizontalOverscanSize;
+      var noContentRenderer = _props3.noContentRenderer;
+      var style = _props3.style;
+      var verticalOverscanSize = _props3.verticalOverscanSize;
+      var width = _props3.width;
+      var _state2 = this.state;
+      var isScrolling = _state2.isScrolling;
+      var scrollLeft = _state2.scrollLeft;
+      var scrollTop = _state2.scrollTop;
+
+      var _cellLayoutManager$ge2 = cellLayoutManager.getTotalSize();
+
+      var totalHeight = _cellLayoutManager$ge2.height;
+      var totalWidth = _cellLayoutManager$ge2.width;
+
+      // Safely expand the rendered area by the specified overscan amount
+
+      var left = Math.max(0, scrollLeft - horizontalOverscanSize);
+      var top = Math.max(0, scrollTop - verticalOverscanSize);
+      var right = Math.min(totalWidth, scrollLeft + width + horizontalOverscanSize);
+      var bottom = Math.min(totalHeight, scrollTop + height + verticalOverscanSize);
+
+      var childrenToDisplay = height > 0 && width > 0 ? cellLayoutManager.cellRenderers({
+        height: bottom - top,
+        isScrolling: isScrolling,
+        width: right - left,
+        x: left,
+        y: top
+      }) : [];
+
+      var collectionStyle = {
+        boxSizing: 'border-box',
+        height: autoHeight ? 'auto' : height,
+        overflow: 'auto',
+        position: 'relative',
+        WebkitOverflowScrolling: 'touch',
+        width: width,
+        willChange: 'transform'
+      };
+
+      // Force browser to hide scrollbars when we know they aren't necessary.
+      // Otherwise once scrollbars appear they may not disappear again.
+      // For more info see issue #116
+      var verticalScrollBarSize = totalHeight > height ? this._scrollbarSize : 0;
+      var horizontalScrollBarSize = totalWidth > width ? this._scrollbarSize : 0;
+      if (totalWidth + verticalScrollBarSize <= width) {
+        collectionStyle.overflowX = 'hidden';
+      }
+      if (totalHeight + horizontalScrollBarSize <= height) {
+        collectionStyle.overflowY = 'hidden';
+      }
+
+      return _react2.default.createElement(
+        'div',
+        {
+          ref: function ref(_ref) {
+            _this2._scrollingContainer = _ref;
+          },
+          'aria-label': this.props['aria-label'],
+          className: (0, _classnames2.default)('ReactVirtualized__Collection', className),
+          onScroll: this._onScroll,
+          role: 'grid',
+          style: _extends({}, collectionStyle, style),
+          tabIndex: 0
+        },
+        cellCount > 0 && _react2.default.createElement(
+          'div',
+          {
+            className: 'ReactVirtualized__Collection__innerScrollContainer',
+            style: {
+              height: totalHeight,
+              maxHeight: totalHeight,
+              maxWidth: totalWidth,
+              overflow: 'hidden',
+              pointerEvents: isScrolling ? 'none' : '',
+              width: totalWidth
+            }
+          },
+          childrenToDisplay
+        ),
+        cellCount === 0 && noContentRenderer()
+      );
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+
+    /* ---------------------------- Helper methods ---------------------------- */
+
+    /**
+     * Sets an :isScrolling flag for a small window of time.
+     * This flag is used to disable pointer events on the scrollable portion of the Collection.
+     * This prevents jerky/stuttery mouse-wheel scrolling.
+     */
+
+  }, {
+    key: '_enablePointerEventsAfterDelay',
+    value: function _enablePointerEventsAfterDelay() {
+      var _this3 = this;
+
+      if (this._disablePointerEventsTimeoutId) {
+        clearTimeout(this._disablePointerEventsTimeoutId);
+      }
+
+      this._disablePointerEventsTimeoutId = setTimeout(function () {
+        var isScrollingChange = _this3.props.isScrollingChange;
+
+
+        isScrollingChange(false);
+
+        _this3._disablePointerEventsTimeoutId = null;
+        _this3.setState({
+          isScrolling: false
+        });
+      }, IS_SCROLLING_TIMEOUT);
+    }
+  }, {
+    key: '_invokeOnSectionRenderedHelper',
+    value: function _invokeOnSectionRenderedHelper() {
+      var _props4 = this.props;
+      var cellLayoutManager = _props4.cellLayoutManager;
+      var onSectionRendered = _props4.onSectionRendered;
+
+
+      this._onSectionRenderedMemoizer({
+        callback: onSectionRendered,
+        indices: {
+          indices: cellLayoutManager.getLastRenderedIndices()
+        }
+      });
+    }
+  }, {
+    key: '_invokeOnScrollMemoizer',
+    value: function _invokeOnScrollMemoizer(_ref2) {
+      var _this4 = this;
+
+      var scrollLeft = _ref2.scrollLeft;
+      var scrollTop = _ref2.scrollTop;
+      var totalHeight = _ref2.totalHeight;
+      var totalWidth = _ref2.totalWidth;
+
+      this._onScrollMemoizer({
+        callback: function callback(_ref3) {
+          var scrollLeft = _ref3.scrollLeft;
+          var scrollTop = _ref3.scrollTop;
+          var _props5 = _this4.props;
+          var height = _props5.height;
+          var onScroll = _props5.onScroll;
+          var width = _props5.width;
+
+
+          onScroll({
+            clientHeight: height,
+            clientWidth: width,
+            scrollHeight: totalHeight,
+            scrollLeft: scrollLeft,
+            scrollTop: scrollTop,
+            scrollWidth: totalWidth
+          });
+        },
+        indices: {
+          scrollLeft: scrollLeft,
+          scrollTop: scrollTop
+        }
+      });
+    }
+  }, {
+    key: '_setScrollPosition',
+    value: function _setScrollPosition(_ref4) {
+      var scrollLeft = _ref4.scrollLeft;
+      var scrollTop = _ref4.scrollTop;
+
+      var newState = {
+        scrollPositionChangeReason: SCROLL_POSITION_CHANGE_REASONS.REQUESTED
+      };
+
+      if (scrollLeft >= 0) {
+        newState.scrollLeft = scrollLeft;
+      }
+
+      if (scrollTop >= 0) {
+        newState.scrollTop = scrollTop;
+      }
+
+      if (scrollLeft >= 0 && scrollLeft !== this.state.scrollLeft || scrollTop >= 0 && scrollTop !== this.state.scrollTop) {
+        this.setState(newState);
+      }
+    }
+  }, {
+    key: '_updateScrollPositionForScrollToCell',
+    value: function _updateScrollPositionForScrollToCell() {
+      var _props6 = this.props;
+      var cellLayoutManager = _props6.cellLayoutManager;
+      var height = _props6.height;
+      var scrollToAlignment = _props6.scrollToAlignment;
+      var scrollToCell = _props6.scrollToCell;
+      var width = _props6.width;
+      var _state3 = this.state;
+      var scrollLeft = _state3.scrollLeft;
+      var scrollTop = _state3.scrollTop;
+
+
+      if (scrollToCell >= 0) {
+        var scrollPosition = cellLayoutManager.getScrollPositionForCell({
+          align: scrollToAlignment,
+          cellIndex: scrollToCell,
+          height: height,
+          scrollLeft: scrollLeft,
+          scrollTop: scrollTop,
+          width: width
+        });
+
+        if (scrollPosition.scrollLeft !== scrollLeft || scrollPosition.scrollTop !== scrollTop) {
+          this._setScrollPosition(scrollPosition);
+        }
+      }
+    }
+  }, {
+    key: '_onScroll',
+    value: function _onScroll(event) {
+      // In certain edge-cases React dispatches an onScroll event with an invalid target.scrollLeft / target.scrollTop.
+      // This invalid event can be detected by comparing event.target to this component's scrollable DOM element.
+      // See issue #404 for more information.
+      if (event.target !== this._scrollingContainer) {
+        return;
+      }
+
+      // Prevent pointer events from interrupting a smooth scroll
+      this._enablePointerEventsAfterDelay();
+
+      // When this component is shrunk drastically, React dispatches a series of back-to-back scroll events,
+      // Gradually converging on a scrollTop that is within the bounds of the new, smaller height.
+      // This causes a series of rapid renders that is slow for long lists.
+      // We can avoid that by doing some simple bounds checking to ensure that scrollTop never exceeds the total height.
+      var _props7 = this.props;
+      var cellLayoutManager = _props7.cellLayoutManager;
+      var height = _props7.height;
+      var isScrollingChange = _props7.isScrollingChange;
+      var width = _props7.width;
+
+      var scrollbarSize = this._scrollbarSize;
+
+      var _cellLayoutManager$ge3 = cellLayoutManager.getTotalSize();
+
+      var totalHeight = _cellLayoutManager$ge3.height;
+      var totalWidth = _cellLayoutManager$ge3.width;
+
+      var scrollLeft = Math.max(0, Math.min(totalWidth - width + scrollbarSize, event.target.scrollLeft));
+      var scrollTop = Math.max(0, Math.min(totalHeight - height + scrollbarSize, event.target.scrollTop));
+
+      // Certain devices (like Apple touchpad) rapid-fire duplicate events.
+      // Don't force a re-render if this is the case.
+      // The mouse may move faster then the animation frame does.
+      // Use requestAnimationFrame to avoid over-updating.
+      if (this.state.scrollLeft !== scrollLeft || this.state.scrollTop !== scrollTop) {
+        // Browsers with cancelable scroll events (eg. Firefox) interrupt scrolling animations if scrollTop/scrollLeft is set.
+        // Other browsers (eg. Safari) don't scroll as well without the help under certain conditions (DOM or style changes during scrolling).
+        // All things considered, this seems to be the best current work around that I'm aware of.
+        // For more information see https://github.com/bvaughn/react-virtualized/pull/124
+        var scrollPositionChangeReason = event.cancelable ? SCROLL_POSITION_CHANGE_REASONS.OBSERVED : SCROLL_POSITION_CHANGE_REASONS.REQUESTED;
+
+        // Synchronously set :isScrolling the first time (since _setNextState will reschedule its animation frame each time it's called)
+        if (!this.state.isScrolling) {
+          isScrollingChange(true);
+        }
+
+        this.setState({
+          isScrolling: true,
+          scrollLeft: scrollLeft,
+          scrollPositionChangeReason: scrollPositionChangeReason,
+          scrollTop: scrollTop
+        });
+      }
+
+      this._invokeOnScrollMemoizer({
+        scrollLeft: scrollLeft,
+        scrollTop: scrollTop,
+        totalWidth: totalWidth,
+        totalHeight: totalHeight
+      });
+    }
+  }]);
+
+  return CollectionView;
+}(_react.Component);
+
+CollectionView.propTypes = {
+  'aria-label': _react.PropTypes.string,
+
+  /**
+   * Removes fixed height from the scrollingContainer so that the total height
+   * of rows can stretch the window. Intended for use with WindowScroller
+   */
+  autoHeight: _react.PropTypes.bool,
+
+  /**
+   * Number of cells in collection.
+   */
+  cellCount: _react.PropTypes.number.isRequired,
+
+  /**
+   * Calculates cell sizes and positions and manages rendering the appropriate cells given a specified window.
+   */
+  cellLayoutManager: _react.PropTypes.object.isRequired,
+
+  /**
+   * Optional custom CSS class name to attach to root Collection element.
+   */
+  className: _react.PropTypes.string,
+
+  /**
+   * Height of Collection; this property determines the number of visible (vs virtualized) rows.
+   */
+  height: _react.PropTypes.number.isRequired,
+
+  /**
+   * Enables the `Collection` to horiontally "overscan" its content similar to how `Grid` does.
+   * This can reduce flicker around the edges when a user scrolls quickly.
+   */
+  horizontalOverscanSize: _react.PropTypes.number.isRequired,
+
+  isScrollingChange: _react.PropTypes.func,
+
+  /**
+   * Optional renderer to be used in place of rows when either :rowCount or :cellCount is 0.
+   */
+  noContentRenderer: _react.PropTypes.func.isRequired,
+
+  /**
+   * Callback invoked whenever the scroll offset changes within the inner scrollable region.
+   * This callback can be used to sync scrolling between lists, tables, or grids.
+   * ({ clientHeight, clientWidth, scrollHeight, scrollLeft, scrollTop, scrollWidth }): void
+   */
+  onScroll: _react.PropTypes.func.isRequired,
+
+  /**
+   * Callback invoked with information about the section of the Collection that was just rendered.
+   * This callback is passed a named :indices parameter which is an Array of the most recently rendered section indices.
+   */
+  onSectionRendered: _react.PropTypes.func.isRequired,
+
+  /**
+   * Horizontal offset.
+   */
+  scrollLeft: _react.PropTypes.number,
+
+  /**
+   * Controls scroll-to-cell behavior of the Grid.
+   * The default ("auto") scrolls the least amount possible to ensure that the specified cell is fully visible.
+   * Use "start" to align cells to the top/left of the Grid and "end" to align bottom/right.
+   */
+  scrollToAlignment: _react.PropTypes.oneOf(['auto', 'end', 'start', 'center']).isRequired,
+
+  /**
+   * Cell index to ensure visible (by forcefully scrolling if necessary).
+   */
+  scrollToCell: _react.PropTypes.number,
+
+  /**
+   * Vertical offset.
+   */
+  scrollTop: _react.PropTypes.number,
+
+  /**
+   * Optional custom inline style to attach to root Collection element.
+   */
+  style: _react.PropTypes.object,
+
+  /**
+   * Enables the `Collection` to vertically "overscan" its content similar to how `Grid` does.
+   * This can reduce flicker around the edges when a user scrolls quickly.
+   */
+  verticalOverscanSize: _react.PropTypes.number.isRequired,
+
+  /**
+   * Width of Collection; this property determines the number of visible (vs virtualized) columns.
+   */
+  width: _react.PropTypes.number.isRequired
+};
+CollectionView.defaultProps = {
+  'aria-label': 'grid',
+  horizontalOverscanSize: 0,
+  noContentRenderer: function noContentRenderer() {
+    return null;
+  },
+  onScroll: function onScroll() {
+    return null;
+  },
+  onSectionRendered: function onSectionRendered() {
+    return null;
+  },
+  scrollToAlignment: 'auto',
+  style: {},
+  verticalOverscanSize: 0
+};
+exports.default = CollectionView;
+},{"../utils/createCallbackMemoizer":156,"classnames":47,"dom-helpers/util/scrollbarSize":66,"react":"react","react-addons-shallow-compare":113}],123:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+/**
+ * A section of the Window.
+ * Window Sections are used to group nearby cells.
+ * This enables us to more quickly determine which cells to display in a given region of the Window.
+ * Sections have a fixed size and contain 0 to many cells (tracked by their indices).
+ */
+var Section = function () {
+  function Section(_ref) {
+    var height = _ref.height;
+    var width = _ref.width;
+    var x = _ref.x;
+    var y = _ref.y;
+
+    _classCallCheck(this, Section);
+
+    this.height = height;
+    this.width = width;
+    this.x = x;
+    this.y = y;
+
+    this._indexMap = {};
+    this._indices = [];
+  }
+
+  /** Add a cell to this section. */
+
+
+  _createClass(Section, [{
+    key: 'addCellIndex',
+    value: function addCellIndex(_ref2) {
+      var index = _ref2.index;
+
+      if (!this._indexMap[index]) {
+        this._indexMap[index] = true;
+        this._indices.push(index);
+      }
+    }
+
+    /** Get all cell indices that have been added to this section. */
+
+  }, {
+    key: 'getCellIndices',
+    value: function getCellIndices() {
+      return this._indices;
+    }
+
+    /** Intended for debugger/test purposes only */
+
+  }, {
+    key: 'toString',
+    value: function toString() {
+      return this.x + ',' + this.y + ' ' + this.width + 'x' + this.height;
+    }
+  }]);
+
+  return Section;
+}(); /** @rlow */
+
+
+exports.default = Section;
+},{}],124:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }(); /**
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * Window Sections are used to group nearby cells.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * This enables us to more quickly determine which cells to display in a given region of the Window.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      * 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
+
+
+var _Section = require('./Section');
+
+var _Section2 = _interopRequireDefault(_Section);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var SECTION_SIZE = 100;
+
+/**
+ * Contains 0 to many Sections.
+ * Grows (and adds Sections) dynamically as cells are registered.
+ * Automatically adds cells to the appropriate Section(s).
+ */
+var SectionManager = function () {
+  function SectionManager() {
+    var sectionSize = arguments.length <= 0 || arguments[0] === undefined ? SECTION_SIZE : arguments[0];
+
+    _classCallCheck(this, SectionManager);
+
+    this._sectionSize = sectionSize;
+
+    this._cellMetadata = [];
+    this._sections = {};
+  }
+
+  /**
+   * Gets all cell indices contained in the specified region.
+   * A region may encompass 1 or more Sections.
+   */
+
+
+  _createClass(SectionManager, [{
+    key: 'getCellIndices',
+    value: function getCellIndices(_ref) {
+      var height = _ref.height;
+      var width = _ref.width;
+      var x = _ref.x;
+      var y = _ref.y;
+
+      var indices = {};
+
+      this.getSections({ height: height, width: width, x: x, y: y }).forEach(function (section) {
+        return section.getCellIndices().forEach(function (index) {
+          indices[index] = index;
+        });
+      });
+
+      // Object keys are strings; this function returns numbers
+      return Object.keys(indices).map(function (index) {
+        return indices[index];
+      });
+    }
+
+    /** Get size and position information for the cell specified. */
+
+  }, {
+    key: 'getCellMetadata',
+    value: function getCellMetadata(_ref2) {
+      var index = _ref2.index;
+
+      return this._cellMetadata[index];
+    }
+
+    /** Get all Sections overlapping the specified region. */
+
+  }, {
+    key: 'getSections',
+    value: function getSections(_ref3) {
+      var height = _ref3.height;
+      var width = _ref3.width;
+      var x = _ref3.x;
+      var y = _ref3.y;
+
+      var sectionXStart = Math.floor(x / this._sectionSize);
+      var sectionXStop = Math.floor((x + width - 1) / this._sectionSize);
+      var sectionYStart = Math.floor(y / this._sectionSize);
+      var sectionYStop = Math.floor((y + height - 1) / this._sectionSize);
+
+      var sections = [];
+
+      for (var sectionX = sectionXStart; sectionX <= sectionXStop; sectionX++) {
+        for (var sectionY = sectionYStart; sectionY <= sectionYStop; sectionY++) {
+          var key = sectionX + '.' + sectionY;
+
+          if (!this._sections[key]) {
+            this._sections[key] = new _Section2.default({
+              height: this._sectionSize,
+              width: this._sectionSize,
+              x: sectionX * this._sectionSize,
+              y: sectionY * this._sectionSize
+            });
+          }
+
+          sections.push(this._sections[key]);
+        }
+      }
+
+      return sections;
+    }
+
+    /** Total number of Sections based on the currently registered cells. */
+
+  }, {
+    key: 'getTotalSectionCount',
+    value: function getTotalSectionCount() {
+      return Object.keys(this._sections).length;
+    }
+
+    /** Intended for debugger/test purposes only */
+
+  }, {
+    key: 'toString',
+    value: function toString() {
+      var _this = this;
+
+      return Object.keys(this._sections).map(function (index) {
+        return _this._sections[index].toString();
+      });
+    }
+
+    /** Adds a cell to the appropriate Sections and registers it metadata for later retrievable. */
+
+  }, {
+    key: 'registerCell',
+    value: function registerCell(_ref4) {
+      var cellMetadatum = _ref4.cellMetadatum;
+      var index = _ref4.index;
+
+      this._cellMetadata[index] = cellMetadatum;
+
+      this.getSections(cellMetadatum).forEach(function (section) {
+        return section.addCellIndex({ index: index });
+      });
+    }
+  }]);
+
+  return SectionManager;
+}();
+
+exports.default = SectionManager;
+},{"./Section":123}],125:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.Collection = exports.default = undefined;
+
+var _Collection2 = require('./Collection');
+
+var _Collection3 = _interopRequireDefault(_Collection2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _Collection3.default;
+exports.Collection = _Collection3.default;
+},{"./Collection":121}],126:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = calculateSizeAndPositionData;
+
+var _SectionManager = require('../SectionManager');
+
+var _SectionManager2 = _interopRequireDefault(_SectionManager);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function calculateSizeAndPositionData(_ref) {
+  var cellCount = _ref.cellCount;
+  var cellSizeAndPositionGetter = _ref.cellSizeAndPositionGetter;
+  var sectionSize = _ref.sectionSize;
+
+  var cellMetadata = [];
+  var sectionManager = new _SectionManager2.default(sectionSize);
+  var height = 0;
+  var width = 0;
+
+  for (var index = 0; index < cellCount; index++) {
+    var cellMetadatum = cellSizeAndPositionGetter({ index: index });
+
+    if (cellMetadatum.height == null || isNaN(cellMetadatum.height) || cellMetadatum.width == null || isNaN(cellMetadatum.width) || cellMetadatum.x == null || isNaN(cellMetadatum.x) || cellMetadatum.y == null || isNaN(cellMetadatum.y)) {
+      throw Error('Invalid metadata returned for cell ' + index + ':\n        x:' + cellMetadatum.x + ', y:' + cellMetadatum.y + ', width:' + cellMetadatum.width + ', height:' + cellMetadatum.height);
+    }
+
+    height = Math.max(height, cellMetadatum.y + cellMetadatum.height);
+    width = Math.max(width, cellMetadatum.x + cellMetadatum.width);
+
+    cellMetadata[index] = cellMetadatum;
+    sectionManager.registerCell({
+      cellMetadatum: cellMetadatum,
+      index: index
+    });
+  }
+
+  return {
+    cellMetadata: cellMetadata,
+    height: height,
+    sectionManager: sectionManager,
+    width: width
+  };
+}
+},{"../SectionManager":124}],127:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+var _Grid = require('../Grid');
+
+var _Grid2 = _interopRequireDefault(_Grid);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * High-order component that auto-calculates column-widths for `Grid` cells.
+ */
+var ColumnSizer = function (_Component) {
+  _inherits(ColumnSizer, _Component);
+
+  function ColumnSizer(props, context) {
+    _classCallCheck(this, ColumnSizer);
+
+    var _this = _possibleConstructorReturn(this, (ColumnSizer.__proto__ || Object.getPrototypeOf(ColumnSizer)).call(this, props, context));
+
+    _this._registerChild = _this._registerChild.bind(_this);
+    return _this;
+  }
+
+  _createClass(ColumnSizer, [{
+    key: 'componentDidUpdate',
+    value: function componentDidUpdate(prevProps, prevState) {
+      var _props = this.props;
+      var columnMaxWidth = _props.columnMaxWidth;
+      var columnMinWidth = _props.columnMinWidth;
+      var columnCount = _props.columnCount;
+      var width = _props.width;
+
+
+      if (columnMaxWidth !== prevProps.columnMaxWidth || columnMinWidth !== prevProps.columnMinWidth || columnCount !== prevProps.columnCount || width !== prevProps.width) {
+        if (this._registeredChild) {
+          this._registeredChild.recomputeGridSize();
+        }
+      }
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      var _props2 = this.props;
+      var children = _props2.children;
+      var columnMaxWidth = _props2.columnMaxWidth;
+      var columnMinWidth = _props2.columnMinWidth;
+      var columnCount = _props2.columnCount;
+      var width = _props2.width;
+
+
+      var safeColumnMinWidth = columnMinWidth || 1;
+
+      var safeColumnMaxWidth = columnMaxWidth ? Math.min(columnMaxWidth, width) : width;
+
+      var columnWidth = width / columnCount;
+      columnWidth = Math.max(safeColumnMinWidth, columnWidth);
+      columnWidth = Math.min(safeColumnMaxWidth, columnWidth);
+      columnWidth = Math.floor(columnWidth);
+
+      var adjustedWidth = Math.min(width, columnWidth * columnCount);
+
+      return children({
+        adjustedWidth: adjustedWidth,
+        getColumnWidth: function getColumnWidth() {
+          return columnWidth;
+        },
+        registerChild: this._registerChild
+      });
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+  }, {
+    key: '_registerChild',
+    value: function _registerChild(child) {
+      if (child !== null && !(child instanceof _Grid2.default)) {
+        throw Error('Unexpected child type registered; only Grid children are supported.');
+      }
+
+      this._registeredChild = child;
+
+      if (this._registeredChild) {
+        this._registeredChild.recomputeGridSize();
+      }
+    }
+  }]);
+
+  return ColumnSizer;
+}(_react.Component);
+
+ColumnSizer.propTypes = {
+  /**
+   * Function responsible for rendering a virtualized Grid.
+   * This function should implement the following signature:
+   * ({ adjustedWidth, getColumnWidth, registerChild }) => PropTypes.element
+   *
+   * The specified :getColumnWidth function should be passed to the Grid's :columnWidth property.
+   * The :registerChild should be passed to the Grid's :ref property.
+   * The :adjustedWidth property is optional; it reflects the lesser of the overall width or the width of all columns.
+   */
+  children: _react.PropTypes.func.isRequired,
+
+  /** Optional maximum allowed column width */
+  columnMaxWidth: _react.PropTypes.number,
+
+  /** Optional minimum allowed column width */
+  columnMinWidth: _react.PropTypes.number,
+
+  /** Number of columns in Grid or Table child */
+  columnCount: _react.PropTypes.number.isRequired,
+
+  /** Width of Grid or Table child */
+  width: _react.PropTypes.number.isRequired
+};
+exports.default = ColumnSizer;
+},{"../Grid":131,"react":"react","react-addons-shallow-compare":113}],128:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.ColumnSizer = exports.default = undefined;
+
+var _ColumnSizer2 = require('./ColumnSizer');
+
+var _ColumnSizer3 = _interopRequireDefault(_ColumnSizer2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _ColumnSizer3.default;
+exports.ColumnSizer = _ColumnSizer3.default;
+},{"./ColumnSizer":127}],129:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.DEFAULT_SCROLLING_RESET_TIME_INTERVAL = undefined;
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _classnames = require('classnames');
+
+var _classnames2 = _interopRequireDefault(_classnames);
+
+var _calculateSizeAndPositionDataAndUpdateScrollOffset = require('./utils/calculateSizeAndPositionDataAndUpdateScrollOffset');
+
+var _calculateSizeAndPositionDataAndUpdateScrollOffset2 = _interopRequireDefault(_calculateSizeAndPositionDataAndUpdateScrollOffset);
+
+var _ScalingCellSizeAndPositionManager = require('./utils/ScalingCellSizeAndPositionManager');
+
+var _ScalingCellSizeAndPositionManager2 = _interopRequireDefault(_ScalingCellSizeAndPositionManager);
+
+var _createCallbackMemoizer = require('../utils/createCallbackMemoizer');
+
+var _createCallbackMemoizer2 = _interopRequireDefault(_createCallbackMemoizer);
+
+var _getOverscanIndices = require('./utils/getOverscanIndices');
+
+var _getOverscanIndices2 = _interopRequireDefault(_getOverscanIndices);
+
+var _scrollbarSize = require('dom-helpers/util/scrollbarSize');
+
+var _scrollbarSize2 = _interopRequireDefault(_scrollbarSize);
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+var _updateScrollIndexHelper = require('./utils/updateScrollIndexHelper');
+
+var _updateScrollIndexHelper2 = _interopRequireDefault(_updateScrollIndexHelper);
+
+var _defaultCellRangeRenderer = require('./defaultCellRangeRenderer');
+
+var _defaultCellRangeRenderer2 = _interopRequireDefault(_defaultCellRangeRenderer);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * Specifies the number of miliseconds during which to disable pointer events while a scroll is in progress.
+ * This improves performance and makes scrolling smoother.
+ */
+var DEFAULT_SCROLLING_RESET_TIME_INTERVAL = exports.DEFAULT_SCROLLING_RESET_TIME_INTERVAL = 150;
+
+/**
+ * Controls whether the Grid updates the DOM element's scrollLeft/scrollTop based on the current state or just observes it.
+ * This prevents Grid from interrupting mouse-wheel animations (see issue #2).
+ */
+var SCROLL_POSITION_CHANGE_REASONS = {
+  OBSERVED: 'observed',
+  REQUESTED: 'requested'
+};
+
+/**
+ * Renders tabular data with virtualization along the vertical and horizontal axes.
+ * Row heights and column widths must be known ahead of time and specified as properties.
+ */
+
+var Grid = function (_Component) {
+  _inherits(Grid, _Component);
+
+  function Grid(props, context) {
+    _classCallCheck(this, Grid);
+
+    var _this = _possibleConstructorReturn(this, (Grid.__proto__ || Object.getPrototypeOf(Grid)).call(this, props, context));
+
+    _this.state = {
+      isScrolling: false,
+      scrollDirectionHorizontal: _getOverscanIndices.SCROLL_DIRECTION_FIXED,
+      scrollDirectionVertical: _getOverscanIndices.SCROLL_DIRECTION_FIXED,
+      scrollLeft: 0,
+      scrollTop: 0
+    };
+
+    // Invokes onSectionRendered callback only when start/stop row or column indices change
+    _this._onGridRenderedMemoizer = (0, _createCallbackMemoizer2.default)();
+    _this._onScrollMemoizer = (0, _createCallbackMemoizer2.default)(false);
+
+    // Bind functions to instance so they don't lose context when passed around
+    _this._enablePointerEventsAfterDelayCallback = _this._enablePointerEventsAfterDelayCallback.bind(_this);
+    _this._invokeOnGridRenderedHelper = _this._invokeOnGridRenderedHelper.bind(_this);
+    _this._onScroll = _this._onScroll.bind(_this);
+    _this._updateScrollLeftForScrollToColumn = _this._updateScrollLeftForScrollToColumn.bind(_this);
+    _this._updateScrollTopForScrollToRow = _this._updateScrollTopForScrollToRow.bind(_this);
+
+    _this._columnWidthGetter = _this._wrapSizeGetter(props.columnWidth);
+    _this._rowHeightGetter = _this._wrapSizeGetter(props.rowHeight);
+
+    _this._columnSizeAndPositionManager = new _ScalingCellSizeAndPositionManager2.default({
+      cellCount: props.columnCount,
+      cellSizeGetter: function cellSizeGetter(index) {
+        return _this._columnWidthGetter(index);
+      },
+      estimatedCellSize: _this._getEstimatedColumnSize(props)
+    });
+    _this._rowSizeAndPositionManager = new _ScalingCellSizeAndPositionManager2.default({
+      cellCount: props.rowCount,
+      cellSizeGetter: function cellSizeGetter(index) {
+        return _this._rowHeightGetter(index);
+      },
+      estimatedCellSize: _this._getEstimatedRowSize(props)
+    });
+
+    // See defaultCellRangeRenderer() for more information on the usage of this cache
+    _this._cellCache = {};
+    return _this;
+  }
+
+  /**
+   * Pre-measure all columns and rows in a Grid.
+   * Typically cells are only measured as needed and estimated sizes are used for cells that have not yet been measured.
+   * This method ensures that the next call to getTotalSize() returns an exact size (as opposed to just an estimated one).
+   */
+
+
+  _createClass(Grid, [{
+    key: 'measureAllCells',
+    value: function measureAllCells() {
+      var _props = this.props;
+      var columnCount = _props.columnCount;
+      var rowCount = _props.rowCount;
+
+
+      this._columnSizeAndPositionManager.getSizeAndPositionOfCell(columnCount - 1);
+      this._rowSizeAndPositionManager.getSizeAndPositionOfCell(rowCount - 1);
+    }
+
+    /**
+     * Forced recompute of row heights and column widths.
+     * This function should be called if dynamic column or row sizes have changed but nothing else has.
+     * Since Grid only receives :columnCount and :rowCount it has no way of detecting when the underlying data changes.
+     */
+
+  }, {
+    key: 'recomputeGridSize',
+    value: function recomputeGridSize() {
+      var _ref = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+      var _ref$columnIndex = _ref.columnIndex;
+      var columnIndex = _ref$columnIndex === undefined ? 0 : _ref$columnIndex;
+      var _ref$rowIndex = _ref.rowIndex;
+      var rowIndex = _ref$rowIndex === undefined ? 0 : _ref$rowIndex;
+
+      this._columnSizeAndPositionManager.resetCell(columnIndex);
+      this._rowSizeAndPositionManager.resetCell(rowIndex);
+
+      // Clear cell cache in case we are scrolling;
+      // Invalid row heights likely mean invalid cached content as well.
+      this._cellCache = {};
+
+      this.forceUpdate();
+    }
+  }, {
+    key: 'componentDidMount',
+    value: function componentDidMount() {
+      var _props2 = this.props;
+      var scrollLeft = _props2.scrollLeft;
+      var scrollToColumn = _props2.scrollToColumn;
+      var scrollTop = _props2.scrollTop;
+      var scrollToRow = _props2.scrollToRow;
+
+      // If this component was first rendered server-side, scrollbar size will be undefined.
+      // In that event we need to remeasure.
+
+      if (!this._scrollbarSizeMeasured) {
+        this._scrollbarSize = (0, _scrollbarSize2.default)();
+        this._scrollbarSizeMeasured = true;
+        this.setState({});
+      }
+
+      if (scrollLeft >= 0 || scrollTop >= 0) {
+        this._setScrollPosition({ scrollLeft: scrollLeft, scrollTop: scrollTop });
+      }
+
+      if (scrollToColumn >= 0 || scrollToRow >= 0) {
+        this._updateScrollLeftForScrollToColumn();
+        this._updateScrollTopForScrollToRow();
+      }
+
+      // Update onRowsRendered callback
+      this._invokeOnGridRenderedHelper();
+
+      // Initialize onScroll callback
+      this._invokeOnScrollMemoizer({
+        scrollLeft: scrollLeft || 0,
+        scrollTop: scrollTop || 0,
+        totalColumnsWidth: this._columnSizeAndPositionManager.getTotalSize(),
+        totalRowsHeight: this._rowSizeAndPositionManager.getTotalSize()
+      });
+    }
+
+    /**
+     * @private
+     * This method updates scrollLeft/scrollTop in state for the following conditions:
+     * 1) New scroll-to-cell props have been set
+     */
+
+  }, {
+    key: 'componentDidUpdate',
+    value: function componentDidUpdate(prevProps, prevState) {
+      var _this2 = this;
+
+      var _props3 = this.props;
+      var autoHeight = _props3.autoHeight;
+      var columnCount = _props3.columnCount;
+      var height = _props3.height;
+      var rowCount = _props3.rowCount;
+      var scrollToAlignment = _props3.scrollToAlignment;
+      var scrollToColumn = _props3.scrollToColumn;
+      var scrollToRow = _props3.scrollToRow;
+      var width = _props3.width;
+      var _state = this.state;
+      var scrollLeft = _state.scrollLeft;
+      var scrollPositionChangeReason = _state.scrollPositionChangeReason;
+      var scrollTop = _state.scrollTop;
+
+      // Handle edge case where column or row count has only just increased over 0.
+      // In this case we may have to restore a previously-specified scroll offset.
+      // For more info see bvaughn/react-virtualized/issues/218
+
+      var columnOrRowCountJustIncreasedFromZero = columnCount > 0 && prevProps.columnCount === 0 || rowCount > 0 && prevProps.rowCount === 0;
+
+      // Make sure requested changes to :scrollLeft or :scrollTop get applied.
+      // Assigning to scrollLeft/scrollTop tells the browser to interrupt any running scroll animations,
+      // And to discard any pending async changes to the scroll position that may have happened in the meantime (e.g. on a separate scrolling thread).
+      // So we only set these when we require an adjustment of the scroll position.
+      // See issue #2 for more information.
+      if (scrollPositionChangeReason === SCROLL_POSITION_CHANGE_REASONS.REQUESTED) {
+        if (scrollLeft >= 0 && (scrollLeft !== prevState.scrollLeft && scrollLeft !== this._scrollingContainer.scrollLeft || columnOrRowCountJustIncreasedFromZero)) {
+          this._scrollingContainer.scrollLeft = scrollLeft;
+        }
+
+        // @TRICKY :autoHeight property instructs Grid to leave :scrollTop management to an external HOC (eg WindowScroller).
+        // In this case we should avoid checking scrollingContainer.scrollTop since it forces layout/flow.
+        if (!autoHeight && scrollTop >= 0 && (scrollTop !== prevState.scrollTop && scrollTop !== this._scrollingContainer.scrollTop || columnOrRowCountJustIncreasedFromZero)) {
+          this._scrollingContainer.scrollTop = scrollTop;
+        }
+      }
+
+      // Update scroll offsets if the current :scrollToColumn or :scrollToRow values requires it
+      // @TODO Do we also need this check or can the one in componentWillUpdate() suffice?
+      (0, _updateScrollIndexHelper2.default)({
+        cellSizeAndPositionManager: this._columnSizeAndPositionManager,
+        previousCellsCount: prevProps.columnCount,
+        previousCellSize: prevProps.columnWidth,
+        previousScrollToAlignment: prevProps.scrollToAlignment,
+        previousScrollToIndex: prevProps.scrollToColumn,
+        previousSize: prevProps.width,
+        scrollOffset: scrollLeft,
+        scrollToAlignment: scrollToAlignment,
+        scrollToIndex: scrollToColumn,
+        size: width,
+        updateScrollIndexCallback: function updateScrollIndexCallback(scrollToColumn) {
+          return _this2._updateScrollLeftForScrollToColumn(_extends({}, _this2.props, { scrollToColumn: scrollToColumn }));
+        }
+      });
+      (0, _updateScrollIndexHelper2.default)({
+        cellSizeAndPositionManager: this._rowSizeAndPositionManager,
+        previousCellsCount: prevProps.rowCount,
+        previousCellSize: prevProps.rowHeight,
+        previousScrollToAlignment: prevProps.scrollToAlignment,
+        previousScrollToIndex: prevProps.scrollToRow,
+        previousSize: prevProps.height,
+        scrollOffset: scrollTop,
+        scrollToAlignment: scrollToAlignment,
+        scrollToIndex: scrollToRow,
+        size: height,
+        updateScrollIndexCallback: function updateScrollIndexCallback(scrollToRow) {
+          return _this2._updateScrollTopForScrollToRow(_extends({}, _this2.props, { scrollToRow: scrollToRow }));
+        }
+      });
+
+      // Update onRowsRendered callback if start/stop indices have changed
+      this._invokeOnGridRenderedHelper();
+
+      // Changes to :scrollLeft or :scrollTop should also notify :onScroll listeners
+      if (scrollLeft !== prevState.scrollLeft || scrollTop !== prevState.scrollTop) {
+        var totalRowsHeight = this._rowSizeAndPositionManager.getTotalSize();
+        var totalColumnsWidth = this._columnSizeAndPositionManager.getTotalSize();
+
+        this._invokeOnScrollMemoizer({ scrollLeft: scrollLeft, scrollTop: scrollTop, totalColumnsWidth: totalColumnsWidth, totalRowsHeight: totalRowsHeight });
+      }
+    }
+  }, {
+    key: 'componentWillMount',
+    value: function componentWillMount() {
+      // If this component is being rendered server-side, getScrollbarSize() will return undefined.
+      // We handle this case in componentDidMount()
+      this._scrollbarSize = (0, _scrollbarSize2.default)();
+      if (this._scrollbarSize === undefined) {
+        this._scrollbarSizeMeasured = false;
+        this._scrollbarSize = 0;
+      } else {
+        this._scrollbarSizeMeasured = true;
+      }
+
+      this._calculateChildrenToRender();
+    }
+  }, {
+    key: 'componentWillUnmount',
+    value: function componentWillUnmount() {
+      if (this._disablePointerEventsTimeoutId) {
+        clearTimeout(this._disablePointerEventsTimeoutId);
+      }
+    }
+
+    /**
+     * @private
+     * This method updates scrollLeft/scrollTop in state for the following conditions:
+     * 1) Empty content (0 rows or columns)
+     * 2) New scroll props overriding the current state
+     * 3) Cells-count or cells-size has changed, making previous scroll offsets invalid
+     */
+
+  }, {
+    key: 'componentWillUpdate',
+    value: function componentWillUpdate(nextProps, nextState) {
+      var _this3 = this;
+
+      if (nextProps.columnCount === 0 && nextState.scrollLeft !== 0 || nextProps.rowCount === 0 && nextState.scrollTop !== 0) {
+        this._setScrollPosition({
+          scrollLeft: 0,
+          scrollTop: 0
+        });
+      } else if (nextProps.scrollLeft !== this.props.scrollLeft || nextProps.scrollTop !== this.props.scrollTop) {
+        this._setScrollPosition({
+          scrollLeft: nextProps.scrollLeft,
+          scrollTop: nextProps.scrollTop
+        });
+      }
+
+      this._columnWidthGetter = this._wrapSizeGetter(nextProps.columnWidth);
+      this._rowHeightGetter = this._wrapSizeGetter(nextProps.rowHeight);
+
+      this._columnSizeAndPositionManager.configure({
+        cellCount: nextProps.columnCount,
+        estimatedCellSize: this._getEstimatedColumnSize(nextProps)
+      });
+      this._rowSizeAndPositionManager.configure({
+        cellCount: nextProps.rowCount,
+        estimatedCellSize: this._getEstimatedRowSize(nextProps)
+      });
+
+      // Update scroll offsets if the size or number of cells have changed, invalidating the previous value
+      (0, _calculateSizeAndPositionDataAndUpdateScrollOffset2.default)({
+        cellCount: this.props.columnCount,
+        cellSize: this.props.columnWidth,
+        computeMetadataCallback: function computeMetadataCallback() {
+          return _this3._columnSizeAndPositionManager.resetCell(0);
+        },
+        computeMetadataCallbackProps: nextProps,
+        nextCellsCount: nextProps.columnCount,
+        nextCellSize: nextProps.columnWidth,
+        nextScrollToIndex: nextProps.scrollToColumn,
+        scrollToIndex: this.props.scrollToColumn,
+        updateScrollOffsetForScrollToIndex: function updateScrollOffsetForScrollToIndex() {
+          return _this3._updateScrollLeftForScrollToColumn(nextProps, nextState);
+        }
+      });
+      (0, _calculateSizeAndPositionDataAndUpdateScrollOffset2.default)({
+        cellCount: this.props.rowCount,
+        cellSize: this.props.rowHeight,
+        computeMetadataCallback: function computeMetadataCallback() {
+          return _this3._rowSizeAndPositionManager.resetCell(0);
+        },
+        computeMetadataCallbackProps: nextProps,
+        nextCellsCount: nextProps.rowCount,
+        nextCellSize: nextProps.rowHeight,
+        nextScrollToIndex: nextProps.scrollToRow,
+        scrollToIndex: this.props.scrollToRow,
+        updateScrollOffsetForScrollToIndex: function updateScrollOffsetForScrollToIndex() {
+          return _this3._updateScrollTopForScrollToRow(nextProps, nextState);
+        }
+      });
+
+      this._calculateChildrenToRender(nextProps, nextState);
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      var _this4 = this;
+
+      var _props4 = this.props;
+      var autoContainerWidth = _props4.autoContainerWidth;
+      var autoHeight = _props4.autoHeight;
+      var className = _props4.className;
+      var containerStyle = _props4.containerStyle;
+      var height = _props4.height;
+      var noContentRenderer = _props4.noContentRenderer;
+      var style = _props4.style;
+      var tabIndex = _props4.tabIndex;
+      var width = _props4.width;
+      var isScrolling = this.state.isScrolling;
+
+
+      var gridStyle = {
+        boxSizing: 'border-box',
+        height: autoHeight ? 'auto' : height,
+        position: 'relative',
+        width: width,
+        WebkitOverflowScrolling: 'touch',
+        willChange: 'transform'
+      };
+
+      var totalColumnsWidth = this._columnSizeAndPositionManager.getTotalSize();
+      var totalRowsHeight = this._rowSizeAndPositionManager.getTotalSize();
+
+      // Force browser to hide scrollbars when we know they aren't necessary.
+      // Otherwise once scrollbars appear they may not disappear again.
+      // For more info see issue #116
+      var verticalScrollBarSize = totalRowsHeight > height ? this._scrollbarSize : 0;
+      var horizontalScrollBarSize = totalColumnsWidth > width ? this._scrollbarSize : 0;
+
+      // Also explicitly init styles to 'auto' if scrollbars are required.
+      // This works around an obscure edge case where external CSS styles have not yet been loaded,
+      // But an initial scroll index of offset is set as an external prop.
+      // Without this style, Grid would render the correct range of cells but would NOT update its internal offset.
+      // This was originally reported via clauderic/react-infinite-calendar/issues/23
+      gridStyle.overflowX = totalColumnsWidth + verticalScrollBarSize <= width ? 'hidden' : 'auto';
+      gridStyle.overflowY = totalRowsHeight + horizontalScrollBarSize <= height ? 'hidden' : 'auto';
+
+      var childrenToDisplay = this._childrenToDisplay;
+
+      var showNoContentRenderer = childrenToDisplay.length === 0 && height > 0 && width > 0;
+
+      return _react2.default.createElement(
+        'div',
+        {
+          ref: function ref(_ref2) {
+            _this4._scrollingContainer = _ref2;
+          },
+          'aria-label': this.props['aria-label'],
+          className: (0, _classnames2.default)('ReactVirtualized__Grid', className),
+          onScroll: this._onScroll,
+          role: 'grid',
+          style: _extends({}, gridStyle, style),
+          tabIndex: tabIndex
+        },
+        childrenToDisplay.length > 0 && _react2.default.createElement(
+          'div',
+          {
+            className: 'ReactVirtualized__Grid__innerScrollContainer',
+            style: _extends({
+              width: autoContainerWidth ? 'auto' : totalColumnsWidth,
+              height: totalRowsHeight,
+              maxWidth: totalColumnsWidth,
+              maxHeight: totalRowsHeight,
+              overflow: 'hidden',
+              pointerEvents: isScrolling ? 'none' : ''
+            }, containerStyle)
+          },
+          childrenToDisplay
+        ),
+        showNoContentRenderer && noContentRenderer()
+      );
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+
+    /* ---------------------------- Helper methods ---------------------------- */
+
+  }, {
+    key: '_calculateChildrenToRender',
+    value: function _calculateChildrenToRender() {
+      var props = arguments.length <= 0 || arguments[0] === undefined ? this.props : arguments[0];
+      var state = arguments.length <= 1 || arguments[1] === undefined ? this.state : arguments[1];
+      var cellRenderer = props.cellRenderer;
+      var cellRangeRenderer = props.cellRangeRenderer;
+      var columnCount = props.columnCount;
+      var height = props.height;
+      var overscanColumnCount = props.overscanColumnCount;
+      var overscanRowCount = props.overscanRowCount;
+      var rowCount = props.rowCount;
+      var width = props.width;
+      var isScrolling = state.isScrolling;
+      var scrollDirectionHorizontal = state.scrollDirectionHorizontal;
+      var scrollDirectionVertical = state.scrollDirectionVertical;
+      var scrollLeft = state.scrollLeft;
+      var scrollTop = state.scrollTop;
+
+
+      this._childrenToDisplay = [];
+
+      // Render only enough columns and rows to cover the visible area of the grid.
+      if (height > 0 && width > 0) {
+        var visibleColumnIndices = this._columnSizeAndPositionManager.getVisibleCellRange({
+          containerSize: width,
+          offset: scrollLeft
+        });
+        var visibleRowIndices = this._rowSizeAndPositionManager.getVisibleCellRange({
+          containerSize: height,
+          offset: scrollTop
+        });
+
+        var horizontalOffsetAdjustment = this._columnSizeAndPositionManager.getOffsetAdjustment({
+          containerSize: width,
+          offset: scrollLeft
+        });
+        var verticalOffsetAdjustment = this._rowSizeAndPositionManager.getOffsetAdjustment({
+          containerSize: height,
+          offset: scrollTop
+        });
+
+        // Store for _invokeOnGridRenderedHelper()
+        this._renderedColumnStartIndex = visibleColumnIndices.start;
+        this._renderedColumnStopIndex = visibleColumnIndices.stop;
+        this._renderedRowStartIndex = visibleRowIndices.start;
+        this._renderedRowStopIndex = visibleRowIndices.stop;
+
+        var overscanColumnIndices = (0, _getOverscanIndices2.default)({
+          cellCount: columnCount,
+          overscanCellsCount: overscanColumnCount,
+          scrollDirection: scrollDirectionHorizontal,
+          startIndex: this._renderedColumnStartIndex,
+          stopIndex: this._renderedColumnStopIndex
+        });
+
+        var overscanRowIndices = (0, _getOverscanIndices2.default)({
+          cellCount: rowCount,
+          overscanCellsCount: overscanRowCount,
+          scrollDirection: scrollDirectionVertical,
+          startIndex: this._renderedRowStartIndex,
+          stopIndex: this._renderedRowStopIndex
+        });
+
+        // Store for _invokeOnGridRenderedHelper()
+        this._columnStartIndex = overscanColumnIndices.overscanStartIndex;
+        this._columnStopIndex = overscanColumnIndices.overscanStopIndex;
+        this._rowStartIndex = overscanRowIndices.overscanStartIndex;
+        this._rowStopIndex = overscanRowIndices.overscanStopIndex;
+
+        this._childrenToDisplay = cellRangeRenderer({
+          cellCache: this._cellCache,
+          cellRenderer: cellRenderer,
+          columnSizeAndPositionManager: this._columnSizeAndPositionManager,
+          columnStartIndex: this._columnStartIndex,
+          columnStopIndex: this._columnStopIndex,
+          horizontalOffsetAdjustment: horizontalOffsetAdjustment,
+          isScrolling: isScrolling,
+          rowSizeAndPositionManager: this._rowSizeAndPositionManager,
+          rowStartIndex: this._rowStartIndex,
+          rowStopIndex: this._rowStopIndex,
+          scrollLeft: scrollLeft,
+          scrollTop: scrollTop,
+          verticalOffsetAdjustment: verticalOffsetAdjustment
+        });
+      }
+    }
+
+    /**
+     * Sets an :isScrolling flag for a small window of time.
+     * This flag is used to disable pointer events on the scrollable portion of the Grid.
+     * This prevents jerky/stuttery mouse-wheel scrolling.
+     */
+
+  }, {
+    key: '_enablePointerEventsAfterDelay',
+    value: function _enablePointerEventsAfterDelay() {
+      var scrollingResetTimeInterval = this.props.scrollingResetTimeInterval;
+
+
+      if (this._disablePointerEventsTimeoutId) {
+        clearTimeout(this._disablePointerEventsTimeoutId);
+      }
+
+      this._disablePointerEventsTimeoutId = setTimeout(this._enablePointerEventsAfterDelayCallback, scrollingResetTimeInterval);
+    }
+  }, {
+    key: '_enablePointerEventsAfterDelayCallback',
+    value: function _enablePointerEventsAfterDelayCallback() {
+      this._disablePointerEventsTimeoutId = null;
+
+      // Throw away cell cache once scrolling is complete
+      this._cellCache = {};
+
+      this.setState({
+        isScrolling: false,
+        scrollDirectionHorizontal: _getOverscanIndices.SCROLL_DIRECTION_FIXED,
+        scrollDirectionVertical: _getOverscanIndices.SCROLL_DIRECTION_FIXED
+      });
+    }
+  }, {
+    key: '_getEstimatedColumnSize',
+    value: function _getEstimatedColumnSize(props) {
+      return typeof props.columnWidth === 'number' ? props.columnWidth : props.estimatedColumnSize;
+    }
+  }, {
+    key: '_getEstimatedRowSize',
+    value: function _getEstimatedRowSize(props) {
+      return typeof props.rowHeight === 'number' ? props.rowHeight : props.estimatedRowSize;
+    }
+  }, {
+    key: '_invokeOnGridRenderedHelper',
+    value: function _invokeOnGridRenderedHelper() {
+      var onSectionRendered = this.props.onSectionRendered;
+
+
+      this._onGridRenderedMemoizer({
+        callback: onSectionRendered,
+        indices: {
+          columnOverscanStartIndex: this._columnStartIndex,
+          columnOverscanStopIndex: this._columnStopIndex,
+          columnStartIndex: this._renderedColumnStartIndex,
+          columnStopIndex: this._renderedColumnStopIndex,
+          rowOverscanStartIndex: this._rowStartIndex,
+          rowOverscanStopIndex: this._rowStopIndex,
+          rowStartIndex: this._renderedRowStartIndex,
+          rowStopIndex: this._renderedRowStopIndex
+        }
+      });
+    }
+  }, {
+    key: '_invokeOnScrollMemoizer',
+    value: function _invokeOnScrollMemoizer(_ref3) {
+      var _this5 = this;
+
+      var scrollLeft = _ref3.scrollLeft;
+      var scrollTop = _ref3.scrollTop;
+      var totalColumnsWidth = _ref3.totalColumnsWidth;
+      var totalRowsHeight = _ref3.totalRowsHeight;
+
+      this._onScrollMemoizer({
+        callback: function callback(_ref4) {
+          var scrollLeft = _ref4.scrollLeft;
+          var scrollTop = _ref4.scrollTop;
+          var _props5 = _this5.props;
+          var height = _props5.height;
+          var onScroll = _props5.onScroll;
+          var width = _props5.width;
+
+
+          onScroll({
+            clientHeight: height,
+            clientWidth: width,
+            scrollHeight: totalRowsHeight,
+            scrollLeft: scrollLeft,
+            scrollTop: scrollTop,
+            scrollWidth: totalColumnsWidth
+          });
+        },
+        indices: {
+          scrollLeft: scrollLeft,
+          scrollTop: scrollTop
+        }
+      });
+    }
+  }, {
+    key: '_setScrollPosition',
+    value: function _setScrollPosition(_ref5) {
+      var scrollLeft = _ref5.scrollLeft;
+      var scrollTop = _ref5.scrollTop;
+
+      var newState = {
+        scrollPositionChangeReason: SCROLL_POSITION_CHANGE_REASONS.REQUESTED
+      };
+
+      if (scrollLeft >= 0) {
+        newState.scrollLeft = scrollLeft;
+      }
+
+      if (scrollTop >= 0) {
+        newState.scrollTop = scrollTop;
+      }
+
+      if (scrollLeft >= 0 && scrollLeft !== this.state.scrollLeft || scrollTop >= 0 && scrollTop !== this.state.scrollTop) {
+        this.setState(newState);
+      }
+    }
+  }, {
+    key: '_wrapPropertyGetter',
+    value: function _wrapPropertyGetter(value) {
+      return value instanceof Function ? value : function () {
+        return value;
+      };
+    }
+  }, {
+    key: '_wrapSizeGetter',
+    value: function _wrapSizeGetter(size) {
+      return this._wrapPropertyGetter(size);
+    }
+  }, {
+    key: '_updateScrollLeftForScrollToColumn',
+    value: function _updateScrollLeftForScrollToColumn() {
+      var props = arguments.length <= 0 || arguments[0] === undefined ? this.props : arguments[0];
+      var state = arguments.length <= 1 || arguments[1] === undefined ? this.state : arguments[1];
+      var columnCount = props.columnCount;
+      var scrollToAlignment = props.scrollToAlignment;
+      var scrollToColumn = props.scrollToColumn;
+      var width = props.width;
+      var scrollLeft = state.scrollLeft;
+
+
+      if (scrollToColumn >= 0 && columnCount > 0) {
+        var targetIndex = Math.max(0, Math.min(columnCount - 1, scrollToColumn));
+
+        var calculatedScrollLeft = this._columnSizeAndPositionManager.getUpdatedOffsetForIndex({
+          align: scrollToAlignment,
+          containerSize: width,
+          currentOffset: scrollLeft,
+          targetIndex: targetIndex
+        });
+
+        if (scrollLeft !== calculatedScrollLeft) {
+          this._setScrollPosition({
+            scrollLeft: calculatedScrollLeft
+          });
+        }
+      }
+    }
+  }, {
+    key: '_updateScrollTopForScrollToRow',
+    value: function _updateScrollTopForScrollToRow() {
+      var props = arguments.length <= 0 || arguments[0] === undefined ? this.props : arguments[0];
+      var state = arguments.length <= 1 || arguments[1] === undefined ? this.state : arguments[1];
+      var height = props.height;
+      var rowCount = props.rowCount;
+      var scrollToAlignment = props.scrollToAlignment;
+      var scrollToRow = props.scrollToRow;
+      var scrollTop = state.scrollTop;
+
+
+      if (scrollToRow >= 0 && rowCount > 0) {
+        var targetIndex = Math.max(0, Math.min(rowCount - 1, scrollToRow));
+
+        var calculatedScrollTop = this._rowSizeAndPositionManager.getUpdatedOffsetForIndex({
+          align: scrollToAlignment,
+          containerSize: height,
+          currentOffset: scrollTop,
+          targetIndex: targetIndex
+        });
+
+        if (scrollTop !== calculatedScrollTop) {
+          this._setScrollPosition({
+            scrollTop: calculatedScrollTop
+          });
+        }
+      }
+    }
+  }, {
+    key: '_onScroll',
+    value: function _onScroll(event) {
+      // In certain edge-cases React dispatches an onScroll event with an invalid target.scrollLeft / target.scrollTop.
+      // This invalid event can be detected by comparing event.target to this component's scrollable DOM element.
+      // See issue #404 for more information.
+      if (event.target !== this._scrollingContainer) {
+        return;
+      }
+
+      // Prevent pointer events from interrupting a smooth scroll
+      this._enablePointerEventsAfterDelay();
+
+      // When this component is shrunk drastically, React dispatches a series of back-to-back scroll events,
+      // Gradually converging on a scrollTop that is within the bounds of the new, smaller height.
+      // This causes a series of rapid renders that is slow for long lists.
+      // We can avoid that by doing some simple bounds checking to ensure that scrollTop never exceeds the total height.
+      var _props6 = this.props;
+      var height = _props6.height;
+      var width = _props6.width;
+
+      var scrollbarSize = this._scrollbarSize;
+      var totalRowsHeight = this._rowSizeAndPositionManager.getTotalSize();
+      var totalColumnsWidth = this._columnSizeAndPositionManager.getTotalSize();
+      var scrollLeft = Math.min(Math.max(0, totalColumnsWidth - width + scrollbarSize), event.target.scrollLeft);
+      var scrollTop = Math.min(Math.max(0, totalRowsHeight - height + scrollbarSize), event.target.scrollTop);
+
+      // Certain devices (like Apple touchpad) rapid-fire duplicate events.
+      // Don't force a re-render if this is the case.
+      // The mouse may move faster then the animation frame does.
+      // Use requestAnimationFrame to avoid over-updating.
+      if (this.state.scrollLeft !== scrollLeft || this.state.scrollTop !== scrollTop) {
+        // Track scrolling direction so we can more efficiently overscan rows to reduce empty space around the edges while scrolling.
+        var scrollDirectionVertical = scrollTop > this.state.scrollTop ? _getOverscanIndices.SCROLL_DIRECTION_FORWARD : _getOverscanIndices.SCROLL_DIRECTION_BACKWARD;
+        var scrollDirectionHorizontal = scrollLeft > this.state.scrollLeft ? _getOverscanIndices.SCROLL_DIRECTION_FORWARD : _getOverscanIndices.SCROLL_DIRECTION_BACKWARD;
+
+        this.setState({
+          isScrolling: true,
+          scrollDirectionHorizontal: scrollDirectionHorizontal,
+          scrollDirectionVertical: scrollDirectionVertical,
+          scrollLeft: scrollLeft,
+          scrollPositionChangeReason: SCROLL_POSITION_CHANGE_REASONS.OBSERVED,
+          scrollTop: scrollTop
+        });
+      }
+
+      this._invokeOnScrollMemoizer({ scrollLeft: scrollLeft, scrollTop: scrollTop, totalColumnsWidth: totalColumnsWidth, totalRowsHeight: totalRowsHeight });
+    }
+  }]);
+
+  return Grid;
+}(_react.Component);
+
+Grid.propTypes = {
+  'aria-label': _react.PropTypes.string,
+
+  /**
+   * Set the width of the inner scrollable container to 'auto'.
+   * This is useful for single-column Grids to ensure that the column doesn't extend below a vertical scrollbar.
+   */
+  autoContainerWidth: _react.PropTypes.bool,
+
+  /**
+   * Removes fixed height from the scrollingContainer so that the total height
+   * of rows can stretch the window. Intended for use with WindowScroller
+   */
+  autoHeight: _react.PropTypes.bool,
+
+  /**
+   * Responsible for rendering a cell given an row and column index.
+   * Should implement the following interface: ({ columnIndex: number, rowIndex: number }): PropTypes.node
+   */
+  cellRenderer: _react.PropTypes.func.isRequired,
+
+  /**
+   * Responsible for rendering a group of cells given their index ranges.
+   * Should implement the following interface: ({
+   *   cellCache: Map,
+   *   cellRenderer: Function,
+   *   columnSizeAndPositionManager: CellSizeAndPositionManager,
+   *   columnStartIndex: number,
+   *   columnStopIndex: number,
+   *   isScrolling: boolean,
+   *   rowSizeAndPositionManager: CellSizeAndPositionManager,
+   *   rowStartIndex: number,
+   *   rowStopIndex: number,
+   *   scrollLeft: number,
+   *   scrollTop: number
+   * }): Array<PropTypes.node>
+   */
+  cellRangeRenderer: _react.PropTypes.func.isRequired,
+
+  /**
+   * Optional custom CSS class name to attach to root Grid element.
+   */
+  className: _react.PropTypes.string,
+
+  /**
+   * Number of columns in grid.
+   */
+  columnCount: _react.PropTypes.number.isRequired,
+
+  /**
+   * Either a fixed column width (number) or a function that returns the width of a column given its index.
+   * Should implement the following interface: (index: number): number
+   */
+  columnWidth: _react.PropTypes.oneOfType([_react.PropTypes.number, _react.PropTypes.func]).isRequired,
+
+  /** Optional inline style applied to inner cell-container */
+  containerStyle: _react.PropTypes.object,
+
+  /**
+   * Used to estimate the total width of a Grid before all of its columns have actually been measured.
+   * The estimated total width is adjusted as columns are rendered.
+   */
+  estimatedColumnSize: _react.PropTypes.number.isRequired,
+
+  /**
+   * Used to estimate the total height of a Grid before all of its rows have actually been measured.
+   * The estimated total height is adjusted as rows are rendered.
+   */
+  estimatedRowSize: _react.PropTypes.number.isRequired,
+
+  /**
+   * Height of Grid; this property determines the number of visible (vs virtualized) rows.
+   */
+  height: _react.PropTypes.number.isRequired,
+
+  /**
+   * Optional renderer to be used in place of rows when either :rowCount or :columnCount is 0.
+   */
+  noContentRenderer: _react.PropTypes.func.isRequired,
+
+  /**
+   * Callback invoked whenever the scroll offset changes within the inner scrollable region.
+   * This callback can be used to sync scrolling between lists, tables, or grids.
+   * ({ clientHeight, clientWidth, scrollHeight, scrollLeft, scrollTop, scrollWidth }): void
+   */
+  onScroll: _react.PropTypes.func.isRequired,
+
+  /**
+   * Callback invoked with information about the section of the Grid that was just rendered.
+   * ({ columnStartIndex, columnStopIndex, rowStartIndex, rowStopIndex }): void
+   */
+  onSectionRendered: _react.PropTypes.func.isRequired,
+
+  /**
+   * Number of columns to render before/after the visible section of the grid.
+   * These columns can help for smoother scrolling on touch devices or browsers that send scroll events infrequently.
+   */
+  overscanColumnCount: _react.PropTypes.number.isRequired,
+
+  /**
+   * Number of rows to render above/below the visible section of the grid.
+   * These rows can help for smoother scrolling on touch devices or browsers that send scroll events infrequently.
+   */
+  overscanRowCount: _react.PropTypes.number.isRequired,
+
+  /**
+   * Either a fixed row height (number) or a function that returns the height of a row given its index.
+   * Should implement the following interface: ({ index: number }): number
+   */
+  rowHeight: _react.PropTypes.oneOfType([_react.PropTypes.number, _react.PropTypes.func]).isRequired,
+
+  /**
+   * Number of rows in grid.
+   */
+  rowCount: _react.PropTypes.number.isRequired,
+
+  /** Wait this amount of time after the last scroll event before resetting Grid `pointer-events`. */
+  scrollingResetTimeInterval: _react.PropTypes.number,
+
+  /** Horizontal offset. */
+  scrollLeft: _react.PropTypes.number,
+
+  /**
+   * Controls scroll-to-cell behavior of the Grid.
+   * The default ("auto") scrolls the least amount possible to ensure that the specified cell is fully visible.
+   * Use "start" to align cells to the top/left of the Grid and "end" to align bottom/right.
+   */
+  scrollToAlignment: _react.PropTypes.oneOf(['auto', 'end', 'start', 'center']).isRequired,
+
+  /**
+   * Column index to ensure visible (by forcefully scrolling if necessary)
+   */
+  scrollToColumn: _react.PropTypes.number,
+
+  /** Vertical offset. */
+  scrollTop: _react.PropTypes.number,
+
+  /**
+   * Row index to ensure visible (by forcefully scrolling if necessary)
+   */
+  scrollToRow: _react.PropTypes.number,
+
+  /** Optional inline style */
+  style: _react.PropTypes.object,
+
+  /** Tab index for focus */
+  tabIndex: _react.PropTypes.number,
+
+  /**
+   * Width of Grid; this property determines the number of visible (vs virtualized) columns.
+   */
+  width: _react.PropTypes.number.isRequired
+};
+Grid.defaultProps = {
+  'aria-label': 'grid',
+  cellRangeRenderer: _defaultCellRangeRenderer2.default,
+  estimatedColumnSize: 100,
+  estimatedRowSize: 30,
+  noContentRenderer: function noContentRenderer() {
+    return null;
+  },
+  onScroll: function onScroll() {
+    return null;
+  },
+  onSectionRendered: function onSectionRendered() {
+    return null;
+  },
+  overscanColumnCount: 0,
+  overscanRowCount: 10,
+  scrollingResetTimeInterval: DEFAULT_SCROLLING_RESET_TIME_INTERVAL,
+  scrollToAlignment: 'auto',
+  style: {},
+  tabIndex: 0
+};
+exports.default = Grid;
+},{"../utils/createCallbackMemoizer":156,"./defaultCellRangeRenderer":130,"./utils/ScalingCellSizeAndPositionManager":133,"./utils/calculateSizeAndPositionDataAndUpdateScrollOffset":134,"./utils/getOverscanIndices":135,"./utils/updateScrollIndexHelper":136,"classnames":47,"dom-helpers/util/scrollbarSize":66,"react":"react","react-addons-shallow-compare":113}],130:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = defaultCellRangeRenderer;
+
+
+/**
+ * Default implementation of cellRangeRenderer used by Grid.
+ * This renderer supports cell-caching while the user is scrolling.
+ */
+function defaultCellRangeRenderer(_ref) {
+  var cellCache = _ref.cellCache;
+  var cellRenderer = _ref.cellRenderer;
+  var columnSizeAndPositionManager = _ref.columnSizeAndPositionManager;
+  var columnStartIndex = _ref.columnStartIndex;
+  var columnStopIndex = _ref.columnStopIndex;
+  var horizontalOffsetAdjustment = _ref.horizontalOffsetAdjustment;
+  var isScrolling = _ref.isScrolling;
+  var rowSizeAndPositionManager = _ref.rowSizeAndPositionManager;
+  var rowStartIndex = _ref.rowStartIndex;
+  var rowStopIndex = _ref.rowStopIndex;
+  var scrollLeft = _ref.scrollLeft;
+  var scrollTop = _ref.scrollTop;
+  var verticalOffsetAdjustment = _ref.verticalOffsetAdjustment;
+
+  var renderedCells = [];
+
+  for (var rowIndex = rowStartIndex; rowIndex <= rowStopIndex; rowIndex++) {
+    var rowDatum = rowSizeAndPositionManager.getSizeAndPositionOfCell(rowIndex);
+
+    for (var columnIndex = columnStartIndex; columnIndex <= columnStopIndex; columnIndex++) {
+      var columnDatum = columnSizeAndPositionManager.getSizeAndPositionOfCell(columnIndex);
+      var key = rowIndex + '-' + columnIndex;
+      var style = {
+        height: rowDatum.size,
+        left: columnDatum.offset + horizontalOffsetAdjustment,
+        position: 'absolute',
+        top: rowDatum.offset + verticalOffsetAdjustment,
+        width: columnDatum.size
+      };
+
+      var cellRendererParams = {
+        columnIndex: columnIndex,
+        isScrolling: isScrolling,
+        key: key,
+        rowIndex: rowIndex,
+        style: style
+      };
+
+      var renderedCell = void 0;
+
+      // Avoid re-creating cells while scrolling.
+      // This can lead to the same cell being created many times and can cause performance issues for "heavy" cells.
+      // If a scroll is in progress- cache and reuse cells.
+      // This cache will be thrown away once scrolling completes.
+      // However if we are scaling scroll positions and sizes, we should also avoid caching.
+      // This is because the offset changes slightly as scroll position changes and caching leads to stale values.
+      // For more info refer to issue #395
+      if (isScrolling && !horizontalOffsetAdjustment && !verticalOffsetAdjustment) {
+        if (!cellCache[key]) {
+          cellCache[key] = cellRenderer(cellRendererParams);
+        }
+        renderedCell = cellCache[key];
+        // If the user is no longer scrolling, don't cache cells.
+        // This makes dynamic cell content difficult for users and would also lead to a heavier memory footprint.
+      } else {
+        renderedCell = cellRenderer(cellRendererParams);
+      }
+
+      if (renderedCell == null || renderedCell === false) {
+        continue;
+      }
+
+      renderedCells.push(renderedCell);
+    }
+  }
+
+  return renderedCells;
+}
+},{}],131:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.defaultCellRangeRenderer = exports.Grid = exports.default = undefined;
+
+var _Grid2 = require('./Grid');
+
+var _Grid3 = _interopRequireDefault(_Grid2);
+
+var _defaultCellRangeRenderer2 = require('./defaultCellRangeRenderer');
+
+var _defaultCellRangeRenderer3 = _interopRequireDefault(_defaultCellRangeRenderer2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _Grid3.default;
+exports.Grid = _Grid3.default;
+exports.defaultCellRangeRenderer = _defaultCellRangeRenderer3.default;
+},{"./Grid":129,"./defaultCellRangeRenderer":130}],132:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+/**
+ * Just-in-time calculates and caches size and position information for a collection of cells.
+ */
+var CellSizeAndPositionManager = function () {
+  function CellSizeAndPositionManager(_ref) {
+    var cellCount = _ref.cellCount;
+    var cellSizeGetter = _ref.cellSizeGetter;
+    var estimatedCellSize = _ref.estimatedCellSize;
+
+    _classCallCheck(this, CellSizeAndPositionManager);
+
+    this._cellSizeGetter = cellSizeGetter;
+    this._cellCount = cellCount;
+    this._estimatedCellSize = estimatedCellSize;
+
+    // Cache of size and position data for cells, mapped by cell index.
+    // Note that invalid values may exist in this map so only rely on cells up to this._lastMeasuredIndex
+    this._cellSizeAndPositionData = {};
+
+    // Measurements for cells up to this index can be trusted; cells afterward should be estimated.
+    this._lastMeasuredIndex = -1;
+  }
+
+  _createClass(CellSizeAndPositionManager, [{
+    key: 'configure',
+    value: function configure(_ref2) {
+      var cellCount = _ref2.cellCount;
+      var estimatedCellSize = _ref2.estimatedCellSize;
+
+      this._cellCount = cellCount;
+      this._estimatedCellSize = estimatedCellSize;
+    }
+  }, {
+    key: 'getCellCount',
+    value: function getCellCount() {
+      return this._cellCount;
+    }
+  }, {
+    key: 'getEstimatedCellSize',
+    value: function getEstimatedCellSize() {
+      return this._estimatedCellSize;
+    }
+  }, {
+    key: 'getLastMeasuredIndex',
+    value: function getLastMeasuredIndex() {
+      return this._lastMeasuredIndex;
+    }
+
+    /**
+     * This method returns the size and position for the cell at the specified index.
+     * It just-in-time calculates (or used cached values) for cells leading up to the index.
+     */
+
+  }, {
+    key: 'getSizeAndPositionOfCell',
+    value: function getSizeAndPositionOfCell(index) {
+      if (index < 0 || index >= this._cellCount) {
+        throw Error('Requested index ' + index + ' is outside of range 0..' + this._cellCount);
+      }
+
+      if (index > this._lastMeasuredIndex) {
+        var lastMeasuredCellSizeAndPosition = this.getSizeAndPositionOfLastMeasuredCell();
+        var _offset = lastMeasuredCellSizeAndPosition.offset + lastMeasuredCellSizeAndPosition.size;
+
+        for (var i = this._lastMeasuredIndex + 1; i <= index; i++) {
+          var _size = this._cellSizeGetter({ index: i });
+
+          if (_size == null || isNaN(_size)) {
+            throw Error('Invalid size returned for cell ' + i + ' of value ' + _size);
+          }
+
+          this._cellSizeAndPositionData[i] = {
+            offset: _offset,
+            size: _size
+          };
+
+          _offset += _size;
+        }
+
+        this._lastMeasuredIndex = index;
+      }
+
+      return this._cellSizeAndPositionData[index];
+    }
+  }, {
+    key: 'getSizeAndPositionOfLastMeasuredCell',
+    value: function getSizeAndPositionOfLastMeasuredCell() {
+      return this._lastMeasuredIndex >= 0 ? this._cellSizeAndPositionData[this._lastMeasuredIndex] : {
+        offset: 0,
+        size: 0
+      };
+    }
+
+    /**
+     * Total size of all cells being measured.
+     * This value will be completedly estimated initially.
+     * As cells as measured the estimate will be updated.
+     */
+
+  }, {
+    key: 'getTotalSize',
+    value: function getTotalSize() {
+      var lastMeasuredCellSizeAndPosition = this.getSizeAndPositionOfLastMeasuredCell();
+
+      return lastMeasuredCellSizeAndPosition.offset + lastMeasuredCellSizeAndPosition.size + (this._cellCount - this._lastMeasuredIndex - 1) * this._estimatedCellSize;
+    }
+
+    /**
+     * Determines a new offset that ensures a certain cell is visible, given the current offset.
+     * If the cell is already visible then the current offset will be returned.
+     * If the current offset is too great or small, it will be adjusted just enough to ensure the specified index is visible.
+     *
+     * @param align Desired alignment within container; one of "auto" (default), "start", or "end"
+     * @param containerSize Size (width or height) of the container viewport
+     * @param currentOffset Container's current (x or y) offset
+     * @param totalSize Total size (width or height) of all cells
+     * @return Offset to use to ensure the specified cell is visible
+     */
+
+  }, {
+    key: 'getUpdatedOffsetForIndex',
+    value: function getUpdatedOffsetForIndex(_ref3) {
+      var _ref3$align = _ref3.align;
+      var align = _ref3$align === undefined ? 'auto' : _ref3$align;
+      var containerSize = _ref3.containerSize;
+      var currentOffset = _ref3.currentOffset;
+      var targetIndex = _ref3.targetIndex;
+
+      if (containerSize <= 0) {
+        return 0;
+      }
+
+      var datum = this.getSizeAndPositionOfCell(targetIndex);
+      var maxOffset = datum.offset;
+      var minOffset = maxOffset - containerSize + datum.size;
+
+      var idealOffset = void 0;
+
+      switch (align) {
+        case 'start':
+          idealOffset = maxOffset;
+          break;
+        case 'end':
+          idealOffset = minOffset;
+          break;
+        case 'center':
+          idealOffset = maxOffset - (containerSize - datum.size) / 2;
+          break;
+        default:
+          idealOffset = Math.max(minOffset, Math.min(maxOffset, currentOffset));
+          break;
+      }
+
+      var totalSize = this.getTotalSize();
+
+      return Math.max(0, Math.min(totalSize - containerSize, idealOffset));
+    }
+  }, {
+    key: 'getVisibleCellRange',
+    value: function getVisibleCellRange(_ref4) {
+      var containerSize = _ref4.containerSize;
+      var offset = _ref4.offset;
+
+      var totalSize = this.getTotalSize();
+
+      if (totalSize === 0) {
+        return {};
+      }
+
+      var maxOffset = offset + containerSize;
+      var start = this._findNearestCell(offset);
+
+      var datum = this.getSizeAndPositionOfCell(start);
+      offset = datum.offset + datum.size;
+
+      var stop = start;
+
+      while (offset < maxOffset && stop < this._cellCount - 1) {
+        stop++;
+
+        offset += this.getSizeAndPositionOfCell(stop).size;
+      }
+
+      return {
+        start: start,
+        stop: stop
+      };
+    }
+
+    /**
+     * Clear all cached values for cells after the specified index.
+     * This method should be called for any cell that has changed its size.
+     * It will not immediately perform any calculations; they'll be performed the next time getSizeAndPositionOfCell() is called.
+     */
+
+  }, {
+    key: 'resetCell',
+    value: function resetCell(index) {
+      this._lastMeasuredIndex = Math.min(this._lastMeasuredIndex, index - 1);
+    }
+  }, {
+    key: '_binarySearch',
+    value: function _binarySearch(_ref5) {
+      var high = _ref5.high;
+      var low = _ref5.low;
+      var offset = _ref5.offset;
+
+      var middle = void 0;
+      var currentOffset = void 0;
+
+      while (low <= high) {
+        middle = low + Math.floor((high - low) / 2);
+        currentOffset = this.getSizeAndPositionOfCell(middle).offset;
+
+        if (currentOffset === offset) {
+          return middle;
+        } else if (currentOffset < offset) {
+          low = middle + 1;
+        } else if (currentOffset > offset) {
+          high = middle - 1;
+        }
+      }
+
+      if (low > 0) {
+        return low - 1;
+      }
+    }
+  }, {
+    key: '_exponentialSearch',
+    value: function _exponentialSearch(_ref6) {
+      var index = _ref6.index;
+      var offset = _ref6.offset;
+
+      var interval = 1;
+
+      while (index < this._cellCount && this.getSizeAndPositionOfCell(index).offset < offset) {
+        index += interval;
+        interval *= 2;
+      }
+
+      return this._binarySearch({
+        high: Math.min(index, this._cellCount - 1),
+        low: Math.floor(index / 2),
+        offset: offset
+      });
+    }
+
+    /**
+     * Searches for the cell (index) nearest the specified offset.
+     *
+     * If no exact match is found the next lowest cell index will be returned.
+     * This allows partially visible cells (with offsets just before/above the fold) to be visible.
+     */
+
+  }, {
+    key: '_findNearestCell',
+    value: function _findNearestCell(offset) {
+      if (isNaN(offset)) {
+        throw Error('Invalid offset ' + offset + ' specified');
+      }
+
+      // Our search algorithms find the nearest match at or below the specified offset.
+      // So make sure the offset is at least 0 or no match will be found.
+      offset = Math.max(0, offset);
+
+      var lastMeasuredCellSizeAndPosition = this.getSizeAndPositionOfLastMeasuredCell();
+      var lastMeasuredIndex = Math.max(0, this._lastMeasuredIndex);
+
+      if (lastMeasuredCellSizeAndPosition.offset >= offset) {
+        // If we've already measured cells within this range just use a binary search as it's faster.
+        return this._binarySearch({
+          high: lastMeasuredIndex,
+          low: 0,
+          offset: offset
+        });
+      } else {
+        // If we haven't yet measured this high, fallback to an exponential search with an inner binary search.
+        // The exponential search avoids pre-computing sizes for the full set of cells as a binary search would.
+        // The overall complexity for this approach is O(log n).
+        return this._exponentialSearch({
+          index: lastMeasuredIndex,
+          offset: offset
+        });
+      }
+    }
+  }]);
+
+  return CellSizeAndPositionManager;
+}();
+
+exports.default = CellSizeAndPositionManager;
+},{}],133:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.DEFAULT_MAX_SCROLL_SIZE = undefined;
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _CellSizeAndPositionManager = require('./CellSizeAndPositionManager');
+
+var _CellSizeAndPositionManager2 = _interopRequireDefault(_CellSizeAndPositionManager);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+/**
+ * Browsers have scroll offset limitations (eg Chrome stops scrolling at ~33.5M pixels where as Edge tops out at ~1.5M pixels).
+ * After a certain position, the browser won't allow the user to scroll further (even via JavaScript scroll offset adjustments).
+ * This util picks a lower ceiling for max size and artificially adjusts positions within to make it transparent for users.
+ */
+var DEFAULT_MAX_SCROLL_SIZE = exports.DEFAULT_MAX_SCROLL_SIZE = 1500000;
+
+/**
+ * Extends CellSizeAndPositionManager and adds scaling behavior for lists that are too large to fit within a browser's native limits.
+ */
+
+var ScalingCellSizeAndPositionManager = function () {
+  function ScalingCellSizeAndPositionManager(_ref) {
+    var _ref$maxScrollSize = _ref.maxScrollSize;
+    var maxScrollSize = _ref$maxScrollSize === undefined ? DEFAULT_MAX_SCROLL_SIZE : _ref$maxScrollSize;
+
+    var params = _objectWithoutProperties(_ref, ['maxScrollSize']);
+
+    _classCallCheck(this, ScalingCellSizeAndPositionManager);
+
+    // Favor composition over inheritance to simplify IE10 support
+    this._cellSizeAndPositionManager = new _CellSizeAndPositionManager2.default(params);
+    this._maxScrollSize = maxScrollSize;
+  }
+
+  _createClass(ScalingCellSizeAndPositionManager, [{
+    key: 'configure',
+    value: function configure(params) {
+      this._cellSizeAndPositionManager.configure(params);
+    }
+  }, {
+    key: 'getCellCount',
+    value: function getCellCount() {
+      return this._cellSizeAndPositionManager.getCellCount();
+    }
+  }, {
+    key: 'getEstimatedCellSize',
+    value: function getEstimatedCellSize() {
+      return this._cellSizeAndPositionManager.getEstimatedCellSize();
+    }
+  }, {
+    key: 'getLastMeasuredIndex',
+    value: function getLastMeasuredIndex() {
+      return this._cellSizeAndPositionManager.getLastMeasuredIndex();
+    }
+
+    /**
+     * Number of pixels a cell at the given position (offset) should be shifted in order to fit within the scaled container.
+     * The offset passed to this function is scalled (safe) as well.
+     */
+
+  }, {
+    key: 'getOffsetAdjustment',
+    value: function getOffsetAdjustment(_ref2) {
+      var containerSize = _ref2.containerSize;
+      var offset = _ref2.offset;
+
+      var totalSize = this._cellSizeAndPositionManager.getTotalSize();
+      var safeTotalSize = this.getTotalSize();
+      var offsetPercentage = this._getOffsetPercentage({
+        containerSize: containerSize,
+        offset: offset,
+        totalSize: safeTotalSize
+      });
+
+      return Math.round(offsetPercentage * (safeTotalSize - totalSize));
+    }
+  }, {
+    key: 'getSizeAndPositionOfCell',
+    value: function getSizeAndPositionOfCell(index) {
+      return this._cellSizeAndPositionManager.getSizeAndPositionOfCell(index);
+    }
+  }, {
+    key: 'getSizeAndPositionOfLastMeasuredCell',
+    value: function getSizeAndPositionOfLastMeasuredCell() {
+      return this._cellSizeAndPositionManager.getSizeAndPositionOfLastMeasuredCell();
+    }
+
+    /** See CellSizeAndPositionManager#getTotalSize */
+
+  }, {
+    key: 'getTotalSize',
+    value: function getTotalSize() {
+      return Math.min(this._maxScrollSize, this._cellSizeAndPositionManager.getTotalSize());
+    }
+
+    /** See CellSizeAndPositionManager#getUpdatedOffsetForIndex */
+
+  }, {
+    key: 'getUpdatedOffsetForIndex',
+    value: function getUpdatedOffsetForIndex(_ref3) {
+      var _ref3$align = _ref3.align;
+      var align = _ref3$align === undefined ? 'auto' : _ref3$align;
+      var containerSize = _ref3.containerSize;
+      var currentOffset = _ref3.currentOffset;
+      var targetIndex = _ref3.targetIndex;
+      var totalSize = _ref3.totalSize;
+
+      currentOffset = this._safeOffsetToOffset({
+        containerSize: containerSize,
+        offset: currentOffset
+      });
+
+      var offset = this._cellSizeAndPositionManager.getUpdatedOffsetForIndex({
+        align: align,
+        containerSize: containerSize,
+        currentOffset: currentOffset,
+        targetIndex: targetIndex,
+        totalSize: totalSize
+      });
+
+      return this._offsetToSafeOffset({
+        containerSize: containerSize,
+        offset: offset
+      });
+    }
+
+    /** See CellSizeAndPositionManager#getVisibleCellRange */
+
+  }, {
+    key: 'getVisibleCellRange',
+    value: function getVisibleCellRange(_ref4) {
+      var containerSize = _ref4.containerSize;
+      var offset = _ref4.offset;
+
+      offset = this._safeOffsetToOffset({
+        containerSize: containerSize,
+        offset: offset
+      });
+
+      return this._cellSizeAndPositionManager.getVisibleCellRange({
+        containerSize: containerSize,
+        offset: offset
+      });
+    }
+  }, {
+    key: 'resetCell',
+    value: function resetCell(index) {
+      this._cellSizeAndPositionManager.resetCell(index);
+    }
+  }, {
+    key: '_getOffsetPercentage',
+    value: function _getOffsetPercentage(_ref5) {
+      var containerSize = _ref5.containerSize;
+      var offset = _ref5.offset;
+      var totalSize = _ref5.totalSize;
+
+      return totalSize <= containerSize ? 0 : offset / (totalSize - containerSize);
+    }
+  }, {
+    key: '_offsetToSafeOffset',
+    value: function _offsetToSafeOffset(_ref6) {
+      var containerSize = _ref6.containerSize;
+      var offset = _ref6.offset;
+
+      var totalSize = this._cellSizeAndPositionManager.getTotalSize();
+      var safeTotalSize = this.getTotalSize();
+
+      if (totalSize === safeTotalSize) {
+        return offset;
+      } else {
+        var offsetPercentage = this._getOffsetPercentage({
+          containerSize: containerSize,
+          offset: offset,
+          totalSize: totalSize
+        });
+
+        return Math.round(offsetPercentage * (safeTotalSize - containerSize));
+      }
+    }
+  }, {
+    key: '_safeOffsetToOffset',
+    value: function _safeOffsetToOffset(_ref7) {
+      var containerSize = _ref7.containerSize;
+      var offset = _ref7.offset;
+
+      var totalSize = this._cellSizeAndPositionManager.getTotalSize();
+      var safeTotalSize = this.getTotalSize();
+
+      if (totalSize === safeTotalSize) {
+        return offset;
+      } else {
+        var offsetPercentage = this._getOffsetPercentage({
+          containerSize: containerSize,
+          offset: offset,
+          totalSize: safeTotalSize
+        });
+
+        return Math.round(offsetPercentage * (totalSize - containerSize));
+      }
+    }
+  }]);
+
+  return ScalingCellSizeAndPositionManager;
+}();
+
+exports.default = ScalingCellSizeAndPositionManager;
+},{"./CellSizeAndPositionManager":132}],134:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = calculateSizeAndPositionDataAndUpdateScrollOffset;
+/**
+ * Helper method that determines when to recalculate row or column metadata.
+ *
+ * @param cellCount Number of rows or columns in the current axis
+ * @param cellsSize Width or height of cells for the current axis
+ * @param computeMetadataCallback Method to invoke if cell metadata should be recalculated
+ * @param computeMetadataCallbackProps Parameters to pass to :computeMetadataCallback
+ * @param nextCellsCount Newly updated number of rows or columns in the current axis
+ * @param nextCellsSize Newly updated width or height of cells for the current axis
+ * @param nextScrollToIndex Newly updated scroll-to-index
+ * @param scrollToIndex Scroll-to-index
+ * @param updateScrollOffsetForScrollToIndex Callback to invoke if the scroll position should be recalculated
+ */
+function calculateSizeAndPositionDataAndUpdateScrollOffset(_ref) {
+  var cellCount = _ref.cellCount;
+  var cellSize = _ref.cellSize;
+  var computeMetadataCallback = _ref.computeMetadataCallback;
+  var computeMetadataCallbackProps = _ref.computeMetadataCallbackProps;
+  var nextCellsCount = _ref.nextCellsCount;
+  var nextCellSize = _ref.nextCellSize;
+  var nextScrollToIndex = _ref.nextScrollToIndex;
+  var scrollToIndex = _ref.scrollToIndex;
+  var updateScrollOffsetForScrollToIndex = _ref.updateScrollOffsetForScrollToIndex;
+
+  // Don't compare cell sizes if they are functions because inline functions would cause infinite loops.
+  // In that event users should use the manual recompute methods to inform of changes.
+  if (cellCount !== nextCellsCount || (typeof cellSize === 'number' || typeof nextCellSize === 'number') && cellSize !== nextCellSize) {
+    computeMetadataCallback(computeMetadataCallbackProps);
+
+    // Updated cell metadata may have hidden the previous scrolled-to item.
+    // In this case we should also update the scrollTop to ensure it stays visible.
+    if (scrollToIndex >= 0 && scrollToIndex === nextScrollToIndex) {
+      updateScrollOffsetForScrollToIndex();
+    }
+  }
+}
+},{}],135:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = getOverscanIndices;
+var SCROLL_DIRECTION_BACKWARD = exports.SCROLL_DIRECTION_BACKWARD = -1;
+var SCROLL_DIRECTION_FIXED = exports.SCROLL_DIRECTION_FIXED = 0;
+var SCROLL_DIRECTION_FORWARD = exports.SCROLL_DIRECTION_FORWARD = 1;
+
+/**
+ * Calculates the number of cells to overscan before and after a specified range.
+ * This function ensures that overscanning doesn't exceed the available cells.
+ *
+ * @param cellCount Number of rows or columns in the current axis
+ * @param scrollDirection One of SCROLL_DIRECTION_BACKWARD
+ * @param overscanCellsCount Maximum number of cells to over-render in either direction
+ * @param startIndex Begin of range of visible cells
+ * @param stopIndex End of range of visible cells
+ */
+function getOverscanIndices(_ref) {
+  var cellCount = _ref.cellCount;
+  var overscanCellsCount = _ref.overscanCellsCount;
+  var scrollDirection = _ref.scrollDirection;
+  var startIndex = _ref.startIndex;
+  var stopIndex = _ref.stopIndex;
+
+  var overscanStartIndex = void 0;
+  var overscanStopIndex = void 0;
+
+  if (scrollDirection === SCROLL_DIRECTION_FORWARD) {
+    overscanStartIndex = startIndex;
+    overscanStopIndex = stopIndex + overscanCellsCount * 2;
+  } else if (scrollDirection === SCROLL_DIRECTION_BACKWARD) {
+    overscanStartIndex = startIndex - overscanCellsCount * 2;
+    overscanStopIndex = stopIndex;
+  } else {
+    overscanStartIndex = startIndex - overscanCellsCount;
+    overscanStopIndex = stopIndex + overscanCellsCount;
+  }
+
+  return {
+    overscanStartIndex: Math.max(0, overscanStartIndex),
+    overscanStopIndex: Math.min(cellCount - 1, overscanStopIndex)
+  };
+}
+},{}],136:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = updateScrollIndexHelper;
+/**
+ * Helper function that determines when to update scroll offsets to ensure that a scroll-to-index remains visible.
+ * This function also ensures that the scroll ofset isn't past the last column/row of cells.
+ *
+ * @param cellsSize Width or height of cells for the current axis
+ * @param cellSizeAndPositionManager Manages size and position metadata of cells
+ * @param previousCellsCount Previous number of rows or columns
+ * @param previousCellsSize Previous width or height of cells
+ * @param previousScrollToIndex Previous scroll-to-index
+ * @param previousSize Previous width or height of the virtualized container
+ * @param scrollOffset Current scrollLeft or scrollTop
+ * @param scrollToIndex Scroll-to-index
+ * @param size Width or height of the virtualized container
+ * @param updateScrollIndexCallback Callback to invoke with an scroll-to-index value
+ */
+function updateScrollIndexHelper(_ref) {
+  var cellSize = _ref.cellSize;
+  var cellSizeAndPositionManager = _ref.cellSizeAndPositionManager;
+  var previousCellsCount = _ref.previousCellsCount;
+  var previousCellSize = _ref.previousCellSize;
+  var previousScrollToAlignment = _ref.previousScrollToAlignment;
+  var previousScrollToIndex = _ref.previousScrollToIndex;
+  var previousSize = _ref.previousSize;
+  var scrollOffset = _ref.scrollOffset;
+  var scrollToAlignment = _ref.scrollToAlignment;
+  var scrollToIndex = _ref.scrollToIndex;
+  var size = _ref.size;
+  var updateScrollIndexCallback = _ref.updateScrollIndexCallback;
+
+  var cellCount = cellSizeAndPositionManager.getCellCount();
+  var hasScrollToIndex = scrollToIndex >= 0 && scrollToIndex < cellCount;
+  var sizeHasChanged = size !== previousSize || !previousCellSize || typeof cellSize === 'number' && cellSize !== previousCellSize;
+
+  // If we have a new scroll target OR if height/row-height has changed,
+  // We should ensure that the scroll target is visible.
+  if (hasScrollToIndex && (sizeHasChanged || scrollToAlignment !== previousScrollToAlignment || scrollToIndex !== previousScrollToIndex)) {
+    updateScrollIndexCallback(scrollToIndex);
+
+    // If we don't have a selected item but list size or number of children have decreased,
+    // Make sure we aren't scrolled too far past the current content.
+  } else if (!hasScrollToIndex && cellCount > 0 && (size < previousSize || cellCount < previousCellsCount)) {
+    // We need to ensure that the current scroll offset is still within the collection's range.
+    // To do this, we don't need to measure everything; CellMeasurer would perform poorly.
+    // Just check to make sure we're still okay.
+    // Only adjust the scroll position if we've scrolled below the last set of rows.
+    if (scrollOffset > cellSizeAndPositionManager.getTotalSize() - size) {
+      updateScrollIndexCallback(cellCount - 1);
+    }
+  }
+}
+},{}],137:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+exports.isRangeVisible = isRangeVisible;
+exports.scanForUnloadedRanges = scanForUnloadedRanges;
+exports.forceUpdateReactVirtualizedComponent = forceUpdateReactVirtualizedComponent;
+
+var _react = require('react');
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+var _createCallbackMemoizer = require('../utils/createCallbackMemoizer');
+
+var _createCallbackMemoizer2 = _interopRequireDefault(_createCallbackMemoizer);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * Higher-order component that manages lazy-loading for "infinite" data.
+ * This component decorates a virtual component and just-in-time prefetches rows as a user scrolls.
+ * It is intended as a convenience component; fork it if you'd like finer-grained control over data-loading.
+ */
+var InfiniteLoader = function (_Component) {
+  _inherits(InfiniteLoader, _Component);
+
+  function InfiniteLoader(props, context) {
+    _classCallCheck(this, InfiniteLoader);
+
+    var _this = _possibleConstructorReturn(this, (InfiniteLoader.__proto__ || Object.getPrototypeOf(InfiniteLoader)).call(this, props, context));
+
+    _this._loadMoreRowsMemoizer = (0, _createCallbackMemoizer2.default)();
+
+    _this._onRowsRendered = _this._onRowsRendered.bind(_this);
+    _this._registerChild = _this._registerChild.bind(_this);
+    return _this;
+  }
+
+  _createClass(InfiniteLoader, [{
+    key: 'render',
+    value: function render() {
+      var children = this.props.children;
+
+
+      return children({
+        onRowsRendered: this._onRowsRendered,
+        registerChild: this._registerChild
+      });
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+  }, {
+    key: '_loadUnloadedRanges',
+    value: function _loadUnloadedRanges(unloadedRanges) {
+      var _this2 = this;
+
+      var loadMoreRows = this.props.loadMoreRows;
+
+
+      unloadedRanges.forEach(function (unloadedRange) {
+        var promise = loadMoreRows(unloadedRange);
+        if (promise) {
+          promise.then(function () {
+            // Refresh the visible rows if any of them have just been loaded.
+            // Otherwise they will remain in their unloaded visual state.
+            if (isRangeVisible({
+              lastRenderedStartIndex: _this2._lastRenderedStartIndex,
+              lastRenderedStopIndex: _this2._lastRenderedStopIndex,
+              startIndex: unloadedRange.startIndex,
+              stopIndex: unloadedRange.stopIndex
+            })) {
+              if (_this2._registeredChild) {
+                forceUpdateReactVirtualizedComponent(_this2._registeredChild);
+              }
+            }
+          });
+        }
+      });
+    }
+  }, {
+    key: '_onRowsRendered',
+    value: function _onRowsRendered(_ref) {
+      var _this3 = this;
+
+      var startIndex = _ref.startIndex;
+      var stopIndex = _ref.stopIndex;
+      var _props = this.props;
+      var isRowLoaded = _props.isRowLoaded;
+      var minimumBatchSize = _props.minimumBatchSize;
+      var rowCount = _props.rowCount;
+      var threshold = _props.threshold;
+
+
+      this._lastRenderedStartIndex = startIndex;
+      this._lastRenderedStopIndex = stopIndex;
+
+      var unloadedRanges = scanForUnloadedRanges({
+        isRowLoaded: isRowLoaded,
+        minimumBatchSize: minimumBatchSize,
+        rowCount: rowCount,
+        startIndex: Math.max(0, startIndex - threshold),
+        stopIndex: Math.min(rowCount - 1, stopIndex + threshold)
+      });
+
+      // For memoize comparison
+      var squashedUnloadedRanges = unloadedRanges.reduce(function (reduced, unloadedRange) {
+        return reduced.concat([unloadedRange.startIndex, unloadedRange.stopIndex]);
+      }, []);
+
+      this._loadMoreRowsMemoizer({
+        callback: function callback() {
+          _this3._loadUnloadedRanges(unloadedRanges);
+        },
+        indices: { squashedUnloadedRanges: squashedUnloadedRanges }
+      });
+    }
+  }, {
+    key: '_registerChild',
+    value: function _registerChild(registeredChild) {
+      this._registeredChild = registeredChild;
+    }
+  }]);
+
+  return InfiniteLoader;
+}(_react.Component);
+
+/**
+ * Determines if the specified start/stop range is visible based on the most recently rendered range.
+ */
+
+
+InfiniteLoader.propTypes = {
+  /**
+   * Function responsible for rendering a virtualized component.
+   * This function should implement the following signature:
+   * ({ onRowsRendered, registerChild }) => PropTypes.element
+   *
+   * The specified :onRowsRendered function should be passed through to the child's :onRowsRendered property.
+   * The :registerChild callback should be set as the virtualized component's :ref.
+   */
+  children: _react.PropTypes.func.isRequired,
+
+  /**
+   * Function responsible for tracking the loaded state of each row.
+   * It should implement the following signature: ({ index: number }): boolean
+   */
+  isRowLoaded: _react.PropTypes.func.isRequired,
+
+  /**
+   * Callback to be invoked when more rows must be loaded.
+   * It should implement the following signature: ({ startIndex, stopIndex }): Promise
+   * The returned Promise should be resolved once row data has finished loading.
+   * It will be used to determine when to refresh the list with the newly-loaded data.
+   * This callback may be called multiple times in reaction to a single scroll event.
+   */
+  loadMoreRows: _react.PropTypes.func.isRequired,
+
+  /**
+   * Minimum number of rows to be loaded at a time.
+   * This property can be used to batch requests to reduce HTTP requests.
+   */
+  minimumBatchSize: _react.PropTypes.number.isRequired,
+
+  /**
+   * Number of rows in list; can be arbitrary high number if actual number is unknown.
+   */
+  rowCount: _react.PropTypes.number.isRequired,
+
+  /**
+   * Threshold at which to pre-fetch data.
+   * A threshold X means that data will start loading when a user scrolls within X rows.
+   * This value defaults to 15.
+   */
+  threshold: _react.PropTypes.number.isRequired
+};
+InfiniteLoader.defaultProps = {
+  minimumBatchSize: 10,
+  rowCount: 0,
+  threshold: 15
+};
+exports.default = InfiniteLoader;
+function isRangeVisible(_ref2) {
+  var lastRenderedStartIndex = _ref2.lastRenderedStartIndex;
+  var lastRenderedStopIndex = _ref2.lastRenderedStopIndex;
+  var startIndex = _ref2.startIndex;
+  var stopIndex = _ref2.stopIndex;
+
+  return !(startIndex > lastRenderedStopIndex || stopIndex < lastRenderedStartIndex);
+}
+
+/**
+ * Returns all of the ranges within a larger range that contain unloaded rows.
+ */
+function scanForUnloadedRanges(_ref3) {
+  var isRowLoaded = _ref3.isRowLoaded;
+  var minimumBatchSize = _ref3.minimumBatchSize;
+  var rowCount = _ref3.rowCount;
+  var startIndex = _ref3.startIndex;
+  var stopIndex = _ref3.stopIndex;
+
+  var unloadedRanges = [];
+
+  var rangeStartIndex = null;
+  var rangeStopIndex = null;
+
+  for (var index = startIndex; index <= stopIndex; index++) {
+    var loaded = isRowLoaded({ index: index });
+
+    if (!loaded) {
+      rangeStopIndex = index;
+      if (rangeStartIndex === null) {
+        rangeStartIndex = index;
+      }
+    } else if (rangeStopIndex !== null) {
+      unloadedRanges.push({
+        startIndex: rangeStartIndex,
+        stopIndex: rangeStopIndex
+      });
+
+      rangeStartIndex = rangeStopIndex = null;
+    }
+  }
+
+  // If :rangeStopIndex is not null it means we haven't ran out of unloaded rows.
+  // Scan forward to try filling our :minimumBatchSize.
+  if (rangeStopIndex !== null) {
+    var potentialStopIndex = Math.min(Math.max(rangeStopIndex, rangeStartIndex + minimumBatchSize - 1), rowCount - 1);
+
+    for (var _index = rangeStopIndex + 1; _index <= potentialStopIndex; _index++) {
+      if (!isRowLoaded({ index: _index })) {
+        rangeStopIndex = _index;
+      } else {
+        break;
+      }
+    }
+
+    unloadedRanges.push({
+      startIndex: rangeStartIndex,
+      stopIndex: rangeStopIndex
+    });
+  }
+
+  // Check to see if our first range ended prematurely.
+  // In this case we should scan backwards to try filling our :minimumBatchSize.
+  if (unloadedRanges.length) {
+    var firstUnloadedRange = unloadedRanges[0];
+
+    while (firstUnloadedRange.stopIndex - firstUnloadedRange.startIndex + 1 < minimumBatchSize && firstUnloadedRange.startIndex > 0) {
+      var _index2 = firstUnloadedRange.startIndex - 1;
+
+      if (!isRowLoaded({ index: _index2 })) {
+        firstUnloadedRange.startIndex = _index2;
+      } else {
+        break;
+      }
+    }
+  }
+
+  return unloadedRanges;
+}
+
+/**
+ * Since RV components use shallowCompare we need to force a render (even though props haven't changed).
+ * However InfiniteLoader may wrap a Grid or it may wrap a Table or List.
+ * In the first case the built-in React forceUpdate() method is sufficient to force a re-render,
+ * But in the latter cases we need to use the RV-specific forceUpdateGrid() method.
+ * Else the inner Grid will not be re-rendered and visuals may be stale.
+ */
+function forceUpdateReactVirtualizedComponent(component) {
+  typeof component.forceUpdateGrid === 'function' ? component.forceUpdateGrid() : component.forceUpdate();
+}
+},{"../utils/createCallbackMemoizer":156,"react":"react","react-addons-shallow-compare":113}],138:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.InfiniteLoader = exports.default = undefined;
+
+var _InfiniteLoader2 = require('./InfiniteLoader');
+
+var _InfiniteLoader3 = _interopRequireDefault(_InfiniteLoader2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _InfiniteLoader3.default;
+exports.InfiniteLoader = _InfiniteLoader3.default;
+},{"./InfiniteLoader":137}],139:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _Grid = require('../Grid');
+
+var _Grid2 = _interopRequireDefault(_Grid);
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _classnames = require('classnames');
+
+var _classnames2 = _interopRequireDefault(_classnames);
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * It is inefficient to create and manage a large list of DOM elements within a scrolling container
+ * if only a few of those elements are visible. The primary purpose of this component is to improve
+ * performance by only rendering the DOM nodes that a user is able to see based on their current
+ * scroll position.
+ *
+ * This component renders a virtualized list of elements with either fixed or dynamic heights.
+ */
+var List = function (_Component) {
+  _inherits(List, _Component);
+
+  function List(props, context) {
+    _classCallCheck(this, List);
+
+    var _this = _possibleConstructorReturn(this, (List.__proto__ || Object.getPrototypeOf(List)).call(this, props, context));
+
+    _this._cellRenderer = _this._cellRenderer.bind(_this);
+    _this._onScroll = _this._onScroll.bind(_this);
+    _this._onSectionRendered = _this._onSectionRendered.bind(_this);
+    return _this;
+  }
+
+  _createClass(List, [{
+    key: 'forceUpdateGrid',
+    value: function forceUpdateGrid() {
+      this.Grid.forceUpdate();
+    }
+
+    /** See Grid#measureAllCells */
+
+  }, {
+    key: 'measureAllRows',
+    value: function measureAllRows() {
+      this.Grid.measureAllCells();
+    }
+
+    /** See Grid#recomputeGridSize */
+
+  }, {
+    key: 'recomputeRowHeights',
+    value: function recomputeRowHeights() {
+      var index = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
+
+      this.Grid.recomputeGridSize({
+        rowIndex: index
+      });
+      this.forceUpdateGrid();
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      var _this2 = this;
+
+      var _props = this.props;
+      var className = _props.className;
+      var noRowsRenderer = _props.noRowsRenderer;
+      var scrollToIndex = _props.scrollToIndex;
+      var width = _props.width;
+
+
+      var classNames = (0, _classnames2.default)('ReactVirtualized__List', className);
+
+      return _react2.default.createElement(_Grid2.default, _extends({}, this.props, {
+        autoContainerWidth: true,
+        cellRenderer: this._cellRenderer,
+        className: classNames,
+        columnWidth: width,
+        columnCount: 1,
+        noContentRenderer: noRowsRenderer,
+        onScroll: this._onScroll,
+        onSectionRendered: this._onSectionRendered,
+        ref: function ref(_ref) {
+          _this2.Grid = _ref;
+        },
+        scrollToRow: scrollToIndex
+      }));
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+  }, {
+    key: '_cellRenderer',
+    value: function _cellRenderer(_ref2) {
+      var columnIndex = _ref2.columnIndex;
+      var isScrolling = _ref2.isScrolling;
+      var key = _ref2.key;
+      var rowIndex = _ref2.rowIndex;
+      var style = _ref2.style;
+      var rowRenderer = this.props.rowRenderer;
+
+      // By default, List cells should be 100% width.
+      // This prevents them from flowing under a scrollbar (if present).
+
+      style.width = '100%';
+
+      return rowRenderer({
+        index: rowIndex,
+        isScrolling: isScrolling,
+        key: key,
+        style: style
+      });
+    }
+  }, {
+    key: '_onScroll',
+    value: function _onScroll(_ref3) {
+      var clientHeight = _ref3.clientHeight;
+      var scrollHeight = _ref3.scrollHeight;
+      var scrollTop = _ref3.scrollTop;
+      var onScroll = this.props.onScroll;
+
+
+      onScroll({ clientHeight: clientHeight, scrollHeight: scrollHeight, scrollTop: scrollTop });
+    }
+  }, {
+    key: '_onSectionRendered',
+    value: function _onSectionRendered(_ref4) {
+      var rowOverscanStartIndex = _ref4.rowOverscanStartIndex;
+      var rowOverscanStopIndex = _ref4.rowOverscanStopIndex;
+      var rowStartIndex = _ref4.rowStartIndex;
+      var rowStopIndex = _ref4.rowStopIndex;
+      var onRowsRendered = this.props.onRowsRendered;
+
+
+      onRowsRendered({
+        overscanStartIndex: rowOverscanStartIndex,
+        overscanStopIndex: rowOverscanStopIndex,
+        startIndex: rowStartIndex,
+        stopIndex: rowStopIndex
+      });
+    }
+  }]);
+
+  return List;
+}(_react.Component);
+
+List.propTypes = {
+  'aria-label': _react.PropTypes.string,
+
+  /**
+   * Removes fixed height from the scrollingContainer so that the total height
+   * of rows can stretch the window. Intended for use with WindowScroller
+   */
+  autoHeight: _react.PropTypes.bool,
+
+  /** Optional CSS class name */
+  className: _react.PropTypes.string,
+
+  /**
+   * Used to estimate the total height of a List before all of its rows have actually been measured.
+   * The estimated total height is adjusted as rows are rendered.
+   */
+  estimatedRowSize: _react.PropTypes.number.isRequired,
+
+  /** Height constraint for list (determines how many actual rows are rendered) */
+  height: _react.PropTypes.number.isRequired,
+
+  /** Optional renderer to be used in place of rows when rowCount is 0 */
+  noRowsRenderer: _react.PropTypes.func.isRequired,
+
+  /**
+   * Callback invoked with information about the slice of rows that were just rendered.
+   * ({ startIndex, stopIndex }): void
+   */
+  onRowsRendered: _react.PropTypes.func.isRequired,
+
+  /**
+   * Number of rows to render above/below the visible bounds of the list.
+   * These rows can help for smoother scrolling on touch devices.
+   */
+  overscanRowCount: _react.PropTypes.number.isRequired,
+
+  /**
+   * Callback invoked whenever the scroll offset changes within the inner scrollable region.
+   * This callback can be used to sync scrolling between lists, tables, or grids.
+   * ({ clientHeight, scrollHeight, scrollTop }): void
+   */
+  onScroll: _react.PropTypes.func.isRequired,
+
+  /**
+   * Either a fixed row height (number) or a function that returns the height of a row given its index.
+   * ({ index: number }): number
+   */
+  rowHeight: _react.PropTypes.oneOfType([_react.PropTypes.number, _react.PropTypes.func]).isRequired,
+
+  /** Responsible for rendering a row given an index; ({ index: number }): node */
+  rowRenderer: _react.PropTypes.func.isRequired,
+
+  /** Number of rows in list. */
+  rowCount: _react.PropTypes.number.isRequired,
+
+  /** See Grid#scrollToAlignment */
+  scrollToAlignment: _react.PropTypes.oneOf(['auto', 'end', 'start', 'center']).isRequired,
+
+  /** Row index to ensure visible (by forcefully scrolling if necessary) */
+  scrollToIndex: _react.PropTypes.number,
+
+  /** Vertical offset. */
+  scrollTop: _react.PropTypes.number,
+
+  /** Optional inline style */
+  style: _react.PropTypes.object,
+
+  /** Tab index for focus */
+  tabIndex: _react.PropTypes.number,
+
+  /** Width of list */
+  width: _react.PropTypes.number.isRequired
+};
+List.defaultProps = {
+  estimatedRowSize: 30,
+  noRowsRenderer: function noRowsRenderer() {
+    return null;
+  },
+  onRowsRendered: function onRowsRendered() {
+    return null;
+  },
+  onScroll: function onScroll() {
+    return null;
+  },
+  overscanRowCount: 10,
+  scrollToAlignment: 'auto',
+  style: {}
+};
+exports.default = List;
+},{"../Grid":131,"classnames":47,"react":"react","react-addons-shallow-compare":113}],140:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.List = exports.default = undefined;
+
+var _List2 = require('./List');
+
+var _List3 = _interopRequireDefault(_List2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _List3.default;
+exports.List = _List3.default;
+},{"./List":139}],141:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * HOC that simplifies the process of synchronizing scrolling between two or more virtualized components.
+ */
+var ScrollSync = function (_Component) {
+  _inherits(ScrollSync, _Component);
+
+  function ScrollSync(props, context) {
+    _classCallCheck(this, ScrollSync);
+
+    var _this = _possibleConstructorReturn(this, (ScrollSync.__proto__ || Object.getPrototypeOf(ScrollSync)).call(this, props, context));
+
+    _this.state = {
+      clientHeight: 0,
+      clientWidth: 0,
+      scrollHeight: 0,
+      scrollLeft: 0,
+      scrollTop: 0,
+      scrollWidth: 0
+    };
+
+    _this._onScroll = _this._onScroll.bind(_this);
+    return _this;
+  }
+
+  _createClass(ScrollSync, [{
+    key: 'render',
+    value: function render() {
+      var children = this.props.children;
+      var _state = this.state;
+      var clientHeight = _state.clientHeight;
+      var clientWidth = _state.clientWidth;
+      var scrollHeight = _state.scrollHeight;
+      var scrollLeft = _state.scrollLeft;
+      var scrollTop = _state.scrollTop;
+      var scrollWidth = _state.scrollWidth;
+
+
+      return children({
+        clientHeight: clientHeight,
+        clientWidth: clientWidth,
+        onScroll: this._onScroll,
+        scrollHeight: scrollHeight,
+        scrollLeft: scrollLeft,
+        scrollTop: scrollTop,
+        scrollWidth: scrollWidth
+      });
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+  }, {
+    key: '_onScroll',
+    value: function _onScroll(_ref) {
+      var clientHeight = _ref.clientHeight;
+      var clientWidth = _ref.clientWidth;
+      var scrollHeight = _ref.scrollHeight;
+      var scrollLeft = _ref.scrollLeft;
+      var scrollTop = _ref.scrollTop;
+      var scrollWidth = _ref.scrollWidth;
+
+      this.setState({ clientHeight: clientHeight, clientWidth: clientWidth, scrollHeight: scrollHeight, scrollLeft: scrollLeft, scrollTop: scrollTop, scrollWidth: scrollWidth });
+    }
+  }]);
+
+  return ScrollSync;
+}(_react.Component);
+
+ScrollSync.propTypes = {
+  /**
+   * Function responsible for rendering 2 or more virtualized components.
+   * This function should implement the following signature:
+   * ({ onScroll, scrollLeft, scrollTop }) => PropTypes.element
+   */
+  children: _react.PropTypes.func.isRequired
+};
+exports.default = ScrollSync;
+},{"react":"react","react-addons-shallow-compare":113}],142:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.ScrollSync = exports.default = undefined;
+
+var _ScrollSync2 = require('./ScrollSync');
+
+var _ScrollSync3 = _interopRequireDefault(_ScrollSync2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _ScrollSync3.default;
+exports.ScrollSync = _ScrollSync3.default;
+},{"./ScrollSync":141}],143:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _react = require('react');
+
+var _defaultHeaderRenderer = require('./defaultHeaderRenderer');
+
+var _defaultHeaderRenderer2 = _interopRequireDefault(_defaultHeaderRenderer);
+
+var _defaultCellRenderer = require('./defaultCellRenderer');
+
+var _defaultCellRenderer2 = _interopRequireDefault(_defaultCellRenderer);
+
+var _defaultCellDataGetter = require('./defaultCellDataGetter');
+
+var _defaultCellDataGetter2 = _interopRequireDefault(_defaultCellDataGetter);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * Describes the header and cell contents of a table column.
+ */
+var Column = function (_Component) {
+  _inherits(Column, _Component);
+
+  function Column() {
+    _classCallCheck(this, Column);
+
+    return _possibleConstructorReturn(this, (Column.__proto__ || Object.getPrototypeOf(Column)).apply(this, arguments));
+  }
+
+  return Column;
+}(_react.Component);
+
+Column.defaultProps = {
+  cellDataGetter: _defaultCellDataGetter2.default,
+  cellRenderer: _defaultCellRenderer2.default,
+  flexGrow: 0,
+  flexShrink: 1,
+  headerRenderer: _defaultHeaderRenderer2.default,
+  style: {}
+};
+Column.propTypes = {
+  /** Optional aria-label value to set on the column header */
+  'aria-label': _react.PropTypes.string,
+
+  /**
+   * Callback responsible for returning a cell's data, given its :dataKey
+   * ({ columnData: any, dataKey: string, rowData: any }): any
+   */
+  cellDataGetter: _react.PropTypes.func,
+
+  /**
+   * Callback responsible for rendering a cell's contents.
+   * ({ cellData: any, columnData: any, dataKey: string, rowData: any, rowIndex: number }): node
+   */
+  cellRenderer: _react.PropTypes.func,
+
+  /** Optional CSS class to apply to cell */
+  className: _react.PropTypes.string,
+
+  /** Optional additional data passed to this column's :cellDataGetter */
+  columnData: _react.PropTypes.object,
+
+  /** Uniquely identifies the row-data attribute correspnding to this cell */
+  dataKey: _react.PropTypes.any.isRequired,
+
+  /** If sort is enabled for the table at large, disable it for this column */
+  disableSort: _react.PropTypes.bool,
+
+  /** Flex grow style; defaults to 0 */
+  flexGrow: _react.PropTypes.number,
+
+  /** Flex shrink style; defaults to 1 */
+  flexShrink: _react.PropTypes.number,
+
+  /** Optional CSS class to apply to this column's header */
+  headerClassName: _react.PropTypes.string,
+
+  /**
+   * Optional callback responsible for rendering a column header contents.
+   * ({ columnData: object, dataKey: string, disableSort: boolean, label: string, sortBy: string, sortDirection: string }): PropTypes.node
+   */
+  headerRenderer: _react.PropTypes.func.isRequired,
+
+  /** Header label for this column */
+  label: _react.PropTypes.string,
+
+  /** Maximum width of column; this property will only be used if :flexGrow is > 0. */
+  maxWidth: _react.PropTypes.number,
+
+  /** Minimum width of column. */
+  minWidth: _react.PropTypes.number,
+
+  /** Optional inline style to apply to cell */
+  style: _react.PropTypes.object,
+
+  /** Flex basis (width) for this column; This value can grow or shrink based on :flexGrow and :flexShrink properties. */
+  width: _react.PropTypes.number.isRequired
+};
+exports.default = Column;
+},{"./defaultCellDataGetter":147,"./defaultCellRenderer":148,"./defaultHeaderRenderer":149,"react":"react"}],144:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+var SortDirection = {
+  /**
+   * Sort items in ascending order.
+   * This means arranging from the lowest value to the highest (e.g. a-z, 0-9).
+   */
+  ASC: 'ASC',
+
+  /**
+   * Sort items in descending order.
+   * This means arranging from the highest value to the lowest (e.g. z-a, 9-0).
+   */
+  DESC: 'DESC'
+};
+
+exports.default = SortDirection;
+},{}],145:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = SortIndicator;
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _classnames = require('classnames');
+
+var _classnames2 = _interopRequireDefault(_classnames);
+
+var _SortDirection = require('./SortDirection');
+
+var _SortDirection2 = _interopRequireDefault(_SortDirection);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/**
+ * Displayed beside a header to indicate that a Table is currently sorted by this column.
+ */
+function SortIndicator(_ref) {
+  var sortDirection = _ref.sortDirection;
+
+  var classNames = (0, _classnames2.default)('ReactVirtualized__Table__sortableHeaderIcon', {
+    'ReactVirtualized__Table__sortableHeaderIcon--ASC': sortDirection === _SortDirection2.default.ASC,
+    'ReactVirtualized__Table__sortableHeaderIcon--DESC': sortDirection === _SortDirection2.default.DESC
+  });
+
+  return _react2.default.createElement(
+    'svg',
+    {
+      className: classNames,
+      width: 18,
+      height: 18,
+      viewBox: '0 0 24 24'
+    },
+    sortDirection === _SortDirection2.default.ASC ? _react2.default.createElement('path', { d: 'M7 14l5-5 5 5z' }) : _react2.default.createElement('path', { d: 'M7 10l5 5 5-5z' }),
+    _react2.default.createElement('path', { d: 'M0 0h24v24H0z', fill: 'none' })
+  );
+}
+SortIndicator.propTypes = {
+  sortDirection: _react.PropTypes.oneOf([_SortDirection2.default.ASC, _SortDirection2.default.DESC])
+};
+},{"./SortDirection":144,"classnames":47,"react":"react"}],146:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _classnames = require('classnames');
+
+var _classnames2 = _interopRequireDefault(_classnames);
+
+var _Column = require('./Column');
+
+var _Column2 = _interopRequireDefault(_Column);
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _reactDom = require('react-dom');
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+var _Grid = require('../Grid');
+
+var _Grid2 = _interopRequireDefault(_Grid);
+
+var _defaultRowRenderer = require('./defaultRowRenderer');
+
+var _defaultRowRenderer2 = _interopRequireDefault(_defaultRowRenderer);
+
+var _SortDirection = require('./SortDirection');
+
+var _SortDirection2 = _interopRequireDefault(_SortDirection);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+/**
+ * Table component with fixed headers and virtualized rows for improved performance with large data sets.
+ * This component expects explicit width, height, and padding parameters.
+ */
+var Table = function (_Component) {
+  _inherits(Table, _Component);
+
+  function Table(props) {
+    _classCallCheck(this, Table);
+
+    var _this = _possibleConstructorReturn(this, (Table.__proto__ || Object.getPrototypeOf(Table)).call(this, props));
+
+    _this.state = {
+      scrollbarWidth: 0
+    };
+
+    _this._createColumn = _this._createColumn.bind(_this);
+    _this._createRow = _this._createRow.bind(_this);
+    _this._onScroll = _this._onScroll.bind(_this);
+    _this._onSectionRendered = _this._onSectionRendered.bind(_this);
+    return _this;
+  }
+
+  _createClass(Table, [{
+    key: 'forceUpdateGrid',
+    value: function forceUpdateGrid() {
+      this.Grid.forceUpdate();
+    }
+
+    /** See Grid#measureAllCells */
+
+  }, {
+    key: 'measureAllRows',
+    value: function measureAllRows() {
+      this.Grid.measureAllCells();
+    }
+
+    /** See Grid#recomputeGridSize */
+
+  }, {
+    key: 'recomputeRowHeights',
+    value: function recomputeRowHeights() {
+      var index = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
+
+      this.Grid.recomputeGridSize({
+        rowIndex: index
+      });
+      this.forceUpdateGrid();
+    }
+  }, {
+    key: 'componentDidMount',
+    value: function componentDidMount() {
+      this._setScrollbarWidth();
+    }
+  }, {
+    key: 'componentDidUpdate',
+    value: function componentDidUpdate() {
+      this._setScrollbarWidth();
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      var _this2 = this;
+
+      var _props = this.props;
+      var children = _props.children;
+      var className = _props.className;
+      var disableHeader = _props.disableHeader;
+      var gridClassName = _props.gridClassName;
+      var gridStyle = _props.gridStyle;
+      var headerHeight = _props.headerHeight;
+      var height = _props.height;
+      var noRowsRenderer = _props.noRowsRenderer;
+      var rowClassName = _props.rowClassName;
+      var rowStyle = _props.rowStyle;
+      var scrollToIndex = _props.scrollToIndex;
+      var style = _props.style;
+      var width = _props.width;
+      var scrollbarWidth = this.state.scrollbarWidth;
+
+
+      var availableRowsHeight = height - headerHeight;
+
+      var rowClass = rowClassName instanceof Function ? rowClassName({ index: -1 }) : rowClassName;
+      var rowStyleObject = rowStyle instanceof Function ? rowStyle({ index: -1 }) : rowStyle;
+
+      // Precompute and cache column styles before rendering rows and columns to speed things up
+      this._cachedColumnStyles = [];
+      _react2.default.Children.toArray(children).forEach(function (column, index) {
+        var flexStyles = _this2._getFlexStyleForColumn(column, column.props.style);
+
+        _this2._cachedColumnStyles[index] = _extends({}, flexStyles, {
+          overflow: 'hidden'
+        });
+      });
+
+      // Note that we specify :rowCount, :scrollbarWidth, :sortBy, and :sortDirection as properties on Grid even though these have nothing to do with Grid.
+      // This is done because Grid is a pure component and won't update unless its properties or state has changed.
+      // Any property that should trigger a re-render of Grid then is specified here to avoid a stale display.
+      return _react2.default.createElement(
+        'div',
+        {
+          className: (0, _classnames2.default)('ReactVirtualized__Table', className),
+          style: style
+        },
+        !disableHeader && _react2.default.createElement(
+          'div',
+          {
+            className: (0, _classnames2.default)('ReactVirtualized__Table__headerRow', rowClass),
+            style: _extends({}, rowStyleObject, {
+              height: headerHeight,
+              overflow: 'hidden',
+              paddingRight: scrollbarWidth,
+              width: width
+            })
+          },
+          this._getRenderedHeaderRow()
+        ),
+        _react2.default.createElement(_Grid2.default, _extends({}, this.props, {
+          autoContainerWidth: true,
+          className: (0, _classnames2.default)('ReactVirtualized__Table__Grid', gridClassName),
+          cellRenderer: this._createRow,
+          columnWidth: width,
+          columnCount: 1,
+          height: availableRowsHeight,
+          noContentRenderer: noRowsRenderer,
+          onScroll: this._onScroll,
+          onSectionRendered: this._onSectionRendered,
+          ref: function ref(_ref) {
+            _this2.Grid = _ref;
+          },
+          scrollbarWidth: scrollbarWidth,
+          scrollToRow: scrollToIndex,
+          style: _extends({}, gridStyle, {
+            overflowX: 'hidden'
+          })
+        }))
+      );
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+  }, {
+    key: '_createColumn',
+    value: function _createColumn(_ref2) {
+      var column = _ref2.column;
+      var columnIndex = _ref2.columnIndex;
+      var isScrolling = _ref2.isScrolling;
+      var rowData = _ref2.rowData;
+      var rowIndex = _ref2.rowIndex;
+      var _column$props = column.props;
+      var cellDataGetter = _column$props.cellDataGetter;
+      var cellRenderer = _column$props.cellRenderer;
+      var className = _column$props.className;
+      var columnData = _column$props.columnData;
+      var dataKey = _column$props.dataKey;
+
+
+      var cellData = cellDataGetter({ columnData: columnData, dataKey: dataKey, rowData: rowData });
+      var renderedCell = cellRenderer({ cellData: cellData, columnData: columnData, dataKey: dataKey, isScrolling: isScrolling, rowData: rowData, rowIndex: rowIndex });
+
+      var style = this._cachedColumnStyles[columnIndex];
+
+      var title = typeof renderedCell === 'string' ? renderedCell : null;
+
+      return _react2.default.createElement(
+        'div',
+        {
+          key: 'Row' + rowIndex + '-Col' + columnIndex,
+          className: (0, _classnames2.default)('ReactVirtualized__Table__rowColumn', className),
+          style: style,
+          title: title
+        },
+        renderedCell
+      );
+    }
+  }, {
+    key: '_createHeader',
+    value: function _createHeader(_ref3) {
+      var column = _ref3.column;
+      var index = _ref3.index;
+      var _props2 = this.props;
+      var headerClassName = _props2.headerClassName;
+      var headerStyle = _props2.headerStyle;
+      var onHeaderClick = _props2.onHeaderClick;
+      var sort = _props2.sort;
+      var sortBy = _props2.sortBy;
+      var sortDirection = _props2.sortDirection;
+      var _column$props2 = column.props;
+      var dataKey = _column$props2.dataKey;
+      var disableSort = _column$props2.disableSort;
+      var headerRenderer = _column$props2.headerRenderer;
+      var label = _column$props2.label;
+      var columnData = _column$props2.columnData;
+
+      var sortEnabled = !disableSort && sort;
+
+      var classNames = (0, _classnames2.default)('ReactVirtualized__Table__headerColumn', headerClassName, column.props.headerClassName, {
+        'ReactVirtualized__Table__sortableHeaderColumn': sortEnabled
+      });
+      var style = this._getFlexStyleForColumn(column, headerStyle);
+
+      var renderedHeader = headerRenderer({
+        columnData: columnData,
+        dataKey: dataKey,
+        disableSort: disableSort,
+        label: label,
+        sortBy: sortBy,
+        sortDirection: sortDirection
+      });
+
+      var a11yProps = {};
+
+      if (sortEnabled || onHeaderClick) {
+        (function () {
+          // If this is a sortable header, clicking it should update the table data's sorting.
+          var newSortDirection = sortBy !== dataKey || sortDirection === _SortDirection2.default.DESC ? _SortDirection2.default.ASC : _SortDirection2.default.DESC;
+
+          var onClick = function onClick() {
+            sortEnabled && sort({
+              sortBy: dataKey,
+              sortDirection: newSortDirection
+            });
+            onHeaderClick && onHeaderClick({ columnData: columnData, dataKey: dataKey });
+          };
+
+          var onKeyDown = function onKeyDown(event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+              onClick();
+            }
+          };
+
+          a11yProps['aria-label'] = column.props['aria-label'] || label || dataKey;
+          a11yProps.role = 'rowheader';
+          a11yProps.tabIndex = 0;
+          a11yProps.onClick = onClick;
+          a11yProps.onKeyDown = onKeyDown;
+        })();
+      }
+
+      return _react2.default.createElement(
+        'div',
+        _extends({}, a11yProps, {
+          key: 'Header-Col' + index,
+          className: classNames,
+          style: style
+        }),
+        renderedHeader
+      );
+    }
+  }, {
+    key: '_createRow',
+    value: function _createRow(_ref4) {
+      var _this3 = this;
+
+      var index = _ref4.rowIndex;
+      var isScrolling = _ref4.isScrolling;
+      var key = _ref4.key;
+      var style = _ref4.style;
+      var _props3 = this.props;
+      var children = _props3.children;
+      var onRowClick = _props3.onRowClick;
+      var onRowDoubleClick = _props3.onRowDoubleClick;
+      var onRowMouseOver = _props3.onRowMouseOver;
+      var onRowMouseOut = _props3.onRowMouseOut;
+      var rowClassName = _props3.rowClassName;
+      var rowGetter = _props3.rowGetter;
+      var rowRenderer = _props3.rowRenderer;
+      var rowStyle = _props3.rowStyle;
+      var scrollbarWidth = this.state.scrollbarWidth;
+
+
+      var rowClass = rowClassName instanceof Function ? rowClassName({ index: index }) : rowClassName;
+      var rowStyleObject = rowStyle instanceof Function ? rowStyle({ index: index }) : rowStyle;
+      var rowData = rowGetter({ index: index });
+
+      var columns = _react2.default.Children.toArray(children).map(function (column, columnIndex) {
+        return _this3._createColumn({
+          column: column,
+          columnIndex: columnIndex,
+          isScrolling: isScrolling,
+          rowData: rowData,
+          rowIndex: index,
+          scrollbarWidth: scrollbarWidth
+        });
+      });
+
+      var className = (0, _classnames2.default)('ReactVirtualized__Table__row', rowClass);
+      var flattenedStyle = _extends({}, style, rowStyleObject, {
+        height: this._getRowHeight(index),
+        overflow: 'hidden',
+        paddingRight: scrollbarWidth
+      });
+
+      return rowRenderer({
+        className: className,
+        columns: columns,
+        index: index,
+        isScrolling: isScrolling,
+        key: key,
+        onRowClick: onRowClick,
+        onRowDoubleClick: onRowDoubleClick,
+        onRowMouseOver: onRowMouseOver,
+        onRowMouseOut: onRowMouseOut,
+        rowData: rowData,
+        style: flattenedStyle
+      });
+    }
+
+    /**
+     * Determines the flex-shrink, flex-grow, and width values for a cell (header or column).
+     */
+
+  }, {
+    key: '_getFlexStyleForColumn',
+    value: function _getFlexStyleForColumn(column) {
+      var customStyle = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+      var flexValue = column.props.flexGrow + ' ' + column.props.flexShrink + ' ' + column.props.width + 'px';
+
+      var style = _extends({}, customStyle, {
+        flex: flexValue,
+        msFlex: flexValue,
+        WebkitFlex: flexValue
+      });
+
+      if (column.props.maxWidth) {
+        style.maxWidth = column.props.maxWidth;
+      }
+
+      if (column.props.minWidth) {
+        style.minWidth = column.props.minWidth;
+      }
+
+      return style;
+    }
+  }, {
+    key: '_getRenderedHeaderRow',
+    value: function _getRenderedHeaderRow() {
+      var _this4 = this;
+
+      var _props4 = this.props;
+      var children = _props4.children;
+      var disableHeader = _props4.disableHeader;
+
+      var items = disableHeader ? [] : _react2.default.Children.toArray(children);
+
+      return items.map(function (column, index) {
+        return _this4._createHeader({ column: column, index: index });
+      });
+    }
+  }, {
+    key: '_getRowHeight',
+    value: function _getRowHeight(rowIndex) {
+      var rowHeight = this.props.rowHeight;
+
+
+      return rowHeight instanceof Function ? rowHeight({ index: rowIndex }) : rowHeight;
+    }
+  }, {
+    key: '_onScroll',
+    value: function _onScroll(_ref5) {
+      var clientHeight = _ref5.clientHeight;
+      var scrollHeight = _ref5.scrollHeight;
+      var scrollTop = _ref5.scrollTop;
+      var onScroll = this.props.onScroll;
+
+
+      onScroll({ clientHeight: clientHeight, scrollHeight: scrollHeight, scrollTop: scrollTop });
+    }
+  }, {
+    key: '_onSectionRendered',
+    value: function _onSectionRendered(_ref6) {
+      var rowOverscanStartIndex = _ref6.rowOverscanStartIndex;
+      var rowOverscanStopIndex = _ref6.rowOverscanStopIndex;
+      var rowStartIndex = _ref6.rowStartIndex;
+      var rowStopIndex = _ref6.rowStopIndex;
+      var onRowsRendered = this.props.onRowsRendered;
+
+
+      onRowsRendered({
+        overscanStartIndex: rowOverscanStartIndex,
+        overscanStopIndex: rowOverscanStopIndex,
+        startIndex: rowStartIndex,
+        stopIndex: rowStopIndex
+      });
+    }
+  }, {
+    key: '_setScrollbarWidth',
+    value: function _setScrollbarWidth() {
+      var Grid = (0, _reactDom.findDOMNode)(this.Grid);
+      var clientWidth = Grid.clientWidth || 0;
+      var offsetWidth = Grid.offsetWidth || 0;
+      var scrollbarWidth = offsetWidth - clientWidth;
+
+      this.setState({ scrollbarWidth: scrollbarWidth });
+    }
+  }]);
+
+  return Table;
+}(_react.Component);
+
+Table.propTypes = {
+  'aria-label': _react.PropTypes.string,
+
+  /**
+   * Removes fixed height from the scrollingContainer so that the total height
+   * of rows can stretch the window. Intended for use with WindowScroller
+   */
+  autoHeight: _react.PropTypes.bool,
+
+  /** One or more Columns describing the data displayed in this row */
+  children: function children(props, propName, componentName) {
+    var children = _react2.default.Children.toArray(props.children);
+    for (var i = 0; i < children.length; i++) {
+      if (children[i].type !== _Column2.default) {
+        return new Error('Table only accepts children of type Column');
+      }
+    }
+  },
+
+  /** Optional CSS class name */
+  className: _react.PropTypes.string,
+
+  /** Disable rendering the header at all */
+  disableHeader: _react.PropTypes.bool,
+
+  /**
+   * Used to estimate the total height of a Table before all of its rows have actually been measured.
+   * The estimated total height is adjusted as rows are rendered.
+   */
+  estimatedRowSize: _react.PropTypes.number.isRequired,
+
+  /** Optional custom CSS class name to attach to inner Grid element. */
+  gridClassName: _react.PropTypes.string,
+
+  /** Optional inline style to attach to inner Grid element. */
+  gridStyle: _react.PropTypes.object,
+
+  /** Optional CSS class to apply to all column headers */
+  headerClassName: _react.PropTypes.string,
+
+  /** Fixed height of header row */
+  headerHeight: _react.PropTypes.number.isRequired,
+
+  /** Fixed/available height for out DOM element */
+  height: _react.PropTypes.number.isRequired,
+
+  /** Optional renderer to be used in place of table body rows when rowCount is 0 */
+  noRowsRenderer: _react.PropTypes.func,
+
+  /**
+  * Optional callback when a column's header is clicked.
+  * ({ columnData: any, dataKey: string }): void
+  */
+  onHeaderClick: _react.PropTypes.func,
+
+  /** Optional custom inline style to attach to table header columns. */
+  headerStyle: _react.PropTypes.object,
+
+  /**
+   * Callback invoked when a user clicks on a table row.
+   * ({ index: number }): void
+   */
+  onRowClick: _react.PropTypes.func,
+
+  /**
+   * Callback invoked when a user double-clicks on a table row.
+   * ({ index: number }): void
+   */
+  onRowDoubleClick: _react.PropTypes.func,
+
+  /**
+   * Callback invoked when the mouse leaves a table row.
+   * ({ index: number }): void
+   */
+  onRowMouseOut: _react.PropTypes.func,
+
+  /**
+   * Callback invoked when a user moves the mouse over a table row.
+   * ({ index: number }): void
+   */
+  onRowMouseOver: _react.PropTypes.func,
+
+  /**
+   * Callback invoked with information about the slice of rows that were just rendered.
+   * ({ startIndex, stopIndex }): void
+   */
+  onRowsRendered: _react.PropTypes.func,
+
+  /**
+   * Callback invoked whenever the scroll offset changes within the inner scrollable region.
+   * This callback can be used to sync scrolling between lists, tables, or grids.
+   * ({ clientHeight, scrollHeight, scrollTop }): void
+   */
+  onScroll: _react.PropTypes.func.isRequired,
+
+  /**
+   * Number of rows to render above/below the visible bounds of the list.
+   * These rows can help for smoother scrolling on touch devices.
+   */
+  overscanRowCount: _react.PropTypes.number.isRequired,
+
+  /**
+   * Optional CSS class to apply to all table rows (including the header row).
+   * This property can be a CSS class name (string) or a function that returns a class name.
+   * If a function is provided its signature should be: ({ index: number }): string
+   */
+  rowClassName: _react.PropTypes.oneOfType([_react.PropTypes.string, _react.PropTypes.func]),
+
+  /**
+   * Callback responsible for returning a data row given an index.
+   * ({ index: number }): any
+   */
+  rowGetter: _react.PropTypes.func.isRequired,
+
+  /**
+   * Either a fixed row height (number) or a function that returns the height of a row given its index.
+   * ({ index: number }): number
+   */
+  rowHeight: _react.PropTypes.oneOfType([_react.PropTypes.number, _react.PropTypes.func]).isRequired,
+
+  /** Number of rows in table. */
+  rowCount: _react.PropTypes.number.isRequired,
+
+  /**
+   * Responsible for rendering a table row given an array of columns:
+   * Should implement the following interface: ({
+   *   className: string,
+   *   columns: Array,
+   *   index: number,
+   *   isScrolling: boolean,
+   *   onRowClick: ?Function,
+   *   onRowDoubleClick: ?Function,
+   *   onRowMouseOver: ?Function,
+   *   onRowMouseOut: ?Function,
+   *   rowData: any,
+   *   style: any
+   * }): PropTypes.node
+   */
+  rowRenderer: _react.PropTypes.func,
+
+  /** Optional custom inline style to attach to table rows. */
+  rowStyle: _react.PropTypes.oneOfType([_react.PropTypes.object, _react.PropTypes.func]).isRequired,
+
+  /** See Grid#scrollToAlignment */
+  scrollToAlignment: _react.PropTypes.oneOf(['auto', 'end', 'start', 'center']).isRequired,
+
+  /** Row index to ensure visible (by forcefully scrolling if necessary) */
+  scrollToIndex: _react.PropTypes.number,
+
+  /** Vertical offset. */
+  scrollTop: _react.PropTypes.number,
+
+  /**
+   * Sort function to be called if a sortable header is clicked.
+   * ({ sortBy: string, sortDirection: SortDirection }): void
+   */
+  sort: _react.PropTypes.func,
+
+  /** Table data is currently sorted by this :dataKey (if it is sorted at all) */
+  sortBy: _react.PropTypes.string,
+
+  /** Table data is currently sorted in this direction (if it is sorted at all) */
+  sortDirection: _react.PropTypes.oneOf([_SortDirection2.default.ASC, _SortDirection2.default.DESC]),
+
+  /** Optional inline style */
+  style: _react.PropTypes.object,
+
+  /** Tab index for focus */
+  tabIndex: _react.PropTypes.number,
+
+  /** Width of list */
+  width: _react.PropTypes.number.isRequired
+};
+Table.defaultProps = {
+  disableHeader: false,
+  estimatedRowSize: 30,
+  headerHeight: 0,
+  headerStyle: {},
+  noRowsRenderer: function noRowsRenderer() {
+    return null;
+  },
+  onRowsRendered: function onRowsRendered() {
+    return null;
+  },
+  onScroll: function onScroll() {
+    return null;
+  },
+  overscanRowCount: 10,
+  rowRenderer: _defaultRowRenderer2.default,
+  rowStyle: {},
+  scrollToAlignment: 'auto',
+  style: {}
+};
+exports.default = Table;
+},{"../Grid":131,"./Column":143,"./SortDirection":144,"./defaultRowRenderer":150,"classnames":47,"react":"react","react-addons-shallow-compare":113,"react-dom":"react-dom"}],147:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = defaultCellDataGetter;
+
+
+/**
+ * Default accessor for returning a cell value for a given attribute.
+ * This function expects to operate on either a vanilla Object or an Immutable Map.
+ * You should override the column's cellDataGetter if your data is some other type of object.
+ */
+function defaultCellDataGetter(_ref) {
+  var columnData = _ref.columnData;
+  var dataKey = _ref.dataKey;
+  var rowData = _ref.rowData;
+
+  if (rowData.get instanceof Function) {
+    return rowData.get(dataKey);
+  } else {
+    return rowData[dataKey];
+  }
+}
+},{}],148:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = defaultCellRenderer;
+
+
+/**
+ * Default cell renderer that displays an attribute as a simple string
+ * You should override the column's cellRenderer if your data is some other type of object.
+ */
+function defaultCellRenderer(_ref) {
+  var cellData = _ref.cellData;
+  var cellDataKey = _ref.cellDataKey;
+  var columnData = _ref.columnData;
+  var rowData = _ref.rowData;
+  var rowIndex = _ref.rowIndex;
+
+  if (cellData == null) {
+    return '';
+  } else {
+    return String(cellData);
+  }
+}
+},{}],149:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = defaultHeaderRenderer;
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _SortIndicator = require('./SortIndicator');
+
+var _SortIndicator2 = _interopRequireDefault(_SortIndicator);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/**
+ * Default table header renderer.
+ */
+function defaultHeaderRenderer(_ref) {
+  var columnData = _ref.columnData;
+  var dataKey = _ref.dataKey;
+  var disableSort = _ref.disableSort;
+  var label = _ref.label;
+  var sortBy = _ref.sortBy;
+  var sortDirection = _ref.sortDirection;
+
+  var showSortIndicator = sortBy === dataKey;
+  var children = [_react2.default.createElement(
+    'span',
+    {
+      className: 'ReactVirtualized__Table__headerTruncatedText',
+      key: 'label',
+      title: label
+    },
+    label
+  )];
+
+  if (showSortIndicator) {
+    children.push(_react2.default.createElement(_SortIndicator2.default, {
+      key: 'SortIndicator',
+      sortDirection: sortDirection
+    }));
+  }
+
+  return children;
+}
+},{"./SortIndicator":145,"react":"react"}],150:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+
+exports.default = defaultRowRenderer;
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+/**
+ * Default row renderer for Table.
+ */
+function defaultRowRenderer(_ref) {
+  var className = _ref.className;
+  var columns = _ref.columns;
+  var index = _ref.index;
+  var isScrolling = _ref.isScrolling;
+  var key = _ref.key;
+  var onRowClick = _ref.onRowClick;
+  var onRowDoubleClick = _ref.onRowDoubleClick;
+  var onRowMouseOver = _ref.onRowMouseOver;
+  var onRowMouseOut = _ref.onRowMouseOut;
+  var rowData = _ref.rowData;
+  var style = _ref.style;
+
+  var a11yProps = {};
+
+  if (onRowClick || onRowDoubleClick || onRowMouseOver || onRowMouseOut) {
+    a11yProps['aria-label'] = 'row';
+    a11yProps.role = 'row';
+    a11yProps.tabIndex = 0;
+
+    if (onRowClick) {
+      a11yProps.onClick = function () {
+        return onRowClick({ index: index });
+      };
+    }
+    if (onRowDoubleClick) {
+      a11yProps.onDoubleClick = function () {
+        return onRowDoubleClick({ index: index });
+      };
+    }
+    if (onRowMouseOut) {
+      a11yProps.onMouseOut = function () {
+        return onRowMouseOut({ index: index });
+      };
+    }
+    if (onRowMouseOver) {
+      a11yProps.onMouseOver = function () {
+        return onRowMouseOver({ index: index });
+      };
+    }
+  }
+
+  return _react2.default.createElement(
+    'div',
+    _extends({}, a11yProps, {
+      className: className,
+      key: key,
+      style: style
+    }),
+    columns
+  );
+}
+},{"react":"react"}],151:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.SortIndicator = exports.SortDirection = exports.Column = exports.Table = exports.defaultRowRenderer = exports.defaultHeaderRenderer = exports.defaultCellRenderer = exports.defaultCellDataGetter = exports.default = undefined;
+
+var _Table2 = require('./Table');
+
+var _Table3 = _interopRequireDefault(_Table2);
+
+var _defaultCellDataGetter2 = require('./defaultCellDataGetter');
+
+var _defaultCellDataGetter3 = _interopRequireDefault(_defaultCellDataGetter2);
+
+var _defaultCellRenderer2 = require('./defaultCellRenderer');
+
+var _defaultCellRenderer3 = _interopRequireDefault(_defaultCellRenderer2);
+
+var _defaultHeaderRenderer2 = require('./defaultHeaderRenderer');
+
+var _defaultHeaderRenderer3 = _interopRequireDefault(_defaultHeaderRenderer2);
+
+var _defaultRowRenderer2 = require('./defaultRowRenderer');
+
+var _defaultRowRenderer3 = _interopRequireDefault(_defaultRowRenderer2);
+
+var _Column2 = require('./Column');
+
+var _Column3 = _interopRequireDefault(_Column2);
+
+var _SortDirection2 = require('./SortDirection');
+
+var _SortDirection3 = _interopRequireDefault(_SortDirection2);
+
+var _SortIndicator2 = require('./SortIndicator');
+
+var _SortIndicator3 = _interopRequireDefault(_SortIndicator2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _Table3.default;
+exports.defaultCellDataGetter = _defaultCellDataGetter3.default;
+exports.defaultCellRenderer = _defaultCellRenderer3.default;
+exports.defaultHeaderRenderer = _defaultHeaderRenderer3.default;
+exports.defaultRowRenderer = _defaultRowRenderer3.default;
+exports.Table = _Table3.default;
+exports.Column = _Column3.default;
+exports.SortDirection = _SortDirection3.default;
+exports.SortIndicator = _SortIndicator3.default;
+},{"./Column":143,"./SortDirection":144,"./SortIndicator":145,"./Table":146,"./defaultCellDataGetter":147,"./defaultCellRenderer":148,"./defaultHeaderRenderer":149,"./defaultRowRenderer":150}],152:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _reactDom = require('react-dom');
+
+var _reactDom2 = _interopRequireDefault(_reactDom);
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+var _onScroll = require('./utils/onScroll');
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var WindowScroller = function (_Component) {
+  _inherits(WindowScroller, _Component);
+
+  function WindowScroller(props) {
+    _classCallCheck(this, WindowScroller);
+
+    var _this = _possibleConstructorReturn(this, (WindowScroller.__proto__ || Object.getPrototypeOf(WindowScroller)).call(this, props));
+
+    var height = typeof window !== 'undefined' ? window.innerHeight : 0;
+
+    _this.state = {
+      isScrolling: false,
+      height: height,
+      scrollTop: 0
+    };
+
+    _this._onScrollWindow = _this._onScrollWindow.bind(_this);
+    _this._onResizeWindow = _this._onResizeWindow.bind(_this);
+    _this._enablePointerEventsAfterDelayCallback = _this._enablePointerEventsAfterDelayCallback.bind(_this);
+    return _this;
+  }
+
+  _createClass(WindowScroller, [{
+    key: 'componentDidMount',
+    value: function componentDidMount() {
+      var height = this.state.height;
+
+      // Subtract documentElement top to handle edge-case where a user is navigating back (history) from an already-scrolled bage.
+      // In this case the body's top position will be a negative number and this element's top will be increased (by that amount).
+
+      this._positionFromTop = _reactDom2.default.findDOMNode(this).getBoundingClientRect().top - document.documentElement.getBoundingClientRect().top;
+
+      if (height !== window.innerHeight) {
+        this.setState({
+          height: window.innerHeight
+        });
+      }
+
+      (0, _onScroll.registerScrollListener)(this);
+      window.addEventListener('resize', this._onResizeWindow, false);
+    }
+  }, {
+    key: 'componentWillUnmount',
+    value: function componentWillUnmount() {
+      (0, _onScroll.unregisterScrollListener)(this);
+
+      window.removeEventListener('resize', this._onResizeWindow, false);
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      var children = this.props.children;
+      var _state = this.state;
+      var isScrolling = _state.isScrolling;
+      var scrollTop = _state.scrollTop;
+      var height = _state.height;
+
+
+      return _react2.default.createElement(
+        'div',
+        null,
+        children({
+          height: height,
+          isScrolling: isScrolling,
+          scrollTop: scrollTop
+        })
+      );
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+  }, {
+    key: '_enablePointerEventsAfterDelayCallback',
+    value: function _enablePointerEventsAfterDelayCallback() {
+      this.setState({
+        isScrolling: false
+      });
+    }
+  }, {
+    key: '_onResizeWindow',
+    value: function _onResizeWindow(event) {
+      var onResize = this.props.onResize;
+
+
+      var height = window.innerHeight || 0;
+
+      this.setState({ height: height });
+
+      onResize({ height: height });
+    }
+  }, {
+    key: '_onScrollWindow',
+    value: function _onScrollWindow(event) {
+      var onScroll = this.props.onScroll;
+
+      // In IE10+ scrollY is undefined, so we replace that with the latter
+
+      var scrollY = 'scrollY' in window ? window.scrollY : document.documentElement.scrollTop;
+
+      var scrollTop = Math.max(0, scrollY - this._positionFromTop);
+
+      this.setState({
+        isScrolling: true,
+        scrollTop: scrollTop
+      });
+
+      onScroll({ scrollTop: scrollTop });
+    }
+  }]);
+
+  return WindowScroller;
+}(_react.Component);
+
+WindowScroller.propTypes = {
+  /**
+   * Function responsible for rendering children.
+   * This function should implement the following signature:
+   * ({ height, scrollTop }) => PropTypes.element
+   */
+  children: _react.PropTypes.func.isRequired,
+
+  /** Callback to be invoked on-resize: ({ height }) */
+  onResize: _react.PropTypes.func.isRequired,
+
+  /** Callback to be invoked on-scroll: ({ scrollTop }) */
+  onScroll: _react.PropTypes.func.isRequired
+};
+WindowScroller.defaultProps = {
+  onResize: function onResize() {},
+  onScroll: function onScroll() {}
+};
+exports.default = WindowScroller;
+},{"./utils/onScroll":154,"react":"react","react-addons-shallow-compare":113,"react-dom":"react-dom"}],153:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.IS_SCROLLING_TIMEOUT = exports.WindowScroller = exports.default = undefined;
+
+var _onScroll = require('./utils/onScroll');
+
+Object.defineProperty(exports, 'IS_SCROLLING_TIMEOUT', {
+  enumerable: true,
+  get: function get() {
+    return _onScroll.IS_SCROLLING_TIMEOUT;
+  }
+});
+
+var _WindowScroller2 = require('./WindowScroller');
+
+var _WindowScroller3 = _interopRequireDefault(_WindowScroller2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+exports.default = _WindowScroller3.default;
+exports.WindowScroller = _WindowScroller3.default;
+},{"./WindowScroller":152,"./utils/onScroll":154}],154:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.registerScrollListener = registerScrollListener;
+exports.unregisterScrollListener = unregisterScrollListener;
+var mountedInstances = [];
+var originalBodyPointerEvents = null;
+var disablePointerEventsTimeoutId = null;
+
+/**
+ * Specifies the number of miliseconds during which to disable pointer events while a scroll is in progress.
+ * This improves performance and makes scrolling smoother.
+ */
+var IS_SCROLLING_TIMEOUT = exports.IS_SCROLLING_TIMEOUT = 150;
+
+function enablePointerEventsIfDisabled() {
+  if (disablePointerEventsTimeoutId) {
+    disablePointerEventsTimeoutId = null;
+
+    document.body.style.pointerEvents = originalBodyPointerEvents;
+
+    originalBodyPointerEvents = null;
+  }
+}
+
+function enablePointerEventsAfterDelayCallback() {
+  enablePointerEventsIfDisabled();
+  mountedInstances.forEach(function (component) {
+    return component._enablePointerEventsAfterDelayCallback();
+  });
+}
+
+function enablePointerEventsAfterDelay() {
+  if (disablePointerEventsTimeoutId) {
+    clearTimeout(disablePointerEventsTimeoutId);
+  }
+
+  disablePointerEventsTimeoutId = setTimeout(enablePointerEventsAfterDelayCallback, IS_SCROLLING_TIMEOUT);
+}
+
+function onScrollWindow(event) {
+  if (originalBodyPointerEvents == null) {
+    originalBodyPointerEvents = document.body.style.pointerEvents;
+
+    document.body.style.pointerEvents = 'none';
+
+    enablePointerEventsAfterDelay();
+  }
+  mountedInstances.forEach(function (component) {
+    return component._onScrollWindow(event);
+  });
+}
+
+function registerScrollListener(component) {
+  if (!mountedInstances.length) {
+    window.addEventListener('scroll', onScrollWindow);
+  }
+  mountedInstances.push(component);
+}
+
+function unregisterScrollListener(component) {
+  mountedInstances = mountedInstances.filter(function (c) {
+    return c !== component;
+  });
+  if (!mountedInstances.length) {
+    window.removeEventListener('scroll', onScrollWindow);
+    if (disablePointerEventsTimeoutId) {
+      clearTimeout(disablePointerEventsTimeoutId);
+      enablePointerEventsIfDisabled();
+    }
+  }
+}
+},{}],155:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _ArrowKeyStepper = require('./ArrowKeyStepper');
+
+Object.defineProperty(exports, 'ArrowKeyStepper', {
+  enumerable: true,
+  get: function get() {
+    return _ArrowKeyStepper.ArrowKeyStepper;
+  }
+});
+
+var _AutoSizer = require('./AutoSizer');
+
+Object.defineProperty(exports, 'AutoSizer', {
+  enumerable: true,
+  get: function get() {
+    return _AutoSizer.AutoSizer;
+  }
+});
+
+var _CellMeasurer = require('./CellMeasurer');
+
+Object.defineProperty(exports, 'CellMeasurer', {
+  enumerable: true,
+  get: function get() {
+    return _CellMeasurer.CellMeasurer;
+  }
+});
+Object.defineProperty(exports, 'defaultCellMeasurerCellSizeCache', {
+  enumerable: true,
+  get: function get() {
+    return _CellMeasurer.defaultCellSizeCache;
+  }
+});
+Object.defineProperty(exports, 'uniformSizeCellMeasurerCellSizeCache', {
+  enumerable: true,
+  get: function get() {
+    return _CellMeasurer.defaultCellSizeCache;
+  }
+});
+
+var _Collection = require('./Collection');
+
+Object.defineProperty(exports, 'Collection', {
+  enumerable: true,
+  get: function get() {
+    return _Collection.Collection;
+  }
+});
+
+var _ColumnSizer = require('./ColumnSizer');
+
+Object.defineProperty(exports, 'ColumnSizer', {
+  enumerable: true,
+  get: function get() {
+    return _ColumnSizer.ColumnSizer;
+  }
+});
+
+var _Table = require('./Table');
+
+Object.defineProperty(exports, 'defaultTableCellDataGetter', {
+  enumerable: true,
+  get: function get() {
+    return _Table.defaultCellDataGetter;
+  }
+});
+Object.defineProperty(exports, 'defaultTableCellRenderer', {
+  enumerable: true,
+  get: function get() {
+    return _Table.defaultCellRenderer;
+  }
+});
+Object.defineProperty(exports, 'defaultTableHeaderRenderer', {
+  enumerable: true,
+  get: function get() {
+    return _Table.defaultHeaderRenderer;
+  }
+});
+Object.defineProperty(exports, 'defaultTableRowRenderer', {
+  enumerable: true,
+  get: function get() {
+    return _Table.defaultRowRenderer;
+  }
+});
+Object.defineProperty(exports, 'Table', {
+  enumerable: true,
+  get: function get() {
+    return _Table.Table;
+  }
+});
+Object.defineProperty(exports, 'Column', {
+  enumerable: true,
+  get: function get() {
+    return _Table.Column;
+  }
+});
+Object.defineProperty(exports, 'SortDirection', {
+  enumerable: true,
+  get: function get() {
+    return _Table.SortDirection;
+  }
+});
+Object.defineProperty(exports, 'SortIndicator', {
+  enumerable: true,
+  get: function get() {
+    return _Table.SortIndicator;
+  }
+});
+
+var _Grid = require('./Grid');
+
+Object.defineProperty(exports, 'defaultCellRangeRenderer', {
+  enumerable: true,
+  get: function get() {
+    return _Grid.defaultCellRangeRenderer;
+  }
+});
+Object.defineProperty(exports, 'Grid', {
+  enumerable: true,
+  get: function get() {
+    return _Grid.Grid;
+  }
+});
+
+var _InfiniteLoader = require('./InfiniteLoader');
+
+Object.defineProperty(exports, 'InfiniteLoader', {
+  enumerable: true,
+  get: function get() {
+    return _InfiniteLoader.InfiniteLoader;
+  }
+});
+
+var _ScrollSync = require('./ScrollSync');
+
+Object.defineProperty(exports, 'ScrollSync', {
+  enumerable: true,
+  get: function get() {
+    return _ScrollSync.ScrollSync;
+  }
+});
+
+var _List = require('./List');
+
+Object.defineProperty(exports, 'List', {
+  enumerable: true,
+  get: function get() {
+    return _List.List;
+  }
+});
+
+var _WindowScroller = require('./WindowScroller');
+
+Object.defineProperty(exports, 'WindowScroller', {
+  enumerable: true,
+  get: function get() {
+    return _WindowScroller.WindowScroller;
+  }
+});
+},{"./ArrowKeyStepper":115,"./AutoSizer":117,"./CellMeasurer":120,"./Collection":125,"./ColumnSizer":128,"./Grid":131,"./InfiniteLoader":138,"./List":140,"./ScrollSync":142,"./Table":151,"./WindowScroller":153}],156:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = createCallbackMemoizer;
+/**
+ * Helper utility that updates the specified callback whenever any of the specified indices have changed.
+ */
+function createCallbackMemoizer() {
+  var requireAllKeys = arguments.length <= 0 || arguments[0] === undefined ? true : arguments[0];
+
+  var cachedIndices = {};
+
+  return function (_ref) {
+    var callback = _ref.callback;
+    var indices = _ref.indices;
+
+    var keys = Object.keys(indices);
+    var allInitialized = !requireAllKeys || keys.every(function (key) {
+      var value = indices[key];
+      return Array.isArray(value) ? value.length > 0 : value >= 0;
+    });
+    var indexChanged = keys.length !== Object.keys(cachedIndices).length || keys.some(function (key) {
+      var cachedValue = cachedIndices[key];
+      var value = indices[key];
+
+      return Array.isArray(value) ? cachedValue.join(',') !== value.join(',') : cachedValue !== value;
+    });
+
+    cachedIndices = indices;
+
+    if (allInitialized && indexChanged) {
+      callback(indices);
+    }
+  };
+}
+},{}],157:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = getUpdatedOffsetForIndex;
+/**
+ * Determines a new offset that ensures a certain cell is visible, given the current offset.
+ * If the cell is already visible then the current offset will be returned.
+ * If the current offset is too great or small, it will be adjusted just enough to ensure the specified index is visible.
+ *
+ * @param align Desired alignment within container; one of "auto" (default), "start", or "end"
+ * @param cellOffset Offset (x or y) position for cell
+ * @param cellSize Size (width or height) of cell
+ * @param containerSize Total size (width or height) of the container
+ * @param currentOffset Container's current (x or y) offset
+ * @return Offset to use to ensure the specified cell is visible
+ */
+function getUpdatedOffsetForIndex(_ref) {
+  var _ref$align = _ref.align;
+  var align = _ref$align === undefined ? 'auto' : _ref$align;
+  var cellOffset = _ref.cellOffset;
+  var cellSize = _ref.cellSize;
+  var containerSize = _ref.containerSize;
+  var currentOffset = _ref.currentOffset;
+
+  var maxOffset = cellOffset;
+  var minOffset = maxOffset - containerSize + cellSize;
+
+  switch (align) {
+    case 'start':
+      return maxOffset;
+    case 'end':
+      return minOffset;
+    case 'center':
+      return maxOffset - (containerSize - cellSize) / 2;
+    default:
+      return Math.max(minOffset, Math.min(maxOffset, currentOffset));
+  }
+}
+},{}],158:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = createDetectElementResize;
+/**
+ * Detect Element Resize.
+ * https://github.com/sdecima/javascript-detect-element-resize
+ * Sebastian Decima
+ *
+ * Forked from version 0.5.3; includes the following modifications:
+ * 1) Guard against unsafe 'window' and 'document' references (to support SSR).
+ * 2) Defer initialization code via a top-level function wrapper (to support SSR).
+ * 3) Avoid unnecessary reflows by not measuring size for scroll events bubbling from children.
+ **/
+
+function createDetectElementResize() {
+  // Check `document` and `window` in case of server-side rendering
+  var _window;
+  if (typeof window !== 'undefined') {
+    _window = window;
+  } else if (typeof self !== 'undefined') {
+    _window = self;
+  } else {
+    _window = this;
+  }
+
+  var attachEvent = typeof document !== 'undefined' && document.attachEvent;
+  var stylesCreated = false;
+
+  if (!attachEvent) {
+    var requestFrame = function () {
+      var raf = _window.requestAnimationFrame || _window.mozRequestAnimationFrame || _window.webkitRequestAnimationFrame || function (fn) {
+        return _window.setTimeout(fn, 20);
+      };
+      return function (fn) {
+        return raf(fn);
+      };
+    }();
+
+    var cancelFrame = function () {
+      var cancel = _window.cancelAnimationFrame || _window.mozCancelAnimationFrame || _window.webkitCancelAnimationFrame || _window.clearTimeout;
+      return function (id) {
+        return cancel(id);
+      };
+    }();
+
+    var resetTriggers = function resetTriggers(element) {
+      var triggers = element.__resizeTriggers__,
+          expand = triggers.firstElementChild,
+          contract = triggers.lastElementChild,
+          expandChild = expand.firstElementChild;
+      contract.scrollLeft = contract.scrollWidth;
+      contract.scrollTop = contract.scrollHeight;
+      expandChild.style.width = expand.offsetWidth + 1 + 'px';
+      expandChild.style.height = expand.offsetHeight + 1 + 'px';
+      expand.scrollLeft = expand.scrollWidth;
+      expand.scrollTop = expand.scrollHeight;
+    };
+
+    var checkTriggers = function checkTriggers(element) {
+      return element.offsetWidth != element.__resizeLast__.width || element.offsetHeight != element.__resizeLast__.height;
+    };
+
+    var scrollListener = function scrollListener(e) {
+      // Don't measure (which forces) reflow for scrolls that happen inside of children!
+      if (e.target.className.indexOf('contract-trigger') < 0 && e.target.className.indexOf('expand-trigger') < 0) {
+        return;
+      }
+
+      var element = this;
+      resetTriggers(this);
+      if (this.__resizeRAF__) cancelFrame(this.__resizeRAF__);
+      this.__resizeRAF__ = requestFrame(function () {
+        if (checkTriggers(element)) {
+          element.__resizeLast__.width = element.offsetWidth;
+          element.__resizeLast__.height = element.offsetHeight;
+          element.__resizeListeners__.forEach(function (fn) {
+            fn.call(element, e);
+          });
+        }
+      });
+    };
+
+    /* Detect CSS Animations support to detect element display/re-attach */
+    var animation = false,
+        animationstring = 'animation',
+        keyframeprefix = '',
+        animationstartevent = 'animationstart',
+        domPrefixes = 'Webkit Moz O ms'.split(' '),
+        startEvents = 'webkitAnimationStart animationstart oAnimationStart MSAnimationStart'.split(' '),
+        pfx = '';
+    {
+      var elm = document.createElement('fakeelement');
+      if (elm.style.animationName !== undefined) {
+        animation = true;
+      }
+
+      if (animation === false) {
+        for (var i = 0; i < domPrefixes.length; i++) {
+          if (elm.style[domPrefixes[i] + 'AnimationName'] !== undefined) {
+            pfx = domPrefixes[i];
+            animationstring = pfx + 'Animation';
+            keyframeprefix = '-' + pfx.toLowerCase() + '-';
+            animationstartevent = startEvents[i];
+            animation = true;
+            break;
+          }
+        }
+      }
+    }
+
+    var animationName = 'resizeanim';
+    var animationKeyframes = '@' + keyframeprefix + 'keyframes ' + animationName + ' { from { opacity: 0; } to { opacity: 0; } } ';
+    var animationStyle = keyframeprefix + 'animation: 1ms ' + animationName + '; ';
+  }
+
+  var createStyles = function createStyles() {
+    if (!stylesCreated) {
+      //opacity:0 works around a chrome bug https://code.google.com/p/chromium/issues/detail?id=286360
+      var css = (animationKeyframes ? animationKeyframes : '') + '.resize-triggers { ' + (animationStyle ? animationStyle : '') + 'visibility: hidden; opacity: 0; } ' + '.resize-triggers, .resize-triggers > div, .contract-trigger:before { content: \" \"; display: block; position: absolute; top: 0; left: 0; height: 100%; width: 100%; overflow: hidden; z-index: -1; } .resize-triggers > div { background: #eee; overflow: auto; } .contract-trigger:before { width: 200%; height: 200%; }',
+          head = document.head || document.getElementsByTagName('head')[0],
+          style = document.createElement('style');
+
+      style.type = 'text/css';
+      if (style.styleSheet) {
+        style.styleSheet.cssText = css;
+      } else {
+        style.appendChild(document.createTextNode(css));
+      }
+
+      head.appendChild(style);
+      stylesCreated = true;
+    }
+  };
+
+  var addResizeListener = function addResizeListener(element, fn) {
+    if (attachEvent) element.attachEvent('onresize', fn);else {
+      if (!element.__resizeTriggers__) {
+        if (_window.getComputedStyle(element).position == 'static') element.style.position = 'relative';
+        createStyles();
+        element.__resizeLast__ = {};
+        element.__resizeListeners__ = [];
+        (element.__resizeTriggers__ = document.createElement('div')).className = 'resize-triggers';
+        element.__resizeTriggers__.innerHTML = '<div class="expand-trigger"><div></div></div>' + '<div class="contract-trigger"></div>';
+        element.appendChild(element.__resizeTriggers__);
+        resetTriggers(element);
+        element.addEventListener('scroll', scrollListener, true);
+
+        /* Listen for a css animation to detect element display/re-attach */
+        if (animationstartevent) {
+          element.__resizeTriggers__.__animationListener__ = function animationListener(e) {
+            if (e.animationName == animationName) resetTriggers(element);
+          };
+          element.__resizeTriggers__.addEventListener(animationstartevent, element.__resizeTriggers__.__animationListener__);
+        }
+      }
+      element.__resizeListeners__.push(fn);
+    }
+  };
+
+  var removeResizeListener = function removeResizeListener(element, fn) {
+    if (attachEvent) element.detachEvent('onresize', fn);else {
+      element.__resizeListeners__.splice(element.__resizeListeners__.indexOf(fn), 1);
+      if (!element.__resizeListeners__.length) {
+        element.removeEventListener('scroll', scrollListener, true);
+        if (element.__resizeTriggers__.__animationListener__) {
+          element.__resizeTriggers__.removeEventListener(animationstartevent, element.__resizeTriggers__.__animationListener__);
+          element.__resizeTriggers__.__animationListener__ = null;
+        }
+        element.__resizeTriggers__ = !element.removeChild(element.__resizeTriggers__);
+      }
+    }
+  };
+
+  return {
+    addResizeListener: addResizeListener,
+    removeResizeListener: removeResizeListener
+  };
+}
+},{}],159:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -16913,7 +23369,7 @@ var ReactComponentWithPureRenderMixin = {
 };
 
 module.exports = ReactComponentWithPureRenderMixin;
-},{"./shallowCompare":111}],111:[function(require,module,exports){
+},{"./shallowCompare":160}],160:[function(require,module,exports){
 /**
  * Copyright 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -16939,7 +23395,7 @@ function shallowCompare(instance, nextProps, nextState) {
 }
 
 module.exports = shallowCompare;
-},{"fbjs/lib/shallowEqual":112}],112:[function(require,module,exports){
+},{"fbjs/lib/shallowEqual":161}],161:[function(require,module,exports){
 /**
  * Copyright (c) 2013-present, Facebook, Inc.
  * All rights reserved.
@@ -17007,7 +23463,7 @@ function shallowEqual(objA, objB) {
 }
 
 module.exports = shallowEqual;
-},{}],113:[function(require,module,exports){
+},{}],162:[function(require,module,exports){
 (function (Buffer){
 /*
 CryptoJS v3.1.2
@@ -17221,7 +23677,7 @@ function ripemd160 (message) {
 module.exports = ripemd160
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":45}],114:[function(require,module,exports){
+},{"buffer":45}],163:[function(require,module,exports){
 (function (Buffer){
 // prototype class for hash functions
 function Hash (blockSize, finalSize) {
@@ -17294,7 +23750,7 @@ Hash.prototype._update = function () {
 module.exports = Hash
 
 }).call(this,require("buffer").Buffer)
-},{"buffer":45}],115:[function(require,module,exports){
+},{"buffer":45}],164:[function(require,module,exports){
 var exports = module.exports = function SHA (algorithm) {
   algorithm = algorithm.toLowerCase()
 
@@ -17311,7 +23767,7 @@ exports.sha256 = require('./sha256')
 exports.sha384 = require('./sha384')
 exports.sha512 = require('./sha512')
 
-},{"./sha":116,"./sha1":117,"./sha224":118,"./sha256":119,"./sha384":120,"./sha512":121}],116:[function(require,module,exports){
+},{"./sha":165,"./sha1":166,"./sha224":167,"./sha256":168,"./sha384":169,"./sha512":170}],165:[function(require,module,exports){
 (function (Buffer){
 /*
  * A JavaScript implementation of the Secure Hash Algorithm, SHA-0, as defined
@@ -17408,7 +23864,7 @@ Sha.prototype._hash = function () {
 module.exports = Sha
 
 }).call(this,require("buffer").Buffer)
-},{"./hash":114,"buffer":45,"inherits":92}],117:[function(require,module,exports){
+},{"./hash":163,"buffer":45,"inherits":95}],166:[function(require,module,exports){
 (function (Buffer){
 /*
  * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
@@ -17510,7 +23966,7 @@ Sha1.prototype._hash = function () {
 module.exports = Sha1
 
 }).call(this,require("buffer").Buffer)
-},{"./hash":114,"buffer":45,"inherits":92}],118:[function(require,module,exports){
+},{"./hash":163,"buffer":45,"inherits":95}],167:[function(require,module,exports){
 (function (Buffer){
 /**
  * A JavaScript implementation of the Secure Hash Algorithm, SHA-256, as defined
@@ -17566,7 +24022,7 @@ Sha224.prototype._hash = function () {
 module.exports = Sha224
 
 }).call(this,require("buffer").Buffer)
-},{"./hash":114,"./sha256":119,"buffer":45,"inherits":92}],119:[function(require,module,exports){
+},{"./hash":163,"./sha256":168,"buffer":45,"inherits":95}],168:[function(require,module,exports){
 (function (Buffer){
 /**
  * A JavaScript implementation of the Secure Hash Algorithm, SHA-256, as defined
@@ -17704,7 +24160,7 @@ Sha256.prototype._hash = function () {
 module.exports = Sha256
 
 }).call(this,require("buffer").Buffer)
-},{"./hash":114,"buffer":45,"inherits":92}],120:[function(require,module,exports){
+},{"./hash":163,"buffer":45,"inherits":95}],169:[function(require,module,exports){
 (function (Buffer){
 var inherits = require('inherits')
 var SHA512 = require('./sha512')
@@ -17764,7 +24220,7 @@ Sha384.prototype._hash = function () {
 module.exports = Sha384
 
 }).call(this,require("buffer").Buffer)
-},{"./hash":114,"./sha512":121,"buffer":45,"inherits":92}],121:[function(require,module,exports){
+},{"./hash":163,"./sha512":170,"buffer":45,"inherits":95}],170:[function(require,module,exports){
 (function (Buffer){
 var inherits = require('inherits')
 var Hash = require('./hash')
@@ -18027,7 +24483,7 @@ Sha512.prototype._hash = function () {
 module.exports = Sha512
 
 }).call(this,require("buffer").Buffer)
-},{"./hash":114,"buffer":45,"inherits":92}],122:[function(require,module,exports){
+},{"./hash":163,"buffer":45,"inherits":95}],171:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -18156,15 +24612,15 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":"events","inherits":92,"readable-stream/duplex.js":124,"readable-stream/passthrough.js":130,"readable-stream/readable.js":131,"readable-stream/transform.js":132,"readable-stream/writable.js":133}],123:[function(require,module,exports){
+},{"events":"events","inherits":95,"readable-stream/duplex.js":173,"readable-stream/passthrough.js":179,"readable-stream/readable.js":180,"readable-stream/transform.js":181,"readable-stream/writable.js":182}],172:[function(require,module,exports){
 module.exports = Array.isArray || function (arr) {
   return Object.prototype.toString.call(arr) == '[object Array]';
 };
 
-},{}],124:[function(require,module,exports){
+},{}],173:[function(require,module,exports){
 module.exports = require("./lib/_stream_duplex.js")
 
-},{"./lib/_stream_duplex.js":125}],125:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":174}],174:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -18257,7 +24713,7 @@ function forEach (xs, f) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_readable":127,"./_stream_writable":129,"_process":102,"core-util-is":47,"inherits":92}],126:[function(require,module,exports){
+},{"./_stream_readable":176,"./_stream_writable":178,"_process":105,"core-util-is":48,"inherits":95}],175:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -18305,7 +24761,7 @@ PassThrough.prototype._transform = function(chunk, encoding, cb) {
   cb(null, chunk);
 };
 
-},{"./_stream_transform":128,"core-util-is":47,"inherits":92}],127:[function(require,module,exports){
+},{"./_stream_transform":177,"core-util-is":48,"inherits":95}],176:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -19260,7 +25716,7 @@ function indexOf (xs, x) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_duplex":125,"_process":102,"buffer":45,"core-util-is":47,"events":"events","inherits":92,"isarray":123,"stream":122,"string_decoder/":134,"util":18}],128:[function(require,module,exports){
+},{"./_stream_duplex":174,"_process":105,"buffer":45,"core-util-is":48,"events":"events","inherits":95,"isarray":172,"stream":171,"string_decoder/":183,"util":18}],177:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -19471,7 +25927,7 @@ function done(stream, er) {
   return stream.push(null);
 }
 
-},{"./_stream_duplex":125,"core-util-is":47,"inherits":92}],129:[function(require,module,exports){
+},{"./_stream_duplex":174,"core-util-is":48,"inherits":95}],178:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -19952,10 +26408,10 @@ function endWritable(stream, state, cb) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_duplex":125,"_process":102,"buffer":45,"core-util-is":47,"inherits":92,"stream":122}],130:[function(require,module,exports){
+},{"./_stream_duplex":174,"_process":105,"buffer":45,"core-util-is":48,"inherits":95,"stream":171}],179:[function(require,module,exports){
 module.exports = require("./lib/_stream_passthrough.js")
 
-},{"./lib/_stream_passthrough.js":126}],131:[function(require,module,exports){
+},{"./lib/_stream_passthrough.js":175}],180:[function(require,module,exports){
 exports = module.exports = require('./lib/_stream_readable.js');
 exports.Stream = require('stream');
 exports.Readable = exports;
@@ -19964,13 +26420,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":125,"./lib/_stream_passthrough.js":126,"./lib/_stream_readable.js":127,"./lib/_stream_transform.js":128,"./lib/_stream_writable.js":129,"stream":122}],132:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":174,"./lib/_stream_passthrough.js":175,"./lib/_stream_readable.js":176,"./lib/_stream_transform.js":177,"./lib/_stream_writable.js":178,"stream":171}],181:[function(require,module,exports){
 module.exports = require("./lib/_stream_transform.js")
 
-},{"./lib/_stream_transform.js":128}],133:[function(require,module,exports){
+},{"./lib/_stream_transform.js":177}],182:[function(require,module,exports){
 module.exports = require("./lib/_stream_writable.js")
 
-},{"./lib/_stream_writable.js":129}],134:[function(require,module,exports){
+},{"./lib/_stream_writable.js":178}],183:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -20193,7 +26649,7 @@ function base64DetectIncompleteChar(buffer) {
   this.charLength = this.charReceived ? 3 : 0;
 }
 
-},{"buffer":45}],135:[function(require,module,exports){
+},{"buffer":45}],184:[function(require,module,exports){
 var indexOf = require('indexof');
 
 var Object_keys = function (obj) {
@@ -20333,7 +26789,7 @@ exports.createContext = Script.createContext = function (context) {
     return copy;
 };
 
-},{"indexof":91}],"babyparse":[function(require,module,exports){
+},{"indexof":94}],"babyparse":[function(require,module,exports){
 /*
 	Baby Parse
 	v0.4.1
@@ -21252,7 +27708,7 @@ exports.createContext = Script.createContext = function (context) {
 n._setIsFinal()},e.prototype.spread=function(t,e){return this.all()._then(t,e,void 0,f,void 0)},e.prototype.isCancellable=function(){return!this.isResolved()&&this._cancellable()},e.prototype.toJSON=function(){var t={isFulfilled:!1,isRejected:!1,fulfillmentValue:void 0,rejectionReason:void 0};return this.isFulfilled()?(t.fulfillmentValue=this.value(),t.isFulfilled=!0):this.isRejected()&&(t.rejectionReason=this.reason(),t.isRejected=!0),t},e.prototype.all=function(){return new v(this).promise()},e.prototype.error=function(t){return this.caught(a.originatesFromRejection,t)},e.is=function(t){return t instanceof e},e.fromNode=function(t){var r=new e(p),n=E(t)(w(r));return n===k&&r._rejectCallback(n.e,!0,!0),r},e.all=function(t){return new v(t).promise()},e.defer=e.pending=function(){var t=new e(p);return new b(t)},e.cast=function(t){var r=d(t);if(!(r instanceof e)){var n=r;r=new e(p),r._fulfillUnchecked(n)}return r},e.resolve=e.fulfilled=e.cast,e.reject=e.rejected=function(t){var r=new e(p);return r._captureStackTrace(),r._rejectCallback(t,!0),r},e.setScheduler=function(t){if("function"!=typeof t)throw new h("fn must be a function\n\n    See http://goo.gl/916lJJ\n");var e=c._schedule;return c._schedule=t,e},e.prototype._then=function(t,r,i,o,s){var a=void 0!==s,u=a?s:new e(p);a||(u._propagateFrom(this,5),u._captureStackTrace());var l=this._target();l!==this&&(void 0===o&&(o=this._boundTo),a||u._setIsMigrated());var h=l._addCallbacks(t,r,i,u,o,n());return l._isResolved()&&!l._isSettlePromisesQueued()&&c.invoke(l._settlePromiseAtPostResolution,l,h),u},e.prototype._settlePromiseAtPostResolution=function(t){this._isRejectionUnhandled()&&this._unsetRejectionIsUnhandled(),this._settlePromiseAt(t)},e.prototype._length=function(){return 131071&this._bitField},e.prototype._isFollowingOrFulfilledOrRejected=function(){return(939524096&this._bitField)>0},e.prototype._isFollowing=function(){return 536870912===(536870912&this._bitField)},e.prototype._setLength=function(t){this._bitField=-131072&this._bitField|131071&t},e.prototype._setFulfilled=function(){this._bitField=268435456|this._bitField},e.prototype._setRejected=function(){this._bitField=134217728|this._bitField},e.prototype._setFollowing=function(){this._bitField=536870912|this._bitField},e.prototype._setIsFinal=function(){this._bitField=33554432|this._bitField},e.prototype._isFinal=function(){return(33554432&this._bitField)>0},e.prototype._cancellable=function(){return(67108864&this._bitField)>0},e.prototype._setCancellable=function(){this._bitField=67108864|this._bitField},e.prototype._unsetCancellable=function(){this._bitField=-67108865&this._bitField},e.prototype._setIsMigrated=function(){this._bitField=4194304|this._bitField},e.prototype._unsetIsMigrated=function(){this._bitField=-4194305&this._bitField},e.prototype._isMigrated=function(){return(4194304&this._bitField)>0},e.prototype._receiverAt=function(t){var e=0===t?this._receiver0:this[5*t-5+4];return e===u?void 0:void 0===e&&this._isBound()?this._boundValue():e},e.prototype._promiseAt=function(t){return 0===t?this._promise0:this[5*t-5+3]},e.prototype._fulfillmentHandlerAt=function(t){return 0===t?this._fulfillmentHandler0:this[5*t-5+0]},e.prototype._rejectionHandlerAt=function(t){return 0===t?this._rejectionHandler0:this[5*t-5+1]},e.prototype._boundValue=function(){var t=this._boundTo;return void 0!==t&&t instanceof e?t.isFulfilled()?t.value():void 0:t},e.prototype._migrateCallbacks=function(t,r){var n=t._fulfillmentHandlerAt(r),i=t._rejectionHandlerAt(r),o=t._progressHandlerAt(r),s=t._promiseAt(r),a=t._receiverAt(r);s instanceof e&&s._setIsMigrated(),void 0===a&&(a=u),this._addCallbacks(n,i,o,s,a,null)},e.prototype._addCallbacks=function(t,e,r,n,i,o){var s=this._length();if(s>=131066&&(s=0,this._setLength(0)),0===s)this._promise0=n,void 0!==i&&(this._receiver0=i),"function"!=typeof t||this._isCarryingStackTrace()||(this._fulfillmentHandler0=null===o?t:o.bind(t)),"function"==typeof e&&(this._rejectionHandler0=null===o?e:o.bind(e)),"function"==typeof r&&(this._progressHandler0=null===o?r:o.bind(r));else{var a=5*s-5;this[a+3]=n,this[a+4]=i,"function"==typeof t&&(this[a+0]=null===o?t:o.bind(t)),"function"==typeof e&&(this[a+1]=null===o?e:o.bind(e)),"function"==typeof r&&(this[a+2]=null===o?r:o.bind(r))}return this._setLength(s+1),s},e.prototype._setProxyHandlers=function(t,e){var r=this._length();if(r>=131066&&(r=0,this._setLength(0)),0===r)this._promise0=e,this._receiver0=t;else{var n=5*r-5;this[n+3]=e,this[n+4]=t}this._setLength(r+1)},e.prototype._proxyPromiseArray=function(t,e){this._setProxyHandlers(t,e)},e.prototype._resolveCallback=function(t,r){if(!this._isFollowingOrFulfilledOrRejected()){if(t===this)return this._rejectCallback(i(),!1,!0);var n=d(t,this);if(!(n instanceof e))return this._fulfill(t);var o=1|(r?4:0);this._propagateFrom(n,o);var s=n._target();if(s._isPending()){for(var a=this._length(),u=0;a>u;++u)s._migrateCallbacks(this,u);this._setFollowing(),this._setLength(0),this._setFollowee(s)}else s._isFulfilled()?this._fulfillUnchecked(s._value()):this._rejectUnchecked(s._reason(),s._getCarriedStackTrace())}},e.prototype._rejectCallback=function(t,e,r){r||a.markAsOriginatingFromRejection(t);var n=a.ensureErrorObject(t),i=n===t;this._attachExtraTrace(n,e?i:!1),this._reject(t,i?void 0:n)},e.prototype._resolveFromResolver=function(t){var e=this;this._captureStackTrace(),this._pushContext();var r=!0,n=E(t)(function(t){null!==e&&(e._resolveCallback(t),e=null)},function(t){null!==e&&(e._rejectCallback(t,r),e=null)});r=!1,this._popContext(),void 0!==n&&n===k&&null!==e&&(e._rejectCallback(n.e,!0,!0),e=null)},e.prototype._settlePromiseFromHandler=function(t,e,r,n){if(!n._isRejected()){n._pushContext();var o;if(o=e!==f||this._isRejected()?E(t).call(e,r):E(t).apply(this._boundValue(),r),n._popContext(),o===k||o===n||o===_){var s=o===n?i():o.e;n._rejectCallback(s,!1,!0)}else n._resolveCallback(o)}},e.prototype._target=function(){for(var t=this;t._isFollowing();)t=t._followee();return t},e.prototype._followee=function(){return this._rejectionHandler0},e.prototype._setFollowee=function(t){this._rejectionHandler0=t},e.prototype._cleanValues=function(){this._cancellable()&&(this._cancellationParent=void 0)},e.prototype._propagateFrom=function(t,e){(1&e)>0&&t._cancellable()&&(this._setCancellable(),this._cancellationParent=t),(4&e)>0&&t._isBound()&&this._setBoundTo(t._boundTo)},e.prototype._fulfill=function(t){this._isFollowingOrFulfilledOrRejected()||this._fulfillUnchecked(t)},e.prototype._reject=function(t,e){this._isFollowingOrFulfilledOrRejected()||this._rejectUnchecked(t,e)},e.prototype._settlePromiseAt=function(t){var r=this._promiseAt(t),n=r instanceof e;if(n&&r._isMigrated())return r._unsetIsMigrated(),c.invoke(this._settlePromiseAt,this,t);var i=this._isFulfilled()?this._fulfillmentHandlerAt(t):this._rejectionHandlerAt(t),o=this._isCarryingStackTrace()?this._getCarriedStackTrace():void 0,s=this._settledValue,a=this._receiverAt(t);this._clearCallbackDataAtIndex(t),"function"==typeof i?n?this._settlePromiseFromHandler(i,a,s,r):i.call(a,s,r):a instanceof v?a._isResolved()||(this._isFulfilled()?a._promiseFulfilled(s,r):a._promiseRejected(s,r)):n&&(this._isFulfilled()?r._fulfill(s):r._reject(s,o)),t>=4&&4===(31&t)&&c.invokeLater(this._setLength,this,0)},e.prototype._clearCallbackDataAtIndex=function(t){if(0===t)this._isCarryingStackTrace()||(this._fulfillmentHandler0=void 0),this._rejectionHandler0=this._progressHandler0=this._receiver0=this._promise0=void 0;else{var e=5*t-5;this[e+3]=this[e+4]=this[e+0]=this[e+1]=this[e+2]=void 0}},e.prototype._isSettlePromisesQueued=function(){return-1073741824===(-1073741824&this._bitField)},e.prototype._setSettlePromisesQueued=function(){this._bitField=-1073741824|this._bitField},e.prototype._unsetSettlePromisesQueued=function(){this._bitField=1073741823&this._bitField},e.prototype._queueSettlePromises=function(){c.settlePromises(this),this._setSettlePromisesQueued()},e.prototype._fulfillUnchecked=function(t){if(t===this){var e=i();return this._attachExtraTrace(e),this._rejectUnchecked(e,void 0)}this._setFulfilled(),this._settledValue=t,this._cleanValues(),this._length()>0&&this._queueSettlePromises()},e.prototype._rejectUncheckedCheckError=function(t){var e=a.ensureErrorObject(t);this._rejectUnchecked(t,e===t?void 0:e)},e.prototype._rejectUnchecked=function(t,e){if(t===this){var r=i();return this._attachExtraTrace(r),this._rejectUnchecked(r)}return this._setRejected(),this._settledValue=t,this._cleanValues(),this._isFinal()?void c.throwLater(function(t){throw"stack"in t&&c.invokeFirst(y.unhandledRejection,void 0,t),t},void 0===e?t:e):(void 0!==e&&e!==t&&this._setCarriedStackTrace(e),void(this._length()>0?this._queueSettlePromises():this._ensurePossibleRejectionHandled()))},e.prototype._settlePromises=function(){this._unsetSettlePromisesQueued();for(var t=this._length(),e=0;t>e;e++)this._settlePromiseAt(e)},a.notEnumerableProp(e,"_makeSelfResolutionError",i),t("./progress.js")(e,v),t("./method.js")(e,p,d,s),t("./bind.js")(e,p,d),t("./finally.js")(e,_,d),t("./direct_resolve.js")(e),t("./synchronous_inspection.js")(e),t("./join.js")(e,v,d,p),e.Promise=e,t("./map.js")(e,v,s,d,p),t("./cancel.js")(e),t("./using.js")(e,s,d,m),t("./generators.js")(e,s,p,d),t("./nodeify.js")(e),t("./call_get.js")(e),t("./props.js")(e,v,d,s),t("./race.js")(e,p,d,s),t("./reduce.js")(e,v,s,d,p),t("./settle.js")(e,v),t("./some.js")(e,v,s),t("./promisify.js")(e,p),t("./any.js")(e),t("./each.js")(e,p),t("./timers.js")(e,p),t("./filter.js")(e,p),a.toFastProperties(e),a.toFastProperties(e.prototype),r({a:1}),r({b:2}),r({c:3}),r(1),r(function(){}),r(void 0),r(!1),r(new e(p)),y.setBounds(c.firstLineError,a.lastLineError),e}},{"./any.js":1,"./async.js":2,"./bind.js":3,"./call_get.js":5,"./cancel.js":6,"./captured_trace.js":7,"./catch_filter.js":8,"./context.js":9,"./debuggability.js":10,"./direct_resolve.js":11,"./each.js":12,"./errors.js":13,"./filter.js":15,"./finally.js":16,"./generators.js":17,"./join.js":18,"./map.js":19,"./method.js":20,"./nodeify.js":21,"./progress.js":22,"./promise_array.js":24,"./promise_resolver.js":25,"./promisify.js":26,"./props.js":27,"./race.js":29,"./reduce.js":30,"./settle.js":32,"./some.js":33,"./synchronous_inspection.js":34,"./thenables.js":35,"./timers.js":36,"./using.js":37,"./util.js":38}],24:[function(t,e){"use strict";e.exports=function(e,r,n,i){function o(t){switch(t){case-2:return[];case-3:return{}}}function s(t){var n,i=this._promise=new e(r);t instanceof e&&(n=t,i._propagateFrom(n,5)),this._values=t,this._length=0,this._totalResolved=0,this._init(void 0,-2)}var a=t("./util.js"),u=a.isArray;return s.prototype.length=function(){return this._length},s.prototype.promise=function(){return this._promise},s.prototype._init=function c(t,r){var s=n(this._values,this._promise);if(s instanceof e){if(s=s._target(),this._values=s,!s._isFulfilled())return s._isPending()?void s._then(c,this._reject,void 0,this,r):void this._reject(s._reason());if(s=s._value(),!u(s)){var a=new e.TypeError("expecting an array, a promise or a thenable\n\n    See http://goo.gl/s8MMhc\n");return void this.__hardReject__(a)}}else if(!u(s))return void this._promise._reject(i("expecting an array, a promise or a thenable\n\n    See http://goo.gl/s8MMhc\n")._reason());if(0===s.length)return void(-5===r?this._resolveEmptyArray():this._resolve(o(r)));var l=this.getActualLength(s.length);this._length=l,this._values=this.shouldCopyValues()?new Array(l):this._values;for(var h=this._promise,p=0;l>p;++p){var f=this._isResolved(),_=n(s[p],h);_ instanceof e?(_=_._target(),f?_._ignoreRejections():_._isPending()?_._proxyPromiseArray(this,p):_._isFulfilled()?this._promiseFulfilled(_._value(),p):this._promiseRejected(_._reason(),p)):f||this._promiseFulfilled(_,p)}},s.prototype._isResolved=function(){return null===this._values},s.prototype._resolve=function(t){this._values=null,this._promise._fulfill(t)},s.prototype.__hardReject__=s.prototype._reject=function(t){this._values=null,this._promise._rejectCallback(t,!1,!0)},s.prototype._promiseProgressed=function(t,e){this._promise._progress({index:e,value:t})},s.prototype._promiseFulfilled=function(t,e){this._values[e]=t;var r=++this._totalResolved;r>=this._length&&this._resolve(this._values)},s.prototype._promiseRejected=function(t){this._totalResolved++,this._reject(t)},s.prototype.shouldCopyValues=function(){return!0},s.prototype.getActualLength=function(t){return t},s}},{"./util.js":38}],25:[function(t,e){"use strict";function r(t){return t instanceof Error&&p.getPrototypeOf(t)===Error.prototype}function n(t){var e;if(r(t)){e=new l(t),e.name=t.name,e.message=t.message,e.stack=t.stack;for(var n=p.keys(t),i=0;i<n.length;++i){var o=n[i];f.test(o)||(e[o]=t[o])}return e}return s.markAsOriginatingFromRejection(t),t}function i(t){return function(e,r){if(null!==t){if(e){var i=n(a(e));t._attachExtraTrace(i),t._reject(i)}else if(arguments.length>2){for(var o=arguments.length,s=new Array(o-1),u=1;o>u;++u)s[u-1]=arguments[u];t._fulfill(s)}else t._fulfill(r);t=null}}}var o,s=t("./util.js"),a=s.maybeWrapAsError,u=t("./errors.js"),c=u.TimeoutError,l=u.OperationalError,h=s.haveGetters,p=t("./es5.js"),f=/^(?:name|message|stack|cause)$/;if(o=h?function(t){this.promise=t}:function(t){this.promise=t,this.asCallback=i(t),this.callback=this.asCallback},h){var _={get:function(){return i(this.promise)}};p.defineProperty(o.prototype,"asCallback",_),p.defineProperty(o.prototype,"callback",_)}o._nodebackForPromise=i,o.prototype.toString=function(){return"[object PromiseResolver]"},o.prototype.resolve=o.prototype.fulfill=function(t){if(!(this instanceof o))throw new TypeError("Illegal invocation, resolver resolve/reject must be called within a resolver context. Consider using the promise constructor instead.\n\n    See http://goo.gl/sdkXL9\n");this.promise._resolveCallback(t)},o.prototype.reject=function(t){if(!(this instanceof o))throw new TypeError("Illegal invocation, resolver resolve/reject must be called within a resolver context. Consider using the promise constructor instead.\n\n    See http://goo.gl/sdkXL9\n");this.promise._rejectCallback(t)},o.prototype.progress=function(t){if(!(this instanceof o))throw new TypeError("Illegal invocation, resolver resolve/reject must be called within a resolver context. Consider using the promise constructor instead.\n\n    See http://goo.gl/sdkXL9\n");this.promise._progress(t)},o.prototype.cancel=function(t){this.promise.cancel(t)},o.prototype.timeout=function(){this.reject(new c("timeout"))},o.prototype.isResolved=function(){return this.promise.isResolved()},o.prototype.toJSON=function(){return this.promise.toJSON()},e.exports=o},{"./errors.js":13,"./es5.js":14,"./util.js":38}],26:[function(t,e){"use strict";e.exports=function(e,r){function n(t){return!w.test(t)}function i(t){try{return t.__isPromisified__===!0}catch(e){return!1}}function o(t,e,r){var n=f.getDataPropertyOrDefault(t,e+r,j);return n?i(n):!1}function s(t,e,r){for(var n=0;n<t.length;n+=2){var i=t[n];if(r.test(i))for(var o=i.replace(r,""),s=0;s<t.length;s+=2)if(t[s]===o)throw new g("Cannot promisify an API that has normal methods with '%s'-suffix\n\n    See http://goo.gl/iWrZbw\n".replace("%s",e))}}function a(t,e,r,n){for(var a=f.inheritedDataKeys(t),u=[],c=0;c<a.length;++c){var l=a[c],h=t[l],p=n===k?!0:k(l,h,t);"function"!=typeof h||i(h)||o(t,l,e)||!n(l,h,t,p)||u.push(l,h)}return s(u,e,r),u}function u(t,n,i,o){function s(){var i=n;n===p&&(i=this);var o=new e(r);o._captureStackTrace();var s="string"==typeof u&&this!==a?this[u]:t,c=_(o);try{s.apply(i,d(arguments,c))}catch(l){o._rejectCallback(v(l),!0,!0)}return o}var a=function(){return this}(),u=t;return"string"==typeof u&&(t=o),f.notEnumerableProp(s,"__isPromisified__",!0),s}function c(t,e,r,n){for(var i=new RegExp(E(e)+"$"),o=a(t,e,i,r),s=0,u=o.length;u>s;s+=2){var c=o[s],l=o[s+1],h=c+e;if(n===F)t[h]=F(c,p,c,l,e);else{var _=n(l,function(){return F(c,p,c,l,e)});f.notEnumerableProp(_,"__isPromisified__",!0),t[h]=_}}return f.toFastProperties(t),t}function l(t,e){return F(t,e,void 0,t)}var h,p={},f=t("./util.js"),_=t("./promise_resolver.js")._nodebackForPromise,d=f.withAppended,v=f.maybeWrapAsError,y=f.canEvaluate,g=t("./errors").TypeError,m="Async",j={__isPromisified__:!0},b=["arity","length","name","arguments","caller","callee","prototype","__isPromisified__"],w=new RegExp("^(?:"+b.join("|")+")$"),k=function(t){return f.isIdentifier(t)&&"_"!==t.charAt(0)&&"constructor"!==t},E=function(t){return t.replace(/([$])/,"\\$")},F=y?h:u;e.promisify=function(t,e){if("function"!=typeof t)throw new g("fn must be a function\n\n    See http://goo.gl/916lJJ\n");if(i(t))return t;var r=l(t,arguments.length<2?p:e);return f.copyDescriptors(t,r,n),r},e.promisifyAll=function(t,e){if("function"!=typeof t&&"object"!=typeof t)throw new g("the target of promisifyAll must be an object or a function\n\n    See http://goo.gl/9ITlV0\n");e=Object(e);var r=e.suffix;"string"!=typeof r&&(r=m);var n=e.filter;"function"!=typeof n&&(n=k);var i=e.promisifier;if("function"!=typeof i&&(i=F),!f.isIdentifier(r))throw new RangeError("suffix must be a valid identifier\n\n    See http://goo.gl/8FZo5V\n");for(var o=f.inheritedDataKeys(t),s=0;s<o.length;++s){var a=t[o[s]];"constructor"!==o[s]&&f.isClass(a)&&(c(a.prototype,r,n,i),c(a,r,n,i))}return c(t,r,n,i)}}},{"./errors":13,"./promise_resolver.js":25,"./util.js":38}],27:[function(t,e){"use strict";e.exports=function(e,r,n,i){function o(t){for(var e=c.keys(t),r=e.length,n=new Array(2*r),i=0;r>i;++i){var o=e[i];n[i]=t[o],n[i+r]=o}this.constructor$(n)}function s(t){var r,s=n(t);return u(s)?(r=s instanceof e?s._then(e.props,void 0,void 0,void 0,void 0):new o(s).promise(),s instanceof e&&r._propagateFrom(s,4),r):i("cannot await properties of a non-object\n\n    See http://goo.gl/OsFKC8\n")}var a=t("./util.js"),u=a.isObject,c=t("./es5.js");a.inherits(o,r),o.prototype._init=function(){this._init$(void 0,-3)},o.prototype._promiseFulfilled=function(t,e){this._values[e]=t;var r=++this._totalResolved;if(r>=this._length){for(var n={},i=this.length(),o=0,s=this.length();s>o;++o)n[this._values[o+i]]=this._values[o];this._resolve(n)}},o.prototype._promiseProgressed=function(t,e){this._promise._progress({key:this._values[e+this.length()],value:t})},o.prototype.shouldCopyValues=function(){return!1},o.prototype.getActualLength=function(t){return t>>1},e.prototype.props=function(){return s(this)},e.props=function(t){return s(t)}}},{"./es5.js":14,"./util.js":38}],28:[function(t,e){"use strict";function r(t,e,r,n,i){for(var o=0;i>o;++o)r[o+n]=t[o+e],t[o+e]=void 0}function n(t){this._capacity=t,this._length=0,this._front=0}n.prototype._willBeOverCapacity=function(t){return this._capacity<t},n.prototype._pushOne=function(t){var e=this.length();this._checkCapacity(e+1);var r=this._front+e&this._capacity-1;this[r]=t,this._length=e+1},n.prototype._unshiftOne=function(t){var e=this._capacity;this._checkCapacity(this.length()+1);var r=this._front,n=(r-1&e-1^e)-e;this[n]=t,this._front=n,this._length=this.length()+1},n.prototype.unshift=function(t,e,r){this._unshiftOne(r),this._unshiftOne(e),this._unshiftOne(t)},n.prototype.push=function(t,e,r){var n=this.length()+3;if(this._willBeOverCapacity(n))return this._pushOne(t),this._pushOne(e),void this._pushOne(r);var i=this._front+n-3;this._checkCapacity(n);var o=this._capacity-1;this[i+0&o]=t,this[i+1&o]=e,this[i+2&o]=r,this._length=n},n.prototype.shift=function(){var t=this._front,e=this[t];return this[t]=void 0,this._front=t+1&this._capacity-1,this._length--,e},n.prototype.length=function(){return this._length},n.prototype._checkCapacity=function(t){this._capacity<t&&this._resizeTo(this._capacity<<1)},n.prototype._resizeTo=function(t){var e=this._capacity;this._capacity=t;var n=this._front,i=this._length,o=n+i&e-1;r(this,0,this,e,o)},e.exports=n},{}],29:[function(t,e){"use strict";e.exports=function(e,r,n,i){function o(t,o){var u=n(t);if(u instanceof e)return a(u);if(!s(t))return i("expecting an array, a promise or a thenable\n\n    See http://goo.gl/s8MMhc\n");var c=new e(r);void 0!==o&&c._propagateFrom(o,5);for(var l=c._fulfill,h=c._reject,p=0,f=t.length;f>p;++p){var _=t[p];(void 0!==_||p in t)&&e.cast(_)._then(l,h,void 0,c,null)}return c}var s=t("./util.js").isArray,a=function(t){return t.then(function(e){return o(e,t)})};e.race=function(t){return o(t,void 0)},e.prototype.race=function(){return o(this,void 0)}}},{"./util.js":38}],30:[function(t,e){"use strict";e.exports=function(e,r,n,i,o){function s(t,r,n,s){this.constructor$(t),this._promise._captureStackTrace(),this._preservedValues=s===o?[]:null,this._zerothIsAccum=void 0===n,this._gotAccum=!1,this._reducingIndex=this._zerothIsAccum?1:0,this._valuesPhase=void 0;var u=i(n,this._promise),h=!1,p=u instanceof e;p&&(u=u._target(),u._isPending()?u._proxyPromiseArray(this,-1):u._isFulfilled()?(n=u._value(),this._gotAccum=!0):(this._reject(u._reason()),h=!0)),p||this._zerothIsAccum||(this._gotAccum=!0);var f=c();this._callback=null===f?r:f.bind(r),this._accum=n,h||l.invoke(a,this,void 0)}function a(){this._init$(void 0,-5)}function u(t,e,r,i){if("function"!=typeof e)return n("fn must be a function\n\n    See http://goo.gl/916lJJ\n");var o=new s(t,e,r,i);return o.promise()}var c=e._getDomain,l=t("./async.js"),h=t("./util.js"),p=h.tryCatch,f=h.errorObj;h.inherits(s,r),s.prototype._init=function(){},s.prototype._resolveEmptyArray=function(){(this._gotAccum||this._zerothIsAccum)&&this._resolve(null!==this._preservedValues?[]:this._accum)},s.prototype._promiseFulfilled=function(t,r){var n=this._values;n[r]=t;var o,s=this.length(),a=this._preservedValues,u=null!==a,c=this._gotAccum,l=this._valuesPhase;if(!l)for(l=this._valuesPhase=new Array(s),o=0;s>o;++o)l[o]=0;if(o=l[r],0===r&&this._zerothIsAccum?(this._accum=t,this._gotAccum=c=!0,l[r]=0===o?1:2):-1===r?(this._accum=t,this._gotAccum=c=!0):0===o?l[r]=1:(l[r]=2,this._accum=t),c){for(var h,_=this._callback,d=this._promise._boundValue(),v=this._reducingIndex;s>v;++v)if(o=l[v],2!==o){if(1!==o)return;if(t=n[v],this._promise._pushContext(),u?(a.push(t),h=p(_).call(d,t,v,s)):h=p(_).call(d,this._accum,t,v,s),this._promise._popContext(),h===f)return this._reject(h.e);var y=i(h,this._promise);if(y instanceof e){if(y=y._target(),y._isPending())return l[v]=4,y._proxyPromiseArray(this,v);if(!y._isFulfilled())return this._reject(y._reason());h=y._value()}this._reducingIndex=v+1,this._accum=h}else this._reducingIndex=v+1;this._resolve(u?a:this._accum)}},e.prototype.reduce=function(t,e){return u(this,t,e,null)},e.reduce=function(t,e,r,n){return u(t,e,r,n)}}},{"./async.js":2,"./util.js":38}],31:[function(t,e){"use strict";var r,n=t("./util"),i=function(){throw new Error("No async scheduler available\n\n    See http://goo.gl/m3OTXk\n")};if(n.isNode&&"undefined"==typeof MutationObserver){var o=global.setImmediate,s=process.nextTick;r=n.isRecentNode?function(t){o.call(global,t)}:function(t){s.call(process,t)}}else"undefined"==typeof MutationObserver||"undefined"!=typeof window&&window.navigator&&window.navigator.standalone?r="undefined"!=typeof setImmediate?function(t){setImmediate(t)}:"undefined"!=typeof setTimeout?function(t){setTimeout(t,0)}:i:(r=function(t){var e=document.createElement("div"),r=new MutationObserver(t);return r.observe(e,{attributes:!0}),function(){e.classList.toggle("foo")}},r.isStatic=!0);e.exports=r},{"./util":38}],32:[function(t,e){"use strict";e.exports=function(e,r){function n(t){this.constructor$(t)}var i=e.PromiseInspection,o=t("./util.js");o.inherits(n,r),n.prototype._promiseResolved=function(t,e){this._values[t]=e;var r=++this._totalResolved;r>=this._length&&this._resolve(this._values)},n.prototype._promiseFulfilled=function(t,e){var r=new i;r._bitField=268435456,r._settledValue=t,this._promiseResolved(e,r)},n.prototype._promiseRejected=function(t,e){var r=new i;r._bitField=134217728,r._settledValue=t,this._promiseResolved(e,r)},e.settle=function(t){return new n(t).promise()},e.prototype.settle=function(){return new n(this).promise()}}},{"./util.js":38}],33:[function(t,e){"use strict";e.exports=function(e,r,n){function i(t){this.constructor$(t),this._howMany=0,this._unwrap=!1,this._initialized=!1}function o(t,e){if((0|e)!==e||0>e)return n("expecting a positive integer\n\n    See http://goo.gl/1wAmHx\n");var r=new i(t),o=r.promise();return r.setHowMany(e),r.init(),o}var s=t("./util.js"),a=t("./errors.js").RangeError,u=t("./errors.js").AggregateError,c=s.isArray;s.inherits(i,r),i.prototype._init=function(){if(this._initialized){if(0===this._howMany)return void this._resolve([]);this._init$(void 0,-5);var t=c(this._values);!this._isResolved()&&t&&this._howMany>this._canPossiblyFulfill()&&this._reject(this._getRangeError(this.length()))}},i.prototype.init=function(){this._initialized=!0,this._init()},i.prototype.setUnwrap=function(){this._unwrap=!0},i.prototype.howMany=function(){return this._howMany},i.prototype.setHowMany=function(t){this._howMany=t},i.prototype._promiseFulfilled=function(t){this._addFulfilled(t),this._fulfilled()===this.howMany()&&(this._values.length=this.howMany(),this._resolve(1===this.howMany()&&this._unwrap?this._values[0]:this._values))},i.prototype._promiseRejected=function(t){if(this._addRejected(t),this.howMany()>this._canPossiblyFulfill()){for(var e=new u,r=this.length();r<this._values.length;++r)e.push(this._values[r]);this._reject(e)}},i.prototype._fulfilled=function(){return this._totalResolved},i.prototype._rejected=function(){return this._values.length-this.length()},i.prototype._addRejected=function(t){this._values.push(t)},i.prototype._addFulfilled=function(t){this._values[this._totalResolved++]=t},i.prototype._canPossiblyFulfill=function(){return this.length()-this._rejected()},i.prototype._getRangeError=function(t){var e="Input array must contain at least "+this._howMany+" items but contains only "+t+" items";return new a(e)},i.prototype._resolveEmptyArray=function(){this._reject(this._getRangeError(0))},e.some=function(t,e){return o(t,e)},e.prototype.some=function(t){return o(this,t)},e._SomePromiseArray=i}},{"./errors.js":13,"./util.js":38}],34:[function(t,e){"use strict";e.exports=function(t){function e(t){void 0!==t?(t=t._target(),this._bitField=t._bitField,this._settledValue=t._settledValue):(this._bitField=0,this._settledValue=void 0)}e.prototype.value=function(){if(!this.isFulfilled())throw new TypeError("cannot get fulfillment value of a non-fulfilled promise\n\n    See http://goo.gl/hc1DLj\n");return this._settledValue},e.prototype.error=e.prototype.reason=function(){if(!this.isRejected())throw new TypeError("cannot get rejection reason of a non-rejected promise\n\n    See http://goo.gl/hPuiwB\n");return this._settledValue},e.prototype.isFulfilled=t.prototype._isFulfilled=function(){return(268435456&this._bitField)>0},e.prototype.isRejected=t.prototype._isRejected=function(){return(134217728&this._bitField)>0},e.prototype.isPending=t.prototype._isPending=function(){return 0===(402653184&this._bitField)},e.prototype.isResolved=t.prototype._isResolved=function(){return(402653184&this._bitField)>0},t.prototype.isPending=function(){return this._target()._isPending()},t.prototype.isRejected=function(){return this._target()._isRejected()},t.prototype.isFulfilled=function(){return this._target()._isFulfilled()},t.prototype.isResolved=function(){return this._target()._isResolved()},t.prototype._value=function(){return this._settledValue},t.prototype._reason=function(){return this._unsetRejectionIsUnhandled(),this._settledValue},t.prototype.value=function(){var t=this._target();if(!t.isFulfilled())throw new TypeError("cannot get fulfillment value of a non-fulfilled promise\n\n    See http://goo.gl/hc1DLj\n");return t._settledValue},t.prototype.reason=function(){var t=this._target();if(!t.isRejected())throw new TypeError("cannot get rejection reason of a non-rejected promise\n\n    See http://goo.gl/hPuiwB\n");return t._unsetRejectionIsUnhandled(),t._settledValue},t.PromiseInspection=e}},{}],35:[function(t,e){"use strict";e.exports=function(e,r){function n(t,n){if(c(t)){if(t instanceof e)return t;if(o(t)){var l=new e(r);return t._then(l._fulfillUnchecked,l._rejectUncheckedCheckError,l._progressUnchecked,l,null),l}var h=a.tryCatch(i)(t);if(h===u){n&&n._pushContext();var l=e.reject(h.e);return n&&n._popContext(),l}if("function"==typeof h)return s(t,h,n)}return t}function i(t){return t.then}function o(t){return l.call(t,"_promise0")}function s(t,n,i){function o(t){l&&(l._resolveCallback(t),l=null)}function s(t){l&&(l._rejectCallback(t,p,!0),l=null)}function c(t){l&&"function"==typeof l._progress&&l._progress(t)}var l=new e(r),h=l;i&&i._pushContext(),l._captureStackTrace(),i&&i._popContext();var p=!0,f=a.tryCatch(n).call(t,o,s,c);return p=!1,l&&f===u&&(l._rejectCallback(f.e,!0,!0),l=null),h}var a=t("./util.js"),u=a.errorObj,c=a.isObject,l={}.hasOwnProperty;return n}},{"./util.js":38}],36:[function(t,e){"use strict";e.exports=function(e,r){function n(t){var e=this;return e instanceof Number&&(e=+e),clearTimeout(e),t}function i(t){var e=this;throw e instanceof Number&&(e=+e),clearTimeout(e),t}var o=t("./util.js"),s=e.TimeoutError,a=function(t,e){if(t.isPending()){var r;!o.isPrimitive(e)&&e instanceof Error?r=e:("string"!=typeof e&&(e="operation timed out"),r=new s(e)),o.markAsOriginatingFromRejection(r),t._attachExtraTrace(r),t._cancel(r)}},u=function(t){return c(+this).thenReturn(t)},c=e.delay=function(t,n){if(void 0===n){n=t,t=void 0;var i=new e(r);return setTimeout(function(){i._fulfill()},n),i}return n=+n,e.resolve(t)._then(u,null,null,n,void 0)};e.prototype.delay=function(t){return c(this,t)},e.prototype.timeout=function(t,e){t=+t;var r=this.then().cancellable();r._cancellationParent=this;var o=setTimeout(function(){a(r,e)},t);return r._then(n,i,void 0,o,void 0)}}},{"./util.js":38}],37:[function(t,e){"use strict";e.exports=function(e,r,n,i){function o(t){for(var r=t.length,n=0;r>n;++n){var i=t[n];if(i.isRejected())return e.reject(i.error());t[n]=i._settledValue}return t}function s(t){setTimeout(function(){throw t},0)}function a(t){var e=n(t);return e!==t&&"function"==typeof t._isDisposable&&"function"==typeof t._getDisposer&&t._isDisposable()&&e._setDisposable(t._getDisposer()),e}function u(t,r){function i(){if(o>=u)return c.resolve();var l=a(t[o++]);if(l instanceof e&&l._isDisposable()){try{l=n(l._getDisposer().tryDispose(r),t.promise)}catch(h){return s(h)}if(l instanceof e)return l._then(i,s,null,null,null)}i()}var o=0,u=t.length,c=e.defer();return i(),c.promise}function c(t){var e=new v;return e._settledValue=t,e._bitField=268435456,u(this,e).thenReturn(t)}function l(t){var e=new v;return e._settledValue=t,e._bitField=134217728,u(this,e).thenThrow(t)}function h(t,e,r){this._data=t,this._promise=e,this._context=r}function p(t,e,r){this.constructor$(t,e,r)}function f(t){return h.isDisposer(t)?(this.resources[this.index]._setDisposable(t),t.promise()):t}var _=t("./errors.js").TypeError,d=t("./util.js").inherits,v=e.PromiseInspection;h.prototype.data=function(){return this._data},h.prototype.promise=function(){return this._promise},h.prototype.resource=function(){return this.promise().isFulfilled()?this.promise().value():null},h.prototype.tryDispose=function(t){var e=this.resource(),r=this._context;void 0!==r&&r._pushContext();var n=null!==e?this.doDispose(e,t):null;return void 0!==r&&r._popContext(),this._promise._unsetDisposable(),this._data=null,n},h.isDisposer=function(t){return null!=t&&"function"==typeof t.resource&&"function"==typeof t.tryDispose},d(p,h),p.prototype.doDispose=function(t,e){var r=this.data();return r.call(t,t,e)},e.using=function(){var t=arguments.length;if(2>t)return r("you must pass at least 2 arguments to Promise.using");var i=arguments[t-1];if("function"!=typeof i)return r("fn must be a function\n\n    See http://goo.gl/916lJJ\n");var s,a=!0;2===t&&Array.isArray(arguments[0])?(s=arguments[0],t=s.length,a=!1):(s=arguments,t--);for(var u=new Array(t),p=0;t>p;++p){var _=s[p];if(h.isDisposer(_)){var d=_;_=_.promise(),_._setDisposable(d)
 }else{var v=n(_);v instanceof e&&(_=v._then(f,null,null,{resources:u,index:p},void 0))}u[p]=_}var y=e.settle(u).then(o).then(function(t){y._pushContext();var e;try{e=a?i.apply(void 0,t):i.call(void 0,t)}finally{y._popContext()}return e})._then(c,l,void 0,u,void 0);return u.promise=y,y},e.prototype._setDisposable=function(t){this._bitField=262144|this._bitField,this._disposer=t},e.prototype._isDisposable=function(){return(262144&this._bitField)>0},e.prototype._getDisposer=function(){return this._disposer},e.prototype._unsetDisposable=function(){this._bitField=-262145&this._bitField,this._disposer=void 0},e.prototype.disposer=function(t){if("function"==typeof t)return new p(t,this,i());throw new _}}},{"./errors.js":13,"./util.js":38}],38:[function(t,e,r){"use strict";function n(){try{var t=C;return C=null,t.apply(this,arguments)}catch(e){return F.e=e,F}}function i(t){return C=t,n}function o(t){return null==t||t===!0||t===!1||"string"==typeof t||"number"==typeof t}function s(t){return!o(t)}function a(t){return o(t)?new Error(v(t)):t}function u(t,e){var r,n=t.length,i=new Array(n+1);for(r=0;n>r;++r)i[r]=t[r];return i[r]=e,i}function c(t,e,r){if(!w.isES5)return{}.hasOwnProperty.call(t,e)?t[e]:void 0;var n=Object.getOwnPropertyDescriptor(t,e);return null!=n?null==n.get&&null==n.set?n.value:r:void 0}function l(t,e,r){if(o(t))return t;var n={value:r,configurable:!0,enumerable:!1,writable:!0};return w.defineProperty(t,e,n),t}function h(t){throw t}function p(t){try{if("function"==typeof t){var e=w.names(t.prototype),r=w.isES5&&e.length>1,n=e.length>0&&!(1===e.length&&"constructor"===e[0]),i=x.test(t+"")&&w.names(t).length>0;if(r||n||i)return!0}return!1}catch(o){return!1}}function f(t){function e(){}e.prototype=t;for(var r=8;r--;)new e;return t}function _(t){return R.test(t)}function d(t,e,r){for(var n=new Array(t),i=0;t>i;++i)n[i]=e+i+r;return n}function v(t){try{return t+""}catch(e){return"[no string representation]"}}function y(t){try{l(t,"isOperational",!0)}catch(e){}}function g(t){return null==t?!1:t instanceof Error.__BluebirdErrorTypes__.OperationalError||t.isOperational===!0}function m(t){return t instanceof Error&&w.propertyIsWritable(t,"stack")}function j(t){return{}.toString.call(t)}function b(t,e,r){for(var n=w.names(t),i=0;i<n.length;++i){var o=n[i];if(r(o))try{w.defineProperty(e,o,w.getDescriptor(t,o))}catch(s){}}}var w=t("./es5.js"),k="undefined"==typeof navigator,E=function(){try{var t={};return w.defineProperty(t,"f",{get:function(){return 3}}),3===t.f}catch(e){return!1}}(),F={e:{}},C,P=function(t,e){function r(){this.constructor=t,this.constructor$=e;for(var r in e.prototype)n.call(e.prototype,r)&&"$"!==r.charAt(r.length-1)&&(this[r+"$"]=e.prototype[r])}var n={}.hasOwnProperty;return r.prototype=e.prototype,t.prototype=new r,t.prototype},T=function(){var t=[Array.prototype,Object.prototype,Function.prototype],e=function(e){for(var r=0;r<t.length;++r)if(t[r]===e)return!0;return!1};if(w.isES5){var r=Object.getOwnPropertyNames;return function(t){for(var n=[],i=Object.create(null);null!=t&&!e(t);){var o;try{o=r(t)}catch(s){return n}for(var a=0;a<o.length;++a){var u=o[a];if(!i[u]){i[u]=!0;var c=Object.getOwnPropertyDescriptor(t,u);null!=c&&null==c.get&&null==c.set&&n.push(u)}}t=w.getPrototypeOf(t)}return n}}var n={}.hasOwnProperty;return function(r){if(e(r))return[];var i=[];t:for(var o in r)if(n.call(r,o))i.push(o);else{for(var s=0;s<t.length;++s)if(n.call(t[s],o))continue t;i.push(o)}return i}}(),x=/this\s*\.\s*\S+\s*=/,R=/^[a-z$_][a-z$_0-9]*$/i,S=function(){return"stack"in new Error?function(t){return m(t)?t:new Error(v(t))}:function(t){if(m(t))return t;try{throw new Error(v(t))}catch(e){return e}}}(),A={isClass:p,isIdentifier:_,inheritedDataKeys:T,getDataPropertyOrDefault:c,thrower:h,isArray:w.isArray,haveGetters:E,notEnumerableProp:l,isPrimitive:o,isObject:s,canEvaluate:k,errorObj:F,tryCatch:i,inherits:P,withAppended:u,maybeWrapAsError:a,toFastProperties:f,filledRange:d,toString:v,canAttachTrace:m,ensureErrorObject:S,originatesFromRejection:g,markAsOriginatingFromRejection:y,classString:j,copyDescriptors:b,hasDevTools:"undefined"!=typeof chrome&&chrome&&"function"==typeof chrome.loadTimes,isNode:"undefined"!=typeof process&&"[object process]"===j(process).toLowerCase()};A.isRecentNode=A.isNode&&function(){var t=process.versions.node.split(".").map(Number);return 0===t[0]&&t[1]>10||t[0]>0}(),A.isNode&&A.toFastProperties(process);try{throw new Error}catch(O){A.lastLineError=O}e.exports=A},{"./es5.js":14}]},{},[4])(4)}),"undefined"!=typeof window&&null!==window?window.P=window.Promise:"undefined"!=typeof self&&null!==self&&(self.P=self.Promise);
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"_process":102}],"d3":[function(require,module,exports){
+},{"_process":105}],"d3":[function(require,module,exports){
 /*
 Copyright (c) 2010-2016, Michael Bostock
 All rights reserved.
@@ -31150,7 +37606,7 @@ function isUndefined(arg) {
 
 module.exports.Dispatcher = require('./lib/Dispatcher');
 
-},{"./lib/Dispatcher":83}],"history":[function(require,module,exports){
+},{"./lib/Dispatcher":86}],"history":[function(require,module,exports){
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -38531,7 +44987,7 @@ module.exports = keyMirror;
   }
 })('undefined' !== typeof window ? window : null);
 
-},{"crypto":53}],"nvd3":[function(require,module,exports){
+},{"crypto":54}],"nvd3":[function(require,module,exports){
 /* nvd3 version 1.8.2-dev (https://github.com/novus/nvd3) 2016-01-26 */
 
 !function(){var a={};a.dev=!1,a.tooltip=a.tooltip||{},a.utils=a.utils||{},a.models=a.models||{},a.charts={},a.logs={},a.dom={},"undefined"!=typeof module&&"undefined"!=typeof exports&&"undefined"==typeof d3&&(d3=require("d3")),a.dispatch=d3.dispatch("render_start","render_end"),Function.prototype.bind||(Function.prototype.bind=function(a){if("function"!=typeof this)throw new TypeError("Function.prototype.bind - what is trying to be bound is not callable");var b=Array.prototype.slice.call(arguments,1),c=this,d=function(){},e=function(){return c.apply(this instanceof d&&a?this:a,b.concat(Array.prototype.slice.call(arguments)))};return d.prototype=this.prototype,e.prototype=new d,e}),a.dev&&(a.dispatch.on("render_start",function(b){a.logs.startTime=+new Date}),a.dispatch.on("render_end",function(b){a.logs.endTime=+new Date,a.logs.totalTime=a.logs.endTime-a.logs.startTime,a.log("total",a.logs.totalTime)})),a.log=function(){if(a.dev&&window.console&&console.log&&console.log.apply)console.log.apply(console,arguments);else if(a.dev&&window.console&&"function"==typeof console.log&&Function.prototype.bind){var b=Function.prototype.bind.call(console.log,console);b.apply(console,arguments)}return arguments[arguments.length-1]},a.deprecated=function(a,b){console&&console.warn&&console.warn("nvd3 warning: `"+a+"` has been deprecated. ",b||"")},a.render=function(b){b=b||1,a.render.active=!0,a.dispatch.render_start();var c=function(){for(var d,e,f=0;b>f&&(e=a.render.queue[f]);f++)d=e.generate(),typeof e.callback==typeof Function&&e.callback(d);a.render.queue.splice(0,f),a.render.queue.length?setTimeout(c):(a.dispatch.render_end(),a.render.active=!1)};setTimeout(c)},a.render.active=!1,a.render.queue=[],a.addGraph=function(b){typeof arguments[0]==typeof Function&&(b={generate:arguments[0],callback:arguments[1]}),a.render.queue.push(b),a.render.active||a.render()},"undefined"!=typeof module&&"undefined"!=typeof exports&&(module.exports=a),"undefined"!=typeof window&&(window.nv=a),a.dom.write=function(a){return void 0!==window.fastdom?fastdom.write(a):a()},a.dom.read=function(a){return void 0!==window.fastdom?fastdom.read(a):a()},a.interactiveGuideline=function(){"use strict";function b(l){l.each(function(l){function m(){var a=d3.mouse(this),d=a[0],e=a[1],h=!0,i=!1;if(k&&(d=d3.event.offsetX,e=d3.event.offsetY,"svg"!==d3.event.target.tagName&&(h=!1),d3.event.target.className.baseVal.match("nv-legend")&&(i=!0)),h&&(d-=c.left,e-=c.top),"mouseout"===d3.event.type||0>d||0>e||d>o||e>p||d3.event.relatedTarget&&void 0===d3.event.relatedTarget.ownerSVGElement||i){if(k&&d3.event.relatedTarget&&void 0===d3.event.relatedTarget.ownerSVGElement&&(void 0===d3.event.relatedTarget.className||d3.event.relatedTarget.className.match(j.nvPointerEventsClass)))return;return g.elementMouseout({mouseX:d,mouseY:e}),b.renderGuideLine(null),void j.hidden(!0)}j.hidden(!1);var l="function"==typeof f.rangeBands,m=void 0;if(l){var n=d3.bisect(f.range(),d)-1;if(!(f.range()[n]+f.rangeBand()>=d))return g.elementMouseout({mouseX:d,mouseY:e}),b.renderGuideLine(null),void j.hidden(!0);m=f.domain()[d3.bisect(f.range(),d)-1]}else m=f.invert(d);g.elementMousemove({mouseX:d,mouseY:e,pointXValue:m}),"dblclick"===d3.event.type&&g.elementDblclick({mouseX:d,mouseY:e,pointXValue:m}),"click"===d3.event.type&&g.elementClick({mouseX:d,mouseY:e,pointXValue:m}),"mousedown"===d3.event.type&&g.elementMouseDown({mouseX:d,mouseY:e,pointXValue:m}),"mouseup"===d3.event.type&&g.elementMouseUp({mouseX:d,mouseY:e,pointXValue:m})}var n=d3.select(this),o=d||960,p=e||400,q=n.selectAll("g.nv-wrap.nv-interactiveLineLayer").data([l]),r=q.enter().append("g").attr("class"," nv-wrap nv-interactiveLineLayer");r.append("g").attr("class","nv-interactiveGuideLine"),i&&(i.on("touchmove",m).on("mousemove",m,!0).on("mouseout",m,!0).on("mousedown",m,!0).on("mouseup",m,!0).on("dblclick",m).on("click",m),b.guideLine=null,b.renderGuideLine=function(c){h&&(b.guideLine&&b.guideLine.attr("x1")===c||a.dom.write(function(){var b=q.select(".nv-interactiveGuideLine").selectAll("line").data(null!=c?[a.utils.NaNtoZero(c)]:[],String);b.enter().append("line").attr("class","nv-guideline").attr("x1",function(a){return a}).attr("x2",function(a){return a}).attr("y1",p).attr("y2",0),b.exit().remove()}))})})}var c={left:0,top:0},d=null,e=null,f=d3.scale.linear(),g=d3.dispatch("elementMousemove","elementMouseout","elementClick","elementDblclick","elementMouseDown","elementMouseUp"),h=!0,i=null,j=a.models.tooltip(),k="ActiveXObject"in window;return j.duration(0).hideDelay(0).hidden(!1),b.dispatch=g,b.tooltip=j,b.margin=function(a){return arguments.length?(c.top="undefined"!=typeof a.top?a.top:c.top,c.left="undefined"!=typeof a.left?a.left:c.left,b):c},b.width=function(a){return arguments.length?(d=a,b):d},b.height=function(a){return arguments.length?(e=a,b):e},b.xScale=function(a){return arguments.length?(f=a,b):f},b.showGuideLine=function(a){return arguments.length?(h=a,b):h},b.svgContainer=function(a){return arguments.length?(i=a,b):i},b},a.interactiveBisect=function(a,b,c){"use strict";if(!(a instanceof Array))return null;var d;d="function"!=typeof c?function(a){return a.x}:c;var e=function(a,b){return d(a)-b},f=d3.bisector(e).left,g=d3.max([0,f(a,b)-1]),h=d(a[g]);if("undefined"==typeof h&&(h=g),h===b)return g;var i=d3.min([g+1,a.length-1]),j=d(a[i]);return"undefined"==typeof j&&(j=i),Math.abs(j-b)>=Math.abs(h-b)?g:i},a.nearestValueIndex=function(a,b,c){"use strict";var d=1/0,e=null;return a.forEach(function(a,f){var g=Math.abs(b-a);null!=a&&d>=g&&c>g&&(d=g,e=f)}),e},a.models.tooltip=function(){"use strict";function b(){if(!m||!m.node()){var a=j?j:document.body,b=[1];m=d3.select(a).selectAll(".nvtooltip").data(b),m.enter().append("div").attr("class","nvtooltip "+(i?i:"xy-tooltip")).attr("id",d).style("top",0).style("left",0).style("opacity",0).style("position","fixed").selectAll("div, table, td, tr").classed(r,!0).classed(r,!0),m.exit().remove()}}function c(){return o&&x(e)?(a.dom.write(function(){b();var a=w(e);a&&(m.node().innerHTML=a),z()}),c):void 0}var d="nvtooltip-"+Math.floor(1e5*Math.random()),e=null,f="w",g=25,h=0,i=null,j=null,k=!0,l=200,m=null,n={left:null,top:null},o=!0,p=100,q=!0,r="nv-pointer-events-none",s=function(){return{left:null!==d3.event?d3.event.clientX:0,top:null!==d3.event?d3.event.clientY:0}},t=function(a,b){return a},u=function(a){return a},v=function(a,b){return a},w=function(a){if(null===a)return"";var b=d3.select(document.createElement("table"));if(q){var c=b.selectAll("thead").data([a]).enter().append("thead");c.append("tr").append("td").attr("colspan",3).append("strong").classed("x-value",!0).html(u(a.value))}var d=b.selectAll("tbody").data([a]).enter().append("tbody"),e=d.selectAll("tr").data(function(a){return a.series}).enter().append("tr").classed("highlight",function(a){return a.highlight});e.append("td").classed("legend-color-guide",!0).append("div").style("background-color",function(a){return a.color}),e.append("td").classed("key",!0).classed("total",function(a){return!!a.total}).html(function(a,b){return v(a.key,b)}),e.append("td").classed("value",!0).html(function(a,b){return t(a.value,b)}),e.selectAll("td").each(function(a){if(a.highlight){var b=d3.scale.linear().domain([0,1]).range(["#fff",a.color]),c=.6;d3.select(this).style("border-bottom-color",b(c)).style("border-top-color",b(c))}});var f=b.node().outerHTML;return void 0!==a.footer&&(f+="<div class='footer'>"+a.footer+"</div>"),f},x=function(b){if(b&&b.series){if(a.utils.isArray(b.series))return!0;if(a.utils.isObject(b.series))return b.series=[b.series],!0}return!1},y=function(a){var b,c,d,e=m.node().offsetHeight,h=m.node().offsetWidth,i=document.documentElement.clientWidth,j=document.documentElement.clientHeight;switch(f){case"e":b=-h-g,c=-(e/2),a.left+b<0&&(b=g),(d=a.top+c)<0&&(c-=d),(d=a.top+c+e)>j&&(c-=d-j);break;case"w":b=g,c=-(e/2),a.left+b+h>i&&(b=-h-g),(d=a.top+c)<0&&(c-=d),(d=a.top+c+e)>j&&(c-=d-j);break;case"n":b=-(h/2)-5,c=g,a.top+c+e>j&&(c=-e-g),(d=a.left+b)<0&&(b-=d),(d=a.left+b+h)>i&&(b-=d-i);break;case"s":b=-(h/2),c=-e-g,a.top+c<0&&(c=g),(d=a.left+b)<0&&(b-=d),(d=a.left+b+h)>i&&(b-=d-i);break;case"center":b=-(h/2),c=-(e/2);break;default:b=0,c=0}return{left:b,top:c}},z=function(){a.dom.read(function(){var a=s(),b=y(a),c=a.left+b.left,d=a.top+b.top;if(k)m.interrupt().transition().delay(l).duration(0).style("opacity",0);else{var e="translate("+n.left+"px, "+n.top+"px)",f="translate("+c+"px, "+d+"px)",g=d3.interpolateString(e,f),h=m.style("opacity")<.1;m.interrupt().transition().duration(h?0:p).styleTween("transform",function(a){return g},"important").styleTween("-webkit-transform",function(a){return g}).style("-ms-transform",f).style("opacity",1)}n.left=c,n.top=d})};return c.nvPointerEventsClass=r,c.options=a.utils.optionsFunc.bind(c),c._options=Object.create({},{duration:{get:function(){return p},set:function(a){p=a}},gravity:{get:function(){return f},set:function(a){f=a}},distance:{get:function(){return g},set:function(a){g=a}},snapDistance:{get:function(){return h},set:function(a){h=a}},classes:{get:function(){return i},set:function(a){i=a}},chartContainer:{get:function(){return j},set:function(a){j=a}},enabled:{get:function(){return o},set:function(a){o=a}},hideDelay:{get:function(){return l},set:function(a){l=a}},contentGenerator:{get:function(){return w},set:function(a){w=a}},valueFormatter:{get:function(){return t},set:function(a){t=a}},headerFormatter:{get:function(){return u},set:function(a){u=a}},keyFormatter:{get:function(){return v},set:function(a){v=a}},headerEnabled:{get:function(){return q},set:function(a){q=a}},position:{get:function(){return s},set:function(a){s=a}},fixedTop:{get:function(){return null},set:function(b){a.deprecated("fixedTop","feature removed after 1.8.1")}},offset:{get:function(){return{left:0,top:0}},set:function(b){a.deprecated("offset","use chart.tooltip.distance() instead")}},hidden:{get:function(){return k},set:function(a){k!=a&&(k=!!a,c())}},data:{get:function(){return e},set:function(a){a.point&&(a.value=a.point.x,a.series=a.series||{},a.series.value=a.point.y,a.series.color=a.point.color||a.series.color),e=a}},node:{get:function(){return m.node()},set:function(a){}},id:{get:function(){return d},set:function(a){}}}),a.utils.initOptions(c),c},a.utils.windowSize=function(){var a={width:640,height:480};return window.innerWidth&&window.innerHeight?(a.width=window.innerWidth,a.height=window.innerHeight,a):"CSS1Compat"==document.compatMode&&document.documentElement&&document.documentElement.offsetWidth?(a.width=document.documentElement.offsetWidth,a.height=document.documentElement.offsetHeight,a):document.body&&document.body.offsetWidth?(a.width=document.body.offsetWidth,a.height=document.body.offsetHeight,a):a},a.utils.isArray=Array.isArray,a.utils.isObject=function(a){return null!==a&&"object"==typeof a},a.utils.isFunction=function(a){return"function"==typeof a},a.utils.isDate=function(a){return"[object Date]"===toString.call(a)},a.utils.isNumber=function(a){return!isNaN(a)&&"number"==typeof a},a.utils.windowResize=function(b){return window.addEventListener?window.addEventListener("resize",b):a.log("ERROR: Failed to bind to window.resize with: ",b),{callback:b,clear:function(){window.removeEventListener("resize",b)}}},a.utils.getColor=function(b){if(void 0===b)return a.utils.defaultColor();if(a.utils.isArray(b)){var c=d3.scale.ordinal().range(b);return function(a,b){var d=void 0===b?a:b;return a.color||c(d)}}return b},a.utils.defaultColor=function(){return a.utils.getColor(d3.scale.category20().range())},a.utils.customTheme=function(b,c,d){c=c||function(a){return a.key},d=d||d3.scale.category20().range();var e=d.length;return function(f,g){var h=c(f);return a.utils.isFunction(b[h])?b[h]():void 0!==b[h]?b[h]:(e||(e=d.length),e-=1,d[e])}},a.utils.pjax=function(b,c){var d=function(d){d3.html(d,function(d){var e=d3.select(c).node();e.parentNode.replaceChild(d3.select(d).select(c).node(),e),a.utils.pjax(b,c)})};d3.selectAll(b).on("click",function(){history.pushState(this.href,this.textContent,this.href),d(this.href),d3.event.preventDefault()}),d3.select(window).on("popstate",function(){d3.event.state&&d(d3.event.state)})},a.utils.calcApproxTextWidth=function(b){if(a.utils.isFunction(b.style)&&a.utils.isFunction(b.text)){var c=parseInt(b.style("font-size").replace("px",""),10),d=b.text().length;return d*c*.5}return 0},a.utils.NaNtoZero=function(b){return!a.utils.isNumber(b)||isNaN(b)||null===b||b===1/0||b===-(1/0)?0:b},d3.selection.prototype.watchTransition=function(a){var b=[this].concat([].slice.call(arguments,1));return a.transition.apply(a,b)},a.utils.renderWatch=function(b,c){if(!(this instanceof a.utils.renderWatch))return new a.utils.renderWatch(b,c);var d=void 0!==c?c:250,e=[],f=this;this.models=function(a){return a=[].slice.call(arguments,0),a.forEach(function(a){a.__rendered=!1,function(a){a.dispatch.on("renderEnd",function(b){a.__rendered=!0,f.renderEnd("model")})}(a),e.indexOf(a)<0&&e.push(a)}),this},this.reset=function(a){void 0!==a&&(d=a),e=[]},this.transition=function(a,b,c){if(b=arguments.length>1?[].slice.call(arguments,1):[],c=b.length>1?b.pop():void 0!==d?d:250,a.__rendered=!1,e.indexOf(a)<0&&e.push(a),0===c)return a.__rendered=!0,a.delay=function(){return this},a.duration=function(){return this},a;0===a.length?a.__rendered=!0:a.every(function(a){return!a.length})?a.__rendered=!0:a.__rendered=!1;var g=0;return a.transition().duration(c).each(function(){++g}).each("end",function(c,d){0===--g&&(a.__rendered=!0,f.renderEnd.apply(this,b))})},this.renderEnd=function(){e.every(function(a){return a.__rendered})&&(e.forEach(function(a){a.__rendered=!1}),b.renderEnd.apply(this,arguments))}},a.utils.deepExtend=function(b){var c=arguments.length>1?[].slice.call(arguments,1):[];c.forEach(function(c){for(var d in c){var e=a.utils.isArray(b[d]),f=a.utils.isObject(b[d]),g=a.utils.isObject(c[d]);f&&!e&&g?a.utils.deepExtend(b[d],c[d]):b[d]=c[d]}})},a.utils.state=function(){if(!(this instanceof a.utils.state))return new a.utils.state;var b={},c=function(){},d=function(){return{}},e=null,f=null;this.dispatch=d3.dispatch("change","set"),this.dispatch.on("set",function(a){c(a,!0)}),this.getter=function(a){return d=a,this},this.setter=function(a,b){return b||(b=function(){}),c=function(c,d){a(c),d&&b()},this},this.init=function(b){e=e||{},a.utils.deepExtend(e,b)};var g=function(){var a=d();if(JSON.stringify(a)===JSON.stringify(b))return!1;for(var c in a)void 0===b[c]&&(b[c]={}),b[c]=a[c],f=!0;return!0};this.update=function(){e&&(c(e,!1),e=null),g.call(this)&&this.dispatch.change(b)}},a.utils.optionsFunc=function(b){return b&&d3.map(b).forEach(function(b,c){a.utils.isFunction(this[b])&&this[b](c)}.bind(this)),this},a.utils.calcTicksX=function(b,c){var d=1,e=0;for(e;e<c.length;e+=1){var f=c[e]&&c[e].values?c[e].values.length:0;d=f>d?f:d}return a.log("Requested number of ticks: ",b),a.log("Calculated max values to be: ",d),b=b>d?b=d-1:b,b=1>b?1:b,b=Math.floor(b),a.log("Calculating tick count as: ",b),b},a.utils.calcTicksY=function(b,c){return a.utils.calcTicksX(b,c)},a.utils.initOption=function(a,b){a._calls&&a._calls[b]?a[b]=a._calls[b]:(a[b]=function(c){return arguments.length?(a._overrides[b]=!0,a._options[b]=c,a):a._options[b]},a["_"+b]=function(c){return arguments.length?(a._overrides[b]||(a._options[b]=c),a):a._options[b]})},a.utils.initOptions=function(b){b._overrides=b._overrides||{};var c=Object.getOwnPropertyNames(b._options||{}),d=Object.getOwnPropertyNames(b._calls||{});c=c.concat(d);for(var e in c)a.utils.initOption(b,c[e])},a.utils.inheritOptionsD3=function(a,b,c){a._d3options=c.concat(a._d3options||[]),c.unshift(b),c.unshift(a),d3.rebind.apply(this,c)},a.utils.arrayUnique=function(a){return a.sort().filter(function(b,c){return!c||b!=a[c-1]})},a.utils.symbolMap=d3.map(),a.utils.symbol=function(){function b(b,e){var f=c.call(this,b,e),g=d.call(this,b,e);return-1!==d3.svg.symbolTypes.indexOf(f)?d3.svg.symbol().type(f).size(g)():a.utils.symbolMap.get(f)(g)}var c,d=64;return b.type=function(a){return arguments.length?(c=d3.functor(a),b):c},b.size=function(a){return arguments.length?(d=d3.functor(a),b):d},b},a.utils.inheritOptions=function(b,c){var d=Object.getOwnPropertyNames(c._options||{}),e=Object.getOwnPropertyNames(c._calls||{}),f=c._inherited||[],g=c._d3options||[],h=d.concat(e).concat(f).concat(g);h.unshift(c),h.unshift(b),d3.rebind.apply(this,h),b._inherited=a.utils.arrayUnique(d.concat(e).concat(f).concat(d).concat(b._inherited||[])),b._d3options=a.utils.arrayUnique(g.concat(b._d3options||[]))},a.utils.initSVG=function(a){a.classed({"nvd3-svg":!0})},a.utils.sanitizeHeight=function(a,b){return a||parseInt(b.style("height"),10)||400},a.utils.sanitizeWidth=function(a,b){return a||parseInt(b.style("width"),10)||960},a.utils.availableHeight=function(b,c,d){return Math.max(0,a.utils.sanitizeHeight(b,c)-d.top-d.bottom)},a.utils.availableWidth=function(b,c,d){return Math.max(0,a.utils.sanitizeWidth(b,c)-d.left-d.right)},a.utils.noData=function(b,c){var d=b.options(),e=d.margin(),f=d.noData(),g=null==f?["No Data Available."]:[f],h=a.utils.availableHeight(null,c,e),i=a.utils.availableWidth(null,c,e),j=e.left+i/2,k=e.top+h/2;c.selectAll("g").remove();var l=c.selectAll(".nv-noData").data(g);l.enter().append("text").attr("class","nvd3 nv-noData").attr("dy","-.7em").style("text-anchor","middle"),l.attr("x",j).attr("y",k).text(function(a){return a})},a.utils.wrapTicks=function(a,b){a.each(function(){for(var a,c=d3.select(this),d=c.text().split(/\s+/).reverse(),e=[],f=0,g=1.1,h=c.attr("y"),i=parseFloat(c.attr("dy")),j=c.text(null).append("tspan").attr("x",0).attr("y",h).attr("dy",i+"em");a=d.pop();)e.push(a),j.text(e.join(" ")),j.node().getComputedTextLength()>b&&(e.pop(),j.text(e.join(" ")),e=[a],j=c.append("tspan").attr("x",0).attr("y",h).attr("dy",++f*g+i+"em").text(a))})},a.utils.arrayEquals=function(b,c){if(b===c)return!0;if(!b||!c)return!1;if(b.length!=c.length)return!1;for(var d=0,e=b.length;e>d;d++)if(b[d]instanceof Array&&c[d]instanceof Array){if(!a.arrayEquals(b[d],c[d]))return!1}else if(b[d]!=c[d])return!1;return!0},a.models.axis=function(){"use strict";function b(g){return s.reset(),g.each(function(b){var g=d3.select(this);a.utils.initSVG(g);var p=g.selectAll("g.nv-wrap.nv-axis").data([b]),q=p.enter().append("g").attr("class","nvd3 nv-wrap nv-axis"),t=(q.append("g"),p.select("g"));null!==n?c.ticks(n):("top"==c.orient()||"bottom"==c.orient())&&c.ticks(Math.abs(d.range()[1]-d.range()[0])/100),t.watchTransition(s,"axis").call(c),r=r||c.scale();var u=c.tickFormat();null==u&&(u=r.tickFormat());var v=t.selectAll("text.nv-axislabel").data([h||null]);v.exit().remove();var w,x,y;switch(c.orient()){case"top":v.enter().append("text").attr("class","nv-axislabel"),y=0,1===d.range().length?y=m?2*d.range()[0]+d.rangeBand():0:2===d.range().length?y=m?d.range()[0]+d.range()[1]+d.rangeBand():d.range()[1]:d.range().length>2&&(y=d.range()[d.range().length-1]+(d.range()[1]-d.range()[0])),v.attr("text-anchor","middle").attr("y",0).attr("x",y/2),i&&(x=p.selectAll("g.nv-axisMaxMin").data(d.domain()),x.enter().append("g").attr("class",function(a,b){return["nv-axisMaxMin","nv-axisMaxMin-x",0==b?"nv-axisMin-x":"nv-axisMax-x"].join(" ")}).append("text"),x.exit().remove(),x.attr("transform",function(b,c){return"translate("+a.utils.NaNtoZero(d(b))+",0)"}).select("text").attr("dy","-0.5em").attr("y",-c.tickPadding()).attr("text-anchor","middle").text(function(a,b){var c=u(a);return(""+c).match("NaN")?"":c}),x.watchTransition(s,"min-max top").attr("transform",function(b,c){return"translate("+a.utils.NaNtoZero(d.range()[c])+",0)"}));break;case"bottom":w=o+36;var z=30,A=0,B=t.selectAll("g").select("text"),C="";if(j%360){B.each(function(a,b){var c=this.getBoundingClientRect(),d=c.width;A=c.height,d>z&&(z=d)}),C="rotate("+j+" 0,"+(A/2+c.tickPadding())+")";var D=Math.abs(Math.sin(j*Math.PI/180));w=(D?D*z:z)+30,B.attr("transform",C).style("text-anchor",j%360>0?"start":"end")}else l?B.attr("transform",function(a,b){return"translate(0,"+(b%2==0?"0":"12")+")"}):B.attr("transform","translate(0,0)");v.enter().append("text").attr("class","nv-axislabel"),y=0,1===d.range().length?y=m?2*d.range()[0]+d.rangeBand():0:2===d.range().length?y=m?d.range()[0]+d.range()[1]+d.rangeBand():d.range()[1]:d.range().length>2&&(y=d.range()[d.range().length-1]+(d.range()[1]-d.range()[0])),v.attr("text-anchor","middle").attr("y",w).attr("x",y/2),i&&(x=p.selectAll("g.nv-axisMaxMin").data([d.domain()[0],d.domain()[d.domain().length-1]]),x.enter().append("g").attr("class",function(a,b){return["nv-axisMaxMin","nv-axisMaxMin-x",0==b?"nv-axisMin-x":"nv-axisMax-x"].join(" ")}).append("text"),x.exit().remove(),x.attr("transform",function(b,c){return"translate("+a.utils.NaNtoZero(d(b)+(m?d.rangeBand()/2:0))+",0)"}).select("text").attr("dy",".71em").attr("y",c.tickPadding()).attr("transform",C).style("text-anchor",j?j%360>0?"start":"end":"middle").text(function(a,b){var c=u(a);return(""+c).match("NaN")?"":c}),x.watchTransition(s,"min-max bottom").attr("transform",function(b,c){return"translate("+a.utils.NaNtoZero(d(b)+(m?d.rangeBand()/2:0))+",0)"}));break;case"right":v.enter().append("text").attr("class","nv-axislabel"),v.style("text-anchor",k?"middle":"begin").attr("transform",k?"rotate(90)":"").attr("y",k?-Math.max(e.right,f)+12:-10).attr("x",k?d3.max(d.range())/2:c.tickPadding()),i&&(x=p.selectAll("g.nv-axisMaxMin").data(d.domain()),x.enter().append("g").attr("class",function(a,b){return["nv-axisMaxMin","nv-axisMaxMin-y",0==b?"nv-axisMin-y":"nv-axisMax-y"].join(" ")}).append("text").style("opacity",0),x.exit().remove(),x.attr("transform",function(b,c){return"translate(0,"+a.utils.NaNtoZero(d(b))+")"}).select("text").attr("dy",".32em").attr("y",0).attr("x",c.tickPadding()).style("text-anchor","start").text(function(a,b){var c=u(a);return(""+c).match("NaN")?"":c}),x.watchTransition(s,"min-max right").attr("transform",function(b,c){return"translate(0,"+a.utils.NaNtoZero(d.range()[c])+")"}).select("text").style("opacity",1));break;case"left":v.enter().append("text").attr("class","nv-axislabel"),v.style("text-anchor",k?"middle":"end").attr("transform",k?"rotate(-90)":"").attr("y",k?-Math.max(e.left,f)+25-(o||0):-10).attr("x",k?-d3.max(d.range())/2:-c.tickPadding()),i&&(x=p.selectAll("g.nv-axisMaxMin").data(d.domain()),x.enter().append("g").attr("class",function(a,b){return["nv-axisMaxMin","nv-axisMaxMin-y",0==b?"nv-axisMin-y":"nv-axisMax-y"].join(" ")}).append("text").style("opacity",0),x.exit().remove(),x.attr("transform",function(b,c){return"translate(0,"+a.utils.NaNtoZero(r(b))+")"}).select("text").attr("dy",".32em").attr("y",0).attr("x",-c.tickPadding()).attr("text-anchor","end").text(function(a,b){var c=u(a);return(""+c).match("NaN")?"":c}),x.watchTransition(s,"min-max right").attr("transform",function(b,c){return"translate(0,"+a.utils.NaNtoZero(d.range()[c])+")"}).select("text").style("opacity",1))}if(v.text(function(a){return a}),!i||"left"!==c.orient()&&"right"!==c.orient()||(t.selectAll("g").each(function(a,b){d3.select(this).select("text").attr("opacity",1),(d(a)<d.range()[1]+10||d(a)>d.range()[0]-10)&&((a>1e-10||-1e-10>a)&&d3.select(this).attr("opacity",0),d3.select(this).select("text").attr("opacity",0))}),d.domain()[0]==d.domain()[1]&&0==d.domain()[0]&&p.selectAll("g.nv-axisMaxMin").style("opacity",function(a,b){return b?0:1})),i&&("top"===c.orient()||"bottom"===c.orient())){var E=[];p.selectAll("g.nv-axisMaxMin").each(function(a,b){try{b?E.push(d(a)-this.getBoundingClientRect().width-4):E.push(d(a)+this.getBoundingClientRect().width+4)}catch(c){b?E.push(d(a)-4):E.push(d(a)+4)}}),t.selectAll("g").each(function(a,b){(d(a)<E[0]||d(a)>E[1])&&(a>1e-10||-1e-10>a?d3.select(this).remove():d3.select(this).select("text").remove())})}t.selectAll(".tick").filter(function(a){return!parseFloat(Math.round(1e5*a)/1e6)&&void 0!==a}).classed("zero",!0),r=d.copy()}),s.renderEnd("axis immediate"),b}var c=d3.svg.axis(),d=d3.scale.linear(),e={top:0,right:0,bottom:0,left:0},f=75,g=60,h=null,i=!0,j=0,k=!0,l=!1,m=!1,n=null,o=0,p=250,q=d3.dispatch("renderEnd");c.scale(d).orient("bottom").tickFormat(function(a){return a});var r,s=a.utils.renderWatch(q,p);return b.axis=c,b.dispatch=q,b.options=a.utils.optionsFunc.bind(b),b._options=Object.create({},{axisLabelDistance:{get:function(){return o},set:function(a){o=a}},staggerLabels:{get:function(){return l},set:function(a){l=a}},rotateLabels:{get:function(){return j},set:function(a){j=a}},rotateYLabel:{get:function(){return k},set:function(a){k=a}},showMaxMin:{get:function(){return i},set:function(a){i=a}},axisLabel:{get:function(){return h},set:function(a){h=a}},height:{get:function(){return g},set:function(a){g=a}},ticks:{get:function(){return n},set:function(a){n=a}},width:{get:function(){return f},set:function(a){f=a}},margin:{get:function(){return e},set:function(a){e.top=void 0!==a.top?a.top:e.top,e.right=void 0!==a.right?a.right:e.right,e.bottom=void 0!==a.bottom?a.bottom:e.bottom,e.left=void 0!==a.left?a.left:e.left}},duration:{get:function(){return p},set:function(a){p=a,s.reset(p)}},scale:{get:function(){return d},set:function(e){d=e,c.scale(d),m="function"==typeof d.rangeBands,a.utils.inheritOptionsD3(b,d,["domain","range","rangeBand","rangeBands"])}}}),a.utils.initOptions(b),a.utils.inheritOptionsD3(b,c,["orient","tickValues","tickSubdivide","tickSize","tickPadding","tickFormat"]),a.utils.inheritOptionsD3(b,d,["domain","range","rangeBand","rangeBands"]),b},a.models.boxPlot=function(){"use strict";function b(l){return v.reset(),l.each(function(b){var l=j-i.left-i.right,p=k-i.top-i.bottom;r=d3.select(this),a.utils.initSVG(r),m.domain(c||b.map(function(a,b){return o(a,b)})).rangeBands(e||[0,l],.1);var w=[];if(!d){var x=d3.min(b.map(function(a){var b=[];return b.push(a.values.Q1),a.values.hasOwnProperty("whisker_low")&&null!==a.values.whisker_low&&b.push(a.values.whisker_low),a.values.hasOwnProperty("outliers")&&null!==a.values.outliers&&(b=b.concat(a.values.outliers)),d3.min(b)})),y=d3.max(b.map(function(a){var b=[];return b.push(a.values.Q3),a.values.hasOwnProperty("whisker_high")&&null!==a.values.whisker_high&&b.push(a.values.whisker_high),a.values.hasOwnProperty("outliers")&&null!==a.values.outliers&&(b=b.concat(a.values.outliers)),d3.max(b)}));w=[x,y]}n.domain(d||w),n.range(f||[p,0]),g=g||m,h=h||n.copy().range([n(0),n(0)]);var z=r.selectAll("g.nv-wrap").data([b]);z.enter().append("g").attr("class","nvd3 nv-wrap");z.attr("transform","translate("+i.left+","+i.top+")");var A=z.selectAll(".nv-boxplot").data(function(a){return a}),B=A.enter().append("g").style("stroke-opacity",1e-6).style("fill-opacity",1e-6);A.attr("class","nv-boxplot").attr("transform",function(a,b,c){return"translate("+(m(o(a,b))+.05*m.rangeBand())+", 0)"}).classed("hover",function(a){return a.hover}),A.watchTransition(v,"nv-boxplot: boxplots").style("stroke-opacity",1).style("fill-opacity",.75).delay(function(a,c){return c*t/b.length}).attr("transform",function(a,b){return"translate("+(m(o(a,b))+.05*m.rangeBand())+", 0)"}),A.exit().remove(),B.each(function(a,b){var c=d3.select(this);["low","high"].forEach(function(d){a.values.hasOwnProperty("whisker_"+d)&&null!==a.values["whisker_"+d]&&(c.append("line").style("stroke",a.color?a.color:q(a,b)).attr("class","nv-boxplot-whisker nv-boxplot-"+d),c.append("line").style("stroke",a.color?a.color:q(a,b)).attr("class","nv-boxplot-tick nv-boxplot-"+d))})});var C=A.selectAll(".nv-boxplot-outlier").data(function(a){return a.values.hasOwnProperty("outliers")&&null!==a.values.outliers?a.values.outliers:[]});C.enter().append("circle").style("fill",function(a,b,c){return q(a,c)}).style("stroke",function(a,b,c){return q(a,c)}).on("mouseover",function(a,b,c){d3.select(this).classed("hover",!0),s.elementMouseover({series:{key:a,color:q(a,c)},e:d3.event})}).on("mouseout",function(a,b,c){d3.select(this).classed("hover",!1),s.elementMouseout({series:{key:a,color:q(a,c)},e:d3.event})}).on("mousemove",function(a,b){s.elementMousemove({e:d3.event})}),C.attr("class","nv-boxplot-outlier"),C.watchTransition(v,"nv-boxplot: nv-boxplot-outlier").attr("cx",.45*m.rangeBand()).attr("cy",function(a,b,c){return n(a)}).attr("r","3"),C.exit().remove();var D=function(){return null===u?.9*m.rangeBand():Math.min(75,.9*m.rangeBand())},E=function(){return.45*m.rangeBand()-D()/2},F=function(){return.45*m.rangeBand()+D()/2};["low","high"].forEach(function(a){var b="low"===a?"Q1":"Q3";A.select("line.nv-boxplot-whisker.nv-boxplot-"+a).watchTransition(v,"nv-boxplot: boxplots").attr("x1",.45*m.rangeBand()).attr("y1",function(b,c){return n(b.values["whisker_"+a])}).attr("x2",.45*m.rangeBand()).attr("y2",function(a,c){return n(a.values[b])}),A.select("line.nv-boxplot-tick.nv-boxplot-"+a).watchTransition(v,"nv-boxplot: boxplots").attr("x1",E).attr("y1",function(b,c){return n(b.values["whisker_"+a])}).attr("x2",F).attr("y2",function(b,c){return n(b.values["whisker_"+a])})}),["low","high"].forEach(function(a){B.selectAll(".nv-boxplot-"+a).on("mouseover",function(b,c,d){d3.select(this).classed("hover",!0),s.elementMouseover({series:{key:b.values["whisker_"+a],color:q(b,d)},e:d3.event})}).on("mouseout",function(b,c,d){d3.select(this).classed("hover",!1),s.elementMouseout({series:{key:b.values["whisker_"+a],color:q(b,d)},e:d3.event})}).on("mousemove",function(a,b){s.elementMousemove({e:d3.event})})}),B.append("rect").attr("class","nv-boxplot-box").on("mouseover",function(a,b){d3.select(this).classed("hover",!0),s.elementMouseover({key:a.label,value:a.label,series:[{key:"Q3",value:a.values.Q3,color:a.color||q(a,b)},{key:"Q2",value:a.values.Q2,color:a.color||q(a,b)},{key:"Q1",value:a.values.Q1,color:a.color||q(a,b)}],data:a,index:b,e:d3.event})}).on("mouseout",function(a,b){d3.select(this).classed("hover",!1),s.elementMouseout({key:a.label,value:a.label,series:[{key:"Q3",value:a.values.Q3,color:a.color||q(a,b)},{key:"Q2",value:a.values.Q2,color:a.color||q(a,b)},{key:"Q1",value:a.values.Q1,color:a.color||q(a,b)}],data:a,index:b,e:d3.event})}).on("mousemove",function(a,b){s.elementMousemove({e:d3.event})}),A.select("rect.nv-boxplot-box").watchTransition(v,"nv-boxplot: boxes").attr("y",function(a,b){return n(a.values.Q3)}).attr("width",D).attr("x",E).attr("height",function(a,b){return Math.abs(n(a.values.Q3)-n(a.values.Q1))||1}).style("fill",function(a,b){return a.color||q(a,b)}).style("stroke",function(a,b){return a.color||q(a,b)}),B.append("line").attr("class","nv-boxplot-median"),A.select("line.nv-boxplot-median").watchTransition(v,"nv-boxplot: boxplots line").attr("x1",E).attr("y1",function(a,b){return n(a.values.Q2)}).attr("x2",F).attr("y2",function(a,b){return n(a.values.Q2)}),g=m.copy(),h=n.copy()}),v.renderEnd("nv-boxplot immediate"),b}var c,d,e,f,g,h,i={top:0,right:0,bottom:0,left:0},j=960,k=500,l=Math.floor(1e4*Math.random()),m=d3.scale.ordinal(),n=d3.scale.linear(),o=function(a){return a.x},p=function(a){return a.y},q=a.utils.defaultColor(),r=null,s=d3.dispatch("elementMouseover","elementMouseout","elementMousemove","renderEnd"),t=250,u=null,v=a.utils.renderWatch(s,t);return b.dispatch=s,b.options=a.utils.optionsFunc.bind(b),b._options=Object.create({},{width:{get:function(){return j},set:function(a){j=a}},height:{get:function(){return k},set:function(a){k=a}},maxBoxWidth:{get:function(){return u},set:function(a){u=a}},x:{get:function(){return o},set:function(a){o=a}},y:{get:function(){return p},set:function(a){p=a}},xScale:{get:function(){return m},set:function(a){m=a}},yScale:{get:function(){return n},set:function(a){n=a}},xDomain:{get:function(){return c},set:function(a){c=a}},yDomain:{get:function(){return d},set:function(a){d=a}},xRange:{get:function(){return e},set:function(a){e=a}},yRange:{get:function(){return f},set:function(a){f=a}},id:{get:function(){return l},set:function(a){l=a}},margin:{get:function(){return i},set:function(a){i.top=void 0!==a.top?a.top:i.top,i.right=void 0!==a.right?a.right:i.right,i.bottom=void 0!==a.bottom?a.bottom:i.bottom,i.left=void 0!==a.left?a.left:i.left}},color:{get:function(){
@@ -38545,7 +45001,7 @@ g.transition().duration(C).text(function(a){return x(a)}).attr("opacity",functio
 //# sourceMappingURL=nv.d3.min.js.map
 },{"d3":"d3"}],"react-addons-pure-render-mixin":[function(require,module,exports){
 module.exports = require('react/lib/ReactComponentWithPureRenderMixin');
-},{"react/lib/ReactComponentWithPureRenderMixin":110}],"react-click-outside":[function(require,module,exports){
+},{"react/lib/ReactComponentWithPureRenderMixin":159}],"react-click-outside":[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -44272,7 +50728,1021 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ ])
 });
 ;
-},{"react":"react"}],"react":[function(require,module,exports){
+},{"react":"react"}],"react-select-me":[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _reactAddonsShallowCompare = require('react-addons-shallow-compare');
+
+var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
+
+var _reactVirtualized = require('react-virtualized');
+
+var _immutable = require('immutable');
+
+var _classnames = require('classnames');
+
+var _classnames2 = _interopRequireDefault(_classnames);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
+function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } // @TODO
+// hot keys: select option on Enter, remove on Backspcae, highlight etc
+// disable option
+
+var DEFAULT_LIST_POSITION = 'bottom';
+
+var ReactSelectMe = function (_Component) {
+  _inherits(ReactSelectMe, _Component);
+
+  function ReactSelectMe(props) {
+    _classCallCheck(this, ReactSelectMe);
+
+    var _this = _possibleConstructorReturn(this, (ReactSelectMe.__proto__ || Object.getPrototypeOf(ReactSelectMe)).call(this, props));
+
+    _this.state = {
+      opened: props.isOpened === undefined ? false : props.isOpened,
+      search: ''
+    };
+
+    _this.ssr = typeof window === 'undefined';
+
+    _this.closeGlobal = _this.closeGlobal.bind(_this);
+    _this.skipEventPropagation = _this.skipEventPropagation.bind(_this);
+    _this.toImmutable = _this.toImmutable.bind(_this);
+    _this.patchSelectedOption = _this.patchSelectedOption.bind(_this);
+    _this.getOptions = _this.getOptions.bind(_this);
+    _this.getOptionHeight = _this.getOptionHeight.bind(_this);
+    _this.getSelectedOptions = _this.getSelectedOptions.bind(_this);
+    _this.getListProps = _this.getListProps.bind(_this);
+    _this.getOffset = _this.getOffset.bind(_this);
+    _this.getCount = _this.getCount.bind(_this);
+    _this.getSearchString = _this.getSearchString.bind(_this);
+    _this.renderList = _this.renderList.bind(_this);
+    _this.renderOption = _this.renderOption.bind(_this);
+    _this.renderIcon = _this.renderIcon.bind(_this);
+    _this.renderSelectedBlock = _this.renderSelectedBlock.bind(_this);
+    _this.renderSearchInput = _this.renderSearchInput.bind(_this);
+    _this.renderSelectedItem = _this.renderSelectedItem.bind(_this);
+    _this.renderAddNewItem = _this.renderAddNewItem.bind(_this);
+    _this.renderNoItemsFound = _this.renderNoItemsFound.bind(_this);
+    _this.onChange = _this.onChange.bind(_this);
+    _this.onRemoveSelected = _this.onRemoveSelected.bind(_this);
+    _this.onToggle = _this.onToggle.bind(_this);
+    _this.onSearch = _this.onSearch.bind(_this);
+    _this.onAddNewItem = _this.onAddNewItem.bind(_this);
+    _this.onOpen = _this.onOpen.bind(_this);
+    _this.onClose = _this.onClose.bind(_this);
+    return _this;
+  }
+
+  /* ***************************************
+  ************ Lifecycle events ************
+  *****************************************/
+
+
+  _createClass(ReactSelectMe, [{
+    key: 'componentDidMount',
+    value: function componentDidMount() {
+      document.addEventListener('click', this.closeGlobal);
+    }
+  }, {
+    key: 'componentWillReceiveProps',
+    value: function componentWillReceiveProps(nextProps) {
+      if (nextProps.isOpened !== undefined && this.state.opened !== nextProps.isOpened) {
+        this.setState({
+          opened: nextProps.isOpened
+        });
+      }
+    }
+  }, {
+    key: 'shouldComponentUpdate',
+    value: function shouldComponentUpdate(nextProps, nextState) {
+      return (0, _reactAddonsShallowCompare2.default)(this, nextProps, nextState);
+    }
+  }, {
+    key: 'componentWillUnmount',
+    value: function componentWillUnmount() {
+      document.removeEventListener('click', this.closeGlobal);
+    }
+
+    /* ***************************************
+    **************** Utils *******************
+    *****************************************/
+
+  }, {
+    key: 'warn',
+    value: function warn(msg) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(msg); // eslint-disable-line no-console
+      }
+    }
+  }, {
+    key: 'closeGlobal',
+    value: function closeGlobal(e) {
+      var _props = this.props;
+      var isOpened = _props.isOpened;
+      var beforeClose = _props.beforeClose;
+      // @maslianok: when you decide to change this, please, keep in mind, that this case should work:
+      // Open A -> Open B -> A should be closed
+
+      if (this.skipPropagation || !this.state.opened) {
+        this.skipPropagation = undefined;
+        return;
+      }
+
+      if (!isOpened && beforeClose(e) !== false) {
+        this.setState({ opened: false }, this.onClose);
+      }
+    }
+  }, {
+    key: 'skipEventPropagation',
+    value: function skipEventPropagation() {
+      this.skipPropagation = true;
+    }
+  }, {
+    key: 'toImmutable',
+    value: function toImmutable(data) {
+      var immutable = this.props.immutable;
+
+      return immutable ? (0, _immutable.fromJS)(data) : data;
+    }
+  }, {
+    key: 'patchSelectedOption',
+    value: function patchSelectedOption(selectedOption, options) {
+      var _this2 = this,
+          _toImmutable;
+
+      var _props2 = this.props;
+      var valueKey = _props2.valueKey;
+      var labelKey = _props2.labelKey;
+      // if object
+
+      if ((typeof selectedOption === 'undefined' ? 'undefined' : _typeof(selectedOption)) === 'object') {
+        // just return this value
+        return selectedOption;
+      }
+
+      // if primitive (Number or String)
+
+      // search for this option in `options` array
+      var option = options.find(function (o) {
+        return _this2.getProp(o, valueKey) === selectedOption;
+      });
+      if (option) {
+        return option;
+      }
+
+      // if not found - map it to object
+      return this.toImmutable((_toImmutable = {}, _defineProperty(_toImmutable, valueKey, selectedOption), _defineProperty(_toImmutable, labelKey, selectedOption), _toImmutable));
+    }
+    /* ***************************************
+    ************** Renderers *****************
+    *****************************************/
+
+  }, {
+    key: 'renderList',
+    value: function renderList() {
+      var _cs,
+          _this3 = this;
+
+      var _props3 = this.props;
+      var addNewItem = _props3.addNewItem;
+      var searchable = _props3.searchable;
+      var listRenderer = _props3.listRenderer;
+      var virtualized = _props3.virtualized;
+      var s = _props3.s;
+
+
+      if (!this.state.opened) {
+        return undefined;
+      }
+
+      var options = this.getOptions();
+      var selectedOptions = this.getSelectedOptions();
+
+      if (typeof listRenderer === 'function') {
+        return listRenderer(options, selectedOptions, this.renderOption, this.onChange, this.onToggle);
+      }
+
+      var _getListProps = this.getListProps();
+
+      var direction = _getListProps.direction;
+      var calculatedListHeight = _getListProps.calculatedListHeight;
+
+      var listClasses = (0, _classnames2.default)('dd__list', s.dd__list, 'dd__openTo' + direction, s['dd__openTo' + direction], (_cs = {}, _defineProperty(_cs, s.dd__listVirtualized, virtualized), _defineProperty(_cs, 'dd__listVirtualized', virtualized), _cs));
+
+      var rowCount = this.getCount(options);
+      if (rowCount && virtualized) {
+        var _ret = function () {
+          var rowClassName = (0, _classnames2.default)('dd__optionVirtualized', s.dd__optionVirtualized);
+          return {
+            v: _react2.default.createElement(
+              _reactVirtualized.AutoSizer,
+              { disableHeight: true },
+              function (_ref) {
+                var width = _ref.width;
+                return _react2.default.createElement(_reactVirtualized.List, {
+                  width: width,
+                  height: calculatedListHeight,
+                  rowHeight: _this3.getOptionHeight,
+                  rowCount: rowCount,
+                  className: listClasses,
+                  rowClassName: rowClassName,
+                  rowRenderer: function rowRenderer(_ref2) {
+                    var style = _ref2.style;
+                    var index = _ref2.index;
+                    return _this3.renderOption(_this3.getProp(options, index), selectedOptions, style);
+                  }
+                });
+              }
+            )
+          };
+        }();
+
+        if ((typeof _ret === 'undefined' ? 'undefined' : _typeof(_ret)) === "object") return _ret.v;
+      }
+
+      var listContent = void 0;
+      if (rowCount) {
+        listContent = options.map(function (option) {
+          return _this3.renderOption(option, selectedOptions);
+        });
+      } else {
+        listContent = addNewItem && searchable && this.getSearchString() ? this.renderAddNewItem() : this.renderNoItemsFound();
+      }
+
+      return _react2.default.createElement(
+        'div',
+        { className: listClasses, style: { maxHeight: calculatedListHeight + 'px' } },
+        listContent
+      );
+    }
+  }, {
+    key: 'renderOption',
+    value: function renderOption(option, selectedOptions, style) {
+      var _this4 = this;
+
+      var _props4 = this.props;
+      var valueKey = _props4.valueKey;
+      var labelKey = _props4.labelKey;
+      var optionRenderer = _props4.optionRenderer;
+      var s = _props4.s;
+
+      var isSelected = selectedOptions.some(function (selected) {
+        return _this4.getProp(selected, valueKey) === _this4.getProp(option, valueKey);
+      });
+      var className = (0, _classnames2.default)('dd__option', s.dd__option, _defineProperty({
+        dd__selectedOption: isSelected
+      }, s.dd__selectedOption, isSelected));
+
+      var label = typeof optionRenderer === 'function' ? optionRenderer(option, selectedOptions) : _react2.default.createElement(
+        'div',
+        { className: className },
+        this.getProp(option, labelKey)
+      );
+
+      return _react2.default.createElement(
+        'div',
+        { key: this.getProp(option, valueKey), style: style, onClick: this.onChange(option) },
+        label
+      );
+    }
+  }, {
+    key: 'renderSelectedBlock',
+    value: function renderSelectedBlock() {
+      var _this5 = this;
+
+      var _props5 = this.props;
+      var placeholder = _props5.placeholder;
+      var searchable = _props5.searchable;
+      var multiple = _props5.multiple;
+      var s = _props5.s;
+      var selectedValueRenderer = _props5.selectedValueRenderer;
+      var selectedBlockRenderer = _props5.selectedBlockRenderer;
+      var opened = this.state.opened;
+
+      var valueRenderer = selectedValueRenderer || this.renderSelectedItem;
+      var selectedOptions = this.getSelectedOptions();
+
+      if (selectedBlockRenderer) {
+        return selectedBlockRenderer(selectedOptions, this.onChange, valueRenderer, this.renderSearchInput);
+      }
+
+      var selectedBlockClasses = (0, _classnames2.default)('dd__selected', s.dd__selected);
+      var placeholderClasses = (0, _classnames2.default)('dd__placeholder', s.dd__placeholder);
+      var noOptionsSelected = !this.getCount(selectedOptions);
+
+      var selectedElements = void 0;
+      if (!noOptionsSelected && (multiple || !searchable || !opened)) {
+        selectedElements = selectedOptions.map(function (option) {
+          return valueRenderer(option, _this5.onChange);
+        });
+      }
+
+      return _react2.default.createElement(
+        'div',
+        { className: selectedBlockClasses },
+        selectedElements,
+        noOptionsSelected && (!searchable || !opened) && _react2.default.createElement(
+          'div',
+          { className: placeholderClasses },
+          placeholder
+        ),
+        searchable && this.renderSearchInput()
+      );
+    }
+  }, {
+    key: 'renderSearchInput',
+    value: function renderSearchInput() {
+      var _this6 = this;
+
+      var _props6 = this.props;
+      var s = _props6.s;
+      var searchInputRenderer = _props6.searchInputRenderer;
+
+      var selectedOptions = this.getSelectedOptions();
+      var className = (0, _classnames2.default)('dd__search', s.dd__search);
+
+      if (typeof searchInputRenderer === 'function') {
+        return searchInputRenderer(selectedOptions, this.onSearch);
+      }
+
+      return _react2.default.createElement('div', {
+        contentEditable: true,
+        tabIndex: 0,
+        className: className,
+        onInput: this.onSearch,
+        onKeyDown: this.onSearch,
+        onFocus: this.onSearch,
+        onClick: this.onSearch,
+        onPaste: this.onSearch,
+        ref: function ref(e) {
+          return _this6.searchInput = e;
+        }
+      });
+    }
+  }, {
+    key: 'renderSelectedItem',
+    value: function renderSelectedItem(option) {
+      var _props7 = this.props;
+      var valueKey = _props7.valueKey;
+      var labelKey = _props7.labelKey;
+      var multiple = _props7.multiple;
+      var s = _props7.s;
+
+      var selectedOptionClasses = (0, _classnames2.default)('dd__selectedItem', s.dd__selectedItem);
+      var crossIconClasses = (0, _classnames2.default)('dd__crossIcon', s.dd__crossIcon);
+
+      return _react2.default.createElement(
+        'div',
+        { className: selectedOptionClasses, key: this.getProp(option, valueKey) },
+        _react2.default.createElement(
+          'div',
+          null,
+          this.getProp(option, labelKey)
+        ),
+        multiple && _react2.default.createElement(
+          'div',
+          { className: crossIconClasses, onClick: this.onRemoveSelected(option) },
+          '×'
+        )
+      );
+    }
+  }, {
+    key: 'renderIcon',
+    value: function renderIcon() {
+      var _props8 = this.props;
+      var iconRenderer = _props8.iconRenderer;
+      var s = _props8.s;
+      var opened = this.state.opened;
+
+      if (typeof iconRenderer === 'function') {
+        return iconRenderer(opened);
+      }
+
+      var className = (0, _classnames2.default)('dd__expandIcon', s.dd__expandIcon);
+      var path = 'M315,1318.04l-4.5,4.96-4.5-4.96,0.944-1.04,3.557,3.92,3.553-3.92,0.944,1.04m-9-5.08,4.5-4.96,4.5,4.96-0.944,1.04-3.557-3.92-3.553,3.92L306,1312.96'; // eslint-disable-line max-len
+      return _react2.default.createElement(
+        'svg',
+        { className: className, viewBox: '0 0 9 15', width: '9px', height: '15px' },
+        _react2.default.createElement('path', { d: path, transform: 'translate(-306 -1308)' })
+      );
+    }
+  }, {
+    key: 'renderAddNewItem',
+    value: function renderAddNewItem() {
+      var _props9 = this.props;
+      var s = _props9.s;
+      var addNewItem = _props9.addNewItem;
+
+      var classNames = (0, _classnames2.default)('dd__option', s.dd__option);
+
+      if (addNewItem === false) {
+        return null;
+      }
+
+      var search = this.getSearchString();
+      if (typeof addNewItem === 'function') {
+        return addNewItem(search, this.onAddNewItem);
+      }
+
+      return _react2.default.createElement(
+        'div',
+        { className: classNames, onClick: this.onAddNewItem },
+        typeof addNewItem === 'undefined' || addNewItem === true ? 'Add \'' + search + '\'' : addNewItem
+      );
+    }
+  }, {
+    key: 'renderNoItemsFound',
+    value: function renderNoItemsFound() {
+      var _props10 = this.props;
+      var s = _props10.s;
+      var noItemsFound = _props10.noItemsFound;
+
+      var classNames = (0, _classnames2.default)('dd__option', 'dd__optionDisabled', s.dd__option, s.dd__optionDisabled);
+
+      if (noItemsFound === false) {
+        return null;
+      }
+
+      if (typeof noItemsFound === 'function') {
+        return noItemsFound();
+      }
+
+      return _react2.default.createElement(
+        'div',
+        { className: classNames },
+        typeof noItemsFound === 'undefined' || noItemsFound === true ? 'No items found' : noItemsFound
+      );
+    }
+    /* ***************************************
+    *************** Getters ******************
+    *****************************************/
+
+  }, {
+    key: 'getProp',
+    value: function getProp(option, key) {
+      var immutable = this.props.immutable;
+
+      return immutable ? option.get(key) : option[key];
+    }
+  }, {
+    key: 'getCount',
+    value: function getCount(items) {
+      var immutable = this.props.immutable;
+
+      if (!items) {
+        return false;
+      }
+      return immutable ? items.size : items.length;
+    }
+  }, {
+    key: 'getOptions',
+    value: function getOptions() {
+      var _this7 = this;
+
+      var _props11 = this.props;
+      var options = _props11.options;
+      var labelKey = _props11.labelKey;
+      var valueKey = _props11.valueKey;
+
+      if (this.getCount(options)) {
+        // options are objects
+        if (_typeof(this.getProp(options, 0)) === 'object') {
+          return options;
+        }
+
+        // options are strings or numbers
+        return options.map(function (option) {
+          var _this7$toImmutable;
+
+          return _this7.toImmutable((_this7$toImmutable = {}, _defineProperty(_this7$toImmutable, labelKey, option), _defineProperty(_this7$toImmutable, valueKey, option), _this7$toImmutable));
+        });
+      }
+
+      // no options
+      return this.toImmutable([]);
+    }
+  }, {
+    key: 'getSelectedOptions',
+    value: function getSelectedOptions() {
+      var _this8 = this;
+
+      var _props12 = this.props;
+      var value = _props12.value;
+      var multiple = _props12.multiple;
+
+      var options = this.getOptions();
+
+      if (!value || multiple && !this.getCount(value)) {
+        return this.toImmutable([]);
+      }
+
+      return multiple ? value.map(function (v) {
+        return _this8.patchSelectedOption(v, options);
+      }) : this.toImmutable([this.patchSelectedOption(value, options)]);
+    }
+  }, {
+    key: 'getListProps',
+    value: function getListProps() {
+      var _props13 = this.props;
+      var listHeight = _props13.listHeight;
+      var listMaxHeight = _props13.listMaxHeight;
+      var listPosition = _props13.listPosition;
+      var boundaryMargin = _props13.boundaryMargin;
+      var options = _props13.options;
+
+      var direction = void 0;
+
+      if (this.ssr) {
+        return {
+          direction: DEFAULT_LIST_POSITION,
+          calculatedListHeight: listHeight || listMaxHeight
+        };
+      }
+
+      var refinedHeight = 0;
+      if (listHeight) {
+        refinedHeight = listHeight;
+      } else {
+        var optionsCount = this.getCount(options);
+        if (optionsCount) {
+          for (var i = 0; i < optionsCount; i += 1) {
+            if (refinedHeight >= listMaxHeight) {
+              refinedHeight = listMaxHeight;
+              break;
+            }
+            refinedHeight += this.getOptionHeight({ index: i });
+          }
+        } else {
+          refinedHeight = this.getOptionHeight({ index: -1 });
+        }
+      }
+
+      var _getOffset = this.getOffset();
+
+      var top = _getOffset.top;
+      var bottom = _getOffset.bottom;
+
+      if (listPosition === 'auto') {
+        direction = bottom < refinedHeight + boundaryMargin && top > bottom ? 'top' : 'bottom';
+      } else {
+        direction = listPosition;
+      }
+
+      var calculatedListHeight = void 0;
+      if (listHeight) {
+        calculatedListHeight = listHeight;
+      } else {
+        var maxAvailableHeight = (direction === 'top' ? top : bottom) - boundaryMargin;
+        calculatedListHeight = Math.min(maxAvailableHeight, refinedHeight);
+      }
+
+      return {
+        direction: direction,
+        calculatedListHeight: calculatedListHeight
+      };
+    }
+  }, {
+    key: 'getOffset',
+    value: function getOffset() {
+      if (this.ssr || !this.el) {
+        return { top: 0, bottom: 0 };
+      }
+
+      var getWrapper = this.props.getWrapper;
+
+      var wrapper = getWrapper();
+      var rectEl = this.el.getBoundingClientRect();
+      if (wrapper) {
+        // calculate offsets based on wrapper position
+        var rectWrapper = wrapper.getBoundingClientRect();
+        return {
+          top: rectEl.top - rectWrapper.top,
+          bottom: rectWrapper.bottom - rectEl.bottom
+        };
+      }
+
+      // calculate offsets based on viewport
+      var viewportHeight = window.document.documentElement.clientHeight;
+      return { top: rectEl.top, bottom: viewportHeight - rectEl.bottom };
+    }
+  }, {
+    key: 'getOptionHeight',
+    value: function getOptionHeight(_ref3) {
+      var index = _ref3.index;
+      var _props14 = this.props;
+      var optionHeight = _props14.optionHeight;
+      var options = _props14.options;
+
+      return typeof optionHeight === 'function' ? optionHeight(this.getProp(options, index)) : optionHeight;
+    }
+  }, {
+    key: 'getSearchString',
+    value: function getSearchString() {
+      return (this.searchInput.textContent || this.searchInput.innerText || '').replace(/\n/g, '');
+    }
+    /* ***************************************
+    **************** Events ******************
+    *****************************************/
+
+  }, {
+    key: 'onChange',
+    value: function onChange(option, removeFromSelectedBlock) {
+      var _this9 = this;
+
+      return function () {
+        var _props15 = _this9.props;
+        var multiple = _props15.multiple;
+        var immutable = _props15.immutable;
+        var onChange = _props15.onChange;
+        var valueKey = _props15.valueKey;
+
+        var selectedValue = void 0;
+
+        if (multiple) {
+          (function () {
+            // prepare values for multiselect
+            var values = _this9.getSelectedOptions();
+            var selectedIndex = values.findIndex(function (v) {
+              return _this9.getProp(v, valueKey) === _this9.getProp(option, valueKey);
+            });
+            if (selectedIndex === -1) {
+              // add new option to selected values
+              selectedValue = immutable ? values.push(option) : [].concat(_toConsumableArray(values), [option]);
+            } else {
+              // remove option from selected values
+              selectedValue = values.filter(function (v, i) {
+                return i !== selectedIndex;
+              });
+            }
+          })();
+        } else {
+          selectedValue = option;
+        }
+
+        if (onChange(selectedValue, removeFromSelectedBlock) === false) {
+          _this9.skipEventPropagation();
+        }
+      };
+    }
+  }, {
+    key: 'onRemoveSelected',
+    value: function onRemoveSelected(option) {
+      var _this10 = this;
+
+      return function (e) {
+        _this10.skipEventPropagation();
+        _this10.onChange(option, true)(e);
+      };
+    }
+  }, {
+    key: 'onToggle',
+    value: function onToggle(e) {
+      if (this.skipPropagation) {
+        return;
+      }
+
+      var _props16 = this.props;
+      var searchable = _props16.searchable;
+      var beforeOpen = _props16.beforeOpen;
+      var beforeClose = _props16.beforeClose;
+      var isOpened = _props16.isOpened;
+      var disabled = _props16.disabled;
+      var opened = this.state.opened;
+
+
+      var nextState = isOpened !== undefined ? isOpened : !opened;
+      var beforeFunc = nextState ? beforeOpen : beforeClose;
+
+      if (!disabled && nextState !== opened && beforeFunc(e) !== false) {
+        var afterFunc = nextState ? this.onOpen : this.onClose;
+        this.skipEventPropagation();
+        if (searchable && this.searchInput) {
+          if (nextState) {
+            this.searchInput.focus();
+          } else {
+            this.searchInput.blur();
+            window.getSelection().removeAllRanges();
+          }
+        }
+        this.setState({ opened: nextState }, afterFunc);
+      }
+    }
+  }, {
+    key: 'onSearch',
+    value: function onSearch(evt) {
+      var _this11 = this;
+
+      if (!this.searchInput) {
+        return;
+      }
+
+      var doSearch = function doSearch() {
+        var search = _this11.getSearchString();
+        if (search !== _this11.prevSearch) {
+          _this11.setState({ search: search });
+
+          var onSearch = _this11.props.onSearch;
+
+          if (typeof onSearch === 'function') {
+            onSearch(search);
+          }
+        }
+        _this11.prevSearch = search;
+      };
+
+      if (!this.skipPropagation) {
+        var opened = this.state.opened;
+
+        switch (evt.type) {
+          case 'paste':
+            // strip html tags
+            evt.preventDefault();
+
+            // Get pasted data via clipboard API
+            var clipboardData = evt.clipboardData || window.clipboardData;
+            var newContent = this.searchInput.textContent + clipboardData.getData('Text');
+
+            // set new content
+            this.searchInput.textContent = newContent;
+
+            // place cursor to the end
+            var range = document.createRange();
+            range.selectNodeContents(this.searchInput);
+            range.collapse(false);
+            var selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            // trigger search
+            doSearch();
+            break;
+          case 'focus':
+            // open dropdown onFocus
+            if (!opened) {
+              this.onToggle(evt);
+              this.skipPropagation = undefined;
+            }
+            break;
+          case 'click':
+            // do not close dropdown onClick
+            if (opened) {
+              this.skipEventPropagation();
+            }
+            break;
+          case 'keydown':
+            if (evt.nativeEvent.keyCode === 9 && opened) {
+              // close dropdown on Tab keydown
+              // blur via Tab
+              this.onToggle(evt);
+              this.skipPropagation = undefined;
+            } else if (evt.nativeEvent.keyCode === 13) {
+              // restrict new line
+              evt.preventDefault();
+            }
+            break;
+          case 'input':
+            doSearch();
+            break;
+          default:
+            break;
+        }
+      }
+    }
+  }, {
+    key: 'onAddNewItem',
+    value: function onAddNewItem() {
+      var onAddNewItem = this.props.onAddNewItem;
+
+      if (typeof onAddNewItem === 'function') {
+        onAddNewItem(this.getSearchString(), this.getSelectedOptions());
+      }
+    }
+  }, {
+    key: 'onOpen',
+    value: function onOpen() {
+      var onOpen = this.props.onOpen;
+
+      if (typeof onOpen === 'function') {
+        onOpen();
+      }
+    }
+  }, {
+    key: 'onClose',
+    value: function onClose() {
+      var _props17 = this.props;
+      var onClose = _props17.onClose;
+      var clearFilterOnClose = _props17.clearFilterOnClose;
+      var onSearch = _props17.onSearch;
+      var search = this.state.search;
+
+
+      if (clearFilterOnClose && search) {
+        this.setState({
+          search: ''
+        });
+
+        if (this.searchInput) {
+          this.prevSearch = undefined;
+          this.searchInput.innerHTML = '';
+        }
+
+        if (typeof onSearch === 'function') {
+          onSearch('');
+        }
+      }
+
+      if (typeof onClose === 'function') {
+        onClose();
+      }
+    }
+    /* ***************************************
+    **************** Render ******************
+    *****************************************/
+
+  }, {
+    key: 'render',
+    value: function render() {
+      var _cs3,
+          _this12 = this;
+
+      var _props18 = this.props;
+      var error = _props18.error;
+      var multiple = _props18.multiple;
+      var disabled = _props18.disabled;
+      var s = _props18.s;
+      var opened = this.state.opened;
+
+      // classnames
+
+      var wrapperClassnames = (0, _classnames2.default)('dd__wrapper', s.dd__wrapper, (_cs3 = {
+        dd__opened: opened,
+        dd__error: error,
+        dd__multi: multiple,
+        dd__disabled: disabled
+      }, _defineProperty(_cs3, s.dd__opened, opened), _defineProperty(_cs3, s.dd__error, error), _defineProperty(_cs3, s.dd__multi, multiple), _defineProperty(_cs3, s.dd__disabled, disabled), _cs3));
+      var selectControlClasses = (0, _classnames2.default)('dd__selectControl', s.dd__selectControl);
+      var toggleHandler = this.onToggle;
+
+      return _react2.default.createElement(
+        'div',
+        { className: wrapperClassnames },
+        _react2.default.createElement(
+          'div',
+          { className: selectControlClasses, onClick: toggleHandler, ref: function ref(el) {
+              return _this12.el = el;
+            } },
+          this.renderSelectedBlock(),
+          this.renderIcon()
+        ),
+        this.renderList()
+      );
+    }
+  }]);
+
+  return ReactSelectMe;
+}(_react.Component);
+
+exports.default = ReactSelectMe;
+
+
+ReactSelectMe.defaultProps = {
+  addNewItem: false,
+  beforeClose: function beforeClose() {
+    return true;
+  },
+  beforeOpen: function beforeOpen() {
+    return true;
+  },
+  boundaryMargin: 8,
+  clearFilterOnClose: true,
+  getWrapper: function getWrapper() {
+    return null;
+  },
+  onAddNewItem: function onAddNewItem() {
+    return null;
+  },
+  onClose: function onClose() {
+    return null;
+  },
+  onChange: function onChange() {
+    return null;
+  },
+  onOpen: function onOpen() {
+    return null;
+  },
+  optionHeight: 40,
+  options: [],
+  labelKey: 'label',
+  listMaxHeight: 400,
+  listPosition: 'auto',
+  noItemsFound: true,
+  placeholder: 'Select ...',
+  valueKey: 'value',
+  s: {}
+};
+
+var classType = _react.PropTypes.oneOfType([_react.PropTypes.string, _react.PropTypes.array]);
+ReactSelectMe.propTypes = {
+  addNewItem: _react.PropTypes.oneOfType([_react.PropTypes.bool, _react.PropTypes.string, _react.PropTypes.func, _react.PropTypes.element]),
+  beforeClose: _react.PropTypes.func,
+  beforeOpen: _react.PropTypes.func,
+  boundaryMargin: _react.PropTypes.number,
+  clearFilterOnClose: _react.PropTypes.bool,
+  disabled: _react.PropTypes.bool,
+  error: _react.PropTypes.bool,
+  getWrapper: _react.PropTypes.func,
+  iconRenderer: _react.PropTypes.func,
+  immutable: _react.PropTypes.bool,
+  isOpened: _react.PropTypes.bool,
+  labelKey: _react.PropTypes.string,
+  listHeight: _react.PropTypes.number,
+  listMaxHeight: _react.PropTypes.number,
+  listPosition: _react.PropTypes.oneOf(['top', 'bottom', 'auto']),
+  listRenderer: _react.PropTypes.func,
+  multiple: _react.PropTypes.bool,
+  noItemsFound: _react.PropTypes.oneOfType([_react.PropTypes.bool, _react.PropTypes.string, _react.PropTypes.func, _react.PropTypes.element]),
+  onAddNewItem: _react.PropTypes.func,
+  onChange: _react.PropTypes.func.isRequired,
+  onClose: _react.PropTypes.func,
+  onOpen: _react.PropTypes.func,
+  onSearch: _react.PropTypes.func,
+  optionRenderer: _react.PropTypes.func,
+  options: _react.PropTypes.oneOfType([_react.PropTypes.array, _react.PropTypes.object]),
+  placeholder: _react.PropTypes.oneOfType([_react.PropTypes.string, _react.PropTypes.element]),
+  optionHeight: _react.PropTypes.oneOfType([_react.PropTypes.number, _react.PropTypes.func]),
+  /* eslint-disable react/no-unused-prop-types */
+  s: _react.PropTypes.shape({
+    // wrapper
+    dd__wrapper: classType,
+    // applied to multi select
+    dd__multi: classType,
+    // applied to single select
+    dd__single: classType,
+    // applied when dropdown opened
+    dd__opened: classType,
+    // applied when dropdown has error property
+    dd__error: classType,
+    // disabled
+    dd_disabled: classType,
+    // selected block class
+    dd__selectControl: classType,
+    // selected values wrapper class
+    dd__selected: classType,
+    // placeholder class
+    dd__placeholder: classType,
+    // selected option class
+    dd__selectedItem: classType,
+    // icon to remove selected value class
+    dd__crossIcon: classType,
+    // list class
+    dd__list: classType,
+    // virtualized list class
+    dd__listVirtualized: classType,
+    // applied when select opens to bottom
+    dd__openTobottom: classType,
+    // applied when select opens to top
+    dd__openTotop: classType,
+    // dropdown option
+    dd__option: classType,
+    // dropdown option
+    dd__optionDisabled: classType,
+    // virtualized option class
+    dd__optionVirtualized: classType,
+    // selected dropdown option
+    dd__selectedOption: classType
+  }),
+  /* eslint-enable react/no-unused-prop-types */
+  searchable: _react.PropTypes.bool,
+  searchInputRenderer: _react.PropTypes.func,
+  selectedBlockRenderer: _react.PropTypes.func,
+  selectedValueRenderer: _react.PropTypes.func,
+  value: _react.PropTypes.any,
+  valueKey: _react.PropTypes.string,
+  virtualized: _react.PropTypes.bool
+};
+},{"classnames":47,"immutable":"immutable","react":"react","react-addons-shallow-compare":113,"react-virtualized":155}],"react":[function(require,module,exports){
 (function (global){
  /**
   * React v15.3.2

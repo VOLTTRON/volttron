@@ -1,13 +1,17 @@
 'use strict';
 
+var $ = require('jquery');
 import React from 'react';
 import BaseComponent from './base-component';
+import DevicesFound from './devices-found';
+
+import Select from 'react-select-me';
 
 var platformsStore = require('../stores/platforms-store');
 var devicesStore = require('../stores/devices-store');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
-import DevicesFound from './devices-found';
+
 const scanDuration = 10000; // 10 seconds
 
 class ConfigureDevices extends BaseComponent {
@@ -62,9 +66,9 @@ class ConfigureDevices extends BaseComponent {
             this.setState({devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyIdentity)});
         }
     }
-    _onDeviceMethodChange(evt) {
+    _onDeviceMethodChange(selection) {
 
-        var deviceMethod = evt.target.value;
+        var deviceMethod = selection.value;
 
         if (this.state.bacnetProxies.length)
         {
@@ -76,8 +80,8 @@ class ConfigureDevices extends BaseComponent {
                 "Can't scan for devices: A BACNet proxy agent for the platform must be installed and running.", null, "left");
         }
     }
-    _onProxySelect(evt) {
-        var selectedProxyIdentity = evt.target.value;
+    _onProxySelect(selection) {
+        var selectedProxyIdentity = selection.value;
         this.setState({ selectedProxyIdentity: selectedProxyIdentity });
     }
     _onDeviceStart(evt) {
@@ -154,16 +158,18 @@ class ConfigureDevices extends BaseComponent {
 
             var platform = this.state.platform;
 
+            var methodOptions = [
+                { value: "scanForDevices", label: "Scan for Devices"},
+                { value: "addDevicesManually", label: "Add Manually"}
+            ];
+
             var methodSelect = (
-                <select
-                    onChange={this._onDeviceMethodChange}
+                <Select
+                    name="method-select"
+                    options={methodOptions}
                     value={this.state.deviceMethod}
-                    autoFocus
-                    required
-                >
-                    <option value="scanForDevices">Scan for Devices</option>
-                    <option value="addDevicesManually">Add Manually</option>
-                </select>
+                    onChange={this._onDeviceMethodChange}>
+                </Select>
             );
 
             var proxySelect;
@@ -180,7 +186,7 @@ class ConfigureDevices extends BaseComponent {
             {
                 var proxies = this.state.bacnetProxies.map(function (proxy) {
                     return (
-                        <option key={proxy.identity} value={proxy.identity}>{proxy.name}</option>
+                        { value: proxy.identity, label: proxy.name } 
                     );
                 });
 
@@ -190,15 +196,13 @@ class ConfigureDevices extends BaseComponent {
 
                         <td className="plain"
                             colSpan={4}>
-                            <select
+                            <Select
                                 style={wideStyle}
+                                options={proxies}
                                 onChange={this._onProxySelect}
                                 value={this.state.selectedProxyIdentity}
-                                autoFocus
-                                required
-                            >
-                                {proxies}
-                            </select>
+                            >   
+                            </Select>
                         </td>
 
                         <td className="plain" style={fifthCell}></td>

@@ -164,7 +164,7 @@ class PlatformManager extends React.Component {
 
         if (this.state.status) {
             statusIndicator = (
-                <StatusIndicator></StatusIndicator>
+                <StatusIndicator status={this.state.statusMessage}></StatusIndicator>
             );
         }
 
@@ -210,6 +210,7 @@ function getStateFromStores() {
         modalContent: modalStore.getModalContent(),
         expanded: platformsPanelStore.getExpanded(),
         status: statusIndicatorStore.getStatus(),
+        statusMessage: statusIndicatorStore.getStatusMessage(),
         initialized: platformsStore.getInitialized()
     };
 }

@@ -8,7 +8,8 @@ var platformChartActionCreators = require('../action-creators/platform-chart-act
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var chartStore = require('../stores/platform-chart-store');
-var ComboBox = require('./combo-box');
+
+import Select from 'react-select-me';
 
 var NewChartForm = React.createClass({
     getInitialState: function () {
@@ -17,8 +18,9 @@ var NewChartForm = React.createClass({
         state.refreshInterval = 15000;
 
         state.topics = chartStore.getChartTopics();
+        state.filteredTopics = state.topics;
 
-        state.selectedTopic = "";
+        state.selectedTopics = [];
 
         return state;
     },
@@ -29,7 +31,9 @@ var NewChartForm = React.createClass({
         chartStore.removeChangeListener(this._onStoresChange);
     },
     _onStoresChange: function () {
-        this.setState({ topics: chartStore.getChartTopics()});
+        var topics = chartStore.getChartTopics();
+        this.setState({ topics: topics });
+        this.setState({ filteredTopics: topics });
     },
     _onPropChange: function (e) {
         var state = {};
@@ -54,8 +58,18 @@ var NewChartForm = React.createClass({
 
         this.setState(state);
     },
-    _onTopicChange: function (value) {
-        this.setState({ selectedTopic: value });
+    _onChartTypeChange: function (selection) {
+        this.setState({chartType: selection.value});
+    },
+    _onTopicChange: function (selections) {
+
+        this.setState({ selectedTopics: selections });
+    },
+    _onFilterTopics: function (searchString) {
+        this.setState({ filteredTopics: this.state.topics.filter(function (topic) {
+                return topic.label.indexOf(searchString) > -1;
+            })
+        });
     },
     _onCancelClick: function () {
         modalActionCreators.closeModal();
@@ -64,12 +78,9 @@ var NewChartForm = React.createClass({
 
         e.preventDefault();
 
-        var selectedTopic = this.state.topics.find(function (topic) {
-            return topic.value === this.state.selectedTopic;
-        }, this);
 
-        if (selectedTopic)
-        {
+        platformChartActionCreators.addToCharts(this.state.selectedTopics.map(function (selectedTopic) {
+            
             selectedTopic.uuid = selectedTopic.value;
             selectedTopic.topic = selectedTopic.value;
             selectedTopic.pinned = (this.state.pin ? true : false);
@@ -83,33 +94,30 @@ var NewChartForm = React.createClass({
             {
                 selectedTopic.parentUuid = selectedTopic.path[selectedTopic.path.length - 2];
             }
-        }
 
-        var notifyRouter = false;
-
-        platformChartActionCreators.addToChart(selectedTopic, notifyRouter);
-
-        if (selectedTopic.path)
-        {
-            platformsPanelActionCreators.checkItem(selectedTopic.path, true);
-        }
+            return selectedTopic;
+        }, this));
 
         modalActionCreators.closeModal();
     },
     render: function () {
-        var topicsSelector;
+        var topicsSelector = (
+            <Select 
+                options={this.state.filteredTopics}
+                value={this.state.selectedTopics}
+                multiple={true}
+                searchable={true}
+                onChange={this._onTopicChange}
+                onSearch={this._onFilterTopics}>
+            </Select>
+        );        
 
-        if (this.state.topics.length)
-        {
-            topicsSelector = (
-                <ComboBox items={this.state.topics} itemskey="key" itemsvalue="value" itemslabel="label" onselect={this._onTopicChange}>
-                </ComboBox>
-            )
-        }
-        else
-        {
-            topicsSelector = <div>Loading topics ...</div>
-        }
+        var chartOptions = [
+            { value: "line", label: "Line"},
+            { value: "lineWithFocus", label: "Line with View Finder"},
+            { value: "stackedArea", label: "Stacked Area"},
+            { value: "cumulativeLine", label: "Cumulative Line"}
+        ];
 
         return (
             <form className="edit-chart-form" onSubmit={this._onSubmit}>
@@ -150,19 +158,13 @@ var NewChartForm = React.createClass({
                 </div>
                 <div className="form__control-group">
                     <label htmlFor="chartType">Chart type</label>
-                    <select
+                    <Select
                         id="chartType"
-                        onChange={this._onPropChange}
+                        options={chartOptions}
+                        onChange={this._onChartTypeChange}
                         value={this.state.chartType}
-                        autoFocus
-                        required
                     >
-                        <option value="">-- Select type --</option>
-                        <option value="line">Line</option>
-                        <option value="lineWithFocus">Line with View Finder</option>
-                        <option value="stackedArea">Stacked Area</option>
-                        <option value="cumulativeLine">Cumulative Line</option>
-                    </select>
+                    </Select>
                 </div>
                 <div className="form__control-group">
                     <label>Y-axis range</label>
@@ -198,7 +200,7 @@ var NewChartForm = React.createClass({
                     </button>
                     <button
                         className="button"
-                        disabled={!this.state.selectedTopic || !this.state.chartType}
+                        disabled={this.state.selectedTopics.length === 0 || !this.state.chartType}
                     >
                         Load Chart
                     </button>

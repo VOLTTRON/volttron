@@ -2198,6 +2198,26 @@ svg.nvd3-svg {
     border-radius: inherit;
 }
 
+
+/***react-select-me styles ***/
+
+.view .dd__selectControl {
+    font-size: inherit;
+    padding: 4px 6px 4px 4px;
+    border-radius: 0px;
+    line-height: 18px;
+}
+
+.view .dd__expandIcon {
+    margin-left: 8px;
+}
+
+.view .dd__option {
+    line-height: 18px;
+}
+
+/***/
+
 /****
 Interactive Layer
 */
@@ -2423,6 +2443,7 @@ td.plain {
 
 .detectDevicesBox {    
     border: 1px solid black;
+    padding: 2px;
 }
 
 .devicesFoundBox {    

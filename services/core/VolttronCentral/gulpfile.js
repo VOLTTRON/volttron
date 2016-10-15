@@ -7,6 +7,7 @@ var fs = require('fs');
 var gulp = require('gulp');
 var inject = require('gulp-inject');
 var rev = require('gulp-rev');
+var concat = require('gulp-concat');
 var source = require('vinyl-source-stream');
 var through2 = require('through2');
 
@@ -34,7 +35,8 @@ function cleanVendor(callback) {
 }
 
 function css() {
-    return gulp.src('ui-src/css/app.css')
+    return gulp.src('ui-src/css/*.css')
+        .pipe(concat('app.css'))
         .pipe(rev())
         .pipe(gulp.dest(BUILD_DIR + 'css'));
 }
@@ -86,6 +88,7 @@ function vendor() {
             'react-router/umd/ReactRouter',
             'history/umd/history',
             'immutable/dist/immutable',
+            'react-select-me/lib/ReactSelectMe.js',
         ],
     })
         .require([
@@ -106,6 +109,7 @@ function vendor() {
             { file: 'react-router/umd/ReactRouter', expose: 'react-router' },
             { file: 'history/umd/history', expose: 'history' },
             { file: 'immutable/dist/immutable', expose: 'immutable' },
+            { file: 'react-select-me/lib/ReactSelectMe.js', expose: 'react-select-me' },
         ])
         .transform(function (file) {
             if (file.match('/d3/d3.')) {
