@@ -65,9 +65,9 @@ Installation:
 
     Follow link: http://volttron.readthedocs.io/en/develop/install.html
 
-2. Clone VOLTTRON applications under volttron/applications.
+2. Add subtree volttron-applications under volttron/applications by using following command:
 
-    Clone link: https://github.com/VOLTTRON/volttron-applications
+    git subtree add --prefix applications https://github.com/VOLTTRON/volttron-applications.git develop --squash
 
 Configuration
 -------------
