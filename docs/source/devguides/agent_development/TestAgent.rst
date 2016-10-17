@@ -12,7 +12,7 @@ Full code of agent detailed in AgentDevelopment:
     from volttron.platform.agent import utils
 
     utils.setup_logging()
-    _log = logging.get_logger(__name__)
+    _log = logging.getLogger(__name__)
 
     class TestAgent(Agent):
 
@@ -56,6 +56,8 @@ Full code of agent detailed in AgentDevelopment:
 Contents of setup.py for TestAgent:
 
 ::
+
+    from setuptools import setup, find_packages
 
     packages = find_packages('.')
     package = packages[0]
