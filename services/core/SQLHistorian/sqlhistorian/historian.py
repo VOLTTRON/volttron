@@ -125,8 +125,6 @@ def historian(config_path, **kwargs):
 class SQLHistorian(BaseHistorian):
     """This is a historian agent that writes data to a SQLite or Mysql
     database based on the connection parameters in the configuration.
-    For method documentation please refer to
-    :py:mod:`volttron.platform.agent.base_historian`
 
     .. seealso::
      - :py:mod:`volttron.platform.dbutils.basedb`

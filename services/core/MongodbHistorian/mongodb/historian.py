@@ -126,8 +126,6 @@ def historian(config_path, **kwargs):
 class MongodbHistorian(BaseHistorian):
     """
     Historian that stores the data into mongodb collections.
-    For method documentation please refer to
-    :py:mod:`volttron.platform.agent.base_historian`
 
     """
 
