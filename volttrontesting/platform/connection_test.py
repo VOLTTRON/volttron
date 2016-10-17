@@ -3,6 +3,7 @@ import pytest
 from volttron.platform.agent.known_identities import CONTROL, MASTER_WEB, AUTH
 from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent.connection import Connection
+from volttron.platform.vip.agent.utils import build_connection
 
 
 @pytest.fixture(scope="module")
@@ -25,11 +26,12 @@ def setup_control_connection(request, get_volttron_instances):
         ks = KeyStore()
         ks.generate()
 
-        control_connection = Connection(address=wrapper.vip_address,
-                                        peer=CONTROL,
-                                        serverkey=wrapper.serverkey,
-                                        publickey=ks.public,
-                                        secretkey=ks.secret)
+        control_connection = build_connection(identity="foo",
+                                              address=wrapper.vip_address,
+                                              peer=CONTROL,
+                                              serverkey=wrapper.serverkey,
+                                              publickey=ks.public,
+                                              secretkey=ks.secret)
     else:
         control_connection = Connection(address=wrapper.local_vip_address,
                                         peer=CONTROL, developer_mode=True)
