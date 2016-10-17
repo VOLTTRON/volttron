@@ -93,6 +93,7 @@ from .auth import AuthService, AuthFile, AuthEntry
 from .control import ControlService
 from .web import MasterWebService
 from .store import ConfigStoreService
+from .syslog import SyslogAgent
 from .agent import utils
 from .agent.known_identities import MASTER_WEB
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
@@ -608,6 +609,8 @@ def start_volttron_process(opts):
                 bind_web_address=opts.bind_web_address,
                 volttron_central_address=opts.volttron_central_address,
                 aip=opts.aip, enable_store=False)
+            #SyslogAgent(address=address, identity='syslog', syslog_file_path='/var/log/syslog',
+            #            syslog_topic = 'platforms/syslog')
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)

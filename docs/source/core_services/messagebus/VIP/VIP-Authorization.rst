@@ -1,3 +1,4 @@
+.. _VIPAuthorization:
 VIP Authorization Examples
 ==========================
 
