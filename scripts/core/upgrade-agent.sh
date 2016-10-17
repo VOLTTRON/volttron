@@ -67,7 +67,7 @@ if [ ! -e "$WHEEL" ]; then
   exit 0
 fi
 
-volttron-pkg configure "$WHEEL" "$2"
+volttron-pkg configure "$WHEEL" "$CONFIG"
 
 volttron-ctl upgrade "$AGENT_VIP_IDENTITY" "$WHEEL" --tag="$TAG"
 
