@@ -1,6 +1,4 @@
 {
-    "agentid": "aggregate-mongo",
-    "identity": "aggregate-hist-mysql",
     # configuration from mongo historian - START
     "connection": {
         "type": "mongodb",

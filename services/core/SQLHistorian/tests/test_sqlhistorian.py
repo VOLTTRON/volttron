@@ -55,14 +55,14 @@
 # under Contract DE-AC05-76RL01830
 
 # }}}
-'''
+"""
 pytest test cases for SQLHistorian
 For mysql test's to succeed
  1. MySql server should be running
  2. test database and test user should exist
  3. Test user should have all privileges on test database
  4. Refer to the dictionary object mysql_platform for the server configuration
-'''
+"""
 import random
 import sqlite3
 from datetime import datetime, timedelta
@@ -70,16 +70,17 @@ from datetime import datetime, timedelta
 import gevent
 import pytest
 import re
-from volttron.platform.messaging import headers as headers_mod
-from volttron.platform.messaging import topics
+from volttron.platform.agent import PublishMixin
 from volttron.platform.agent import utils
 from volttron.platform.jsonrpc import RemoteError
-from volttron.platform.agent import PublishMixin
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
 
 try:
     import mysql.connector as mysql
     from mysql.connector import errorcode
+
     HAS_MYSQL_CONNECTOR = True
 except:
     HAS_MYSQL_CONNECTOR = False
@@ -264,7 +265,7 @@ def query_agent(request, volttron_instance):
 def sqlhistorian(request, volttron_instance, query_agent):
     global db_connection, data_table, \
         topics_table, meta_table, identity
-    
+
     print("** Setting up test_sqlhistorian module **")
     # Make database connection
     print("request param", request.param)
@@ -281,8 +282,8 @@ def sqlhistorian(request, volttron_instance, query_agent):
         vip_identity='platform.historian')
     print("agent id: ", agent_uuid)
     identity = query_agent.vip.rpc.call(
-            'control', 'agent_vip_identity',
-            agent_uuid).get(timeout=2)
+        'control', 'agent_vip_identity',
+        agent_uuid).get(timeout=2)
 
     # figure out table names from config
     # Set this hear so that cleanup fixture can use it
@@ -292,11 +293,11 @@ def sqlhistorian(request, volttron_instance, query_agent):
         meta_table = 'meta'
     elif request.param['tables_def']['table_prefix']:
         data_table = request.param['tables_def']['table_prefix'] + "_" + \
-                     request.param['tables_def']['data_table']
+            request.param['tables_def']['data_table']
         topics_table = request.param['tables_def']['table_prefix'] + "_" + \
-                       request.param['tables_def']['topics_table']
+            request.param['tables_def']['topics_table']
         meta_table = request.param['tables_def']['table_prefix'] + "_" + \
-                     request.param['tables_def']['meta_table']
+            request.param['tables_def']['meta_table']
     else:
         data_table = request.param['tables_def']['data_table']
         topics_table = request.param['tables_def']['topics_table']
@@ -324,9 +325,9 @@ def sqlhistorian(request, volttron_instance, query_agent):
         if volttron_instance.is_running():
             volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
+
     request.addfinalizer(stop_agent)
     return request.param['agentid']
-
 
 
 def connect_mysql(request):
@@ -440,6 +441,7 @@ def skip_custom_tables(sqlhistorian):
         pytest.skip(msg="Need not repeat all test cases for custom table "
                         "names")
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
@@ -458,7 +460,6 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     :param clean: teardown function
     """
     global query_points, ALL_TOPIC, db_connection
-    
 
     # print('HOME', volttron_instance.volttron_home)
     print("\n** test_basic_function for {}**".format(
@@ -533,6 +534,7 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == damper_reading)
     assert set(result['metadata'].items()) == set(percent_meta.items())
+
 
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
@@ -665,6 +667,7 @@ def test_exact_timestamp_with_z(request, sqlhistorian, publish_agent,
         now_time = now_time[:-1]
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
+
 
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
@@ -870,6 +873,7 @@ def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
     # index 0
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == mixed_reading)
+
 
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
@@ -1266,11 +1270,11 @@ def test_analysis_topic(request, sqlhistorian, publish_agent, query_agent,
             headers, all_message)
     gevent.sleep(0.5)
     abc = dict(peer=identity, method='query',
-                                      topic=query_points['mixed_point'],
-                                      start=now,
-                                      end=now,
-                                      count=20,
-                                      order="LAST_TO_FIRST")
+               topic=query_points['mixed_point'],
+               start=now,
+               end=now,
+               count=20,
+               order="LAST_TO_FIRST")
     # Query the historian
     result = query_agent.vip.rpc.call(identity,
                                       'query',
@@ -1317,24 +1321,25 @@ def test_record_topic_query(request, sqlhistorian, publish_agent, query_agent,
     print("now is ", now)
 
     # Publish messages
-    publish(publish_agent, topics.RECORD, None, 1)
+    publish(publish_agent, topics.RECORD(subtopic="test"), None, 1)
     # sleep 1 second so that records gets inserted with unique timestamp
     # even in case of older mysql
     gevent.sleep(1)
 
-    publish(publish_agent, topics.RECORD, None, 'value0')
+    publish(publish_agent, topics.RECORD(subtopic="test"), None, 'value0')
     # sleep 1 second so that records gets inserted with unique timestamp
     # even in case of older mysql
     gevent.sleep(1)
 
-    publish(publish_agent, topics.RECORD, None, {'key': 'value'})
+    publish(publish_agent, topics.RECORD(subtopic="test"), None,
+            {'key': 'value'})
     gevent.sleep(0.5)
 
     # pytest.set_trace()
     # Query the historian
     result = query_agent.vip.rpc.call(identity,
                                       'query',
-                                      topic=topics.RECORD,
+                                      topic=topics.RECORD(subtopic="test"),
                                       start=now,
                                       count=20,
                                       order="FIRST_TO_LAST").get(timeout=10)
@@ -1512,6 +1517,7 @@ def test_log_topic_timestamped_readings(request, sqlhistorian, publish_agent,
     assert (result['values'][0][1] == mixed_reading)
     assert_timestamp(result['values'][0][0], '2015-12-02', '00:00:00.000000')
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_get_topic_metadata(request, sqlhistorian, publish_agent,
@@ -1537,7 +1543,8 @@ def test_get_topic_metadata(request, sqlhistorian, publish_agent,
     global query_points
     # print('HOME', volttron_instance.volttron_home)
     print(
-    "\n** test_get_topic_metadata for {}**".format(request.keywords.node.name))
+        "\n** test_get_topic_metadata for {}**".format(
+            request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
     oat_reading = random.uniform(30, 100)
@@ -1545,15 +1552,15 @@ def test_get_topic_metadata(request, sqlhistorian, publish_agent,
 
     # Create a message for all points.
     message = {'temp1': {'Readings': ['2015-12-02T00:00:00',
-                                                    mixed_reading],
-                                       'Units': 'F',
-                                       'tz': 'UTC',
-                                       'data_type': 'int'},
+                                      mixed_reading],
+                         'Units': 'F',
+                         'tz': 'UTC',
+                         'data_type': 'int'},
                'temp2': {'Readings': ['2015-12-02T00:00:00',
-                                                     mixed_reading],
-                                        'Units': 'F',
-                                        'tz': 'UTC',
-                                        'data_type': 'double'},
+                                      mixed_reading],
+                         'Units': 'F',
+                         'tz': 'UTC',
+                         'data_type': 'double'},
                }
 
     # pytest.set_trace()
@@ -1576,7 +1583,7 @@ def test_get_topic_metadata(request, sqlhistorian, publish_agent,
     ).get(timeout=10)
 
     print('Query Result', result)
-    assert result['datalogger/Building/LAB/Device/temp1'] ==\
+    assert result['datalogger/Building/LAB/Device/temp1'] == \
         {'units': 'F', 'tz': 'UTC', 'type': 'int'}
 
     # Query the historian
@@ -1589,9 +1596,9 @@ def test_get_topic_metadata(request, sqlhistorian, publish_agent,
 
     print('Query Result', result)
     assert result['datalogger/Building/LAB/Device/temp1'] == \
-           {'units': 'F', 'tz': 'UTC', 'type': 'int'}
+        {'units': 'F', 'tz': 'UTC', 'type': 'int'}
     assert result['datalogger/Building/LAB/Device/temp2'] == \
-           {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        {'units': 'F', 'tz': 'UTC', 'type': 'float'}
 
     try:
         query_agent.vip.rpc.call(
@@ -1605,5 +1612,83 @@ def test_get_topic_metadata(request, sqlhistorian, publish_agent,
                             "or a list of topic names. Invalid input 123"
 
 
+@pytest.mark.sqlhistorian
+@pytest.mark.historian
+def test_multi_topic_query(request, sqlhistorian, publish_agent, query_agent,
+                           clean):
+    """
+    Test basic functionality of sql historian. Inserts three points as part
+    of all topic and checks if all three got into the database
+    Expected result:
+    Should be able to query data based on topic name. Result should contain
+    both data and metadata
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param sqlhistorian: instance of the sql historian tested
+    :param clean: teardown function
+    """
+    global query_points, ALL_TOPIC, db_connection
+
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_basic_function for {}**".format(
+        request.keywords.node.name))
+
+    expected_result = {}
+    values_dict = {query_points['oat_point']: [],
+                   query_points['mixed_point']: []}
+    for x in range(0, 5):
+        ts, reading, meta = publish_fake_data(publish_agent)
+        gevent.sleep(0.5)
+        if x < 3:
+            values_dict[query_points['oat_point']].append(
+                [ts, reading])
+            values_dict[query_points['mixed_point']].append(
+                [ts, reading])
+    expected_result["values"] = values_dict
+    expected_result["metadata"] = {}
+
+    gevent.sleep(1)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(
+        identity,
+        'query',
+        topic=[query_points['oat_point'], query_points['mixed_point']],
+        count=3,
+        order="FIRST_TO_LAST").get(timeout=100)
+    print('Query Result', result)
+    print('Expected Result', expected_result)
+
+    assert result["metadata"] == expected_result["metadata"]
+    assert result["values"][query_points['mixed_point']] == \
+        expected_result["values"][query_points['mixed_point']]
+    assert result["values"][query_points['oat_point']] == \
+        expected_result["values"][query_points['oat_point']]
 
 
+def publish_fake_data(publish_agent):
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    global ALL_TOPIC
+    reading = random.uniform(30, 100)
+    meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': reading,
+                    'MixedAirTemperature': reading,
+                    'DamperSignal': reading},
+                   {'OutsideAirTemperature': meta,
+                    'MixedAirTemperature': meta,
+                    'DamperSignal': meta
+                    }]
+    # Create timestamp
+    now = datetime.utcnow().isoformat('T') + "+00:00"
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: now
+    }
+    print("Published time in header: " + now)
+    # Publish messages
+    publish(publish_agent, ALL_TOPIC, headers, all_message)
+    return now, reading, meta

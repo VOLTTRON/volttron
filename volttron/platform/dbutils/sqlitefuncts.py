@@ -59,6 +59,7 @@ import errno
 import logging
 import sqlite3
 import threading
+from collections import defaultdict
 from datetime import datetime
 
 import os
@@ -71,6 +72,14 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
+
+"""
+Implementation of SQLite3 database operation for
+:py:class:`sqlhistorian.historian.SQLHistorian` and
+:py:class:`sqlaggregator.aggregator.SQLAggregateHistorian`
+For method details please refer to base class
+:py:class:`volttron.platform.dbutils.basedb.DbDriver`
+"""
 class SqlLiteFuncts(DbDriver):
     def __init__(self, connect_params, table_names):
         database = connect_params['database']
@@ -208,21 +217,24 @@ class SqlLiteFuncts(DbDriver):
     def query(self, topic_ids, id_name_map, start=None, end=None,
               agg_type=None, agg_period=None, skip=0, count=None,
               order="FIRST_TO_LAST"):
-        """This function should return the results of a query in the form:
-        {"values": [(timestamp1, value1), (timestamp2, value2), ...],
-         "metadata": {"key1": value1, "key2": value2, ...}}
+        """
+        This function should return the results of a query in the form:
 
-         metadata is not required (The caller will normalize this to {}
-         for you)
-         @param topic_ids: topic_ids to query data for
-         @param id_name_map: dictionary containing topic_id:topic_name
-         @param start:
-         @param end:
-         @param agg_type:
-         @param agg_period:
-         @param skip:
-         @param count:
-         @param order:
+        .. code-block:: python
+
+            {"values": [(timestamp1, value1), (timestamp2, value2), ...],
+             "metadata": {"key1": value1, "key2": value2, ...}}
+
+        metadata is not required (The caller will normalize this to {} for you)
+        @param topic_ids: topic_ids to query data for
+        @param id_name_map: dictionary containing topic_id:topic_name
+        @param start:
+        @param end:
+        @param agg_type:
+        @param agg_period:
+        @param skip:
+        @param count:
+        @param order:
         """
         table_name = self.data_table
         if agg_type and agg_period:
@@ -237,14 +249,6 @@ class SqlLiteFuncts(DbDriver):
 
         where_clauses = ["WHERE topic_id = ?"]
         args = [topic_ids[0]]
-        if len(topic_ids) > 1:
-            where_str = "WHERE topic_id IN ("
-            for _ in topic_ids:
-                where_str += "?, "
-            where_str = where_str[:-2]  # strip last comma and space
-            where_str += ") "
-            where_clauses = [where_str]
-            args = topic_ids
 
         if start is not None:
             start_str = start.isoformat(' ')
@@ -268,7 +272,7 @@ class SqlLiteFuncts(DbDriver):
 
         # can't have an offset without a limit
         # -1 = no limit and allows the user to
-        # provied just an offset
+        # provide just an offset
         if count is None:
             count = -1
 
@@ -290,16 +294,15 @@ class SqlLiteFuncts(DbDriver):
         c = sqlite3.connect(
             self.__database,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-        rows = c.execute(real_query, args)
-        if len(topic_ids) > 1:
-            values = [(id_name_map[topic_id], utils.format_timestamp(ts),
-                       jsonapi.loads(value)) for topic_id, ts, value in rows]
-        else:
-            values = [(utils.format_timestamp(ts),
-                       jsonapi.loads(value)) for topic_id, ts, value in rows]
+        values = defaultdict(list)
+        for topic_id in topic_ids:
+            rows = c.execute(real_query, args)
+            for _id, ts, value in rows:
+                values[id_name_map[topic_id]].append(
+                    (utils.format_timestamp(ts), jsonapi.loads(value)))
 
         _log.debug("QueryResults: " + str(values))
-        return {'values': values}
+        return values
 
     def insert_meta_query(self):
         return '''INSERT OR REPLACE INTO ''' + self.meta_table + \
@@ -319,7 +322,6 @@ class SqlLiteFuncts(DbDriver):
 
     def get_aggregation_list(self):
         return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'TOTAL', 'GROUP_CONCAT']
-
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
         _log.debug("In sqlitefuncts insert aggregate topic")

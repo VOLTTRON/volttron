@@ -56,19 +56,26 @@
 # }}}
 import ast
 import logging
+from collections import defaultdict
 
-from mysql.connector import Error as MysqlError
-from mysql.connector import errorcode as mysql_errorcodes
 import pytz
 import re
 from basedb import DbDriver
+from mysql.connector import Error as MysqlError
+from mysql.connector import errorcode as mysql_errorcodes
 from volttron.platform.agent import utils
 from zmq.utils import jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-
+"""
+Implementation of Mysql database operation for
+:py:class:`sqlhistorian.historian.SQLHistorian` and
+:py:class:`sqlaggregator.aggregator.SQLAggregateHistorian`
+For method details please refer to base class
+:py:class:`volttron.platform.dbutils.basedb.DbDriver`
+"""
 class MySqlFuncts(DbDriver):
     def __init__(self, connect_params, table_names):
         # kwargs['dbapimodule'] = 'mysql.connector'
@@ -212,13 +219,7 @@ class MySqlFuncts(DbDriver):
     def query(self, topic_ids, id_name_map, start=None, end=None, skip=0,
               agg_type=None,
               agg_period=None, count=None, order="FIRST_TO_LAST"):
-        """This function should return the results of a query in the form:
-        {"values": [(timestamp1, value1), (timestamp2, value2), ...],
-         "metadata": {"key1": value1, "key2": value2, ...}}
 
-         metadata is not required (The caller will normalize this to {}
-         for you)
-        """
         table_name = self.data_table
         if agg_type and agg_period:
             table_name = agg_type + "_" + agg_period
@@ -235,14 +236,6 @@ class MySqlFuncts(DbDriver):
 
         where_clauses = ["WHERE topic_id = %s"]
         args = [topic_ids[0]]
-        if len(topic_ids) > 1:
-            where_str = "WHERE topic_id IN ("
-            for _ in topic_ids:
-                where_str += "%s, "
-            where_str = where_str[:-2]  # strip last comma and space
-            where_str += ") "
-            where_clauses = [where_str]
-            args = topic_ids
 
         if start is not None:
             where_clauses.append("ts >= %s")
@@ -262,13 +255,13 @@ class MySqlFuncts(DbDriver):
 
         where_statement = ' AND '.join(where_clauses)
 
-        order_by = 'ORDER BY topic_id ASC, ts ASC'
+        order_by = 'ORDER BY ts ASC'
         if order == 'LAST_TO_FIRST':
             order_by = ' ORDER BY topic_id DESC, ts DESC'
 
         # can't have an offset without a limit
         # -1 = no limit and allows the user to
-        # provied just an offset
+        # provide just an offset
         if count is None:
             count = 100
 
@@ -281,29 +274,24 @@ class MySqlFuncts(DbDriver):
             args.append(skip)
 
         _log.debug("About to do real_query")
+        values = defaultdict(list)
+        for topic_id in topic_ids:
+            args[0] = topic_id
+            real_query = query.format(where=where_statement,
+                                      limit=limit_statement,
+                                      offset=offset_statement,
+                                      order_by=order_by)
+            _log.debug("Real Query: " + real_query)
+            _log.debug("args: " + str(args))
 
-        real_query = query.format(where=where_statement,
-                                  limit=limit_statement,
-                                  offset=offset_statement,
-                                  order_by=order_by)
-        _log.debug("Real Query: " + real_query)
-        _log.debug("args: " + str(args))
-
-        rows = self.select(real_query, args)
-        if rows:
-            if len(topic_ids) > 1:
-                values = [(id_name_map[topic_id],
-                           utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
-                           jsonapi.loads(value))
-                          for topic_id, ts, value in rows]
-            else:
-                values = [(utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
-                           jsonapi.loads(value))
-                          for topic_id, ts, value in rows]
-        else:
-            values = {}
-        _log.debug("query result values {}".format(values))
-        return {'values': values}
+            rows = self.select(real_query, args)
+            if rows:
+                for _id, ts, value in rows:
+                    values[id_name_map[topic_id]].append(
+                        (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
+                         jsonapi.loads(value)))
+            _log.debug("query result values {}".format(values))
+        return values
 
     def insert_meta_query(self):
         return '''REPLACE INTO ''' + self.meta_table + ''' values(%s, %s)'''
@@ -343,7 +331,6 @@ class MySqlFuncts(DbDriver):
         %s)'''
 
     def get_topic_map(self):
-        _log.debug("in get_topic_map")
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + ";"
         rows = self.select(q, None)
         _log.debug("loading topic map from db")
@@ -408,15 +395,6 @@ class MySqlFuncts(DbDriver):
         return id_map
 
     def create_aggregate_store(self, agg_type, agg_time_period):
-        """
-        Create the data structure (table or collection) that is going to store
-        the aggregate data for the give aggregation type and aggregation
-        time period
-        @param agg_type: The type of aggregation. For example, avg, sum etc.
-        @param agg_time_period: The time period of aggregation
-        @:return - If aggregation_topic_name is given return an topic id
-        after inserting aggregation_topic_name in topics table else return None
-        """
         table_name = agg_type + '''_''' + agg_time_period
         if self.MICROSECOND_SUPPORT is None:
             self.init_microsecond_support()
@@ -439,15 +417,6 @@ class MySqlFuncts(DbDriver):
                ''' values(%s, %s, %s, %s)'''
 
     def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
-        """
-        This function should return the results of a aggregation query
-        @param topic_ids: list of single topics
-        @param agg_type: type of aggregation
-        @param start: start time
-        @param end: end time
-        @return: aggregate value, count of number of records over which
-        aggregation was computed
-        """
         if isinstance(agg_type, str):
             if agg_type.upper() not in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM']:
                 raise ValueError(

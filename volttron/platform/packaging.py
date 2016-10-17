@@ -103,7 +103,9 @@ class AgentPackageError(Exception):
 
 def extract_package(wheel_file, install_dir,
                     include_uuid=False, specific_uuid=None):
-    '''Extract a wheel file to the specified location.
+
+    """
+    Extract a wheel file to the specified location.
 
     If include_uuid is True then a uuid will be generated under the
     passed location directory.
@@ -111,21 +113,21 @@ def extract_package(wheel_file, install_dir,
     The agent final directory will be based upon the wheel's data
     directory name in the following formats:
 
+    .. code-block:: python
+
         if include_uuid == True
             install_dir/datadir_name/uuid
         else
             install_dir/datadir_name
 
-    Arguments
-        wheel_file     - The wheel file to extract.
-        install_dir    - The root directory where to extract the wheel
-        include_uuid   - Auto-generates a uuuid under install_dir to
-                         place the wheel file data
-        specific_uuid  - A specific uuid to use for extracting the agent.
+    :param wheel_file: The wheel file to extract.
+    :param install_dir: The root directory where to extract the wheel
+    :param include_uuid: Auto-generates a uuuid under install_dir to place the
+                         wheel file data
+    :param specific_uuid: A specific uuid to use for extracting the agent.
+    :return: The folder where the wheel was extracted.
 
-    Returns
-        The folder where the wheel was extracted.
-    '''
+    """
     real_dir = install_dir
 
     # Only include the uuid if the caller wants it.

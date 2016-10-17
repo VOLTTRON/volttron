@@ -1,0 +1,367 @@
+import pytest
+from  datetime import datetime
+#building name replaced. replace before testing
+AHU1_temp = "Economizer_RCx/PNNL/Building1/AHU1/Temperature Sensor Dx/diagnostic message"
+AHU2_temp = "Economizer_RCx/PNNL/Building1/AHU2/Temperature Sensor Dx/diagnostic message"
+AHU3_temp = "Economizer_RCx/PNNL/Building1/AHU3/Temperature Sensor Dx/diagnostic message"
+AHU4_temp = "Economizer_RCx/PNNL/Building1/AHU4/Temperature Sensor Dx/diagnostic message"
+AHU2_eco = "Economizer_RCx/PNNL/Building1/AHU2/Not Economizing When Unit Should " \
+           "Dx/diagnostic message"
+AHU2_outdoor_air = "Economizer_RCx/PNNL/Building1/AHU2/Excess Outdoor-air Intake " \
+                   "Dx/diagnostic message"
+AHU1_outdoor_air = "Economizer_RCx/PNNL/Building1/AHU1/Excess Outdoor-air Intake " \
+                   "Dx/diagnostic message"
+
+AHU1_VAV129 = "PNNL/Building1/AHU1/VAV129/ZoneOutdoorAirFlow"
+AHU1_VAV127B = "PNNL/Building1/AHU1/VAV127B/ZoneOutdoorAirFlow"
+AHU1_VAV119 = "PNNL/Building1/AHU1/VAV119/ZoneOutdoorAirFlow"
+AHU1_VAV143 = "PNNL/Building1/AHU1/VAV143/ZoneOutdoorAirFlow"
+AHU1_VAV150 = "PNNL/Building1/AHU1/VAV150/ZoneOutdoorAirFlow"
+AHU1_VAV152 = "PNNL/Building1/AHU1/VAV152/ZoneOutdoorAirFlow"
+
+
+AHU1_VAV127A_temp = "PNNL/Building1/AHU1/VAV127A/ZoneTemperature (East)"
+AHU1_VAV127B_temp = "PNNL/Building1/AHU1/VAV127B/ZoneTemperature (East)"
+
+multi_topic_list2 = \
+    ["Economizer_RCx/PNNL/Building1/AHU2/Temperature Sensor Dx/energy impact",
+    "Economizer_RCx/PNNL/Building1/AHU2/Not Economizing When Unit Should Dx/"
+    "energy impact",
+    "Economizer_RCx/PNNL/Building1/AHU2/Economizing When Unit Should Not Dx/"
+    "energy impact",
+    "Economizer_RCx/PNNL/Building1/AHU2/Excess Outdoor-air Intake Dx/energy impact",
+    "Economizer_RCx/PNNL/Building1/AHU2/Insufficient Outdoor-air Intake Dx/energy "
+    "impact",
+    "Economizer_RCx/PNNL/Building1/AHU2/Economizing When Unit Should Not "
+    "Dx/diagnostic message",
+    "Economizer_RCx/PNNL/Building1/AHU2/Not Economizing When Unit Should "
+    "Dx/diagnostic message",
+    "Economizer_RCx/PNNL/Building1/AHU2/Temperature Sensor Dx/diagnostic message",
+    "Economizer_RCx/PNNL/Building1/AHU2/Excess Outdoor-air Intake Dx/diagnostic "
+    "message",
+    "Economizer_RCx/PNNL/Building1/AHU2/Insufficient Outdoor-air Intake "
+    "Dx/diagnostic message"]
+
+multi_topic_list1 = \
+    ["Economizer_RCx/PNNL/Building1/AHU1/Temperature Sensor Dx/energy impact",
+    "Economizer_RCx/PNNL/Building1/AHU1/Not Economizing When Unit Should Dx/"
+    "energy impact",
+    "Economizer_RCx/PNNL/Building1/AHU1/Economizing When Unit Should Not Dx/"
+    "energy impact",
+    "Economizer_RCx/PNNL/Building1/AHU1/Excess Outdoor-air Intake Dx/energy impact",
+    "Economizer_RCx/PNNL/Building1/AHU1/Insufficient Outdoor-air Intake Dx/energy "
+    "impact",
+    "Economizer_RCx/PNNL/Building1/AHU1/Economizing When Unit Should Not "
+    "Dx/diagnostic message",
+    "Economizer_RCx/PNNL/Building1/AHU1/Not Economizing When Unit Should "
+    "Dx/diagnostic message",
+    "Economizer_RCx/PNNL/Building1/AHU1/Temperature Sensor Dx/diagnostic message",
+    "Economizer_RCx/PNNL/Building1/AHU1/Excess Outdoor-air Intake Dx/diagnostic "
+    "message",
+    "Economizer_RCx/PNNL/Building1/AHU1/Insufficient Outdoor-air Intake "
+    "Dx/diagnostic message"]
+
+#["Economizer_RCx/PNNL/Building1/AHU1/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/Building1/AHU2/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/Building1/AHU3/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/Building1/AHU4/Temperature Sensor Dx/diagnostic message"]
+try:
+    import pymongo
+
+    HAS_PYMONGO = True
+except:
+    HAS_PYMONGO = False
+
+mongo_platform = {
+    "connection": {
+        "type": "mongodb",
+        "params": {
+            "host": "localhost",
+            "port": 27017,
+            "database": "performance_test",
+            "user": "test",
+            "passwd": "test",
+            "authSource":"mongo_test"
+        }
+    }
+}
+
+
+def mongo_connection_string(params):
+    mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
+
+    if params.get('authSource'):
+        mongo_conn_str = mongo_conn_str + '?authSource={authSource}'
+    mongo_conn_str = mongo_conn_str.format(**params)
+    return mongo_conn_str
+
+
+# Create a mark for use within params of a fixture.
+pymongo_mark = pytest.mark.skipif(not HAS_PYMONGO,
+                                  reason='No pymongo client available.')
+
+
+@pytest.fixture(scope="function",
+                params=[
+                    pymongo_mark(mongo_platform)
+                ])
+def database_client(request, volttron_instance):
+    print('connecting to mongo database')
+    client = pymongo.MongoClient(
+        mongo_connection_string(request.param['connection']['params']))
+    print (request.param)
+    agent_uuid = volttron_instance.install_agent(
+        agent_dir="services/core/MongodbHistorian",
+        config_file=request.param,
+        start=True,
+        vip_identity="platform.historian")
+
+    def cleanup():
+        if client is not None:
+            client.close()
+        volttron_instance.remove_agent(agent_uuid)
+
+    request.addfinalizer(cleanup)
+    return client
+
+
+@pytest.mark.timeout(180)
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_basic_function_week_data(volttron_instance, database_client):
+    """
+    Test basic functionality of sql historian. Inserts three points as part of all topic and checks
+    if all three got into the database
+    :param volttron_instance: The instance against which the test is run
+    """
+
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_basic_function **")
+
+    publish_agent = volttron_instance.build_agent()
+
+    # Query the historian
+    before =datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic="Economizer_RCx/PNNL/Building1/AHU1/Temperature Sensor Dx/diagnostic message",
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-08 00:00:00.000000Z',
+        count=35000
+        ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now()-before))
+    print ("result count {}".format(len(result['values'])))
+
+    before = datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic="Economizer_RCx/PNNL/Building1/AHU2/Temperature Sensor Dx/diagnostic "
+              "message",
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-08 00:00:00.000000Z',
+        count=35000
+    ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now() - before))
+    print ("result count {}".format(len(result['values'])))
+
+    before = datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic="Economizer_RCx/PNNL/Building1/AHU3/Temperature Sensor Dx/diagnostic "
+              "message",
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-08 00:00:00.000000Z',
+        count=35000
+    ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now() - before))
+    print ("result count {}".format(len(result['values'])))
+
+    before = datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic="Economizer_RCx/PNNL/Building1/AHU4/Temperature Sensor Dx/diagnostic "
+              "message",
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-08 00:00:00.000000Z',
+        count=35000
+    ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now() - before))
+    print ("result count {}".format(len(result['values'])))
+
+@pytest.mark.timeout(180)
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_basic_function_month_data(volttron_instance, database_client):
+    """
+    Test basic functionality of sql historian. Inserts three points as part of all topic and checks
+    if all three got into the database
+    :param volttron_instance: The instance against which the test is run
+    """
+
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_basic_function **")
+
+    publish_agent = volttron_instance.build_agent()
+
+    # Query the historian
+    before =datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic=AHU1_VAV129,
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-30 00:00:00.000000Z',
+        count=35000
+        ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now()-before))
+    print ("result count {}".format(len(result['values'])))
+
+    before = datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic=AHU1_VAV127B,
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-30 00:00:00.000000Z',
+        count=35000
+    ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now() - before))
+    print ("result count {}".format(len(result['values'])))
+
+    before = datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic=AHU1_VAV127A_temp,
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-30 00:00:00.000000Z',
+        count=35000
+    ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now() - before))
+    print ("result count {}".format(len(result['values'])))
+
+    before = datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic=AHU1_VAV127B_temp,
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-30 00:00:00.000000Z',
+        count=35000
+    ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now() - before))
+    print ("result count {}".format(len(result['values'])))
+
+    before = datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic=AHU1_VAV119,
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-30 00:00:00.000000Z',
+        count=35000
+    ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now() - before))
+    print ("result count {}".format(len(result['values'])))
+
+    before = datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic=AHU1_VAV143,
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-30 00:00:00.000000Z',
+        count=35000
+    ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now() - before))
+    print ("result count {}".format(len(result['values'])))
+
+    before = datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic=AHU1_VAV150,
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-30 00:00:00.000000Z',
+        count=35000
+    ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now() - before))
+    print ("result count {}".format(len(result['values'])))
+
+@pytest.mark.timeout(180)
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_basic_function_week_multi_topic(volttron_instance, database_client):
+    """
+    Test basic functionality of sql historian. Inserts three points as part of all topic and checks
+    if all three got into the database
+    :param volttron_instance: The instance against which the test is run
+    """
+
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_basic_function **")
+
+    publish_agent = volttron_instance.build_agent()
+
+    # Query the historian
+    before =datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic=multi_topic_list1,
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-08 00:00:00.000000Z',
+        count=35000
+        ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now()-before))
+    print ("result count {}".format(len(result['values'])))
+
+    before = datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic=multi_topic_list2,
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-08 00:00:00.000000Z',
+        count=35000
+    ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now() - before))
+    print ("result count {}".format(len(result['values'])))
+
+
+@pytest.mark.timeout(180)
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_basic_function_2week_multi_topic(volttron_instance, database_client):
+    """
+    Test basic functionality of sql historian. Inserts three points as part of all topic and checks
+    if all three got into the database
+    :param volttron_instance: The instance against which the test is run
+    """
+
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_basic_function **")
+
+    publish_agent = volttron_instance.build_agent()
+
+    # Query the historian
+    before =datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic=multi_topic_list1,
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-15 00:00:00.000000Z',
+        count=35000
+        ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now()-before))
+    print ("result count {}".format(len(result['values'])))
+
+    before = datetime.now()
+    result = publish_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic=multi_topic_list2,
+        start='2016-04-01 00:00:00.000000Z',
+        end='2016-04-15 00:00:00.000000Z',
+        count=35000
+    ).get(timeout=100)
+    print ("Time taken{}".format(datetime.now() - before))
+    print ("result count {}".format(len(result['values'])))

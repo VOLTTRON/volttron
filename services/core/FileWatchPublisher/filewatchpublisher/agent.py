@@ -56,7 +56,9 @@
 
 #}}}
 
+import gevent
 import logging
+import os.path
 import sys
 
 from datetime import datetime
@@ -85,8 +87,11 @@ def file_watch_publisher(config_path, **kwargs):
 
 
 class FileWatchPublisher(Agent):
-    """Monitors files for changes and publishes added lines
-        on corresponding topics.
+    """Monitors files from configuration for changes and
+    publishes added lines on corresponding topics.
+    Ignores if a file does not exist and move to next file
+    in configuration with an error message.
+    Exists if all files does not exist.
 
     :param config: Configuration dict
     :type config: dict
@@ -111,20 +116,30 @@ class FileWatchPublisher(Agent):
     def __init__(self, config, **kwargs):
         super(FileWatchPublisher, self).__init__(**kwargs)
         self.config = config
+        items = config[:]
         self.file_topic = {}
         self.file_end_position = {}
         for item in self.config:
             file =  item["file"]
             self.file_topic[file] = item["topic"]
-            with open(file, 'r') as f:
-                self.file_end_position[file] = self.get_end_position(f)
+            if os.path.isfile(file):
+                with open(file, 'r') as f:
+                    self.file_end_position[file] = self.get_end_position(f)
+            else:
+                _log.error("File " + file + " does not exists. Ignoring this file.")
+                items.remove(item)
+        self.config = items
 
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
         _log.info("Starting "+self.__class__.__name__+" agent")
-        for item in self.config:
-            file = item["file"]
-            self.core.spawn(watch_file_with_fullpath, file, self.read_file)
+        if len(self.config) == 0 :
+            _log.error("No file to watch and publish. Stopping "+self.__class__.__name__+" agent.")
+            gevent.spawn_later(3, self.core.stop)
+        else:
+            for item in self.config:
+                file = item["file"]
+                self.core.spawn(watch_file_with_fullpath, file, self.read_file)
 
     def read_file(self,file):
         _log.debug('loading file %s', file)

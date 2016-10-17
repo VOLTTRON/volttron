@@ -24,7 +24,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
 
 '''
 
-'''
+"""
 
 Thermostat Interface:
 
@@ -37,7 +37,7 @@ ThermostatInterface - creates a real thermostat obect based on address
 version CT50
 http://lowpowerlab.com/downloads/RadioThermostat_CT50_Honeywell_Wifi_API_V1.3.pdf
 
-'''
+"""
 
 import json
 import sys
@@ -294,13 +294,20 @@ class ThermostatInterface(object):
 
 
     def set_heat_pgm(self,schedules,day=''):
-        ''' set heat program for a week or a specific day
-            day = {'mon','tue','wed','thu','fri','sat','sun'}
+        """
+        set heat program for a week or a specific day
+        day = {'mon','tue','wed','thu','fri','sat','sun'}
 
-            for a spefic day, say 'thu'
+        for a spefic day, say 'thu'
+
+        .. code-block:: python
+
             t.set_heat_pgm('{"360, 80, 480, 80, 1080, 80, 1320 , 80",'thu')
 
-            for a week
+        for a week
+
+        .. code-block:: python
+
             t.set_heat_pgm('{
                         "1": [360, 70, 480, 70, 1080, 70, 1320, 70],
                         "0": [360, 66, 480, 58, 1080, 66, 1320, 58],
@@ -310,7 +317,7 @@ class ThermostatInterface(object):
                         "4": [360, 66, 480, 58, 1080, 66, 1320, 58],
                         "6": [360, 66, 480, 58, 1080, 66, 1320, 58]
                  }')
-        '''
+        """
         schedule = str(schedules)
         if day =='':
             url = self.urladdress+"/program/heat"

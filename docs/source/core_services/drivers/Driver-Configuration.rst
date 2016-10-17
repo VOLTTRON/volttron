@@ -163,9 +163,13 @@ To simplify updating to the new format ``scripts/update_master_driver_config.py`
 
 With the platform running run:
 
-``python scripts/update_master_driver_config.py <old configuration>``
+``python scripts/update_master_driver_config.py <old configuration> <output>``
 
 **old_configuration** is the main configuration file in the old format. The script automatically modifies the driver files to create references to csv files and adds the csv files with the appropriate name.
+
+**output** is the target output directory.
+
+If the ``--keep-old`` switch is used the old configurations in the output directory (if any) will not be deleted before before new configurations are created. Matching names will still be overwritten.
 
 The output from ``scripts/update_master_driver_config.py`` can be automatically added to the configuration store
 for the Master Driver agent with ``scripts/install_master_driver_configs.py``.
