@@ -16,7 +16,7 @@ An authentication record is created by using :code:`volttron-ctl auth add` comma
         capabilities (delimit multiple entries with comma) []:
         roles (delimit multiple entries with comma) []:
         groups (delimit multiple entries with comma) []:
-        mechanism [NULL]:
+        mechanism [CURVE]:
         credentials []:
         comments []:
         enabled [True]:
@@ -35,7 +35,7 @@ for the agent. Create a public/private key pair for the agent and enter encoded 
         capabilities (delimit multiple entries with comma) []:
         roles (delimit multiple entries with comma) []:
         groups (delimit multiple entries with comma) []:
-        mechanism [NULL]: CURVE
+        mechanism [CURVE]:
         credentials []: encoded-public-key-for-my-test-agent
         comments []:
         enabled [True]:
@@ -126,26 +126,13 @@ These are authorized groups for this agent. Groups parameter is currently not be
 
 Mechanism:
 -----------
-Mechanism is the authentication method by which the agent will communicate with VOLTTRON platform.
-It takes one of the following strings:
-
-- NULL: No authentication
-- PLAIN: username/password
-- CURVE: CurveMQ public.private keys
-
-NOTE: Currently VOLTTRON uses only CURVE mechanism to authenticate agents.
-
-::
-
-    mechanism [NULL]: CURVE
+Mechanism is the authentication method by which the agent will communicate with VOLTTRON platform. Currently VOLTTRON uses only CURVE mechanism to authenticate agents.
 
 Credentials:
 -------------
 
-Value of credential parameter depends on the value of mechanism parameter: `None` if mechanism is 'NULL'; password if mechanism is 'PLAIN';
-encoded public key if mechanism is 'CURVE' (see `volttron.platform.vip.socket.encode_key` for method to encode public key
+The credentials field must be an CURVE encoded public key (see `volttron.platform.vip.socket.encode_key` for method to encode public key).
 
-Note: Currently VOLTTRON uses only CURVE mechanism to authenticate agents. Hence, only valid value for credentials parameter is encoded public key.
 ::
 
     credentials []: encoded-public-key-for-agent
