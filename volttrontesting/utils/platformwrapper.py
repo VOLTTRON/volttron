@@ -1,35 +1,32 @@
 import ConfigParser as configparser
-import uuid
-from contextlib import closing
 import json
 import logging
 import os
-from os.path import dirname
 import shutil
 import sys
 import tempfile
 import time
+from contextlib import closing
+from os.path import dirname
+from subprocess import CalledProcessError
 
 import gevent
-from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
-from gevent.subprocess import Popen
 import requests
-from subprocess import CalledProcessError
-from zmq.utils import jsonapi
-
-from volttron.platform.vip.connection import Connection, DEFAULT_TIMEOUT
-from volttrontesting.utils.utils import get_rand_http_address
-from volttrontesting.utils.utils import get_rand_tcp_address
-
 from agent_additions import add_vc_to_instance
-from volttron.platform.auth import AuthFile, AuthEntry
-from volttron.platform.agent.utils import strip_comments
-from volttron.platform.vip.agent import Agent
-from volttron.platform.aip import AIPplatform
+from gevent.fileobject import FileObject
+from gevent.subprocess import Popen
 from volttron.platform import packaging
 from volttron.platform.agent import utils
+from volttron.platform.agent.utils import strip_comments
+from volttron.platform.aip import AIPplatform
+from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.keystore import KeyStore, KnownHostsStore
+from volttron.platform.vip.agent import Agent
+from volttron.platform.vip.agent.connection import Connection
+from volttrontesting.utils.utils import get_rand_http_address
+from volttrontesting.utils.utils import get_rand_tcp_address
+from zmq.utils import jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

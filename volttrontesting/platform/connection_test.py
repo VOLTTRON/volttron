@@ -1,10 +1,8 @@
 import gevent
+import pytest
 from volttron.platform.agent.known_identities import CONTROL, MASTER_WEB, AUTH
 from volttron.platform.keystore import KeyStore
-from volttron.platform.vip.agent import Agent
-from volttron.platform.vip.connection import Connection
-
-import pytest
+from volttron.platform.vip.agent.connection import Connection
 
 
 @pytest.fixture(scope="module")
