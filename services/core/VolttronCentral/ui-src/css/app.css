@@ -2201,19 +2201,20 @@ svg.nvd3-svg {
 
 /***react-select-me styles ***/
 
-.view .dd__selectControl {
+#app .dd__selectControl {
     font-size: inherit;
     padding: 4px 6px 4px 4px;
     border-radius: 0px;
     line-height: 18px;
 }
 
-.view .dd__expandIcon {
+#app .dd__expandIcon {
     margin-left: 8px;
 }
 
-.view .dd__option {
+#app .dd__option {
     line-height: 18px;
+    padding: 4px;
 }
 
 /***/

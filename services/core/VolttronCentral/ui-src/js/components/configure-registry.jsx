@@ -91,7 +91,7 @@ class ConfigureRegistry extends BaseComponent {
 
         if ((keydown.target.nodeName !== "INPUT" || 
             keydown.target.className === "uploadButton" ||
-            keydown.target.className === "registryCheckbox") && this.state.deviceHasFocus)
+            keydown.target.className === "registryCheckbox") && devicesStore.deviceHasFocus(this.props.device.id, this.props.device.address))
         { 
             if (this.state.keyboardStarted)
             {
@@ -118,6 +118,7 @@ class ConfigureRegistry extends BaseComponent {
                     case 32:    //Space
                     case 40:    //Down
                         keydown.preventDefault();
+                        keydown.stopPropagation();
 
                         if (keydown.shiftKey) // extend down
                         {
@@ -149,6 +150,7 @@ class ConfigureRegistry extends BaseComponent {
                         break;
                     case 38:    //Up
                         keydown.preventDefault();
+                        keydown.stopPropagation();
 
                         if (keydown.shiftKey) // extend up
                         {
@@ -268,7 +270,7 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onStoresChange () {
 
-        var deviceHasFocus = devicesStore.deviceHasFocus(this.props.device.id);
+        var deviceHasFocus = devicesStore.deviceHasFocus(this.props.device.id, this.props.device.address);
 
         if (deviceHasFocus !== this.state.deviceHasFocus)
         {

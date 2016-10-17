@@ -7,6 +7,8 @@ var rpc = require('../lib/rpc');
 
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
+var pointsWs, pointsWebsocket, devicesWs, devicesWebsocket;
+
 var devicesActionCreators = {
     configureDevices: function (platform) {
         dispatcher.dispatch({
@@ -43,6 +45,28 @@ var devicesActionCreators = {
             params.target_address = address;
         }
 
+        var setUpDevicesSocket = function(platformUuid, bacnetIdentity) {
+
+            if (typeof pointsWs !== "undefined" && pointsWs !== null)
+            {
+                pointsWs.close();
+                pointsWs = null;
+            }
+
+            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
+            if (window.WebSocket) {
+                devicesWs = new WebSocket(devicesWebsocket);
+            }
+            else if (window.MozWebSocket) {
+                devicesWs = MozWebSocket(devicesWebsocket);
+            }
+
+            devicesWs.onmessage = function(evt)
+            {
+                devicesActionCreators.deviceDetected(evt.data, platformUuid, bacnetIdentity);
+            };
+        }   
+
         return new rpc.Exchange({
             method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + platformAgentUuid + '.start_bacnet_scan',
             authorization: authorization,
@@ -56,7 +80,9 @@ var devicesActionCreators = {
                     low_device_id: low,
                     high_device_id: high,
                     target_address: address
-                });                
+                });
+
+                setUpDevicesSocket(platformUuid, bacnetProxyIdentity);        
             })
             .catch(rpc.Error, function (error) {
 
@@ -81,11 +107,12 @@ var devicesActionCreators = {
             data: data
         });
     },
-    cancelScan: function (platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CANCEL_SCANNING,
-            platform: platform
-        });
+    cancelDeviceScan: function () {
+        if (typeof devicesWs !== "undefined" && devicesWs !== null)
+        {
+            devicesWs.close();
+            devicesWs = null;
+        }
     },
     handleKeyDown: function (keydown) {
         dispatcher.dispatch({
@@ -102,12 +129,6 @@ var devicesActionCreators = {
 
         console.log("focused on device");
     },
-    // listDetectedDevices: function (platform) {
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.LIST_DETECTED_DEVICES,
-    //         platform: platform
-    //     });
-    // },
     configureDevice: function (device, bacnetIdentity, platformAgentUuid) {
         
         var authorization = authorizationStore.getAuthorization();
@@ -118,6 +139,30 @@ var devicesActionCreators = {
             device_id: Number(device.id), 
             proxy_identity: bacnetIdentity, 
             address: device.address
+        }
+
+        var setUpPointsSocket = function() {
+        
+            if (typeof devicesWs !== "undefined" && devicesWs !== null)
+            {
+                devicesWs.close();
+                devicesWs = null;
+            }
+
+            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
+            if (window.WebSocket) {
+                pointsWs = new WebSocket(pointsWebsocket);
+            }
+            else if (window.MozWebSocket) {
+                pointsWs = MozWebSocket(pointsWebsocket);
+            }
+
+            pointsWs.onmessage = function(evt)
+            {
+                var platform = null;
+
+                devicesActionCreators.pointReceived(evt.data, platform);
+            };
         }
 
         return new rpc.Exchange({
@@ -131,6 +176,8 @@ var devicesActionCreators = {
                     type: ACTION_TYPES.CONFIGURE_DEVICE,
                     device: device
                 });
+
+                setUpPointsSocket();
             })
             .catch(rpc.Error, function (error) {
 
@@ -138,6 +185,8 @@ var devicesActionCreators = {
 
                 handle401(error, error.message);
             });
+
+        
     },
     toggleShowPoints: function (device) {
         dispatcher.dispatch({

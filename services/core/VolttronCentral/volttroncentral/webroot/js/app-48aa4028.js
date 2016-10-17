@@ -211,6 +211,8 @@ var rpc = require('../lib/rpc');
 
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
+var pointsWs, pointsWebsocket, devicesWs, devicesWebsocket;
+
 var devicesActionCreators = {
     configureDevices: function configureDevices(platform) {
         dispatcher.dispatch({
@@ -244,6 +246,25 @@ var devicesActionCreators = {
             params.target_address = address;
         }
 
+        var setUpDevicesSocket = function setUpDevicesSocket(platformUuid, bacnetIdentity) {
+
+            if (typeof pointsWs !== "undefined" && pointsWs !== null) {
+                pointsWs.close();
+                pointsWs = null;
+            }
+
+            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
+            if (window.WebSocket) {
+                devicesWs = new WebSocket(devicesWebsocket);
+            } else if (window.MozWebSocket) {
+                devicesWs = MozWebSocket(devicesWebsocket);
+            }
+
+            devicesWs.onmessage = function (evt) {
+                devicesActionCreators.deviceDetected(evt.data, platformUuid, bacnetIdentity);
+            };
+        };
+
         return new rpc.Exchange({
             method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + platformAgentUuid + '.start_bacnet_scan',
             authorization: authorization,
@@ -257,6 +278,8 @@ var devicesActionCreators = {
                 high_device_id: high,
                 target_address: address
             });
+
+            setUpDevicesSocket(platformUuid, bacnetProxyIdentity);
         }).catch(rpc.Error, function (error) {
 
             error.message = "Unable to scan for devices. " + error.message + ".";
@@ -279,11 +302,11 @@ var devicesActionCreators = {
             data: data
         });
     },
-    cancelScan: function cancelScan(platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CANCEL_SCANNING,
-            platform: platform
-        });
+    cancelDeviceScan: function cancelDeviceScan() {
+        if (typeof devicesWs !== "undefined" && devicesWs !== null) {
+            devicesWs.close();
+            devicesWs = null;
+        }
     },
     handleKeyDown: function handleKeyDown(keydown) {
         dispatcher.dispatch({
@@ -300,12 +323,6 @@ var devicesActionCreators = {
 
         console.log("focused on device");
     },
-    // listDetectedDevices: function (platform) {
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.LIST_DETECTED_DEVICES,
-    //         platform: platform
-    //     });
-    // },
     configureDevice: function configureDevice(device, bacnetIdentity, platformAgentUuid) {
 
         var authorization = authorizationStore.getAuthorization();
@@ -318,6 +335,27 @@ var devicesActionCreators = {
             address: device.address
         };
 
+        var setUpPointsSocket = function setUpPointsSocket() {
+
+            if (typeof devicesWs !== "undefined" && devicesWs !== null) {
+                devicesWs.close();
+                devicesWs = null;
+            }
+
+            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
+            if (window.WebSocket) {
+                pointsWs = new WebSocket(pointsWebsocket);
+            } else if (window.MozWebSocket) {
+                pointsWs = MozWebSocket(pointsWebsocket);
+            }
+
+            pointsWs.onmessage = function (evt) {
+                var platform = null;
+
+                devicesActionCreators.pointReceived(evt.data, platform);
+            };
+        };
+
         return new rpc.Exchange({
             method: 'platform.uuid.' + device.platformUuid + '.agent.uuid.' + platformAgentUuid + '.publish_bacnet_props',
             authorization: authorization,
@@ -328,6 +366,8 @@ var devicesActionCreators = {
                 type: ACTION_TYPES.CONFIGURE_DEVICE,
                 device: device
             });
+
+            setUpPointsSocket();
         }).catch(rpc.Error, function (error) {
 
             error.message = "Unable to receive points. " + error.message + ".";
@@ -2277,6 +2317,8 @@ var ConfigureDevices = function (_BaseComponent) {
         value: function _cancelScan() {
             this.setState({ scanning: false });
             this.setState({ canceled: true });
+
+            devicesActionCreators.cancelDeviceScan();
         }
     }, {
         key: 'render',
@@ -2607,6 +2649,10 @@ function getInitialState() {
     return state;
 }
 
+function objectIsEmpty(obj) {
+    return Object.keys(obj).length === 0;
+}
+
 exports.default = ConfigureDevices;
 
 },{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":60,"../stores/platforms-store":65,"./base-component":12,"./devices-found":27,"jquery":undefined,"react":undefined,"react-select-me":undefined}],16:[function(require,module,exports){
@@ -2753,7 +2799,7 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_handleKeyDown',
         value: function _handleKeyDown(keydown) {
 
-            if ((keydown.target.nodeName !== "INPUT" || keydown.target.className === "uploadButton" || keydown.target.className === "registryCheckbox") && this.state.deviceHasFocus) {
+            if ((keydown.target.nodeName !== "INPUT" || keydown.target.className === "uploadButton" || keydown.target.className === "registryCheckbox") && devicesStore.deviceHasFocus(this.props.device.id, this.props.device.address)) {
                 if (this.state.keyboardStarted) {
                     switch (keydown.which) {
                         case 17:
@@ -2780,6 +2826,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                         case 40:
                             //Down
                             keydown.preventDefault();
+                            keydown.stopPropagation();
 
                             if (keydown.shiftKey) // extend down
                                 {
@@ -2808,6 +2855,7 @@ var ConfigureRegistry = function (_BaseComponent) {
                         case 38:
                             //Up
                             keydown.preventDefault();
+                            keydown.stopPropagation();
 
                             if (keydown.shiftKey) // extend up
                                 {
@@ -2928,7 +2976,7 @@ var ConfigureRegistry = function (_BaseComponent) {
         key: '_onStoresChange',
         value: function _onStoresChange() {
 
-            var deviceHasFocus = devicesStore.deviceHasFocus(this.props.device.id);
+            var deviceHasFocus = devicesStore.deviceHasFocus(this.props.device.id, this.props.device.address);
 
             if (deviceHasFocus !== this.state.deviceHasFocus) {
                 this.setState({ deviceHasFocus: deviceHasFocus });
@@ -5302,9 +5350,6 @@ var devicesStore = require('../stores/devices-store');
 
 var CsvParse = require('babyparse');
 
-var devicesWs, devicesWebsocket;
-var pointsWs, pointsWebsocket;
-
 var DevicesFound = function (_BaseComponent) {
     _inherits(DevicesFound, _BaseComponent);
 
@@ -5313,7 +5358,7 @@ var DevicesFound = function (_BaseComponent) {
 
         var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DevicesFound).call(this, props));
 
-        _this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpDevicesSocket', '_setUpPointsSocket', '_focusOnDevice', '_showFileButtonTooltip');
+        _this._bind('_onStoresChange', '_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip');
 
         _this.state = {
             triggerTooltip: {}
@@ -5324,8 +5369,7 @@ var DevicesFound = function (_BaseComponent) {
     _createClass(DevicesFound, [{
         key: 'componentDidMount',
         value: function componentDidMount() {
-            // devicesStore.addChangeListener(this._onStoresChange);
-            this._setUpDevicesSocket();
+            // devicesStore.addChangeListener(this._onStoresChange);        
         }
     }, {
         key: 'componentWillUnmount',
@@ -5335,86 +5379,13 @@ var DevicesFound = function (_BaseComponent) {
     }, {
         key: 'componentWillReceiveProps',
         value: function componentWillReceiveProps(nextProps) {
-            if (this.props.canceled !== nextProps.canceled) {
-                if (nextProps.canceled) {
-                    if (typeof devicesWs !== "undefined" && devicesWs !== null) {
-                        devicesWs.close();
-                        devicesWs = null;
-                    }
-                } else {
-                    this._setUpDevicesSocket();
-                }
-            }
-
             if (nextProps.devices !== this.props.devices) {
                 this.props.devicesloaded(nextProps.devices.length > 0);
             }
         }
     }, {
-        key: '_setUpDevicesSocket',
-        value: function _setUpDevicesSocket() {
-
-            if (typeof pointsWs !== "undefined" && pointsWs !== null) {
-                pointsWs.close();
-                pointsWs = null;
-            }
-
-            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
-            if (window.WebSocket) {
-                devicesWs = new WebSocket(devicesWebsocket);
-            } else if (window.MozWebSocket) {
-                devicesWs = MozWebSocket(devicesWebsocket);
-            }
-
-            devicesWs.onmessage = function (evt) {
-                devicesActionCreators.deviceDetected(evt.data, this.props.platform, this.props.bacnet);
-
-                var warnings = devicesStore.getWarnings();
-
-                if (!objectIsEmpty(warnings)) {
-                    for (var key in warnings) {
-                        var values = warnings[key].items.join(", ");
-
-                        statusIndicatorActionCreators.openStatusIndicator("error", warnings[key].message + "ID: " + values, values, "left");
-                    }
-                }
-            }.bind(this);
-        }
-    }, {
-        key: '_setUpPointsSocket',
-        value: function _setUpPointsSocket() {
-
-            if (typeof devicesWs !== "undefined" && devicesWs !== null) {
-                devicesWs.close();
-                devicesWs = null;
-            }
-
-            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
-            if (window.WebSocket) {
-                pointsWs = new WebSocket(pointsWebsocket);
-            } else if (window.MozWebSocket) {
-                pointsWs = MozWebSocket(pointsWebsocket);
-            }
-
-            pointsWs.onmessage = function (evt) {
-                devicesActionCreators.pointReceived(evt.data, this.props.platform);
-
-                var warnings = devicesStore.getWarnings();
-
-                if (!objectIsEmpty(warnings)) {
-                    for (var key in warnings) {
-                        var values = warnings[key].items.join(", ");
-
-                        statusIndicatorActionCreators.openStatusIndicator("error", warnings[key].message + "ID: " + values, values, "left");
-                    }
-                }
-            }.bind(this);
-        }
-    }, {
         key: '_onStoresChange',
-        value: function _onStoresChange() {
-            // var devices = devicesStore.getDevices(this.props.platform, this.props.bacnet); 
-        }
+        value: function _onStoresChange() {}
     }, {
         key: '_configureDevice',
         value: function _configureDevice(device) {
@@ -5430,7 +5401,6 @@ var DevicesFound = function (_BaseComponent) {
             if (device.showPoints && !device.configuring) {
                 var platformAgentUuid = platformsStore.getPlatformAgentUuid(device.platformUuid);
 
-                this._setUpPointsSocket();
                 device.configuring = true;
                 devicesActionCreators.configureDevice(device, this.props.bacnet, platformAgentUuid);
             } else {
@@ -5748,10 +5718,6 @@ var parseCsvFile = function parseCsvFile(contents) {
 
     return results;
 };
-
-function objectIsEmpty(obj) {
-    return Object.keys(obj).length === 0;
-}
 
 exports.default = DevicesFound;
 
@@ -10586,31 +10552,6 @@ var _registryFiles = {};
 var _backupFileName = {};
 var _platform;
 var _devices = [];
-// var Device = Immutable.Record({
-//     id: undefined,
-//     name: undefined,
-//     vendor_id: undefined,
-//     address: undefined,
-//     max_apdu_length: undefined,
-//     segmentation_supported: undefined,
-//     showPoints: undefined,
-//     configuring: undefined,
-//     platformUuid: undefined,
-//     bacnetProxyUuid: undefined,
-//     registryConfig: [],
-//     keyProps: ["volttron_point_name", "units", "writable"],
-//     selectedPoints: [],
-//     items: [ 
-//         { key: "address", label: "Address", value: undefined },  
-//         { key: "deviceName", label: "Name", value: undefined },  
-//         { key: "deviceDescription", label: "Description", value: undefined }, 
-//         { key: "deviceId", label: "Device ID", value: undefined }, 
-//         { key: "vendorId", label: "Vendor ID", value: undefined }, 
-//         { key: "vendor", label: "Vendor", value: undefined },
-//         { key: "type", label: "Type", value: "BACnet" }
-//     ]
-// });
-
 
 var _newScan = false;
 var _warnings = {};
@@ -10620,7 +10561,7 @@ var _keyboard = {
     cmd: null,
     started: false
 };
-var _focusedDevice = null;
+var _focusedDevice = { id: null, address: null };
 
 var _placeHolders = Immutable.List([[{ "key": "Point_Name", "value": "", "editable": true }, { "key": "Volttron_Point_Name", "value": "" }, { "key": "Units", "value": "" }, { "key": "Units_Details", "value": "" }, { "key": "Writable", "value": "" }, { "key": "Starting_Value", "value": "" }, { "key": "Type", "value": "" }, { "key": "Notes", "value": "" }]]);
 
@@ -11650,84 +11591,15 @@ devicesStore.getKeyboard = function (deviceId) {
     return keyboard;
 };
 
-devicesStore.deviceHasFocus = function (deviceId) {
-    return _focusedDevice === deviceId;
+devicesStore.deviceHasFocus = function (deviceId, deviceAddress) {
+    return _focusedDevice.id === deviceId && _focusedDevice.address === deviceAddress;
 };
 
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
     switch (action.type) {
-        // case ACTION_TYPES.HANDLE_KEY_DOWN:
 
-        //     if (_devices.length)
-        //     {
-        //         var keydown = action.keydown;
-
-        //         var emitKeyboard = function (keyboard)
-        //         {
-        //             devicesStore.emitChange();
-        //         }
-
-        //         switch (keydown.which)
-        //         {
-        //             case 17: // control
-
-        //                 if (!_keyboard.started)
-        //                 {
-        //                     if (_keyboard.device === null)
-        //                     {
-        //                         var focusedDevice = _devices.find(function (device) {
-        //                             return (device.registryConfig.length > 0);
-        //                         });
-
-        //                         _keyboard.device = focusedDevice.id;
-        //                     }
-
-        //                     if (_keyboard.device !== null)
-        //                     {
-        //                         _keyboard.active = true;
-        //                         _keyboard.cmd = "start";
-        //                         _keyboard.started = true;
-
-        //                         emitKeyboard(_keyboard);
-        //                     }
-        //                 }
-        //                 else
-        //                 {
-        //                     _keyboard.cmd = "resume";
-        //                     emitKeyboard(_keyboard);
-        //                 }
-        //                 break;
-        //             case 27: // ESC
-        //                 _keyboard.active = false;
-        //                 _keyboard.cmd = null;
-        //                 _keyboard.started = false;
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //             case 13: // Enter
-        //                 _keyboard.cmd = "enter";
-        //                 _keyboard.active = false;
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //             // case 9:    //Tab
-        //             case 32:    //Space
-        //             case 40:    //Down
-        //                 _keyboard.cmd = (keydown.shiftKey ? "extend_down" : "down");
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //             case 38:    //Up
-        //                 _keyboard.cmd = (keydown.shiftKey ? "extend_up" : "up");
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //             case 46:    //Delete
-        //                 _keyboard.cmd = "delete";
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //         }
-        //     }
-
-        //     break;
         case ACTION_TYPES.CONFIGURE_DEVICES:
             _platform = action.platform;
             _devices = [];
@@ -11735,11 +11607,18 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.ADD_DEVICES:
-        case ACTION_TYPES.CANCEL_SCANNING:
             _action = "get_scan_settings";
             _view = "Detect Devices";
             _device = null;
             devicesStore.emitChange();
+            break;
+        case ACTION_TYPES.CANCEL_SCANNING:
+            // _action = "get_scan_settings";
+            // _view = "Detect Devices";
+            // devicesWs.close();
+            // devicesWs = null;
+
+            // devicesStore.emitChange();
             break;
         case ACTION_TYPES.LISTEN_FOR_IAMS:
             _newScan = false;
@@ -11752,14 +11631,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             var warning = loadDevice(action.device, action.platform, action.bacnet);
 
             if (!objectIsEmpty(warning)) {
-                if (_warnings.hasOwnProperty(warning.key)) {
-                    _warnings[warning.key].items.push(warning.value);
-                } else {
-                    _warnings[warning.key] = {
-                        message: warning.message,
-                        items: [warning.value]
-                    };
-                }
+                statusIndicatorActionCreators.openStatusIndicator("error", warning.message + "ID: " + warning.value, warning.value, "left");
             }
 
             if (_devices.length) {
@@ -11789,8 +11661,9 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             var focusedDevice = devicesStore.getDeviceRef(action.deviceId, action.address);
 
             if (focusedDevice) {
-                if (_focusedDevice !== focusedDevice.id) {
-                    _focusedDevice = focusedDevice.id;
+                if (_focusedDevice.id !== focusedDevice.id || _focusedDevice.address !== focusedDevice.address) {
+                    _focusedDevice.id = focusedDevice.id;
+                    _focusedDevice.address = focusedDevice.address;
 
                     devicesStore.emitChange();
                 }
@@ -12062,7 +11935,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         return Object.keys(obj).length === 0;
     }
 
-    function loadDevice(data, platform, bacnetIdentity) {
+    function loadDevice(data, platformUuid, bacnetIdentity) {
         var warningMsg = {};
 
         if (data) {
@@ -12099,7 +11972,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                         segmentation_supported: device.segmentation_supported,
                         showPoints: false,
                         configuring: false,
-                        platformUuid: platform.uuid,
+                        platformUuid: platformUuid,
                         bacnetProxyIdentity: bacnetIdentity,
                         registryConfig: [],
                         keyProps: ["volttron_point_name", "units", "writable"],

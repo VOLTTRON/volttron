@@ -148,6 +148,8 @@ class ConfigureDevices extends BaseComponent {
     _cancelScan() {
         this.setState({scanning: false});
         this.setState({canceled: true});
+
+        devicesActionCreators.cancelDeviceScan();
     }
     render() {
 
@@ -397,6 +399,11 @@ function getInitialState() {
     }
 
     return state;
+}
+
+function objectIsEmpty(obj)
+{
+    return Object.keys(obj).length === 0;
 }
 
 export default ConfigureDevices;

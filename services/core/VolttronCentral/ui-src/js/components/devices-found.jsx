@@ -14,128 +14,30 @@ var devicesStore = require('../stores/devices-store');
 
 var CsvParse = require('babyparse');
 
-var devicesWs, devicesWebsocket;
-var pointsWs, pointsWebsocket;
-
 class DevicesFound extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpDevicesSocket', '_setUpPointsSocket', 
-            '_focusOnDevice', '_showFileButtonTooltip');
+        this._bind('_onStoresChange', '_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip');
 
         this.state = {
             triggerTooltip: {}
         };       
     }
     componentDidMount() {
-        // devicesStore.addChangeListener(this._onStoresChange);
-        this._setUpDevicesSocket()
+        // devicesStore.addChangeListener(this._onStoresChange);        
     }
     componentWillUnmount() {
         // devicesStore.removeChangeListener(this._onStoresChange);
     }
     componentWillReceiveProps(nextProps) {
-        if (this.props.canceled !== nextProps.canceled)
-        {
-            if (nextProps.canceled)
-            {
-                if (typeof devicesWs !== "undefined" && devicesWs !== null)
-                {
-                    devicesWs.close();
-                    devicesWs = null;
-                }
-            }
-            else
-            {
-                this._setUpDevicesSocket();
-            }
-        }
-
         if (nextProps.devices !== this.props.devices)
         {
             this.props.devicesloaded(nextProps.devices.length > 0);
         }
     }
-    _setUpDevicesSocket() {
-
-        if (typeof pointsWs !== "undefined" && pointsWs !== null)
-        {
-            pointsWs.close();
-            pointsWs = null;
-        }
-
-        devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
-        if (window.WebSocket) {
-            devicesWs = new WebSocket(devicesWebsocket);
-        }
-        else if (window.MozWebSocket) {
-            devicesWs = MozWebSocket(devicesWebsocket);
-        }
-
-        devicesWs.onmessage = function(evt)
-        {
-            devicesActionCreators.deviceDetected(evt.data, this.props.platform, this.props.bacnet);
-
-            var warnings = devicesStore.getWarnings();
-
-            if (!objectIsEmpty(warnings))
-            {
-                for (var key in warnings)
-                {
-                    var values = warnings[key].items.join(", ");
-
-                    statusIndicatorActionCreators.openStatusIndicator(
-                        "error", 
-                        warnings[key].message + "ID: " + values, 
-                        values, 
-                        "left"
-                    );
-                }
-            }
-
-        }.bind(this);
-    }    
-    _setUpPointsSocket() {
-        
-        if (typeof devicesWs !== "undefined" && devicesWs !== null)
-        {
-            devicesWs.close();
-            devicesWs = null;
-        }
-
-        pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
-        if (window.WebSocket) {
-            pointsWs = new WebSocket(pointsWebsocket);
-        }
-        else if (window.MozWebSocket) {
-            pointsWs = MozWebSocket(pointsWebsocket);
-        }
-
-        pointsWs.onmessage = function(evt)
-        {
-            devicesActionCreators.pointReceived(evt.data, this.props.platform);
-
-            var warnings = devicesStore.getWarnings();
-
-            if (!objectIsEmpty(warnings))
-            {
-                for (var key in warnings)
-                {
-                    var values = warnings[key].items.join(", ");
-
-                    statusIndicatorActionCreators.openStatusIndicator(
-                        "error", 
-                        warnings[key].message + "ID: " + values, 
-                        values, 
-                        "left"
-                    );
-                }
-            }
-
-        }.bind(this);
-    }
+    
     _onStoresChange() {
-        // var devices = devicesStore.getDevices(this.props.platform, this.props.bacnet); 
+        
     }
     _configureDevice(device) {
         
@@ -151,7 +53,6 @@ class DevicesFound extends BaseComponent {
         {
             var platformAgentUuid = platformsStore.getPlatformAgentUuid(device.platformUuid);
 
-            this._setUpPointsSocket();
             device.configuring = true;
             devicesActionCreators.configureDevice(device, this.props.bacnet, platformAgentUuid);
         }
@@ -468,11 +369,6 @@ var parseCsvFile = (contents) => {
     results.data = registryValues;
 
     return results;
-}
-
-function objectIsEmpty(obj)
-{
-    return Object.keys(obj).length === 0;
 }
 
 export default DevicesFound;

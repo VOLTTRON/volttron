@@ -17,31 +17,6 @@ var _registryFiles = {};
 var _backupFileName = {};
 var _platform;
 var _devices = [];
-// var Device = Immutable.Record({
-//     id: undefined,
-//     name: undefined,
-//     vendor_id: undefined,
-//     address: undefined,
-//     max_apdu_length: undefined,
-//     segmentation_supported: undefined,
-//     showPoints: undefined,
-//     configuring: undefined,
-//     platformUuid: undefined,
-//     bacnetProxyUuid: undefined,
-//     registryConfig: [],
-//     keyProps: ["volttron_point_name", "units", "writable"],
-//     selectedPoints: [],
-//     items: [ 
-//         { key: "address", label: "Address", value: undefined },  
-//         { key: "deviceName", label: "Name", value: undefined },  
-//         { key: "deviceDescription", label: "Description", value: undefined }, 
-//         { key: "deviceId", label: "Device ID", value: undefined }, 
-//         { key: "vendorId", label: "Vendor ID", value: undefined }, 
-//         { key: "vendor", label: "Vendor", value: undefined },
-//         { key: "type", label: "Type", value: "BACnet" }
-//     ]
-// });
-
 
 var _newScan = false;
 var _warnings = {};
@@ -51,7 +26,7 @@ var _keyboard = {
     cmd: null,
     started: false
 };
-var _focusedDevice = null;
+var _focusedDevice = {id: null, address: null};
 
 var _placeHolders = Immutable.List([ [
     {"key": "Point_Name", "value": "", "editable": true},
@@ -1101,84 +1076,15 @@ devicesStore.getKeyboard = function (deviceId) {
     return keyboard;
 }
 
-devicesStore.deviceHasFocus = function (deviceId) {
-    return _focusedDevice === deviceId;
+devicesStore.deviceHasFocus = function (deviceId, deviceAddress) {
+    return (_focusedDevice.id === deviceId && _focusedDevice.address === deviceAddress);
 }
 
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
     switch (action.type) {
-        // case ACTION_TYPES.HANDLE_KEY_DOWN:
-            
-        //     if (_devices.length)
-        //     {
-        //         var keydown = action.keydown;
-
-        //         var emitKeyboard = function (keyboard)
-        //         {
-        //             devicesStore.emitChange();
-        //         }
-
-        //         switch (keydown.which)
-        //         {
-        //             case 17: // control
-
-        //                 if (!_keyboard.started)
-        //                 {
-        //                     if (_keyboard.device === null)
-        //                     {
-        //                         var focusedDevice = _devices.find(function (device) {
-        //                             return (device.registryConfig.length > 0);
-        //                         });
-
-        //                         _keyboard.device = focusedDevice.id;
-        //                     }
-
-        //                     if (_keyboard.device !== null)
-        //                     {
-        //                         _keyboard.active = true;
-        //                         _keyboard.cmd = "start";
-        //                         _keyboard.started = true;
-
-        //                         emitKeyboard(_keyboard);
-        //                     }
-        //                 }
-        //                 else
-        //                 {
-        //                     _keyboard.cmd = "resume";
-        //                     emitKeyboard(_keyboard);
-        //                 }
-        //                 break;
-        //             case 27: // ESC
-        //                 _keyboard.active = false;
-        //                 _keyboard.cmd = null;
-        //                 _keyboard.started = false;
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //             case 13: // Enter
-        //                 _keyboard.cmd = "enter";
-        //                 _keyboard.active = false;
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //             // case 9:    //Tab
-        //             case 32:    //Space
-        //             case 40:    //Down
-        //                 _keyboard.cmd = (keydown.shiftKey ? "extend_down" : "down");
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //             case 38:    //Up
-        //                 _keyboard.cmd = (keydown.shiftKey ? "extend_up" : "up");
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //             case 46:    //Delete
-        //                 _keyboard.cmd = "delete";
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //         }
-        //     }
-            
-        //     break;
+        
         case ACTION_TYPES.CONFIGURE_DEVICES:
             _platform = action.platform;
             _devices = [];
@@ -1186,11 +1092,18 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.ADD_DEVICES:
-        case ACTION_TYPES.CANCEL_SCANNING:
             _action = "get_scan_settings";
             _view = "Detect Devices";
             _device = null;
             devicesStore.emitChange();
+            break;
+        case ACTION_TYPES.CANCEL_SCANNING:
+            // _action = "get_scan_settings";
+            // _view = "Detect Devices";
+            // devicesWs.close();
+            // devicesWs = null;
+
+            // devicesStore.emitChange();
             break;
         case ACTION_TYPES.LISTEN_FOR_IAMS:
             _newScan = false;
@@ -1204,19 +1117,12 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             if (!objectIsEmpty(warning))
             {
-                if (_warnings.hasOwnProperty(warning.key))
-                {
-                    _warnings[warning.key].items.push(warning.value);
-                }
-                else
-                {
-                    _warnings[warning.key] = {
-                        message: warning.message,
-                        items: [
-                            warning.value
-                        ]
-                    };
-                }
+                statusIndicatorActionCreators.openStatusIndicator(
+                    "error", 
+                    warning.message + "ID: " + warning.value, 
+                    warning.value, 
+                    "left"
+                );
             }
 
             if (_devices.length)
@@ -1254,9 +1160,10 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             if (focusedDevice)
             {
-                if (_focusedDevice !== focusedDevice.id)
+                if (_focusedDevice.id !== focusedDevice.id || _focusedDevice.address !== focusedDevice.address)
                 {
-                    _focusedDevice = focusedDevice.id
+                    _focusedDevice.id = focusedDevice.id;
+                    _focusedDevice.address = focusedDevice.address;
 
                     devicesStore.emitChange();
                 }
@@ -1562,7 +1469,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         return Object.keys(obj).length === 0;
     }
 
-    function loadDevice(data, platform, bacnetIdentity) 
+    function loadDevice(data, platformUuid, bacnetIdentity) 
     {
         var warningMsg = {};
 
@@ -1605,7 +1512,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                         segmentation_supported: device.segmentation_supported,
                         showPoints: false,
                         configuring: false,
-                        platformUuid: platform.uuid,
+                        platformUuid: platformUuid,
                         bacnetProxyIdentity: bacnetIdentity,
                         registryConfig: [],
                         keyProps: ["volttron_point_name", "units", "writable"],
