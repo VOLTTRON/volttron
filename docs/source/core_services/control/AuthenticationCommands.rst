@@ -47,7 +47,7 @@ An authentication record consist of following parameters
     capabilities (delimit multiple entries with comma) []: Array of strings referring to authorized capabilities defined by exported RPC methods
     roles (delimit multiple entries with comma) []:
     groups (delimit multiple entries with comma) []:
-    mechanism [NULL]: PLAIN or CURVE
+    mechanism [CURVE]:
     credentials []: Public key string for the agent
     comments []:
     enabled [True]:
