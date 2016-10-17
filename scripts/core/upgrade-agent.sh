@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 if [ -z "$VOLTTRON_HOME" ]; then
-  VOLTTRON_HOME=$HOME/.volttron
+  export VOLTTRON_HOME=$HOME/.volttron
   echo "VOLTTRON_HOME UNSET using default $VOLTTRON_HOME";
 fi
 
@@ -66,6 +66,8 @@ if [ ! -e "$WHEEL" ]; then
   echo "There maybe an issue with the code."
   exit 0
 fi
+
+volttron-pkg configure "$WHEEL" "$2"
 
 volttron-ctl upgrade "$AGENT_VIP_IDENTITY" "$WHEEL" --tag="$TAG"
 
