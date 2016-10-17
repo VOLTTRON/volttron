@@ -55,17 +55,15 @@
 
 from __future__ import absolute_import
 
-import logging
-import sys
-import gevent
 import datetime
+import logging
 import time
 
-from volttron.platform.jsonrpc import RemoteError
-from volttron.platform.vip.connection import Connection
-from volttron.platform.vip.agent import Agent, Core, PubSub, Unreachable
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL
+from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.vip.agent import Agent, Core, PubSub, Unreachable
+from volttron.platform.vip.agent.connection import Connection
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

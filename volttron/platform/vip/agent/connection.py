@@ -63,6 +63,7 @@ import os
 import gevent
 
 from volttron import platform
+from volttron.platform import get_home
 from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.vip.agent import Agent
 from volttron.platform.web import build_vip_address_string
@@ -81,8 +82,7 @@ class Connection(object):
 
     """
     def __init__(self, address, peer=None, publickey=None,
-                 secretkey=None, serverkey=None, volttron_home=None,
-                 developer_mode=False):
+                 secretkey=None, serverkey=None, volttron_home=None, **kwargs):
         _log.debug("Connection: {}, {}, {}, {}, {}"
                    .format(address, peer, publickey, secretkey, serverkey))
         self._address = address
@@ -121,9 +121,8 @@ class Connection(object):
             else:
                 raise AttributeError(
                     'Invalid address type specified. ipc or tcp accepted.')
-        self._server = Agent(address=full_address, identity=str(uuid.uuid4()),
-                             volttron_home=self.volttron_home,
-                             developer_mode=developer_mode)
+        self._server = Agent(address=full_address,
+                             volttron_home=self.volttron_home, **kwargs)
         self._greenlet = None
         self._connected_since = None
         self._last_publish = None

@@ -76,43 +76,39 @@ instance with VCA.
    to VCA after being deployed.
    
 """
-import uuid
-from collections import defaultdict
-from copy import deepcopy
 import errno
 import logging
 import os
 import os.path as p
 import sys
+import uuid
+from collections import defaultdict
+from copy import deepcopy
 from urlparse import urlparse
 
 import gevent
-from abc import ABCMeta
-
 from authenticate import Authenticate
 from sessions import SessionHandler
-from volttron.platform.vip.connection import Connection
-from volttron.utils.persistance import load_create_store
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
-from volttron.platform.agent.utils import (
-    get_aware_utc_now, format_timestamp, parse_timestamp_string)
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, MASTER_WEB,
     PLATFORM_HISTORIAN)
-from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.agent.utils import (
+    get_aware_utc_now, format_timestamp)
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
-    UNABLE_TO_REGISTER_INSTANCE, DISCOVERY_ERROR,
+    DISCOVERY_ERROR,
     UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM, INVALID_PARAMS,
-    UNAVAILABLE_AGENT, json_error)
-from volttron.platform.messaging.health import UNKNOWN_STATUS, Status, \
+    UNAVAILABLE_AGENT)
+from volttron.platform.messaging.health import Status, \
     BAD_STATUS
 from volttron.platform.vip.agent import Agent, RPC, PubSub, Core, Unreachable
+from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems import query
-from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
+from volttron.utils.persistance import load_create_store
 from zmq.utils import jsonapi
 
 __version__ = "3.5.4"
