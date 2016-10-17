@@ -423,6 +423,8 @@ def filter_agent(agents, pattern, opts):
 def upgrade_agent(opts):
     publickey = None
     secretkey = None
+    add_auth = False
+
     identity = opts.vip_identity
     if not identity:
         raise ValueError("Missing required VIP IDENTITY option")
@@ -440,8 +442,13 @@ def upgrade_agent(opts):
         _stdout.write(('Could not find agent with VIP IDENTITY "{}". '
                        'Installing as new agent\n').format(identity))
 
+    if secretkey is None or publickey is None:
+        publickey = None
+        secretkey = None
+        add_auth = True
+
     install_agent(opts, publickey=publickey, secretkey=secretkey,
-                  add_auth=False)
+                  add_auth=add_auth)
 
 
 def install_agent(opts, publickey=None, secretkey=None, add_auth=True):
