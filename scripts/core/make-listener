@@ -1,5 +1,27 @@
-export SOURCE=examples/ListenerAgent/ 
-export CONFIG=examples/ListenerAgent/config 
+#!/usr/bin/env bash
+
+# Build a temp file string for use with the configuration
+export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
+
+# Put contents of the config file in between the EOL markers.
+cat > $CONFIG <<EOL
+{
+    # log-level can be DEBUG, INFO, WARN or ERROR
+    # verbosity is decreased from left to right above
+    # default: INFO
+    "log-level": "INFO",
+
+    # This will be printed in the context of the heartbeat.
+    "message": "hello",
+
+    # The heartbeat period in seconds to print a message for knowing the
+    # agent is still working.
+    # Note: 0 for no heartbeat
+    "heartbeat_period": 10
+}
+EOL
+
+export SOURCE=examples/ListenerAgent/
 export TAG=listener
 
 # Uncomment this to set the identity of the agent. Overrides the platform default identity and the agent's
@@ -10,3 +32,6 @@ export TAG=listener
 
 # To set the agent to autostart with the platform, pass "enable" 
 # to make-agent.sh: ./scripts/core/make-agent.sh enable
+
+# Finally remove the temporary config file
+rm $CONFIG
