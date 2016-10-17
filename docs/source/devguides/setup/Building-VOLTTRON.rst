@@ -63,13 +63,13 @@ From the volttron directory:
     volttron-pkg package examples/ListenerAgent
 
     # Set the agent's configuration file
-    volttron-pkg configure ~/.volttron/packaged/listeneragent-3.0-py2-none-any.whl examples/ListenerAgent/config
+    volttron-pkg configure ~/.volttron/packaged/listeneragent-3.2-py2-none-any.whl examples/ListenerAgent/config
 
     # Install the agent (volttron must be running):
-    volttron-ctl install ~/.volttron/packaged/listeneragent-3.0-py2-none-any.whl
+    volttron-ctl install ~/.volttron/packaged/listeneragent-3.2-py2-none-any.whl
 
     # Start the agent:
-    volttron-ctl start --name listeneragent-3.0
+    volttron-ctl start --name listeneragent-3.2
 
     # Verify the agent has started
     volttron-ctl status
@@ -79,7 +79,7 @@ From the volttron directory:
     cat volttron.log
 
     # Stop the agent
-    volttron-ctl stop --name listeneragent-3.0
+    volttron-ctl stop --name listeneragent-3.2
 
 
     # -- or --
