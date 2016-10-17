@@ -67,9 +67,6 @@ if [ ! -e "$WHEEL" ]; then
   exit 0
 fi
 
-# Attempt to remove the agent by the tag.
-SCRIPTS_CORE="./scripts/core"
-
 volttron-ctl upgrade "$AGENT_VIP_IDENTITY" "$WHEEL" --tag="$TAG"
 
 if [ -z "$NO_START" ]; then
