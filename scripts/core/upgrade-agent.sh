@@ -35,10 +35,7 @@ echo "Using VIP_ADDRESS: $VIP_ADDRESS";
 COMMAND="volttron-ctl"
 
 START="$COMMAND start --tag $TAG $COMMAND_ARGS"
-STOP="$COMMAND stop --tag $TAG $COMMAND_ARGS"
-REMOVE="$COMMAND remove --tag $TAG $COMMAND_ARGS"
 ENABLE="$COMMAND enable --tag $TAG $COMMAND_ARGS"
-DISABLE="$COMMAND disable --tag $TAG $COMMAND_ARGS"
 
 if [ ! -e "./volttron/platform" ]; then
     echo "Please execute from root of volttron repository."
@@ -58,13 +55,15 @@ if [ -z "$CONFIG" ]; then
 fi
 
 # Attempt to package the wheel file.
-WHEEL=$(volttron-pkg package $1 | awk -F": " '{ print $2 }')
+WHEEL=$(volttron-pkg package $SOURCE | awk -F": " '{ print $2 }')
 
 #Remove newlines
 WHEEL=${WHEEL//$'\n'/}
 
 if [ ! -e "$WHEEL" ]; then
-  echo "Unable to build wheel file\n$WHEEL\nThere maybe an issue with the code."
+  echo "Unable to build wheel file"
+  echo "$WHEEL"
+  echo "There maybe an issue with the code."
   exit 0
 fi
 

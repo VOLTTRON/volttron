@@ -33,7 +33,7 @@ export AGENT_VIP_IDENTITY="listeneragent-3.2_1"
 # Add NO_START parameter if the agent shouldn't start
 # export NO_START=1
 
-./scripts/core/make-agent.sh 
+./scripts/core/upgrade-agent.sh
 
 # To set the agent to autostart with the platform, pass "enable" 
 # to make-agent.sh: ./scripts/core/make-agent.sh enable
