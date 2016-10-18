@@ -70,7 +70,7 @@ from volttron.platform.dbutils import mongoutils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '0.1'
+__version__ = '1.0'
 
 
 def historian(config_path, **kwargs):
