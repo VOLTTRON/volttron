@@ -290,29 +290,31 @@ var devicesActionCreators = {
     },
     deviceMessageReceived: function deviceMessageReceived(data, platform, bacnet) {
 
-        var device = JSON.parse(data);
+        if (data) {
+            var device = JSON.parse(data);
 
-        if (device.hasOwnProperty("status")) {
-            if (device.status === "FINISHED IAM") {
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.DEVICE_SCAN_FINISHED
-                });
-            }
-        } else {
-            var result = checkDevice(device, platform, bacnet);
-
-            if (!objectIsEmpty(result)) {
-                if (!objectIsEmpty(result.warning)) {
-                    statusIndicatorActionCreators.openStatusIndicator("error", result.warning.message + "ID: " + result.warning.value, result.warning.value, "left");
-                }
-
-                if (!objectIsEmpty(result.device)) {
+            if (device.hasOwnProperty("status")) {
+                if (device.status === "FINISHED IAM") {
                     dispatcher.dispatch({
-                        type: ACTION_TYPES.DEVICE_DETECTED,
-                        platform: platform,
-                        bacnet: bacnet,
-                        device: result.device
+                        type: ACTION_TYPES.DEVICE_SCAN_FINISHED
                     });
+                }
+            } else {
+                var result = checkDevice(device, platform, bacnet);
+
+                if (!objectIsEmpty(result)) {
+                    if (!objectIsEmpty(result.warning)) {
+                        statusIndicatorActionCreators.openStatusIndicator("error", result.warning.message + "ID: " + result.warning.value, result.warning.value, "left");
+                    }
+
+                    if (!objectIsEmpty(result.device)) {
+                        dispatcher.dispatch({
+                            type: ACTION_TYPES.DEVICE_DETECTED,
+                            platform: platform,
+                            bacnet: bacnet,
+                            device: result.device
+                        });
+                    }
                 }
             }
         }
@@ -480,15 +482,21 @@ function checkDevice(device, platformUuid, bacnetIdentity) {
 
         if (alreadyInList) {
             if (alreadyInList.address !== device.address) {
-                result.warning = {
-                    key: "duplicate_id",
-                    message: "Duplicate device IDs found. Your network may not be set up correctly. ",
-                    value: deviceIdStr
-                };
-            } else // If the IDs are the same and the addresses are the same, assume
-                {
-                    // it's an IAM for a device we already know about
+                // If there are multiple devices with same ID, see if there's another one
+                // with this same address
+                var sameDevice = devicesStore.getDeviceRef(deviceIdStr, device.address);
 
+                if (sameDevice) {
+                    addDevice = false;
+                } else {
+                    result.warning = {
+                        key: "duplicate_id",
+                        message: "Duplicate device IDs found. Your network may not be set up correctly. ",
+                        value: deviceIdStr
+                    };
+                }
+            } else // Same ID and same address means the device is already in the list, so don't add it
+                {
                     addDevice = false;
                 }
         }
@@ -2282,10 +2290,12 @@ var ConfigureDevices = function (_BaseComponent) {
 
             if (devicesStore.getNewScan()) {
                 this.setState(getInitialState());
-            } else if (devicesStore.getScanningComplete()) {
-                this._cancelScan();
             } else {
                 this.setState({ devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyIdentity) });
+
+                if (devicesStore.getScanningComplete() && this.state.scanning) {
+                    this._cancelScan();
+                }
             }
         }
     }, {
@@ -11612,7 +11622,7 @@ devicesStore.getDeviceRef = function (deviceId, deviceAddress) {
         return dvc.id === deviceId && dvc.address === deviceAddress;
     });
 
-    return device;
+    return typeof device === "undefined" ? null : device;
 };
 
 devicesStore.getDevice = function (deviceId, deviceAddress) {

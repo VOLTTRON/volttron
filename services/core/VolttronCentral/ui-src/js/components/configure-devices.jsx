@@ -51,13 +51,14 @@ class ConfigureDevices extends BaseComponent {
         {
             this.setState(getInitialState());
         }
-        else if (devicesStore.getScanningComplete())
-        {
-            this._cancelScan();
-        }
-        else
+        else 
         {
             this.setState({devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyIdentity)});
+
+            if (devicesStore.getScanningComplete() && this.state.scanning)
+            {
+                this._cancelScan();
+            }
         }
     }
     _onDeviceMethodChange(selection) {

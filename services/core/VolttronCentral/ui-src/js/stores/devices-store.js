@@ -1044,7 +1044,7 @@ devicesStore.getDeviceRef = function (deviceId, deviceAddress) {
         return ((dvc.id === deviceId) && (dvc.address === deviceAddress));
     });
 
-    return device;
+    return (typeof device === "undefined" ? null : device);
 }
 
 devicesStore.getDevice = function (deviceId, deviceAddress) {
