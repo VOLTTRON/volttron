@@ -3,10 +3,22 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-|VOLTTRON Logo|
+
 
 Welcome to VOLTTRON's documentation!
 ====================================
+
+|VOLTTRON Tagline|
+
+
+VOLTTRON(TM) is an open source platform for distributed sensing and control. The platform provides services
+for collecting and storing data from buildings and devices and provides an environment for developing applications
+which interact with that data.
+
+Quick links
+----------
+If you are interested in learning more, you can find an overview here
+
 
 
 Contents:
@@ -50,4 +62,7 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+
+
 .. |VOLTTRON Logo| image:: images/volttron-webimage.jpg
+.. |VOLTTRON Tagline| image:: images/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png
