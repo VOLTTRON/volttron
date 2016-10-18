@@ -55,17 +55,15 @@
 
 from __future__ import absolute_import
 
-import logging
-import sys
-import gevent
 import datetime
+import logging
 import time
 
-from volttron.platform.jsonrpc import RemoteError
-from volttron.platform.vip.connection import Connection
-from volttron.platform.vip.agent import Agent, Core, PubSub, Unreachable
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL
+from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.vip.agent import Agent, Core, PubSub, Unreachable
+from volttron.platform.vip.agent.connection import Connection
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -102,13 +100,13 @@ class FailoverAgent(Agent):
         self.heartbeat_period = config["heartbeat_period"]
         self.timeout = config["timeout"]
 
-        self.vc_timeout = 0
-        self.remote_timeout = 0
+        self.vc_timeout = self.timeout
+        self.remote_timeout = self.timeout
         self.agent_uuid = None
         self.heartbeat = None
         self.last_connected = None
 
-        self._state = False, False
+        self._state = True, True
         self._state_machine = getattr(self, self.agent_id + '_state_machine')
 
     @Core.receiver("onstart")

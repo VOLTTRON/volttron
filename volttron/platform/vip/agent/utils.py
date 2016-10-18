@@ -60,11 +60,23 @@ import os
 
 import gevent
 
+from volttron.platform import get_address
 from volttron.platform.agent import utils
+from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent import Agent
+from volttron.platform.vip.agent.connection import Connection
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
+ks = KeyStore()
+
+
+def build_connection(identity, peer='', address=get_address(),
+                     publickey=ks.public, secretkey=ks.secret, **kwargs):
+    cn = Connection(address=address, identity=identity, peer=peer,
+                    publickey=publickey, secretkey=secretkey, **kwargs)
+    return cn
 
 
 def build_agent(address=None, identity=None, publickey=None, secretkey=None,

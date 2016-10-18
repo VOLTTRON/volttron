@@ -10,8 +10,7 @@ from datetime import datetime
 
 import gevent
 import pytest
-from volttron.platform.agent.utils import (get_aware_utc_now,
-                                           format_timestamp)
+from volttron.platform.agent.utils import (get_aware_utc_now, format_timestamp)
 from volttron.platform.messaging import headers as headers_mod
 
 try:
@@ -25,11 +24,9 @@ from fixtures import (ALL_TOPIC, BASE_ANALYSIS_TOPIC, BASE_DEVICE_TOPIC,
                       mongo_connection_params, mongo_agent_config,
                       mongo_connection_string)
 
-query_points = {
-    "oat_point": "Building/LAB/Device/OutsideAirTemperature",
-    "mixed_point": "Building/LAB/Device/MixedAirTemperature",
-    "damper_point": "Building/LAB/Device/DamperSignal"
-}
+query_points = {"oat_point": "Building/LAB/Device/OutsideAirTemperature",
+                "mixed_point": "Building/LAB/Device/MixedAirTemperature",
+                "damper_point": "Building/LAB/Device/DamperSignal"}
 
 
 def clean_db(client):
@@ -45,10 +42,7 @@ pymongo_mark = pytest.mark.skipif(not HAS_PYMONGO,
 CLEANUP_CLIENT = True
 
 
-@pytest.fixture(scope="function",
-                params=[
-                    pymongo_mark(mongo_agent_config)
-                ])
+@pytest.fixture(scope="function", params=[pymongo_mark(mongo_agent_config)])
 def database_client(request):
     print('connecting to mongo database')
     client = pymongo.MongoClient(mongo_connection_string())
@@ -67,10 +61,8 @@ def database_client(request):
 
 def install_historian_agent(volttron_instance, config_file):
     agent_uuid = volttron_instance.install_agent(
-        agent_dir="services/core/MongodbHistorian",
-        config_file=config_file,
-        start=True,
-        vip_identity="platform.historian")
+        agent_dir="services/core/MongodbHistorian", config_file=config_file,
+        start=True, vip_identity="platform.historian")
     return agent_uuid
 
 
@@ -115,12 +107,12 @@ def database_name(request):
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_can_connect(database_client):
-    ''' Tests whether we can connect to the mongo database at all.
+    """ Tests whether we can connect to the mongo database at all.
 
     Test that we can read/write data on the database while we are at it.  This
     test assumes that the same information that is used in the mongodbhistorian
     will be able to used in this test.
-    '''
+    """
     db = database_client[mongo_connection_params()['database']]
     result = db.test.insert_one({'x': 1})
     assert result > 0
@@ -178,7 +170,7 @@ def test_can_connect(database_client):
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_two_hours_of_publishing(request, volttron_instance, database_client):
+def test_two_hours_of_publishing(volttron_instance, database_client):
     clean_db(database_client)
     # Install the historian agent (after this call the agent should be running
     # on the platform).
@@ -251,24 +243,22 @@ def publish_minute_data_for_two_hours(agent):
                 'OutsideAirTemperature': oat_reading,
                 'MixedAirTemperature': mixed_reading,
                 'DamperSignal': damper_reading},
-                {'OutsideAirTemperature':
-                    {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-                 'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
-                                         'type': 'float'},
-                 'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
-                 }]
+                {
+                'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                          'type': 'float'},
+                'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                        'type': 'float'},
+                'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
+                }]
 
             now_iso_string = format_timestamp(now)
             data_by_time[now_iso_string] = {
                 "oat_point": oat_reading,
                 "mixed_point": mixed_reading,
-                "damper_point": damper_reading
-            }
+                "damper_point": damper_reading}
 
             # now = '2015-12-02T00:00:00'
-            headers = {
-                headers_mod.DATE: now_iso_string
-            }
+            headers = {headers_mod.DATE: now_iso_string}
 
             # Publish messages
             agent.vip.pubsub.publish(
@@ -284,7 +274,7 @@ def publish_minute_data_for_two_hours(agent):
 
 
 def publish_fake_data(agent):
-    '''
+    """
     Publishes an all message to the passed instances of volttron's message bus.
 
     The format mimics the format used by VOLTTRON drivers. Uses the passed
@@ -297,7 +287,7 @@ def publish_fake_data(agent):
             "mixed_reading": number,
             "damper_reading": number
         }
-    '''
+    """
 
     except_all = ALL_TOPIC[:ALL_TOPIC.rindex('/')]
 
@@ -309,14 +299,13 @@ def publish_fake_data(agent):
     # Create a message for all points.
     all_message = [{'OutsideAirTemperature': oat_reading,
                     'MixedAirTemperature': mixed_reading,
-                    'DamperSignal': damper_reading},
-                   {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
-                                              'type': 'float'},
-                    'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
-                                            'type': 'float'},
-                    'DamperSignal': {'units': '%', 'tz': 'UTC',
-                                     'type': 'float'}
-                    }]
+                    'DamperSignal': damper_reading}, {
+                       'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                                 'type': 'float'},
+                       'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                               'type': 'float'},
+                       'DamperSignal': {'units': '%', 'tz': 'UTC',
+                                        'type': 'float'}}]
 
     # Create timestamp (no parameter to isoformat so the result is a T
     # separator) The now value is a string after this function is called.
@@ -328,22 +317,16 @@ def publish_fake_data(agent):
     print('NOW IS: ', now)
 
     # now = '2015-12-02T00:00:00'
-    headers = {
-        headers_mod.DATE: now.isoformat()
-    }
+    headers = {headers_mod.DATE: now.isoformat()}
 
     # Publish messages
-    agent.vip.pubsub.publish(
-        'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
+    agent.vip.pubsub.publish('pubsub', ALL_TOPIC, headers, all_message).get(
+        timeout=10)
 
     # The keys for these should be the exact same that are in the query_points
     # dictionary.
-    return {
-        "datetime": now,
-        "oat_point": oat_reading,
-        "mixed_point": mixed_reading,
-        "damper_point": damper_reading
-    }
+    return {"datetime": now, "oat_point": oat_reading,
+            "mixed_point": mixed_reading, "damper_point": damper_reading}
 
 
 @pytest.mark.historian
@@ -352,9 +335,9 @@ def publish_fake_data(agent):
 def test_insert_duplicate(volttron_instance, database_client):
     clean_db(database_client)
     data_collection = database_client.get_default_database()['data']
-    index_model = pymongo.IndexModel([("topic_id", pymongo.DESCENDING),
-                                      ("ts", pymongo.DESCENDING)],
-                                     unique=True)
+    index_model = pymongo.IndexModel(
+        [("topic_id", pymongo.DESCENDING), ("ts", pymongo.DESCENDING)],
+        unique=True)
     # make sure the data collection has the unique constraint.
     data_collection.create_indexes([index_model])
     # Install the historian agent (after this call the agent should be running
@@ -367,9 +350,9 @@ def test_insert_duplicate(volttron_instance, database_client):
     try:
 
         oat_reading = random.uniform(30, 100)
-        all_message = [{'OutsideAirTemperature': oat_reading},
-                       {'OutsideAirTemperature':
-                       {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+        all_message = [{'OutsideAirTemperature': oat_reading}, {
+            'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                      'type': 'float'}}]
 
         publisher = volttron_instance.build_agent()
         # Create timestamp (no parameter to isoformat so the result is a T
@@ -382,9 +365,7 @@ def test_insert_duplicate(volttron_instance, database_client):
         print('NOW IS: ', now)
 
         # now = '2015-12-02T00:00:00'
-        headers = {
-            headers_mod.DATE: now.isoformat()
-        }
+        headers = {headers_mod.DATE: now.isoformat()}
 
         # Publish messages
         publisher.vip.pubsub.publish(
@@ -403,13 +384,11 @@ def test_insert_duplicate(volttron_instance, database_client):
 def publish_data(publisher, topic, message, now=None):
     if now is None:
         now = datetime.now()
-    headers = {
-        headers_mod.DATE: now.isoformat()
-    }
+    headers = {headers_mod.DATE: now.isoformat()}
 
     # Publish messages
-    publisher.vip.pubsub.publish(
-        'pubsub', topic, headers, message).get(timeout=10)
+    publisher.vip.pubsub.publish('pubsub', topic, headers, message).get(
+        timeout=10)
 
     gevent.sleep(0.5)
     return now
@@ -425,9 +404,8 @@ def test_analysis_topic(volttron_instance, database_client):
     try:
         publisher = volttron_instance.build_agent()
         oat_reading = random.uniform(30, 100)
-        message = [{'FluffyWidgets': oat_reading},
-                   {'FluffyWidgets':
-                    {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+        message = [{'FluffyWidgets': oat_reading}, {
+            'FluffyWidgets': {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
         publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC, message)
         gevent.sleep(0.1)
@@ -439,8 +417,7 @@ def test_analysis_topic(volttron_instance, database_client):
         assert len(topic_list) == 1
         assert 'FluffyWidgets' in topic_list[0]
 
-        result = lister.vip.rpc.call('platform.historian',
-                                     'query',
+        result = lister.vip.rpc.call('platform.historian', 'query',
                                      topic=BASE_ANALYSIS_TOPIC[
                                            9:] + '/FluffyWidgets').get(
             timeout=5)
@@ -463,9 +440,9 @@ def test_get_topic_map(volttron_instance, database_client):
 
     try:
         oat_reading = random.uniform(30, 100)
-        all_message = [{'OutsideAirTemperature': oat_reading},
-                       {'OutsideAirTemperature':
-                        {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+        all_message = [{'OutsideAirTemperature': oat_reading}, {
+            'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                      'type': 'float'}}]
 
         publisher = volttron_instance.build_agent()
         publisheddt = publish_data(publisher, ALL_TOPIC, all_message)
@@ -491,9 +468,9 @@ def test_get_topic_map(volttron_instance, database_client):
                                 8:] + '/OutsideAirTemperature'
 
         mixed_reading = random.uniform(30, 100)
-        all_message = [{'MixedAirTemperature': mixed_reading},
-                       {'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
-                                                'type': 'float'}}]
+        all_message = [{'MixedAirTemperature': mixed_reading}, {
+            'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                    'type': 'float'}}]
 
         publisheddt = publish_data(publisher, ALL_TOPIC, all_message)
         topic_list = lister.vip.rpc.call('platform.historian',
@@ -514,9 +491,10 @@ def test_basic_function(volttron_instance, database_client):
     Test basic functionality of sql historian. Inserts three points as part
     of all topic and checks
     if all three got into the database
+    :param database_client:
     :param volttron_instance: The instance against which the test is run
     """
-    global query_points, db_connection
+    global query_points
 
     agent_uuid = install_historian_agent(volttron_instance,
                                          mongo_agent_config())
@@ -534,8 +512,7 @@ def test_basic_function(volttron_instance, database_client):
         gevent.sleep(0.5)
 
         # Query the historian
-        result = publish_agent.vip.rpc.call('platform.historian',
-                                            'query',
+        result = publish_agent.vip.rpc.call('platform.historian', 'query',
                                             topic=query_points['oat_point'],
                                             count=20,
                                             order="LAST_TO_FIRST").get(
@@ -544,26 +521,24 @@ def test_basic_function(volttron_instance, database_client):
             result['values'][0][0]
         assert result['values'][0][1] == expected['oat_point']
 
-        result = publish_agent.vip.rpc.call('platform.historian',
-                                            'query',
+        result = publish_agent.vip.rpc.call('platform.historian', 'query',
                                             topic=query_points['mixed_point'],
                                             count=20,
                                             order="LAST_TO_FIRST").get(
             timeout=100)
 
-        assert expected['datetime'].isoformat()[:-3] + '000+00:00' == result[
-            'values'][0][0]
+        assert expected['datetime'].isoformat()[:-3] + '000+00:00' == \
+            result['values'][0][0]
         assert result['values'][0][1] == expected['mixed_point']
 
-        result = publish_agent.vip.rpc.call('platform.historian',
-                                            'query',
+        result = publish_agent.vip.rpc.call('platform.historian', 'query',
                                             topic=query_points['damper_point'],
                                             count=20,
                                             order="LAST_TO_FIRST").get(
             timeout=100)
 
-        assert expected['datetime'].isoformat()[:-3] + '000+00:00' == result[
-            'values'][0][0]
+        assert expected['datetime'].isoformat()[:-3] + '000+00:00' == \
+            result['values'][0][0]
         assert result['values'][0][1] == expected['damper_point']
     finally:
         volttron_instance.stop_agent(agent_uuid)
@@ -584,9 +559,8 @@ def test_topic_name_case_change(volttron_instance, database_client):
     try:
         publisher = volttron_instance.build_agent()
         oat_reading = random.uniform(30, 100)
-        message = [{'FluffyWidgets': oat_reading},
-                   {'FluffyWidgets':
-                    {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+        message = [{'FluffyWidgets': oat_reading}, {
+            'FluffyWidgets': {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
         publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC, message)
         gevent.sleep(0.1)
@@ -598,8 +572,7 @@ def test_topic_name_case_change(volttron_instance, database_client):
         assert len(topic_list) == 1
         assert 'FluffyWidgets' in topic_list[0]
 
-        result = lister.vip.rpc.call('platform.historian',
-                                     'query',
+        result = lister.vip.rpc.call('platform.historian', 'query',
                                      topic=BASE_ANALYSIS_TOPIC[
                                            9:] + '/FluffyWidgets').get(
             timeout=5)
@@ -610,11 +583,9 @@ def test_topic_name_case_change(volttron_instance, database_client):
 
         assert result['values'][0] == [mongoizetimestamp, oat_reading]
 
-        message = [{'Fluffywidgets': oat_reading},
-                   {'Fluffywidgets':
-                    {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
-        publisheddt = publish_data(publisher,
-                                   BASE_ANALYSIS_TOPIC, message)
+        message = [{'Fluffywidgets': oat_reading}, {
+            'Fluffywidgets': {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+        publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC, message)
         gevent.sleep(0.1)
         topic_list = lister.vip.rpc.call('platform.historian',
                                          'get_topic_list').get(timeout=5)
@@ -623,8 +594,7 @@ def test_topic_name_case_change(volttron_instance, database_client):
         assert 'Fluffywidgets' in topic_list[0]
 
         result = lister.vip.rpc.call(
-            'platform.historian',
-            'query',
+            'platform.historian', 'query',
             topic=BASE_ANALYSIS_TOPIC[9:] + '/Fluffywidgets',
             order="LAST_TO_FIRST").get(timeout=5)
         assert result is not None
@@ -653,11 +623,67 @@ def test_empty_result(volttron_instance, database_client):
         lister = volttron_instance.build_agent()
 
         result = lister.vip.rpc.call(
-            'platform.historian',
-            'query',
+            'platform.historian', 'query',
             topic=BASE_ANALYSIS_TOPIC[9:] + '/FluffyWidgets').get(timeout=5)
         print ("query result:", result)
         assert result == {}
+    finally:
+        volttron_instance.stop_agent(agent_uuid)
+        volttron_instance.remove_agent(agent_uuid)
+
+
+@pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_multi_topic(volttron_instance, database_client):
+    """
+    Test basic functionality of sql historian. Inserts three points as part
+    of all topic and checks
+    if all three got into the database
+    :param database_client:
+    :param volttron_instance: The instance against which the test is run
+    """
+    global query_points
+
+    agent_uuid = install_historian_agent(volttron_instance,
+                                         mongo_agent_config())
+
+    try:
+        # print('HOME', volttron_instance.volttron_home)
+        print("\n** test_basic_function **")
+
+        publish_agent = volttron_instance.build_agent()
+
+        # Publish data to message bus that should be recorded in the mongo
+        # database.
+        expected_result = {}
+        values_dict = {query_points['oat_point']: [],
+                       query_points['mixed_point']: []}
+        for x in range(0, 5):
+            expected = publish_fake_data(publish_agent)
+            gevent.sleep(0.5)
+            if x < 3:
+                values_dict[query_points['oat_point']].append(
+                    [expected["datetime"].isoformat()[:-3] + '000+00:00',
+                     expected["oat_point"]])
+                values_dict[query_points['mixed_point']].append(
+                    [expected["datetime"].isoformat()[:-3] + '000+00:00',
+                     expected["mixed_point"]])
+        expected_result["values"] = values_dict
+        expected_result["metadata"] = {}
+
+        # Query the historian
+        result = publish_agent.vip.rpc.call(
+            'platform.historian', 'query',
+            topic=[query_points['mixed_point'], query_points['oat_point']],
+            count=3, order="FIRST_TO_LAST").get(timeout=100)
+
+        # print("expected result {}".format(expected_result))
+        # print("result {}".format(result))
+        assert result["metadata"] == expected_result["metadata"]
+        assert result["values"][query_points['mixed_point']] == \
+            expected_result["values"][query_points['mixed_point']]
+        assert result["values"][query_points['oat_point']] == \
+            expected_result["values"][query_points['oat_point']]
     finally:
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)

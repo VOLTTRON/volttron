@@ -269,7 +269,8 @@ def is_valid_port(port):
 def do_vip():
     global config_opts
 
-    parsed = urlparse.urlparse(config_opts.get('volttron', 'vip-address'))
+    parsed = urlparse.urlparse(config_opts.get('vip-address',
+                                               'tcp://127.0.0.1:22916'))
     vip_address = None
     if parsed.hostname is not None and parsed.scheme is not None:
         vip_address = parsed.scheme + '://' + parsed.hostname
@@ -405,7 +406,8 @@ def do_vcp():
     config_opts['instance-name'] = '"{}"'.format(instance_name)
 
     vc_address = config_opts.get('volttron-central-address',
-                                 config_opts.get('bind-web-address'))
+                                 config_opts.get('bind-web-address',
+                                                 'http://127.0.0.1'))
 
     parsed = urlparse.urlparse(vc_address)
     address_only = vc_address

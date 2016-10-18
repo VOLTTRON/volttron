@@ -211,13 +211,13 @@ class ControlService(BaseAgent):
         return self._aip.tag_agent(uuid, tag)
 
     @RPC.export
-    def remove_agent(self, uuid):
+    def remove_agent(self, uuid, remove_auth=True):
         if not isinstance(uuid, basestring):
             identity = bytes(self.vip.rpc.context.vip_message.peer)
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
-        self._aip.remove_agent(uuid)
+        self._aip.remove_agent(uuid, remove_auth=remove_auth)
 
     @RPC.export
     def prioritize_agent(self, uuid, priority='50'):
@@ -248,18 +248,26 @@ class ControlService(BaseAgent):
         return self._aip.agent_identity(uuid)
 
     @RPC.export
-    def install_agent_local(self, filename, vip_identity=None):
-        return self._aip.install_agent(filename, vip_identity=vip_identity)
+    def install_agent_local(self, filename, vip_identity=None, publickey=None,
+                            secretkey=None, add_auth=True):
+        return self._aip.install_agent(filename, vip_identity=vip_identity,
+                                       publickey=publickey,
+                                       secretkey=secretkey,
+                                       add_auth=add_auth)
 
     @RPC.export
-    def install_agent(self, filename, channel_name, vip_identity=None):
-        """ Installs an agent on the instance instance.
+    def install_agent(self, filename, channel_name, vip_identity=None,
+                      publickey=None, secretkey=None, add_auth=True):
+        """
+        Installs an agent on the instance instance.
 
         The installation of an agent through this method involves sending
         the binary data of the agent file through a channel.  The following
         example is the protocol for sending the agent across the wire:
 
         Example Protocol:
+
+        .. code-block:: python
 
             # client creates channel to this agent (control)
             channel = agent.vip.channel('control', 'channel_name')
@@ -287,11 +295,16 @@ class ControlService(BaseAgent):
             channel.close(linger=0)
             del channel
 
-        @param:string:filename:
+        :param:string:filename:
             The name of the agent packaged file that is being written.
-        @param:string:channel_name:
+        :param:string:channel_name:
             The name of the channel that the agent file will be sent on.
-
+        :param:string:publickey:
+            Encoded public key the installed agent will use
+        :param:string:secretkey:
+            Encoded secret key the installed agent will use
+        :param:bool:add_auth:
+            Add the agent's credentials to the authorized-agent list
         """
 
         peer = bytes(self.vip.rpc.context.vip_message.peer)
@@ -340,7 +353,11 @@ class ControlService(BaseAgent):
                 channel.close(linger=0)
                 del channel
 
-            agent_uuid = self._aip.install_agent(path, vip_identity=vip_identity)
+            agent_uuid = self._aip.install_agent(path,
+                                                 vip_identity=vip_identity,
+                                                 publickey=publickey,
+                                                 secretkey=secretkey,
+                                                 add_auth=add_auth)
             return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
@@ -403,7 +420,38 @@ def filter_agent(agents, pattern, opts):
     return next(filter_agents(agents, [pattern], opts))[1]
 
 
-def install_agent(opts):
+def upgrade_agent(opts):
+    publickey = None
+    secretkey = None
+    add_auth = False
+
+    identity = opts.vip_identity
+    if not identity:
+        raise ValueError("Missing required VIP IDENTITY option")
+
+    identity_to_uuid = opts.aip.get_agent_identity_to_uuid_mapping()
+    agent_uuid = identity_to_uuid.get(identity, None)
+    if agent_uuid:
+        keystore = opts.aip.get_agent_keystore(agent_uuid)
+        publickey = keystore.public
+        secretkey = keystore.secret
+        _stdout.write('Removing previous version of agent "{}"\n'
+                .format(identity))
+        opts.connection.call('remove_agent', agent_uuid, remove_auth=False)
+    else:
+        _stdout.write(('Could not find agent with VIP IDENTITY "{}". '
+                       'Installing as new agent\n').format(identity))
+
+    if secretkey is None or publickey is None:
+        publickey = None
+        secretkey = None
+        add_auth = True
+
+    install_agent(opts, publickey=publickey, secretkey=secretkey,
+                  add_auth=add_auth)
+
+
+def install_agent(opts, publickey=None, secretkey=None, add_auth=True):
     aip = opts.aip
     filename = opts.wheel
     tag = opts.tag
@@ -414,7 +462,10 @@ def install_agent(opts):
         filename = config.expandall(filename)
         agent_uuid = opts.connection.call('install_agent_local',
                                           filename,
-                                          vip_identity=vip_identity)
+                                          vip_identity=vip_identity,
+                                          publickey=publickey,
+                                          secretkey=secretkey,
+                                          add_auth=add_auth)
 
         if tag:
             opts.connection.call('tag_agent', agent_uuid, tag)
@@ -429,7 +480,10 @@ def install_agent(opts):
             agent_uuid = opts.connection.call_no_get('install_agent',
                                                      filename,
                                                      channel_name,
-                                                     vip_identity=vip_identity)
+                                                     vip_identity=vip_identity,
+                                                     publickey=publickey,
+                                                     secretkey=secretkey,
+                                                     add_auth=add_auth)
 
             _log.debug('Sending wheel to control')
             sha512 = hashlib.sha512()
@@ -498,7 +552,7 @@ def tag_agent(opts):
             _stdout.writelines([agent.tag, '\n'])
 
 
-def remove_agent(opts):
+def remove_agent(opts, remove_auth=True):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
@@ -514,7 +568,8 @@ def remove_agent(opts):
             return 10
         for agent in match:
             _stdout.write('Removing {} {}\n'.format(agent.uuid, agent.name))
-            opts.connection.call('remove_agent', agent.uuid)
+            opts.connection.call('remove_agent', agent.uuid,
+                                 remove_auth=remove_auth)
 
 
 def _calc_min_uuid_length(agents):
@@ -735,14 +790,14 @@ def gen_keypair(opts):
             return
     keystore = KeyStore(opts.keystore_file)
     keystore.generate()  # call generate to force new keys to be generated
-    _stdout.write('public key: {}\n'.format(keystore.public()))
+    _stdout.write('public key: {}\n'.format(keystore.public))
     _stdout.write('keys written to {}\n'.format(opts.keystore_file))
 
 
 def add_server_key(opts):
-    store = KnownHostsStore(opts.known_hosts_file)
+    store = KnownHostsStore()
     store.add(opts.host, opts.server_key)
-    _stdout.write('server key written to {}\n'.format(opts.known_hosts_file))
+    _stdout.write('server key written to {}\n'.format(store.filename))
 
 
 def do_stats(opts):
@@ -764,10 +819,19 @@ def do_stats(opts):
 
 
 def show_serverkey(opts):
+    """ 
+    write serverkey to standard out.
+
+    return 0 if success, 1 if false
+    """
     q = Query(opts.connection.server.core)
     pk = q.query('serverkey').get(timeout=2)
     del q
-    return pk
+    if pk is not None:
+        _stdout.write('%s\n' % pk)
+	return 0
+
+    return 1
 
 
 def _get_auth_file(volttron_home):
@@ -1015,7 +1079,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
 def get_agent_publickey(opts):
 
     def get_key(agent):
-        return opts.aip.get_agent_publickey(agent.uuid)
+        return opts.aip.get_agent_keystore(agent.uuid).public
 
     _show_filtered_agents(opts, 'PUBLICKEY', get_key)
 
@@ -1138,11 +1202,11 @@ def priority(value):
 
 def get_keys(opts):
     '''Gets keys from keystore and known-hosts store'''
-    hosts = KnownHostsStore(opts.known_hosts_file)
+    hosts = KnownHostsStore()
     serverkey = hosts.serverkey(opts.vip_address)
-    key_store = KeyStore(opts.keystore_file)
-    publickey = key_store.public()
-    secretkey = key_store.secret()
+    key_store = KeyStore()
+    publickey = key_store.public
+    secretkey = key_store.secret
     return {'publickey': publickey, 'secretkey': secretkey,
             'serverkey': serverkey}
 
@@ -1172,15 +1236,9 @@ def main(argv=sys.argv):
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
-    global_args.add_argument('--keystore-file', metavar='FILE',
-                             help='use keystore from FILE')
-    global_args.add_argument('--known-hosts-file', metavar='FILE',
-                             help='get known-host server keys from FILE')
     global_args.set_defaults(
         vip_address=get_address(),
         timeout=30,
-        keystore_file=os.path.join(volttron_home, 'keystore'),
-        known_hosts_file=os.path.join(volttron_home, 'known_hosts')
     )
 
     filterable = config.ArgumentParser(add_help=False)
@@ -1332,6 +1390,23 @@ def main(argv=sys.argv):
                          help=argparse.SUPPRESS)
     run.set_defaults(func=run_agent)
 
+    upgrade = add_parser('upgrade', help='upgrade agent from wheel',
+                         epilog='Optionally you may specify the --tag argument to tag the '
+                                'agent during upgrade without requiring a separate call to '
+                                'the tag command. ')
+    upgrade.add_argument('vip_identity', metavar='vip-identity',
+            help='VIP IDENTITY of agent to upgrade')
+    upgrade.add_argument('wheel', help='path to new agent wheel')
+    upgrade.add_argument('--tag', help='tag for the upgraded agent')
+    if HAVE_RESTRICTED:
+        upgrade.add_argument('--verify', action='store_true',
+                             dest='verify_agents',
+                             help='verify agent integrity during upgrade')
+        upgrade.add_argument('--no-verify', action='store_false',
+                             dest='verify_agents',
+                             help=argparse.SUPPRESS)
+    upgrade.set_defaults(func=upgrade_agent, verify_agents=True)
+
     auth_cmds = add_parser("auth",
             help="manage authorization entries and encryption keys")
 
@@ -1351,7 +1426,10 @@ def main(argv=sys.argv):
 
     auth_keypair = add_parser('keypair', subparser=auth_subparsers,
             help='generate CurveMQ keys for encrypting VIP connections')
-    auth_keypair.set_defaults(func=gen_keypair)
+    auth_keypair.add_argument('keystore_file', metavar='keystore-file',
+            help='path to save keystore file', nargs='?')
+    auth_keypair.set_defaults(func=gen_keypair,
+            keystore_file=KeyStore.get_default_path())
 
     auth_list = add_parser('list', help='list authentication records',
             subparser=auth_subparsers)
