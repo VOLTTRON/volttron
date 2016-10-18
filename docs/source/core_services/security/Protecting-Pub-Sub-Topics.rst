@@ -1,11 +1,14 @@
-:ref:`VIP-Authorization`
-enables VOLTTRON platform owners to protect pub/sub topics. More
+Protecting Pub/Sub Topics
+========================
+
+VIP :ref:`authorization <VIP-Authorization>` enables 
+VOLTTRON platform owners to protect pub/sub topics. More
 specifically, a platform owner can limit who can publish to a given
 topic. This protects subscribers on that platform from receiving
 messages (on the protected topic) from unauthorized agents.
 
 Example
-=======
+-------
 
 To protect a topic, add the topic name to
 ``$VOLTTRON_HOME/protected_topics.json``. For example, the following
