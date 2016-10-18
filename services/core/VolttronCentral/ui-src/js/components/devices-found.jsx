@@ -29,15 +29,14 @@ class DevicesFound extends BaseComponent {
     componentWillUnmount() {
         // devicesStore.removeChangeListener(this._onStoresChange);
     }
+    _onStoresChange() {
+
+    }
     componentWillReceiveProps(nextProps) {
         if (nextProps.devices !== this.props.devices)
         {
             this.props.devicesloaded(nextProps.devices.length > 0);
         }
-    }
-    
-    _onStoresChange() {
-        
     }
     _configureDevice(device) {
         
@@ -45,11 +44,8 @@ class DevicesFound extends BaseComponent {
 
         device.showPoints = !device.showPoints;
 
-        // Don't set up the socket again if we've already set it up once.
-        // So before setting device.configuring to true, first check
-        // if we're going to show points but haven't started configuring yet.
-        // If so, set up the socket and set configuring to true.
-        if (device.showPoints && !device.configuring)
+        // Don't scan for points again if already scanning
+        if (device.showPoints && !device.configuringStarted)
         {
             var platformAgentUuid = platformsStore.getPlatformAgentUuid(device.platformUuid);
 
@@ -188,17 +184,35 @@ class DevicesFound extends BaseComponent {
 
                     var triggerTooltip = (this.state.triggerTooltip[deviceId] === rowIndex);
 
+                    var configButton;
+
+                    if (!device.configuring)
+                    {
+                        configButton = (
+                            <ControlButton
+                                name={"config-arrow-" + deviceId + "-" + rowIndex}
+                                tooltip={arrowTooltip}
+                                controlclass={ device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow" }
+                                icon="&#9654;"
+                                clickAction={this._configureDevice.bind(this, device)}/>
+                            );
+                    }
+                    else
+                    {
+                        var spinIcon = <span className="configIcon"><i className="fa fa-refresh fa-spin fa-fw"></i></span>;
+
+                        configButton = (
+                            <ControlButton
+                                name={"config-arrow-" + deviceId + "-" + rowIndex}
+                                controlclass="configure-arrow"
+                                icon={spinIcon}/>
+                            );
+                    }
+
                     return (
                         <tr key={deviceId + deviceAddress}>
                             <td key={"config-arrow-" + deviceId + deviceAddress} className="plain">
-
-                                <ControlButton
-                                    name={"config-arrow-" + deviceId + "-" + rowIndex}
-                                    tooltip={arrowTooltip}
-                                    controlclass={ device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow" }
-                                    icon="&#9654;"
-                                    clickAction={this._configureDevice.bind(this, device)}/>
-
+                                {configButton}
                             </td>
 
                             { tds }

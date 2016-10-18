@@ -1148,25 +1148,11 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.POINT_RECEIVED:
             _action = "point_received";
             _view = "Devices Found";
-            var warning = loadPoint(action.data);
-
-            if (!objectIsEmpty(warning))
+            if (loadPoint(action.data))
             {
-                if (_warnings.hasOwnProperty(warning.key))
-                {
-                    _warnings[warning.key].items.push(warning.value);
-                }
-                else
-                {
-                    _warnings[warning.key] = {
-                        message: warning.message,
-                        items: [
-                            warning.value
-                        ]
-                    };
-                }
+                devicesStore.emitChange();
             }
-            devicesStore.emitChange();
+
             break;
             
         case ACTION_TYPES.FOCUS_ON_DEVICE:
@@ -1197,6 +1183,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             {
                 device.showPoints = action.device.showPoints; 
                 device.configuring = action.device.configuring;
+                device.configuringStarted = true;
 
                 if (device.configuring)
                 {
@@ -1418,65 +1405,80 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
     function loadPoint(data) 
     {
-        var warningMsg = {};
+        var emitChange = false;
 
         if (data)
         {
-            console.log(data);
-            var pointData = JSON.parse(data);  
+            // console.log(data);
+            var pointData = JSON.parse(data); 
 
-            if (!pointData.hasOwnProperty("status"))
-            { 
+            // can remove && !pointData.hasProp(device_name) if fix websocket endpoint collision
+            if (pointData.hasOwnProperty("device_id") && (!pointData.hasOwnProperty("device_name")))
+            {
                 var deviceId = pointData.device_id.toString();
                 var deviceAddress = pointData.address;
-                var addPoint = true;
-
                 var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
 
                 if (device)
                 {
-                    var pointInList = device.registryConfig.find(function (point) {
-                        var indexCell = point.find(function (cell) {
-                            return cell.key === "index";
-                        })
+                    if (!pointData.hasOwnProperty("status"))
+                    {  
+                        var pointInList = device.registryConfig.find(function (point) {
+                            var indexCell = point.find(function (cell) {
+                                return cell.key === "index";
+                            })
 
-                        var match = false;
+                            var match = false;
 
-                        if (indexCell)
+                            if (indexCell)
+                            {
+                                match = (indexCell.value === pointData.results.Index);
+                            }
+
+                            return match;
+                        });
+                    
+                        if (typeof pointInList === "undefined") 
                         {
-                            match = (indexCell.value === pointData.results.Index);
-                        }
+                            var newPoint = [];
 
-                        return match;
-                    });
-                
-                    if (typeof pointInList === "undefined") 
+                            for (var key in pointData.results)
+                            {
+                                var cell = {
+                                    key: key.toLowerCase().replace(/ /g, "_"),
+                                    label: key,
+                                    value: (pointData.results[key] === null ? "" : pointData.results[key])
+                                };
+
+                                prepCell(cell);
+
+                                newPoint.push(cell);
+                            }
+
+                            var sortedPoint = sortPointColumns(newPoint);
+                            device.registryConfig.push(sortedPoint);
+                        }
+                    }
+                    else
                     {
-                        var newPoint = [];
-
-                        for (var key in pointData.results)
+                        if (pointData.status === "COMPLETE")
                         {
-                            var cell = {
-                                key: key.toLowerCase().replace(/ /g, "_"),
-                                label: key,
-                                value: (pointData.results[key] === null ? "" : pointData.results[key])
-                            };
+                            console.log(pointData);
+                            // can remove fauxStart if fix false COMPLETE message arriving first
+                            if (device.hasOwnProperty("fauxStart"))
+                            {
+                                device.configuring = false;
+                                emitChange = true;
+                            }
 
-                            prepCell(cell);
-
-                            newPoint.push(cell);
+                            device.fauxStart = true;
                         }
-
-                        var sortedPoint = sortPointColumns(newPoint);
-
-                        // device.registryConfig.push(Immutable.List(sortedPoint));
-                        device.registryConfig.push(sortedPoint);
                     }
                 }
             }
         }
 
-        return warningMsg;
+        return emitChange;
     }
 
     function objectIsEmpty(obj)

@@ -48,11 +48,11 @@ var devicesActionCreators = {
 
         var setUpDevicesSocket = function(platformUuid, bacnetIdentity) {
 
-            if (typeof pointsWs !== "undefined" && pointsWs !== null)
-            {
-                pointsWs.close();
-                pointsWs = null;
-            }
+            // if (typeof pointsWs !== "undefined" && pointsWs !== null)
+            // {
+            //     pointsWs.close();
+            //     pointsWs = null;
+            // }
 
             devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
             if (window.WebSocket) {
@@ -94,7 +94,7 @@ var devicesActionCreators = {
         
     },
     deviceMessageReceived: function (data, platform, bacnet) {
-
+        
         if (data)
         {
             var device = JSON.parse(data);
@@ -102,7 +102,7 @@ var devicesActionCreators = {
             if (device.hasOwnProperty("status"))
             {
                 if (device.status === "FINISHED IAM")
-                {
+                {                    
                     dispatcher.dispatch({
                         type: ACTION_TYPES.DEVICE_SCAN_FINISHED
                     });
@@ -180,11 +180,11 @@ var devicesActionCreators = {
 
         var setUpPointsSocket = function() {
         
-            if (typeof devicesWs !== "undefined" && devicesWs !== null)
-            {
-                devicesWs.close();
-                devicesWs = null;
-            }
+            // if (typeof devicesWs !== "undefined" && devicesWs !== null)
+            // {
+            //     devicesWs.close();
+            //     devicesWs = null;
+            // }
 
             pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
             if (window.WebSocket) {

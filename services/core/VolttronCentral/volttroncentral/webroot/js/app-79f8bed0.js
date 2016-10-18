@@ -249,10 +249,11 @@ var devicesActionCreators = {
 
         var setUpDevicesSocket = function setUpDevicesSocket(platformUuid, bacnetIdentity) {
 
-            if (typeof pointsWs !== "undefined" && pointsWs !== null) {
-                pointsWs.close();
-                pointsWs = null;
-            }
+            // if (typeof pointsWs !== "undefined" && pointsWs !== null)
+            // {
+            //     pointsWs.close();
+            //     pointsWs = null;
+            // }
 
             devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
             if (window.WebSocket) {
@@ -361,10 +362,11 @@ var devicesActionCreators = {
 
         var setUpPointsSocket = function setUpPointsSocket() {
 
-            if (typeof devicesWs !== "undefined" && devicesWs !== null) {
-                devicesWs.close();
-                devicesWs = null;
-            }
+            // if (typeof devicesWs !== "undefined" && devicesWs !== null)
+            // {
+            //     devicesWs.close();
+            //     devicesWs = null;
+            // }
 
             pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
             if (window.WebSocket) {
@@ -5438,15 +5440,15 @@ var DevicesFound = function (_BaseComponent) {
             // devicesStore.removeChangeListener(this._onStoresChange);
         }
     }, {
+        key: '_onStoresChange',
+        value: function _onStoresChange() {}
+    }, {
         key: 'componentWillReceiveProps',
         value: function componentWillReceiveProps(nextProps) {
             if (nextProps.devices !== this.props.devices) {
                 this.props.devicesloaded(nextProps.devices.length > 0);
             }
         }
-    }, {
-        key: '_onStoresChange',
-        value: function _onStoresChange() {}
     }, {
         key: '_configureDevice',
         value: function _configureDevice(device) {
@@ -5455,11 +5457,8 @@ var DevicesFound = function (_BaseComponent) {
 
             device.showPoints = !device.showPoints;
 
-            // Don't set up the socket again if we've already set it up once.
-            // So before setting device.configuring to true, first check
-            // if we're going to show points but haven't started configuring yet.
-            // If so, set up the socket and set configuring to true.
-            if (device.showPoints && !device.configuring) {
+            // Don't scan for points again if already scanning
+            if (device.showPoints && !device.configuringStarted) {
                 var platformAgentUuid = platformsStore.getPlatformAgentUuid(device.platformUuid);
 
                 device.configuring = true;
@@ -5590,18 +5589,35 @@ var DevicesFound = function (_BaseComponent) {
 
                     var triggerTooltip = this.state.triggerTooltip[deviceId] === rowIndex;
 
+                    var configButton;
+
+                    if (!device.configuring) {
+                        configButton = _react2.default.createElement(ControlButton, {
+                            name: "config-arrow-" + deviceId + "-" + rowIndex,
+                            tooltip: arrowTooltip,
+                            controlclass: device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow",
+                            icon: '▶',
+                            clickAction: this._configureDevice.bind(this, device) });
+                    } else {
+                        var spinIcon = _react2.default.createElement(
+                            'span',
+                            { className: 'configIcon' },
+                            _react2.default.createElement('i', { className: 'fa fa-refresh fa-spin fa-fw' })
+                        );
+
+                        configButton = _react2.default.createElement(ControlButton, {
+                            name: "config-arrow-" + deviceId + "-" + rowIndex,
+                            controlclass: 'configure-arrow',
+                            icon: spinIcon });
+                    }
+
                     return _react2.default.createElement(
                         'tr',
                         { key: deviceId + deviceAddress },
                         _react2.default.createElement(
                             'td',
                             { key: "config-arrow-" + deviceId + deviceAddress, className: 'plain' },
-                            _react2.default.createElement(ControlButton, {
-                                name: "config-arrow-" + deviceId + "-" + rowIndex,
-                                tooltip: arrowTooltip,
-                                controlclass: device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow",
-                                icon: '▶',
-                                clickAction: this._configureDevice.bind(this, device) })
+                            configButton
                         ),
                         tds,
                         _react2.default.createElement(
@@ -11724,19 +11740,10 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.POINT_RECEIVED:
             _action = "point_received";
             _view = "Devices Found";
-            var warning = loadPoint(action.data);
-
-            if (!objectIsEmpty(warning)) {
-                if (_warnings.hasOwnProperty(warning.key)) {
-                    _warnings[warning.key].items.push(warning.value);
-                } else {
-                    _warnings[warning.key] = {
-                        message: warning.message,
-                        items: [warning.value]
-                    };
-                }
+            if (loadPoint(action.data)) {
+                devicesStore.emitChange();
             }
-            devicesStore.emitChange();
+
             break;
 
         case ACTION_TYPES.FOCUS_ON_DEVICE:
@@ -11764,6 +11771,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             if (device) {
                 device.showPoints = action.device.showPoints;
                 device.configuring = action.device.configuring;
+                device.configuringStarted = true;
 
                 if (device.configuring) {
                     device.registryConfig = [];
@@ -11959,59 +11967,69 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
     }
 
     function loadPoint(data) {
-        var warningMsg = {};
+        var emitChange = false;
 
         if (data) {
-            console.log(data);
+            // console.log(data);
             var pointData = JSON.parse(data);
 
-            if (!pointData.hasOwnProperty("status")) {
+            // can remove && !pointData.hasProp(device_name) if fix websocket endpoint collision
+            if (pointData.hasOwnProperty("device_id") && !pointData.hasOwnProperty("device_name")) {
                 var deviceId = pointData.device_id.toString();
                 var deviceAddress = pointData.address;
-                var addPoint = true;
-
                 var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
 
                 if (device) {
-                    var pointInList = device.registryConfig.find(function (point) {
-                        var indexCell = point.find(function (cell) {
-                            return cell.key === "index";
+                    if (!pointData.hasOwnProperty("status")) {
+                        var pointInList = device.registryConfig.find(function (point) {
+                            var indexCell = point.find(function (cell) {
+                                return cell.key === "index";
+                            });
+
+                            var match = false;
+
+                            if (indexCell) {
+                                match = indexCell.value === pointData.results.Index;
+                            }
+
+                            return match;
                         });
 
-                        var match = false;
+                        if (typeof pointInList === "undefined") {
+                            var newPoint = [];
 
-                        if (indexCell) {
-                            match = indexCell.value === pointData.results.Index;
+                            for (var key in pointData.results) {
+                                var cell = {
+                                    key: key.toLowerCase().replace(/ /g, "_"),
+                                    label: key,
+                                    value: pointData.results[key] === null ? "" : pointData.results[key]
+                                };
+
+                                prepCell(cell);
+
+                                newPoint.push(cell);
+                            }
+
+                            var sortedPoint = sortPointColumns(newPoint);
+                            device.registryConfig.push(sortedPoint);
                         }
+                    } else {
+                        if (pointData.status === "COMPLETE") {
+                            console.log(pointData);
+                            // can remove fauxStart if fix false COMPLETE message arriving first
+                            if (device.hasOwnProperty("fauxStart")) {
+                                device.configuring = false;
+                                emitChange = true;
+                            }
 
-                        return match;
-                    });
-
-                    if (typeof pointInList === "undefined") {
-                        var newPoint = [];
-
-                        for (var key in pointData.results) {
-                            var cell = {
-                                key: key.toLowerCase().replace(/ /g, "_"),
-                                label: key,
-                                value: pointData.results[key] === null ? "" : pointData.results[key]
-                            };
-
-                            prepCell(cell);
-
-                            newPoint.push(cell);
+                            device.fauxStart = true;
                         }
-
-                        var sortedPoint = sortPointColumns(newPoint);
-
-                        // device.registryConfig.push(Immutable.List(sortedPoint));
-                        device.registryConfig.push(sortedPoint);
                     }
                 }
             }
         }
 
-        return warningMsg;
+        return emitChange;
     }
 
     function objectIsEmpty(obj) {
