@@ -227,4 +227,6 @@ class Connection(object):
 
     def kill(self, *args, **kwargs):
         if self._greenlet is not None:
+            if self.is_connected():
+                self._server.core.stop()
             self._greenlet.kill(*args, **kwargs)
