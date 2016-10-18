@@ -975,7 +975,7 @@ var vendorTable = {
     "931": "ODIN Automation Systems, LLC",
     "932": "Belparts NV",
     "999": "Reserved for ASHRAE"
-  };
+};
 
 
 devicesStore.getState = function () {
@@ -1081,6 +1081,10 @@ devicesStore.deviceHasFocus = function (deviceId, deviceAddress) {
     return (_focusedDevice.id === deviceId && _focusedDevice.address === deviceAddress);
 }
 
+devicesStore.getScanningComplete = function () {
+    return (_scanningComplete);
+}
+
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
@@ -1109,6 +1113,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             break;
         case ACTION_TYPES.LISTEN_FOR_IAMS:
             _newScan = false;
+            _scanningComplete = false;
             _warnings = {};
             devicesStore.emitChange();
             break;

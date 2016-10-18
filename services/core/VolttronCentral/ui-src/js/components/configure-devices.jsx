@@ -30,11 +30,6 @@ class ConfigureDevices extends BaseComponent {
     componentWillUnmount() {
         platformsStore.removeChangeListener(this._onPlatformStoresChange);
         devicesStore.removeChangeListener(this._onDevicesStoresChange);
-
-        if (this._scanTimeout)
-        {
-            clearTimeout(this._scanTimeout);    
-        }
     }
     _onPlatformStoresChange() {
 
@@ -55,11 +50,10 @@ class ConfigureDevices extends BaseComponent {
         if (devicesStore.getNewScan())
         {
             this.setState(getInitialState());
-
-            if (this._scanTimeout)
-            {
-                clearTimeout(this._scanTimeout);    
-            }
+        }
+        else if (devicesStore.getScanningComplete())
+        {
+            this._cancelScan();
         }
         else
         {
@@ -120,13 +114,6 @@ class ConfigureDevices extends BaseComponent {
         this.setState({ scanning: true });
         this.setState({ scanStarted: true });
         this.setState({ canceled: false });
-
-        if (this._scanTimeout)
-        {
-            clearTimeout(this._scanTimeout);    
-        }
-        
-        this._scanTimeout = setTimeout(this._cancelScan, scanDuration);
     }
     _onDevicesLoaded(devicesLoaded) {
         this.setState({devicesLoaded: devicesLoaded});

@@ -2261,10 +2261,6 @@ var ConfigureDevices = function (_BaseComponent) {
         value: function componentWillUnmount() {
             platformsStore.removeChangeListener(this._onPlatformStoresChange);
             devicesStore.removeChangeListener(this._onDevicesStoresChange);
-
-            if (this._scanTimeout) {
-                clearTimeout(this._scanTimeout);
-            }
         }
     }, {
         key: '_onPlatformStoresChange',
@@ -2286,10 +2282,8 @@ var ConfigureDevices = function (_BaseComponent) {
 
             if (devicesStore.getNewScan()) {
                 this.setState(getInitialState());
-
-                if (this._scanTimeout) {
-                    clearTimeout(this._scanTimeout);
-                }
+            } else if (devicesStore.getScanningComplete()) {
+                this._cancelScan();
             } else {
                 this.setState({ devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyIdentity) });
             }
@@ -2347,12 +2341,6 @@ var ConfigureDevices = function (_BaseComponent) {
             this.setState({ scanning: true });
             this.setState({ scanStarted: true });
             this.setState({ canceled: false });
-
-            if (this._scanTimeout) {
-                clearTimeout(this._scanTimeout);
-            }
-
-            this._scanTimeout = setTimeout(this._cancelScan, scanDuration);
         }
     }, {
         key: '_onDevicesLoaded',
@@ -11660,6 +11648,10 @@ devicesStore.deviceHasFocus = function (deviceId, deviceAddress) {
     return _focusedDevice.id === deviceId && _focusedDevice.address === deviceAddress;
 };
 
+devicesStore.getScanningComplete = function () {
+    return _scanningComplete;
+};
+
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
@@ -11688,6 +11680,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             break;
         case ACTION_TYPES.LISTEN_FOR_IAMS:
             _newScan = false;
+            _scanningComplete = false;
             _warnings = {};
             devicesStore.emitChange();
             break;
