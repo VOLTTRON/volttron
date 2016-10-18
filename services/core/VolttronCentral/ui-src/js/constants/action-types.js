@@ -60,6 +60,7 @@ module.exports = keyMirror({
     // SCAN_FOR_DEVICES: null,
     LISTEN_FOR_IAMS: null,
     DEVICE_DETECTED: null,
+    DEVICE_SCAN_FINISHED: null,
     POINT_RECEIVED: null,
     CANCEL_SCANNING: null,
     // LIST_DETECTED_DEVICES: null,

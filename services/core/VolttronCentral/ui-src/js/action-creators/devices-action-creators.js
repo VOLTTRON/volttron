@@ -2,6 +2,7 @@
 
 var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
+var devicesStore = require('../stores/devices-store');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
@@ -63,7 +64,7 @@ var devicesActionCreators = {
 
             devicesWs.onmessage = function(evt)
             {
-                devicesActionCreators.deviceDetected(evt.data, platformUuid, bacnetIdentity);
+                devicesActionCreators.deviceMessageReceived(evt.data, platformUuid, bacnetIdentity);
             };
         }   
 
@@ -92,13 +93,46 @@ var devicesActionCreators = {
             });
         
     },
-    deviceDetected: function (device, platform, bacnet) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.DEVICE_DETECTED,
-            platform: platform,
-            bacnet: bacnet,
-            device: device
-        });
+    deviceMessageReceived: function (data, platform, bacnet) {
+
+        var device = JSON.parse(data);
+
+        if (device.hasOwnProperty("status"))
+        {
+            if (device.status === "FINISHED IAM")
+            {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.DEVICE_SCAN_FINISHED
+                });
+            }
+        }
+        else
+        {
+            var result = checkDevice(device, platform, bacnet);
+
+            if (!objectIsEmpty(result))
+            {            
+                if (!objectIsEmpty(result.warning))
+                {
+                    statusIndicatorActionCreators.openStatusIndicator(
+                        "error", 
+                        result.warning.message + "ID: " + result.warning.value, 
+                        result.warning.value, 
+                        "left"
+                    );
+                }
+
+                if (!objectIsEmpty(result.device))
+                {
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.DEVICE_DETECTED,
+                        platform: platform,
+                        bacnet: bacnet,
+                        device: result.device
+                    });
+                }
+            }
+        }
     },
     pointReceived: function (data, platform) {
         dispatcher.dispatch({
@@ -254,6 +288,53 @@ var devicesActionCreators = {
         });
     },
 };
+
+function checkDevice(device, platformUuid, bacnetIdentity) 
+{
+    var result = {};
+
+    if (device.hasOwnProperty("device_id") && !device.hasOwnProperty("results"))
+    {
+        result = {
+            device: {},
+            warning: {}
+        }
+
+        var deviceIdStr = device.device_id.toString();
+        var addDevice = true;
+
+        var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
+
+        if (alreadyInList)
+        {
+            if (alreadyInList.address !== device.address)
+            {
+                result.warning = { 
+                    key: "duplicate_id", 
+                    message: "Duplicate device IDs found. Your network may not be set up correctly. ",
+                    value: deviceIdStr 
+                };
+            }
+            else // If the IDs are the same and the addresses are the same, assume
+            {   // it's an IAM for a device we already know about
+
+                addDevice = false;
+            }
+        }
+        
+        if (addDevice) 
+        {
+            result.device = device;
+        }
+    }
+
+    return result;
+}
+
+function objectIsEmpty(obj)
+{
+    return Object.keys(obj).length === 0;
+}
 
 function handle401(error, message, highlight, orientation) {
    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {

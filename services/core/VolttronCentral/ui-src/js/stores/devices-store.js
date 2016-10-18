@@ -19,6 +19,7 @@ var _platform;
 var _devices = [];
 
 var _newScan = false;
+var _scanningComplete = true;
 var _warnings = {};
 var _keyboard = {
     device: null,
@@ -1089,6 +1090,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _platform = action.platform;
             _devices = [];
             _newScan = true;
+            _scanningComplete = false;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.ADD_DEVICES:
@@ -1113,27 +1115,35 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.DEVICE_DETECTED:
             _action = "device_detected";
             _view = "Devices Found";
-            var warning = loadDevice(action.device, action.platform, action.bacnet);
+            // var warning = loadDevice(action.device, action.platform, action.bacnet);
 
-            if (!objectIsEmpty(warning))
-            {
-                statusIndicatorActionCreators.openStatusIndicator(
-                    "error", 
-                    warning.message + "ID: " + warning.value, 
-                    warning.value, 
-                    "left"
-                );
-            }
+            // if (!objectIsEmpty(warning))
+            // {
+            //     statusIndicatorActionCreators.openStatusIndicator(
+            //         "error", 
+            //         warning.message + "ID: " + warning.value, 
+            //         warning.value, 
+            //         "left"
+            //     );
+            // }
+
+            loadDevice(action.device, action.platform, action.bacnet);
 
             if (_devices.length)
             {
                 devicesStore.emitChange();
             }
             break;
+        case ACTION_TYPES.DEVICE_SCAN_FINISHED:
+
+            _scanningComplete = true;
+
+            devicesStore.emitChange();
+            break;
         case ACTION_TYPES.POINT_RECEIVED:
             _action = "point_received";
             _view = "Devices Found";
-            var warning = loadPoint(action.data, action.platform);
+            var warning = loadPoint(action.data);
 
             if (!objectIsEmpty(warning))
             {
@@ -1401,7 +1411,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                             cell.key === "index");
     }
 
-    function loadPoint(data, platform) 
+    function loadPoint(data) 
     {
         var warningMsg = {};
 
@@ -1469,69 +1479,34 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         return Object.keys(obj).length === 0;
     }
 
-    function loadDevice(data, platformUuid, bacnetIdentity) 
+    function loadDevice(device, platformUuid, bacnetIdentity) 
     {
-        var warningMsg = {};
+        var deviceIdStr = device.device_id.toString();
 
-        if (data)
-        {
-            var device = JSON.parse(data);
-
-            if (device.hasOwnProperty("device_id") && !device.hasOwnProperty("results"))
-            {
-                var deviceIdStr = device.device_id.toString();
-                var addDevice = true;
-
-                var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
-
-                if (alreadyInList)
-                {
-                    if (alreadyInList.address !== device.address)
-                    {
-                        warningMsg = { 
-                            key: "duplicate_id", 
-                            message: "Duplicate device IDs found. Your network may not be set up correctly. ",
-                            value: deviceIdStr 
-                        };
-                    }
-                    else // If the IDs are the same and the addresses are the same, assume
-                    {   // it's an IAM for a device we already know about
-
-                        addDevice = false;
-                    }
-                }
-                
-                if (addDevice) 
-                {
-                    _devices.push({
-                        id: deviceIdStr,
-                        name: device.device_name,
-                        vendor_id: device.vendor_id,
-                        address: device.address,
-                        max_apdu_length: device.max_apdu_length,
-                        segmentation_supported: device.segmentation_supported,
-                        showPoints: false,
-                        configuring: false,
-                        platformUuid: platformUuid,
-                        bacnetProxyIdentity: bacnetIdentity,
-                        registryConfig: [],
-                        keyProps: ["volttron_point_name", "units", "writable"],
-                        selectedPoints: [],
-                        items: [
-                            { key: "address", label: "Address", value: device.address },  
-                            { key: "deviceName", label: "Name", value: device.device_name },  
-                            { key: "deviceDescription", label: "Description", value: device.device_description }, 
-                            { key: "deviceId", label: "Device ID", value: deviceIdStr }, 
-                            { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
-                            { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
-                            { key: "type", label: "Type", value: "BACnet" }
-                        ]
-                    });
-                }
-            }
-        }
-
-        return warningMsg;
+        _devices.push({
+            id: deviceIdStr,
+            name: device.device_name,
+            vendor_id: device.vendor_id,
+            address: device.address,
+            max_apdu_length: device.max_apdu_length,
+            segmentation_supported: device.segmentation_supported,
+            showPoints: false,
+            configuring: false,
+            platformUuid: platformUuid,
+            bacnetProxyIdentity: bacnetIdentity,
+            registryConfig: [],
+            keyProps: ["volttron_point_name", "units", "writable"],
+            selectedPoints: [],
+            items: [
+                { key: "address", label: "Address", value: device.address },  
+                { key: "deviceName", label: "Name", value: device.device_name },  
+                { key: "deviceDescription", label: "Description", value: device.device_description }, 
+                { key: "deviceId", label: "Device ID", value: deviceIdStr }, 
+                { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
+                { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
+                { key: "type", label: "Type", value: "BACnet" }
+            ]
+        });
     }
     
 });
