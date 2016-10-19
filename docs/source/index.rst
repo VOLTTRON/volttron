@@ -28,7 +28,8 @@ Installation
 ------------
 
 :ref:`Install VOLTTRON <install>` by running:
-::
+
+.. code-block:: console
     sudo apt-get update
     sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
     git clone https://github.com/VOLTTRON/volttron
@@ -36,7 +37,8 @@ Installation
     python bootstrap.py
 
 This will build the platform and create a virtual Python environment. Activate this and then start the platform with:
-::
+
+.. code-block:: console
 
     . env/bin/activate
     volttron -vv -l volttron.log&
@@ -45,7 +47,8 @@ This enters the virtual Python environment and then starts the platform in debug
 volttron.log.
 
 Next, start an example listener to see it publish and subscribe to the message bus:
-::
+
+.. code-block:: console
 
     scripts/core/make-listener
 
@@ -54,12 +57,13 @@ This script handles several different commands for installing and starting an ag
 simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log
 to see the activity:
 
-::
+.. code-block:: console
 
     tail volttron.log
 
 Results in:
-::
+
+.. code-block:: console
 
    2016-10-17 18:17:52,245 (listeneragent-3.2 11367) listener.agent INFO: Peer: 'pubsub', Sender: 'listeneragent-3.2_1'
    :, Bus: u'', Topic: 'heartbeat/ListenerAgent/f230df97-658e-45d3-8165-18a2ec834d3f', Headers:
