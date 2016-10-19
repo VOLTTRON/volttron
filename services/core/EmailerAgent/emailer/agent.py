@@ -260,11 +260,15 @@ class EmailerAgent(Agent):
             s = smtplib.SMTP(smtp_address)
             s.sendmail(from_address, to_addresses, mime_message.as_string())
             s.quit()
+            self.vip.health.set_status(STATUS_GOOD,
+                                       "Successfully sent email.")
             send_successful = True
         except Exception as e:
             _log.error(
                 'Unable to send email message: %s' % mime_message.as_string())
             _log.error(e)
+            self.vip.health.set_status(STATUS_BAD,
+                                       "Unable to send email to recipients")
         finally:
             if sent_email_record is not None:
                 sent_email_record['successful'] = send_successful
