@@ -50,7 +50,7 @@ method:
 
 Next, the Listener agent will run its setup method. This method is
 tagged to run after the agent is initialized by the decorator
-@Core.receiver('onsetup'). This method accesses the configuration
+``@Core.receiver('onsetup')``. This method accesses the configuration
 parameters, logs a message to the platform log, and sets the agent ID.
 
 ::
