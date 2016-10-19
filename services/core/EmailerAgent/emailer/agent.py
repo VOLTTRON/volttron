@@ -145,6 +145,15 @@ class EmailerAgent(Agent):
 
         self.sent_alert_emails = defaultdict(int)
 
+    def _test_smtp_address(self, smtp_address):
+        try:
+            s = smtplib.SMTP(self.current_config.get('smtp_address', None))
+            s.quit()
+        except socket.gaierror:
+            _log.error("INVALID smtp-address found during startup")
+            _log.error("EmailAgent EXITING")
+            sys.exit(1)
+
     def configure_main(self, config_name, action, contents):
         """
         The main configuration callback.
@@ -158,15 +167,14 @@ class EmailerAgent(Agent):
         self.current_config.update(contents)
         self.current_config['allow_frequency_seconds'] = self.current_config.get(
             'allow_frequency_minutes', 60) * 60
+        smtp_address = self.current_config.get('smtp_address', None)
 
         if action == "NEW":
             try:
-                s = smtplib.SMTP(self.current_config.get('smtp_address', None))
-                s.quit()
-            except socket.gaierror:
-                _log.error("INVALID smtp-address found during startup")
-                _log.error("EmailAgent EXITING")
-                sys.exit(1)
+                with gevent.with_timeout(3, self._test_smtp_address, smtp_address):
+                    pass
+            except Exception as e:
+                self.vip.health.set_status(STATUS_BAD, "Invalid SMTP Address")
 
     def on_email_message(self, peer, sender, bus, topic, headers, message):
         """
