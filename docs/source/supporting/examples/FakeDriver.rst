@@ -16,15 +16,16 @@ worked on here.
 fake.config::
 	
 	{
-	    "driver_config": {},
-	    "campus": "MyFakeCampus",
-	    "building": "SomeBuilding",
-	    "unit": "MyFakeDevice",
-	    "driver_type": "fakedriver",
-	    "registry_config":"/home/<user>/volttron/examples/configurations/drivers/fake.csv",
-	    "interval": 5,
-	    "timezone": "US/Pacific",
-	    "heart_beat_point": "Heartbeat"
+  	   "driver_config": {},
+  	   "registry_config":"config://fake.csv",
+ 	   "interval": 5,
+  	   "timezone": "US/Pacific",
+  	   "heart_beat_point": "Heartbeat",
+  	   "driver_type": "fakedriver",
+ 	   "publish_breadth_first_all": false,
+ 	   "publish_depth_first": false,
+ 	   "publish_breadth_first": false
+
 	}
 
 - cp services/core/MasterDriverAgent/master-driver.agent config/fake-master-driver.config
@@ -37,7 +38,7 @@ fake-master-driver.config::
 	    "driver_config_list": [
 	        "/home/<user>/volttron/config/fake.config"
 	    ]
-	                                          ]
+	                                          
 	}
 
 
@@ -48,7 +49,7 @@ make the file executable: chmod +x make-fakedriver
 make-fakedriver::
 
 	export SOURCE=services/core/MasterDriverAgent
-	export CONFIG=config/fake-master-driver.agent
+	export CONFIG=config/fake-master-driver.config
 	export TAG=fake-driver
 	./scripts/core/make-agent.sh
 	
