@@ -58,7 +58,8 @@ list for remote connections to be accepted.
 The auth file should not be modified directly. 
 To change the auth file, use ``volttron-ctl auth`` subcommands: ``add``,
 ``list``, ``remove``, and ``update``. (Run ``volttron-ctl auth --help``
-for more details.)
+for more details and see the 
+:ref:`authentication commands documentation<_AuthenticationCommands>`.)
 
 Here are some example entries::
 
@@ -213,3 +214,4 @@ Now if agent ``A`` can successfully connect to platform ``B``, and platform
 
     2016-10-19 14:26:16,446 () volttron.platform.auth INFO: authentication success: domain='vip', address='127.0.0.1', mechanism='CURVE', credentials=['HOVXfTspZWcpHQcYT_xGcqypBHzQHTgqEzVb4iXrcDg'], user_id='Agent-A'
 
+For a more details see the :ref:`authentication walkthrough<_AgentAuthentication>`.
