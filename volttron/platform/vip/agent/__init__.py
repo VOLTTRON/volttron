@@ -71,13 +71,14 @@ from .... platform.agent.utils import is_valid_identity
 class Agent(object):
     class Subsystems(object):
         def __init__(self, owner, core, heartbeat_autostart,
-                     heartbeat_period, enable_store):
+                     heartbeat_period, enable_store, enable_channel):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner)
             self.hello = Hello(core)
             self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
-            self.channel = Channel(core)
+            if enable_channel:
+                self.channel = Channel(core)
             self.health = Health(owner, core, self.rpc)
             self.heartbeat = Heartbeat(owner, core, self.rpc, self.pubsub,
                                        heartbeat_autostart, heartbeat_period)
@@ -88,7 +89,8 @@ class Agent(object):
                  publickey=None, secretkey=None, serverkey=None,
                  heartbeat_autostart=False, heartbeat_period=60,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, enable_store=True, developer_mode=False):
+                 agent_uuid=None, enable_store=True, developer_mode=False,
+                 enable_channel=False):
 
         if identity is not None and not is_valid_identity(identity):
             _log.warn('Deprecation warning')
@@ -102,7 +104,7 @@ class Agent(object):
                          volttron_home=volttron_home, agent_uuid=agent_uuid,
                          developer_mode=developer_mode)
         self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
-                                    heartbeat_period, enable_store)
+                                    heartbeat_period, enable_store, enable_channel)
         self.core.setup()
 
 
