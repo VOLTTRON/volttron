@@ -73,7 +73,8 @@ from volttron.platform.agent.utils import get_utc_seconds_from_epoch
 
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics
-from volttron.platform.messaging.health import ALERT_KEY
+from volttron.platform.messaging.health import ALERT_KEY, STATUS_BAD, Status, \
+    STATUS_GOOD
 from volttron.platform.vip.agent import Agent
 
 utils.setup_logging()
@@ -161,7 +162,6 @@ class EmailerAgent(Agent):
         :param config_name:
         :param action:
         :param contents:
-        :return:
         """
         self.current_config = self.default_config.copy()
         self.current_config.update(contents)
@@ -285,7 +285,6 @@ class EmailerAgent(Agent):
         :param to_addresses:
         :param subject:
         :param message:
-        :return:
         """
         _log.info('Sending email {}'.format(subject))
         _log.debug('Mail from: {}, to: {}'.format(from_address, to_addresses))
@@ -313,7 +312,6 @@ class EmailerAgent(Agent):
         :param topic:
         :param headers:
         :param message:
-        :return:
         """
         _log.info('Alert message captured for topic: {}'.format(topic))
         if not self.current_config.get('send_alerts_enabled'):
