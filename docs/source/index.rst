@@ -49,9 +49,11 @@ Next, start an example listener to see it publish and subscribe to the message b
 
     scripts/core/make-listener
 
+
 This script handles several different commands for installing and starting an agent after removing an old copy. This
- simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log
- to see the activity:
+simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log 
+to see the activity:
+
 ::
 
     tail volttron.log
@@ -82,15 +84,20 @@ There are several :ref:`walkthroughs <devguides_index>` to explore additional as
 Contribute
 ----------
 
+How to :ref:`contribute <contributing>` back:
+
 - Issue Tracker: http://github.com/VOLTTRON/volttron/issues
 - Source Code: http://github.com/VOLTTRON/volttron
 
+=======
 Support
--------
+=======
 
-If you are having issues, please let us know.
-We have a mailing list located at: volttron@pnnl.gov and also hold regular office hours where you can call in
-for support and discussion of the platform.
+The easiest way to get help with your VOLTTRON installation is to join our
+office hours.  The office hours are every other Friday at 11am PT.  The office
+hours are available via Microsoft Lync.  If you would like to be added to the
+VOLTTRON mailing list in order to be reminded of the meetings send an email to
+volttron@pnnl.gov.
 
 License
 -------
@@ -105,14 +112,13 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   overview/index
    Install Instructions <install>
-   License <license>
    community_resources/index
 
 .. toctree::
    :maxdepth: 2
 
-   overview/index
    core_services/index
    devguides/index
    sample_applications/index
@@ -120,19 +126,9 @@ Contents:
    scalability/index
    specifications/index
    roadmap/index
-   specifications/index
-
    API Documenation <apidocs>
 
-=======
-Support
-=======
-
-The easiest way to get help with your VOLTTRON installation is to join our
-office hours.  The office hours are every other Friday at 11am PT.  The office
-hours are available via Microsoft Lync.  If you would like to be added to the
-VOLTTRON mailing list in order to be reminded of the meetings send an email to
-volttron@pnnl.gov.
+   License <license>
 
 Indices and tables
 ==================
