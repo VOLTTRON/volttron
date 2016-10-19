@@ -23,18 +23,23 @@ key stores are in the the agent's data directory::
 
     $VOLTTRON_HOME/agents/$AGENT_UUID/$AGENT_NAME/keystore.json
 
+*Note: $AGENT_UUID and $AGENT_NAME are just placeholders;
+they are not actual environment variables.*
+
 Agents that are not installed, such as platform services and stand-alone
 agents, store their key stores here::
 
     $VOLTTRON_HOME/keystores/$VIP_IDENTITY/keystore.json
+
+*Note: $VIP_IDENTITY is not an actual environment variable.*
 
 Generating a Key Store
 ----------------------
 
 Agents automatically retrieve keys from their key store unless
 both the ``publickey`` and ``secretkey`` parameters are specified
-when the agent initialized. If an agent's key store does not exist
+when the agent is initialized. If an agent's key store does not exist
 it will automatically be generated upon access.
 
-Users can generate a key pair (i.e., key-store file) by running the
+Users can generate a key pair (in a key-store file) by running the
 ``volttron-ctl auth keypair`` command.
