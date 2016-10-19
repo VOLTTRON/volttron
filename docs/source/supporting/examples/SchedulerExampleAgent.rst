@@ -35,8 +35,7 @@ agent attempts to take its action.
 The agent listens to schedule announcements from the actuator and then
 issues a command
 
-::git status
-
+::
 
         @PubSub.subscribe('pubsub', topics.ACTUATOR_SCHEDULE_ANNOUNCE(campus='campus',
                                              building='building',unit='unit'))
