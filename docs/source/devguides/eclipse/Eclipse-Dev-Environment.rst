@@ -36,7 +36,7 @@ Cloning the Source Code
 The VOLTTRON code is stored in a git repository. Eclipse (Luna and Mars)
 come with a git plugin out of the box. For other versions the plugin is
 available for Eclipse that makes development more convenient (note: you
-must have Git :ref:`already installed <VOLTTRON-Prerequisites>`__ on the
+must have Git :ref:`already installed <VOLTTRON-Prerequisites>` on the
 system and have :ref:`built VOLTTRON <Building-VOLTTRON>`):
 
 If your version of Eclipse does not have the marketplace follow these

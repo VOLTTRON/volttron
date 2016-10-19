@@ -280,12 +280,11 @@ check the log file.
 
 ``volttron-ctl start --tag testagent``
 
--  Check that it is `running <AgentStatus>`__:
+-  Check that it is :ref:`running <AgentStatus>`:
 
 ``volttron-ctl status``
 
--  Start the ListenerAgent as in
-   `BuildingTheProject <BuildingTheProject>`__
+-  Start the ListenerAgent as in :ref:`Building VOLTTRON <Building-VOLTTRON>`
 -  Check the log file for messages indicating the TestAgent is receiving
    the ListenerAgents messages:
 
