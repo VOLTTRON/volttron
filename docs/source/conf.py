@@ -324,8 +324,8 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 apidocs_base_dir =os.path.abspath(script_dir + "/apidocs")
 def generate_apidoc(app):
     """
-        Generates apidocs for modules under volttron/platform,
-        volttron/services/core, and volttron/applications
+        Generates apidocs for modules under volttron/platform
+        and volttron/services/core
         :param app:
         :return:
         """
