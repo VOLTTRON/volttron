@@ -79,8 +79,8 @@ def build_connection(identity, peer='', address=get_address(),
     return cn
 
 
-def build_agent(address=None, identity=None, publickey=None, secretkey=None,
-                timeout=10, serverkey=None, **kwargs):
+def build_agent(address=get_address(), identity=None, publickey=ks.public,
+                secretkey=ks.secret, timeout=10, serverkey=None, **kwargs):
     """ Builds a dynamic agent connected to the specifiedd address.
 
     All key parameters should have been encoded with

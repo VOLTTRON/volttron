@@ -98,9 +98,12 @@ __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
+ALERTS_BASE = _('alerts')
 ALERTS = _('alerts/{agent_class}/{agent_uuid}') #/{agent_class}/{publickey}/{alert_key}')
 
 HEARTBEAT = _('heartbeats')
+PLATFORM_BASE = _('platform')
+PLATFORM_SEND_EMAIL = _('platform/send_email')
 PLATFORM = _('platform/{subtopic}')
 PLATFORM_SHUTDOWN = PLATFORM(subtopic='shutdown')
 PLATFORM_VCP_DEVICES = _('platforms/{platform_uuid}/devices/{topic}')
