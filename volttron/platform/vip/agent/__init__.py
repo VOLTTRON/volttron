@@ -89,7 +89,7 @@ class Agent(object):
                  heartbeat_autostart=False, heartbeat_period=60,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, enable_store=True, developer_mode=False,
-                 reconnect_interval=None,):
+                 reconnect_interval=None):
 
         if identity is not None and not is_valid_identity(identity):
             _log.warn('Deprecation warning')
