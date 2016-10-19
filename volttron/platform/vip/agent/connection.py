@@ -76,7 +76,6 @@ __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 
 DEFAULT_TIMEOUT = 30
 
-
 class Connection(object):
     """ A class that manages a connection to a peer and/or server.
 
@@ -122,7 +121,10 @@ class Connection(object):
                 raise AttributeError(
                     'Invalid address type specified. ipc or tcp accepted.')
         self._server = Agent(address=full_address,
-                             volttron_home=self.volttron_home, **kwargs)
+                             volttron_home=self.volttron_home,
+                             enable_store=False,
+                             reconnect_interval=1000,
+                             **kwargs)
         self._greenlet = None
         self._connected_since = None
         self._last_publish = None
