@@ -130,15 +130,18 @@ class EmailerAgent(Agent):
         self.vip.config.subscribe(self.configure_main,
                                   actions=["NEW", "UPDATE"], pattern="config")
 
-        self.vip.pubsub.subscribe('pubsub', topics.PLATFORM_SEND_EMAIL,
-                                  self.on_email_message)
+        def onstart(sender, **kwargs):
+            self.vip.pubsub.subscribe('pubsub', topics.PLATFORM_SEND_EMAIL,
+                                      self.on_email_message)
 
-        self.vip.pubsub.subscribe('pubsub', topics.ALERTS_BASE,
-                                  self.on_alert_message)
-        self.vip.pubsub.subscribe('pubsub',
-                                  prefix=topics.ALERTS.format(agent_class='',
-                                                              agent_uuid=''),
-                                  callback=self.on_alert_message)
+            self.vip.pubsub.subscribe('pubsub', topics.ALERTS_BASE,
+                                      self.on_alert_message)
+            self.vip.pubsub.subscribe('pubsub',
+                                      prefix=topics.ALERTS.format(agent_class='',
+                                                                  agent_uuid=''),
+                                      callback=self.on_alert_message)
+
+        self.core.onstart.connect(onstart, self)
 
         self.sent_alert_emails = defaultdict(int)
 
