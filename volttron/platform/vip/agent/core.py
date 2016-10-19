@@ -419,7 +419,7 @@ class Core(BasicCore):
     def __init__(self, owner, address=None, identity=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, developer_mode=False):
+                 agent_uuid=None, developer_mode=False, reconnect_interval=None):
         self.volttron_home = volttron_home
 
         # These signals need to exist before calling super().__init__()
@@ -437,6 +437,7 @@ class Core(BasicCore):
         self.secretkey = secretkey
         self.serverkey = serverkey
         self.developer_mode = developer_mode
+        self.reconnect_interval = reconnect_interval
 
         self._set_keys()
 
@@ -559,6 +560,9 @@ class Core(BasicCore):
     def loop(self, running_event):
         # pre-setup
         self.socket = vip.Socket(self.context)
+
+        if self.reconnect_interval:
+            self.socket.setsockopt(zmq.RECONNECT_IVL, self.reconnect_interval)
         if self.identity:
             self.socket.identity = self.identity
         yield

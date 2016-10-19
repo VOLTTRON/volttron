@@ -1165,7 +1165,8 @@ class ControlConnection(object):
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
-                                 developer_mode=developer_mode)
+                                 developer_mode=developer_mode,
+                                 enable_channel=True)
         self._greenlet = None
 
     @property
