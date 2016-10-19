@@ -1,3 +1,4 @@
+.. _Historian Index:
 ============================
 VOLTTRON Historian Framework
 ============================
