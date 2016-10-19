@@ -51,7 +51,7 @@ Next, start an example listener to see it publish and subscribe to the message b
 
 
 This script handles several different commands for installing and starting an agent after removing an old copy. This
-simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log 
+simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log
 to see the activity:
 
 ::
@@ -93,11 +93,15 @@ How to :ref:`contribute <contributing>` back:
 Support
 =======
 
-The easiest way to get help with your VOLTTRON installation is to join our
-office hours.  The office hours are every other Friday at 11am PT.  The office
-hours are available via Microsoft Lync.  If you would like to be added to the
-VOLTTRON mailing list in order to be reminded of the meetings send an email to
-volttron@pnnl.gov.
+There are several options for VOLTTRON :ref:`support <VOLTTRON-Community>`.
+
+- A VOLTTRON office hours telecon takes place every other Friday at 11am Pacific over Skype.
+- A mailing list for announcements and reminders
+- The VOLTTRON contact email for being added to office hours, the mailing list, and for inquiries is: volttron@pnnl.gov
+- The preferred method for questions is through stackoverflow since this is easily discoverable by others who may have the same issue. http://stackoverflow.com/questions/tagged/volttron
+- GitHub issue tracker for feature requests, bug reports, and following development activities http://github.com/VOLTTRON/volttron/issues
+
+
 
 License
 -------
@@ -116,9 +120,6 @@ Contents:
    Install Instructions <install>
    community_resources/index
 
-.. toctree::
-   :maxdepth: 2
-
    core_services/index
    devguides/index
    sample_applications/index
@@ -126,6 +127,7 @@ Contents:
    scalability/index
    specifications/index
    roadmap/index
+
    API Documenation <apidocs>
 
    License <license>
