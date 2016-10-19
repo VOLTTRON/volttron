@@ -86,6 +86,15 @@ Full options:
 
 volttron-ctl Commands
 ---------------------
+volttron-ctl is used to issue commands to the platform from the command line. Through
+volttron-ctl it is possible to install and removed agents, start and stop agents,
+manage the configuration store, get the platform status, and shutdown the platform.
+
+.. warning::
+    volttron-ctl creates a special temporary agent ito communicate with the
+    platform with a specific VIP IDENTITY, thus multiple instances of volttron-ctl
+    cannot run at the same time. Attempting to do so will result in a conflicting
+    identity error.
 
 ::
 

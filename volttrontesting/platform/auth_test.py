@@ -33,6 +33,7 @@ def build_two_test_agents(platform):
     agent1 = build_agent(platform, 'agent1')
     gevent.sleep(1)
     agent2 = build_agent(platform, 'agent2')
+    gevent.sleep(1)
 
     agent1.foo = lambda x: x
     agent1.foo.__name__ = 'foo'

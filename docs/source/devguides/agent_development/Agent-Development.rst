@@ -50,7 +50,7 @@ Create Agent Code
 ::
 
     utils.setup_logging()
-    _log = logging.get_logger(__name__)
+    _log = logging.getLogger(__name__)
 
 -  This agent will extend BaseAgent to get all the default functionality
 

@@ -1,3 +1,5 @@
+.. _VOLTTRON-Community:
+
 Community Resources
 -------------------
 

@@ -768,9 +768,10 @@ class BaseHistorianAgent(Agent):
         """
 
     def historian_setup(self):
-        """Optional setup routine, run in the processing thread before
-           main processing loop starts. Gives the Historian a chance to setup
-           connections in the publishing thread.
+        """
+        Optional setup routine, run in the processing thread before
+        main processing loop starts. Gives the Historian a chance to setup
+        connections in the publishing thread.
         """
 
     @abstractmethod
@@ -781,6 +782,7 @@ class BaseHistorianAgent(Agent):
         information from information from configuration item
         'table_defs'. The metadata table contents will be used by the
         corresponding aggregate historian(if any)
+
         :param meta_table_name: table name into which the table names and
         table name prefix for data, topics, and meta tables should be inserted
         """
@@ -1183,8 +1185,8 @@ class BaseQueryHistorianAgent(Agent):
                         agg_period=None, skip=0, count=None, order=None):
         """
         This function is called by :py:meth:`BaseQueryHistorianAgent.query`
-        to actually query the data store
-        and must return the results of a query in the following format:
+        to actually query the data store and must return the results of a
+        query in the following format:
 
         **Single topic query:**
 
