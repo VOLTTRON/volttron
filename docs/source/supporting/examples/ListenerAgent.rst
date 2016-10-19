@@ -23,7 +23,7 @@ definition.
 
     from volttron.platform.vip.agent import Agent, Core, PubSub, compat
     from volttron.platform.agent import utils
-    from volttron.platform.messaging import headers as headers_mod, topics
+    from volttron.platform.messaging import headers as headers_mod
     from . import settings
     #If developing inside Eclipse, use pydev-launch.py
     # or change this to: import settings
@@ -52,6 +52,16 @@ method:
     def __init__(self, config_path, **kwargs):
         super(ListenerAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
+        self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
+        log_level = self.config.get('log-level', 'INFO')
+        if log_level == 'ERROR':
+            self._logfn = _log.error
+        elif log_level == 'WARN':
+            self._logfn = _log.warn
+        elif log_level == 'DEBUG':
+            self._logfn = _log.debug
+        else:
+            self._logfn = _log.info
 
 Next, the Listener agent will run its setup method. This method is
 tagged to run after the agent is initialized by the decorator
@@ -61,10 +71,10 @@ parameters, logs a message to the platform log, and sets the agent ID.
 ::
 
     @Core.receiver('onsetup')
-    def setup(self, sender, **kwargs):
+    def onsetup(self, sender, **kwargs):
         # Demonstrate accessing a value from the config file
-        _log.info(self.config['message'])
-        self._agent_id = self.config['agentid']
+        _log.info(self.config.get('message', DEFAULT_MESSAGE))
+        self._agent_id = self.config.get('agentid')
 
 | The Listener agent subscribes to all topics published on the message
 bus. Subscribe/publish interactions with the message bus are handled by
@@ -86,44 +96,9 @@ any VOLTTRON 2.0 agents running on the platform.
         '''Use match_all to receive all messages and print them out.'''
         if sender == 'pubsub.compat':
         message = compat.unpack_legacy_message(headers, message)
-        _log.debug(
+        self._logfn(
         "Peer: %r, Sender: %r:, Bus: %r, Topic: %r, Headers: %r, "
         "Message: %r", peer, sender, bus, topic, headers, message)
 
-The Listener agent uses the @Core.periodic decorator to execute the
-publish\_heartbeat method every HEARTBEAT\_PERIOD seconds where
-HEARTBEAT\_PERIOD is specified in the settings.py file:
 
-::
-
-    @Core.periodic(settings.HEARTBEAT_PERIOD)
-    def publish_heartbeat(self):
-        '''Send heartbeat message every HEARTBEAT_PERIOD seconds.
-
-        HEARTBEAT_PERIOD is set and can be adjusted in the settings module.
-        '''
-        now = datetime.utcnow().isoformat(' ') + 'Z'
-        headers = {
-        'AgentID': self._agent_id,
-        headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
-        headers_mod.DATE: now,
-        }
-        self.vip.pubsub.publish(
-        'pubsub', 'heartbeat/listeneragent', headers, now)
-
-vip.pubsub.publish is called with the following arguments:
-
--  ‘pubsub’ - Always the first argument to vip.pubsub.publish.
--  topic - Topic of message or data. In this example the Listener is
-   publishing to the 'heartbeat/listeneragent' topic
--  headers - Contains information such as date published, content type
-   (plain text, utf-8, asci, etc), and the agent ID for publishing
-   agent.
--  message - Can be a single value (float, integer, or string), list of
-   objects, or dictionary. Agents subscribing to the message should know
-   the format of message so they can parse and use the information. In
-   this example the Listener agent is publishing a string message
-   containing the current time (“now”) in UTC ISO format (note: Python
-   datetime objects should be converted to strings before passing to
-   vip.pubsub.publish).
 
