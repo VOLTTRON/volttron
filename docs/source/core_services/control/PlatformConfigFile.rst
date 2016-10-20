@@ -5,7 +5,7 @@ VOLTTRON Config File
 The VOLTTRON platform config file can contain any of the command line
 arguments for starting the platform...
 
-::
+.. code-block:: console
 
        -c FILE, --config FILE
                         read configuration from FILE
@@ -22,7 +22,7 @@ arguments for starting the platform...
 
 agent options:
 
-::
+.. code-block:: console
 
        --autostart           automatically start enabled agents and services
        --publish-address ZMQADDR
@@ -32,7 +32,7 @@ agent options:
 
 control options:
 
-::
+.. code-block:: console
 
        --control-socket FILE
                         path to socket used for control messages

@@ -3,15 +3,13 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-
-
-Welcome to VOLTTRON's documentation!
-====================================
+====================================================
+Welcome to VOLTTRON\ :sup:`TM`\ 's documentation!
+====================================================
 
 |VOLTTRON Tagline|
 
-
-VOLTTRON(TM) is an open source platform for distributed sensing and control. The platform provides services
+VOLTTRON\ :sup:`TM` is an open source platform for distributed sensing and control. The platform provides services
 for collecting and storing data from buildings and devices and provides an environment for developing applications
 which interact with that data.
 
@@ -24,12 +22,26 @@ Features
 - :ref:`Agent lifecycle managment <AgentManagement>` in the platform
 - :ref:`Web UI <VOLTTRON-Central>` for managing deployed instances from a single central instance.
 
+
+Background
+----------
+
+VOLTTRON\ :sup:`TM` is written in Python 2.7 and runs on Linux Operating Systems. For users unfamiliar with those
+technologies, the following resources are recommended:
+
+- https://docs.python.org/2.7/tutorial/
+- http://ryanstutorials.net/linuxtutorial/
+
+
 Installation
 ------------
 
-:ref:`Install VOLTTRON <install>` by running:
+:ref:`Install VOLTTRON <install>` by running the following commands which installs needed
+:ref:`prerequisites <VOLTTRON-Prerequisites>`, clones the source code, then builds the virtual environment for using
+the platform.
 
-.. code-block:: console
+.. code-block:: bash
+
     sudo apt-get update
     sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
     git clone https://github.com/VOLTTRON/volttron
@@ -38,7 +50,7 @@ Installation
 
 This will build the platform and create a virtual Python environment. Activate this and then start the platform with:
 
-.. code-block:: console
+.. code-block:: bash
 
     . env/bin/activate
     volttron -vv -l volttron.log&
@@ -48,7 +60,7 @@ volttron.log.
 
 Next, start an example listener to see it publish and subscribe to the message bus:
 
-.. code-block:: console
+.. code-block:: bash
 
     scripts/core/make-listener
 
@@ -57,7 +69,7 @@ This script handles several different commands for installing and starting an ag
 simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log
 to see the activity:
 
-.. code-block:: console
+.. code-block:: bash
 
     tail volttron.log
 
@@ -71,7 +83,8 @@ Results in:
    Message: {'status': 'GOOD', 'last_updated': '2016-10-18T01:17:47.232972+00:00', 'context': 'hello'}
 
 Stop the platform:
-::
+
+.. code-block:: bash
 
    volttron-ctl shutdown --platform
 
@@ -97,11 +110,11 @@ How to :ref:`contribute <contributing>` back:
 Support
 =======
 
-There are several options for VOLTTRON :ref:`support <VOLTTRON-Community>`.
+There are several options for VOLTTRON\ :sup:`TM` :ref:`support <VOLTTRON-Community>`.
 
-- A VOLTTRON office hours telecon takes place every other Friday at 11am Pacific over Skype.
+- A VOLTTRON\ :sup:`TM` office hours telecon takes place every other Friday at 11am Pacific over Skype.
 - A mailing list for announcements and reminders
-- The VOLTTRON contact email for being added to office hours, the mailing list, and for inquiries is: volttron@pnnl.gov
+- The VOLTTRON\ :sup:`TM` contact email for being added to office hours, the mailing list, and for inquiries is: volttron@pnnl.gov
 - The preferred method for questions is through stackoverflow since this is easily discoverable by others who may have the same issue. http://stackoverflow.com/questions/tagged/volttron
 - GitHub issue tracker for feature requests, bug reports, and following development activities http://github.com/VOLTTRON/volttron/issues
 
@@ -110,7 +123,7 @@ There are several options for VOLTTRON :ref:`support <VOLTTRON-Community>`.
 License
 -------
 
-The project is licensed under a modified BSD license.
+The project is :ref:`licensed <license>` under a modified BSD license.
 
 
 
