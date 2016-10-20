@@ -26,7 +26,7 @@ set -e
 #   If volttron central agent is successfully started one should be able to 
 #   access it at http://localhost:8080 and see the web interface.
 
-if [ ! -e "./applications" ]; then
+if [ ! -e "./volttron/platform" ]; then
     echo "Please execute from root of volttron repository."
     exit 0
 fi

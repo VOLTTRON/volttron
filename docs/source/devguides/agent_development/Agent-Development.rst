@@ -17,8 +17,7 @@ Additional details about the commands used in this walkthrough are at:
 Create Folders
 ~~~~~~~~~~~~~~
 
--  In the "applications" directory, create a new directory called
-   TestAgent.
+-  Create a new directory called TestAgent.
 -  In TestAgent, create a new folder tester, this is the package where
    our python code will be created
 
@@ -199,7 +198,7 @@ At this point, the contents of the TestAgent directory should look like:
 
 ::
 
-    applications/TestAgent/
+    TestAgent/
     ├── setup.py
     ├── testagent.config
     └── tester
@@ -219,13 +218,13 @@ From the project directory, activate the VOLTTRON environment with:
 
 Then call:
 
-``volttron-pkg package applications/TestAgent``
+``volttron-pkg package TestAgent``
 
 By default, this creates a wheel file in the VOLTTRON\_HOME directory
 (~/.volttron by default) in the ``packaged`` dreictory. Next, we add our
 configuration file to this package with:
 
-``volttron-pkg configure ~/.volttron/packaged/testeragent-0.1-py2-none-any.whl applications/TestAgent/testagent.config``
+``volttron-pkg configure ~/.volttron/packaged/testeragent-0.1-py2-none-any.whl TestAgent/testagent.config``
 
 Installing the Agent
 ~~~~~~~~~~~~~~~~~~~~

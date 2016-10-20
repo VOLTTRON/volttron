@@ -595,7 +595,7 @@ def start_volttron_process(opts):
         services = [
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
-                           enable_store=False),
+                           enable_store=False, enable_channel=True),
             PubSubService(protected_topics_file, address=address,
                           identity='pubsub', heartbeat_autostart=True,
                           enable_store=False),
