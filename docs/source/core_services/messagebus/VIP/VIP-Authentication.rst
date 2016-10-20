@@ -4,7 +4,7 @@ VIP Authentication
 ==================
 
 :ref:`VIP <VIP-Overview>` (VOLTTRON Interconnect Protocol) authentication is
-implemented in the :doc:`auth module <volttron.platform.auth>` and extends
+implemented in the :py:mod:`auth module<volttron.platform.auth>` and extends
 the ZeroMQ Authentication Protocol
 `ZAP <http://rfc.zeromq.org/spec:27>`__ to VIP by including the ZAP
 User-Id in the VIP payload, thus allowing peers to authorize access

@@ -12,7 +12,7 @@ Each agent has its own encryption key-pair that is used to
 :ref:`authenticate<VIP-Authentication>` itself to the VOLTTRON
 platform. A key-pair comprises a public key and a private (secret) key.
 These keys are saved in a key store, which is implemented by the
-:doc:`KeyStore class<volttron.platform.keystore.KeyStore>`.
+:py:class:`KeyStore class<volttron.platform.keystore.KeyStore>`.
 Each agent has its own key store.
 
 Key Store Locations
