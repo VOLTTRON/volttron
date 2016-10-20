@@ -4,7 +4,7 @@ VIP Authentication
 ==================
 
 :ref:`VIP <VIP-Overview>` (VOLTTRON Interconnect Protocol) authentication is
-implemented in the doc:`auth module <volttron.platform.auth>` and extends
+implemented in the :doc:`auth module <volttron.platform.auth>` and extends
 the ZeroMQ Authentication Protocol
 `ZAP <http://rfc.zeromq.org/spec:27>`__ to VIP by including the ZAP
 User-Id in the VIP payload, thus allowing peers to authorize access
@@ -25,16 +25,11 @@ Internet. Therefore, VOLTTRON automatically generates an encryption key
 and enables `CurveMQ <http://rfc.zeromq.org/spec:26>`__ by default on
 all TCP connections.
 
-The key is stored in ``$VOLTTRON_HOME/keystore.json``, where VOLTTRON\_HOME
-defaults to ``$HOME/.volttron``. The base64-encode public key is printed
-in the log output at the **INFO** level when VOLTTRON starts (with -v
-option) and should be used when connecting remote peers. Look for output
-like this:
+To see VOLTTRON's public key run the ``volttron-ctl auth serverkey`` command.
+For example::
 
-::
-
-    (volttron)[user@home]$ volttron -v
-    2015-09-01 12:15:05,334 () volttron.platform.main INFO: public key: 9yHEnRB_ct3lwpZi05CKtklzpXw26ehjwH-GBmfguRM
+    (volttron)[user@home]$ volttron-ctl auth serverkey
+    FSG7LHhy3v8tdNz3gK35G6-oxUcyln54pYRKu5fBJzU
 
 Peer Authentication
 -------------------

@@ -21,17 +21,12 @@ Key Store Locations
 There are two main locations key stores will be saved. Installed agents'
 key stores are in the the agent's data directory::
 
-    $VOLTTRON_HOME/agents/$AGENT_UUID/$AGENT_NAME/keystore.json
-
-*Note: $AGENT_UUID and $AGENT_NAME are just placeholders;
-they are not actual environment variables.*
+    $VOLTTRON_HOME/agents/<AGENT_UUID>/<AGENT_NAME>/keystore.json
 
 Agents that are not installed, such as platform services and stand-alone
 agents, store their key stores here::
 
-    $VOLTTRON_HOME/keystores/$VIP_IDENTITY/keystore.json
-
-*Note: $VIP_IDENTITY is not an actual environment variable.*
+    $VOLTTRON_HOME/keystores/<VIP_IDENTITY>/keystore.json
 
 Generating a Key Store
 ----------------------

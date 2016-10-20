@@ -55,10 +55,15 @@ Here are the contents of an example known-hosts file:
     {
         "@": "FSG7LHhy3v8tdNz3gK35G6-oxUcyln54pYRKu5fBJzU", 
         "127.0.0.1:22916": "FSG7LHhy3v8tdNz3gK35G6-oxUcyln54pYRKu5fBJzU", 
+        "127.0.0.2:22916": "FSG7LHhy3v8tdNz3gK35G6-oxUcyln54pYRKu5fBJzU", 
+        "127.0.0.1:12345": "FSG7LHhy3v8tdNz3gK35G6-oxUcyln54pYRKu5fBJzU", 
         "192.168.0.42:22916": "uhjbCUm3kT5QWj5Py9w0XZ7c1p6EP8pdo4Hq4dNEIiQ" 
     }
 
-The first two entries are for the local platform. (They were automatically
+The first four entries are for the local platform. (They were automatically
 added when the platform started.) The first entry with the ``@`` key is for 
-IPC connections, and the second entry with the ``127.0.0.1:22916`` key is for
-TCP connections. The last entry was added in the `Saving a Server Key`_ section.
+IPC connections, and the entries with the ``127.0.0.*`` keys are for
+local TCP connections. Note that a single VOLTTRON platform can bind to 
+multiple TCP addresses, and each address will be automatically added
+to the known-hosts file. The last entry is for a remote VOLTTRON platform. 
+(It was added in the `Saving a Server Key`_ section.)
