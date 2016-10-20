@@ -86,8 +86,11 @@ The following is a simple example of a MODBUS registry configration file:
     CO2Stpt,ReturnAirCO2Stpt,PPM,1000.00 (default),>f,TRUE,1011,1000,Setpoint to enable demand control ventilation
     HeatCall2,HeatCall2,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
 
+.. _config-store:
+
+=======================================================
 Adding Device Configurations to the Configuration Store
--------------------------------------------------------
+=======================================================
 
 Configurations are added to the Configuration Store using the command line `volttron-ctl config store platform.driver <name> <file name> <file type>`.
 
