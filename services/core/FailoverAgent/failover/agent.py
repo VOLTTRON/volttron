@@ -67,6 +67,7 @@ from volttron.platform.vip.agent.connection import Connection
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '0.1'
 
 
 class FailoverAgent(Agent):
