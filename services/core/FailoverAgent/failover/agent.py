@@ -62,12 +62,13 @@ import time
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL
 from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.messaging.health import Status, STATUS_BAD, STATUS_GOOD
 from volttron.platform.vip.agent import Agent, Core, PubSub, Unreachable
 from volttron.platform.vip.agent.connection import Connection
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '0.1'
+__version__ = '0.2'
 
 
 class FailoverAgent(Agent):
@@ -229,9 +230,13 @@ class FailoverAgent(Agent):
         :param current_state: Indicates if remote platforms are active. Ingored.
         :type current_state: tuple of booleans
         """
+        alert_key = 'failover {}'.format(self.agent_id)
         if current_state != self._state:
+            context = 'Starting agent {}'.format(self.agent_vip_identity)
             self._state = current_state
-            _log.warn('Starting agent {}'.format(self.agent_vip_identity))
+            _log.warn(context)
+            status = Status.build(STATUS_GOOD, context=context)
+            self.vip.health.send_alert(alert_key, status)
 
         proc_info = self.vip.rpc.call(CONTROL,
                                       'agent_status',
@@ -252,18 +257,28 @@ class FailoverAgent(Agent):
         """
         primary_is_up, _ = current_state
 
+        alert_key = 'failover {}'.format(self.agent_id)
+
         if primary_is_up:
+            context = 'Primary is active stopping agent {}'.format(
+                self.agent_vip_identity)
             if current_state != self._state:
                 self._state = current_state
-                _log.warn('Primary is active stopping agent {}'
-                          .format(self.agent_vip_identity))
+                _log.warn(context)
+                status = Status.build(STATUS_GOOD, context=context)
+                self.vip.health.send_alert(alert_key, status)
+
             self._agent_control('stop_agent')
 
         else:
+            context = 'Primary is inactive starting agent {}'.format(
+                self.agent_vip_identity)
             if current_state != self._state:
                 self._state = current_state
-                _log.warn('Primary is inactive starting agent {}'
-                          .format(self.agent_vip_identity))
+                _log.warn(context)
+                status = Status.build(STATUS_BAD, context=context)
+                self.vip.health.send_alert(alert_key, status)
+
             proc_info = self.vip.rpc.call(CONTROL,
                                           'agent_status',
                                           self.agent_uuid).get()
