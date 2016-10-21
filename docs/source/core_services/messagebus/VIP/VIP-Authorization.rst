@@ -1,122 +1,124 @@
-VIP Authorization Examples
-==========================
+.. _VIP-Authorization:
+=================
+VIP Authorization
+=================
 
-
-
-*Note: authorization is a work in progress, and its implementation is in
-`the develop
-branch <https://github.com/VOLTTRON/volttron/tree/develop>`__.*
-
-VIP `authentication <VIP-Authentication>`__ and authorization go hand in
-hand. When a peer authenticates to a VOLTTRON platform that peer is
-authorized to issue commands and run agents on that platform. VIP
+VIP :ref:`authentication <VIP-Authentication>` and authorization go hand in
+hand. When an agent authenticates to a VOLTTRON platform that agent proves its
+identity to the platform. Once authenticated, an agent is allowed to
+connect to the :ref:`message bus<_VOLTTRON-Message-Bus>`. VIP
 authorization is about giving a platform owner the ability to limit the
-capabilities of authenticated peers.
+capabilities of authenticated agents.
 
+There are two parts to authorization:
+
+#. Required capabilities (specified in agent's code)
+#. Authorization entries (specified via ``volttron-ctl auth`` commands)
+
+The following example will walk through how to specify required capabilities
+and grant those capabilities in authorization entries.
 
 Single Capability
 -----------------
+For this example suppose there is a temperature agent that can read and set the
+temperature of a particular room. The agent author anticipates that building
+managers will want to limit which agents can set the temperature.
 
-Suppose a VOLLTRON platform owner wants to limit how peers can call a
-weather agent on their platform. The owner specifies in
-``$VOLTTRON_HOME/auth.json`` that two users (Alice and Bobby) can
-authenticate to the platform, but only Alice is authorized to read the
-temperature:
-
-.. code:: JSON
-
-    {
-      "allow": [
-        {"user_id": "Alice", "capabilities" : ["can_read_temp"], "credentials": "CURVE:abc...", },
-        {"user_id": "Bobby", "credentials": "CURVE:xyz...", },
-      ]
-    }
-
-(The credentials are abbreviated to simplify the example.)
-
-In the weather agent, the authorization requirement is specified by
+In the temperature agent, a required capability is specified by
 using the ``RPC.allow`` decorator:
 
 .. code:: Python
 
-    @RPC.allow('can_read_temp')
     @RPC.export
-    def temperature():
+    def get_temperature():
        ...
 
-Alice's agents (i.e., agents that have been authenticated using Alice's
-credentials) can call ``temperature`` via `RPC <RPC-by-example>`__, but
-if one of Bobby's agents tries to call ``temperature`` they will get an
-exception:
+    @RPC.allow('CAP_SET_TEMP')
+    @RPC.export
+    def set_temperature(temp):
+       ...
 
-``error: method "temperature" requires capabilities set(['can_read_temp']), but capability list [] was provided``
+In the code above, any agent can call the ``get_temperature`` method, but only
+agents with the ``CAP_SET_TEMP`` capability can call ``set_temperature``.
+(Note: capabilities are arbitrary strings. This example follows the general
+style used for Linux capabilities, but it is up to the agent author.)
+
+Now that a required capability has been specified, suppose a VOLLTRON platform
+owner wants to allow a specific agent, say AliceAgent, to set the temperature.
+
+The platform owner runs ``volttron-ctl auth add`` to add new authorization
+entries or ``volttron-ctl auth update`` to update an existing entry. 
+If AliceAgent is installed on the platform, then it already has an
+authorization entry. Running ``volttron-ctl auth list`` shows the existing
+entries:
+
+.. code:: JSON
+
+    ...
+    INDEX: 3
+    {
+      "domain": null, 
+      "user_id": "AliceAgent", 
+      "roles": [], 
+      "enabled": true, 
+      "mechanism": "CURVE", 
+      "capabilities": [], 
+      "groups": [], 
+      "address": null, 
+      "credentials": "JydrFRRv-kdSejL6Ldxy978pOf8HkWC9fRHUWKmJfxc", 
+      "comments": null
+    }
+    ...
+
+Currently AliceAgent cannot set the temperature because it does
+not have the ``CAP_SET_TEMP`` capability. To grant this capability
+the platform owner runs ``volttron-ctl auth update 3``:
+
+.. code:: Bash
+
+    (For any field type "clear" to clear the value.)
+    domain []: 
+    address []: 
+    user_id [AliceAgent]: 
+    capabilities (delimit multiple entries with comma) []: CAP_SET_TEMP
+    roles (delimit multiple entries with comma) []: 
+    groups (delimit multiple entries with comma) []: 
+    mechanism [CURVE]: 
+    credentials [JydrFRRv-kdSejL6Ldxy978pOf8HkWC9fRHUWKmJfxc]: 
+    comments []: 
+    enabled [True]: 
+    updated entry at index 3
+
+
+Now AliceAgent can call ``set_temperature`` via RPC.
+If other agents try to call that method they will get the following
+exception::
+
+    error: method "set_temperature" requires capabilities set(['CAP_SET_TEMP']),
+    but capability list [] was provided
 
 Multiple Capabilities
 ---------------------
 
-Expanding on the weather-agent example, the ``temperature`` method can
+Expanding on the temperature-agent example, the ``set_temperature`` method can
 require agents to have multiple capabilities:
 
 .. code:: Python
 
-    @RPC.allow(['can_read_temp', 'can_read_weather_data'])
+    @RPC.allow(['CAP_SET_TEMP', 'CAP_FOO_BAR'])
     @RPC.export
-    def temperature():
+    def set_temperature():
        ...
 
-This requires an agent to have both the ``can_read_temp`` and the
-``can_read_weather_data`` capabilities. Multiple capabilities can also
+This requires an agent to have both the ``CAP_SET_TEMP`` and the
+``CAP_FOO_BAR`` capabilities. Multiple capabilities can also
 be specified by using multiple ``RPC.allow`` decorators:
 
 .. code:: Python
 
-    @RPC.allow('can_read_temp')
-    @RPC.allow('can_read_weather_data')
+    @RPC.allow('CAP_SET_TEMP')
+    @RPC.allow('CAN_FOO_BAR')
     @RPC.export
     def temperature():
        ...
 
-Full Example
-------------
-
-See the
-`StandAloneWithAuth <https://github.com/VOLTTRON/volttron/tree/develop/examples/StandAloneWithAuth>`__
-agent for a full example.
-
-Ideas for Improvement
-=====================
-
-Utilizing Roles
----------------
-
-Rather than requiring agent-authors to specify individual capabilities,
-we should use *roles* to group multiple capabilities. To make this work
-we would need to add a new decorator (e.g., ``RPC.allow_roles``). We
-would also need to define a mapping of roles to sets of capabilities.
-
-For example, somewhere we would define a role:
-
-.. code:: JSON
-
-    {
-      "roles": [
-        {"agent_control": ["install_agent", "remove_agent"]}, 
-        {"admin": ["install_agent", "remove_agent", "start", "stop"]}
-      ]
-    }
-
-Default Deny-All
-----------------
-
-Currently the default is to allow anyone to call RPC-exported methods
-that are not decorated with ``RPC.allow``. A more secure default would
-be to disallow everyone (at least remote users) from calling methods
-that are not decorated with ``RPC.allow``.
-
-Authorize at the Agent Level
-----------------------------
-
-Authorization is designed to work with user/peer authentication. So if
-user Alice authenticates to a platform, then all of Alice's agents are
-granted Alice's capabilities. It would be nice to be able to selectively
-grant capabilities to individual agents.
