@@ -1,0 +1,15 @@
+{
+    "agent": {
+        "exec": "openrtu-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
+    },
+    "agentid": "openadragent",
+    "ven_id": "<VEN id>",
+    "vtn_uri": "<VTN uri>",
+    "vtn_ids": "<VTN id>",
+    "poll_interval": 15,
+    "control_interval": 30,
+    "smap_uri": "http://path.to.smap/backend/add/<api key>",
+    "smap_source_name": "<sMAP source name>",
+    "smap_series_uuid": "<uuid>",
+    "smap_source_location": "/smap/event_data/location"
+}
