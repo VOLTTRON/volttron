@@ -90,7 +90,7 @@ class PlatformManager extends React.Component {
                 target.addEventListener("mouseup", onMouseUp);
 
                 evt.preventDefault();
-            }
+            };
 
             handle.addEventListener("mousedown", onMouseDown);
         }

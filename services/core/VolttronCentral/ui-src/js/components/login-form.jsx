@@ -2,7 +2,7 @@
 
 var React = require('react');
 var Router = require('react-router');
-
+require("../../css/app.css");
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var LoginForm = React.createClass({
