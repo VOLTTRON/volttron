@@ -526,16 +526,16 @@ class AuthFile(object):
                         warn_invalid(entry, 'Unexpected credential format')
                         continue
                 new_allow_list.append({
-                    "domain": entry['domain'],
-                    "address": entry['address'],
+                    "domain": entry.get('domain', None),
+                    "address": entry.get('address', None),
                     "mechanism": mechanism,
                     "credentials": credentials,
-                    "user_id": entry['user_id'],
-                    "groups": entry['groups'],
-                    "roles": entry['roles'],
-                    "capabilities": entry['capabilities'],
-                    "comments": entry['comments'],
-                    "enabled": entry['enabled']
+                    "user_id": entry.get('user_id', None),
+                    "groups": entry.get('groups', []),
+                    "roles": entry.get('roles', []),
+                    "capabilities": entry.get('capabilities', []),
+                    "comments": entry.get('comments', None),
+                    "enabled": entry.get('enabled', True)
                 })
             return new_allow_list
 
