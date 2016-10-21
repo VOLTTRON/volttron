@@ -1,4 +1,6 @@
-This agent example is meant to be run from this directory with:
+This agent example is meant to be run the command line, as opposed to
+installing it like other agents. From this directory the command to start
+it is:
 
 $ AGENT_CONFIG=config python -m ddsagent.agent
 
