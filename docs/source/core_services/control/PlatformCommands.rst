@@ -29,13 +29,13 @@ All commands and sub-commands have help available with "-h" or "--help".
 Additional configuration files may be specified with "-c" or "--config".
 To specify a log file, use "-l" or "--log".
 
-::
+.. code-block:: bash
 
     env/bin/volttron -c config.ini -l volttron.log
 
 Full options:
 
-::
+.. code-block:: console
 
     VOLTTRON platform service
 
@@ -96,7 +96,7 @@ manage the configuration store, get the platform status, and shutdown the platfo
     cannot run at the same time. Attempting to do so will result in a conflicting
     identity error.
 
-::
+.. code-block:: console
 
     usage: volttron-ctl command [OPTIONS] ...
 
@@ -126,7 +126,7 @@ manage the configuration store, get the platform status, and shutdown the platfo
 volttron-ctl auth subcommands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-::
+.. code-block:: console
 
     subcommands:
 
@@ -142,7 +142,7 @@ volttron-ctl auth subcommands
 volttron-ctl config subcommands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-::
+.. code-block:: console
 
     subcommands:
 
@@ -156,7 +156,7 @@ volttron-ctl config subcommands
 volttron-pkg Commands
 ---------------------
 
-::
+.. code-block:: console
 
     usage: volttron-pkg [-h] [-l FILE] [-L FILE] [-q] [-v] [--verboseness LEVEL]
                         {package,repackage,configure} ...
@@ -178,7 +178,7 @@ volttron-pkg Commands
 volttron-pkg commands (with Volttron Restricted package installed and
 enabled):
 
-::
+.. code-block:: console
 
     usage: volttron-pkg [-h] [-l FILE] [-L FILE] [-q] [-v] [--verboseness LEVEL]
                         {package,repackage,configure,create_ca,create_cert,sign,verify}
@@ -218,7 +218,7 @@ will start a *wizard* with a walk through for setting up instance configuration
 options and available agents.If only individual agents need to be configured
 they can be listed at the command line.
 
-::
+.. code-block:: console
 
     usage: volttron-cfg [-h] [--list-agents | --agent AGENT [AGENT ...]]
 
