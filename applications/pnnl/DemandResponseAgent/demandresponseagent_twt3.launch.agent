@@ -1,0 +1,67 @@
+{
+    
+"agentid": "PNNL_DRAgent3",  
+
+"campus": "PNNL",		
+
+"building": "TWT",	
+
+"unit": "RTU3",	
+
+"smap_path": "datalogger/log/Transactional Network/PNNL/TWT/RTU3/DR Application",  
+
+"cooling_stpt":  "CoolingTemperatureStPt", 
+
+"heating_stpt": "HeatingTemperatureStPt",
+
+"min_damper_stpt": "MinimumDamperPositionStPt",
+
+"cooling_stage_diff": "CoolingStageDifferential",
+
+"cooling_fan_sp1": "CoolSupplyFanSpeed1",
+
+"cooling_fan_sp2":  "CoolSupplyFanSpeed2",
+
+"override_command": "VoltronPBStatus",
+
+"occupied_status": "Occupied",
+
+"space_temp": "SpaceTemp",
+
+"volttron_flag": "VoltronFlag",
+
+
+"csp_pre": 67.0,	
+
+"csp_cpp": 80.0,	
+
+
+"normal_firststage_fanspeed": 75.0,
+
+"normal_secondstage_fanspeed": 90.0,
+
+"normal_damper_stpt": 5.0,
+
+"normal_coolingstpt": 74.0,
+
+"normal_heatingstpt": 67.0,
+
+
+"fan_reduction": 0.1,  
+
+"cpp_end_hour": 18, 
+
+"cpp_end_minute": 0, 
+
+"damper_cpp": 0, 
+
+"timestep_length": 900,
+
+"max_precool_hours": 5, 
+
+"building_thermal_constant": 4.0, 
+
+"cooling_stage_differential": 1.0,
+
+"Schedule": [1,1,1,1,1,1,1] 
+}

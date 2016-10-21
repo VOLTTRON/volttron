@@ -1,0 +1,213 @@
+
+{
+    "HP4": {
+		"Comp": { 
+			"zonetemperature-setpoint":{
+				"operation": "1/(SP - ZT)",
+				"operation_type": "formula",
+				"operation_args": ["SP", "ZT"],
+				"minimum": 0,
+				"maximum": 10
+			},
+			"rated-power": {
+			    "on_value": 10.0,
+			    "off_value": 0.0,
+				"operation_type": "status",
+				"point_name": "Comp"
+			},
+			"room-type": {
+				"map_key": "Computer Lab",
+				"operation_type": "mapper",
+				"dict_name": "zone_type"
+			},
+			"stage": {
+			    "value": 1,
+				"operation_type": "constant"
+			},
+			"history-zonetemperature": {
+			    "comparison_type": "direct",
+				"operation_type": "history",
+				"point_name": "ZT",
+				"previous_time": 15,
+				"minimum": 0,
+				"maximum": 10
+			},
+			"conditional_curtail": [
+			    {   "condition": "OccupancyMode == True", 
+			        "conditional_args" =  ["OccupancyMode"],
+				    "point": "SP",
+				    "value": 78.0,
+				    "offset": -2,
+				    "load": 10
+				},
+				{	"condition": "OccupancyMode == False",
+				    "conditional_args" =  ["OccupancyMode"],
+                    "point": "SP",
+                    "value": 82.0,
+				    "offset": -2,
+                    "load": 10
+                }
+			],
+			"curtail": {
+				"point": "SP",
+				"value": 82.0,
+				"offset": -2,
+				"load": 10
+			}
+		}
+    },
+    "HP5": {
+		"Comp": { 
+			"zonetemperature-setpoint":{
+				"operation": "1/(SP - ZT)",
+				"operation_type": "formula",
+				"operation_args": ["SP", "ZT"],
+				"minimum": 0,
+				"maximum": 10
+			},
+			"rated-power": {
+			    "on_value": 20.0,
+			    "off_value": 0.0,
+				"operation_type": "status",
+				"point_name": "Comp"
+			},
+			"room-type": {
+				"map_key": "Empty Office",
+				"operation_type": "mapper",
+				"dict_name": "zone_type"
+			},
+			"stage": {
+			    "value": 1,
+				"operation_type": "constant"
+			},
+			"history-zonetemperature": {
+			    "comparison_type": "direct",
+				"operation_type": "history",
+				"point_name": "ZT",
+				"previous_time": 15,
+				"minimum": 0,
+				"maximum": 10
+			},
+			"curtail": {
+				"point": "SP",
+				"value": 78.0,
+				"load": 10
+			}
+		},
+	    "Heater": { 
+			"zonetemperature-setpoint":{
+				"operation": "1/(SP - ZT)",
+				"operation_type": "formula",
+				"operation_args": ["SP", "ZT"],
+				"minimum": 0,
+				"maximum": 10
+			},
+			"rated-power": {
+			    "on_value": 10.0,
+			    "off_value": 0.0,
+				"operation_type": "status",
+				"point_name": "Comp"
+			},
+			"room-type": {
+				"map_key": "Computer Lab",
+				"operation_type": "mapper",
+				"dict_name": "zone_type"
+			},
+			"stage": {
+			    "value": 9,
+				"operation_type": "constant"
+			},
+			"history-zonetemperature": {
+			    "comparison_type": "direct",
+				"operation_type": "history",
+				"point_name": "ZT",
+				"previous_time": 15,
+				"minimum": 0,
+				"maximum": 10
+			},
+			"curtail": {
+				"point": "SP",
+				"value": 78.0,
+				"load": 10
+			}
+		}
+    },
+    "HP6": {
+		"Comp": { 
+			"zonetemperature-setpoint":{
+				"operation": "1/(SP - ZT)",
+				"operation_type": "formula",
+				"operation_args": ["SP", "ZT"],
+				"minimum": 0,
+				"maximum": 10
+			},
+			"rated-power": {
+			    "on_value": 30.0,
+			    "off_value": 0.0,
+				"operation_type": "status",
+				"point_name": "Comp"
+			},
+			"room-type": {
+				"map_key": "Conference Room",
+				"operation_type": "mapper",
+				"dict_name": "zone_type"
+			},
+			"stage": {
+			    "value": 1,
+				"operation_type": "constant"
+			},
+			"history-zonetemperature": {
+			    "comparison_type": "direct",
+				"operation_type": "history",
+				"point_name": "ZT",
+				"previous_time": 15,
+				"minimum": 0,
+				"maximum": 10
+			},
+			"curtail": {
+				"point": "SP",
+				"value": 78.0,
+				"load": 10
+			}
+		}
+    },
+    "HP7": {
+		"Comp": { 
+			"zonetemperature-setpoint":{
+				"operation": "1/(SP - ZT)",
+				"operation_type": "formula",
+				"operation_args": ["SP", "ZT"],
+				"minimum": 0,
+				"maximum": 10
+			},
+			"rated-power": {
+			    "on_value": 40.0,
+			    "off_value": 0.0,
+				"operation_type": "status",
+				"point_name": "Comp"
+			},
+			"room-type": {
+				"map_key": "Office",
+				"operation_type": "mapper",
+				"dict_name": "zone_type"
+			},
+			"stage": {
+			    "value": 1,
+				"operation_type": "constant"
+			},
+			"history-zonetemperature": {
+			    "comparison_type": "direct",
+				"operation_type": "history",
+				"point_name": "ZT",
+				"previous_time": 15,
+				"minimum": 0,
+				"maximum": 10
+			},
+			"curtail": {
+				"point": "SP",
+				"value": 78.0,
+				"load": 10
+			}
+		}
+    }
+}
