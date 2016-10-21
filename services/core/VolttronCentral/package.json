@@ -6,6 +6,7 @@
     "watch": "webpack-dev-server --watch --progress --colors --inline --hot --devtool inline-source-map",
     "watch-production": "webpack-dev-server --watch --compress --progress --colors --inline --hot --optimize-minimize --optimize-occurence-order --optimize-dedupe",
     "build": "webpack --progress --colors --optimize-minimize --optimize-occurence-order --optimize-dedupe",
+    "build-watch": "webpack --progress --watch --colors --optimize-minimize --optimize-occurence-order --optimize-dedupe",
     "build-development": "webpack --progress --colors --devtool inline-source-map"
   },
   "devDependencies": {
@@ -42,6 +43,7 @@
     "codemirror": "^4.13.0",
     "d3": "^3.5.5",
     "flux": "^2.0.1",
+    "font-awesome": "^4.6.3",
     "history": "^3.0.0",
     "immutable": "^3.8.1",
     "jquery": "^2.1.3",

@@ -29,8 +29,8 @@ var url = require('url');
 const IS_PRODUCTION = argv.p || argv['optimize-minimize'];
 
 const BUILD_PATH = path.join(__dirname, './volttroncentral/webroot');
-var APP_GLOB = '{css,fonts,js}/app-*';
-var VENDOR_GLOB = '{css,js}/{normalize,vendor}-*';
+// var APP_GLOB = '{css,fonts,js}/app-*';
+// var VENDOR_GLOB = '{css,js}/{normalize,vendor}-*';
 
 const HTML_FILE_NAME = 'index.html';
 
@@ -48,7 +48,8 @@ module.exports = {
     },
     output: {
         path: BUILD_PATH,
-        filename: '[name]-[hash].js',
+        publicPath: '/',
+        filename: 'js/[name]-[hash].js',
     },
     resolve: {
         //Allow locating dependancies relative to the src directory and then the js directory.
@@ -115,11 +116,11 @@ module.exports = {
             // fonts 10k or less in bundle, fallback fonts always in files
             { 
                 test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/, 
-                loader: 'url-loader?limit=10000&mimetype=application/font-woff' 
+                loader: 'url-loader?limit=10000&name=fonts/[name]-[ext]' 
             },
             { 
                 test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/, 
-                loader: 'file-loader' 
+                loader: 'file-loader?name=fonts/[name]-[ext]' 
             },
         ],
     },
@@ -128,8 +129,7 @@ module.exports = {
         // inserts js and css into html file
         new HtmlWebpackPlugin({
             filename: HTML_FILE_NAME,
-            template: HTML_FILE_NAME,
-            title: "VOLTTRON&trade; Central BETA"
+            template: HTML_FILE_NAME
         }),
         
         // useful for external libraries and their assets
@@ -145,17 +145,19 @@ module.exports = {
         //            SERVICE_PATH: JSON.stringify(servicePath),
         // }),
         new CaseSensitivePathsPlugin(),
-        new CleanWebpackPlugin([BUILD_PATH], {
-            exclude: [HTML_FILE_NAME]
-        }),
+        new CleanWebpackPlugin([
+            BUILD_PATH + "/js", 
+            BUILD_PATH + "/css", 
+            BUILD_PATH + "/fonts"
+        ]),
         // Enable multi-pass compilation for enhanced performance
         // in larger projects. Good default.
-        new webpack.HotModuleReplacementPlugin({
-            multiStep: true
-        }),
+        // new webpack.HotModuleReplacementPlugin({
+        //     multiStep: true
+        // }),
         
-        new ExtractTextPlugin("[name].css")
-        
+        new ExtractTextPlugin("css/[name]-[hash].css")
+
     ],
     devServer: {
         proxy: {
