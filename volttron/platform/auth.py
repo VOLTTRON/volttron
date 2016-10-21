@@ -65,6 +65,7 @@ import logging
 import os
 import random
 import re
+import shutil
 
 import gevent
 from gevent.fileobject import FileObject
@@ -499,6 +500,11 @@ class AuthFile(object):
                       .format(entry, self.auth_file, msg))
 
         def upgrade_0_to_1():
+            backup_name = self.auth_file + '.bak'
+            shutil.copy(self.auth_file, backup_name)
+            _log.info('Created backup of {} at {}'.format(self.auth_file,
+                backup_name))
+
             new_allow_list = []
             for entry in allow_list:
                 try:
