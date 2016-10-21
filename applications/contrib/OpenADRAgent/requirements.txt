@@ -1,6 +1,0 @@
-#oadr2-ven==0.1
--e git+https://github.com/EnerNOC/oadr2-ven-python.git@master#egg=oadr2-ven
-requests==1.2.3
-pytz==2013b
-simplejson==3.3.0
-lxml==3.2.3

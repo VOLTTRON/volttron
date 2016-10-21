@@ -1,7 +1,0 @@
-{
-    "agent": {
-        "exec": "mpcagent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
-    },
-    "agentid": "mpc1",
-    "message": "hello"    
-}
