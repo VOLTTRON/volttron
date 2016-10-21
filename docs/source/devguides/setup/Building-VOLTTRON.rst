@@ -45,6 +45,22 @@ and set a log file:
     # also tail the log file to see if the platform started correctly
     tail -f volttron.log
 
+
+.. warning::
+    If you plan on running VOLTTRON in the background and detaching it from the
+    terminal with the ``disown`` command be sure to redirect stderr and stdout to ``/dev/null``.
+    Some libraries which VOLTTRON relies on output directly to stdout and stderr.
+    This will cause problems if those file descriptors are not redirected to ``/dev/null``.
+
+
+::
+
+    #To start the platform in the background and redirect stderr and stdout
+    #to /dev/null
+    volttron -vv -l volttron.log > /dev/null 2>&1&
+
+
+
 If you are developing in Eclipse, you should update the Python path at
 this point. See: :ref:`Eclipse-Dev-Environment <Eclipse-Dev-Environment>`
 
@@ -84,6 +100,8 @@ From the volttron directory:
 
     # -- or --
     volttron-ctl stop <uuid>
+
+
 
 See :ref:`Speeding Up VOLTTRON Builds <Speeding-Builds>` for information on
 improving VOLTTRON build times.
