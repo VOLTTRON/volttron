@@ -23,6 +23,10 @@ Version 4.0
 - The ``$VOLTTRON_HOME/curve.key`` file has been replaced with a
   :ref:`key store`<Key-Stores>`. Use the ``scripts/update_curve_key.py``
   script to update an existing key pair.
+- A ``mechanism`` field has been added to the auth file. Therefore,
+  the ``credentials`` field no longer is prepended with a mechnanism
+  such as "CURVE:". VOLTTRON automatically updates the auth entires
+  to use the new field.
 
   - Entries with a regular expression in the ``credentials`` field
     cannot be upgraded.
