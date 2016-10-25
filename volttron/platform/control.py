@@ -796,7 +796,7 @@ def gen_keypair(opts):
 
 def add_server_key(opts):
     store = KnownHostsStore()
-    store.add(opts.host, opts.server_key)
+    store.add(opts.host, opts.serverkey)
     _stdout.write('server key written to {}\n'.format(store.filename))
 
 
