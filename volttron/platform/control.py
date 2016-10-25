@@ -1422,7 +1422,7 @@ def main(argv=sys.argv):
             help='add server public key to known-hosts file')
     auth_add_known_host.add_argument('--host', required=True,
             help='hostname or IP address with optional port')
-    auth_add_known_host.add_argument('--server-key', required=True)
+    auth_add_known_host.add_argument('--serverkey', required=True)
     auth_add_known_host.set_defaults(func=add_server_key)
 
     auth_keypair = add_parser('keypair', subparser=auth_subparsers,
