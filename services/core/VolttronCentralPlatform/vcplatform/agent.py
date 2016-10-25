@@ -879,6 +879,10 @@ class VolttronCentralPlatform(Agent):
                     _log.error("Couldn't get health from {} uuid: {}".format(
                         identity, a['uuid']
                     ))
+                except Unreachable:
+                    _log.error("Couldn't reach agent identity {} uuid: {}".format(
+                        identity, a['uuid']
+                    ))
         for a in agents:
             if a['uuid'] in uuid_to_status.keys():
                 _log.debug('UPDATING STATUS OF: {}'.format(a['uuid']))
