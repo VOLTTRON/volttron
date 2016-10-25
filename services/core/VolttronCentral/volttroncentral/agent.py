@@ -398,11 +398,6 @@ class VolttronCentralAgent(Agent):
                                                   topicsplit[1], \
                                                   topicsplit[2], topicsplit[3:]
 
-        if len(platform_uuid) != 36:
-            _log.error('Invalid platform id detected {}'
-                       .format(platform_uuid))
-            return
-
         platform = self._registered_platforms.get(platform_uuid)
         if platform is None:
             _log.warn('Platform {} is not registered but sent message {}'
