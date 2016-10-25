@@ -99,8 +99,8 @@ class FailoverAgent(Agent):
         self.remote_vip = config["remote_vip"]
 
         hosts = KnownHostsStore()
-        serverkey = hosts.serverkey(self.remote_vip)
-        if serverkey is None:
+        self.remote_serverkey = hosts.serverkey(self.remote_vip)
+        if self.remote_serverkey is None:
             self.remote_serverkey = config["remote_serverkey"]
 
         self.agent_vip_identity = config["agent_vip_identity"]

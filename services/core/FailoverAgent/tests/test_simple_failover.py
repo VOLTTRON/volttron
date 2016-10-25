@@ -29,6 +29,7 @@ SLEEP_TIME = 3
 
 uuid_primary = None
 uuid_secondary = None
+listener_primary = None
 
 def all_agents_running(instance):
     agents = instance.list_agents()
@@ -41,6 +42,7 @@ def simple_failover(request, get_volttron_instances):
     global simple_secondary_config
     global uuid_primary
     global uuid_secondary
+    global listener_primary
 
     primary, secondary = get_volttron_instances(2)
 
@@ -167,3 +169,17 @@ def test_secondary_on_primary_crash(simple_failover):
     assert not all_agents_running(secondary)
 
     primary.skip_cleanup = False
+
+
+def test_can_handle_agent_upgrade(simple_failover):
+    global listener_primary
+    primary, secondary = simple_failover
+    
+    primary.remove_agent(listener_primary)
+    listener_primary = primary.install_agent(agent_dir="examples/ListenerAgent",
+                                             vip_identity="listener",
+                                             start=False)
+
+    gevent.sleep(SLEEP_TIME)
+    assert all_agents_running(primary)
+    assert not all_agents_running(secondary)
