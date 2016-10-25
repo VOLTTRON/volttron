@@ -264,7 +264,7 @@ class MasterWebService(Agent):
 
     @RPC.export
     def register_path_route(self, peer, regex, root_dir):
-        _log.info('Registiering path route: {}'.format(root_dir))
+        _log.info('Registering path route: {} to peer {}'.format(root_dir,peer))
         compiled = re.compile(regex)
         self.pathroutes[peer].append(compiled)
         self.registeredroutes.append((compiled, 'path', root_dir))
