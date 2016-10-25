@@ -1457,31 +1457,31 @@ a.view__item:hover::before {
     margin-top: 2px;
 }
 
-.registryConfigTable > tbody > tr > td > input {
+.registryConfigTable .ReactVirtualized__Table__rowColumn > input {
     border: none;
 }
 
-.registryConfigTable > tbody > tr {
+.registryConfigTable .ReactVirtualized__Table__row {
     cursor: cell;
 }
 
-.registryConfigTable > tbody > tr > td > label {
+.registryConfigTable .ReactVirtualized__Table__rowColumn > label {
     cursor: cell;
 }
 
-.registryConfigTable > tbody > tr:not(.selectedRegistryPoint):hover {
+.registryConfigTable .ReactVirtualized__Table__row:not(.selectedRegistryPoint):hover {
     background-color: rgba(102, 153, 187, .3);
 }
 
-.registryConfigTable > tbody > tr > td > input {
+.registryConfigTable .ReactVirtualized__Table__rowColumn > input {
     cursor: auto;
 }
 
-.registryConfigTable > tbody > tr:first-child > td:last-child {
+.registryConfigTable .ReactVirtualized__Table__row:first-child > .ReactVirtualized__Table__rowColumn:last-child {
     border-top: 1px solid #ddd;
 }
 
-.registryConfigTable > thead > tr > th > div > div > div > .tooltip_inner {
+.registryConfigTable .ReactVirtualized__Table__headerColumn > div > div > div > .tooltip_inner {
     white-space: nowrap;
 }
 
