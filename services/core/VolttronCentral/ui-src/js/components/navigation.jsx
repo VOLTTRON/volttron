@@ -60,7 +60,6 @@ var Navigation = React.createClass({
                     <span className="logo__central">&nbsp;Central</span>
                     <span className="logo__beta">BETA- FRAUNHOFER</span>
                     <span className="logo__funding">Funded by DOE EERE BTO</span>
-                    <span className="logo__franhofer">Fraunhofer USA</span>
                 </h1>
                 {navItems}
             </nav>
