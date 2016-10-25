@@ -37,7 +37,7 @@ variable needs to be different for each instance.
 If you are using Terminator you can right click and select "Split Vertically".
 This helps us keep from losing terminal windows or duplicating work.
 
-::
+.. code-block:: console
 
     $ source env/bin/activate
     $ export VOLTTRON_HOME=~/.volttron1
@@ -75,14 +75,38 @@ Start each Volttron instance after configuration. The "-l" option in the
 following command tells volttron to log to a file. The file name
 should be different for each instance.
 
-::
+.. code-block:: console
 
     $ volttron -l log1&
+
+VOLTTRON Central need to accept the connecting instances'
+public keys. For this example we'll allow any CURVE credentials to be accepted.
+After starting, the command **volttron-ctl auth add** will prompt the user for
+information about how the credentials should be used. We can simply hit Enter
+to select defaults on all fields except **credentials**, where we will type
+`/.*/`
+
+.. code-block:: console
+
+   $ volttron-ctl auth add
+   domain []:
+   address []:
+   user_id []:
+   capabilities (delimit multiple entries with comma) []:
+   roles (delimit multiple entries with comma) []:
+   groups (delimit multiple entries with comma) []:
+   mechanism [CURVE]:
+   credentials []: /.*/
+   comments []:
+   enabled [True]:
+   added entry domain=None, address=None, mechanism='CURVE', credentials=u'/.*/', user_id=None
+
+For more information on authorization see :ref:`authentication<VIP-Authentication>`.
 
 If you chose to not start your agents with their platforms they will need to
 be started by hand. List the installed agents with
 
-::
+.. code-block:: console
 
     $ volttron-ctl status
 
@@ -91,13 +115,13 @@ output. This is all that is needed to start or stop the agent. If any
 installed agents share a common prefix then more of the uuid will be needed
 to identify it.
 
-::
+.. code-block:: console
 
     $ volttron-ctl start uuid
 
 or
 
-::
+.. code-block:: console
 
     $ volttron-ctl start --tag tag
 
@@ -112,7 +136,7 @@ Once you have completed your walk through of the different elements of
 the VOLTTRON Central demo you can stop the demos by executing the following
 command in each terminal window.
 
-::
+.. code-block:: console
 
     $ volttron-ctl shutdown --platform
 
