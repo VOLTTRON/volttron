@@ -72,6 +72,9 @@ The build process is defined in the gulpfile.js and is run by the installed Gulp
 
 	./node_modules/gulp/bin/gulp.js
 
+This command runs indefinitely, watching for changes in the source file.
+So after it's done building, just exit with control C.
+
 The compiled code is built in the volttroncentral/webroot directory:
 
 	volttroncentral
