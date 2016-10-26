@@ -1,10 +1,16 @@
-import hashlib
-
 '''
     A simple authorization for authenticating users with known credentials.
 
     @author: Craig Allwardt
 '''
+import hashlib
+import logging
+
+from volttron.platform.agent import utils
+
+utils.setup_logging()
+_log = logging.getLogger(__name__)
+
 class Authenticate:
 
     def __init__(self, user_map):
@@ -20,10 +26,13 @@ class Authenticate:
         self.users = user_map
 
     def authenticate(self, username, password):
-        '''
-        Authenticate that the user is known to the system.   Return groups of
-        the user if the user is known otherwise returns None.
-        '''
+        """ Authenticate that the user is known to the system.
+
+        Return groups of the user if the user is known otherwise returns None.
+        :param username:
+        :param password:
+        :return: list(groups) or None
+        """
         if username in self.users.keys():
             # Do a naive hash of the user supplied password and if success return
             # the groups that the user holds.

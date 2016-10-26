@@ -37,7 +37,7 @@ DISABLE="$COMMAND disable --tag $TAG $COMMAND_ARGS"
 
 
 
-if [ ! -e "./applications" ]; then
+if [ ! -e "./volttron/platform" ]; then
     echo "Please execute from root of volttron repository."
     exit 0
 fi
@@ -73,8 +73,10 @@ echo $PACK $SOURCE $CONFIG $TAG
 # Install and start HIST.
 $PACK $SOURCE $CONFIG $TAG
 
-echo "$START"
-$START
+if [ -z "$NO_START" ]; then
+  echo "$START"
+  $START
+fi
 
 if [ "$1" = "enable" ]
 then

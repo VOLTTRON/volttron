@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -128,12 +128,24 @@ class AbstractDrivenAgent(object):
 class Results(object):
     def __init__(self, terminate=False):
         self.commands = OrderedDict()
+        self.devices = OrderedDict()
         self.log_messages = []
         self._terminate = terminate
         self.table_output = defaultdict(list)
 
-    def command(self, point, value):
-        self.commands[point]=value
+    def command(self, point, value, device=None):
+        if device is None:
+            self.commands[point] = value
+        else:
+            if device not in self.devices.keys():
+                self.devices[device] = OrderedDict()
+            self.devices[device][point] = value
+        if self.devices is None:
+            self.commands[point]=value
+        else:
+            if  device not in self.devices.keys():
+                self.devices[device] = OrderedDict()
+            self.devices[device][point]=value
 
     def log(self, message, level=logging.DEBUG):
         self.log_messages.append((level, message))
@@ -156,7 +168,7 @@ class ConversionMapper(object):
     def setup_conversion_map(self, conversion_map_config, field_names):
         #time_format = conversion_map_config.pop(TIME_STAMP_COLUMN)
         re_exp_list = conversion_map_config.keys()
-        re_exp_list.sort(cmp=lambda x,y: cmp(len(x), len(y)))
+        re_exp_list.sort(cmp=lambda x, y: cmp(len(x), len(y)))
         re_exp_list.reverse()
         re_list = [re.compile(x) for x in re_exp_list]
 
@@ -182,7 +194,7 @@ class ConversionMapper(object):
             for field_re in re_list:
                 if field_re.match(name):
                     pattern = field_re.pattern
-                    self._log.debug('Pattern {pattern} used to process {name}.' \
+                    self._log.debug('Pattern {pattern} used to process {name}.'
                                     .format(pattern=pattern, name=name))
                     type_string = conversion_map_config[pattern]
                     self.conversion_map[name] = type_map[type_string]

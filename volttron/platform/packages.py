@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -140,6 +140,20 @@ class VolttronPackageWheelFileNoSign(WheelFile):
 
                         (hash_data, size, digest) = self._record_digest(data)
                         record_path = '/'.join((self.distinfo_name, 'config'))
+                        writer.writerow((record_path, hash_data, size))
+
+                    if 'identity_file' in files_to_add.keys():
+                        try:
+                            data = open(files_to_add['identity_file']).read()
+                        except OSError as e:
+                            _log.error("couldn't access {}" % files_to_add['identity_file'])
+                            raise
+
+                        self.zipfile.writestr("%s/%s" % (self.distinfo_name, 'IDENTITY_TEMPLATE'),
+                                              data)
+
+                        (hash_data, size, digest) = self._record_digest(data)
+                        record_path = '/'.join((self.distinfo_name, 'IDENTITY_TEMPLATE'))
                         writer.writerow((record_path, hash_data, size))
 
                     if 'contract' in files_to_add.keys() and files_to_add['contract'] is not None:

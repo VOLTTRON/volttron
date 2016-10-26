@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -63,7 +63,7 @@ from string import Formatter
 __all__ = ['normtopic', 'Topic']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
-__copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
+__copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
 
@@ -160,6 +160,7 @@ class TopicFormatter(Formatter):
 
 
 class Topic(unicode):
+
     def __init__(self, format_string):
         '''Perform minimal validation of names used in format fields.'''
         for _, name, _, _ in format_string._formatter_parser():
@@ -171,15 +172,20 @@ class Topic(unicode):
                                  ' use named format fields only')
             if name[:1].isdigit():
                 raise ValueError('invalid format field name: {}'.format(name))
+
     def __call__(self, **kwargs):
         return self.__class__(normtopic(self.vformat(kwargs)))
+
     def _(self, **kwargs):
         return self.__class__(self.vformat(kwargs))
+
     def format(self, **kwargs):
         return self.vformat(kwargs)
+
     def vformat(self, kwargs):
         formatter = TopicFormatter()
         return formatter.vformat(self, (), kwargs)
+
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__,
                                super(Topic, self).__repr__())

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -69,6 +69,7 @@ from volttron.platform.messaging import topics
 from volttron.platform.messaging import headers as headers_mod
 
 _log = logging.getLogger(__name__)
+__version__ = '3.0.1'
 
 HEADER_NAME_DATE = headers_mod.DATE
 HEADER_NAME_CONTENT_TYPE = headers_mod.CONTENT_TYPE
@@ -82,7 +83,7 @@ SCHEDULE_ACTION_CANCEL = 'CANCEL_SCHEDULE'
 __authors__ = ['Robert Lutes <robert.lutes@pnnl.gov>',
                'Kyle Monson <kyle.monson@pnnl.gov>',
                'Craig Allwardt <craig.allwardt@pnnl.gov>']
-__copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
+__copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
 
@@ -91,10 +92,8 @@ def DataPub(config_path, **kwargs):
 
     The first column in the data file must be the timestamp and it is not
     published to the bus unless the config option:
-        'maintain_timestamp' - True will allow the publishing of specified
-                                   timestamps.
-                               False will use the current now time and publish
-                                   using it.
+    'maintain_timestamp' - True will allow the publishing of specified
+    timestamps. False will use the current now time and publish using it.
     '''
     conf = utils.load_config(config_path)
     has_timestamp = conf.get('has_timestamp', 1)
@@ -115,6 +114,8 @@ def DataPub(config_path, **kwargs):
         BASETOPIC = conf.get('basetopic')
         # device root is the root of the publishing tree.
         device_root = ''.join([BASETOPIC, '/', device_path])
+    else:
+        device_root = custom_topic
 
     path = conf.get('input_file')
     if not os.path.exists(path):
@@ -124,10 +125,13 @@ def DataPub(config_path, **kwargs):
     # just use the name of the device as is.
     unit = conf.get('unit')
     
-    unittype_map = conf.get('unittype_map')
+    # unittype_map maps the point name to the proper units.
+    unittype_map = conf.get('unittype_map', {})
     
-    assert unittype_map
-
+    # should we keep playing the file over and over again.
+    replay_data = conf.get('replay_data', False)
+    
+    header_point_map = {}
     # If thie unit is a dictionary then the device
     if isinstance(unit, dict):
         # header point map maps the prefix of a column in the csv file to
@@ -136,7 +140,6 @@ def DataPub(config_path, **kwargs):
         # the key FCU13259 would map to rtu5/FCU13259.  This will make it
         # trivial later to append the sensor_name Heating to the relative
         # point to publish the value.
-        header_point_map = {}
         for prefix, v in unit.items():
             # will allow publishing under root level items such
             # as rtu5_Compensator to rtu5/Compensator
@@ -221,27 +224,34 @@ def DataPub(config_path, **kwargs):
                 except:
                     self._log.info('Unable to remove line store.')
                     
-        @Core.periodic(period=pub_interval, wait=pub_interval+pub_interval)
+        @Core.periodic(period=pub_interval, wait=pub_interval)
         def publish_data_or_heartbeat(self):
             '''Publish data from file to message bus.'''
-            _data = {}
+            data = {}
             now = datetime.datetime.now().isoformat(' ')
 
             if self._src_file_handle is not None \
                     and not self._src_file_handle.closed:
-
+                
                 try:                    
                     data = self._reader.next()
                     self._line_on+=1
                     if remember_playback:
                         self.store_line_on()
                 except StopIteration:
-                    self._src_file_handle.close()
-                    self._src_file_handle = None
-                    _log.info("Completed publishing all records for file!")
-                    self.core.stop()
-                                        
-                    return
+                    if replay_data:
+                        _log.info('Restarting player at the begining of the file.')
+                        self._src_file_handle.seek(0)
+                        self._line_on = 0
+                        if remember_playback:
+                            self.store_line_on()
+                    else:                        
+                        self._src_file_handle.close()
+                        self._src_file_handle = None
+                        _log.info("Completed publishing all records for file!")
+                        self.core.stop()
+                                            
+                        return
                 # break out if no data is left to be found.
                 if not data:
                     self._src_file_handle.close()
@@ -312,34 +322,49 @@ def DataPub(config_path, **kwargs):
                     all_publish = {}
                     # Loop over data from the csv file.
                     for sensor, value in data.items():
-                        # Loop over mapping from the config file
-                        for prefix, container in header_point_map.items():
-                            if sensor.startswith(prefix):
-                                try:
-                                    _, sensor_name = sensor.split('_')
-                                except:
-                                    sensor_name = sensor
+                        # if header_point_map isn't described then
+                        # we are going to attempt to publish all of hte
+                        # points based upon the column headings.
+                        if not header_point_map:
+                            if value:
+                                sensor_name = sensor.split('/')[-1]
+                                # container should start with a /
+                                container = '/' + '/'.join(sensor.split('/')[:-1])                               
                                 
-                                # make sure that there is an actual value not
-                                # just an empty string.
-                                if value:
-                                    if value == '0.0':
-                                        pass
-                                    # Attempt to publish as a float.
+                                publish_point(device_root+container,
+                                                      sensor_name, value)
+                                if container not in all_publish.keys():
+                                    all_publish[container] = {}
+                                all_publish[container][sensor_name] = value
+                        else:
+                            # Loop over mapping from the config file
+                            for prefix, container in header_point_map.items():
+                                if sensor.startswith(prefix):
                                     try:
-                                        value = float(value)
+                                        _, sensor_name = sensor.split('_')
                                     except:
-                                        pass
+                                        sensor_name = sensor
                                     
-                                    publish_point(device_root+container,
-                                                  sensor_name, value)
+                                    # make sure that there is an actual value not
+                                    # just an empty string.
+                                    if value:
+                                        if value == '0.0':
+                                            pass
+                                        # Attempt to publish as a float.
+                                        try:
+                                            value = float(value)
+                                        except:
+                                            pass
+                                        
+                                        publish_point(device_root+container,
+                                                      sensor_name, value)
+        
+                                        if container not in all_publish.keys():
+                                            all_publish[container] = {}
+                                        all_publish[container][sensor_name] = value
     
-                                    if container not in all_publish.keys():
-                                        all_publish[container] = {}
-                                    all_publish[container][sensor_name] = value
-
-                                # move on to the next data point in the file.
-                                break
+                                    # move on to the next data point in the file.
+                                    break
 
                     for _all, values in all_publish.items():
                         publish_point(device_root, _all+"/all", values)
