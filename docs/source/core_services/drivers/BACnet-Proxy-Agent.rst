@@ -11,7 +11,7 @@ Communication with BACnet device on a network happens via a single
 virtual BACnet device. Previous versions of Volttron used one virtual
 device per device on the network. This only worked in a limited number
 of circumstances. (This problem is fixed in the legacy sMap drivers in
-Volttron 3.0 only) In the new driver architecture we have a separate
+Volttron 3.0 only) In the new driver architecture, we have a separate
 agent specifically for communicating with BACnet devices and managing
 the virtual BACnet device.
 
@@ -37,21 +37,21 @@ BACnet device settings
 -  **device_address** - Address bound to the network port over which
    BACnet communication will happen on the computer running VOLTTRON.
    This is **NOT** the address of any target device. See `Device Addressing`_.   
--  **object_id** - ID of the Device object of the virtual bacnet
+-  **object_id** - ID of the Device object of the virtual BACnet
    device. Defaults to 599. Only needs to be changed if there is
    a conflicting BACnet device ID on your network.
 
 These settings determine the capabilities of the virtual BACnet device.
 BACnet communication happens at the lowest common denominator between
-two devices. For instance if the BACnet proxy supports segmentation and
+two devices. For instance, if the BACnet proxy supports segmentation and
 the target device does not communication will happen without
 segmentation support and will be subject to those limitations.
-Consequently there is little reason to change the default settings
+Consequently, there is little reason to change the default settings
 outside of the **max_apdu_length** (the default is not the largest
 possible value).
 
 -  **max_apdu_length** - (From bacpypes documentation) BACnet works on
-   lots of different types of networks, from high speed Ethernet to
+   lots of different types of networks, from high-speed Ethernet to
    “slower” and “cheaper” ARCNET or MS/TP (a serial bus protocol used
    for a field bus defined by BACnet). For devices to exchange messages
    they have to know the maximum size message the device can handle.
@@ -64,13 +64,13 @@ possible value).
 
 -  **object_name** - Name of the object. Defaults to "Volttron BACnet
    driver". (Optional)
--  **vendor_id** - Vendor ID of the virtual bacnet device. Defaults to
+-  **vendor_id** - Vendor ID of the virtual BACnet device. Defaults to
    15. (Optional)
 -  **segmentation_supported** - (From bacpypes documentation) A vast
-   majority of BACnet communications traffic fits in one message, but
-   there can be times when larger messages are convinient and more
+   majority of BACnet communications traffic fits into one message, but
+   there can be times when larger messages are convenient and more
    efficient. Segmentation allows larger messages to be broken up into
-   segemnts and spliced back together. It is not unusual for “low power”
+   segments and spliced back together. It is not unusual for “low power”
    field equipment to not support segmentation. (End BACpypes docs)
 
    Possible setting are "segmentedBoth" (default), "segmentedTransmit",
@@ -79,16 +79,16 @@ possible value).
 Device Addressing
 -----------------
 
-In some cases it will be needed to specify the subnet mask of the
+In some cases, it will be needed to specify the subnet mask of the
 virtual device or a different port number to listen on. The full format
 of the BACnet device address is 
 
     ``<ADDRESS>/<NETMASK>:<PORT>``
     
 where ``<PORT>`` is the port to use and ``<NETMASK>`` is the netmask length. 
-The most commmon value is 24. See http://www.computerhope.com/jargon/n/netmask.htm
+The most common value is 24. See http://www.computerhope.com/jargon/n/netmask.htm
 
-For instance if you need to specify a subnet mask of 255.255.255.0 
+For instance, if you need to specify a subnet mask of 255.255.255.0
 and the IP address bound to the network port is 192.168.1.2 you 
 would use the address
 
@@ -116,17 +116,17 @@ Communicating With Multiple BACnet Networks
 
 If two BACnet devices are connected to different ports they are
 considered to be on different BACnet networks. In order to communicate
-with both devices you will need to run one BACnet Proxy Agent per
+with both devices, you will need to run one BACnet Proxy Agent per
 network.
 
-Each proxy will need to be bound to different ports appropriate to
+Each proxy will need to be bound to different ports appropriate for
 each BACnet network and will need a different VIP identity specified.
 When configuring drivers you will need to specify which proxy to use by
-specifying the VIP identity.
+:ref:`specifying the VIP identity <vip-identity-assignment>`.
 
 TODO: Add link to docs showing how to specify the VIP IDENTITY when installing an agent.
 
-For example a proxy connected to the default BACnet network
+For example, a proxy connected to the default BACnet network
 
 .. code-block:: json
 
@@ -142,7 +142,7 @@ and another on port 47809
         "device_address": "192.168.1.2/24:47809"
     }
 
-a device one the first network
+a device on the first network
 
 .. code-block:: json
 
