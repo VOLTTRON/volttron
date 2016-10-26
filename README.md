@@ -89,8 +89,8 @@ git subtree add –prefix applications https://github.com/VOLTTRON/volttron-appl
 
 How to [contribute](http://volttron.readthedocs.io/en/develop/contributing.html) back:
 
-Issue Tracker: http://github.com/VOLTTRON/volttron/issues
-Source Code: http://github.com/VOLTTRON/volttron
+* Issue Tracker: http://github.com/VOLTTRON/volttron/issues
+* Source Code: http://github.com/VOLTTRON/volttron
 
 ## Support
 There are several options for VOLTTRONTM [support](http://volttron.readthedocs.io/en/master/community_resources/index.html#volttron-community).
