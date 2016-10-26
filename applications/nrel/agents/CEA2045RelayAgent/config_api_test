@@ -1,0 +1,7 @@
+{
+    "agentid": "CEA2045 - Test",
+    "message": "hello from CEA2045 test ",
+    "device1_usb_port" : "None",
+    "device1_baud_rate" : 0,
+    "device_type" : 1
+}

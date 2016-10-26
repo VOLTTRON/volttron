@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2016, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -110,7 +110,8 @@ def shescape(args):
                     '"' if ' ' in arg else '') for arg in args)
 
 
-def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
+def bootstrap(dest, prompt='(volttron)', version=None, verbose=None,
+              proxy=None):
     '''Download latest virtualenv and create a virtual environment.
 
     The virtual environment will be created in the given directory. The
@@ -144,6 +145,13 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
         def _fetch(self, url):
             '''Open url and return the response object (or bail).'''
             _log.debug('Fetching %s', url)
+            # Create proxy for retrieving data.
+            if proxy:
+                proxy_obj = urllib2.ProxyHandler({'http': proxy,
+                                                  'https': proxy})
+                opener = urllib2.build_opener(proxy_obj)
+                urllib2.install_opener(opener)
+
             response = urllib2.urlopen(url)
             if response.getcode() != 200:
                 _log.error('Server response is %s %s',
@@ -207,7 +215,8 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
     return builder.env_exe
 
 
-def pip(operation, args, verbose=None, upgrade=False, offline=False):
+def pip(operation, args, verbose=None, upgrade=False, offline=False,
+    proxy=None):
     '''Call pip in the virtual environment to perform operation.'''
     cmd = ['pip', operation]
     if verbose is not None:
@@ -216,16 +225,17 @@ def pip(operation, args, verbose=None, upgrade=False, offline=False):
         cmd.append('--upgrade')
     if offline:
         cmd.extend(['--retries', '0', '--timeout', '1'])
+    if proxy is not None:
+        cmd.extend(['--proxy', proxy])
     cmd.extend(args)
     _log.info('+ %s', shescape(cmd))
     cmd[:0] = [sys.executable, '-m']
     subprocess.check_call(cmd)
 
 
-def update(operation, verbose=None, upgrade=False, offline=False):
+def update(operation, verbose=None, upgrade=False, offline=False, proxy=None):
     '''Install dependencies in setup.py and requirements.txt.'''
-    from setup import (option_requirements, local_requirements,
-                       optional_requirements)
+    from setup import (option_requirements, local_requirements)
     assert operation in ['install', 'wheel']
     wheeling = operation == 'wheel'
     path = os.path.dirname(__file__) or '.'
@@ -234,7 +244,7 @@ def update(operation, verbose=None, upgrade=False, offline=False):
         try:
             import wheel
         except ImportError:
-            pip('install', ['wheel'], verbose, offline=offline)
+            pip('install', ['wheel'], verbose, offline=offline, proxy=proxy)
     # Build option_requirements separately to pass install options
     build_option = '--build-option' if wheeling else '--install-option'
     for requirement, options in option_requirements:
@@ -242,11 +252,7 @@ def update(operation, verbose=None, upgrade=False, offline=False):
         for opt in options:
             args.extend([build_option, opt])
         args.extend(['--no-deps', requirement])
-        pip(operation, args, verbose, upgrade, offline)
-    # Build the optional requirements that the user specified via the command
-    # line.
-    for requirement in optional_requirements:
-        pip('install', [requirement], verbose, upgrade, offline)
+        pip(operation, args, verbose, upgrade, offline, proxy)
     # Install local packages and remaining dependencies
     args = []
     for _, location in local_requirements:
@@ -255,7 +261,7 @@ def update(operation, verbose=None, upgrade=False, offline=False):
     requirements_txt = os.path.join(path, 'requirements.txt')
     if os.path.exists(requirements_txt):
         args.extend(['--requirement', requirements_txt])
-    pip(operation, args, verbose, upgrade, offline)
+    pip(operation, args, verbose, upgrade, offline, proxy)
 
 
 def main(argv=sys.argv):
@@ -303,6 +309,9 @@ def main(argv=sys.argv):
         '--envdir', default=None, metavar='VIRTUAL_ENV',
         help='alternate location for virtual environment')
     bs.add_argument(
+        '--proxy', default=None, metavar='PROXY',
+        help='Provide proxy argument for pip to use.')
+    bs.add_argument(
         '--force', action='store_true', default=False,
         help='force installing in non-empty directory')
     bs.add_argument(
@@ -313,24 +322,6 @@ def main(argv=sys.argv):
         'in activated environment (default: %(default)s)')
     bs.add_argument('--force-version', help=argparse.SUPPRESS)
 
-    # allows us to look and see if any of the dynamic optional arguments
-    # are on the command line.  We check this during the processing of the args
-    # variable at the end of the block.  If the option is set then it needs
-    # to be passed on.
-    optional_args = []
-    if os.path.exists('optional_requirements.json'):
-        po = parser.add_argument_group('Extra packaging options')
-        with open('optional_requirements.json', 'r') as optional_arguments:
-            data = json.load(optional_arguments)
-            for arg, vals in data.items():
-                optional_args.append(arg)
-                if 'help' in vals.keys():
-                    po.add_argument(arg, action='store_true', default=False,
-                                    help=vals['help'])
-                else:
-                    po.add_argument(arg, action='store_true', default=False)
-
-    # Update options
     up = parser.add_argument_group('update options')
     up.add_argument(
         '--offline', action='store_true', default=False,
@@ -362,7 +353,7 @@ def main(argv=sys.argv):
     if hasattr(sys, 'real_prefix'):
         # The script was called from a virtual environment Python, so update
         update(options.operation, options.verbose,
-               options.upgrade, options.offline)
+               options.upgrade, options.offline, options.proxy)
     else:
         # The script was called from the system Python, so bootstrap
         try:
@@ -382,18 +373,16 @@ def main(argv=sys.argv):
             if exc.errno != errno.ENOENT:
                 raise
         env_exe = bootstrap(options.envdir, options.prompt,
-                            options.force_version, options.verbose)
+                            options.force_version, options.verbose,
+                            options.proxy)
         if options.only_virtenv:
             return
         # Run this script within the virtual environment for stage2
         args = [env_exe, __file__]
         if options.verbose is not None:
             args.append('--verbose' if options.verbose else '--quiet')
-        # Transfer dynamic properties to the subprocess call 'update'.
-        # Clip off the first two characters expecting long parameter form.
-        for arg in optional_args:
-            if getattr(options, arg[2:]):
-                args.append(arg)
+        if options.proxy is not None:
+            args.extend(['--proxy', options.proxy])
         subprocess.check_call(args)
 
 

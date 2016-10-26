@@ -58,8 +58,8 @@
 import errno
 import logging
 import os
+import sqlite3
 
-#from mysql import connector
 from zmq.utils import jsonapi
 
 from basedb import DbDriver
@@ -68,12 +68,61 @@ from volttron.platform.agent import utils
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-class MySqlFuncts(DbDriver):
+class SqlLiteFuncts(DbDriver):
 
-    def __init__(self, **kwargs):
-        #kwargs['dbapimodule'] = 'mysql.connector'
-        super(MySqlFuncts, self).__init__('mysql.connector', **kwargs)
+    def __init__(self, database, **kwargs):
+
+        if database == ':memory:':
+            self.__database = database
+        else:
+            self.__database = os.path.expandvars(os.path.expanduser(database))
+            db_dir  = os.path.dirname(self.__database)
+
+            #If the db does not exist create it
+            # in case we are started before the historian.
+            try:
+                if db_dir == '':
+                    db_dir = './data'
+                    self.__database=os.path.join(db_dir, self.__database)
+                    
+                os.makedirs(db_dir)
+            except OSError as exc:
+                if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
+                    raise
+            
+        conn = sqlite3.connect(self.__database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+        cursor = conn.cursor()
+        cursor.execute('''CREATE TABLE IF NOT EXISTS data
+                                (ts timestamp NOT NULL,
+                                 topic_id INTEGER NOT NULL,
+                                 value_string TEXT NOT NULL,
+                                 UNIQUE(ts, topic_id))''')
+
+        cursor.execute('''CREATE INDEX IF NOT EXISTS data_idx
+                                ON data (ts ASC)''')
+
+        cursor.execute('''CREATE TABLE IF NOT EXISTS topics
+                                (topic_id INTEGER PRIMARY KEY,
+                                 topic_name TEXT NOT NULL,
+                                 UNIQUE(topic_name))''')
+        conn.commit()
+        conn.close()
         
+        try:
+            kwargs.pop('database')
+        except:
+            pass
+        finally:
+            kwargs['database'] = self.__database
+        
+        if 'detect_types' not in kwargs.keys():
+            kwargs['detect_types'] = sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES
+        
+        print (kwargs)    
+        super(SqlLiteFuncts, self).__init__('sqlite3', **kwargs)
+        
+
+
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
@@ -89,15 +138,15 @@ class MySqlFuncts(DbDriver):
                    {limit}
                    {offset}'''
 
-        where_clauses = ["WHERE topics.topic_name = %s", "topics.topic_id = data.topic_id"]
+        where_clauses = ["WHERE topics.topic_name = ?", "topics.topic_id = data.topic_id"]
         args = [topic]
 
         if start is not None:
-            where_clauses.append("data.ts > %s")
+            where_clauses.append("data.ts > ?")
             args.append(start)
 
         if end is not None:
-            where_clauses.append("data.ts < %s")
+            where_clauses.append("data.ts < ?")
             args.append(end)
 
         where_statement = ' AND '.join(where_clauses)
@@ -110,16 +159,15 @@ class MySqlFuncts(DbDriver):
         # -1 = no limit and allows the user to
         # provied just an offset
         if count is None:
-            count = 100
+            count = -1
 
-        limit_statement = 'LIMIT %s'
+        limit_statement = 'LIMIT ?'
         args.append(count)
 
         offset_statement = ''
         if skip > 0:
-            offset_statement = 'OFFSET %s'
+            offset_statement = 'OFFSET ?'
             args.append(skip)
-        
 
         _log.debug("About to do real_query")
 
@@ -130,22 +178,20 @@ class MySqlFuncts(DbDriver):
         _log.debug("Real Query: " + real_query)
         _log.debug("args: "+str(args))
 
-        rows = self.select(real_query)
-        
-        if rows:
-            values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
-        else:
-            values = {}
-        
+        c = sqlite3.connect(self.__database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+        rows = c.execute(real_query,args)
+
+        values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
+        _log.debug("QueryResults: " + str(values))
         return {'values':values}
-    
+
     def insert_data_query(self):
-        return '''REPLACE INTO data values(%s, %s, %s)'''
-        
-    def insert_topic_query(self):
-        return '''REPLACE INTO topics (topic_name) values (%s)'''
+        return '''INSERT OR REPLACE INTO data values(?, ?, ?)'''
     
+    def insert_topic_query(self):
+        return '''INSERT OR REPLACE INTO topics (topic_name) values (?)'''
+
     def get_topic_map(self):
-        q = "SELECT topic_id, topic_name FROM topics;"
+        q = "SELECT topic_id, topic_name FROM topics"
         rows = self.select(q, None)
         return dict([(n, t) for t, n in rows])

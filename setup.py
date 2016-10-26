@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2016, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,41 +53,17 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-# }}}
+#}}}
 
-from os import path
-import sys
-import json
+from os import environ
 
+#from distutils.core import setup
 from setuptools import setup, find_packages
-
-import re
-VERSIONFILE="volttron/platform/__init__.py"
-verstrline = open(VERSIONFILE, "rt").read()
-VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
-mo = re.search(VSRE, verstrline, re.M)
-if mo:
-    verstr = mo.group(1)
-else:
-    raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
 
 # Requirements which must be built separately with the provided options.
 option_requirements = [
-    ('pyzmq>=15,<16', ['--zmq=bundled']),
+    ('pyzmq>=14.7,<15', ['--zmq=bundled']),
 ]
-
-optional_requirements = set()
-
-# For the different keyed in options allow the command paramenter to
-# install the given requirements.
-if path.exists('optional_requirements.json'):
-    with open('optional_requirements.json') as optional:
-        data = json.load(optional)
-
-        for arg, val in data.items():
-            if arg in sys.argv:
-                for req in val['packages']:
-                    optional_requirements.add(req)
 
 # Requirements in the repository which should be installed as editable.
 local_requirements = [
@@ -95,39 +71,39 @@ local_requirements = [
 
 # Standard requirements
 requirements = [
-    'BACpypes>0.13,<0.14',
+    'BACpypes>=0.10,<2',
     'gevent>=0.13,<2',
     'monotonic',
     'pymodbus>=1.2,<2',
     'setuptools',
     'simplejson>=3.3,<4',
+    'Smap==2.0.24c780d',
     'wheel>=0.24,<2',
 ]
 
 install_requires = (
     [req for req, _ in option_requirements] +
     [req for req, _ in local_requirements] +
-    requirements +
-    [req for req in optional_requirements]
+    requirements
 )
+
 
 if __name__ == '__main__':
     setup(
-        name='volttron',
-        version=verstr,
-        description='Agent Execution Platform',
-        author='Volttron Team',
-        author_email='volttron@pnnl.gov',
-        url='https://github.com/VOLTTRON/volttron',
-        packages=find_packages('.'),
-        install_requires=install_requires,
-        entry_points={
+        name = 'volttron',
+        version = '3.0.2',
+        description = 'Agent Execution Platform',
+        author = 'Volttron Team',
+        author_email = 'volttron@pnnl.gov',
+        url = 'https://github.com/VOLTTRON/volttron',
+        packages = find_packages('.'),
+        install_requires = install_requires,
+        entry_points = {
             'console_scripts': [
                 'volttron = volttron.platform.main:_main',
                 'volttron-ctl = volttron.platform.control:_main',
                 'volttron-pkg = volttron.platform.packaging:_main',
-                'volttron-cfg = volttron.platform.config:_main',
             ]
         },
-        zip_safe=False,
+        zip_safe = False,
     )
