@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,9 +78,13 @@ import argparse
 import struct
 import logging
 
+from utils import createDaemon
+
 parser = argparse.ArgumentParser(description='Run a test pymodbus driver')
 parser.add_argument('config', help='device registry configuration')
+parser.add_argument('interface', help='interface address')
 parser.add_argument('--port', default=5020, type=int, help='port for device to listen on')
+parser.add_argument('--no-daemon', help='do not create a daemon process', action='store_true')
 args = parser.parse_args()
 
 logging.basicConfig()
@@ -219,9 +223,14 @@ identity.ModelName   = 'VOLTTRON Modbus Test Device'
 identity.MajorMinorRevision = '1.0'
 
 abstraction = DeviceAbstraction(args.config)
+
+#Create the deamon as soon as we've loaded the device configuration.
+if not args.no_daemon:
+    createDaemon()
+    
 context = abstraction.get_server_context()
 
 #---------------------------------------------------------------------------# 
 # run the server you want
 #---------------------------------------------------------------------------# 
-StartTcpServer(context, identity=identity, address=("localhost", args.port))
+StartTcpServer(context, identity=identity, address=(args.interface, args.port))

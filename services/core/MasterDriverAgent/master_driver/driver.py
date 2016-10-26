@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -67,27 +67,82 @@ from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE,
                                                 DEVICES_VALUE,
                                                 DEVICES_PATH)
 
+from volttron.platform.messaging import topics
+
 from volttron.platform.vip.agent.errors import VIPError, Again
 from driver_locks import publish_lock
+import datetime
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-
 class DriverAgent(BasicAgent): 
-    def __init__(self, parent, config_name, **kwargs):             
+    def __init__(self, parent, config, time_slot, driver_scrape_interval, device_path, **kwargs):
         super(DriverAgent, self).__init__(**kwargs)
         self.heart_beat_value = 0
         self.device_name = ''
         #Use the parent's vip connection
         self.parent = parent
         self.vip = parent.vip
-        self.config_name = config_name
-        
-    def get_config(self, config_name):
-        #Until config store is setup just grab a file.
-        return open(config_name, 'rb').read()
+        self.config = config
+        self.device_path = device_path
+
+
+        try:
+            interval = int(config.get("interval", 60))
+            if interval < 1.0:
+                raise ValueError
+        except ValueError:
+            _log.warning("Invalid device scrape interval {}. Defaulting to 60 seconds.".format(config.get("interval")))
+            interval = 60
+
+        self.interval = interval
+        self.periodic_read_event = None
+
+        self.update_scrape_schedule(time_slot, driver_scrape_interval)
+
+
+    def update_scrape_schedule(self, time_slot, driver_scrape_interval):
+        self.time_slot = time_slot
+        self.time_slot_offset = time_slot * driver_scrape_interval
+
+        _log.debug("{} time_slot: {}, offset: {}".format(self.device_path, time_slot, self.time_slot_offset))
+
+        self.time_slot_offset = time_slot * driver_scrape_interval
+        if self.time_slot_offset >= self.interval:
+            _log.warning(
+                "Scrape offset exceeds interval. Required adjustment will cause scrapes to double up with other devices.")
+            while self.time_slot_offset >= self.interval:
+                self.time_slot_offset -= self.interval
+
+        #check weather or not we have run our starting method.
+        if not self.periodic_read_event:
+            return
+
+        self.periodic_read_event.cancel()
+
+        next_periodic_read = self.find_starting_datetime(utils.get_aware_utc_now())
+
+        self.periodic_read_event = self.core.schedule(next_periodic_read, self.periodic_read, next_periodic_read)
+
+
+
+    def find_starting_datetime(self, now):
+        midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        seconds_from_midnight = (now - midnight).total_seconds()
+        interval = self.interval
+
+        offset = seconds_from_midnight % interval
+
+        if not offset:
+            return now
+
+        previous_in_seconds = seconds_from_midnight - offset
+        next_in_seconds = previous_in_seconds + interval
+
+        from_midnight = datetime.timedelta(seconds=next_in_seconds)
+        return midnight + from_midnight + datetime.timedelta(seconds=self.time_slot_offset)
             
         
     def get_interface(self, driver_type, config_dict, config_string):
@@ -96,35 +151,37 @@ class DriverAgent(BasicAgent):
         module = __import__(module_name,globals(),locals(),[], -1)
         sub_module = getattr(module, driver_type)
         klass = getattr(sub_module, "Interface")
-        interface = klass(vip=self.vip)
+        interface = klass(vip=self.vip, core=self.core)
         interface.configure(config_dict, config_string)
         return interface
         
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
-        self.registry_config_name = None
         self.setup_device()
         
-        interval = self.config.get("interval", 60)
-        self.core.periodic(interval, self.periodic_read, wait=None)
+        # interval = self.config.get("interval", 60)
+        # self.core.periodic(interval, self.periodic_read, wait=None)
+
+        next_periodic_read = self.find_starting_datetime(utils.get_aware_utc_now())
+
+        self.periodic_read_event = self.core.schedule(next_periodic_read, self.periodic_read, next_periodic_read)
             
         self.all_path_depth, self.all_path_breadth = self.get_paths_for_point(DRIVER_TOPIC_ALL)
 
 
     def setup_device(self):
-        #First call to setup_device won't have anything to unsubscribe to.
-#         try:
-#             self.vip.pubsub.unsubscribe('pubsub', None, None)
-#         except KeyError:
-#             pass
-        
-        config_str = self.get_config(self.config_name)
-        self.config = config = jsonapi.loads(utils.strip_comments(config_str))  
+
+        config = self.config
         driver_config = config["driver_config"] 
         driver_type = config["driver_type"] 
-        registry_config = self.get_config(config["registry_config"]) 
+        registry_config = config.get("registry_config")
         
         self.heart_beat_point = config.get("heart_beat_point") 
+        
+        self.publish_depth_first_all = bool(config.get("publish_depth_first_all", True))
+        self.publish_breadth_first_all = bool(config.get("publish_breadth_first_all", True))
+        self.publish_depth_first = bool(config.get("publish_depth_first", True))
+        self.publish_breadth_first = bool(config.get("publish_breadth_first", True))
                            
         self.interface = self.get_interface(driver_type, driver_config, registry_config)
         self.meta_data = {}
@@ -145,25 +202,43 @@ class DriverAgent(BasicAgent):
                                      'type': ts_type,
                                      'tz': config['timezone']}
             
-        self.base_topic = DEVICES_VALUE(campus=config.get('campus', ''), 
-                                        building=config.get('building', ''), 
-                                        unit=config.get('unit', ''),
-                                        path=config.get('path', ''),
+        self.base_topic = DEVICES_VALUE(campus='',
+                                        building='',
+                                        unit='',
+                                        path=self.device_path,
                                         point=None)
         
         self.device_name = DEVICES_PATH(base='',
-                                   node='',
-                                   campus=config.get('campus', ''), 
-                                   building=config.get('building', ''), 
-                                   unit=config.get('unit', ''),
-                                   path=config.get('path', ''),
-                                   point='')
+                                        node='',
+                                        campus='',
+                                        building='',
+                                        unit='',
+                                        path=self.device_path,
+                                        point='')
         
-        self.parent.device_startup_callback(self.device_name, self)
+        # self.parent.device_startup_callback(self.device_name, self)
             
         
-    def periodic_read(self):
+    def periodic_read(self, now):
+        #we not use self.core.schedule to prevent drift.
+        next_scrape_time = now + datetime.timedelta(seconds=self.interval)
+        # Sanity check now.
+        # This is specifically for when this is running in a VM that gets
+        # suspended and then resumed.
+        # If we don't make this check a resumed VM will publish one event
+        # per minute of
+        # time the VM was suspended for.
+        test_now = utils.get_aware_utc_now()
+        if test_now - next_scrape_time > datetime.timedelta(seconds=self.interval):
+            next_scrape_time = self.find_starting_datetime(test_now)
+
+        _log.debug("{} next scrape scheduled: {}".format(self.device_path, next_scrape_time))
+
+        self.periodic_read_event = self.core.schedule(next_scrape_time, self.periodic_read, next_scrape_time)
+
         _log.debug("scraping device: " + self.device_name)
+        
+        self.parent.scrape_starting(self.device_name)
         
         try:
             results = self.interface.scrape_all()
@@ -174,41 +249,60 @@ class DriverAgent(BasicAgent):
         # XXX: Does a warning need to be printed?
         if not results:
             return
-
-        now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
+        
+        utcnow = utils.get_aware_utc_now()
+        utcnow_string = utils.format_timestamp(utcnow)
         
         headers = {
-            headers_mod.DATE: now,
+            headers_mod.DATE: utcnow_string,
+            headers_mod.TIMESTAMP: utcnow_string,
         }
+        
             
 
-        for point, value in results.iteritems():
-            topics = self.get_paths_for_point(point)
-            for topic in topics:
-                message = [value, self.meta_data[point]] 
-                self._publish_wrapper(topic, 
-                                      headers=headers, 
-                                      message=message)
+        if self.publish_depth_first or self.publish_breadth_first:
+            for point, value in results.iteritems():
+                depth_first_topic, breadth_first_topic = self.get_paths_for_point(point)
+                message = [value, self.meta_data[point]]
+                   
+                if self.publish_depth_first:  
+                    self._publish_wrapper(depth_first_topic, 
+                                          headers=headers, 
+                                          message=message)
+                
+                if self.publish_breadth_first:
+                    self._publish_wrapper(breadth_first_topic, 
+                                          headers=headers, 
+                                          message=message)
          
         message = [results, self.meta_data] 
-        self._publish_wrapper(self.all_path_depth, 
-                              headers=headers, 
-                              message=message)
-         
-        self._publish_wrapper(self.all_path_breadth, 
-                              headers=headers, 
-                              message=message)
+        if self.publish_depth_first_all:
+            self._publish_wrapper(self.all_path_depth, 
+                                  headers=headers, 
+                                  message=message)
+        
+        if self.publish_breadth_first_all: 
+            self._publish_wrapper(self.all_path_breadth, 
+                                  headers=headers, 
+                                  message=message)
+
+        self.parent.scrape_ending(self.device_name)
         
         
     def _publish_wrapper(self, topic, headers, message):
         while True:
             try:
                 with publish_lock():
+                    _log.debug("publishing: " + topic)
                     self.vip.pubsub.publish('pubsub', 
                                         topic, 
                                         headers=headers, 
                                         message=message).get(timeout=10.0)
                                         
+                    _log.debug("finish publishing: " + topic)
+            except gevent.Timeout:
+                _log.warn("Did not receive confirmation of publish to "+topic)
+                break                           
             except Again:
                 _log.warn("publish delayed: " + topic + " pubsub is busy")
                 gevent.sleep(random.random())
@@ -240,9 +334,20 @@ class DriverAgent(BasicAgent):
          
         return depth_first, breadth_first 
     
-    def get_point(self, point_name):
-        return self.interface.get_point(point_name)
+    def get_point(self, point_name, **kwargs):
+        return self.interface.get_point(point_name, **kwargs)
     
-    def set_point(self, point_name, value):
-        return self.interface.set_point(point_name, value)
+    def set_point(self, point_name, value, **kwargs):
+        return self.interface.set_point(point_name, value, **kwargs)
+
+    def set_multiple_points(self, point_names_values, **kwargs):
+        return self.interface.set_multiple_points(self.device_name,
+                                                  point_names_values,
+                                                  **kwargs)
+    
+    def revert_point(self, point_name, **kwargs):
+        self.interface.revert_point(point_name, **kwargs)
+    
+    def revert_all(self, **kwargs):
+        self.interface.revert_all(**kwargs)
         

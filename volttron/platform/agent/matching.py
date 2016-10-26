@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -55,13 +55,16 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-'''VOLTTRON platform™ topic matching for agent callbacks.
+"""
+VOLTTRON platform™ topic matching for agent callbacks.
 
 Declaratively attach topic prefix and additional tests for topic
 matching to agent methods allowing for automated callback registration
 and topic subscription.
 
 Example:
+
+.. code-block:: python
 
     class MyAgent(BaseAgent):
         @match_regex('topic1/(sub|next|part)/title[1-9]')
@@ -80,13 +83,14 @@ Example:
         def on_multimatch(topic, headers, message, match):
             # Multiple matchers can be attached to a method
             ...
-'''
+
+"""
 
 import re
 
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
-__copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
+__copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
 
@@ -228,9 +232,10 @@ def _split_glob(pattern):
 
 
 def test_glob(pattern):
-    '''Return static prefix and regex test for glob pattern.
+    """
+    Return static prefix and regex test for glob pattern.
     
-    The pattern may include the following special wildcard patterns:
+    The pattern may include the following special wildcard patterns::
 
         *      Matches zero or more characters.
         **     Matches zero or more characters, including forward
@@ -242,7 +247,8 @@ def test_glob(pattern):
                include the hyphen as a search character, include it at
                the end of the pattern.  The range may be negated by
                immediately following the opening [ with a ^ or !.
-    '''
+
+    """
     prefix, pattern = _split_glob(pattern)
     return prefix, _test_regex(pattern)
 
