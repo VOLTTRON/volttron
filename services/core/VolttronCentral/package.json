@@ -7,6 +7,8 @@
     "gulp": "^3.8.11",
     "gulp-buffer": "0.0.2",
     "gulp-inject": "^1.2.0",
+    "gulp-inject-string": "^1.1.0",
+    "gulp-header": "^1.2.0",
     "gulp-rev": "^3.0.1",
     "reactify": "^1.0.0",
     "vinyl-source-stream": "^1.0.0"
