@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,9 +78,10 @@ from ..messaging import topics
 __all__ = ['periodic', 'BaseAgent', 'PublishMixin']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
-__copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
+__copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
-
+min_compatible_version = '1'
+max_compatible_version = '2'
 
 _COOKIE_CHARS = string.ascii_letters + string.digits
 
@@ -504,14 +505,32 @@ class PublishMixin(AgentBase):
         send_ping()
 
     def publish(self, topic, headers, *msg_parts, **kwargs):
-        '''Publish a message to the publish channel.'''
+        '''Publish a message to the publish channel. Adds volttron platform
+        version compatibility information to header as variables
+        min_compatible_version and max_compatible version'''
+        if headers is None:
+            headers = {}
+        headers['min_compatible_version'] = min_compatible_version
+        headers['max_compatible_version'] = max_compatible_version
         self._pub.send_message(topic, headers, *msg_parts, **kwargs)
 
     def publish_json(self, topic, headers, *msg_parts, **kwargs):
-        '''Publish JSON encoded message.'''
+        '''Publish JSON encoded message. Adds volttron platform version
+        compatibility information to header as variables
+        min_compatible_version and max_compatible version'''
+        if headers is None:
+            headers = {}
+        headers['min_compatible_version'] = min_compatible_version
+        headers['max_compatible_version'] = max_compatible_version
         msg = [('application/json', jsonapi.dumps(msg)) for msg in msg_parts]
         self._pub.send_message_ex(topic, headers, *msg, **kwargs)
 
     def publish_ex(self, topic, headers, *msg_tuples, **kwargs):
-        '''Publish messages given as (content-type, message) tuples.'''
+        '''Publish messages given as (content-type, message) tuples. Adds
+        volttron platform version compatibility information to header as
+        variables min_compatible_version and max_compatible version'''
+        if headers is None:
+            headers = {}
+        headers['min_compatible_version'] = min_compatible_version
+        headers['max_compatible_version'] = max_compatible_version
         self._pub.send_message_ex(topic, headers, *msg_tuples, **kwargs)

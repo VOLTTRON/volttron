@@ -1,0 +1,12 @@
+pushd ../../
+
+#SOURCE needs to to updated to point to a clone of the volttron-applications repository.
+export SOURCE=applications/ornl/MasterNode-and-ModelNode-Agents/ModelNode
+export CONFIG=scripts/scalability-testing/master-model-configs/model-config
+export TAG=modelnode
+
+./scripts/core/make-agent.sh 
+
+popd
+# To set the agent to autostart with the platform, pass "enable" 
+# to make-agent.sh: ./scripts/core/make-agent.sh enable

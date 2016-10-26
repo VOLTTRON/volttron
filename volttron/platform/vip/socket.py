@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -83,6 +83,8 @@ from zmq.utils import z85
 
 
 __all__ = ['Address', 'ProtocolError', 'Message', 'nonblocking']
+
+BASE64_ENCODED_CURVE_KEY_LEN = 43
 
 
 @contextmanager
@@ -520,7 +522,7 @@ class _Socket(object):
         '''Extended zmq.Socket.bind() to include options in addr.'''
         if not isinstance(addr, Address):
             addr = Address(addr)
-        addr.bind(self, super(_Socket, self).bind) 
+        addr.bind(self, super(_Socket, self).bind)
 
     def connect(self, addr):
         '''Extended zmq.Socket.connect() to include options in addr.'''

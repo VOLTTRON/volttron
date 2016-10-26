@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -72,17 +72,17 @@ import settings
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '3.0'
 
 HEADER_NAME_DATE = headers_mod.DATE
 HEADER_NAME_CONTENT_TYPE = headers_mod.CONTENT_TYPE
 REQUESTS_EXHAUSTED = 'requests_exhausted'
 '''
-******* In order for this agent to retrieve data from Weather Underground,
+In order for this agent to retrieve data from Weather Underground,
  you must get a developer's key and put that into the seetings.py file.
 
 http://www.wunderground.com/weather/api/
 
-********
 '''
 
 TOPIC_DELIM = '/'
@@ -246,15 +246,17 @@ def weather_service(config_path, **kwargs):
             return weather_dict
 
         def publish_all(self, observation, topic_prefix="weather", headers={}):
+            utcnow = utils.get_aware_utc_now()
+            utcnow_string = utils.format_timestamp(utcnow)
+            headers.update({HEADER_NAME_DATE: utcnow_string,
+                            headers_mod.TIMESTAMP: utcnow_string})
             self.publish_subtopic(self.build_dictionary(observation),
                                   topic_prefix, headers)
 
         def publish_subtopic(self, publish_item, topic_prefix, headers):
             # TODO: Update to use the new topic templates
-            now = str(datetime.datetime.now())
             if isinstance(publish_item, dict):
                 # Publish an "all" property, converting item to json
-                headers = {HEADER_NAME_DATE: now}
                 _topic = topic_prefix + TOPIC_DELIM + "all"
                 self.vip.pubsub.publish(peer='pubsub',
                                         topic=_topic,
@@ -269,7 +271,6 @@ def weather_service(config_path, **kwargs):
             else:
                 # Item is a scalar type, publish it as is
                 headers[headers_mod.CONTENT_TYPE] = headers_mod.CONTENT_TYPE.PLAIN_TEXT
-                headers.update({HEADER_NAME_DATE: now})
                 self.vip.pubsub.publish(peer='pubsub',
                                         topic=topic_prefix,
                                         message=str(publish_item),
@@ -282,9 +283,8 @@ def weather_service(config_path, **kwargs):
             _log.debug("Requesting url: "+self.requestUrl)
             (valid_data, observation) = self.request_data(self.requestUrl)
             if valid_data:
-                now = datetime.datetime.now()
                 headers = {headers_mod.FROM: agent_id}
-                headers.update({HEADER_NAME_DATE: now})
+                _log.debug('Headers: %s'.format(headers))
                 self.publish_all(observation, headers=headers)
             else:
                 _log.error("Invalid data, not publishing")

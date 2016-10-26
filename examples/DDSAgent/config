@@ -1,0 +1,8 @@
+{
+    "square": {
+        "participant_name": "MyParticipantLibrary::Zero",
+        "xml_config_path": "./ddsagent/rticonnextdds-connector-master/examples/python/ShapeExample.xml",
+        "publisher_name": "MyPublisher::MySquareWriter",
+        "subscriber_name": "MySubscriber::MySquareReader"
+    }
+}

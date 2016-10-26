@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -76,8 +76,7 @@ from twisted.spread.pb import respond
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
-
+__version__ = '3.1'
 
 def historian(config_path, **kwargs):
 
@@ -105,11 +104,6 @@ def historian(config_path, **kwargs):
     assert datasets
     assert len(datasets) > 0
     
-    # This allows us to switch the identity based upon the param in the config
-    # file.
-    identity = config.get('identity', None)
-    if identity:
-        kwargs['identity'] = identity
     headers = {'content-type': 'application/json'}
         
     class OpenEISHistorian(BaseHistorian):
@@ -202,10 +196,7 @@ def historian(config_path, **kwargs):
             }
             '''           
 
-        def query_historian(self, topic, start=None, end=None, skip=0,
-                            count=None, order="FIRST_TO_LAST"):
-            raise Exception('Please use Openeis for the query interface.')
-            
+
         def historian_setup(self):
             # TODO Setup connection to openeis.
             pass

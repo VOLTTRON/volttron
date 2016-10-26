@@ -1,0 +1,30 @@
+In order to use mongodb one must install the pymongo connector
+
+From an activated shell execute
+  pip install pymongo
+
+You also need to pre-create your database in MongoDB before running this historian
+For example, to create a local MongoDB, do the followings in Mongo shell:
+    - Switch to the new database "volttron_guide":
+        use volttron_guide
+    - Create a new user for "volttron_guide":
+        db.createUser({user: "admin", pwd: "admin", roles: ["readWrite"] })
+
+------How to do quick test-----
+Start volttron: voltron
+
+Load Mongodb agent:
+	./scripts/core/pack_install.sh services/core/MongodbHistorian/ services/core/MongodbHistorian/config.mongodb mongo
+
+Load data publisher to publish data to Mongo (remember to change input data file in the config file)
+	./scripts/core/pack_install.sh examples/DataPublisher/ examples/DataPublisher/airside_test_publisher.config publisher
+
+Start/stop agents:
+- volttron-ctl status
+- volttron-ctl start <id>|<tag_name>
+    example: volttron-ctl start mongo
+- volttron-ctl stop <id>|<tag-name>
+- volttron-ctl shutdown
+
+
+Open Mongodb terminal and look at data
