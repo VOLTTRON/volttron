@@ -13,7 +13,7 @@ Configuration for each device consists of 3 parts:
 
 For each device, you must create a driver configuration file, device register configuration file, and an entry in the Master Driver Agent configuration file.
 
-Once configured, the Master Driver Agent is :ref:`configured and deployed <test-agent-deployment>` in a manner similar to any other agent (TODO: insert link to Agent deployment howto).
+Once configured, the Master Driver Agent is :ref:`configured and deployed <test-agent-deployment>` in a manner similar to any other agent.
 
 The Master Driver Agent along with Historian Agents replace the functionality of sMap from VOLTTRON 2.0 and thus sMap is no longer a requirement for VOLTTRON.
 
@@ -263,7 +263,7 @@ the platform.
 .. _MODBUS-config:
 MODBUS Driver Configuration
 ---------------------------
-Currently VOLTTRON, only supports the MODBUS over TCP/IP protocol.
+Currently, VOLTTRON only supports the MODBUS over TCP/IP protocol.
 
 driver_config
 *************
