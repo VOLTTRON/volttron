@@ -6,6 +6,7 @@ var del = require('del');
 var fs = require('fs');
 var gulp = require('gulp');
 var inject = require('gulp-inject');
+var inject_str = require('gulp-inject-string');
 var header = require('gulp-header');
 var rev = require('gulp-rev');
 var source = require('vinyl-source-stream');
@@ -117,7 +118,8 @@ function vendor() {
         .pipe(source('vendor.js'))
         .pipe(buffer())
         .pipe(rev())
-	.pipe(header('var React = require(\'react\');\n'))
+    
+	.pipe(inject_str.after('var asn1 = exports;','var React = require(\'react\');\n'))
         .pipe(gulp.dest(BUILD_DIR + 'js'));
 }
 
