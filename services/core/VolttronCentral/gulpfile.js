@@ -118,7 +118,7 @@ function vendor() {
         .pipe(source('vendor.js'))
         .pipe(buffer())
         .pipe(rev())
-    
+    // temporary bugfix. 
 	.pipe(inject_str.after('var IGNORE_CLASS = \'ignore-react-onclickoutside\';','var React = require(\'react\');\n'))
 //	.pipe(inject_str.after('var asn1 = exports;','var React = require(\'react\');\n'))
         .pipe(gulp.dest(BUILD_DIR + 'js'));
