@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -57,38 +57,42 @@
 
 from __future__ import print_function, absolute_import
 
-import gevent.monkey
-gevent.monkey.patch_all()
-
 import argparse
-from contextlib import closing
+import errno
 import logging
 from logging import handlers
 import logging.config
 import os
-import socket
+import resource
+import stat
+import struct
 import sys
+import threading
+import uuid
 
 import gevent
-from zmq import green as zmq
-# Override zmq to use greenlets with mobility agent
-zmq.green = zmq
-sys.modules['zmq'] = zmq
+from zmq import curve_keypair
+import zmq
+from zmq.utils import jsonapi
 
 from . import aip
 from . import __version__
 from . import config
 from . import vip
+from .vip.agent import Agent, Core
+from .vip.agent.compat import CompatPubSub
+from .vip.router import *
+from .vip.socket import encode_key, Address
+from .auth import AuthService
 from .control import ControlService
-from .agent import utils, vipagent
+from .agent import utils
 
 try:
     import volttron.restricted
 except ImportError:
     HAVE_RESTRICTED = False
 else:
-    from volttron.restricted import comms, comms_server, resmon
-    from volttron.restricted.mobility import MobilityAgent
+    from volttron.restricted import resmon
     HAVE_RESTRICTED = True
 
 
@@ -208,110 +212,130 @@ class LogLevelAction(argparse.Action):
             logger.setLevel(level)
 
 
+class Monitor(threading.Thread):
+    '''Monitor thread to log connections.'''
 
-class Router(vip.BaseRouter):
-    '''Concrete VIP router.'''
-    def __init__(self, addresses, context=None):
-        super(Router, self).__init__(context=context)
-        self.addresses = addresses
-        self.logger = logging.getLogger('vip.router')
-        if self.logger.level == logging.NOTSET:
-            self.logger.setLevel(logging.INFO)
-
-    def setup(self):
-        self.socket.bind('inproc://vip')
-        for address in self.addresses:
-            self.socket.bind(address)
-
-    def log(self, level, message, frames):
-        self.logger.log(level, '%s: %s', message,
-                        frames and [bytes(f) for f in frames])
+    def __init__(self, sock):
+        super(Monitor, self).__init__()
+        self.daemon = True
+        self.sock = sock
 
     def run(self):
-        self.start()
-        try:
-            while self.poll():
-                self.route()
-        finally:
-            self.stop()
+        events = {value: name[6:] for name, value in vars(zmq).iteritems()
+                  if name.startswith('EVENT_') and name != 'EVENT_ALL'}
+        log = logging.getLogger('vip.monitor')
+        if log.level == logging.NOTSET:
+            log.setLevel(logging.INFO)
+        sock = self.sock
+        while True:
+            event, endpoint = sock.recv_multipart()
+            event_id, event_value = struct.unpack('=HI', event)
+            event_name = events[event_id]
+            log.info('%s %s %s', event_name, event_value, endpoint)
+
+
+class FramesFormatter(object):
+    def __init__(self, frames):
+        self.frames = frames
+    def __repr__(self):
+        return str([bytes(f) for f in self.frames])
+    __str__ = __repr__
+
+
+class Router(BaseRouter):
+    '''Concrete VIP router.'''
+
+    def __init__(self, local_address, addresses=(),
+                 context=None, secretkey=None, default_user_id=None,
+                 monitor=False):
+        super(Router, self).__init__(
+            context=context, default_user_id=default_user_id)
+        self.local_address = Address(local_address)
+        self.addresses = addresses = [Address(addr) for addr in addresses]
+        self._secretkey = secretkey
+        self.logger = logging.getLogger('vip.router')
+        if self.logger.level == logging.NOTSET:
+            self.logger.setLevel(logging.WARNING)
+        self._monitor = monitor
+
+    def setup(self):
+        sock = self.socket
+        sock.identity = identity = str(uuid.uuid4())
+        if self._monitor:
+            Monitor(sock.get_monitor_socket()).start()
+        sock.bind('inproc://vip')
+        _log.debug('In-process VIP router bound to inproc://vip')
+        sock.zap_domain = 'vip'
+        addr = self.local_address
+        if not addr.identity:
+            addr.identity = identity
+        if not addr.domain:
+            addr.domain = 'vip'
+        addr.bind(sock)
+        _log.debug('Local VIP router bound to %s' % addr)
+        for address in self.addresses:
+            if not address.identity:
+                address.identity = identity
+            if (address.secretkey is None and
+                    address.server not in ['NULL', 'PLAIN'] and
+                    self._secretkey):
+                address.server = 'CURVE'
+                address.secretkey = self._secretkey
+            if not address.domain:
+                address.domain = 'vip'
+            address.bind(sock)
+            _log.debug('Additional VIP router bound to %s' % address)
+
+    def issue(self, topic, frames, extra=None):
+        log = self.logger.debug
+        formatter = FramesFormatter(frames)
+        if topic == ERROR:
+            errnum, errmsg = extra
+            log('%s (%s): %s', errmsg, errnum, formatter)
+        elif topic == UNROUTABLE:
+            log('unroutable: %s: %s', extra, formatter)
+        else:
+            log('%s: %s', 'incoming' if topic else 'outgoing', formatter)
 
     def handle_subsystem(self, frames, user_id):
         subsystem = bytes(frames[5])
         if subsystem == b'quit':
             sender = bytes(frames[0])
-            if sender == b'control' and not user_id:
+            if sender == b'control' and user_id == self.default_user_id:
                 raise KeyboardInterrupt()
+        elif subsystem == b'query':
+            try:
+                name = bytes(frames[6])
+            except IndexError:
+                value = None
+            else:
+                if name == b'addresses':
+                    if self.addresses:
+                        value = [addr.base for addr in self.addresses]
+                    else:
+                        value = [self.local_address.base]
+                else:
+                    value = None
+            frames[6:] = [b'', jsonapi.dumps(value)]
+            frames[3] = b''
+            return frames
 
 
-class PubSubService(vipagent.VIPAgent, vipagent.RPCMixin, vipagent.PubSubMixin):
-    @vipagent.onevent('start')
-    def setup_agent(self):
-        self.pubsub_add_bus('')
-
-
-def agent_exchange(in_addr, out_addr, logger_name=None):
-    '''Agent message publish/subscribe exchange loop
-
-    Accept multi-part messages from sockets connected to in_addr, which
-    is a PULL socket, and forward them to sockets connected to out_addr,
-    which is a XPUB socket. When subscriptions are added or removed, a
-    message of the form 'subscriptions/<OP>/<TOPIC>' is broadcast to the
-    PUB socket where <OP> is either 'add' or 'remove' and <TOPIC> is the
-    topic being subscribed or unsubscribed. When a message is received
-    of the form 'subscriptions/list/<PREFIX>', a multipart message will
-    be broadcast with the first two received frames (topic and headers)
-    sent unchanged and with the remainder of the message containing
-    currently subscribed topics which start with <PREFIX>, each frame
-    containing exactly one topic.
-
-    If logger_name is given, a new logger will be created with the given
-    name. Otherwise, the module logger will be used.
-    '''
-    log = _log if logger_name is None else logging.getLogger(logger_name)
-    ctx = zmq.Context.instance()
-    with closing(ctx.socket(zmq.PULL)) as in_sock, \
-            closing(ctx.socket(zmq.XPUB)) as out_sock:
-        in_sock.bind(in_addr)
-        out_sock.bind(out_addr)
-        poller = zmq.Poller()
-        poller.register(in_sock, zmq.POLLIN)
-        poller.register(out_sock, zmq.POLLIN)
-        subscriptions = set()
-        while True:
-            for sock, event in poller.poll():
-                if sock is in_sock:
-                    message = in_sock.recv_multipart()
-                    log.debug('incoming message: {!r}'.format(message))
-                    topic = message[0]
-                    if (topic.startswith('subscriptions/list') and
-                            topic[18:19] in ['/', '']):
-                        if len(message) > 2:
-                            del message[2:]
-                        elif len(message) == 1:
-                            message.append('')
-                        prefix = topic[19:]
-                        message.extend([t for t in subscriptions
-                                        if t.startswith(prefix)])
-                    out_sock.send_multipart(message)
-                elif sock is out_sock:
-                    message = out_sock.recv()
-                    if message:
-                        add = bool(ord(message[0]))
-                        topic = message[1:]
-                        if add:
-                            subscriptions.add(topic)
-                        else:
-                            subscriptions.discard(topic)
-                        log.debug('incoming subscription: {} {!r}'.format(
-                            ('add' if add else 'remove'), topic))
-                        out_sock.send('subscriptions/{}{}{}'.format(
-                            ('add' if add else 'remove'),
-                            ('' if topic[:1] == '/' else '/'), topic))
+class PubSubService(Agent):
+    @Core.receiver('onstart')
+    def setup_agent(self, sender, **kwargs):
+        self.vip.pubsub.add_bus('')
 
 
 def main(argv=sys.argv):
-    volttron_home = config.expandall(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+    # Refuse to run as root
+    if not getattr(os, 'getuid', lambda: -1)():
+        sys.stderr.write('%s: error: refusing to run as root to prevent '
+                         'potential damage.\n' % os.path.basename(argv[0]))
+        sys.exit(77)
+
+    volttron_home = os.path.normpath(config.expandall(
+        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
     os.environ['VOLTTRON_HOME'] = volttron_home
 
     # Setup option parser
@@ -329,6 +353,9 @@ def main(argv=sys.argv):
         ignore_unknown=True, sections=[None, 'volttron'],
         help='read configuration from FILE')
     parser.add_argument(
+        '--developer-mode', action='store_true',
+        help='run in insecure developer mode')
+    parser.add_argument(
         '-l', '--log', metavar='FILE', default=None,
         help='send log output to FILE instead of stderr')
     parser.add_argument(
@@ -337,6 +364,9 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--log-level', metavar='LOGGER:LEVEL', action=LogLevelAction,
         help='override default logger logging level')
+    parser.add_argument(
+        '--monitor', action='store_true',
+        help='monitor and log connections (implies -v)')
     parser.add_argument(
         '-q', '--quiet', action='add_const', const=10, dest='verboseness',
         help='decrease logger verboseness; may be used multiple times')
@@ -364,13 +394,16 @@ def main(argv=sys.argv):
         help=argparse.SUPPRESS)
     agents.add_argument(
         '--publish-address', metavar='ZMQADDR',
-        help='ZeroMQ URL used for agent publishing')
+        help='ZeroMQ URL used for pre-3.x agent publishing (deprecated)')
     agents.add_argument(
         '--subscribe-address', metavar='ZMQADDR',
-        help='ZeroMQ URL used for agent subscriptions')
+        help='ZeroMQ URL used for pre-3.x agent subscriptions (deprecated)')
     agents.add_argument(
         '--vip-address', metavar='ZMQADDR', action='append', default=[],
         help='ZeroMQ URL to bind for VIP connections')
+    agents.add_argument(
+        '--vip-local-address', metavar='ZMQADDR',
+        help='ZeroMQ URL to bind for local agent VIP connections')
 
     # XXX: re-implement control options
     #on
@@ -397,7 +430,7 @@ def main(argv=sys.argv):
             def __call__(self, parser, namespace, values, option_string=None):
                 namespace.verify_agents = self.const
                 namespace.resource_monitor = self.const
-                namespace.mobility = self.const
+                #namespace.mobility = self.const
         restrict = parser.add_argument_group('restricted options')
         restrict.add_argument(
             '--restricted', action=RestrictedAction, inverse='--no-restricted',
@@ -418,39 +451,33 @@ def main(argv=sys.argv):
         restrict.add_argument(
             '--no-resource-monitor', action='store_false',
             dest='resource_monitor', help=argparse.SUPPRESS)
-        restrict.add_argument(
-            '--mobility', action='store_true', inverse='--no-mobility',
-            help='enable agent mobility')
-        restrict.add_argument(
-            '--no-mobility', action='store_false', dest='mobility',
-            help=argparse.SUPPRESS)
-        restrict.add_argument(
-            '--mobility-address', metavar='ADDRESS',
-            help='specify the address on which to listen')
-        restrict.add_argument(
-            '--mobility-port', type=int, metavar='NUMBER',
-            help='specify the port on which to listen')
+        #restrict.add_argument(
+        #    '--mobility', action='store_true', inverse='--no-mobility',
+        #    help='enable agent mobility')
+        #restrict.add_argument(
+        #    '--no-mobility', action='store_false', dest='mobility',
+        #    help=argparse.SUPPRESS)
 
-    vip_path = '$VOLTTRON_HOME/run/vip.socket'
-    if sys.platform.startswith('linux'):
-        vip_path = '@' + vip_path
+    ipc = 'ipc://%s$VOLTTRON_HOME/run/' % (
+        '@' if sys.platform.startswith('linux') else '')
     parser.set_defaults(
         log=None,
         log_config=None,
+        monitor=False,
         verboseness=logging.WARNING,
         volttron_home=volttron_home,
         autostart=True,
-        publish_address='ipc://$VOLTTRON_HOME/run/publish',
-        subscribe_address='ipc://$VOLTTRON_HOME/run/subscribe',
-        vip_address=['ipc://' + vip_path],
+        publish_address=ipc + 'publish',
+        subscribe_address=ipc + 'subscribe',
+        vip_address=[],
+        vip_local_address=ipc + 'vip.socket',
         #allow_root=False,
         #allow_users=None,
         #allow_groups=None,
         verify_agents=True,
         resource_monitor=True,
-        mobility=True,
-        mobility_address=None,
-        mobility_port=2522
+        #mobility=True,
+        developer_mode=False,
     )
 
     # Parse and expand options
@@ -460,6 +487,7 @@ def main(argv=sys.argv):
         args = ['--config', conf] + args
     logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)
+
     if opts.log:
         opts.log = config.expandall(opts.log)
     if opts.log_config:
@@ -467,19 +495,15 @@ def main(argv=sys.argv):
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
-    if HAVE_RESTRICTED:
-        # Set mobility defaults
-        if opts.mobility_address is None:
-            info = socket.getaddrinfo(
-                None, 0, 0, socket.SOCK_STREAM, 0, socket.AI_NUMERICHOST)
-            family = info[0][0] if info else ''
-            opts.mobility_address = '::' if family == socket.AF_INET6 else ''
+    opts.vip_local_address = config.expandall(opts.vip_local_address)
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
         return
     # Configure logging
     level = max(1, opts.verboseness)
+    if opts.monitor and level > logging.INFO:
+        level = logging.INFO
     if opts.log is None:
         log_to_file(sys.stderr, level)
     elif opts.log == '-':
@@ -493,16 +517,21 @@ def main(argv=sys.argv):
         if error:
             parser.error('{}: {}'.format(*error))
 
-    # Setup mobility server
-    if HAVE_RESTRICTED and opts.mobility:
-        ssh_dir = os.path.join(opts.volttron_home, 'ssh')
-        try:
-            priv_key = RSAKey(filename=os.path.join(ssh_dir, 'id_rsa'))
-            authorized_keys = comms.load_authorized_keys(
-                os.path.join(ssh_dir, 'authorized_keys'))
-        except (OSError, IOError,
-                PasswordRequiredException, SSHException) as exc:
-            parser.error(exc)
+    # Increase open files resource limit to max or 8192 if unlimited
+    try:
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    except OSError:
+        _log.exception('error getting open file limits')
+    else:
+        if soft != hard and soft != resource.RLIM_INFINITY:
+            try:
+                limit = 8192 if hard == resource.RLIM_INFINITY else hard
+                resource.setrlimit(resource.RLIMIT_NOFILE, (limit, hard))
+            except OSError:
+                _log.exception('error setting open file limits')
+            else:
+                _log.debug('open file resource limit increased from %d to %d',
+                           soft, limit)
 
     # Set configuration
     if HAVE_RESTRICTED:
@@ -513,35 +542,114 @@ def main(argv=sys.argv):
             opts.resmon = resmon.ResourceMonitor()
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
-    if opts.autostart:
-        for name, error in opts.aip.autostart():
-            _log.error('error starting {!r}: {}\n'.format(name, error))
+
+    # Check for secure mode/permissions on VOLTTRON_HOME directory
+    mode = os.stat(volttron_home).st_mode
+    if mode & (stat.S_IWGRP | stat.S_IWOTH):
+        _log.warning('insecure mode on directory: %s', volttron_home)
+    # Get or generate encryption key
+    if opts.developer_mode:
+        secretkey = None
+        _log.warning('developer mode enabled; '
+                     'authentication and encryption are disabled!')
+    else:
+        keyfile = os.path.join(volttron_home, 'curve.key')
+        _log.debug('using key file %s', keyfile)
+        try:
+            st = os.stat(keyfile)
+        except OSError as exc:
+            if exc.errno != errno.ENOENT:
+                parser.error(str(exc))
+            # Key doesn't exist, so create it securely
+            _log.info('generating missing key file')
+            try:
+                fd = os.open(keyfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            except OSError as exc:
+                parser.error(str(exc))
+            try:
+                key = ''.join(curve_keypair())
+                os.write(fd, key)
+            finally:
+                os.close(fd)
+        else:
+            if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+                _log.warning('insecure mode on key file')
+            if not st.st_size:
+                _log.warning('empty key file; VIP encryption is disabled!')
+                key = ''
+            else:
+                # Allow two extra bytes in case someone opened the file with
+                # a text editor and it appended '\n' or '\r\n'.
+                if not 80 <= st.st_size <= 82:
+                    _log.warning('key file is wrong size; connections may fail')
+                with open(keyfile) as infile:
+                    key = infile.read(80)
+        publickey = key[:40]
+        if publickey:
+            _log.info('public key: %s', encode_key(publickey))
+        secretkey = key[40:]
+
+    # The following line doesn't appear to do anything, but it creates
+    # a context common to the green and non-green zmq modules.
+    zmq.Context.instance()   # DO NOT REMOVE LINE!!
 
     # Main loops
-    try:
-        router = Router(opts.vip_address)
-        exchange = gevent.spawn(
-            agent_exchange, opts.publish_address, opts.subscribe_address)
-        control = gevent.spawn(ControlService(
-            opts.aip, vip_address='inproc://vip', vip_identity='control').run)
-        pubsub = gevent.spawn(PubSubService(
-            vip_address='inproc://vip', vip_identity='pubsub').run)
-        if HAVE_RESTRICTED and opts.mobility:
-            address = (opts.mobility_address, opts.mobility_port)
-            mobility_in = comms_server.ThreadedServer(
-                address, priv_key, authorized_keys, opts.aip)
-            mobility_in.start()
-            mobility_out = MobilityAgent(
-                opts.aip,
-                subscribe_address=opts.subscribe_address,
-                publish_address=opts.publish_address)
-            gevent.spawn(mobility_out.run)
+    def router(stop):
         try:
-            router.run()
+            Router(opts.vip_local_address, opts.vip_address,
+                   secretkey=secretkey, default_user_id=b'vip.service',
+                   monitor=opts.monitor).run()
+        except Exception:
+            _log.exception('Unhandled exception in router loop')
         finally:
-            control.kill()
-            pubsub.kill()
-            exchange.kill()
+            stop()
+
+    address = 'inproc://vip'
+    try:
+        # Ensure auth service is running before router
+        auth_file = os.path.join(volttron_home, 'auth.json')
+        auth = AuthService(
+            auth_file, opts.aip, address=address, identity='auth',
+            allow_any=opts.developer_mode)
+        event = gevent.event.Event()
+        auth_task = gevent.spawn(auth.core.run, event)
+        event.wait()
+        del event
+
+        # Start router in separate thread to remain responsive
+        thread = threading.Thread(target=router, args=(auth.core.stop,))
+        thread.daemon = True
+        thread.start()
+
+        # Launch additional services and wait for them to start before
+        # auto-starting agents
+        services = [
+            ControlService(opts.aip, address=address, identity='control'),
+            PubSubService(address=address, identity='pubsub'),
+            CompatPubSub(address=address, identity='pubsub.compat',
+                         publish_address=opts.publish_address,
+                         subscribe_address=opts.subscribe_address),
+        ]
+        events = [gevent.event.Event() for service in services]
+        tasks = [gevent.spawn(service.core.run, event)
+                 for service, event in zip(services, events)]
+        tasks.append(auth_task)
+        gevent.wait(events)
+        del events
+
+        # Auto-start agents now that all services are up
+        if opts.autostart:
+            for name, error in opts.aip.autostart():
+                _log.error('error starting {!r}: {}\n'.format(name, error))
+        # Wait for any service to stop, signaling exit
+        try:
+            gevent.wait(tasks, count=1)
+        except KeyboardInterrupt:
+            _log.info('SIGINT received; shutting down')
+            sys.stderr.write('Shutting down.\n')
+            for task in tasks:
+                task.kill(block=False)
+            gevent.wait(tasks)
     finally:
         opts.aip.finish()
 

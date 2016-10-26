@@ -1,0 +1,23 @@
+{
+    "agentid": "bacnet_proxy",
+    
+    #Maximum APDU legnth accepted
+    #This setting determines the largest APDU accepted by the Volttron BACnet virtual device.
+	#Valid options are 50, 128, 206, 480, 1024 (default), and 1476
+    #"max_apdu_length": 1024,
+    
+	#ID of the Device object of the virtual bacnet device.
+	#Defaults to 599
+	#"object_id": 599,
+	
+	#Name of the bacnet network object 
+	#Defaults to "Volttron BACnet driver"
+	#"object_name": "Volttron BACnet driver",
+	
+	#Vendor ID of the virtual bacnet device. 
+	#Defaults to 15
+	#"vendor_id": 15,
+	
+	#Required, use this network interface for the virtual device.
+    "device_address": "10.0.2.15" 
+}

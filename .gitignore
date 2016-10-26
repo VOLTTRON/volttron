@@ -3,6 +3,7 @@
 *.egg-info
 *~
 .svn
+.metadata
 
 /env/
 /Agents/*/{build,dist}/
@@ -12,3 +13,5 @@
 /twistd.pid
 /.settings
 /build
+/configs/
+/config/

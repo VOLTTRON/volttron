@@ -1,0 +1,5 @@
+{
+
+    "agentid": "forwarder",
+    "destination-vip": "ipc://@/home/volttron/.volttron/run/vip.socket"    
+}

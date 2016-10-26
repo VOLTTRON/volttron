@@ -1,0 +1,10 @@
+{
+    "agentid": "sqlhistorian-sqlite",
+    "identity": "platform.historian",
+    "connection": {
+        "type": "sqlite",
+        "params": {
+            "database": "/tmp/v3home/data/platform.historian.sqlite"
+        }
+    }
+}

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,13 +58,18 @@
 '''VOLTTRON platform™ agent helper classes/functions.'''
 
 import argparse
+from dateutil.parser import parse
+from datetime import timedelta
 import logging
 import os
+import pytz
 import re
 import stat
 import sys
 import syslog
 import traceback
+
+import gevent
 
 from zmq.utils import jsonapi
 
@@ -72,7 +77,7 @@ from zmq.utils import jsonapi
 __all__ = ['load_config', 'run_agent', 'start_agent_thread']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
-__copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
+__copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
 
@@ -80,6 +85,8 @@ _comment_re = re.compile(
         r'((["\'])(?:\\?.)*?\2)|(/\*.*?\*/)|((?:#|//).*?(?=\n|$))',
         re.MULTILINE | re.DOTALL)
 
+
+_log = logging.getLogger(__name__)
 
 def _repl(match):
     '''Replace the matched group with an appropriate string.'''
@@ -146,7 +153,7 @@ def isapipe(fd):
 
 def default_main(agent_class, description=None, argv=sys.argv,
                  parser_class=argparse.ArgumentParser, **kwargs):
-    '''Default main entry point implementation.
+    '''Default main entry point implementation for legacy agents.
 
     description and parser_class are depricated. Please avoid using them.
     '''
@@ -157,19 +164,6 @@ def default_main(agent_class, description=None, argv=sys.argv,
             # get garbage collected and close the underlying descriptor.
             stdout = sys.stdout
             sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
-        # new vip agents do not need the pub sub socket to be defined in order
-        # them to operate.  Passing the kwarg of no_pub_sub_socket=True to the
-        # function will disable the setting up of a pub sub socket for this
-        # agent.
-        pub_sub_socket_enabled = True
-        if 'no_pub_sub_socket' in kwargs:
-            pub_sub_socket_enabled = not kwargs.pop('no_pub_sub_socket')
-
-        if not pub_sub_socket_enabled:
-            config = os.environ.get('AGENT_CONFIG')
-            agent = agent_class(config_path=config, **kwargs)
-            agent.run()
-            return
 
         try:
             sub_addr = os.environ['AGENT_SUB_ADDR']
@@ -178,11 +172,11 @@ def default_main(agent_class, description=None, argv=sys.argv,
             sys.stderr.write(
                 'missing environment variable: {}\n'.format(exc.args[0]))
             sys.exit(1)
-        if sub_addr.startswith('ipc://'):
+        if sub_addr.startswith('ipc://') and sub_addr[6:7] != '@':
             if not os.path.exists(sub_addr[6:]):
                 sys.stderr.write('warning: subscription socket does not '
                                  'exist: {}\n'.format(sub_addr[6:]))
-        if pub_addr.startswith('ipc://'):
+        if pub_addr.startswith('ipc://') and pub_addr[6:7] != '@':
             if not os.path.exists(pub_addr[6:]):
                 sys.stderr.write('warning: publish socket does not '
                                  'exist: {}\n'.format(pub_addr[6:]))
@@ -191,6 +185,36 @@ def default_main(agent_class, description=None, argv=sys.argv,
                             publish_address=pub_addr,
                             config_path=config, **kwargs)
         agent.run()
+    except KeyboardInterrupt:
+        pass
+
+
+def vip_main(agent_class, **kwargs):
+    '''Default main entry point implementation for VIP agents.'''
+    try:
+        # If stdout is a pipe, re-open it line buffered
+        if isapipe(sys.stdout):
+            # Hold a reference to the previous file object so it doesn't
+            # get garbage collected and close the underlying descriptor.
+            stdout = sys.stdout
+            sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
+
+        # Quiet printing of KeyboardInterrupt by greenlets
+        Hub = gevent.hub.Hub
+        Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt,)
+
+        agent_uuid = os.environ.get('AGENT_UUID')
+        config = os.environ.get('AGENT_CONFIG')
+        agent = agent_class(config_path=config, identity=agent_uuid, **kwargs)
+        try:
+            run = agent.run
+        except AttributeError:
+            run = agent.core.run
+        task = gevent.spawn(run)
+        try:
+            task.join()
+        finally:
+            task.kill()
     except KeyboardInterrupt:
         pass
 
@@ -239,7 +263,6 @@ class AgentFormatter(logging.Formatter):
             and 'tornado.access' in record.__dict__['composite_name']:
             record.__dict__['msg'] = ','.join([str(b) for b in record.args])
             record.__dict__['args'] = []
-        #print('RECORD: {}'.format(record))
         return super(AgentFormatter, self).format(record)
 
 
@@ -247,11 +270,35 @@ def setup_logging(level=logging.DEBUG):
     root = logging.getLogger()
     if not root.handlers:
         handler = logging.StreamHandler()
-        if isapipe(sys.stderr):
+        if isapipe(sys.stderr) and '_LAUNCHED_BY_PLATFORM' in os.environ:
             handler.setFormatter(JsonFormatter())
         else:
             handler.setFormatter(logging.Formatter(
                     '%(asctime)s %(name)s %(levelname)s: %(message)s'))
         root.addHandler(handler)
     root.setLevel(level)
+    
+def process_timestamp(timestamp_string):
+    if timestamp_string is None:
+        _log.error("message for {topic} missing timetamp".format(topic=topic))
+        return
+    
+    try:
+        timestamp = parse(timestamp_string)
+        
+        #The following addresses #174: error with dbapi2
+        if not timestamp.microsecond:
+            _log.warn("No microsecond in timestamp. Adding 1 to prevent dbapi2 bug.")
+            timestamp = timestamp + timedelta(microseconds = 1)
+    except (ValueError, TypeError) as e:
+        _log.error("message for {topic} bad timetamp string: {ts_string}".format(topic=topic,
+                                                                                 ts_string=timestamp_string))
+        return
 
+    if timestamp.tzinfo is None:
+        timestamp.replace(tzinfo=pytz.UTC)
+        original_tz = None
+    else:
+        original_tz = timestamp.tzinfo
+        timestamp = timestamp.astimezone(pytz.UTC)
+    return timestamp, original_tz

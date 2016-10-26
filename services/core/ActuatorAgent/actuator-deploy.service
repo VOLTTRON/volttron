@@ -1,0 +1,4 @@
+{
+    "schedule_publish_interval": 30,
+    "schedule_state_file": "actuator_state.pickle"
+}

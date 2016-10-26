@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -79,6 +79,8 @@ EPROTONOSUPPORT = 93
 class ZMQError(Exception):
     pass
 
+class Again(ZMQError):
+    pass
 
 class Context(object):
     def instance(self):
@@ -128,6 +130,9 @@ class Socket(object):
     @context.setter
     def context(self, value):
         pass
+
+    def poll(self, timeout=None, flags=1):
+        return 0
 
     def send_string(self, u, flags=0, copy=True, encoding='utf-8'):
         pass

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -95,7 +95,7 @@ from .utils import Topic as _
 
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
-__copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
+__copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
 
@@ -105,13 +105,14 @@ PLATFORM_SHUTDOWN = PLATFORM(subtopic='shutdown')
 AGENT_SHUTDOWN = _('agent/{agent}/shutdown')
 AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(os.uname()[1], os.getpid()))
 
+LOGGER_BASE =_('datalogger')
 LOGGER = _('datalogger/{subtopic}')
 LOGGER_LOG = LOGGER(subtopic='log')
 LOGGER_STATUS = LOGGER(subtopic='status')
 
 DRIVER_TOPIC_BASE = 'devices'
 DRIVER_TOPIC_ALL = 'all'
-DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{point}')
+DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{path!S}//{point}')
 _DEVICES_VALUE = _(DEVICES_PATH.replace('{base}',DRIVER_TOPIC_BASE))
 DEVICES_VALUE = _(_DEVICES_VALUE.replace('{node}/', ''))
 
@@ -132,8 +133,16 @@ ACTUATOR_SCHEDULE_ANNOUNCE_RAW = _(_ACTUATOR_SCHEDULE.replace('{op}','announce/{
 # and want to use the {campus}//{building}//{unit} style replacement
 ACTUATOR_SCHEDULE_ANNOUNCE = _(ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace('{device}','{campus}//{building}//{unit}'))
 
+# Added by CHA to be used as the root of all actuators for working within
+# base_historian.py.
+ACTUATOR = _(_DEVICES_VALUE.replace('{node}', 'actuators'))
 ACTUATOR_ERROR = _(_DEVICES_VALUE.replace('{node}', 'actuators/error'))
 ACTUATOR_VALUE = _(_DEVICES_VALUE.replace('{node}', 'actuators/value'))
+
+#Ragardless of the interface used (RPC vs pubsub) when an agent 
+# attempts to set a point it is announced on this topic.
+#This is intended to inable a historian to capture all attempted writes.
+ACTUATOR_WRITE = _(_DEVICES_VALUE.replace('{node}', 'actuators/write'))
 
 BASE_ARCHIVER_REQUEST = _('archiver/request')
 BASE_ARCHIVER_FULL_REQUEST = _('archiver/full/request')
@@ -158,3 +167,17 @@ _BUILDING = _('building/{op}/{{campus}}//{{building}}//{{topic}}')
 BUILDING_SEND = _(_BUILDING.format(op='send'))
 BUILDING_RECV = _(_BUILDING.format(op='recv'))
 BUILDING_ERROR = _(_BUILDING.format(op='error'))
+
+CONFIG_TOPIC_BASE = 'config'
+CONFIG_PATH = _('{base}//{action}//{category}//{name}')
+_CONFIG_VALUE = _(CONFIG_PATH.replace('{base}',CONFIG_TOPIC_BASE))
+CONFIG_ADD = _(_CONFIG_VALUE.replace('{action}', 'add'))
+CONFIG_REMOVE = _(_CONFIG_VALUE.replace('{action}', 'remove'))
+CONFIG_UPDATE = _(_CONFIG_VALUE.replace('{action}', 'update'))
+
+DRIVER_CONFIG_ADD = _(_CONFIG_VALUE.replace('{category}', 'driver'))
+DRIVER_CONFIG_REMOVE = _(_CONFIG_VALUE.replace('{category}', 'driver'))
+DRIVER_CONFIG_UPDATE = _(_CONFIG_VALUE.replace('{category}', 'driver'))
+
+WEATHER_BASE = 'weather'
+WEATHER_REQUEST = 'weather/request'

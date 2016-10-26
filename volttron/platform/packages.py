@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -134,13 +134,6 @@ class VolttronPackageWheelFileNoSign(WheelFile):
                         except OSError as e:
                             _log.error("couldn't access {}" % files_to_add['config_file'])
                             raise
-
-                        if files_to_add['config_file'] != 'config':
-                            msg = 'WARNING: renaming passed config file: {}'.format(
-                                                        files_to_add['config_file'])
-                            msg += ' to config'
-                            sys.stderr.write(msg)
-                            _log.warn(msg)
 
                         self.zipfile.writestr("%s/%s" % (self.distinfo_name, 'config'),
                                               data)

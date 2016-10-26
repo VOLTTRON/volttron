@@ -1,0 +1,34 @@
+#!/bin/bash
+
+path="${0%/*}"
+[[ ${path:0:1} == / ]] || path="$PWD/$path"
+
+python="${path%/*}/env/bin/python"
+launch="$path/pydev-launch.py"
+
+declare -a args=("$@")
+declare -i debugging=0 i=0
+
+for arg in "${args[@]}"; do
+   case "$arg" in
+      */pydevd.py)
+         debugging=1
+         ;;
+
+      --file)
+         if (( $debugging )); then
+            (( i++ ))
+            args=("${args[@]:0:$i}" "$launch" "${args[@]:$i}")
+            break
+         fi
+         ;;
+
+      *.py)
+         args=("${args[@]:0:$i}" "$launch" "${args[@]:$i}")
+         break
+         ;;
+   esac
+   (( i++ ))
+done
+
+exec "$python" "${args[@]}"

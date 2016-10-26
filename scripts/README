@@ -1,0 +1,21 @@
+The scripts directory is a central store for time saving interactions with
+the shell and/or python scripts that automate as much as possible the 
+administration of a volttron platform.
+
+The admin directory is meant for one off scripts that will do a job and not 
+generally are not meant to be called from other scripts.  For example the
+volttron script is for launching volttron as a service using init.d or some
+other mechanism.
+
+The core directory is meant to have scripts that automate specific portions
+of the technology stack in order to allow instances to configure themselves
+effectively.
+
+All other directories should be assumed to be customized for a specific need 
+and should have a README associated with it in order to better document the 
+purpose of the directory.
+
+NOTE
+All scripts should be run in an activated environment in order to use the 
+command line interface for volttron.  In general scripts should be executed 
+from the root volttron directory not from the scripts directory itself.

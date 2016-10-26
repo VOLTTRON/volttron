@@ -1,0 +1,396 @@
+#!python
+
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+#
+# Copyright (c) 2013, Battelle Memorial Institute
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation are those
+# of the authors and should not be interpreted as representing official policies,
+# either expressed or implied, of the FreeBSD Project.
+#
+
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization
+# that has cooperated in the development of these materials, makes
+# any warranty, express or implied, or assumes any legal liability
+# or responsibility for the accuracy, completeness, or usefulness or
+# any information, apparatus, product, software, or process disclosed,
+# or represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does
+# not necessarily constitute or imply its endorsement, recommendation,
+# r favoring by the United States Government or any agency thereof,
+# or Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+
+#}}}
+
+
+#---------------------------------------------------------------------------# 
+# import the various server implementations
+#---------------------------------------------------------------------------# 
+
+from bacpypes.debugging import bacpypes_debugging, ModuleLogger
+from bacpypes.consolelogging import ArgumentParser
+
+from bacpypes.core import run
+
+from bacpypes.primitivedata import Atomic, Real, Unsigned
+from bacpypes.constructeddata import Array, Any
+from bacpypes.basetypes import ServicesSupported, ErrorType
+from bacpypes.apdu import ReadPropertyMultipleACK, ReadAccessResult, ReadAccessResultElement, ReadAccessResultElementChoice
+from bacpypes.app import LocalDeviceObject, BIPSimpleApplication
+from bacpypes.object import AnalogValueObject, PropertyError, get_object_class
+from bacpypes.apdu import Error
+from bacpypes.errors import ExecutionError
+
+from csv import DictReader
+import logging
+
+#---------------------------------------------------------------------------# 
+# configure the service logging
+#---------------------------------------------------------------------------# 
+# some debugging
+_debug = 0
+_log = ModuleLogger(globals())
+
+import struct
+
+parser = ArgumentParser(description='Run a test pymodbus driver')
+parser.add_argument('config', help='device registry configuration')
+parser.add_argument('interface', help='interface address and optionally the port for the device to listen on')
+args = parser.parse_args()
+
+MODBUS_REGISTER_SIZE = 2
+
+class Register(object):
+    def __init__(self, point_name, instance_number, object_type, property_name, read_only):
+        self.read_only = read_only
+        self.register_type = "byte"
+        self.property_name = property_name
+        self.object_type = object_type
+        self.instance_number = int(instance_number)
+        self.point_name = point_name
+    
+    def get_register_type(self):
+        '''Get (type, read_only) tuple'''
+        return self.register_type, self.read_only
+
+@bacpypes_debugging
+class DeviceAbstraction(object):
+    def __init__(self, interface_str, config_file):
+        self.build_register_map()
+        self.parse_config(config_file)
+        self.interface = interface_str
+        
+    def build_register_map(self):
+        self.registers = {('byte',True):[],
+                          ('byte',False):[],
+                          ('bit',True):[],
+                          ('bit',False):[]}
+        
+    def insert_register(self, register):        
+        register_type = register.get_register_type()
+        self.registers[register_type].append(register) 
+                
+    def parse_config(self, config_file):
+        with open(config_file, 'rb') as f:
+            configDict = DictReader(f)
+            
+            for regDef in configDict:            
+                object_type = regDef['BACnet Object Type']
+                read_only = regDef['Writable'].lower() != 'true'  
+                index = int(regDef['Index'])    
+                property = regDef['Property']  
+                point_name = regDef['Volttron Point Name'] 
+                            
+                register = Register(point_name, index, object_type, property, read_only)
+                    
+                self.insert_register(register)
+                
+    
+    def get_server_application(self):
+        if _debug: DeviceAbstraction._debug("    - creating application")
+        # make a device object
+        this_device = LocalDeviceObject(
+            objectName="Betelgeuse",
+            objectIdentifier=599,
+            maxApduLengthAccepted=1024,
+            segmentationSupported="segmentedBoth",
+            vendorIdentifier=15
+            )
+    
+        # build a bit string that knows about the bit names
+        pss = ServicesSupported()
+        pss['whoIs'] = 1
+        pss['iAm'] = 1
+        pss['readProperty'] = 1
+        pss['readPropertyMultiple'] = 1
+        pss['writeProperty'] = 1
+    
+        # set the property value to be just the bits
+        this_device.protocolServicesSupported = pss.value        
+
+        # make a sample application
+        this_application = ReadPropertyMultipleApplication(this_device, args.interface)
+    
+       
+        registers= self.registers[('byte',True)]
+        
+        #Currently we don't actually enforce read only properties.        
+        for register in registers:
+            if _debug: DeviceAbstraction._debug("    - creating object of type: %s, %i", register.object_type, register.instance_number)
+            klass = get_object_class(register.object_type)
+            ravo = klass(objectIdentifier=(register.object_type, register.instance_number), 
+                         objectName=register.point_name)
+            
+            ravo.WriteProperty("presentValue", 0, direct=True)
+            
+            this_application.add_object(ravo)
+            
+            
+        registers= self.registers[('byte',False)]
+        
+        for register in registers:
+            if _debug: DeviceAbstraction._debug("    - creating object of type: %s, %i", register.object_type, register.instance_number)
+            klass = get_object_class(register.object_type)
+            ravo = klass(objectIdentifier=(register.object_type, register.instance_number), 
+                         objectName=register.point_name)
+            
+            ravo.WriteProperty("presentValue", 0, direct=True)
+            
+            this_application.add_object(ravo)
+            
+        return this_application
+
+
+#Most of this stuff is copied from the example here: 
+#https://github.com/JoelBender/bacpypes/blob/master/samples/ReadPropertyMultipleServer.py
+
+
+@bacpypes_debugging
+def ReadPropertyToAny(obj, propertyIdentifier, propertyArrayIndex=None):
+    """Read the specified property of the object, with the optional array index,
+    and cast the result into an Any object."""
+    if _debug: ReadPropertyToAny._debug("ReadPropertyToAny %s %r %r", obj, propertyIdentifier, propertyArrayIndex)
+
+    # get the datatype
+    datatype = obj.get_datatype(propertyIdentifier)
+    if _debug: ReadPropertyToAny._debug("    - datatype: %r", datatype)
+    if datatype is None:
+        raise ExecutionError(errorClass='property', errorCode='datatypeNotSupported')
+
+    # get the value
+    value = obj.ReadProperty(propertyIdentifier, propertyArrayIndex)
+    if _debug: ReadPropertyToAny._debug("    - value: %r", value)
+    if value is None:
+        raise ExecutionError(errorClass='property', errorCode='unknownProperty')
+
+    # change atomic values into something encodeable
+    if issubclass(datatype, Atomic):
+        value = datatype(value)
+    elif issubclass(datatype, Array) and (propertyArrayIndex is not None):
+        if propertyArrayIndex == 0:
+            value = Unsigned(value)
+        elif issubclass(datatype.subtype, Atomic):
+            value = datatype.subtype(value)
+        elif not isinstance(value, datatype.subtype):
+            raise TypeError, "invalid result datatype, expecting %s and got %s" \
+                % (datatype.subtype.__name__, type(value).__name__)
+    elif not isinstance(value, datatype):
+        raise TypeError, "invalid result datatype, expecting %s and got %s" \
+            % (datatype.__name__, type(value).__name__)
+    if _debug: ReadPropertyToAny._debug("    - encodeable value: %r", value)
+
+    # encode the value
+    result = Any()
+    result.cast_in(value)
+    if _debug: ReadPropertyToAny._debug("    - result: %r", result)
+
+    # return the object
+    return result
+
+#
+#   ReadPropertyToResultElement
+#
+
+@bacpypes_debugging
+def ReadPropertyToResultElement(obj, propertyIdentifier, propertyArrayIndex=None):
+    """Read the specified property of the object, with the optional array index,
+    and cast the result into an Any object."""
+    if _debug: ReadPropertyToResultElement._debug("ReadPropertyToResultElement %s %r %r", obj, propertyIdentifier, propertyArrayIndex)
+
+    # save the result in the property value
+    read_result = ReadAccessResultElementChoice()
+
+    try:
+        read_result.propertyValue = ReadPropertyToAny(obj, propertyIdentifier, propertyArrayIndex)
+        if _debug: ReadPropertyToResultElement._debug("    - success")
+    except PropertyError, error:
+        if _debug: ReadPropertyToResultElement._debug("    - error: %r", error)
+        read_result.propertyAccessError = ErrorType(errorClass='property', errorCode='unknownProperty')
+    except ExecutionError, error:
+        if _debug: ReadPropertyToResultElement._debug("    - error: %r", error)
+        read_result.propertyAccessError = ErrorType(errorClass=error.errorClass, errorCode=error.errorCode)
+
+    # make an element for this value
+    read_access_result_element = ReadAccessResultElement(
+        propertyIdentifier=propertyIdentifier,
+        propertyArrayIndex=propertyArrayIndex,
+        readResult=read_result,
+        )
+    if _debug: ReadPropertyToResultElement._debug("    - read_access_result_element: %r", read_access_result_element)
+
+    # fini
+    return read_access_result_element
+
+#
+#   ReadPropertyMultipleApplication
+#
+
+@bacpypes_debugging
+class ReadPropertyMultipleApplication(BIPSimpleApplication):
+
+    def __init__(self, *args, **kwargs):
+        if _debug: ReadPropertyMultipleApplication._debug("__init__ %r %r", args, kwargs)
+        BIPSimpleApplication.__init__(self, *args, **kwargs)
+
+    def do_ReadPropertyMultipleRequest(self, apdu):
+        """Respond to a ReadPropertyMultiple Request."""
+        if _debug: ReadPropertyMultipleApplication._debug("do_ReadPropertyMultipleRequest %r", apdu)
+
+        # response is a list of read access results (or an error)
+        resp = None
+        read_access_result_list = []
+
+        # loop through the request
+        for read_access_spec in apdu.listOfReadAccessSpecs:
+            # get the object identifier
+            objectIdentifier = read_access_spec.objectIdentifier
+            if _debug: ReadPropertyMultipleApplication._debug("    - objectIdentifier: %r", objectIdentifier)
+
+            # check for wildcard
+            if (objectIdentifier == ('device', 4194303)):
+                if _debug: ReadPropertyMultipleApplication._debug("    - wildcard device identifier")
+                objectIdentifier = self.localDevice.objectIdentifier
+
+            # get the object
+            obj = self.get_object_id(objectIdentifier)
+            if _debug: ReadPropertyMultipleApplication._debug("    - object: %r", obj)
+
+            # make sure it exists
+            if not obj:
+                resp = Error(errorClass='object', errorCode='unknownObject', context=apdu)
+                if _debug: ReadPropertyMultipleApplication._debug("    - unknown object error: %r", resp)
+                break
+
+            # build a list of result elements
+            read_access_result_element_list = []
+
+            # loop through the property references
+            for prop_reference in read_access_spec.listOfPropertyReferences:
+                # get the property identifier
+                propertyIdentifier = prop_reference.propertyIdentifier
+                if _debug: ReadPropertyMultipleApplication._debug("    - propertyIdentifier: %r", propertyIdentifier)
+
+                # get the array index (optional)
+                propertyArrayIndex = prop_reference.propertyArrayIndex
+                if _debug: ReadPropertyMultipleApplication._debug("    - propertyArrayIndex: %r", propertyArrayIndex)
+
+                # check for special property identifiers
+                if propertyIdentifier in ('all', 'required', 'optional'):
+                    for propId, prop in obj._properties.items():
+                        if _debug: ReadPropertyMultipleApplication._debug("    - checking: %r %r", propId, prop.optional)
+
+                        if (propertyIdentifier == 'all'):
+                            pass
+                        elif (propertyIdentifier == 'required') and (prop.optional):
+                            if _debug: ReadPropertyMultipleApplication._debug("    - not a required property")
+                            continue
+                        elif (propertyIdentifier == 'optional') and (not prop.optional):
+                            if _debug: ReadPropertyMultipleApplication._debug("    - not an optional property")
+                            continue
+
+                        # read the specific property
+                        read_access_result_element = ReadPropertyToResultElement(obj, propId, propertyArrayIndex)
+
+                        # check for undefined property
+                        if read_access_result_element.readResult.propertyAccessError \
+                            and read_access_result_element.readResult.propertyAccessError.errorCode == 'unknownProperty':
+                            continue
+
+                        # add it to the list
+                        read_access_result_element_list.append(read_access_result_element)
+
+                else:
+                    # read the specific property
+                    read_access_result_element = ReadPropertyToResultElement(obj, propertyIdentifier, propertyArrayIndex)
+
+                    # add it to the list
+                    read_access_result_element_list.append(read_access_result_element)
+
+            # build a read access result
+            read_access_result = ReadAccessResult(
+                objectIdentifier=objectIdentifier,
+                listOfResults=read_access_result_element_list
+                )
+            if _debug: ReadPropertyMultipleApplication._debug("    - read_access_result: %r", read_access_result)
+
+            # add it to the list
+            read_access_result_list.append(read_access_result)
+
+        # this is a ReadPropertyMultiple ack
+        if not resp:
+            resp = ReadPropertyMultipleACK(context=apdu)
+            resp.listOfReadAccessResults = read_access_result_list
+            if _debug: ReadPropertyMultipleApplication._debug("    - resp: %r", resp)
+
+        # return the result
+        self.response(resp)
+
+#
+#   __main__
+#
+
+try:
+    abstraction = DeviceAbstraction(args.interface, args.config)
+    application = abstraction.get_server_application()
+
+    _log.debug("running")
+
+    run()
+
+except Exception, e:
+    _log.exception("an error has occurred: %s", e)
+finally:
+    _log.debug("finally")

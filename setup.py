@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@ from setuptools import setup, find_packages
 
 # Requirements which must be built separately with the provided options.
 option_requirements = [
-    ('pyzmq>=14.3,<15', ['--zmq=bundled']),
+    ('pyzmq>=14.7,<15', ['--zmq=bundled']),
 ]
 
 # Requirements in the repository which should be installed as editable.
@@ -91,16 +91,13 @@ install_requires = (
 if __name__ == '__main__':
     setup(
         name = 'volttron',
-        version = '2.0',
+        version = '3.0.2',
         description = 'Agent Execution Platform',
         author = 'Volttron Team',
         author_email = 'volttron@pnnl.gov',
         url = 'https://github.com/VOLTTRON/volttron',
         packages = find_packages('.'),
         install_requires = install_requires,
-        extras_require = {
-            'webserver': ['cherrypy']
-        },
         entry_points = {
             'console_scripts': [
                 'volttron = volttron.platform.main:_main',
