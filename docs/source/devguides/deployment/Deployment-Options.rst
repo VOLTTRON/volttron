@@ -84,6 +84,9 @@ for setting up VOLTTRON as a service.
     User=volttron
     Group=volttron
 
+    #Uncomment and change this to specify a different VOLTTRON_HOME
+    #Environment="VOLTTRON_HOME=/home/volttron/.volttron"
+
     #Change these to settings to reflect the install location of VOLTTRON
     WorkingDirectory=/var/lib/volttron
     ExecStart=/var/lib/volttron/env/bin/volttron -vv
@@ -115,7 +118,7 @@ An example init script ``scripts/admin/volttron`` can be used as a starting poin
 setting up VOLTTRON as a service on init.d based systems.
 
 Minor changes may be needed for the file to work on the target system. Specifically
-the ``USER`` and ``VLHOME`` variables may need to be changed.
+the ``USER``, ``VLHOME``, and ``VOLTTRON_HOME`` variables may need to be changed.
 
 ::
 
@@ -124,6 +127,11 @@ the ``USER`` and ``VLHOME`` variables may need to be changed.
     USER=volttron
     #Change this to the install location of VOLTTRON
     VLHOME=/var/lib/volttron
+
+    ...
+
+    #Uncomment and change this to specify a different VOLTTRON_HOME
+    #export VOLTTRON_HOME=/home/volttron/.volttron
 
 
 The script can be installed with the following commands. These need to be run as root or
