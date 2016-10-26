@@ -1,0 +1,40 @@
+List of topics and pointnames used in the agents:
+
+
+RadioThermostatRelay:
+
+Subscribes:
+
+  For Control signals:
+  TOPIC:  datalogger/log/esif/spl/set_THERMOSTAT_1
+  POINTS: tstat_cool_sp [60.9,90.0] float
+          tstat_mode [0,2] int
+
+  For synchronization:
+  TOPIC:  datalogger/log/volttime
+  POINTS: timestamp [<%Y-%m-%d %H:%M:%S>] string
+
+Publishes:
+  TOPIC:  datalogger/log/esif/spl/state_THERMOSTAT_1
+  POINTS: tstat_cool_sp [60.9,90.0] float
+          tstat_mode [0,2] int,“Thermostat operating mode"
+          tstat_temp [60.0,90.0] float
+          timestamp [<volttime>] string
+
+CEA2045Relay:
+
+Subscribes:
+
+  For Control signals:
+  TOPIC:  datalogger/log/esif/spl/set_CEA2045_1
+  POINTS: cea2045state ['emergency','normal','shed'] enum
+
+  For synchronization:
+  TOPIC:  datalogger/log/volttime
+  POINTS: timestamp [<%Y-%m-%d %H:%M:%S>] string
+
+Publishes:
+  TOPIC:  datalogger/log/esif/spl/state_CEA2045_1
+  POINTS: cea2045state ['Running Normal','Running Curtailed Grid','Idle Grid','Idle Normal','SGD Error Condition','Running Heightened Grid'] enum
+          cea2045_rate [0,3] int
+          timestamp [<volttime>] string
