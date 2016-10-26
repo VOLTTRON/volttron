@@ -67,6 +67,8 @@ this point. See: :ref:`Eclipse-Dev-Environment <Eclipse-Dev-Environment>`
 Note: The default working directory is ~/.volttron. The default
 directory for creation of agent packages is ~/.volttron/packaged
 
+.. _test-agent-deployment:
+
 To test agent deployment and messaging, build and deploy ListenerAgent.
 From the volttron directory:
 
