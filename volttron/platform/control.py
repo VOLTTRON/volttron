@@ -796,7 +796,7 @@ def gen_keypair(opts):
 
 def add_server_key(opts):
     store = KnownHostsStore()
-    store.add(opts.host, opts.server_key)
+    store.add(opts.host, opts.serverkey)
     _stdout.write('server key written to {}\n'.format(store.filename))
 
 
@@ -1165,7 +1165,8 @@ class ControlConnection(object):
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
-                                 developer_mode=developer_mode)
+                                 developer_mode=developer_mode,
+                                 enable_channel=True)
         self._greenlet = None
 
     @property
@@ -1421,7 +1422,7 @@ def main(argv=sys.argv):
             help='add server public key to known-hosts file')
     auth_add_known_host.add_argument('--host', required=True,
             help='hostname or IP address with optional port')
-    auth_add_known_host.add_argument('--server-key', required=True)
+    auth_add_known_host.add_argument('--serverkey', required=True)
     auth_add_known_host.set_defaults(func=add_server_key)
 
     auth_keypair = add_parser('keypair', subparser=auth_subparsers,

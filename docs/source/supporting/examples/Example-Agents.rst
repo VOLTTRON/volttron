@@ -12,6 +12,7 @@ features.
 -  `Weather <WeatherAgent>`__
 -  `Multi-Node <MultiNodeExample>`__
 -  `CAgent <CAgent.html>`__
+-  `DDSAgent <DDSAgent>`__
 
 More complex agents contributed by other researchers can also be found
 in the examples directory. It is recommended that developers new to

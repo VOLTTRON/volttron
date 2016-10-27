@@ -2,6 +2,7 @@ import tempfile
 
 import pytest
 import gevent
+import json
 
 
 simple_primary_config = {
@@ -28,12 +29,12 @@ SLEEP_TIME = 3
 
 uuid_primary = None
 uuid_secondary = None
+listener_primary = None
 
 def all_agents_running(instance):
     agents = instance.list_agents()
     uuids = [a['uuid'] for a in agents]
     return all([instance.is_agent_running(uuid) for uuid in uuids])
-
 
 @pytest.fixture
 def simple_failover(request, get_volttron_instances):
@@ -41,6 +42,7 @@ def simple_failover(request, get_volttron_instances):
     global simple_secondary_config
     global uuid_primary
     global uuid_secondary
+    global listener_primary
 
     primary, secondary = get_volttron_instances(2)
 
@@ -89,20 +91,45 @@ def simple_failover(request, get_volttron_instances):
 
 def test_simple_failover(simple_failover):
     global uuid_primary
+    alert_messages = {}
 
     primary, secondary = simple_failover
+
+    # Listen for alerts from state changes
+    def onmessage(peer, sender, bus, topic, headers, message):
+        alert = json.loads(message)["context"]
+
+        try:
+            alert_messages[alert] += 1
+        except KeyError:
+            alert_messages[alert] = 1
+
+    listen1 = primary.build_agent()
+    listen1.vip.pubsub.subscribe(peer='pubsub',
+                               prefix='alert',
+                               callback=onmessage).get()
+
+    listen2 = secondary.build_agent()
+    listen2.vip.pubsub.subscribe(peer='pubsub',
+                               prefix='alert',
+                               callback=onmessage).get()
 
     # make sure the secondary will take over
     primary.stop_agent(uuid_primary)
     gevent.sleep(SLEEP_TIME)
     assert not all_agents_running(primary)
     assert all_agents_running(secondary)
+    assert 'Primary is inactive starting agent listener' in alert_messages
 
     # secondary should stop its listener
     primary.start_agent(uuid_primary)
     gevent.sleep(SLEEP_TIME)
     assert all_agents_running(primary)
     assert not all_agents_running(secondary)
+    assert 'Primary is active stopping agent listener' in alert_messages
+    assert 'Starting agent listener' in alert_messages
+    listen1.core.stop()
+    listen2.core.stop()
 
 
 def test_primary_on_secondary_crash(simple_failover):
@@ -142,3 +169,17 @@ def test_secondary_on_primary_crash(simple_failover):
     assert not all_agents_running(secondary)
 
     primary.skip_cleanup = False
+
+
+def test_can_handle_agent_upgrade(simple_failover):
+    global listener_primary
+    primary, secondary = simple_failover
+    
+    primary.remove_agent(listener_primary)
+    listener_primary = primary.install_agent(agent_dir="examples/ListenerAgent",
+                                             vip_identity="listener",
+                                             start=False)
+
+    gevent.sleep(SLEEP_TIME)
+    assert all_agents_running(primary)
+    assert not all_agents_running(secondary)

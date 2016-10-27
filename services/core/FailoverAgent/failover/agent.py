@@ -62,11 +62,14 @@ import time
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL
 from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.keystore import KnownHostsStore
+from volttron.platform.messaging.health import Status, STATUS_BAD, STATUS_GOOD
 from volttron.platform.vip.agent import Agent, Core, PubSub, Unreachable
 from volttron.platform.vip.agent.connection import Connection
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '0.2'
 
 
 class FailoverAgent(Agent):
@@ -94,7 +97,11 @@ class FailoverAgent(Agent):
             self.remote_id = "simple_" + self.remote_id
 
         self.remote_vip = config["remote_vip"]
-        self.remote_serverkey = config["remote_serverkey"]
+
+        hosts = KnownHostsStore()
+        self.remote_serverkey = hosts.serverkey(self.remote_vip)
+        if self.remote_serverkey is None:
+            self.remote_serverkey = config["remote_serverkey"]
 
         self.agent_vip_identity = config["agent_vip_identity"]
         self.heartbeat_period = config["heartbeat_period"]
@@ -111,23 +118,6 @@ class FailoverAgent(Agent):
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
-        # Figure out the uuid to start and stop by VIP identity
-        agents = self.vip.rpc.call(CONTROL, 'list_agents').get()
-        uuids = [a['uuid'] for a in agents]
-        for uuid in uuids:
-            vip_id = self.vip.rpc.call(CONTROL,
-                                       'agent_vip_identity',
-                                       uuid).get()
-
-            if vip_id == self.agent_vip_identity:
-                self.agent_uuid = uuid
-
-        # We won't be able to do anything with an agent that isn't installed
-        # sys.exit() ?
-        if self.agent_uuid is None:
-            _log.error("Agent {} is not installed"
-                       .format(self.agent_vip_identity))
-
         # Start an agent to send heartbeats to the other failover instance
         self.heartbeat = self.build_connection()
 
@@ -153,7 +143,7 @@ class FailoverAgent(Agent):
 
     def build_connection(self):
         return Connection(self.remote_vip,
-                          peer=self.agent_vip_identity,
+                          peer='',
                           serverkey=self.remote_serverkey,
                           publickey=self.core.publickey,
                           secretkey=self.core.secretkey)
@@ -165,6 +155,22 @@ class FailoverAgent(Agent):
         elif topic.startswith('heartbeat/' + self.remote_id):
             self.remote_timeout = self.timeout
 
+    def _find_agent_uuid(self):
+        self.agent_uuid = None
+        agents = self.vip.rpc.call(CONTROL, 'list_agents').get()
+        uuids = [a['uuid'] for a in agents]
+        for uuid in uuids:
+            vip_id = self.vip.rpc.call(CONTROL,
+                                       'agent_vip_identity',
+                                       uuid).get()
+
+            if vip_id == self.agent_vip_identity:
+                self.agent_uuid = uuid
+
+        if self.agent_uuid is None:
+            _log.error("Agent {} is not installed"
+                       .format(self.agent_vip_identity))
+
     def check_pulse(self):
         self.vc_timeout -= 1
         self.remote_timeout -= 1
@@ -172,6 +178,10 @@ class FailoverAgent(Agent):
         vc_is_up = self.vc_timeout > 0
         remote_is_up = self.remote_timeout > 0
         current_state = remote_is_up, vc_is_up
+
+        self._find_agent_uuid()
+        if self.agent_uuid is None:
+            return
 
         self._state_machine(current_state)
 
@@ -228,9 +238,13 @@ class FailoverAgent(Agent):
         :param current_state: Indicates if remote platforms are active. Ingored.
         :type current_state: tuple of booleans
         """
+        alert_key = 'failover {}'.format(self.agent_id)
         if current_state != self._state:
+            context = 'Starting agent {}'.format(self.agent_vip_identity)
             self._state = current_state
-            _log.warn('Starting agent {}'.format(self.agent_vip_identity))
+            _log.warn(context)
+            status = Status.build(STATUS_GOOD, context=context)
+            self.vip.health.send_alert(alert_key, status)
 
         proc_info = self.vip.rpc.call(CONTROL,
                                       'agent_status',
@@ -251,18 +265,28 @@ class FailoverAgent(Agent):
         """
         primary_is_up, _ = current_state
 
+        alert_key = 'failover {}'.format(self.agent_id)
+
         if primary_is_up:
+            context = 'Primary is active stopping agent {}'.format(
+                self.agent_vip_identity)
             if current_state != self._state:
                 self._state = current_state
-                _log.warn('Primary is active stopping agent {}'
-                          .format(self.agent_vip_identity))
+                _log.warn(context)
+                status = Status.build(STATUS_GOOD, context=context)
+                self.vip.health.send_alert(alert_key, status)
+
             self._agent_control('stop_agent')
 
         else:
+            context = 'Primary is inactive starting agent {}'.format(
+                self.agent_vip_identity)
             if current_state != self._state:
                 self._state = current_state
-                _log.warn('Primary is inactive starting agent {}'
-                          .format(self.agent_vip_identity))
+                _log.warn(context)
+                status = Status.build(STATUS_BAD, context=context)
+                self.vip.health.send_alert(alert_key, status)
+
             proc_info = self.vip.rpc.call(CONTROL,
                                           'agent_status',
                                           self.agent_uuid).get()
