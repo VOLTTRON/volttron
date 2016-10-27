@@ -17,8 +17,8 @@ var OADR = React.createClass({
     return (
     <div className="view">
     <h2>Open ADR</h2>
-    </div>
-    }
+    </div>)
+    };
 });
 
 module.exports = OADR;
