@@ -94,10 +94,10 @@ Remote Platform Configuration
 
 The next step is to configure the instances that will connect to VOLTTRON
 Central. In the second and third terminal windows run `volttron-cfg`. Like
-the VOLTTRON\_HOME variable these instances need to have unique addresses.
+the VOLTTRON\_HOME variable, these instances need to have unique addresses.
 
 Install a platform agent and a historian as before. Since we used the default
-options when configuring VOLTTRON Central we can use the default options when
+options when configuring VOLTTRON Central, we can use the default options when
 configuring these platform agents as well.
 
 |Platform Config|
