@@ -12,7 +12,7 @@ var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
 var Platforms = require('./components/platforms');
 var PlatformCharts = require('./components/platform-charts');
-
+var OADR = require('./components/oadr');
 var _afterLoginPath = '/dashboard';
 
 function checkAuth(Component) {
