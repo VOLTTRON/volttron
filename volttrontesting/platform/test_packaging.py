@@ -57,95 +57,55 @@
 # }}}
 
 """
-unit test cases for packaging.py (volttron-pkg package)
+unit test cases for packaging.py (volttron-pkg package). This does not yet
+cover test cases for restricted code as volttron-restricted is currently
+broken. This test class needs to be updated once volttron-restricted in updated
 """
-import tempfile
+import shutil
 import subprocess
-import zipfile
-import pytest
-import os
 import sys
-from wheel.install import (WheelFile, VerifyingZipFile)
+import tempfile
+from collections import Counter
 
-from volttron.platform.packaging import (create_package,
+import os
+import pytest
+import stat
+from volttron.platform.packaging import AgentPackageError
+from volttron.platform.packaging import (create_package, repackage,
                                          extract_package)
 
-from volttron.platform.packaging import AgentPackageError
-
-try:
-    from volttron.restricted import (auth, certs)
-except ImportError:
-    auth = None
-    certs = None
-
-class TestVolttronPackage:
-
-    @pytest.fixture(scope="module")
-    def test_package(self):
-        print "*****In setup****"
-        #self.fixtureDir = os.path.join(os.path.dirname(__file__), "fixtures")
-
-        # now change to the newly created tmpdir
-        self.tmpdir = tempfile.mkdtemp()
-        self.delete_temp = True
-        os.chdir(self.tmpdir)
-        # only do the certs stuf if the restricted are available.
-        if certs:
-            self.certificate_dir = os.path.join(self.tmpdir, 'certs')
-            self.certs_dir = os.path.join(self.tmpdir, 'certs/certs')
-            self.private_dir = os.path.join(self.tmpdir, 'certs/private')
-
-            os.makedirs(self.certs_dir)
-            os.makedirs(self.private_dir)
-
-            assert(os.path.isdir(self.certificate_dir))
-            assert(os.path.isdir(self.certs_dir))
-            assert(os.path.isdir(self.private_dir))
-
-            self.admin_cert_name = 'admin'
-            self.creator_cert_name = 'creator'
-            self.initiator_cert_name = 'initiator'
-
-            admin = {'C': 'US', 'CN': self.admin_cert_name}
-            creator = {'C': 'US', 'CN': self.creator_cert_name}
-            initiator = {'C': 'US', 'CN': self.initiator_cert_name}
-
-            self.certsobj = certs.Certs(self.certificate_dir)
-            self.certsobj.create_root_ca()
-            self.certsobj.create_ca_signed_cert(self.admin_cert_name, **admin)
-            self.certsobj.create_ca_signed_cert(self.creator_cert_name, **creator)
-            self.certsobj.create_ca_signed_cert(self.initiator_cert_name, **initiator)
-
-            from os.path import join
-            assert(os.path.isfile(join(self.certs_dir,
-                                       self.admin_cert_name+".crt")))
-            assert(os.path.isfile(join(self.private_dir,
-                                       self.admin_cert_name+".pem")))
-
-            assert(os.path.isfile(join(self.certs_dir,
-                                       self.creator_cert_name+".crt")))
-            assert(os.path.isfile(join(self.private_dir,
-                                       self.creator_cert_name+".pem")))
-
-            assert(os.path.isfile(join(self.certs_dir,
-                                       self.initiator_cert_name+".crt")))
-            assert(os.path.isfile(join(self.private_dir,
-                                       self.initiator_cert_name+".pem")))
 
 
-        #create a test package
+@pytest.fixture(scope="module")
+def test_package(self):
+    """
+    Fixture to create a test package and test wheel used by this test suite
+
+    :return: (parent directory of test package, distribution name,
+    version, name of test package)
+    """
+
+    # now change to the newly created tmpdir
+    print ("cwd {}".format(os.getcwd()))
+    cwd = os.getcwd()
+    try:
+        tmpdir = tempfile.mkdtemp()
+        os.chdir(tmpdir)
+
+        # create a test package
         os.mkdir('packagetest')
-        with open(os.path.join('packagetest', '__init__.py'), 'w') as file:
+        with open(os.path.join('packagetest', '__init__.py'), 'w') as f:
             pass
-        with open(os.path.join('packagetest', 'packagetest.py'), 'w') as file:
-            file.write('''
+        with open(os.path.join(
+                'packagetest', 'packagetest.py'), 'w') as f:
+            f.write('''
 import sys
 
 if __name__ == '__main__':
-    sys.stdout.write('Hello World!\n')
+sys.stdout.write('Hello World!\n')
 ''')
-        with open(os.path.join('setup.py'), 'w') as file:
-            file.write('''
+        with open(os.path.join('setup.py'), 'w') as f:
+            f.write('''
 from setuptools import setup
 
 setup(
@@ -155,66 +115,461 @@ packages = ['packagetest'],
 zip_safe = False,
 )
 ''')
-        return self.tmpdir, 'distribution_name', '0.1'
-        # p = subprocess.Popen([sys.executable, 'setup.py', 'bdist_wheel'])
-        # p.wait()
-        # self.wheel = os.path.join('dist', 'packagetest-0.1-py2-none-any.whl')
+        p = subprocess.Popen([sys.executable, 'setup.py', 'bdist_wheel'])
+        p.wait()
+        os.path.join('dist', '-'.join(['distribution_name',
+                                               '0.1', 'py2-none-any.whl']))
+    finally:
+        os.chdir(cwd)
+    return tmpdir, 'distribution_name', '0.1', 'packagetest'
 
-    def test_create_package_no_id(self, test_package):
-        """
-        Test if we can create a wheel file given a agent directory
-        :param setup: fixture that creates the fake agent packaged
-        :return:
-        """
-        tmpdir, distribution_name, version = test_package
-        wheel_dir = os.path.join(tmpdir, "wheel_dir")
-        result = create_package(tmpdir, wheel_dir)
-        assert result == os.path.join(wheel_dir, '-'.join([
-            distribution_name, version, 'py2-none-any.whl']))
+@pytest.mark.packaging
+def test_create_package_no_id(self, test_package):
+    """
+    Test if we can create a wheel file given a valid agent directory.
+    Expected result: wheel file with the name
+    <distribution_name>-<version>-py2-none-any.whl
 
-    def test_create_package_with_id(self, test_package):
-        """
-        Test if we can create a wheel file given a agent directory
-        :param setup: fixture that creates the fake agent packaged
-        :return:
-        """
-        tmpdir, distribution_name, version = test_package
-        wheel_dir = os.path.join(tmpdir, "wheel_dir")
-        result = create_package(tmpdir, wheel_dir, "test_vip_id")
-        assert result == os.path.join(wheel_dir, '-'.join([
-            distribution_name, version, 'py2-none-any.whl']))
+    :param test_package: fixture that creates the fake agent directory
+    and returns the directory name, distribution name, version of
+    the fake/test package, and package name
 
-        extract_dir = tempfile.mkdtemp()
-        result2 = extract_package(result, extract_dir)
-        dist_info_dir = os.path.join(result2,
-                            distribution_name + "-" + version + ".dist-info")
-        files = os.listdir(dist_info_dir)
-        assert 'IDENTITY_TEMPLATE' in files
-        with open(os.path.join(dist_info_dir,'IDENTITY_TEMPLATE'), 'r') as f:
-            data = f.read().replace('\n', '')
-            assert data == "test_vip_id"
+    """
+    print ("cwd {}".format(os.getcwd()))
+    tmpdir, distribution_name, version, package_name = test_package
+    wheel_dir = os.path.join(tmpdir, "wheel_dir")
+    result = create_package(tmpdir, wheel_dir)
+    assert result == os.path.join(wheel_dir, '-'.join(
+        [distribution_name, version, 'py2-none-any.whl']))
 
-    @pytest.mark.dev
-    def test_create_package_invalid_input(self):
-        """
-        Test if we can create a wheel file given a agent directory
-        :param setup: fixture that creates the fake agent packaged
-        :return:
-        """
+@pytest.mark.packaging
+def test_create_package_with_id(self, test_package):
+    """
+    Test if we can create a wheel file given a agent directory and vip id
+    Expected result:
 
-        wheel_dir = os.path.join(tempfile.mkdtemp(), "wheel_dir")
-        try:
-            create_package("/abc/def/ghijkl", wheel_dir)
-            pytest.fail("Expecting AgentPackageError got none")
-        except AgentPackageError as e:
-            assert e.message == "Invalid agent package directory specified"
+    1. wheel file with the name
+       <distribution_name>-<version>-py2-none-any.whl
+    2. Wheel file should contains the identity passed in a file called
+    'IDENTITY_TEMPLATE' in <distribution_name>-<version>.dist-info folder
 
-        try:
-            create_package(tempfile.mkdtemp(), wheel_dir)
-            pytest.fail("Expecting NotImplementedError got none")
-        except NotImplementedError:
-            pass
+    :param test_package: fixture that creates the fake agent directory
+    and returns the directory name, distribution name, version of
+    the fake/test package, and package name
+
+    """
+    tmpdir, distribution_name, version, package_name = test_package
+    wheel_dir = os.path.join(tmpdir, "wheel_dir")
+    result = create_package(tmpdir, wheel_dir, "test_vip_id")
+    assert result == os.path.join(wheel_dir, '-'.join(
+        [distribution_name, version, 'py2-none-any.whl']))
+
+    extract_dir = tempfile.mkdtemp()
+    result2 = extract_package(result, extract_dir)
+    dist_info_dir = os.path.join(result2,
+                                 distribution_name + "-" + version +
+                                 ".dist-info")
+    files = os.listdir(dist_info_dir)
+    assert 'IDENTITY_TEMPLATE' in files
+    with open(os.path.join(dist_info_dir, 'IDENTITY_TEMPLATE'), 'r') as f:
+        data = f.read().replace('\n', '')
+        assert data == "test_vip_id"
+
+@pytest.mark.packaging
+def test_create_package_invalid_input(self):
+    """
+    Test error handling in create_package when invalid package directory
+    is passed
+
+    """
+
+    wheel_dir = os.path.join(tempfile.mkdtemp(), "wheel_dir")
+    try:
+        create_package("/abc/def/ghijkl", wheel_dir)
+        pytest.fail("Expecting AgentPackageError got none")
+    except AgentPackageError as e:
+        assert e.message == "Invalid agent package directory specified"
+
+    try:
+        create_package(tempfile.mkdtemp(), wheel_dir)
+        pytest.fail("Expecting NotImplementedError got none")
+    except NotImplementedError:
+        pass
+
+@pytest.mark.packaging
+def test_repackage_output_to_cwd(self, volttron_instance):
+    """
+    Test if we can create a wheel file given an installed agent directory.
+    Test without any explicit destination directory for the wheel file.
+    Wheel file should be created in current working directory
+
+    :param volttron_instance: platform wrapper used to install a test
+                              agent and test installation of wheel file
+                              generated by repackage
+
+    """
+    dest_dir = None
+    cwd = os.getcwd()
+    try:
+        dest_dir = tempfile.mkdtemp()
+        os.chdir(dest_dir)
+        agent_uuid = volttron_instance.install_agent(
+            agent_dir=os.path.join(cwd, "examples/ListenerAgent"))
+        agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
+            agent_uuid, 'listeneragent-3.2')
+        print agent_dir
+        wheel_name = repackage(agent_dir)
+        assert wheel_name == 'listeneragent-3.2-py2-none-any.whl'
+
+        wheel = os.path.join(dest_dir, wheel_name)
+        # Check wheel exists and it can be used to install the agent again
+        assert os.path.isfile(wheel)
+        volttron_instance.install_agent(agent_wheel=wheel)
+    finally:
+        os.chdir(cwd)
+        if dest_dir:
+            shutil.rmtree(dest_dir)
+
+@pytest.mark.packaging
+def test_repackage_valid_dest_dir(self, volttron_instance):
+    """
+    Test if we can create a wheel file given an installed agent directory.
+    Test with valid destination directory
+
+    :param volttron_instance: platform wrapper used to install a test
+                              agent and test installation of wheel file
+                              generated by repackage
+
+    """
+    dest_dir = None
+    try:
+        dest_dir = tempfile.mkdtemp()
+        agent_uuid = volttron_instance.install_agent(
+            agent_dir=os.path.join("examples/ListenerAgent"))
+        agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
+            agent_uuid, 'listeneragent-3.2')
+        print agent_dir
+        wheel_path = repackage(agent_dir, dest=dest_dir)
+        expected_wheel = os.path.join(dest_dir,
+                                      'listeneragent-3.2-py2-none-any.whl')
+        assert wheel_path == expected_wheel
+        # Check wheel exists and it can be used to install the agent again
+        assert os.path.isfile(wheel_path)
+        volttron_instance.install_agent(agent_wheel=wheel_path)
+    finally:
+        if dest_dir:
+            shutil.rmtree(dest_dir)
+
+@pytest.mark.packaging
+def test_repackage_new_dest_dir(self, volttron_instance):
+    """
+    Test if we can create a wheel file given an installed agent directory.
+    Test with valid destination directory
+
+    :param volttron_instance: platform wrapper used to install a test
+                              agent and test installation of wheel file
+                              generated by repackage
+
+    """
+    dest_dir = None
+    try:
+        dest_dir = tempfile.mkdtemp()
+        dest_dir = os.path.join(dest_dir, "subdir")
+        print ("cwd {}".format(os.getcwd()))
+
+        agent_uuid = volttron_instance.install_agent(
+            agent_dir=os.path.join("examples/ListenerAgent"))
+        agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
+            agent_uuid, 'listeneragent-3.2')
+        print agent_dir
+        wheel_path = repackage(agent_dir, dest=dest_dir)
+        expeceted_wheel = os.path.join(
+            dest_dir, 'listeneragent-3.2-py2-none-any.whl')
+        assert wheel_path == expeceted_wheel
+        # Check wheel exists and it can be used to install the agent again
+        assert os.path.isfile(wheel_path)
+        volttron_instance.install_agent(agent_wheel=wheel_path)
+    finally:
+        if dest_dir:
+            shutil.rmtree(dest_dir)
+
+@pytest.mark.packaging
+def test_repackage_invalid_dest_dir(self, volttron_instance):
+    """
+    Test if we can create a wheel file given an installed agent agent_dir.
+    Test with invalid destination agent_dir.
+    Expected result - AgentPackageError
+
+    :param volttron_instance: platform wrapper used to install a test
+                              agent and test installation of wheel file
+                              generated by repackage
+
+    """
+    dest_dir = "/abcdef/ghijkl"
+    try:
+        agent_uuid = volttron_instance.install_agent(
+            agent_dir="examples/ListenerAgent")
+        agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
+                                 agent_uuid, 'listeneragent-3.2')
+        repackage(agent_dir, dest=dest_dir)
+        pytest.fail("Expecting AgentPackageError but code completed "
+                    "successfully")
+    except AgentPackageError as a:
+        assert a.message.find("Unable to create destination directory "
+                              "{}".format(dest_dir)) != -1
+    try:
+
+        dest_dir = tempfile.mkdtemp()
+        os.chmod(dest_dir, stat.S_IREAD)
+        agent_uuid = volttron_instance.install_agent(
+            agent_dir="examples/ListenerAgent")
+        agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
+                                 agent_uuid, 'listeneragent-3.2')
+        repackage(agent_dir, dest=dest_dir)
+        pytest.fail("Expecting AgentPackageError but code completed "
+                    "successfully")
+    except AgentPackageError as a:
+        assert a.message.find("Permission denied") != -1
+
+@pytest.mark.packaging
+def test_repackage_invalid_agent_dir(self):
+    """
+    Test if we can create a wheel file given an installed agent temp_dir.
+    Test with invalid agent temp_dir. Expected result - AgentPackageError
+
+    """
+    try:
+        repackage("/tmp/abcdefghijklmnopqrstuvwxyz")
+        pytest.fail("Expecting AgentPackageError but code completed "
+                    "successfully")
+    except AgentPackageError as a:
+        assert a.message == "Agent directory " \
+                            "/tmp/abcdefghijklmnopqrstuvwxyz " \
+                            "does not exist"
+    temp_dir = ""
+    try:
+        temp_dir = tempfile.mkdtemp()
+        repackage(temp_dir)
+        pytest.fail("Expecting AgentPackageError but code completed "
+                    "successfully")
+    except AgentPackageError as a:
+        assert a.message == 'directory does not contain a valid agent ' \
+                            'package: {}'.format(temp_dir)
+    finally:
+        if temp_dir:
+            os.rmdir(temp_dir)
+
+@pytest.mark.packaging
+def test_extract_valid_wheel_and_dir(self, test_package):
+    """
+    Test if we can extract a wheel file, a specific install directory.
 
 
+    :param test_package: fixture that creates the fake agent directory
+                         and returns the directory name, distribution
+                         name,  version of the fake/test package,
+                         and package name
 
+    """
+    install_dir = ""
+    try:
+        tmpdir, distribution_name, version, package = test_package
 
+        wheel_name = '-'.join(
+            [distribution_name, version, 'py2-none-any.whl'])
+        wheel_file = os.path.join(tmpdir, 'dist', wheel_name)
+        install_dir = tempfile.mkdtemp()
+
+        destination = extract_package(wheel_file, install_dir,
+                                      include_uuid=False,
+                                      specific_uuid=None)
+
+        print ("destination {}".format(destination))
+        name_version = distribution_name + "-" + version
+        assert destination == os.path.join(install_dir, name_version)
+        assert Counter(os.listdir(destination)) == Counter(
+            [name_version + '.dist-info', package])
+
+        dist = os.path.join(destination, name_version + '.dist-info')
+        assert Counter(os.listdir(dist)) == Counter(
+            ['DESCRIPTION.rst', 'METADATA', 'metadata.json', 'RECORD',
+             'top_level.txt', 'WHEEL'])
+    finally:
+        if install_dir:
+            shutil.rmtree(install_dir)
+
+@pytest.mark.packaging
+def test_extract_include_uuid(self, test_package):
+    """
+    Test if we can extract a wheel file, a specific install directory.
+    Specify include_uuid as True and verify that the extraction happens
+    within given install_dir/uuid directory
+
+    :param test_package: fixture that creates the fake agent directory
+                         and returns the directory name, distribution
+                         name,  version of the fake/test package,
+                         and package name
+
+    """
+    install_dir = ""
+    try:
+        tmpdir, distribution_name, version, package = test_package
+
+        wheel_name = '-'.join(
+            [distribution_name, version, 'py2-none-any.whl'])
+        wheel_file = os.path.join(tmpdir, 'dist', wheel_name)
+        install_dir = tempfile.mkdtemp()
+
+        destination = extract_package(wheel_file, install_dir,
+                                      include_uuid=True,
+                                      specific_uuid=None)
+
+        print ("destination {}".format(destination))
+        name_version = distribution_name + "-" + version
+        assert os.path.basename(destination) == name_version
+        assert os.path.dirname(os.path.dirname(destination)) == install_dir
+
+        assert Counter(os.listdir(destination)) == Counter(
+            [name_version + '.dist-info', package])
+
+        dist = os.path.join(destination, name_version + '.dist-info')
+        assert Counter(os.listdir(dist)) == Counter(
+            ['DESCRIPTION.rst', 'METADATA', 'metadata.json', 'RECORD',
+             'top_level.txt', 'WHEEL'])
+    finally:
+        if install_dir:
+            shutil.rmtree(install_dir)
+
+@pytest.mark.packaging
+def test_extract_specific_uuid(self, test_package):
+    """
+    Test if we can extract a wheel file, a specific install directory and
+    a specific uuid
+
+    :param test_package: fixture that creates the fake agent directory
+                         and returns the directory name, distribution
+                         name,  version of the fake/test package,
+                         and package name
+
+    """
+    install_dir = ""
+    try:
+        tmpdir, distribution_name, version, package = test_package
+
+        wheel_name = '-'.join(
+            [distribution_name, version, 'py2-none-any.whl'])
+        wheel_file = os.path.join(tmpdir, 'dist', wheel_name)
+        install_dir = tempfile.mkdtemp()
+
+        destination = extract_package(wheel_file, install_dir,
+                                      include_uuid=True,
+                                      specific_uuid="123456789")
+
+        print ("destination {}".format(destination))
+        name_version = distribution_name + "-" + version
+        assert os.path.basename(destination) == name_version
+        assert os.path.dirname(destination) == os.path.join(install_dir,
+                                                            "123456789")
+
+        assert Counter(os.listdir(destination)) == Counter(
+            [name_version + '.dist-info', package])
+
+        dist = os.path.join(destination, name_version + '.dist-info')
+        assert Counter(os.listdir(dist)) == Counter(
+            ['DESCRIPTION.rst', 'METADATA', 'metadata.json', 'RECORD',
+             'top_level.txt', 'WHEEL'])
+    finally:
+        if install_dir:
+            shutil.rmtree(install_dir)
+
+@pytest.mark.packaging
+def test_extract_invalid_wheel(self):
+    """
+    Test extract_package with invalid wheel file name.
+    """
+    install_dir = ""
+    f = None
+    try:
+        f = tempfile.NamedTemporaryFile(suffix=".whl")
+        install_dir = tempfile.mkdtemp()
+        extract_package(f.name, install_dir, include_uuid=True,
+                        specific_uuid="123456789")
+
+    except Exception as e:
+        assert e.message == "Bad filename '{}'".format(f.name)
+    finally:
+        if install_dir:
+            shutil.rmtree(install_dir)
+
+@pytest.mark.packaging
+def test_extract_invalid_install_dir(self, test_package):
+    """
+     Test extract_package with invalid install directory
+
+    :param test_package: fixture that creates the fake agent directory
+                         and returns the directory name, distribution
+                         name,  version of the fake/test package,
+                         and package name
+
+    """
+    install_dir = ""
+    try:
+        tmpdir, distribution_name, version, package = test_package
+
+        wheel_name = '-'.join(
+            [distribution_name, version, 'py2-none-any.whl'])
+        wheel_file = os.path.join(tmpdir, 'dist', wheel_name)
+        install_dir = tempfile.mkdtemp()
+        os.chmod(install_dir, stat.S_IREAD)
+        extract_package(wheel_file, install_dir, include_uuid=True,
+                        specific_uuid="123456789")
+
+    except Exception as e:
+        print e
+        assert str(e).find("Permission denied") != -1
+    finally:
+        if install_dir:
+            shutil.rmtree(install_dir)
+
+@pytest.mark.packaging
+def test_extract_new_install_dir(self, test_package):
+    """
+     Test extract_package with invalid install directory
+
+    :param test_package: fixture that creates the fake agent directory
+                         and returns the directory name, distribution
+                         name,  version of the fake/test package,
+                         and package name
+
+    """
+    install_dir = ""
+
+    try:
+        tmpdir, distribution_name, version, package = test_package
+
+        wheel_name = '-'.join(
+            [distribution_name, version, 'py2-none-any.whl'])
+        wheel_file = os.path.join(tmpdir, 'dist', wheel_name)
+        install_dir = tempfile.mkdtemp()
+        install_dir = os.path.join(install_dir, 'newdir')
+
+        destination = extract_package(wheel_file, install_dir,
+                                      include_uuid=True,
+                                      specific_uuid="123456789")
+        print ("destination {}".format(destination))
+        name_version = distribution_name + "-" + version
+        assert os.path.basename(destination) == name_version
+        assert os.path.dirname(destination) == os.path.join(install_dir,
+                                                            "123456789")
+
+        assert Counter(os.listdir(destination)) == Counter(
+            [name_version + '.dist-info', package])
+
+        dist = os.path.join(destination, name_version + '.dist-info')
+        assert Counter(os.listdir(dist)) == Counter(
+            ['DESCRIPTION.rst', 'METADATA', 'metadata.json', 'RECORD',
+             'top_level.txt', 'WHEEL'])
+
+    finally:
+        if install_dir:
+            shutil.rmtree(install_dir)
