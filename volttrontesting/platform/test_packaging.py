@@ -75,9 +75,8 @@ from volttron.platform.packaging import (create_package, repackage,
                                          extract_package)
 
 
-
 @pytest.fixture(scope="module")
-def test_package(self):
+def test_package():
     """
     Fixture to create a test package and test wheel used by this test suite
 
@@ -124,7 +123,7 @@ zip_safe = False,
     return tmpdir, 'distribution_name', '0.1', 'packagetest'
 
 @pytest.mark.packaging
-def test_create_package_no_id(self, test_package):
+def test_create_package_no_id(test_package):
     """
     Test if we can create a wheel file given a valid agent directory.
     Expected result: wheel file with the name
@@ -143,7 +142,7 @@ def test_create_package_no_id(self, test_package):
         [distribution_name, version, 'py2-none-any.whl']))
 
 @pytest.mark.packaging
-def test_create_package_with_id(self, test_package):
+def test_create_package_with_id(test_package):
     """
     Test if we can create a wheel file given a agent directory and vip id
     Expected result:
@@ -176,7 +175,7 @@ def test_create_package_with_id(self, test_package):
         assert data == "test_vip_id"
 
 @pytest.mark.packaging
-def test_create_package_invalid_input(self):
+def test_create_package_invalid_input():
     """
     Test error handling in create_package when invalid package directory
     is passed
@@ -197,7 +196,7 @@ def test_create_package_invalid_input(self):
         pass
 
 @pytest.mark.packaging
-def test_repackage_output_to_cwd(self, volttron_instance):
+def test_repackage_output_to_cwd(volttron_instance):
     """
     Test if we can create a wheel file given an installed agent directory.
     Test without any explicit destination directory for the wheel file.
@@ -231,7 +230,7 @@ def test_repackage_output_to_cwd(self, volttron_instance):
             shutil.rmtree(dest_dir)
 
 @pytest.mark.packaging
-def test_repackage_valid_dest_dir(self, volttron_instance):
+def test_repackage_valid_dest_dir(volttron_instance):
     """
     Test if we can create a wheel file given an installed agent directory.
     Test with valid destination directory
@@ -261,7 +260,7 @@ def test_repackage_valid_dest_dir(self, volttron_instance):
             shutil.rmtree(dest_dir)
 
 @pytest.mark.packaging
-def test_repackage_new_dest_dir(self, volttron_instance):
+def test_repackage_new_dest_dir(volttron_instance):
     """
     Test if we can create a wheel file given an installed agent directory.
     Test with valid destination directory
@@ -293,8 +292,9 @@ def test_repackage_new_dest_dir(self, volttron_instance):
         if dest_dir:
             shutil.rmtree(dest_dir)
 
+@pytest.mark.dev
 @pytest.mark.packaging
-def test_repackage_invalid_dest_dir(self, volttron_instance):
+def test_repackage_invalid_dest_dir(volttron_instance):
     """
     Test if we can create a wheel file given an installed agent agent_dir.
     Test with invalid destination agent_dir.
@@ -328,11 +328,11 @@ def test_repackage_invalid_dest_dir(self, volttron_instance):
         repackage(agent_dir, dest=dest_dir)
         pytest.fail("Expecting AgentPackageError but code completed "
                     "successfully")
-    except AgentPackageError as a:
-        assert a.message.find("Permission denied") != -1
+    except Exception as a:
+        assert str(a).find("Permission denied") != -1
 
 @pytest.mark.packaging
-def test_repackage_invalid_agent_dir(self):
+def test_repackage_invalid_agent_dir():
     """
     Test if we can create a wheel file given an installed agent temp_dir.
     Test with invalid agent temp_dir. Expected result - AgentPackageError
@@ -360,7 +360,7 @@ def test_repackage_invalid_agent_dir(self):
             os.rmdir(temp_dir)
 
 @pytest.mark.packaging
-def test_extract_valid_wheel_and_dir(self, test_package):
+def test_extract_valid_wheel_and_dir(test_package):
     """
     Test if we can extract a wheel file, a specific install directory.
 
@@ -399,7 +399,7 @@ def test_extract_valid_wheel_and_dir(self, test_package):
             shutil.rmtree(install_dir)
 
 @pytest.mark.packaging
-def test_extract_include_uuid(self, test_package):
+def test_extract_include_uuid(test_package):
     """
     Test if we can extract a wheel file, a specific install directory.
     Specify include_uuid as True and verify that the extraction happens
@@ -441,7 +441,7 @@ def test_extract_include_uuid(self, test_package):
             shutil.rmtree(install_dir)
 
 @pytest.mark.packaging
-def test_extract_specific_uuid(self, test_package):
+def test_extract_specific_uuid(test_package):
     """
     Test if we can extract a wheel file, a specific install directory and
     a specific uuid
@@ -483,7 +483,7 @@ def test_extract_specific_uuid(self, test_package):
             shutil.rmtree(install_dir)
 
 @pytest.mark.packaging
-def test_extract_invalid_wheel(self):
+def test_extract_invalid_wheel():
     """
     Test extract_package with invalid wheel file name.
     """
@@ -502,7 +502,7 @@ def test_extract_invalid_wheel(self):
             shutil.rmtree(install_dir)
 
 @pytest.mark.packaging
-def test_extract_invalid_install_dir(self, test_package):
+def test_extract_invalid_install_dir(test_package):
     """
      Test extract_package with invalid install directory
 
@@ -532,7 +532,7 @@ def test_extract_invalid_install_dir(self, test_package):
             shutil.rmtree(install_dir)
 
 @pytest.mark.packaging
-def test_extract_new_install_dir(self, test_package):
+def test_extract_new_install_dir(test_package):
     """
      Test extract_package with invalid install directory
 
