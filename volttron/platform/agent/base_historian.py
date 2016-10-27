@@ -501,7 +501,7 @@ class BaseHistorianAgent(Agent):
         # Because of the above if we know that all is in the topic so
         # we strip it off to get the base device
         parts = topic.split('/')
-        device = '/'.join(parts[1:-1])  # '/'.join(reversed(parts[2:]))
+        device = '/'.join(parts[1:-1])
         self._capture_data(peer, sender, bus, topic, headers, message, device)
 
     def _capture_analysis_data(self, peer, sender, bus, topic, headers,
@@ -514,12 +514,11 @@ class BaseHistorianAgent(Agent):
         # Anon the topic.
         topic = self._get_topic(topic)
 
-        # topic now is going to always end in all.
-        if not topic.endswith('/'):
-            topic += '/'
+        if topic.endswith('/'):
+            topic = topic[:-1]
 
         if not topic.endswith('all'):
-            topic += 'all'
+            topic += '/all'
 
         parts = topic.split('/')
         # strip off the first part of the topic.
