@@ -55,6 +55,7 @@ var Navigation = React.createClass({
         return (
             <nav className="navigation">
                 <h1 className="logo">
+		<img src="/img/FhUSACSE.png" />
                     <span className="logo__name">VOLTTRON</span>
                     <span className="logo__tm">&trade;</span>
                     <span className="logo__central">&nbsp;Central</span>
