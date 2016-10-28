@@ -54,7 +54,9 @@ var Navigation = React.createClass({
 
         return (
             <nav className="navigation">
+	<span text-align="left">
                 <h1 className="logo">
+	 <img src="/img/fraunhofer_square.gif" height="50" align="left" text-align="top" />
                     <span className="logo__name">VOLTTRON</span>
                     <span className="logo__tm">&trade;</span>
                     <span className="logo__central">&nbsp;Central</span>
@@ -62,6 +64,7 @@ var Navigation = React.createClass({
                     <span className="logo__funding">Funded by DOE EERE BTO</span>
                 </h1>
                 {navItems}
+	    </span>
             </nav>
         );
     }
