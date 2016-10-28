@@ -53,15 +53,15 @@ var Navigation = React.createClass({
         }
 
         return (
-            <nav className="navigation"><div>
-	    <img src="/img/FhUSACSE.png" height="100px" style="float: left;" align="top" />
+            <nav className="navigation">
                 <h1 className="logo">
                     <span className="logo__name">VOLTTRON</span>
                     <span className="logo__tm">&trade;</span>
                     <span className="logo__central">&nbsp;Central</span>
                     <span className="logo__beta">BETA</span>
                     <span className="logo__funding">Funded by DOE EERE BTO</span>
-                </h1></div>
+                </h1>
+	    <img src="/img/FhUSACSE.png" height="100px" style="float: left;" align="top" />
                 {navItems}
             </nav>
         );
