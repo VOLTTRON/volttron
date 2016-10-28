@@ -55,7 +55,7 @@ var Navigation = React.createClass({
         return (
             <nav className="navigation">
 		<span className="logo__img">
-		 <img src="/img/FhUSACSE.png" height="100px" style="float: left;" align="top" />
+		 <img src="/img/FhUSACSE.png" height="100px" align="top" />
 		</span>
                 <h1 className="logo">
                     <span className="logo__name">VOLTTRON</span>
