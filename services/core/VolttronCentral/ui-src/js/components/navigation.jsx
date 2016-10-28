@@ -61,7 +61,6 @@ var Navigation = React.createClass({
                     <span className="logo__beta">BETA</span>
                     <span className="logo__funding">Funded by DOE EERE BTO</span>
                 </h1>
-	    <img src="/img/FhUSACSE.png" height="100px" style="float: left;" align="top" />
                 {navItems}
             </nav>
         );
