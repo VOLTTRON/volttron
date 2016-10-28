@@ -1,6 +1,9 @@
 'use strict';
 
+// draws from example at https://plnkr.co/edit/N4iYHYE9gPLp4Y3NHbhk
+
 import React from 'react';
+import ReactDOM from 'react-dom';
 import BaseComponent from './base-component';
 import EditPointForm from './edit-point-form';
 import PreviewRegistryForm from './preview-registry-form';
@@ -12,7 +15,20 @@ import KeyboardHelpButton from './control_buttons/keyboard-help-button';
 import RegistryRow from './registry-row';
 import Immutable from 'immutable';
 
-import {Table, Column} from 'react-virtualized';
+import {Table, Column, defaultTableRowRenderer, AutoSizer} from 'react-virtualized';
+import {SortableHandle, SortableContainer, SortableElement} from 'react-sortable-hoc';
+
+const Draggable = 'react-draggable';
+
+const SortableTable = SortableContainer(Table, {
+    withRef: true
+});
+
+const SortableRow = SortableElement(defaultTableRowRenderer);
+
+const DragHandle = SortableHandle(({ contents }) => (
+    <div>{contents}</div>
+));
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var devicesStore = require('../stores/devices-store');
@@ -33,10 +49,11 @@ class ConfigureRegistry extends BaseComponent {
         this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", 
             "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn",
             "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
-            "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", 
+            "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_updateCell",
             "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice",
-            "_handleKeyDown", "_onSelectForDelete", "_resizeColumn", "_initializeTable", "_removeSelectedPoints",
-            "_rowGetter", "_rowRenderer" );
+            "_handleKeyDown", "_onSelectForDelete", "_selectForDelete", "_resizeColumn", "_initializeTable", "_removeSelectedPoints",
+            "_rowGetter", "_rowRenderer", "_headerRenderer", "_cellDataGetter", "_cellRenderer", "_sortRow",
+            "_showProps" );
 
         this.state = this._resetState(this.props.device);
 
@@ -204,7 +221,18 @@ class ConfigureRegistry extends BaseComponent {
             }
         }
     }
-    _resizeColumn(columnIndex, targetWidth, movement) {
+    _resizeColumn ({ dataKey, deltaX }) {
+        // const { flexColumProps } = this.state;
+
+        // // Once a column has been resized, lock its size
+        // // This prevents an awkward user experience where their resized width is overridden by flex
+        // const thisColumn = flexColumProps[dataKey]
+        // thisColumn.flexGrow = 0
+        // thisColumn.flexShrink = 0
+        
+        this.state.columnWidths[dataKey].width = Math.max(MIN_COLUMN_WIDTH, thisColumn.width + deltaX)
+
+        // this.setState({ columnWidths: this.state.columnWidths });
 
         var newRegistryValues = this.state.registryValues.map(function (row) {
 
@@ -216,12 +244,28 @@ class ConfigureRegistry extends BaseComponent {
 
             return row;
         });
-        
-        var tableWidth = movement + _tableWidth;
 
-        this.setState({ tableWidth: tableWidth + "px"});
         this.setState({ registryValues: newRegistryValues });
     }
+
+    // _resizeColumn(columnIndex, targetWidth, movement) {
+
+    //     var newRegistryValues = this.state.registryValues.map(function (row) {
+
+    //         row = row.updateIn(["attributes", columnIndex], function (cell) {
+    //             cell.columnWidth = targetWidth;
+                
+    //             return cell;
+    //         });
+
+    //         return row;
+    //     });
+        
+    //     var tableWidth = movement + _tableWidth;
+
+    //     this.setState({ tableWidth: tableWidth + "px"});
+    //     this.setState({ registryValues: newRegistryValues });
+    // }
     _setTableTarget(table) {
         _table = table;
     }
@@ -241,6 +285,7 @@ class ConfigureRegistry extends BaseComponent {
         state.registryValues = getPointsFromStore(device, state.keyPropsList);
 
         state.columnNames = [];
+        state.columnWidths = [];
         // state.pointNames = [];
         state.filteredList = [];
 
@@ -251,6 +296,8 @@ class ConfigureRegistry extends BaseComponent {
         if (state.registryValues.length > 0)
         {
             state.columnNames = state.registryValues[0].get("attributes").map(function (column) {
+
+
                 return column.key;
             });
         }
@@ -400,6 +447,7 @@ class ConfigureRegistry extends BaseComponent {
                 "label": attribute.label,
                 "value": "", 
                 "editable": true, 
+                "filterable": attribute.filterable,
                 "keyProp": attribute.keyProp 
             });
         }, this);
@@ -477,6 +525,18 @@ class ConfigureRegistry extends BaseComponent {
 
         modalActionCreators.closeModal();
     }
+
+    _selectForDelete(rowIndex, e) {
+        devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
+
+        var selected = e.currentTarget.checked;
+
+        this.state.registryValues[rowIndex] = this.state.registryValues[rowIndex].set("checked", selected);
+
+        this.setState({registryValues: this.state.registryValues});
+
+        _onSelectForDelete(this.state.registryValues[rowIndex].get("pointName"));
+    }
     _onSelectForDelete(pointName) {
         
         var index = this.state.pointsToDelete.indexOf(pointName);
@@ -527,6 +587,7 @@ class ConfigureRegistry extends BaseComponent {
                     "value": "", 
                     "editable": true, 
                     "keyProp": true,
+                    "filterable": false,
                     "columnWidth": _defaultColumnWidth
                 });
             });
@@ -823,236 +884,331 @@ class ConfigureRegistry extends BaseComponent {
 
         modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device}/>);
     }
+    _updateCell(column, rowIndex, e) {
+
+        var currentTarget = e.currentTarget;
+        
+        this.state.registryValues[rowIndex] = this.state.registryValues[rowIndex].updateIn(["attributes", column], function (item) {
+
+            item.value = currentTarget.value;
+
+            return item;
+        });
+
+        this.setState({ registryValues: this.state.registryValues });
+        // this.forceUpdate();
+
+    }
+    _showProps(attributesList) {
+        
+        devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
+
+        modalActionCreators.openModal(
+            <EditPointForm 
+                deviceId={this.props.device.id} 
+                deviceAddress={this.props.device.address}
+                attributes={attributesList}/>);
+    }
     _rowGetter ({index}) {
         console.log("index: " + index);
         return this.state.registryValues[index];
     }
-    _rowRenderer (props, evt) {
+    _rowRenderer (props) {
+        return <SortableRow {...props}></SortableRow>;
+    }
+    _cellDataGetter({ columnData, dataKey, rowData }) {
 
-        var attributesList = props.rowData;
-        var registryRows, registryHeader;
+        console.log("columnData, dataKey, rowData");
+        console.log(columnData);
+        console.log(dataKey);
+        console.log(rowData);
 
-        console.log("length: " + attributesList.get("attributes").size);
+        var index = columnData.index;
 
-        console.log("index: " + props.index);
+        var cellData = rowData[index];
 
-        if (props.rowData.size)
+        return cellData;
+    }
+    _cellRenderer(props) {
+
+        console.log("cellRendering");
+        console.log(props);
+
+        var index = props.columnData.index;
+        var cellData = props.rowData.getIn(["attributes", index]);
+        var checked = props.rowData.get("checked");
+        var cellContainer;
+
+        if (props.columnData.type === "moreButton")
         {
-            if (props.index > -1)
-            {
-                attributesList = props.rowData;
-
-                var rowIndex = props.index;
-            
-                var virtualRow = attributesList.get("virtualIndex");
-
-                console.log("virtualRow: " + virtualRow);
-
-                var keyboardSelected;
-
-                if (this.state.keyboardRange[0] !== -1 && this.state.keyboardRange[1] !== -1)
-                {
-                    keyboardSelected = (virtualRow >= this.state.keyboardRange[0] && virtualRow <= this.state.keyboardRange[1]);
-                }
-
-                var immutableProps = Immutable.fromJS({
-                    rowIndex: rowIndex,
-                    deviceId: this.props.device.id,
-                    deviceAddress: this.props.device.address,
-                    deviceName: this.props.device.name,
-                    keyProps: this.props.device.keyProps,
-                    selectedCell: (this.state.selectedCellRow === rowIndex),
-                    selectedCellColumn: this.state.selectedCellColumn,
-                    filterOn: this.state.filterOn,
-                    keyboardSelected: keyboardSelected
-                });
-
-                console.log("key: " + attributesList.get("attributes").get(0).value);
-
-                return (<RegistryRow 
-                            key={"registryRow-" + attributesList.get("attributes").get(0).value + "-" + rowIndex}
-                            attributesList={attributesList} 
-                            immutableProps={immutableProps}
-                            allSelected={this.state.allSelected}
-                            oncheckselect={this._onSelectForDelete}
-                            onresizecolumn={this._resizeColumn}
-                            oninitializetable={this._initializeTable}/>);
-            }
-            else
-            {    
-                var headerColumns = [];
-                var tableIndex = 0;
-
-                // this.state.registryValues[0].get("attributes").forEach(function (item, index) {
-                props.columns.forEach(function (item, index) {
-                    
-                    console.log(item.label + " is key prop: " + item.keyProp);
-                        
-                    if (item.keyProp)
-                    {
-                        var editSelectButton = (<EditSelectButton 
-                                                    onremove={this._onRemoveColumn}
-                                                    onadd={this._onAddColumn}
-                                                    onclone={this._onCloneColumn}
-                                                    column={index}
-                                                    name={this.props.device.id + "-" + item.key}/>);
-
-                        var editColumnButton = (<EditColumnButton 
-                                                    column={index} 
-                                                    columnwidth={item.columnWidth}
-                                                    tooltipMsg="Edit Column"
-                                                    findnext={this._onFindNext}
-                                                    replace={this._onReplace}
-                                                    replaceall={this._onReplaceAll}
-                                                    replaceEnabled={this.state.selectedCells.length > 0}
-                                                    onclear={this._onClearFind}
-                                                    onhide={this._removeFocus}
-                                                    name={this.props.device.id + "-" + item.key}/>);
-
-                        var headerCell;
-
-                        var columnWidth = {
-                            width: item.columnWidth
-                        }
-
-                        if (tableIndex === 0)
-                        {
-                            // var firstColumnWidth = {
-                            //     width: (item.length * 10) + "px"
-                            // }
-
-                            var filterPointsTooltip = {
-                                content: "Filter Points",
-                                "x": 80,
-                                "y": -60
-                            }
-
-                            var filterButton = <FilterPointsButton 
-                                                    name={"filterRegistryPoints-" + this.props.device.id}
-                                                    tooltipMsg={filterPointsTooltip}
-                                                    onfilter={this._onFilterBoxChange} 
-                                                    onclear={this._onClearFilter}
-                                                    column={index}/>
-
-                            var addPointTooltip = {
-                                content: "Add New Point",
-                                "x": 80,
-                                "y": -60
-                            }
-
-                            var addPointButton = <ControlButton 
-                                                    name={"addRegistryPoint-" + this.props.device.id}
-                                                    tooltip={addPointTooltip}
-                                                    controlclass="add_point_button"
-                                                    fontAwesomeIcon="plus"
-                                                    clickAction={this._onAddPoint}/>
-
-
-                            var removePointTooltip = {
-                                content: "Remove Points",
-                                "x": 80,
-                                "y": -60
-                            }
-
-                            var removePointsButton = <ControlButton
-                                                    name={"removeRegistryPoints-" + this.props.device.id}
-                                                    fontAwesomeIcon="minus"
-                                                    tooltip={removePointTooltip}
-                                                    controlclass="remove_point_button"
-                                                    clickAction={this._onRemovePoints}/>
-
-                            if (item.editable)
-                            {                        
-                                headerCell = ( <div className="ReactVirtualized__Table__headerColumn" 
-                                                    key={"header-" + item.key + "-" + index} 
-                                                    style={columnWidth}>
-                                                    <div className="th-inner zztop">
-                                                        { item.label } 
-                                                        { filterButton } 
-                                                        { addPointButton } 
-                                                        { removePointsButton }
-                                                        { editSelectButton }
-                                                        { editColumnButton }
-                                                    </div>
-                                                </div>);
-                            }
-                            else
-                            {
-                                headerCell = ( <div className="ReactVirtualized__Table__headerColumn" 
-                                                    key={"header-" + item.key + "-" + index} 
-                                                    style={columnWidth}>
-                                                    <div className="th-inner zztop">
-                                                        { item.label } 
-                                                        { filterButton } 
-                                                        { addPointButton } 
-                                                        { removePointsButton }
-                                                    </div>
-                                                </div>);
-                            }
-                        }
-                        else
-                        {
-                            if (item.editable)
-                            {
-                                headerCell = ( <div className="ReactVirtualized__Table__headerColumn" 
-                                                    key={"header-" + item.key + "-" + index} 
-                                                    style={columnWidth}>
-                                                    <div className="th-inner" >
-                                                        { item.label }
-                                                        { editSelectButton }
-                                                        { editColumnButton }
-                                                    </div>
-                                                </div> );
-                            }
-                            else
-                            {
-                                headerCell = ( <div className="ReactVirtualized__Table__headerColumn" 
-                                                    key={"header-" + item.key + "-" + index} 
-                                                    style={columnWidth}>
-                                                    <div className="th-inner" >
-                                                        { item.label }
-                                                    </div>
-                                                </div> );
-                            }
-                        }
-
-                        ++tableIndex;
-                        headerColumns.push(headerCell);
-
-                        if ((index + 1) < this.state.registryValues[0].get("attributes").size)
-                        {
-                            var resizeHandle = (<div className="ReactVirtualized__Table__headerColumn resize-handle-th" 
-                                                    key={"resize-" + item.key + "-" + index}></div>);
-                            headerColumns.push(resizeHandle);
-                        }
-                    }
-                });
-                    
-            }    
-
-            var checkboxColumnStyle = {
-                width: "24px"
-            }
-
-            registryHeader = (
-                <div className="ReactVirtualized__Table__headerRow" key="header-values">
-                    <div className="ReactVirtualized__Table__headerColumn" 
-                        style={checkboxColumnStyle} 
-                        key="header-checkbox">
-                        <div className="th-inner">
-                            <input type="checkbox"
-                                onChange={this._selectAll}
-                                checked={this.state.allSelected}/>
-                        </div>
+            cellContainer = (
+                <div className="ReactVirtualized__Table__rowColumn" 
+                    key={"propsButton-" + props.rowIndex}>
+                    <div className="propsButton"
+                        onClick={this._showProps.bind(this, this.state.registryValues[props.rowIndex].get("attributes"))}>
+                        <i className="fa fa-ellipsis-h"></i>
                     </div>
-                    { headerColumns }
+                </div>
+            );
+        }
+        else if (props.columnData.type === "checkbox")
+        {
+            cellContainer = (
+                <div className="ReactVirtualized__Table__rowColumn"
+                    key={"checkbox-" + props.rowIndex}>
+                    <div className="th-inner">
+                        <input type="checkbox"
+                            className="registryCheckbox"
+                            onChange={this._selectForDelete.bind(this, props.rowIndex)}
+                            checked={checked}/>
+                    </div>
                 </div>
             );
 
-            return registryHeader;
+        }
+        else
+        {
+            var selectedCellStyle = (cellData.selected ? {backgroundColor: "#F5B49D", width: "100%"} : {width: "100%"});
+                
+            var focusedCell = (this.state.selectedCellColumn === index && (this.state.selectedCellRow === props.rowIndex) ? "focusedCell" : "");
+
+            var contents = (
+                !cellData.editable ? 
+                    <label>{ cellData.value }</label> : 
+                    <input 
+                        id={cellData.key + "-" + index + "-" + props.rowIndex}
+                        type="text"
+                        className={focusedCell}
+                        style={selectedCellStyle}
+                        onChange={this._updateCell.bind(this, index, props.rowIndex)} 
+                        value={ cellData.value }/>
+                    );
+
+            cellContainer = <DragHandle contents={contents}/>;
         }
 
-        return null;
+        return cellContainer;
+
+    }
+    _headerRenderer(props) {
+
+        var headerCell, headerCellContainer;
+
+        // console.log(props);
+        // console.log("index: " + props.index);
+        // var index = props.index;
+
+        var index;
+        var item = this.state.registryValues[0].get("attributes").find(function (column, i) {
+
+            var match = (column.key === props.dataKey);
+
+            if (match)
+            {
+                index = i;
+            }
+
+            return match;
+        });
+
+        console.log(item);
+
+        
+
+        // var checkboxColumnStyle = {
+        //     width: "24px"
+        // }
+
+        // registryHeader = (
+        //     <div className="ReactVirtualized__Table__headerRow" key="header-values">
+        //         <div className="ReactVirtualized__Table__headerColumn" 
+        //             style={checkboxColumnStyle} 
+        //             key="header-checkbox">
+        //             <div className="th-inner">
+        //                 <input type="checkbox"
+        //                     onChange={this._selectAll}
+        //                     checked={this.state.allSelected}/>
+        //             </div>
+        //         </div>
+        //         { headerColumns }
+        //     </div>
+        // );
+
+        
+        if (props.columnData.type === "checkbox")
+        {            
+            headerCellContainer = (
+                <div className="ReactVirtualized__Table__headerColumn">
+                    <div className="th-inner zztop">
+                        <input type="checkbox"
+                            onChange={this._selectAll}
+                            checked={this.state.allSelected}/>
+                    </div>
+                </div>
+            );
+        }
+        else if (props.columnData.type === "moreButton")
+        {
+            headerCellContainer = <div></div>;
+        }
+        else
+        {   var editSelectButton = (<EditSelectButton 
+                                        onremove={this._onRemoveColumn}
+                                        onadd={this._onAddColumn}
+                                        onclone={this._onCloneColumn}
+                                        column={index}
+                                        name={this.props.device.id + "-" + props.dataKey}/>);
+
+            var editColumnButton = (<EditColumnButton 
+                                        column={index} 
+                                        columnwidth={item.columnWidth}
+                                        tooltipMsg="Edit Column"
+                                        findnext={this._onFindNext}
+                                        replace={this._onReplace}
+                                        replaceall={this._onReplaceAll}
+                                        replaceEnabled={this.state.selectedCells.length > 0}
+                                        onclear={this._onClearFind}
+                                        onhide={this._removeFocus}
+                                        name={this.props.device.id + "-" + props.dataKey}/>);
+
+            var columnWidth = {
+                width: item.columnWidth
+            }
+
+            if (item.filterable)
+            {
+                var filterPointsTooltip = {
+                    content: "Filter Points",
+                    "x": 80,
+                    "y": -60
+                }
+
+                var filterButton = <FilterPointsButton 
+                                        name={"filterRegistryPoints-" + this.props.device.id}
+                                        tooltipMsg={filterPointsTooltip}
+                                        onfilter={this._onFilterBoxChange} 
+                                        onclear={this._onClearFilter}
+                                        column={index}/>
+
+                var addPointTooltip = {
+                    content: "Add New Point",
+                    "x": 80,
+                    "y": -60
+                }
+
+                var addPointButton = <ControlButton 
+                                        name={"addRegistryPoint-" + this.props.device.id}
+                                        tooltip={addPointTooltip}
+                                        controlclass="add_point_button"
+                                        fontAwesomeIcon="plus"
+                                        clickAction={this._onAddPoint}/>
+
+
+                var removePointTooltip = {
+                    content: "Remove Points",
+                    "x": 80,
+                    "y": -60
+                }
+
+                var removePointsButton = <ControlButton
+                                        name={"removeRegistryPoints-" + this.props.device.id}
+                                        fontAwesomeIcon="minus"
+                                        tooltip={removePointTooltip}
+                                        controlclass="remove_point_button"
+                                        clickAction={this._onRemovePoints}/>
+
+                if (item.editable)
+                {                        
+                    headerCell = ( <div className="ReactVirtualized__Table__headerColumn" 
+                                        key={"header-" + props.dataKey + "-" + index} 
+                                        style={columnWidth}>
+                                        <div className="th-inner zztop">
+                                            { item.label } 
+                                            { filterButton } 
+                                            { addPointButton } 
+                                            { removePointsButton }
+                                            { editSelectButton }
+                                            { editColumnButton }
+                                        </div>
+                                    </div>);
+                }
+                else
+                {
+                    headerCell = ( <div className="ReactVirtualized__Table__headerColumn" 
+                                        key={"header-" + props.dataKey + "-" + index} 
+                                        style={columnWidth}>
+                                        <div className="th-inner zztop">
+                                            { item.label } 
+                                            { filterButton } 
+                                            { addPointButton } 
+                                            { removePointsButton }
+                                        </div>
+                                    </div>);
+                }
+            }
+            else
+            {
+                if (item.editable)
+                {
+                    headerCell = ( <div className="ReactVirtualized__Table__headerColumn" 
+                                        key={"header-" + props.dataKey + "-" + index} 
+                                        style={columnWidth}>
+                                        <div className="th-inner" >
+                                            { item.label }
+                                            { editSelectButton }
+                                            { editColumnButton }
+                                        </div>
+                                    </div> );
+                }
+                else
+                {
+                    headerCell = ( <div className="ReactVirtualized__Table__headerColumn" 
+                                        key={"header-" + props.dataKey + "-" + index} 
+                                        style={columnWidth}>
+                                        <div className="th-inner" >
+                                            { item.label }
+                                        </div>
+                                    </div> );
+                }
+            
+
+                headerCellContainer = (
+                    <div className="draggable-header">
+                        {headerCell}
+                        <Draggable
+                            axis='x'
+                            defaultClassName='DragHandle'
+                            defaultClassNameDragging='DragHandleActive'
+                            onStop={(event, data) => this._resizeColumn({
+                                dataKey: props.dataKey,
+                                deltaX: data.x
+                            })}
+                            position={{
+                                x: 0,
+                                y: 0
+                            }}
+                            zIndex={999}>
+                            <div className="resize-handle-th"></div>
+                        </Draggable>
+
+                    </div>);
+            }
+        }
+
+        return headerCellContainer;
+    }
+    _sortRow ({ newIndex, oldIndex }) {
+        if (newIndex !== oldIndex) {
+            
+            const row = this.state.registryValues[oldIndex];
+
+            this.state.registryValues.splice(oldIndex, 1)
+            this.state.registryValues.splice(newIndex, 0, row)
+
+            //this.forceUpdate() // Re-render
+
+            this.setState({ registryValues: this.state.registryValues });
+        }
     }
     render() {
 
@@ -1127,16 +1283,48 @@ class ConfigureRegistry extends BaseComponent {
             keyboardHelpButton = (
                 <KeyboardHelpButton 
                     deviceInfo={this.props.device.id + "-" + this.props.device.address}/>
-                );
+                );    
+
+            columns.push(
+                <Column
+                    key="checkbox"
+                    label="checkbox"
+                    dataKey="checkbox"
+                    columnData={{"index": -1, "type": "checkbox"}}
+                    headerRenderer={this._headerRenderer}
+                    cellRenderer={this._cellRenderer}
+                    width={50}/>
+            );
 
             this.state.registryValues[0].get("attributes").forEach(function (item, index) {
 
-                columns.push(
-                    <Column
-                        label={item.label}
-                        dataKey={item.key}/>
-                );
-            });
+                if (item.keyProp)
+                {
+                    columns.push(
+                        <Column
+                            key={item.key}
+                            label={item.label}
+                            dataKey={item.key}
+                            columnData={{"index": index}}
+                            headerRenderer={this._headerRenderer}
+                            cellDataGetter={this._cellDataGetter}
+                            cellRenderer={this._cellRenderer}
+                            width={item.columnWidth}/>
+                    );
+                }
+            }, this);
+
+            columns.push(
+                <Column
+                    key="moreButton"
+                    label="moreButton"
+                    dataKey="moreButton"
+                    columnData={{"index": -1, "type": "moreButton"}}
+                    headerRenderer={this._headerRenderer}
+                    cellDataGetter={this._cellDataGetter}
+                    cellRenderer={this._cellRenderer}
+                    width={50}/>
+            );
         }
 
         return (
@@ -1145,20 +1333,21 @@ class ConfigureRegistry extends BaseComponent {
                 onFocus={this._focusOnDevice}>
                 <div className="fixed-table-container"> 
                     <div className="header-background"></div>      
-                    <div className="fixed-table-container-inner">    
-                        <Table 
+                    <div className="fixed-table-container-inner"> 
+                        <SortableTable 
+                            getContainer={(wrappedInstance) => ReactDOM.findDOMNode(wrappedInstance.Grid)}
+                            height={500}
+                            width={500}
+                            onSortEnd={this._sortRow}
+                            rowClassName='Row'                                    
                             rowGetter={this._rowGetter}
                             rowRenderer={this._rowRenderer}
                             rowCount={this.state.registryValues.length}
                             rowHeight={40}
                             headerHeight={40}
-                            height={400}
-                            width={600}
-                            style={tableStyle}
-                            ref={this.state.tableName}
                             className="registryConfigTable">
                             {columns}                                                      
-                        </Table>
+                        </SortableTable>
                         {keyboardHelpButton}
                     </div>
                 </div>
@@ -1205,6 +1394,8 @@ function initializeList(registryConfig, keyPropsList)
 
         var bacnetObjectType, objectIndex;
 
+        var pointName = "";
+
         row.forEach(function (cell) {
             cell.keyProp = (keyPropsList.indexOf(cell.key) > -1); 
             
@@ -1214,7 +1405,7 @@ function initializeList(registryConfig, keyPropsList)
                 {
                     var minWidth = (cell.value.length * 10);
 
-                    cell.columnWidth = (minWidth > 200 ? minWidth : 200) + "px"
+                    cell.columnWidth = (minWidth > 200 ? minWidth : 200)
                 }
                 else
                 {
@@ -1230,15 +1421,21 @@ function initializeList(registryConfig, keyPropsList)
             {
                 objectIndex = cell.value;
             }
+            else if (cell.key === "point_name" || cell.key === "reference_point_name")
+            {
+                pointName = cell.value;
+            }
         });
 
         return Immutable.fromJS({ 
+            pointName: pointName,
             visible: true, 
             virtualIndex: rowIndex, 
             bacnetObjectType: bacnetObjectType, 
             index: objectIndex,
             attributes: Immutable.List(row),
-            selected: false
+            selected: false,
+            checked: false
         });
     });
 }

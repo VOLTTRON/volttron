@@ -30,7 +30,7 @@ var _keyboard = {
 var _focusedDevice = {id: null, address: null};
 
 var _placeHolders = Immutable.List([ [
-    {"key": "Point_Name", "value": "", "editable": true},
+    {"key": "Point_Name", "value": ""},
     {"key": "Volttron_Point_Name", "value": ""},
     {"key": "Units", "value": ""},
     {"key": "Units_Details", "value": "" },
@@ -1400,6 +1400,11 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         cell.editable = !(cell.key === "point_name" || 
                             cell.key === "reference_point_name" || 
                             cell.key === "object_type" || 
+                            cell.key === "index");
+
+        cell.filterable = (cell.key === "point_name" || 
+                            cell.key === "reference_point_name" || 
+                            cell.key === "volttron_point_name" || 
                             cell.key === "index");
     }
 

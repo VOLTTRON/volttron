@@ -6,7 +6,7 @@
     "watch": "webpack-dev-server --watch --progress --colors --inline --hot --devtool inline-source-map",
     "watch-production": "webpack-dev-server --watch --compress --progress --colors --inline --hot --optimize-minimize --optimize-occurence-order --optimize-dedupe",
     "build": "webpack --progress --colors --optimize-minimize --optimize-occurence-order --optimize-dedupe",
-    "build-watch": "webpack --progress --watch --colors --optimize-minimize --optimize-occurence-order --optimize-dedupe --devtool source-map",
+    "build-watch": "webpack --progress --watch --colors --devtool source-map",
     "build-development": "webpack --progress --colors --devtool inline-source-map"
   },
   "devDependencies": {
@@ -58,8 +58,10 @@
     "react-addons-shallow-compare": "^15.3.2",
     "react-click-outside": "^2.1.0",
     "react-dom": "^15.3.2",
+    "react-draggable": "^2.2.2",
     "react-router": "^2.8.1",
     "react-select-me": "^0.6.4",
+    "react-sortable-hoc": "^0.1.0",
     "react-virtualized": "^8.1.1",
     "through2": "^2.0.0"
   },
