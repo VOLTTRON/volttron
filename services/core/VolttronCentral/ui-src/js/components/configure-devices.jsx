@@ -194,8 +194,6 @@ class ConfigureDevices extends BaseComponent {
                             >   
                             </Select>
                         </td>
-
-                        <td className="plain" style={fifthCell}></td>
                     </tr>
                 );
             }
@@ -243,7 +241,6 @@ class ConfigureDevices extends BaseComponent {
                                             onChange={this._onDeviceEnd}
                                             value={this.state.deviceEnd}></input>
                                     </td>
-                                    <td className="plain"></td>
                                 </tr>
                                 <tr>
                                     <td><b>Address</b></td>
@@ -255,7 +252,6 @@ class ConfigureDevices extends BaseComponent {
                                             onChange={this._onAddress}
                                             value={this.state.address}></input>
                                     </td>
-                                    <td className="plain" style={fifthCell}></td>
                                 </tr>
                             </tbody>
                         </table>

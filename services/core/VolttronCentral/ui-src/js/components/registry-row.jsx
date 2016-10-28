@@ -157,13 +157,11 @@ class RegistryRow extends BaseComponent {
                 var focusedCell = (this.props.immutableProps.get("selectedCellColumn") === columnIndex && this.props.immutableProps.get("selectedCell") ? "focusedCell" : "");
 
                 var itemCell = (!item.editable ? 
-                                    <div className="ReactVirtualized__Table__rowColumn" 
-                                        key={item.key + "-" + rowIndex + "-" + columnIndex}
+                                    <td key={item.key + "-" + rowIndex + "-" + columnIndex}
                                         ref={this.state.devicePrefix + columnIndex}>
                                         <label>{ item.value }</label>
-                                    </div> : 
-                                    <div className="ReactVirtualized__Table__rowColumn" 
-                                        key={item.key + "-" + rowIndex + "-" + columnIndex}
+                                    </td> : 
+                                    <td key={item.key + "-" + rowIndex + "-" + columnIndex}
                                         ref={this.state.devicePrefix + columnIndex}>
                                         <input 
                                             id={this.state.attributesList.get("attributes").get(columnIndex).key + "-" + columnIndex + "-" + rowIndex}
@@ -172,17 +170,16 @@ class RegistryRow extends BaseComponent {
                                             style={selectedCellStyle}
                                             onChange={this._updateCell.bind(this, columnIndex)} 
                                             value={ this.state.attributesList.get("attributes").get(columnIndex).value }/>
-                                    </div>);
+                                    </td>);
 
                 registryCells.push(itemCell);
 
                 if ((columnIndex + 1) < this.state.attributesList.get("attributes").size)
                 {
                     var resizeHandle = (
-                        <div className="ReactVirtualized__Table__rowColumn" 
-                            key={"resize-" + rowIndex + "-" + columnIndex}
+                        <td key={"resize-" + rowIndex + "-" + columnIndex}
                             className="resize-handle-td"
-                            onMouseDown={this._grabResizeHandle.bind(this, columnIndex)}></div>
+                            onMouseDown={this._grabResizeHandle.bind(this, columnIndex)}></td>
                     );
                     registryCells.push(resizeHandle);
                 }
@@ -194,16 +191,14 @@ class RegistryRow extends BaseComponent {
         }
 
         registryCells.push(
-            <div className="ReactVirtualized__Table__rowColumn" 
-                key={"propsButton-" + rowIndex} 
-                style={propsButtonStyle}>
+            <td key={"propsButton-" + rowIndex} style={propsButtonStyle}>
                 <div className="propsButton"
                     onClick={this._showProps.bind(this, this.state.attributesList.get("attributes"))}>
                     <i className="fa fa-ellipsis-h"></i>
                 </div>
-            </div>);
+            </td>);
 
-        var selectedRowClasses = ["ReactVirtualized__Table__row"];
+        var selectedRowClasses = [];
 
         if (this.state.attributesList.get("selected"))
         {
@@ -219,21 +214,20 @@ class RegistryRow extends BaseComponent {
 
 
         return ( 
-            <div key={"registry-row-" + rowIndex}
+            <tr key={"registry-row-" + rowIndex}
                 data-row={rowIndex}
                 onClickCapture={this._handleRowClick}
                 className={selectedRowClasses.join(" ")}
                 style={visibleStyle}>
-                <div className="ReactVirtualized__Table__rowColumn" 
-                    key={"checkbox-" + rowIndex}>
+                <td key={"checkbox-" + rowIndex}>
                     <input type="checkbox"
                         className="registryCheckbox"
                         onChange={this._selectForDelete}
                         checked={this.state.selectedForDelete}>
                     </input>
-                </div>
+                </td>
                 { registryCells }                    
-            </div>
+            </tr>
         );
     }
 };

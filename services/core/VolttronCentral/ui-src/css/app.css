@@ -45,7 +45,7 @@ a:hover {
 }
 
 input {
-    line-height: 1.5;
+    line-height: 1.5 !important;
 }
 
 pre, code {
@@ -54,6 +54,7 @@ pre, code {
 
 table {
     width: 100%;
+    border-collapse: collapse;
 }
 
 th {
@@ -62,13 +63,19 @@ th {
 }
 
 th, td {
-    padding: 0 0.6666em;
+    padding: 0 0.6666em !important;
     line-height: 2.5;
 }
 
 th:not(:first-child),
 td:not(:first-child) {
     border-left: 1px solid #ddd;
+}
+
+input, optgroup, select, textarea {
+    color: inherit;
+    font: inherit;
+    margin: 0;
 }
 
 .button {
@@ -1095,7 +1102,7 @@ a.view__item:hover::before {
 .resize-handle-td, .resize-handle-th {
     width: 2px;
     background-color: #ddd;
-    padding: 0;
+    padding: 0 !important;
     cursor: ew-resize;
 }
 
@@ -1457,36 +1464,31 @@ a.view__item:hover::before {
     margin-top: 2px;
 }
 
-.registryConfigTable .ReactVirtualized__Table__rowColumn {
-    margin-right: 0px;
-    padding-right: 10px;
-}
-
-.registryConfigTable .ReactVirtualized__Table__rowColumn > input {
+.registryConfigTable > tbody > tr > td > input {
     border: none;
 }
 
-.registryConfigTable .ReactVirtualized__Table__row {
+.registryConfigTable > tbody > tr {
     cursor: cell;
 }
 
-.registryConfigTable .ReactVirtualized__Table__rowColumn > label {
+.registryConfigTable > tbody > tr > td > label {
     cursor: cell;
 }
 
-.registryConfigTable .ReactVirtualized__Table__row:not(.selectedRegistryPoint):hover {
+.registryConfigTable > tbody > tr:not(.selectedRegistryPoint):hover {
     background-color: rgba(102, 153, 187, .3);
 }
 
-.registryConfigTable .ReactVirtualized__Table__rowColumn > input {
+.registryConfigTable > tbody > tr > td > input {
     cursor: auto;
 }
 
-.registryConfigTable .ReactVirtualized__Table__row:first-child > .ReactVirtualized__Table__rowColumn:last-child {
+.registryConfigTable > tbody > tr:first-child > td:last-child {
     border-top: 1px solid #ddd;
 }
 
-.registryConfigTable .ReactVirtualized__Table__headerColumn > div > div > div > .tooltip_inner {
+.registryConfigTable > thead > tr > th > div > div > div > .tooltip_inner {
     white-space: nowrap;
 }
 
