@@ -54,8 +54,10 @@ var Navigation = React.createClass({
 
         return (
             <nav className="navigation">
+		<span className="logo__img">
+		 <img src="/img/FhUSACSE.png" height="100px" style="float: left;" align="top" />
+		</span>
                 <h1 className="logo">
-		<img src="/img/FhUSACSE.png" />
                     <span className="logo__name">VOLTTRON</span>
                     <span className="logo__tm">&trade;</span>
                     <span className="logo__central">&nbsp;Central</span>
