@@ -64,7 +64,7 @@ from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.dbutils import sqlutils
 from volttron.platform.vip.agent import *
 
-__version__ = "3.6.0"
+__version__ = "3.6.1"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
