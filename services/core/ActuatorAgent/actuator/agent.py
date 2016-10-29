@@ -1215,7 +1215,6 @@ class ActuatorAgent(Agent):
         RPC method
         
         Requests one or more blocks on time on one or more device.
-
         
         :param requester_id: Ignored, VIP Identity used internally
         :param task_id: Task name.
