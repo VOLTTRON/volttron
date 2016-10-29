@@ -47,6 +47,16 @@ The file name is used when configuring a driver to determine which
 interface to use. The name of the interface class in the file must be
 called Interface.
 
+.. note::
+
+    Developing a new driver does not require that your code live with the
+    MasterDriverAgent code. You may create the interface file anywhere that
+    you would like and then create a symbolic link to the interface file
+    in the interfaces directory. When the MasterDriverAgent is packed for
+    distribution the a copy of the file represented by the symbolic link
+    is packed into the agent wheel.
+    See :ref:`Using Third Party Drivers <Using-Third-Party-Drivers>`
+
 Interface Basics
 ----------------
 
