@@ -10,12 +10,17 @@ var platformsStore = require('../stores/platforms-store');
 var RegisterPlatformForm = require('../components/register-platform-form');
 var StatusForm = require('../components/status-indicator');
 var DeregisterPlatformConfirmation = require('../components/deregister-platform-confirmation');
+//
+// TODO: 
+//
+// The interface here should report as follows:
+//
+// 1. That the OpenADR agent is up.
+// 2. Each VEN and when it last had contact with it. 
+// 3. The latest oadrReports on from all parties.
+// 4. Whether any Events are active. 
 
 var OADR = React.createClass({
-    getInitialState: function () {
-        return getStateFromStores();
-    },
-
     render: function(){
     return (
     <div className="view">
