@@ -60,6 +60,7 @@ import logging
 import os
 import re
 import requests
+import sys
 from urlparse import urlparse, urljoin
 
 from gevent import pywsgi
@@ -418,7 +419,14 @@ class MasterWebService(Agent):
             with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
                 server = pywsgi.WSGIServer((hostname, port), self.app_routing,
                                        log=accesslog, error_log=errlog)
-                server.serve_forever()
+                try:
+                    server.serve_forever()
+                except Exception as e:
+                    message = 'bind-web-address {} is not available, stopping'
+                    message = message.format(self.bind_web_address)
+                    _log.error(message)
+                    print message
+                    sys.exit(1)
 
 
 def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
