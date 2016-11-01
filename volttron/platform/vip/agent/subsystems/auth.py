@@ -53,64 +53,48 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-# }}}
+#}}}
 
-from __future__ import absolute_import
-
+import logging
 import os
-import logging as _log
+import weakref
 
-from .core import *
-from .errors import *
-from .decorators import *
-from .subsystems import *
-from .... import platform
-from .... platform.agent.utils import is_valid_identity
+from volttron.platform.agent import utils
+from volttron.platform.messaging import topics
+from volttron.platform.messaging.health import *
+from .base import SubsystemBase
 
+"""
+The auth subsystem allows an agent to quickly query authorization state
+(e.g., which capabilities each user has been granted).
+"""
 
-class Agent(object):
-    class Subsystems(object):
-        def __init__(self, owner, core, heartbeat_autostart,
-                     heartbeat_period, enable_store, enable_channel):
-            self.peerlist = PeerList(core)
-            self.ping = Ping(core)
-            self.rpc = RPC(core, owner)
-            self.hello = Hello(core)
-            self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
-            if enable_channel:
-                self.channel = Channel(core)
-            self.health = Health(owner, core, self.rpc)
-            self.heartbeat = Heartbeat(owner, core, self.rpc, self.pubsub,
-                                       heartbeat_autostart, heartbeat_period)
-            if enable_store:
-                self.config = ConfigStore(owner, core, self.rpc)
-            self.auth = Auth(core)
+__docformat__ = 'reStructuredText'
+__version__ = '1.0'
 
-    def __init__(self, identity=None, address=None, context=None,
-                 publickey=None, secretkey=None, serverkey=None,
-                 heartbeat_autostart=False, heartbeat_period=60,
-                 volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, enable_store=True, developer_mode=False,
-                 enable_channel=False, reconnect_interval=None):
-        if identity is not None and not is_valid_identity(identity):
-            _log.warn('Deprecation warning')
-            _log.warn(
-                'All characters in {identity} are not in the valid set.'.format(
-                    identity=identity))
-
-        self.core = Core(self, identity=identity, address=address,
-                         context=context, publickey=publickey,
-                         secretkey=secretkey, serverkey=serverkey,
-                         volttron_home=volttron_home, agent_uuid=agent_uuid,
-                         developer_mode=developer_mode,
-                         reconnect_interval=reconnect_interval)
-        self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
-                                    heartbeat_period, enable_store, enable_channel)
-        self.core.setup()
+_log = logging.getLogger(__name__)
 
 
-class BasicAgent(object):
-    def __init__(self, **kwargs):
-        kwargs.pop('identity', None)
-        super(BasicAgent, self).__init__(**kwargs)
-        self.core = BasicCore(self)
+class Auth(SubsystemBase):
+    def __init__(self, owner, core):
+        self._owner = owner
+        self._core = weakref.ref(core)
+        self._user_to_capabilities = {}
+
+
+        def onsetup(sender, **kwargs):
+            pass
+
+        core.onsetup.connect(onsetup, self)
+
+    def get_capabilities(self, user_id):
+       """Gets capabilities for a given user.
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        :returns: list of capabilities
+        :rtype: list
+        """
+        return self._user_to_capabilites.get(user_id, [])
+
+
