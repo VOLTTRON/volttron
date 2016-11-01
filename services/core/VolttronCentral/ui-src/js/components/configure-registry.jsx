@@ -1,6 +1,7 @@
 'use strict';
 
 import React from 'react';
+import ReactDOM from 'react-dom';
 import BaseComponent from './base-component';
 import EditPointForm from './edit-point-form';
 import PreviewRegistryForm from './preview-registry-form';
@@ -23,7 +24,6 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 var registryWs, registryWebsocket;
 var _defaultColumnWidth = "200px";
 var _tableWidth;
-var _table;
 
 class ConfigureRegistry extends BaseComponent {    
     constructor(props) {
@@ -31,7 +31,7 @@ class ConfigureRegistry extends BaseComponent {
         this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", 
             "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn",
             "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
-            "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", 
+            "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_getParentNode",
             "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice",
             "_handleKeyDown", "_onSelectForDelete", "_resizeColumn", "_initializeTable", "_removeSelectedPoints" );
 
@@ -219,16 +219,19 @@ class ConfigureRegistry extends BaseComponent {
         this.setState({ tableWidth: tableWidth + "px"});
         this.setState({ registryValues: newRegistryValues });
     }
-    _setTableTarget(table) {
-        _table = table;
-    }
+    // _setTableTarget(table) {
+    //     _table = table;
+    // }
     _initializeTable() {
-        var clientRect = _table.getClientRects();
+        var table = this._getParentNode();
+        var clientRect = table.getClientRects();
         _tableWidth = clientRect[0].width;
     }
     _resetState(device){
     
         var state = {};    
+
+        state.tableRef = "table-" + device.id + "-" + device.address;
 
         state.keyPropsList = device.keyProps;
         state.filterColumn = state.keyPropsList[0];
@@ -816,6 +819,9 @@ class ConfigureRegistry extends BaseComponent {
 
         modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device}/>);
     }
+    _getParentNode() {
+        return ReactDOM.findDOMNode(this.refs[this.state.tableRef]);
+    }
     render() {        
         
         var registryRows, registryHeader, registryButtons;
@@ -854,7 +860,7 @@ class ConfigureRegistry extends BaseComponent {
                         oncheckselect={this._onSelectForDelete}
                         onresizecolumn={this._resizeColumn}
                         oninitializetable={this._initializeTable}
-                        parentNode={_table}/>
+                        ongetparentnode={this._getParentNode}/>
                 );
                 
             }, this);
@@ -1096,9 +1102,9 @@ class ConfigureRegistry extends BaseComponent {
                 <div className="fixed-table-container"> 
                     <div className="header-background"></div>      
                     <div className="fixed-table-container-inner">    
-                        <table 
+                        <table
                             style={tableStyle}
-                            ref={this._setTableTarget}
+                            ref={this.state.tableRef}
                             className="registryConfigTable">
                             <thead>
                                 { registryHeader }                                

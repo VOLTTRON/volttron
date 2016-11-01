@@ -122,7 +122,7 @@ class RegistryRow extends BaseComponent {
         var clientRect = targetColumn.getClientRects();
         var originalTargetWidth = clientRect[0].width;
 
-        var innerTable = this.props.parentNode;
+        var innerTable = this.props.ongetparentnode();
 
         var top = innerTable.getClientRects()[0].top;
         var height = innerTable.getClientRects()[0].height;

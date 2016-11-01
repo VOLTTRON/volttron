@@ -60409,6 +60409,10 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
+	var _reactDom = __webpack_require__(110);
+	
+	var _reactDom2 = _interopRequireDefault(_reactDom);
+	
 	var _baseComponent = __webpack_require__(99);
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
@@ -60467,7 +60471,6 @@
 	var registryWs, registryWebsocket;
 	var _defaultColumnWidth = "200px";
 	var _tableWidth;
-	var _table;
 	
 	var ConfigureRegistry = function (_BaseComponent) {
 	    _inherits(ConfigureRegistry, _BaseComponent);
@@ -60477,7 +60480,7 @@
 	
 	        var _this = _possibleConstructorReturn(this, (ConfigureRegistry.__proto__ || Object.getPrototypeOf(ConfigureRegistry)).call(this, props));
 	
-	        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForDelete", "_resizeColumn", "_initializeTable", "_removeSelectedPoints");
+	        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_getParentNode", "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForDelete", "_resizeColumn", "_initializeTable", "_removeSelectedPoints");
 	
 	        _this.state = _this._resetState(_this.props.device);
 	
@@ -60659,15 +60662,15 @@
 	            this.setState({ tableWidth: tableWidth + "px" });
 	            this.setState({ registryValues: newRegistryValues });
 	        }
-	    }, {
-	        key: '_setTableTarget',
-	        value: function _setTableTarget(table) {
-	            _table = table;
-	        }
+	        // _setTableTarget(table) {
+	        //     _table = table;
+	        // }
+	
 	    }, {
 	        key: '_initializeTable',
 	        value: function _initializeTable() {
-	            var clientRect = _table.getClientRects();
+	            var table = this._getParentNode();
+	            var clientRect = table.getClientRects();
 	            _tableWidth = clientRect[0].width;
 	        }
 	    }, {
@@ -60675,6 +60678,8 @@
 	        value: function _resetState(device) {
 	
 	            var state = {};
+	
+	            state.tableRef = "table-" + device.id + "-" + device.address;
 	
 	            state.keyPropsList = device.keyProps;
 	            state.filterColumn = state.keyPropsList[0];
@@ -61251,6 +61256,11 @@
 	            modalActionCreators.openModal(_react2.default.createElement(_configDeviceForm2.default, { device: this.props.device }));
 	        }
 	    }, {
+	        key: '_getParentNode',
+	        value: function _getParentNode() {
+	            return _reactDom2.default.findDOMNode(this.refs[this.state.tableRef]);
+	        }
+	    }, {
 	        key: 'render',
 	        value: function render() {
 	
@@ -61287,7 +61297,7 @@
 	                        oncheckselect: this._onSelectForDelete,
 	                        onresizecolumn: this._resizeColumn,
 	                        oninitializetable: this._initializeTable,
-	                        parentNode: _table });
+	                        ongetparentnode: this._getParentNode });
 	                }, this);
 	
 	                var headerColumns = [];
@@ -61540,7 +61550,7 @@
 	                            'table',
 	                            {
 	                                style: tableStyle,
-	                                ref: this._setTableTarget,
+	                                ref: this.state.tableRef,
 	                                className: 'registryConfigTable' },
 	                            _react2.default.createElement(
 	                                'thead',
@@ -63457,7 +63467,7 @@
 	            var clientRect = targetColumn.getClientRects();
 	            var originalTargetWidth = clientRect[0].width;
 	
-	            var innerTable = this.props.parentNode;
+	            var innerTable = this.props.ongetparentnode();
 	
 	            var top = innerTable.getClientRects()[0].top;
 	            var height = innerTable.getClientRects()[0].height;
@@ -112028,4 +112038,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-d8ffb26e1a4d6f8d10da.js.map
+//# sourceMappingURL=app-0dbd3ef9e3f5397dba46.js.map
