@@ -117,6 +117,7 @@ class AuthService(Agent):
         self.zap_socket = None
         self._zap_greenlet = None
         self.auth_entries = []
+        self._is_connected = False
 
     @Core.receiver('onsetup')
     def setup_zap(self, sender, **kwargs):
@@ -135,6 +136,14 @@ class AuthService(Agent):
         entries.sort()
         self.auth_entries = entries
         _log.info('auth file %s loaded', self.auth_file_path)
+        if self._is_connected:
+            self._send_update()
+
+    def _send_update(self):
+        user_to_caps = self.get_user_to_capabilities()
+        peers = self.vip.peerlist().get(timeout=5)
+        for peer in peers:
+            self.vip.rpc.call(peer, 'auth.update', user_to_caps)
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):
@@ -148,6 +157,7 @@ class AuthService(Agent):
 
     @Core.receiver('onstart')
     def zap_loop(self, sender, **kwargs):
+        self._is_connected = True
         self._zap_greenlet = gevent.getcurrent()
         sock = self.zap_socket
         time = gevent.core.time
@@ -227,6 +237,20 @@ class AuthService(Agent):
                 return dump_user(domain, address, mechanism, *credentials[:1])
         if self.allow_any:
             return dump_user(domain, address, mechanism, *credentials[:1])
+
+    @RPC.export
+    def get_user_to_capabilities(self):
+        """RPC method
+
+        Gets a mapping of all users to their capabiliites.
+
+        :returns: mapping of users to capabilities
+        :rtype: dict
+        """
+        user_to_caps = {}
+        for entry in self.auth_entries:
+            user_to_caps[entry.user_id] = entry.capabilities
+        return user_to_caps
 
     @RPC.export
     def get_authorizations(self, user_id):

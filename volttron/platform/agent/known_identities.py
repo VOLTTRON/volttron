@@ -1,4 +1,4 @@
-AUTH = 'auth'
+AUTH = 'platform.auth'
 
 VOLTTRON_CENTRAL = 'volttron.central'
 VOLTTRON_CENTRAL_PLATFORM = 'platform.agent'

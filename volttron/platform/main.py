@@ -94,7 +94,7 @@ from .control import ControlService
 from .web import MasterWebService
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB
+from .agent.known_identities import MASTER_WEB, AUTH
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 
@@ -570,7 +570,7 @@ def start_volttron_process(opts):
         # Ensure auth service is running before router
         auth_file = os.path.join(opts.volttron_home, 'auth.json')
         auth = AuthService(
-            auth_file, opts.aip, address=address, identity='auth',
+            auth_file, opts.aip, address=address, identity=AUTH,
             allow_any=opts.developer_mode, enable_store=False)
 
         event = gevent.event.Event()

@@ -56,13 +56,12 @@
 #}}}
 
 import logging
-import os
 import weakref
 
-from volttron.platform.agent import utils
-from volttron.platform.messaging import topics
-from volttron.platform.messaging.health import *
 from .base import SubsystemBase
+
+from volttron.platform.agent.known_identities import AUTH
+from volttron.platform.jsonrpc import RemoteError
 
 """
 The auth subsystem allows an agent to quickly query authorization state
@@ -76,25 +75,40 @@ _log = logging.getLogger(__name__)
 
 
 class Auth(SubsystemBase):
-    def __init__(self, owner, core):
+    def __init__(self, owner, core, rpc):
         self._owner = owner
         self._core = weakref.ref(core)
+        self._rpc = weakref.ref(rpc)
         self._user_to_capabilities = {}
-
+        self._dirty = True
 
         def onsetup(sender, **kwargs):
-            pass
+            rpc.export(self._update_capabilities, 'auth.update')
+
+        def onstart(sender, **kwargs):
+            while self._dirty:
+                self._dirty = False
+                try:
+                    self._user_to_capabilities = rpc.call(AUTH,
+                        'get_user_to_capabilities').get(timeout=10)
+                except RemoteError:
+                    self._dirty = True
 
         core.onsetup.connect(onsetup, self)
+        core.onstart.connect(onstart, self)
 
     def get_capabilities(self, user_id):
-       """Gets capabilities for a given user.
+        """Gets capabilities for a given user.
 
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         :returns: list of capabilities
         :rtype: list
         """
-        return self._user_to_capabilites.get(user_id, [])
+        return self._user_to_capabilities.get(user_id, [])
 
-
+    def _update_capabilities(self, user_to_capabilities):
+        identity = bytes(self._rpc().context.vip_message.peer)
+        if identity == AUTH:
+            self._user_to_capabilities = user_to_capabilities
+            self._dirty = True
