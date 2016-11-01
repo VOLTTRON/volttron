@@ -21,7 +21,6 @@ var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
 
-var registryWs, registryWebsocket;
 var _defaultColumnWidth = "200px";
 var _tableWidth;
 
@@ -219,9 +218,6 @@ class ConfigureRegistry extends BaseComponent {
         this.setState({ tableWidth: tableWidth + "px"});
         this.setState({ registryValues: newRegistryValues });
     }
-    // _setTableTarget(table) {
-    //     _table = table;
-    // }
     _initializeTable() {
         var table = this._getParentNode();
         var clientRect = table.getClientRects();
@@ -306,11 +302,6 @@ class ConfigureRegistry extends BaseComponent {
         }, this);
 
         this.setState({ registryValues: registryValues });
-
-        // _setUpRegistrySocket();
-
-        //TODO: hook up onmessage in configure-registry.jsx or in registry-row.jsw
-        // registryWs.send(JSON.stringify(configRequests));
     }   
     _removeSelectedPoints(keyboardRange) {
 
@@ -330,44 +321,7 @@ class ConfigureRegistry extends BaseComponent {
         }
 
         this._onRemovePoints(pointNames);
-    } 
-
-    _setUpRegistrySocket() {
-
-        if (typeof registryWebsocket === "undefined" || registryWebsocket === null)
-        {
-            registryWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
-            if (window.WebSocket) {
-                registryWs = new WebSocket(devicesWebsocket);
-            }
-            else if (window.MozWebSocket) {
-                registryWs = MozWebSocket(devicesWebsocket);
-            }
-
-            registryWS.onmessage = function(evt)
-            {
-                // devicesActionCreators.pointDataReceived(evt.data, this.props.device);
-
-                // var warnings = devicesStore.getWarnings();
-
-                // if (!objectIsEmpty(warnings))
-                // {
-                //     for (var key in warnings)
-                //     {
-                //         var values = warnings[key].items.join(", ");
-
-                //         statusIndicatorActionCreators.openStatusIndicator(
-                //             "error", 
-                //             warnings[key].message + "ID: " + values, 
-                //             values, 
-                //             "left"
-                //         );
-                //     }
-                // }
-
-            }.bind(this);
-        }
-    }   
+    }
     _focusOnDevice() {
         devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
         console.log("focused on device");

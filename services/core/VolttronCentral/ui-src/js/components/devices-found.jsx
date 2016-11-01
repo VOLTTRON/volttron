@@ -79,6 +79,8 @@ class DevicesFound extends BaseComponent {
         
         var csvFile = evt.target.files[0];
 
+        evt.target.blur();
+
         if (!csvFile)
         {
             return;
@@ -171,7 +173,7 @@ class DevicesFound extends BaseComponent {
                         }, this);
 
                     var arrowTooltip = {
-                        content: (!device.configuring ? "Get Device Points" : "Hide/Show"),
+                        content: (!device.configuringStarted ? "Get Device Points" : "Hide/Show"),
                         "x": 40,
                         "yOffset": 140
                     }

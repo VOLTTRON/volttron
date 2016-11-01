@@ -58871,6 +58871,10 @@
 	        if (this.state.showTaptip) {
 	            controlButtonActionCreators.hideTaptip(this.props.name);
 	        }
+	
+	        if (this.state.showTooltip) {
+	            this._hideTooltip();
+	        }
 	    },
 	    _showTaptip: function _showTaptip(evt) {
 	
@@ -60089,6 +60093,8 @@
 	
 	            var csvFile = evt.target.files[0];
 	
+	            evt.target.blur();
+	
 	            if (!csvFile) {
 	                return;
 	            }
@@ -60171,7 +60177,7 @@
 	                    }, this);
 	
 	                    var arrowTooltip = {
-	                        content: !device.configuring ? "Get Device Points" : "Hide/Show",
+	                        content: !device.configuringStarted ? "Get Device Points" : "Hide/Show",
 	                        "x": 40,
 	                        "yOffset": 140
 	                    };
@@ -60468,7 +60474,6 @@
 	var ConfirmForm = __webpack_require__(324);
 	var modalActionCreators = __webpack_require__(287);
 	
-	var registryWs, registryWebsocket;
 	var _defaultColumnWidth = "200px";
 	var _tableWidth;
 	
@@ -60662,10 +60667,6 @@
 	            this.setState({ tableWidth: tableWidth + "px" });
 	            this.setState({ registryValues: newRegistryValues });
 	        }
-	        // _setTableTarget(table) {
-	        //     _table = table;
-	        // }
-	
 	    }, {
 	        key: '_initializeTable',
 	        value: function _initializeTable() {
@@ -60752,11 +60753,6 @@
 	            }, this);
 	
 	            this.setState({ registryValues: registryValues });
-	
-	            // _setUpRegistrySocket();
-	
-	            //TODO: hook up onmessage in configure-registry.jsx or in registry-row.jsw
-	            // registryWs.send(JSON.stringify(configRequests));
 	        }
 	    }, {
 	        key: '_removeSelectedPoints',
@@ -60774,41 +60770,6 @@
 	            }
 	
 	            this._onRemovePoints(pointNames);
-	        }
-	    }, {
-	        key: '_setUpRegistrySocket',
-	        value: function _setUpRegistrySocket() {
-	
-	            if (typeof registryWebsocket === "undefined" || registryWebsocket === null) {
-	                registryWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
-	                if (window.WebSocket) {
-	                    registryWs = new WebSocket(devicesWebsocket);
-	                } else if (window.MozWebSocket) {
-	                    registryWs = MozWebSocket(devicesWebsocket);
-	                }
-	
-	                registryWS.onmessage = function (evt) {
-	                    // devicesActionCreators.pointDataReceived(evt.data, this.props.device);
-	
-	                    // var warnings = devicesStore.getWarnings();
-	
-	                    // if (!objectIsEmpty(warnings))
-	                    // {
-	                    //     for (var key in warnings)
-	                    //     {
-	                    //         var values = warnings[key].items.join(", ");
-	
-	                    //         statusIndicatorActionCreators.openStatusIndicator(
-	                    //             "error", 
-	                    //             warnings[key].message + "ID: " + values, 
-	                    //             values, 
-	                    //             "left"
-	                    //         );
-	                    //     }
-	                    // }
-	
-	                }.bind(this);
-	            }
 	        }
 	    }, {
 	        key: '_focusOnDevice',
@@ -112038,4 +111999,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-0dbd3ef9e3f5397dba46.js.map
+//# sourceMappingURL=app-d479b0dc7ebb255b073d.js.map

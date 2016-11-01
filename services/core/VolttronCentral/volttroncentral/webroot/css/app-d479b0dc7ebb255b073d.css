@@ -1634,6 +1634,11 @@ td.plain {
     width: 600px;
 }
 
+.configDeviceContainer table {
+    border-collapse: separate;
+    border-spacing: 10px 8px;
+}
+
 .detectDevicesBox {    
     border: 1px solid black;
     padding: 2px;
@@ -1747,4 +1752,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-0dbd3ef9e3f5397dba46.css.map*/
+/*# sourceMappingURL=app-d479b0dc7ebb255b073d.css.map*/

@@ -1634,6 +1634,11 @@ td.plain {
     width: 600px;
 }
 
+.configDeviceContainer table {
+    border-collapse: separate;
+    border-spacing: 10px 8px;
+}
+
 .detectDevicesBox {    
     border: 1px solid black;
     padding: 2px;

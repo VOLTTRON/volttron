@@ -108,6 +108,11 @@ var ControlButton = React.createClass({
         {
             controlButtonActionCreators.hideTaptip(this.props.name);
         }
+
+        if (this.state.showTooltip)
+        {
+            this._hideTooltip();
+        }
     },
 	_showTaptip: function (evt) {
 
