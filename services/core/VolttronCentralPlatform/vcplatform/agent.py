@@ -56,26 +56,23 @@
 # }}}
 
 
-from __future__ import print_function
+from __future__ import absolute_import, print_function
 
 import base64
-import requests
-import tempfile
-from copy import deepcopy
 import datetime
 import hashlib
 import logging
-import os
 import re
 import shutil
 import sys
-import uuid
+import tempfile
 import urlparse
+from copy import deepcopy
 
 import gevent
 import gevent.event
 import psutil
-
+import requests
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (
     get_aware_utc_now, format_timestamp, parse_timestamp_string,
@@ -89,14 +86,20 @@ from volttron.platform.vip.connection import Connection
 from volttron.platform.vip.agent import *
 
 from volttron.platform import jsonrpc
-from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM)
-from volttron.platform.messaging.health import UNKNOWN_STATUS, Status, \
+from volttron.platform.agent.utils import (
+    get_aware_utc_now, format_timestamp, parse_timestamp_string)
+from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
+from volttron.platform.messaging.health import Status, \
     GOOD_STATUS, BAD_STATUS
-from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
-                                       METHOD_NOT_FOUND)
+from volttron.platform.messaging.topics import (LOGGER, PLATFORM_VCP_DEVICES,
+                                                PLATFORM)
+from volttron.platform.vip.agent import *
+from volttron.platform.vip.agent.connection import Connection
+from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.utils.persistance import load_create_store
 
 __version__ = '3.5.6'
@@ -962,10 +965,20 @@ class VolttronCentralPlatform(Agent):
             }
 
             if is_running:
-                identity = a['identity']
-                status = self.vip.rpc.call(identity,
-                                           'health.get_status').get(timeout=30)
-                uuid_to_status[a['uuid']]['health'] = status
+                identity = self.vip.rpc.call('control', 'agent_vip_identity',
+                                             a['uuid']).get(timeout=30)
+                try:
+                    status = self.vip.rpc.call(identity,
+                                               'health.get_status').get(timeout=5)
+                    uuid_to_status[a['uuid']]['health'] = status
+                except gevent.Timeout:
+                    _log.error("Couldn't get health from {} uuid: {}".format(
+                        identity, a['uuid']
+                    ))
+                except Unreachable:
+                    _log.error("Couldn't reach agent identity {} uuid: {}".format(
+                        identity, a['uuid']
+                    ))
         for a in agents:
             if a['uuid'] in uuid_to_status.keys():
                 _log.debug('UPDATING STATUS OF: {}'.format(a['uuid']))

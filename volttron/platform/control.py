@@ -259,13 +259,16 @@ class ControlService(BaseAgent):
     @RPC.export
     def install_agent(self, filename, channel_name, vip_identity=None,
                       publickey=None, secretkey=None, add_auth=True):
-        """ Installs an agent on the instance instance.
+        """
+        Installs an agent on the instance instance.
 
         The installation of an agent through this method involves sending
         the binary data of the agent file through a channel.  The following
         example is the protocol for sending the agent across the wire:
 
         Example Protocol:
+
+        .. code-block:: python
 
             # client creates channel to this agent (control)
             channel = agent.vip.channel('control', 'channel_name')
@@ -293,15 +296,15 @@ class ControlService(BaseAgent):
             channel.close(linger=0)
             del channel
 
-        @param:string:filename:
+        :param:string:filename:
             The name of the agent packaged file that is being written.
-        @param:string:channel_name:
+        :param:string:channel_name:
             The name of the channel that the agent file will be sent on.
-        @param:string:publickey:
+        :param:string:publickey:
             Encoded public key the installed agent will use
-        @param:string:secretkey:
+        :param:string:secretkey:
             Encoded secret key the installed agent will use
-        @param:bool:add_auth:
+        :param:bool:add_auth:
             Add the agent's credentials to the authorized-agent list
         """
 
@@ -421,6 +424,8 @@ def filter_agent(agents, pattern, opts):
 def upgrade_agent(opts):
     publickey = None
     secretkey = None
+    add_auth = False
+
     identity = opts.vip_identity
     if not identity:
         raise ValueError("Missing required VIP IDENTITY option")
@@ -438,8 +443,13 @@ def upgrade_agent(opts):
         _stdout.write(('Could not find agent with VIP IDENTITY "{}". '
                        'Installing as new agent\n').format(identity))
 
+    if secretkey is None or publickey is None:
+        publickey = None
+        secretkey = None
+        add_auth = True
+
     install_agent(opts, publickey=publickey, secretkey=secretkey,
-                  add_auth=False)
+                  add_auth=add_auth)
 
 
 def install_agent(opts, publickey=None, secretkey=None, add_auth=True):
@@ -787,7 +797,7 @@ def gen_keypair(opts):
 
 def add_server_key(opts):
     store = KnownHostsStore()
-    store.add(opts.host, opts.server_key)
+    store.add(opts.host, opts.serverkey)
     _stdout.write('server key written to {}\n'.format(store.filename))
 
 
@@ -810,10 +820,19 @@ def do_stats(opts):
 
 
 def show_serverkey(opts):
+    """ 
+    write serverkey to standard out.
+
+    return 0 if success, 1 if false
+    """
     q = Query(opts.connection.server.core)
     pk = q.query('serverkey').get(timeout=2)
     del q
-    return pk
+    if pk is not None:
+        _stdout.write('%s\n' % pk)
+	return 0
+
+    return 1
 
 
 def _get_auth_file(volttron_home):
@@ -1147,7 +1166,8 @@ class ControlConnection(object):
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
-                                 developer_mode=developer_mode)
+                                 developer_mode=developer_mode,
+                                 enable_channel=True)
         self._greenlet = None
 
     @property
@@ -1403,7 +1423,7 @@ def main(argv=sys.argv):
             help='add server public key to known-hosts file')
     auth_add_known_host.add_argument('--host', required=True,
             help='hostname or IP address with optional port')
-    auth_add_known_host.add_argument('--server-key', required=True)
+    auth_add_known_host.add_argument('--serverkey', required=True)
     auth_add_known_host.set_defaults(func=add_server_key)
 
     auth_keypair = add_parser('keypair', subparser=auth_subparsers,

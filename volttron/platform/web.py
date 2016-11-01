@@ -60,6 +60,7 @@ import logging
 import os
 import re
 import requests
+import sys
 from urlparse import urlparse, urljoin
 
 from gevent import pywsgi
@@ -496,18 +497,6 @@ class MasterWebService(Agent):
         super(MasterWebService, self).__init__(identity, address, **kwargs)
 
         self.bind_web_address = bind_web_address
-        # if the web address is bound then we need to allow the web agent
-        # to be discoverable.  That means we need to allow connections to
-        # the message bus in some known addresses if they aren't already
-        # specified.
-        if self.bind_web_address:
-            authfile = AuthFile()
-            entries, _, _ = authfile.read()
-            if not entries:
-                _log.debug(
-                    'Adding default curve credentials for discoverability.')
-                authfile.add(AuthEntry(credentials="/.*/"))
-
         self.serverkey = serverkey
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
@@ -750,7 +739,20 @@ class MasterWebService(Agent):
         svr = WSGIServer((hostname, port), self.appContainer)
         self._server_greenlet = gevent.spawn(svr.serve_forever)
 
-        # svr = WSGIServer((host, port))
+        # with open(os.path.join(logdir, 'web.access.log'), 'wb') as accesslog:
+        #     with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
+        #         server = pywsgi.WSGIServer((hostname, port), self.app_routing,
+        #                                    log=accesslog, error_log=errlog)
+        #         try:
+        #             server.serve_forever()
+        #         except Exception as e:
+        #             message = 'bind-web-address {} is not available, stopping'
+        #             message = message.format(self.bind_web_address)
+        #             _log.error(message)
+        #             print message
+        #             sys.exit(1)
+
+                    # svr = WSGIServer((host, port))
         # with open(os.path.join(logdir, 'web.access.log'), 'wb') as accesslog:
         #     with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
         #         server = pywsgi.WSGIServer((hostname, port), self.app_routing,

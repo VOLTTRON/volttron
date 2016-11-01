@@ -1,3 +1,5 @@
+.. install:
+
 ============
 Installation
 ============
@@ -107,6 +109,14 @@ volttron.log execute the following.
 .. code-block:: bash
 
     volttron -vv -l volttron.log&
+
+Acquiring Third Party Agent Code
+---------------------------------
+
+Third party agents are available under volttron-applications repository. In order to use those agents, add
+volttron-applications repository under the volttron/applications directory by using following command:
+
+    git subtree add --prefix applications https://github.com/VOLTTRON/volttron-applications.git develop --squash
 
 Next Steps
 ----------

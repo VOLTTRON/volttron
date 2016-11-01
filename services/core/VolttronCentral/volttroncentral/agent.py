@@ -76,46 +76,44 @@ instance with VCA.
    to VCA after being deployed.
    
 """
-import uuid
-from collections import defaultdict
-from copy import deepcopy
 import errno
+import hashlib
 import logging
 import os
 import os.path as p
 import sys
+import uuid
+from collections import defaultdict
+from copy import deepcopy
 from urlparse import urlparse
 
 import gevent
-from abc import ABCMeta
-
 from authenticate import Authenticate
 from sessions import SessionHandler
 from volttron.platform.vip.agent.connection import Connection
-from volttron.utils.persistance import load_create_store
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
-from volttron.platform.agent.utils import (
-    get_aware_utc_now, format_timestamp, parse_timestamp_string)
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, MASTER_WEB,
     PLATFORM_HISTORIAN)
-from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.agent.utils import (
+    get_aware_utc_now, format_timestamp)
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
-    UNABLE_TO_REGISTER_INSTANCE, DISCOVERY_ERROR,
+    DISCOVERY_ERROR,
     UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM, INVALID_PARAMS,
-    UNAVAILABLE_AGENT, json_error)
-from volttron.platform.messaging.health import UNKNOWN_STATUS, Status, \
+    UNAVAILABLE_AGENT)
+from volttron.platform.messaging.health import Status, \
     BAD_STATUS
 from volttron.platform.vip.agent import Agent, RPC, PubSub, Core, Unreachable
+from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems import query
-from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
+from volttron.utils.persistance import load_create_store
 from zmq.utils import jsonapi
 
-__version__ = "3.5.4"
+__version__ = "3.6.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -124,6 +122,8 @@ _log = logging.getLogger(__name__)
 # current agent's installed path
 DEFAULT_WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot/'))
 
+
+INVALID_CONFIGURATION_CODE = 105
 
 class VolttronCentralAgent(Agent):
     """ Agent for managing many volttron instances from a central web ui.
@@ -151,47 +151,41 @@ class VolttronCentralAgent(Agent):
         super(VolttronCentralAgent, self).__init__(enable_store=False,
                                                    enable_web=True, **kwargs)
         # Load the configuration into a dictionary
-        self._config = utils.load_config(config_path)
+        config = utils.load_config(config_path)
+
+        # Required users
+        users = config.get('users', None)
 
         # Expose the webroot property to be customized through the config
         # file.
-        self._webroot = self._config.get('webroot', DEFAULT_WEB_ROOT)
-        if self._webroot.endswith('/'):
-            self._webroot = self._webroot[:-1]
-        _log.debug('The webroot is {}'.format(self._webroot))
+        webroot = config.get('webroot', DEFAULT_WEB_ROOT)
+        if webroot.endswith('/'):
+            webroot = webroot[:-1]
 
-        # Required users
-        self._user_map = self._config.get('users', None)
+        topic_replace_list = config.get('topic-replace-list', [])
 
-        _log.debug("User map is: {}".format(self._user_map))
-        if self._user_map is None:
-            raise ValueError('users not specified within the config file.')
+        # Create default configuration to be used in case of problems in the
+        # packaged agent configuration file.
+        self.default_config = dict(
+            webroot=os.path.abspath(webroot),
+            users=users,
+            topic_replace_list=topic_replace_list
+        )
 
+        # During the configuration update/new/delete action this will be
+        # updated to the current configuration.
+        self.runtime_config = None
+
+        # Start using config store.
+        self.vip.config.set_default("config", config)
+        self.vip.config.subscribe(self.configure_main,
+                                  actions=['NEW', 'UPDATE', 'DELETE'],
+                                  pattern="config")
         # Search and replace for topics
         # The difference between the list and the map is that the list
         # specifies the search and replaces that should be done on all of the
         # incoming topics.  Once all of the search and replaces are done then
         # the mapping from the original to the final is stored in the map.
-        self._topic_replace_list = self._config.get('topic_replace_list', [])
-        self._topic_replace_map = defaultdict(str)
-        _log.debug('Topic replace list: {}'.format(self._topic_replace_list))
-
-        platforms_file = os.path.join(os.environ['VOLTTRON_HOME'],
-                                      'data/platforms.json')
-        self._registered_platforms = load_create_store(platforms_file)
-        self._hash_to_topic = {}
-
-        # This has a dictionary mapping the platform_uuid to an agent
-        # connected to the vip-address of the registered platform.  If the
-        # registered platform is None then that means we were unable to
-        # connect to the platform the last time it was tried.
-        self._platform_connections = {}
-        self._address_to_uuid = {}
-        for cn_uuid, platform_data in self._registered_platforms.items():
-            _log.debug("{}".format(platform_data))
-            _log.debug('address is {}'.format(platform_data['address']))
-            self._address_to_uuid[platform_data['address']] = cn_uuid
-            self._platform_connections[cn_uuid] = None
 
         # An object that allows the checking of currently authenticated
         # sessions.
@@ -213,12 +207,145 @@ class VolttronCentralAgent(Agent):
             os.path.join(os.environ['VOLTTRON_HOME'],
                          'data', 'volttron.central.requeststore'))
 
-        self.default_config = {"heartbeat_interval": 60}
-        # self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"],
-        #                           pattern="config")
+    def configure_main(self, config_name, action, contents):
+        """
+        The main configuration for volttron central.  This is where validation
+        will occur.
 
-    def configure(self, config_name, action, contents):
-        pass
+        Note this method is called:
+
+            1. When the agent first starts (with the params from packaged agent
+               file)
+            2. When 'store' is called through the volttron-ctl config command
+               line with 'config' as the name.
+
+        Required Configuration:
+
+        The volttron central requires a user mapping.
+
+        :param config_name:
+        :param action:
+        :param contents:
+        :return:
+        """
+
+        _log.debug('Main config updated')
+        _log.debug('ACTION IS {}'.format(action))
+        _log.debug('CONTENT IS {}'.format(contents))
+        if action == 'DELETE':
+            # Remove the registry and keep the service running.
+            self.runtime_config = None
+            # Now stop the exposition of service.
+        else:
+            self.runtime_config = self.default_config.copy()
+            self.runtime_config.update(contents)
+
+            problems = self._validate_config_params(self.runtime_config)
+
+            if len(problems) > 0:
+                _log.error(
+                    "The following configuration problems were detected!")
+                for p in problems:
+                    _log.error(p)
+                sys.exit(INVALID_CONFIGURATION_CODE)
+            else:
+                _log.info('volttron central webroot is: {}'.format(
+                    self.runtime_config.get('webroot')
+                ))
+
+    def _validate_config_params(self, config):
+        problems = []
+        webroot = config.get('webroot')
+        if not webroot:
+            problems.append('Invalid webroot in configuration.')
+        elif not os.path.exists(webroot):
+            problems.append(
+                'Webroot {} does not exist on machine'.format(webroot))
+
+        users = config.get('users')
+        if not users:
+            problems.append('A users node must be specified!')
+        else:
+            has_admin = False
+
+            try:
+                for user, item in users.items():
+                    if 'password' not in item.keys():
+                        problems.append('user {} must have a password!'.format(
+                            user))
+                    elif not item['password']:
+                        problems.append('password for {} is blank!'.format(
+                            user
+                        ))
+
+                    if 'groups' not in item.keys():
+                        problems.append('missing groups key for user {}'.format(
+                            user
+                        ))
+                    elif not isinstance(item['groups'], list):
+                        problems.append('groups must be a list of strings.')
+                    elif not item['groups']:
+                        problems.append(
+                            'user {} must belong to at least one group.'.format(
+                                user))
+
+                    # See if there is an adminstator present.
+                    if not has_admin and isinstance(item['groups'], list):
+                        has_admin = 'admin' in item['groups']
+            except AttributeError:
+                problems.append('invalid user node.')
+
+            if not has_admin:
+                problems.append("One user must be in the admin group.")
+
+        return problems
+    # # @Core.periodic(60)
+    # def _reconnect_to_platforms(self):
+    #     """ Attempt to reconnect to all the registered platforms.
+    #     """
+    #     _log.info('Reconnecting to platforms')
+    #     for entry in self._registry.get_platforms():
+    #         try:
+    #             conn_to_instance = None
+    #             if entry.is_local:
+    #                 _log.debug('connecting to vip address: {}'.format(
+    #                     self._local_address
+    #                 ))
+    #                 conn_to_instance = ConnectedLocalPlatform(self)
+    #             elif entry.platform_uuid in self._pa_agents.keys():
+    #                 conn_to_instance = self._pa_agents.get(entry.platform_uuid)
+    #                 try:
+    #                     if conn_to_instance.agent.vip.peerlist.get(timeout=15):
+    #                         pass
+    #                 except gevent.Timeout:
+    #                     del self._pa_agents[entry.platform_uuid]
+    #                     conn_to_instance = None
+    #
+    #             if not conn_to_instance:
+    #                 _log.debug('connecting to vip address: {}'.format(
+    #                     entry.vip_address
+    #                 ))
+    #                 conn_to_instance = ConnectedPlatform(
+    #                     address=entry.vip_address,
+    #                     serverkey=entry.serverkey,
+    #                     publickey=self.core.publickey,
+    #                     secretkey=self.core.secretkey
+    #                 )
+    #
+    #             # Subscribe to the underlying agent's pubsub bus.
+    #             _log.debug("subscribing to platforms pubsub bus.")
+    #             conn_to_instance.agent.vip.pubsub.subscribe(
+    #                 "pubsub", "platforms", self._on_platforms_messsage)
+    #             self._pa_agents[entry.platform_uuid] = conn_to_instance
+    #             _log.debug('Configuring platform to be the correct uuid.')
+    #             conn_to_instance.agent.vip.rpc.call(
+    #                 VOLTTRON_CENTRAL_PLATFORM, "reconfigure",
+    #                 platform_uuid=entry.platform_uuid).get(timeout=15)
+    #
+    #         except (gevent.Timeout, Unreachable) as e:
+    #             _log.error("Unreachable platform address: {}"
+    #                        .format(entry.vip_address))
+    #             self._pa_agents[entry.platform_uuid] = None
 
     @PubSub.subscribe("pubsub", "heartbeat/volttroncentralplatform")
     def _on_platform_heartbeat(self, peer, sender, bus, topic, headers,
@@ -251,11 +378,6 @@ class VolttronCentralAgent(Agent):
         _, platform_uuid, op_or_datatype, other = topicsplit[0], \
                                                   topicsplit[1], \
                                                   topicsplit[2], topicsplit[3:]
-
-        if len(platform_uuid) != 36:
-            _log.error('Invalid platform id detected {}'
-                       .format(platform_uuid))
-            return
 
         platform = self._registered_platforms.get(platform_uuid)
         if platform is None:
@@ -435,7 +557,8 @@ class VolttronCentralAgent(Agent):
         assert cn.is_connected(), "Connection unavailable for address {}"\
             .format(address)
         if cn_uuid is None:
-            cn_uuid = str(uuid.uuid4())
+            md5 = hashlib.md5(address)
+            cn_uuid = md5.hexdigest()
             self._address_to_uuid[address] = cn_uuid
         self._platform_connections[cn_uuid] = cn
         return cn
@@ -538,7 +661,8 @@ class VolttronCentralAgent(Agent):
                             instance_uuid=address_uuid
                         )
                 else:
-                    address_uuid = str(uuid.uuid4())
+                    md5 = hashlib.md5(address)
+                    address_uuid = md5.hexdigest()
                     _log.debug("New platform with uuid: {}".format(
                         address_uuid))
                     connection.call('reconfigure',

@@ -17,8 +17,7 @@ Additional details about the commands used in this walkthrough are at:
 Create Folders
 ~~~~~~~~~~~~~~
 
--  In the "applications" directory, create a new directory called
-   TestAgent.
+-  Create a new directory called TestAgent.
 -  In TestAgent, create a new folder tester, this is the package where
    our python code will be created
 
@@ -38,10 +37,19 @@ Create Agent Code
 
 ::
 
+    import logging
     import sys
 
     from volttron.platform.vip.agent import Agent, PubSub
     from volttron.platform.agent import utils
+
+- Initialize the logging facility, agents should favor logging over
+  print
+
+::
+
+    utils.setup_logging()
+    _log = logging.getLogger(__name__)
 
 -  This agent will extend BaseAgent to get all the default functionality
 
@@ -62,6 +70,39 @@ Create Agent Code
 
        def __init__(self, config_path, **kwargs):
            super(TestAgent, self).__init__(**kwargs)
+
+Add Configuration Store Support
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The configuration store is a powerful feature introduced in VOLTTRON 4.
+To utilize the configuration store we'll add the a default configuration
+and a method that will handle configuration updates.
+
+::
+
+        def __init__(self, config_path, **kwargs):
+            super(TestAgent, self).__init__(**kwargs)
+
+            self.setting1 = 42
+            self.default_config = {"setting1": self.setting1}
+
+            self.vip.config.set_default("config", self.default_config)
+            self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"], pattern="config")
+
+        def configure(self, config_name, action, contents):
+            config = self.default_config.copy()
+            config.update(contents)
+
+            # make sure config variables are valid
+            try:
+                self.setting1 = int(config["setting1"])
+            except ValueError as e:
+                _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
+
+Values in the default config can be built into the agent or come from the
+packaged configuration file. The subscribe method tells our agent which function
+to call whenever there is a new or updated config file. For more information
+on using the configuration store see :doc:`Agent Configuration Store <Agent-Configuration-Store>`
 
 Setting up a Subscription
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -157,7 +198,7 @@ At this point, the contents of the TestAgent directory should look like:
 
 ::
 
-    applications/TestAgent/
+    TestAgent/
     ├── setup.py
     ├── testagent.config
     └── tester
@@ -177,13 +218,13 @@ From the project directory, activate the VOLTTRON environment with:
 
 Then call:
 
-``volttron-pkg package applications/TestAgent``
+``volttron-pkg package TestAgent``
 
 By default, this creates a wheel file in the VOLTTRON\_HOME directory
 (~/.volttron by default) in the ``packaged`` dreictory. Next, we add our
 configuration file to this package with:
 
-``volttron-pkg configure ~/.volttron/packaged/testeragent-0.1-py2-none-any.whl applications/TestAgent/testagent.config``
+``volttron-pkg configure ~/.volttron/packaged/testeragent-0.1-py2-none-any.whl TestAgent/testagent.config``
 
 Installing the Agent
 ~~~~~~~~~~~~~~~~~~~~
@@ -199,6 +240,7 @@ To verify it has been installed, use the following command:
 This will result in output similar to the following:
 
 .. code-block:: bash
+
       AGENT           IDENTITY              TAG       PRI
     5 testeragent-0.1 testeragent-0.1_1   testagent
 
@@ -237,12 +279,11 @@ check the log file.
 
 ``volttron-ctl start --tag testagent``
 
--  Check that it is `running <AgentStatus>`__:
+-  Check that it is :ref:`running <AgentStatus>`:
 
 ``volttron-ctl status``
 
--  Start the ListenerAgent as in
-   `BuildingTheProject <BuildingTheProject>`__
+-  Start the ListenerAgent as in :ref:`Building VOLTTRON <Building-VOLTTRON>`
 -  Check the log file for messages indicating the TestAgent is receiving
    the ListenerAgents messages:
 

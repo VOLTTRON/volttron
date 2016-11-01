@@ -8,7 +8,7 @@ This will create configuration files in configs/ directory to produce fake data 
 
 Currently this will create old style Master Driver configuration files. To convert them to the new format run the following command.
 
-    python ../update_master_driver_config.py configs new_configs
+    python ../update_master_driver_config.py configs/master-driver.agent new_configs
     
 That will create a new directory called new_configs with the new configuration files in it.
 
