@@ -5,21 +5,17 @@ import BaseComponent from './base-component';
 import EditPointForm from './edit-point-form';
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
+var columnMoverActionCreators = require('../action-creators/column-mover-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var devicesStore = require('../stores/devices-store');
 import Immutable from 'immutable';
 
-var registryWs, registryWebsocket;
 class RegistryRow extends BaseComponent {
     constructor(props) {
         super(props);
         this._bind('_handleRowClick', '_selectForDelete');
 
         this.state = this._resetState(this.props);  
-    }
-    componentDidMount() {
-    }
-    componentWillUnmount() {
     }
     componentWillReceiveProps(nextProps)
     {
@@ -126,20 +122,34 @@ class RegistryRow extends BaseComponent {
         var clientRect = targetColumn.getClientRects();
         var originalTargetWidth = clientRect[0].width;
 
+        var innerTable = this.props.parentNode;
+
+        var top = innerTable.getClientRects()[0].top;
+        var height = innerTable.getClientRects()[0].height;
+
+        columnMoverActionCreators.startColumnMovement(originalClientX, top, height);
+
         this.props.oninitializetable();
 
         var onMouseMove = function (evt)
         {            
             var movement = evt.clientX - originalClientX;
-            var targetWidth = originalTargetWidth + movement;
-            this.props.onresizecolumn(columnIndex, targetWidth + "px", movement);
+            columnMoverActionCreators.moveColumn(movement);
+
         }.bind(this);                    
 
         var onMouseUp = function (evt)
         {
             document.removeEventListener("mousemove", onMouseMove);
-            document.removeEventListener("mouseup", onMouseUp);        
-        }
+            document.removeEventListener("mouseup", onMouseUp);  
+
+            columnMoverActionCreators.endColumnMovement();
+
+            var movement = evt.clientX - originalClientX;
+            var targetWidth = originalTargetWidth + movement;
+            this.props.onresizecolumn(columnIndex, targetWidth + "px", movement);
+
+        }.bind(this); 
 
         document.addEventListener("mousemove", onMouseMove);
         document.addEventListener("mouseup", onMouseUp);

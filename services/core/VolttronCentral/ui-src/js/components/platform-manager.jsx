@@ -20,6 +20,8 @@ var StatusIndicator = require('./status-indicator');
 var statusIndicatorStore = require('../stores/status-indicator-store');
 var platformsStore = require('../stores/platforms-store');
 
+import ColumnMover from './column-mover';
+
 class PlatformManager extends React.Component {
     constructor(props) {
         super(props);
@@ -183,6 +185,7 @@ class PlatformManager extends React.Component {
             <div className={classes.join(' ')}>
                 {statusIndicator}
                 {modal}
+                <ColumnMover/>
                 <div ref="main" className="main">
                     <Navigation />                
                     <PlatformsPanel/>

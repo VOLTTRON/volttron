@@ -260,6 +260,16 @@ br + .form__control-help {
     to {opacity: 0;}
 }
 
+.column-mover {
+    top: 40%;
+    bottom: 20%;
+    width: 4px;
+    background-color: #A0A0A0;
+    cursor: ew-resize;
+    position: absolute;
+    z-index: 900;
+}
+
 .main {
     position: relative;
     height: 100%;

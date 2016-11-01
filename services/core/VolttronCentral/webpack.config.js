@@ -160,8 +160,10 @@ module.exports = {
 
     ],
     devServer: {
+        inline: true,
+        port: 65410,
         proxy: {
-        '*': 'http://localhost:65410'
+            '*': 'http://localhost:8080'
         },
         historyApiFallback: true,
     },

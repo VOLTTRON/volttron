@@ -845,14 +845,17 @@ class ConfigureRegistry extends BaseComponent {
                     keyboardSelected: keyboardSelected
                 });
 
-                return (<RegistryRow 
-                            key={"registryRow-" + attributesList.get("attributes").get(0).value + "-" + rowIndex}
-                            attributesList={attributesList} 
-                            immutableProps={immutableProps}
-                            allSelected={this.state.allSelected}
-                            oncheckselect={this._onSelectForDelete}
-                            onresizecolumn={this._resizeColumn}
-                            oninitializetable={this._initializeTable}/>);
+                return (
+                    <RegistryRow 
+                        key={"registryRow-" + attributesList.get("attributes").get(0).value + "-" + rowIndex}
+                        attributesList={attributesList} 
+                        immutableProps={immutableProps}
+                        allSelected={this.state.allSelected}
+                        oncheckselect={this._onSelectForDelete}
+                        onresizecolumn={this._resizeColumn}
+                        oninitializetable={this._initializeTable}
+                        parentNode={_table}/>
+                );
                 
             }, this);
 
