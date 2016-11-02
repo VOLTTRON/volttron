@@ -63556,6 +63556,12 @@
 	            var top = innerTable.getClientRects()[0].top;
 	            var height = innerTable.getClientRects()[0].height;
 	
+	            var view = document.querySelector(".view");
+	            var viewRect = view.getClientRects();
+	            var viewBottom = viewRect[0].bottom;
+	
+	            height = viewBottom < top + height ? viewBottom - top : height;
+	
 	            columnMoverActionCreators.startColumnMovement(originalClientX, top, height);
 	
 	            this.props.oninitializetable();
@@ -112131,4 +112137,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-63aaac987df83bd31f64.js.map
+//# sourceMappingURL=app-5d2084dadf3b9f70d2c1.js.map
