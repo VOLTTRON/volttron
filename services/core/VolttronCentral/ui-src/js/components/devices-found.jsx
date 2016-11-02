@@ -3,9 +3,9 @@
 import React from 'react';
 import BaseComponent from './base-component';
 import ConfigureRegistry from './configure-registry';
+import ControlButton from './control-button';
 
 var ConfirmForm = require('./confirm-form');
-var ControlButton = require('./control-button');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -73,7 +73,7 @@ class DevicesFound extends BaseComponent {
             triggerTooltip[deviceId] = Number(rowIndex);
         }
 
-        this.setState({ triggerTooltip: triggerTooltip })
+        this.setState({ triggerTooltip: triggerTooltip });
     }
     _uploadRegistryFile(evt) {
         

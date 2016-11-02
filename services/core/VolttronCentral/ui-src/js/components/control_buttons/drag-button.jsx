@@ -2,7 +2,7 @@
 
 var React = require('react');
 
-var ControlButton = require('../control-button');
+import ControlButton from './control-button';
 
 var DragButton = React.createClass({
     render: function () {

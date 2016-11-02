@@ -2,8 +2,8 @@
 
 import React from 'react';
 import BaseComponent from '../base-component';
+import ControlButton from '../control-button';
 
-var ControlButton = require('../control-button');
 var EditColumnButton = require('./edit-columns-button');
 var controlButtonActionCreators = require('../../action-creators/control-button-action-creators');
 

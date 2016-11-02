@@ -19,7 +19,8 @@ class ConfigureDevices extends BaseComponent {
         super(props);
         this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange',
                     '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan',
-                    '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded');
+                    '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded', '_showTooltip',
+                    '_hideTooltip');
 
         this.state = getInitialState();
     }
@@ -100,6 +101,9 @@ class ConfigureDevices extends BaseComponent {
     _onAddress(evt) {
         this.setState({ address: evt.target.value });
     }
+    _onDevicesLoaded(devicesLoaded) {
+        this.setState({devicesLoaded: devicesLoaded});
+    }
     _onStartScan(evt) {
         var platformAgentUuid = platformsStore.getPlatformAgentUuid(this.state.platform.uuid);
 
@@ -115,9 +119,8 @@ class ConfigureDevices extends BaseComponent {
         this.setState({ scanning: true });
         this.setState({ scanStarted: true });
         this.setState({ canceled: false });
-    }
-    _onDevicesLoaded(devicesLoaded) {
-        this.setState({devicesLoaded: devicesLoaded});
+
+        this._hideTooltip();
     }
     _showCancel() {
 
@@ -138,6 +141,22 @@ class ConfigureDevices extends BaseComponent {
         this.setState({canceled: true});
 
         devicesActionCreators.cancelDeviceScan();
+    }
+    _showTooltip(evt) {
+
+        var sidePanel = document.querySelector(".platform-statuses");
+        var sidePanelRects = sidePanel.getClientRects();
+        var sidePanelWidth = sidePanelRects[0].width;
+
+        var targetRects = evt.target.getClientRects();
+        var targetLeft = targetRects[0].left;
+
+        this.setState({showTooltip: true});
+        this.setState({tooltipX: targetLeft - sidePanelWidth - 20});
+        this.setState({tooltipY: evt.clientY - 140});
+    }
+    _hideTooltip() {
+        this.setState({showTooltip: false});
     }
     render() {
 
@@ -210,7 +229,7 @@ class ConfigureDevices extends BaseComponent {
             }
 
             var deviceRangeStyle = {
-                width: "70px"
+                width: "100%"
             }
 
             var tdStyle = {
@@ -282,7 +301,7 @@ class ConfigureDevices extends BaseComponent {
                 }
                 else
                 {
-                    spinnerContent = <i className="fa fa-cog fa-spin fa-2x fa-fw margin-bottom"></i>;
+                    spinnerContent = <i className="fa fa-cog fa-spin fa-2x margin-bottom"></i>;
                 }
 
                 scanButton = (
@@ -298,7 +317,34 @@ class ConfigureDevices extends BaseComponent {
             }
             else
             {
-                scanButton = <div style={scanOptionsStyle}><button style={buttonStyle} onClick={this._onStartScan}>Go</button></div>;
+                var tooltipStyle = {
+                    display: (this.state.showTooltip ? "block" : "none"),
+                    position: "absolute",
+                    top: this.state.tooltipY + "px",
+                    left: this.state.tooltipX + "px"
+                };
+
+                var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
+
+                scanButton = (
+                    <div style={scanOptionsStyle}>  
+                        <div className={toolTipClasses}
+                            style={tooltipStyle}>
+                            <div className="tooltip_inner">
+                                <div className="opaque_inner">
+                                    Find Devices
+                                </div>
+                            </div>
+                        </div>                   
+                        <div className="scanningSpinner tooltip_target" 
+                            style={buttonStyle} 
+                            onClick={this._onStartScan}
+                            onMouseEnter={this._showTooltip}
+                            onMouseLeave={this._hideTooltip}>
+                            <i className="fa fa-cog fa-2x margin-bottom"></i>
+                        </div>
+                    </div>
+                );
             }
 
             if (this.state.devicesLoaded || this.state.scanStarted)
@@ -380,6 +426,10 @@ function getInitialState() {
         state.devicesLoaded = false;
         state.scanStarted = false;
         state.cancelButton = false;
+
+        state.showTooltip = false;
+        state.tooltipX = 0;
+        state.tooltooltipY = 0;
     }
 
     return state;

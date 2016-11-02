@@ -77,7 +77,7 @@
 	
 	var authorizationStore = __webpack_require__(248);
 	var platformsPanelItemsStore = __webpack_require__(294);
-	var devicesStore = __webpack_require__(304);
+	var devicesStore = __webpack_require__(307);
 	var Dashboard = __webpack_require__(396);
 	var LoginForm = __webpack_require__(500);
 	var PageNotFound = __webpack_require__(509);
@@ -87,7 +87,7 @@
 	
 	var PlatformCharts = __webpack_require__(516);
 	var Navigation = __webpack_require__(289);
-	var devicesActionCreators = __webpack_require__(303);
+	var devicesActionCreators = __webpack_require__(306);
 	
 	var _afterLoginPath = '/dashboard';
 	
@@ -50868,7 +50868,11 @@
 	
 	var _platformsPanelItem2 = _interopRequireDefault(_platformsPanelItem);
 	
-	var _immutable = __webpack_require__(300);
+	var _controlButton = __webpack_require__(300);
+	
+	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
+	var _immutable = __webpack_require__(304);
 	
 	var _immutable2 = _interopRequireDefault(_immutable);
 	
@@ -50881,7 +50885,6 @@
 	var platformsPanelStore = __webpack_require__(308);
 	var platformsPanelItemsStore = __webpack_require__(294);
 	var platformsPanelActionCreators = __webpack_require__(297);
-	var ControlButton = __webpack_require__(305);
 	
 	var PlatformsPanel = React.createClass({
 	    displayName: 'PlatformsPanel',
@@ -51016,7 +51019,7 @@
 	            "xOffset": tooltipX,
 	            "yOffset": tooltipY
 	        };
-	        var filterGoodControlButton = React.createElement(ControlButton, {
+	        var filterGoodControlButton = React.createElement(_controlButton2.default, {
 	            name: 'filterGoodControlButton',
 	            icon: filterGoodIcon,
 	            selected: filterGood,
@@ -51033,7 +51036,7 @@
 	            "xOffset": tooltipX,
 	            "yOffset": tooltipY
 	        };
-	        var filterBadControlButton = React.createElement(ControlButton, {
+	        var filterBadControlButton = React.createElement(_controlButton2.default, {
 	            name: 'filterBadControlButton',
 	            icon: filterBadIcon,
 	            selected: filterBad,
@@ -51054,7 +51057,7 @@
 	            "xOffset": tooltipX,
 	            "yOffset": tooltipY
 	        };
-	        var filterUnknownControlButton = React.createElement(ControlButton, {
+	        var filterUnknownControlButton = React.createElement(_controlButton2.default, {
 	            name: 'filterUnknownControlButton',
 	            icon: filterUnknownIcon,
 	            selected: filterUnknown,
@@ -51067,7 +51070,7 @@
 	            "xOffset": tooltipX,
 	            "yOffset": tooltipY
 	        };
-	        var filterOffControlButton = React.createElement(ControlButton, {
+	        var filterOffControlButton = React.createElement(_controlButton2.default, {
 	            name: 'filterOffControlButton',
 	            icon: filterOffIcon,
 	            tooltip: filterOffTooltip,
@@ -51161,7 +51164,11 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _immutable = __webpack_require__(300);
+	var _controlButton = __webpack_require__(300);
+	
+	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
+	var _immutable = __webpack_require__(304);
 	
 	var _immutable2 = _interopRequireDefault(_immutable);
 	
@@ -51179,10 +51186,9 @@
 	
 	var platformsPanelItemsStore = __webpack_require__(294);
 	var platformsPanelActionCreators = __webpack_require__(297);
-	var platformChartActionCreators = __webpack_require__(301);
+	var platformChartActionCreators = __webpack_require__(305);
 	var controlButtonActionCreators = __webpack_require__(302);
-	var devicesActionCreators = __webpack_require__(303);
-	var ControlButton = __webpack_require__(305);
+	var devicesActionCreators = __webpack_require__(306);
 	
 	var PlatformsPanelItem = function (_BaseComponent) {
 	    _inherits(PlatformsPanelItem, _BaseComponent);
@@ -51445,7 +51451,7 @@
 	                    "yOffset": tooltipY
 	                };
 	
-	                DevicesButton = React.createElement(ControlButton, {
+	                DevicesButton = React.createElement(_controlButton2.default, {
 	                    name: 'addDevicesButton',
 	                    tooltip: devicesTooltip,
 	                    controlclass: 'panelItemButton',
@@ -51677,6 +51683,462 @@
 
 /***/ },
 /* 300 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+	
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	
+	var _react = __webpack_require__(3);
+	
+	var _react2 = _interopRequireDefault(_react);
+	
+	var _baseComponent = __webpack_require__(99);
+	
+	var _baseComponent2 = _interopRequireDefault(_baseComponent);
+	
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+	
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+	
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+	
+	var controlButtonStore = __webpack_require__(301);
+	var controlButtonActionCreators = __webpack_require__(302);
+	var OutsideClick = __webpack_require__(303);
+	
+	var ControlButton = function (_BaseComponent) {
+	    _inherits(ControlButton, _BaseComponent);
+	
+	    function ControlButton(props) {
+	        _classCallCheck(this, ControlButton);
+	
+	        var _this = _possibleConstructorReturn(this, (ControlButton.__proto__ || Object.getPrototypeOf(ControlButton)).call(this, props));
+	
+	        _this._bind('_onStoresChange', 'handleClickOutside', '_showTaptip', '_hideTaptip', '_showTooltip', '_hideTooltip');
+	
+	        _this.state = {};
+	
+	        _this.state.showTaptip = false;
+	        _this.state.showTooltip = false;
+	        _this.state.deactivateTooltip = false;
+	
+	        _this.state.selected = _this.props.selected === true;
+	
+	        _this.state.taptipX = 0;
+	        _this.state.taptipY = 0;
+	        _this.state.tooltipX = 0;
+	        _this.state.tooltipY = 0;
+	
+	        _this.state.tooltipOffsetX = 0;
+	        _this.state.tooltipOffsetY = 0;
+	        _this.state.taptipOffsetX = 0;
+	        _this.state.taptipOffsetY = 0;
+	
+	        if (_this.props.hasOwnProperty("tooltip")) {
+	            if (_this.props.tooltip.hasOwnProperty("x")) _this.state.tooltipX = _this.props.tooltip.x;
+	
+	            if (_this.props.tooltip.hasOwnProperty("y")) _this.state.tooltipY = _this.props.tooltip.y;
+	
+	            if (_this.props.tooltip.hasOwnProperty("xOffset")) _this.state.tooltipOffsetX = _this.props.tooltip.xOffset;
+	
+	            if (_this.props.tooltip.hasOwnProperty("yOffset")) _this.state.tooltipOffsetY = _this.props.tooltip.yOffset;
+	        }
+	
+	        if (_this.props.hasOwnProperty("taptip")) {
+	            if (_this.props.taptip.hasOwnProperty("x")) _this.state.taptipX = _this.props.taptip.x;
+	
+	            if (_this.props.taptip.hasOwnProperty("y")) _this.state.taptipY = _this.props.taptip.y;
+	
+	            if (_this.props.taptip.hasOwnProperty("xOffset")) _this.state.taptipOffsetX = _this.props.taptip.xOffset;
+	
+	            if (_this.props.taptip.hasOwnProperty("yOffset")) _this.state.taptipOffsetY = _this.props.taptip.yOffset;
+	        }
+	        return _this;
+	    }
+	
+	    _createClass(ControlButton, [{
+	        key: 'componentDidMount',
+	        value: function componentDidMount() {
+	            controlButtonStore.addChangeListener(this._onStoresChange);
+	
+	            window.addEventListener('keydown', this._hideTaptip);
+	        }
+	    }, {
+	        key: 'componentWillUnmount',
+	        value: function componentWillUnmount() {
+	            controlButtonStore.removeChangeListener(this._onStoresChange);
+	
+	            window.removeEventListener('keydown', this._hideTaptip);
+	        }
+	    }, {
+	        key: 'componentWillReceiveProps',
+	        value: function componentWillReceiveProps(nextProps) {
+	            this.setState({ selected: nextProps.selected === true });
+	
+	            if (nextProps.selected === true) {
+	                this.setState({ showTooltip: false });
+	            }
+	        }
+	    }, {
+	        key: '_onStoresChange',
+	        value: function _onStoresChange() {
+	
+	            var showTaptip = controlButtonStore.getTaptip(this.props.name);
+	
+	            if (showTaptip !== null) {
+	                if (showTaptip !== this.state.showTaptip) {
+	                    this.setState({ showTaptip: showTaptip });
+	                }
+	
+	                this.setState({ selected: showTaptip === true });
+	
+	                if (showTaptip === true) {
+	                    this.setState({ showTooltip: false });
+	                } else {
+	                    if (typeof this.props.closeAction == 'function') {
+	                        this.props.closeAction();
+	                    }
+	                }
+	            }
+	        }
+	    }, {
+	        key: 'handleClickOutside',
+	        value: function handleClickOutside() {
+	            if (this.state.showTaptip) {
+	                controlButtonActionCreators.hideTaptip(this.props.name);
+	            }
+	
+	            if (this.state.showTooltip) {
+	                this._hideTooltip();
+	            }
+	        }
+	    }, {
+	        key: '_showTaptip',
+	        value: function _showTaptip(evt) {
+	
+	            if (!this.state.showTaptip) {
+	                if (!(this.props.taptip.hasOwnProperty("x") && this.props.taptip.hasOwnProperty("y"))) {
+	                    this.setState({ taptipX: evt.clientX - this.state.taptipOffsetX });
+	                    this.setState({ taptipY: evt.clientY - this.state.taptipOffsetY });
+	                }
+	            }
+	
+	            controlButtonActionCreators.toggleTaptip(this.props.name);
+	        }
+	    }, {
+	        key: '_hideTaptip',
+	        value: function _hideTaptip(evt) {
+	            if (evt.keyCode === 27) {
+	                controlButtonActionCreators.hideTaptip(this.props.name);
+	            }
+	        }
+	    }, {
+	        key: '_showTooltip',
+	        value: function _showTooltip(evt) {
+	            this.setState({ showTooltip: true });
+	
+	            if (!this.props.tooltip.hasOwnProperty("x")) {
+	                this.setState({ tooltipX: evt.clientX - this.state.tooltipOffsetX });
+	            }
+	
+	            if (!this.props.tooltip.hasOwnProperty("y")) {
+	                this.setState({ tooltipY: evt.clientY - this.state.tooltipOffsetY });
+	            }
+	        }
+	    }, {
+	        key: '_hideTooltip',
+	        value: function _hideTooltip() {
+	            this.setState({ showTooltip: false });
+	        }
+	    }, {
+	        key: 'render',
+	        value: function render() {
+	
+	            var taptip;
+	            var tooltip;
+	            var clickAction;
+	            var selectedStyle;
+	
+	            var tooltipShow;
+	            var tooltipHide;
+	
+	            var buttonIcon = this.props.icon ? this.props.icon : this.props.fontAwesomeIcon ? _react2.default.createElement('i', { className: "fa fa-" + this.props.fontAwesomeIcon }) : _react2.default.createElement(
+	                'div',
+	                { className: this.props.buttonClass },
+	                _react2.default.createElement(
+	                    'span',
+	                    null,
+	                    this.props.unicodeIcon
+	                )
+	            );
+	
+	            if (this.props.staySelected || this.state.selected === true || this.state.showTaptip === true) {
+	                selectedStyle = {
+	                    backgroundColor: "#ccc"
+	                };
+	            } else if (this.props.tooltip) {
+	                var showTooltip = this.state.showTooltip || this.props.triggerTooltip;
+	
+	                var tooltipStyle = {
+	                    display: showTooltip ? "block" : "none",
+	                    position: "absolute",
+	                    top: this.state.tooltipY + "px",
+	                    left: this.state.tooltipX + "px"
+	                };
+	
+	                var toolTipClasses = showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer";
+	
+	                tooltipShow = this._showTooltip;
+	                tooltipHide = this._hideTooltip;
+	
+	                tooltip = _react2.default.createElement(
+	                    'div',
+	                    { className: toolTipClasses,
+	                        style: tooltipStyle },
+	                    _react2.default.createElement(
+	                        'div',
+	                        { className: 'tooltip_inner' },
+	                        _react2.default.createElement(
+	                            'div',
+	                            { className: 'opaque_inner' },
+	                            this.props.tooltip.content
+	                        )
+	                    )
+	                );
+	            }
+	
+	            if (this.props.taptip) {
+	                var taptipStyle = {
+	                    display: this.state.showTaptip ? "block" : "none",
+	                    position: "absolute",
+	                    left: this.state.taptipX + "px",
+	                    top: this.state.taptipY + "px"
+	                };
+	
+	                if (this.props.taptip.styles) {
+	                    this.props.taptip.styles.forEach(function (styleToAdd) {
+	                        taptipStyle[styleToAdd.key] = styleToAdd.value;
+	                    });
+	                }
+	
+	                var tapTipClasses = "taptip_outer";
+	
+	                var taptipBreak = this.props.taptip.hasOwnProperty("break") ? this.props.taptip.break : _react2.default.createElement('br', null);
+	                var taptipTitle = this.props.taptip.hasOwnProperty("title") ? _react2.default.createElement(
+	                    'h4',
+	                    null,
+	                    this.props.taptip.title
+	                ) : "";
+	
+	                var innerStyle = {};
+	
+	                if (this.props.taptip.hasOwnProperty("padding")) {
+	                    innerStyle = {
+	                        padding: this.props.taptip.padding
+	                    };
+	                }
+	
+	                taptip = _react2.default.createElement(
+	                    'div',
+	                    { className: tapTipClasses,
+	                        style: taptipStyle },
+	                    _react2.default.createElement(
+	                        'div',
+	                        { className: 'taptip_inner',
+	                            style: innerStyle },
+	                        _react2.default.createElement(
+	                            'div',
+	                            { className: 'opaque_inner' },
+	                            taptipTitle,
+	                            taptipBreak,
+	                            this.props.taptip.content
+	                        )
+	                    )
+	                );
+	
+	                clickAction = this.props.taptip.action ? this.props.taptip.action : this._showTaptip;
+	            } else if (this.props.clickAction) {
+	                clickAction = this.props.clickAction;
+	            }
+	
+	            var controlButtonClass = this.props.controlclass ? this.props.controlclass : "control_button";
+	
+	            var centering = this.props.hasOwnProperty("nocentering") && this.props.nocentering === true ? "" : "centeredDiv";
+	
+	            var outerClasses = this.props.hasOwnProperty("outerclass") && this.props.outerclass ? this.props.outerclass : this.props.hasOwnProperty("floatleft") && this.props.floatleft === true ? "floatLeft" : "inlineBlock";
+	
+	            return _react2.default.createElement(
+	                'div',
+	                { className: outerClasses },
+	                taptip,
+	                tooltip,
+	                _react2.default.createElement(
+	                    'div',
+	                    { className: controlButtonClass,
+	                        onClick: clickAction,
+	                        onMouseEnter: tooltipShow,
+	                        onMouseLeave: tooltipHide,
+	                        style: selectedStyle },
+	                    _react2.default.createElement(
+	                        'div',
+	                        { className: centering },
+	                        buttonIcon
+	                    )
+	                )
+	            );
+	        }
+	    }]);
+	
+	    return ControlButton;
+	}(_baseComponent2.default);
+	
+	exports.default = OutsideClick(ControlButton);
+
+/***/ },
+/* 301 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var ACTION_TYPES = __webpack_require__(101);
+	var authorizationStore = __webpack_require__(248);
+	var dispatcher = __webpack_require__(103);
+	var Store = __webpack_require__(107);
+	
+	var _controlButtons = {};
+	
+	var controlButtonStore = new Store();
+	
+	controlButtonStore.getTaptip = function (name) {
+	
+	    var showTaptip = null;
+	
+	    if (_controlButtons.hasOwnProperty([name])) {
+	        if (_controlButtons[name].hasOwnProperty("showTaptip")) {
+	            showTaptip = _controlButtons[name].showTaptip;
+	        }
+	    }
+	
+	    return showTaptip;
+	};
+	
+	controlButtonStore.dispatchToken = dispatcher.register(function (action) {
+	    switch (action.type) {
+	
+	        case ACTION_TYPES.TOGGLE_TAPTIP:
+	
+	            var showTaptip;
+	
+	            if (_controlButtons.hasOwnProperty(action.name)) {
+	                _controlButtons[action.name].showTaptip = showTaptip = !_controlButtons[action.name].showTaptip;
+	            } else {
+	                _controlButtons[action.name] = { "showTaptip": true };
+	                showTaptip = true;
+	            }
+	
+	            if (showTaptip === true) {
+	                //close other taptips    
+	                for (var key in _controlButtons) {
+	                    if (key !== action.name) {
+	                        _controlButtons[key].showTaptip = false;
+	                    }
+	                }
+	            }
+	
+	            controlButtonStore.emitChange();
+	
+	            break;
+	
+	        case ACTION_TYPES.HIDE_TAPTIP:
+	
+	            if (_controlButtons.hasOwnProperty(action.name)) {
+	                if (_controlButtons[action.name].hasOwnProperty("showTaptip")) {
+	                    _controlButtons[action.name].showTaptip = false;
+	                }
+	            }
+	
+	            controlButtonStore.emitChange();
+	
+	            break;
+	    }
+	});
+	
+	module.exports = controlButtonStore;
+
+/***/ },
+/* 302 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var ACTION_TYPES = __webpack_require__(101);
+	var dispatcher = __webpack_require__(103);
+	
+	var controlButtonActionCreators = {
+		toggleTaptip: function toggleTaptip(name) {
+			dispatcher.dispatch({
+				type: ACTION_TYPES.TOGGLE_TAPTIP,
+				name: name
+			});
+		},
+		hideTaptip: function hideTaptip(name) {
+			dispatcher.dispatch({
+				type: ACTION_TYPES.HIDE_TAPTIP,
+				name: name
+			});
+		}
+	};
+	
+	module.exports = controlButtonActionCreators;
+
+/***/ },
+/* 303 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
+	
+	var React = __webpack_require__(3);
+	var ReactDOM = __webpack_require__(110);
+	
+	module.exports = function enhanceWithClickOutside(WrappedComponent) {
+	  var componentName = WrappedComponent.displayName || WrappedComponent.name;
+	
+	  return React.createClass({
+	    displayName: 'Wrapped' + componentName,
+	
+	    componentDidMount: function componentDidMount() {
+	      this.__wrappedComponent = this.refs.wrappedComponent;
+	      document.addEventListener('click', this.handleClickOutside, true);
+	    },
+	
+	    componentWillUnmount: function componentWillUnmount() {
+	      document.removeEventListener('click', this.handleClickOutside, true);
+	    },
+	
+	    handleClickOutside: function handleClickOutside(e) {
+	      var domNode = ReactDOM.findDOMNode(this);
+	      if ((!domNode || !domNode.contains(e.target)) && typeof this.refs.wrappedComponent.handleClickOutside === 'function') {
+	        this.refs.wrappedComponent.handleClickOutside(e);
+	      }
+	    },
+	
+	    render: function render() {
+	      return React.createElement(WrappedComponent, _extends({}, this.props, { ref: 'wrappedComponent' }));
+	    }
+	  });
+	};
+
+/***/ },
+/* 304 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/**
@@ -56660,7 +57122,7 @@
 	}));
 
 /***/ },
-/* 301 */
+/* 305 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -56962,40 +57424,14 @@
 	module.exports = platformChartActionCreators;
 
 /***/ },
-/* 302 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var ACTION_TYPES = __webpack_require__(101);
-	var dispatcher = __webpack_require__(103);
-	
-	var controlButtonActionCreators = {
-		toggleTaptip: function toggleTaptip(name) {
-			dispatcher.dispatch({
-				type: ACTION_TYPES.TOGGLE_TAPTIP,
-				name: name
-			});
-		},
-		hideTaptip: function hideTaptip(name) {
-			dispatcher.dispatch({
-				type: ACTION_TYPES.HIDE_TAPTIP,
-				name: name
-			});
-		}
-	};
-	
-	module.exports = controlButtonActionCreators;
-
-/***/ },
-/* 303 */
+/* 306 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var ACTION_TYPES = __webpack_require__(101);
 	var authorizationStore = __webpack_require__(248);
-	var devicesStore = __webpack_require__(304);
+	var devicesStore = __webpack_require__(307);
 	var dispatcher = __webpack_require__(103);
 	var rpc = __webpack_require__(295);
 	
@@ -57320,7 +57756,7 @@
 	module.exports = devicesActionCreators;
 
 /***/ },
-/* 304 */
+/* 307 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -57329,7 +57765,7 @@
 	var authorizationStore = __webpack_require__(248);
 	var dispatcher = __webpack_require__(103);
 	var Store = __webpack_require__(107);
-	var Immutable = __webpack_require__(300);
+	var Immutable = __webpack_require__(304);
 	
 	var devicesStore = new Store();
 	
@@ -58775,387 +59211,6 @@
 	module.exports = devicesStore;
 
 /***/ },
-/* 305 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var React = __webpack_require__(3);
-	var Router = __webpack_require__(1);
-	var controlButtonStore = __webpack_require__(306);
-	var controlButtonActionCreators = __webpack_require__(302);
-	var OutsideClick = __webpack_require__(307);
-	
-	var ControlButton = React.createClass({
-	    displayName: 'ControlButton',
-	
-	    getInitialState: function getInitialState() {
-	        var state = {};
-	
-	        state.showTaptip = false;
-	        state.showTooltip = false;
-	        state.deactivateTooltip = false;
-	
-	        state.selected = this.props.selected === true;
-	
-	        state.taptipX = 0;
-	        state.taptipY = 0;
-	        state.tooltipX = 0;
-	        state.tooltipY = 0;
-	
-	        state.tooltipOffsetX = 0;
-	        state.tooltipOffsetY = 0;
-	        state.taptipOffsetX = 0;
-	        state.taptipOffsetY = 0;
-	
-	        if (this.props.hasOwnProperty("tooltip")) {
-	            if (this.props.tooltip.hasOwnProperty("x")) state.tooltipX = this.props.tooltip.x;
-	
-	            if (this.props.tooltip.hasOwnProperty("y")) state.tooltipY = this.props.tooltip.y;
-	
-	            if (this.props.tooltip.hasOwnProperty("xOffset")) state.tooltipOffsetX = this.props.tooltip.xOffset;
-	
-	            if (this.props.tooltip.hasOwnProperty("yOffset")) state.tooltipOffsetY = this.props.tooltip.yOffset;
-	        }
-	
-	        if (this.props.hasOwnProperty("taptip")) {
-	            if (this.props.taptip.hasOwnProperty("x")) state.taptipX = this.props.taptip.x;
-	
-	            if (this.props.taptip.hasOwnProperty("y")) state.taptipY = this.props.taptip.y;
-	
-	            if (this.props.taptip.hasOwnProperty("xOffset")) state.taptipOffsetX = this.props.taptip.xOffset;
-	
-	            if (this.props.taptip.hasOwnProperty("yOffset")) state.taptipOffsetY = this.props.taptip.yOffset;
-	        }
-	
-	        return state;
-	    },
-	    componentDidMount: function componentDidMount() {
-	        controlButtonStore.addChangeListener(this._onStoresChange);
-	
-	        window.addEventListener('keydown', this._hideTaptip);
-	    },
-	    componentWillUnmount: function componentWillUnmount() {
-	        controlButtonStore.removeChangeListener(this._onStoresChange);
-	
-	        window.removeEventListener('keydown', this._hideTaptip);
-	    },
-	    componentWillReceiveProps: function componentWillReceiveProps(nextProps) {
-	        this.setState({ selected: nextProps.selected === true });
-	
-	        if (nextProps.selected === true) {
-	            this.setState({ showTooltip: false });
-	        }
-	    },
-	    _onStoresChange: function _onStoresChange() {
-	
-	        var showTaptip = controlButtonStore.getTaptip(this.props.name);
-	
-	        if (showTaptip !== null) {
-	            if (showTaptip !== this.state.showTaptip) {
-	                this.setState({ showTaptip: showTaptip });
-	            }
-	
-	            this.setState({ selected: showTaptip === true });
-	
-	            if (showTaptip === true) {
-	                this.setState({ showTooltip: false });
-	            } else {
-	                if (typeof this.props.closeAction == 'function') {
-	                    this.props.closeAction();
-	                }
-	            }
-	        }
-	    },
-	    handleClickOutside: function handleClickOutside() {
-	        if (this.state.showTaptip) {
-	            controlButtonActionCreators.hideTaptip(this.props.name);
-	        }
-	
-	        if (this.state.showTooltip) {
-	            this._hideTooltip();
-	        }
-	    },
-	    _showTaptip: function _showTaptip(evt) {
-	
-	        if (!this.state.showTaptip) {
-	            if (!(this.props.taptip.hasOwnProperty("x") && this.props.taptip.hasOwnProperty("y"))) {
-	                this.setState({ taptipX: evt.clientX - this.state.taptipOffsetX });
-	                this.setState({ taptipY: evt.clientY - this.state.taptipOffsetY });
-	            }
-	        }
-	
-	        controlButtonActionCreators.toggleTaptip(this.props.name);
-	    },
-	    _hideTaptip: function _hideTaptip(evt) {
-	        if (evt.keyCode === 27) {
-	            controlButtonActionCreators.hideTaptip(this.props.name);
-	        }
-	    },
-	    _showTooltip: function _showTooltip(evt) {
-	        this.setState({ showTooltip: true });
-	
-	        if (!this.props.tooltip.hasOwnProperty("x")) {
-	            this.setState({ tooltipX: evt.clientX - this.state.tooltipOffsetX });
-	        }
-	
-	        if (!this.props.tooltip.hasOwnProperty("y")) {
-	            this.setState({ tooltipY: evt.clientY - this.state.tooltipOffsetY });
-	        }
-	    },
-	    _hideTooltip: function _hideTooltip() {
-	        this.setState({ showTooltip: false });
-	    },
-	    render: function render() {
-	
-	        var taptip;
-	        var tooltip;
-	        var clickAction;
-	        var selectedStyle;
-	
-	        var tooltipShow;
-	        var tooltipHide;
-	
-	        var buttonIcon = this.props.icon ? this.props.icon : this.props.fontAwesomeIcon ? React.createElement('i', { className: "fa fa-" + this.props.fontAwesomeIcon }) : React.createElement(
-	            'div',
-	            { className: this.props.buttonClass },
-	            React.createElement(
-	                'span',
-	                null,
-	                this.props.unicodeIcon
-	            )
-	        );
-	
-	        if (this.props.staySelected || this.state.selected === true || this.state.showTaptip === true) {
-	            selectedStyle = {
-	                backgroundColor: "#ccc"
-	            };
-	        } else if (this.props.tooltip) {
-	            var showTooltip = this.state.showTooltip || this.props.triggerTooltip;
-	
-	            var tooltipStyle = {
-	                display: showTooltip ? "block" : "none",
-	                position: "absolute",
-	                top: this.state.tooltipY + "px",
-	                left: this.state.tooltipX + "px"
-	            };
-	
-	            var toolTipClasses = showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer";
-	
-	            tooltipShow = this._showTooltip;
-	            tooltipHide = this._hideTooltip;
-	
-	            tooltip = React.createElement(
-	                'div',
-	                { className: toolTipClasses,
-	                    style: tooltipStyle },
-	                React.createElement(
-	                    'div',
-	                    { className: 'tooltip_inner' },
-	                    React.createElement(
-	                        'div',
-	                        { className: 'opaque_inner' },
-	                        this.props.tooltip.content
-	                    )
-	                )
-	            );
-	        }
-	
-	        if (this.props.taptip) {
-	            var taptipStyle = {
-	                display: this.state.showTaptip ? "block" : "none",
-	                position: "absolute",
-	                left: this.state.taptipX + "px",
-	                top: this.state.taptipY + "px"
-	            };
-	
-	            if (this.props.taptip.styles) {
-	                this.props.taptip.styles.forEach(function (styleToAdd) {
-	                    taptipStyle[styleToAdd.key] = styleToAdd.value;
-	                });
-	            }
-	
-	            var tapTipClasses = "taptip_outer";
-	
-	            var taptipBreak = this.props.taptip.hasOwnProperty("break") ? this.props.taptip.break : React.createElement('br', null);
-	            var taptipTitle = this.props.taptip.hasOwnProperty("title") ? React.createElement(
-	                'h4',
-	                null,
-	                this.props.taptip.title
-	            ) : "";
-	
-	            var innerStyle = {};
-	
-	            if (this.props.taptip.hasOwnProperty("padding")) {
-	                innerStyle = {
-	                    padding: this.props.taptip.padding
-	                };
-	            }
-	
-	            taptip = React.createElement(
-	                'div',
-	                { className: tapTipClasses,
-	                    style: taptipStyle },
-	                React.createElement(
-	                    'div',
-	                    { className: 'taptip_inner',
-	                        style: innerStyle },
-	                    React.createElement(
-	                        'div',
-	                        { className: 'opaque_inner' },
-	                        taptipTitle,
-	                        taptipBreak,
-	                        this.props.taptip.content
-	                    )
-	                )
-	            );
-	
-	            clickAction = this.props.taptip.action ? this.props.taptip.action : this._showTaptip;
-	        } else if (this.props.clickAction) {
-	            clickAction = this.props.clickAction;
-	        }
-	
-	        var controlButtonClass = this.props.controlclass ? this.props.controlclass : "control_button";
-	
-	        var centering = this.props.hasOwnProperty("nocentering") && this.props.nocentering === true ? "" : "centeredDiv";
-	
-	        var outerClasses = this.props.hasOwnProperty("outerclass") && this.props.outerclass ? this.props.outerclass : this.props.hasOwnProperty("floatleft") && this.props.floatleft === true ? "floatLeft" : "inlineBlock";
-	
-	        return React.createElement(
-	            'div',
-	            { className: outerClasses },
-	            taptip,
-	            tooltip,
-	            React.createElement(
-	                'div',
-	                { className: controlButtonClass,
-	                    onClick: clickAction,
-	                    onMouseEnter: tooltipShow,
-	                    onMouseLeave: tooltipHide,
-	                    style: selectedStyle },
-	                React.createElement(
-	                    'div',
-	                    { className: centering },
-	                    buttonIcon
-	                )
-	            )
-	        );
-	    }
-	});
-	
-	module.exports = OutsideClick(ControlButton);
-
-/***/ },
-/* 306 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var ACTION_TYPES = __webpack_require__(101);
-	var authorizationStore = __webpack_require__(248);
-	var dispatcher = __webpack_require__(103);
-	var Store = __webpack_require__(107);
-	
-	var _controlButtons = {};
-	
-	var controlButtonStore = new Store();
-	
-	controlButtonStore.getTaptip = function (name) {
-	
-	    var showTaptip = null;
-	
-	    if (_controlButtons.hasOwnProperty([name])) {
-	        if (_controlButtons[name].hasOwnProperty("showTaptip")) {
-	            showTaptip = _controlButtons[name].showTaptip;
-	        }
-	    }
-	
-	    return showTaptip;
-	};
-	
-	controlButtonStore.dispatchToken = dispatcher.register(function (action) {
-	    switch (action.type) {
-	
-	        case ACTION_TYPES.TOGGLE_TAPTIP:
-	
-	            var showTaptip;
-	
-	            if (_controlButtons.hasOwnProperty(action.name)) {
-	                _controlButtons[action.name].showTaptip = showTaptip = !_controlButtons[action.name].showTaptip;
-	            } else {
-	                _controlButtons[action.name] = { "showTaptip": true };
-	                showTaptip = true;
-	            }
-	
-	            if (showTaptip === true) {
-	                //close other taptips    
-	                for (var key in _controlButtons) {
-	                    if (key !== action.name) {
-	                        _controlButtons[key].showTaptip = false;
-	                    }
-	                }
-	            }
-	
-	            controlButtonStore.emitChange();
-	
-	            break;
-	
-	        case ACTION_TYPES.HIDE_TAPTIP:
-	
-	            if (_controlButtons.hasOwnProperty(action.name)) {
-	                if (_controlButtons[action.name].hasOwnProperty("showTaptip")) {
-	                    _controlButtons[action.name].showTaptip = false;
-	                }
-	            }
-	
-	            controlButtonStore.emitChange();
-	
-	            break;
-	    }
-	});
-	
-	module.exports = controlButtonStore;
-
-/***/ },
-/* 307 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
-	
-	var React = __webpack_require__(3);
-	var ReactDOM = __webpack_require__(110);
-	
-	module.exports = function enhanceWithClickOutside(WrappedComponent) {
-	  var componentName = WrappedComponent.displayName || WrappedComponent.name;
-	
-	  return React.createClass({
-	    displayName: 'Wrapped' + componentName,
-	
-	    componentDidMount: function componentDidMount() {
-	      this.__wrappedComponent = this.refs.wrappedComponent;
-	      document.addEventListener('click', this.handleClickOutside, true);
-	    },
-	
-	    componentWillUnmount: function componentWillUnmount() {
-	      document.removeEventListener('click', this.handleClickOutside, true);
-	    },
-	
-	    handleClickOutside: function handleClickOutside(e) {
-	      var domNode = ReactDOM.findDOMNode(this);
-	      if ((!domNode || !domNode.contains(e.target)) && typeof this.refs.wrappedComponent.handleClickOutside === 'function') {
-	        this.refs.wrappedComponent.handleClickOutside(e);
-	      }
-	    },
-	
-	    render: function render() {
-	      return React.createElement(WrappedComponent, _extends({}, this.props, { ref: 'wrappedComponent' }));
-	    }
-	  });
-	};
-
-/***/ },
 /* 308 */
 /***/ function(module, exports, __webpack_require__) {
 
@@ -59495,8 +59550,8 @@
 	
 	
 	var platformsStore = __webpack_require__(292);
-	var devicesStore = __webpack_require__(304);
-	var devicesActionCreators = __webpack_require__(303);
+	var devicesStore = __webpack_require__(307);
+	var devicesActionCreators = __webpack_require__(306);
 	var statusIndicatorActionCreators = __webpack_require__(296);
 	
 	var scanDuration = 10000; // 10 seconds
@@ -59509,7 +59564,7 @@
 	
 	        var _this = _possibleConstructorReturn(this, (ConfigureDevices.__proto__ || Object.getPrototypeOf(ConfigureDevices)).call(this, props));
 	
-	        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan', '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded');
+	        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan', '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded', '_showTooltip', '_hideTooltip');
 	
 	        _this.state = getInitialState();
 	        return _this;
@@ -59599,6 +59654,11 @@
 	            this.setState({ address: evt.target.value });
 	        }
 	    }, {
+	        key: '_onDevicesLoaded',
+	        value: function _onDevicesLoaded(devicesLoaded) {
+	            this.setState({ devicesLoaded: devicesLoaded });
+	        }
+	    }, {
 	        key: '_onStartScan',
 	        value: function _onStartScan(evt) {
 	            var platformAgentUuid = platformsStore.getPlatformAgentUuid(this.state.platform.uuid);
@@ -59608,11 +59668,8 @@
 	            this.setState({ scanning: true });
 	            this.setState({ scanStarted: true });
 	            this.setState({ canceled: false });
-	        }
-	    }, {
-	        key: '_onDevicesLoaded',
-	        value: function _onDevicesLoaded(devicesLoaded) {
-	            this.setState({ devicesLoaded: devicesLoaded });
+	
+	            this._hideTooltip();
 	        }
 	    }, {
 	        key: '_showCancel',
@@ -59637,6 +59694,26 @@
 	            this.setState({ canceled: true });
 	
 	            devicesActionCreators.cancelDeviceScan();
+	        }
+	    }, {
+	        key: '_showTooltip',
+	        value: function _showTooltip(evt) {
+	
+	            var sidePanel = document.querySelector(".platform-statuses");
+	            var sidePanelRects = sidePanel.getClientRects();
+	            var sidePanelWidth = sidePanelRects[0].width;
+	
+	            var targetRects = evt.target.getClientRects();
+	            var targetLeft = targetRects[0].left;
+	
+	            this.setState({ showTooltip: true });
+	            this.setState({ tooltipX: targetLeft - sidePanelWidth - 20 });
+	            this.setState({ tooltipY: evt.clientY - 140 });
+	        }
+	    }, {
+	        key: '_hideTooltip',
+	        value: function _hideTooltip() {
+	            this.setState({ showTooltip: false });
 	        }
 	    }, {
 	        key: 'render',
@@ -59709,7 +59786,7 @@
 	                };
 	
 	                var deviceRangeStyle = {
-	                    width: "70px"
+	                    width: "100%"
 	                };
 	
 	                var tdStyle = {
@@ -59821,7 +59898,7 @@
 	                            _react2.default.createElement('i', { className: 'fa fa-remove' })
 	                        );
 	                    } else {
-	                        spinnerContent = _react2.default.createElement('i', { className: 'fa fa-cog fa-spin fa-2x fa-fw margin-bottom' });
+	                        spinnerContent = _react2.default.createElement('i', { className: 'fa fa-cog fa-spin fa-2x margin-bottom' });
 	                    }
 	
 	                    scanButton = _react2.default.createElement(
@@ -59837,13 +59914,40 @@
 	                        )
 	                    );
 	                } else {
+	                    var tooltipStyle = {
+	                        display: this.state.showTooltip ? "block" : "none",
+	                        position: "absolute",
+	                        top: this.state.tooltipY + "px",
+	                        left: this.state.tooltipX + "px"
+	                    };
+	
+	                    var toolTipClasses = this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer";
+	
 	                    scanButton = _react2.default.createElement(
 	                        'div',
 	                        { style: scanOptionsStyle },
 	                        _react2.default.createElement(
-	                            'button',
-	                            { style: buttonStyle, onClick: this._onStartScan },
-	                            'Go'
+	                            'div',
+	                            { className: toolTipClasses,
+	                                style: tooltipStyle },
+	                            _react2.default.createElement(
+	                                'div',
+	                                { className: 'tooltip_inner' },
+	                                _react2.default.createElement(
+	                                    'div',
+	                                    { className: 'opaque_inner' },
+	                                    'Find Devices'
+	                                )
+	                            )
+	                        ),
+	                        _react2.default.createElement(
+	                            'div',
+	                            { className: 'scanningSpinner tooltip_target',
+	                                style: buttonStyle,
+	                                onClick: this._onStartScan,
+	                                onMouseEnter: this._showTooltip,
+	                                onMouseLeave: this._hideTooltip },
+	                            _react2.default.createElement('i', { className: 'fa fa-cog fa-2x margin-bottom' })
 	                        )
 	                    );
 	                }
@@ -59959,6 +60063,10 @@
 	        state.devicesLoaded = false;
 	        state.scanStarted = false;
 	        state.cancelButton = false;
+	
+	        state.showTooltip = false;
+	        state.tooltipX = 0;
+	        state.tooltooltipY = 0;
 	    }
 	
 	    return state;
@@ -59994,6 +60102,10 @@
 	
 	var _configureRegistry2 = _interopRequireDefault(_configureRegistry);
 	
+	var _controlButton = __webpack_require__(300);
+	
+	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -60003,12 +60115,11 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var ConfirmForm = __webpack_require__(324);
-	var ControlButton = __webpack_require__(305);
-	var devicesActionCreators = __webpack_require__(303);
+	var devicesActionCreators = __webpack_require__(306);
 	var modalActionCreators = __webpack_require__(287);
 	var statusIndicatorActionCreators = __webpack_require__(296);
 	var platformsStore = __webpack_require__(292);
-	var devicesStore = __webpack_require__(304);
+	var devicesStore = __webpack_require__(307);
 	
 	var CsvParse = __webpack_require__(325);
 	
@@ -60193,7 +60304,7 @@
 	                    var configButton;
 	
 	                    if (!device.configuring) {
-	                        configButton = _react2.default.createElement(ControlButton, {
+	                        configButton = _react2.default.createElement(_controlButton2.default, {
 	                            name: "config-arrow-" + deviceId + "-" + rowIndex,
 	                            tooltip: arrowTooltip,
 	                            controlclass: device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow",
@@ -60206,7 +60317,7 @@
 	                            _react2.default.createElement('i', { className: 'fa fa-refresh fa-spin fa-fw' })
 	                        );
 	
-	                        configButton = _react2.default.createElement(ControlButton, {
+	                        configButton = _react2.default.createElement(_controlButton2.default, {
 	                            name: "config-arrow-" + deviceId + "-" + rowIndex,
 	                            controlclass: 'configure-arrow',
 	                            icon: spinIcon });
@@ -60227,7 +60338,7 @@
 	                            _react2.default.createElement(
 	                                'div',
 	                                { className: 'fileButton' },
-	                                _react2.default.createElement(ControlButton, {
+	                                _react2.default.createElement(_controlButton2.default, {
 	                                    name: "file-upload-" + deviceId + "-" + rowIndex,
 	                                    tooltip: fileUploadTooltip,
 	                                    controlclass: 'file-button',
@@ -60455,7 +60566,11 @@
 	
 	var _registryRow2 = _interopRequireDefault(_registryRow);
 	
-	var _immutable = __webpack_require__(300);
+	var _controlButton = __webpack_require__(300);
+	
+	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
+	var _immutable = __webpack_require__(304);
 	
 	var _immutable2 = _interopRequireDefault(_immutable);
 	
@@ -60467,10 +60582,9 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var devicesActionCreators = __webpack_require__(303);
-	var devicesStore = __webpack_require__(304);
+	var devicesActionCreators = __webpack_require__(306);
+	var devicesStore = __webpack_require__(307);
 	var FilterPointsButton = __webpack_require__(323);
-	var ControlButton = __webpack_require__(305);
 	var ConfirmForm = __webpack_require__(324);
 	var modalActionCreators = __webpack_require__(287);
 	
@@ -61316,7 +61430,7 @@
 	                                "y": -60
 	                            };
 	
-	                            var addPointButton = _react2.default.createElement(ControlButton, {
+	                            var addPointButton = _react2.default.createElement(_controlButton2.default, {
 	                                name: "addRegistryPoint-" + this.props.device.id,
 	                                tooltip: addPointTooltip,
 	                                controlclass: 'add_point_button',
@@ -61329,7 +61443,7 @@
 	                                "y": -60
 	                            };
 	
-	                            var removePointsButton = _react2.default.createElement(ControlButton, {
+	                            var removePointsButton = _react2.default.createElement(_controlButton2.default, {
 	                                name: "removeRegistryPoints-" + this.props.device.id,
 	                                fontAwesomeIcon: 'minus',
 	                                tooltip: removePointTooltip,
@@ -61437,7 +61551,7 @@
 	                    "yOffset": tooltipY
 	                };
 	
-	                var saveButton = _react2.default.createElement(ControlButton, {
+	                var saveButton = _react2.default.createElement(_controlButton2.default, {
 	                    name: 'saveConfigButton',
 	                    tooltip: saveTooltip,
 	                    fontAwesomeIcon: 'save',
@@ -61454,7 +61568,7 @@
 	                    null,
 	                    '\u2718'
 	                );
-	                var cancelButton = _react2.default.createElement(ControlButton, {
+	                var cancelButton = _react2.default.createElement(_controlButton2.default, {
 	                    name: 'cancelConfigButton',
 	                    tooltip: cancelTooltip,
 	                    icon: cancelIcon,
@@ -61627,7 +61741,7 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var modalActionCreators = __webpack_require__(287);
-	var devicesActionCreators = __webpack_require__(303);
+	var devicesActionCreators = __webpack_require__(306);
 	
 	var EditPointForm = function (_BaseComponent) {
 	    _inherits(EditPointForm, _BaseComponent);
@@ -61823,7 +61937,7 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var modalActionCreators = __webpack_require__(287);
-	var devicesActionCreators = __webpack_require__(303);
+	var devicesActionCreators = __webpack_require__(306);
 	
 	var PreviewRegistryForm = function (_BaseComponent) {
 	    _inherits(PreviewRegistryForm, _BaseComponent);
@@ -62100,7 +62214,7 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var modalActionCreators = __webpack_require__(287);
-	var devicesActionCreators = __webpack_require__(303);
+	var devicesActionCreators = __webpack_require__(306);
 	
 	var NewColumnForm = function (_BaseComponent) {
 	    _inherits(NewColumnForm, _BaseComponent);
@@ -62260,7 +62374,7 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var modalActionCreators = __webpack_require__(287);
-	var devicesActionCreators = __webpack_require__(303);
+	var devicesActionCreators = __webpack_require__(306);
 	
 	var ConfigDeviceForm = function (_BaseComponent) {
 	    _inherits(ConfigDeviceForm, _BaseComponent);
@@ -62501,6 +62615,10 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
+	var _controlButton = __webpack_require__(300);
+	
+	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -62509,7 +62627,6 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var ControlButton = __webpack_require__(305);
 	var EditColumnButton = __webpack_require__(319);
 	var controlButtonActionCreators = __webpack_require__(302);
 	
@@ -62618,7 +62735,7 @@
 	                "y": -60
 	            };
 	
-	            return _react2.default.createElement(ControlButton, {
+	            return _react2.default.createElement(_controlButton2.default, {
 	                name: this.state.buttonName,
 	                taptip: editSelectTaptip,
 	                tooltip: editSelectTooltip,
@@ -62655,6 +62772,10 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
+	var _controlButton = __webpack_require__(300);
+	
+	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -62663,7 +62784,6 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var ControlButton = __webpack_require__(305);
 	var controlButtonActionCreators = __webpack_require__(302);
 	
 	var EditColumnButton = function (_BaseComponent) {
@@ -62789,7 +62909,7 @@
 	            var editBox = _react2.default.createElement(
 	                'div',
 	                { style: editBoxContainer },
-	                _react2.default.createElement(ControlButton, {
+	                _react2.default.createElement(_controlButton2.default, {
 	                    fontAwesomeIcon: 'ban',
 	                    tooltip: clearTooltip,
 	                    clickAction: this._onClearEdit }),
@@ -62831,7 +62951,7 @@
 	                                    _react2.default.createElement(
 	                                        'div',
 	                                        { style: buttonsStyle },
-	                                        _react2.default.createElement(ControlButton, {
+	                                        _react2.default.createElement(_controlButton2.default, {
 	                                            fontAwesomeIcon: 'step-forward',
 	                                            tooltip: findTooltip,
 	                                            clickAction: this._findNext })
@@ -62870,11 +62990,11 @@
 	                                        'div',
 	                                        { className: 'inlineBlock',
 	                                            style: buttonsStyle },
-	                                        _react2.default.createElement(ControlButton, {
+	                                        _react2.default.createElement(_controlButton2.default, {
 	                                            fontAwesomeIcon: 'step-forward',
 	                                            tooltip: replaceTooltip,
 	                                            clickAction: this._replace }),
-	                                        _react2.default.createElement(ControlButton, {
+	                                        _react2.default.createElement(_controlButton2.default, {
 	                                            fontAwesomeIcon: 'fast-forward',
 	                                            tooltip: replaceAllTooltip,
 	                                            clickAction: this._replaceAll })
@@ -62902,7 +63022,7 @@
 	
 	            var columnIndex = this.props.column;
 	
-	            return _react2.default.createElement(ControlButton, {
+	            return _react2.default.createElement(_controlButton2.default, {
 	                name: this.state.buttonName,
 	                taptip: editTaptip,
 	                tooltip: editTooltip,
@@ -62947,6 +63067,10 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
+	var _controlButton = __webpack_require__(300);
+	
+	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -62955,7 +63079,6 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var ControlButton = __webpack_require__(305);
 	var controlButtonActionCreators = __webpack_require__(302);
 	
 	var KeyboardHelpButton = function (_BaseComponent) {
@@ -63251,7 +63374,7 @@
 	                "y": -100
 	            };
 	
-	            return _react2.default.createElement(ControlButton, {
+	            return _react2.default.createElement(_controlButton2.default, {
 	                name: this.state.buttonName,
 	                taptip: keyboardHelpTaptip,
 	                tooltip: keyboardHelpTooltip,
@@ -63292,7 +63415,7 @@
 	
 	var _editPointForm2 = _interopRequireDefault(_editPointForm);
 	
-	var _immutable = __webpack_require__(300);
+	var _immutable = __webpack_require__(304);
 	
 	var _immutable2 = _interopRequireDefault(_immutable);
 	
@@ -63304,11 +63427,11 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var devicesActionCreators = __webpack_require__(303);
+	var devicesActionCreators = __webpack_require__(306);
 	var modalActionCreators = __webpack_require__(287);
 	var columnMoverActionCreators = __webpack_require__(322);
 	var statusIndicatorActionCreators = __webpack_require__(296);
-	var devicesStore = __webpack_require__(304);
+	var devicesStore = __webpack_require__(307);
 	
 	var RegistryRow = function (_BaseComponent) {
 	    _inherits(RegistryRow, _BaseComponent);
@@ -63599,9 +63722,13 @@
 
 	'use strict';
 	
-	var React = __webpack_require__(3);
+	var _controlButton = __webpack_require__(300);
 	
-	var ControlButton = __webpack_require__(305);
+	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+	
+	var React = __webpack_require__(3);
 	
 	var FilterPointsButton = React.createClass({
 	    displayName: 'FilterPointsButton',
@@ -63649,7 +63776,7 @@
 	        var filterBox = React.createElement(
 	            'div',
 	            { style: filterBoxContainer },
-	            React.createElement(ControlButton, {
+	            React.createElement(_controlButton2.default, {
 	                fontAwesomeIcon: 'ban',
 	                tooltip: clearTooltip,
 	                clickAction: this._onClearFilter }),
@@ -63686,7 +63813,7 @@
 	
 	        var holdSelect = this.state.filterValue !== "";
 	
-	        return React.createElement(ControlButton, {
+	        return React.createElement(_controlButton2.default, {
 	            name: this.props.name + "-ControlButton",
 	            taptip: filterTaptip,
 	            tooltip: this.props.tooltipMsg,
@@ -64697,7 +64824,7 @@
 	
 	var _reactVirtualized = __webpack_require__(330);
 	
-	var _immutable = __webpack_require__(300);
+	var _immutable = __webpack_require__(304);
 	
 	var _classnames = __webpack_require__(342);
 	
@@ -73061,22 +73188,27 @@
 
 	'use strict';
 	
+	var _controlButton = __webpack_require__(300);
+	
+	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+	
 	var React = __webpack_require__(3);
 	var ReactDOM = __webpack_require__(110);
 	var Router = __webpack_require__(1);
 	var d3 = __webpack_require__(398);
 	var nv = __webpack_require__(399);
 	var moment = __webpack_require__(400);
-	var OutsideClick = __webpack_require__(307);
+	var OutsideClick = __webpack_require__(303);
 	
 	var chartStore = __webpack_require__(293);
 	var platformChartStore = __webpack_require__(293);
-	var platformChartActionCreators = __webpack_require__(301);
+	var platformChartActionCreators = __webpack_require__(305);
 	var platformActionCreators = __webpack_require__(291);
 	var platformsPanelActionCreators = __webpack_require__(297);
 	var modalActionCreators = __webpack_require__(287);
 	var ConfirmForm = __webpack_require__(324);
-	var ControlButton = __webpack_require__(305);
 	
 	var PlatformChart = React.createClass({
 	    displayName: 'PlatformChart',
@@ -73428,7 +73560,7 @@
 	                "y": tooltipY
 	            };
 	
-	            var chartTypeControlButton = React.createElement(ControlButton, {
+	            var chartTypeControlButton = React.createElement(_controlButton2.default, {
 	                name: this.state.chartName + "_chartTypeControlButton",
 	                taptip: chartTypeTaptip,
 	                tooltip: chartTypeTooltip,
@@ -73445,7 +73577,7 @@
 	                "y": tooltipY
 	            };
 	
-	            var pinChartControlButton = React.createElement(ControlButton, {
+	            var pinChartControlButton = React.createElement(_controlButton2.default, {
 	                name: this.state.chartName + "_pinChartControlButton",
 	                icon: pinChartIcon,
 	                tooltip: pinChartTooltip,
@@ -73484,7 +73616,7 @@
 	                "y": tooltipY
 	            };
 	
-	            var refreshChartControlButton = React.createElement(ControlButton, {
+	            var refreshChartControlButton = React.createElement(_controlButton2.default, {
 	                name: this.state.chartName + "_refreshChartControlButton",
 	                taptip: refreshChartTaptip,
 	                tooltip: refreshChartTooltip,
@@ -73525,7 +73657,7 @@
 	                "y": tooltipY
 	            };
 	
-	            var chartMinControlButton = React.createElement(ControlButton, {
+	            var chartMinControlButton = React.createElement(_controlButton2.default, {
 	                name: this.state.chartName + "_chartMinControlButton",
 	                taptip: chartMinTaptip,
 	                tooltip: chartMinTooltip,
@@ -73566,7 +73698,7 @@
 	                "y": tooltipY
 	            };
 	
-	            var chartMaxControlButton = React.createElement(ControlButton, {
+	            var chartMaxControlButton = React.createElement(_controlButton2.default, {
 	                name: this.state.chartName + "_chartMaxControlButton",
 	                taptip: chartMaxTaptip,
 	                tooltip: chartMaxTooltip,
@@ -111738,7 +111870,7 @@
 	
 	var modalActionCreators = __webpack_require__(287);
 	var platformActionCreators = __webpack_require__(291);
-	var platformChartActionCreators = __webpack_require__(301);
+	var platformChartActionCreators = __webpack_require__(305);
 	var platformsPanelActionCreators = __webpack_require__(297);
 	var platformsPanelItemsStore = __webpack_require__(294);
 	var chartStore = __webpack_require__(293);
@@ -111999,4 +112131,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-d479b0dc7ebb255b073d.js.map
+//# sourceMappingURL=app-63aaac987df83bd31f64.js.map

@@ -552,10 +552,21 @@ br + .form__control-help {
 .cancelScanning {
     font-size: 2em;
     line-height: 14px;
-    width: 30px;
+    width: 24px;
     vertical-align: top;
+    margin: 0px;
+}
+
+.scanningSpinner {
     cursor: pointer;
-    margin: 0px 6px;
+}
+
+.scanningSpinner .fa-cog:hover {
+    opacity: .5;
+}
+
+.scanningSpinnertooltip {
+    position: relative;
 }
 
 .rotateRight {
@@ -1366,7 +1377,6 @@ a.view__item:hover::before {
 
 /* end nvd3-related styles */
 
-
 .displayNone {
     display: none;
 }
@@ -1405,7 +1415,7 @@ a.view__item:hover::before {
 
 #app .dd__selectControl {
     font-size: inherit;
-    padding: 4px 6px 4px 4px;
+    padding: 2px 6px 2px 4px;
     border-radius: 0px;
     line-height: 18px;
 }
@@ -1644,8 +1654,19 @@ td.plain {
     padding: 2px;
 }
 
+.detectDevicesBox table {
+    border-collapse: separate;
+    border-spacing: 2px;
+}
+
 .detectDevicesBox td {
     padding: 0;
+}
+
+.detectDevicesBox input {
+    padding: 2px;
+    box-sizing: border-box;
+    border: 1px solid #373C43;
 }
 
 .devicesFoundBox {    
@@ -1726,6 +1747,7 @@ td.buffer_row {
     right: 0;
     z-index: 99;
     cursor: pointer;
+    width: 20px;
 }
 
 .fileButton {

@@ -3,7 +3,7 @@
 import React from 'react';
 import BaseComponent from '../base-component';
 
-var ControlButton = require('../control-button');
+import ControlButton from '../control-button';
 var controlButtonActionCreators = require('../../action-creators/control-button-action-creators');
 
 class EditColumnButton extends BaseComponent {

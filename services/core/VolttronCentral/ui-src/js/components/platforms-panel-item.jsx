@@ -3,6 +3,7 @@
 var React = require('react');
 var Router = require('react-router');
 import BaseComponent from './base-component';
+import ControlButton from './control-button';
 import Immutable from 'immutable';
 
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
@@ -10,7 +11,6 @@ var platformsPanelActionCreators = require('../action-creators/platforms-panel-a
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
 var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
-var ControlButton = require('./control-button');
 
 
 class PlatformsPanelItem extends BaseComponent {
