@@ -228,5 +228,8 @@ class Connection(object):
         raise ValueError("peer not specified on class or as method argument.")
 
     def kill(self, *args, **kwargs):
-        if self._greenlet is not None:
-            self._greenlet.kill(*args, **kwargs)
+        try:
+            if self._greenlet is not None:
+                self._greenlet.kill(*args, **kwargs)
+        finally:
+            self._greenlet = None
