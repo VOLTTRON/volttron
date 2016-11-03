@@ -28,7 +28,9 @@ var OADR = React.createClass({
     <h2>Open ADR</h2>
     This space for: listing each VEN, with time since last contact,
     reports, and events.
+     {new Date().toLocaleTimeString()}
       </div>
+      
     </div>
     );
     }
