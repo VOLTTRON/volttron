@@ -25,6 +25,31 @@ var DeregisterPlatformConfirmation = require('../components/deregister-platform-
 // What is missing is enough React smarts to display it.
 // platform-charg-action-createros.js has a clue as to how to do this.
 
+function oadr() {
+	 $.ajax({
+        h	eaders: {          
+            Acce	pt : "application/json; charset=utf-8",         
+            "Content-Typ   e": "application/json; charset=utf-8"   
+        } , 
+        ifMo	dified:true,
+        cache:tr	ue,
+        async:true,	
+        url:    "/oadr/s	tatus",
+        dataType:"json",	
+        success: function(msg) { 
+	  const element = (
+    <div>
+      <h1>Hello, OADR {msg.content}</h1>
+      <h2>It is {new Date().toLocaleTimeString()}.</h2>
+    </div>
+  );
+	ReactDOM.render(
+    	element,
+    	document.getElementById('oadr')
+  	);	
+    })}
+}
+
 var OADR = React.createClass({
     render: function(){
     return (
@@ -34,20 +59,8 @@ var OADR = React.createClass({
     This space for: listing each VEN, with time since last contact,
     reports, and events.
      {new Date().toLocaleTimeString()}
-
-{
-$.ajax({
-        headers: {          
-            Accept : "application/json; charset=utf-8",         
-            "Content-Type": "application/json; charset=utf-8"   
-        } ,
-        ifModified:true,
-        cache:true,
-        async:true,
-        url:    "/oadr/status",
-        dataType:"json",
-        success: function(msg){ $("#foo").html(msg.content);}
-    });}
+Test <span id="oadr">TEST</span>
+{oadr()}
     
       </div>
       
