@@ -31,8 +31,8 @@ function oadr() {
             Acce	pt : "application/json; charset=utf-8",         
             "Content-Typ   e": "application/json; charset=utf-8"   
         } , 
-        ifMo	dified:true,
-        cache:tr	ue,
+        ifModified:true,
+        cache:true,
         async:true,	
         url:    "/oadr/s	tatus",
         dataType:"json",	
