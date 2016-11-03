@@ -2,7 +2,8 @@
 
 var $ = require('jquery');
 var React = require('react');
-var Router = require('react-router');
+//var Router = require('react-router');
+var xhr = require('../lib/xhr');
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -26,17 +27,21 @@ var DeregisterPlatformConfirmation = require('../components/deregister-platform-
 // platform-charg-action-createros.js has a clue as to how to do this.
 
 function oadr() {
-	 $.ajax({
-        headers: {          
-            Accept : "application/json; charset=utf-8",         
-            "Content-Type": "application/json; charset=utf-8"   
-        } , 
-        ifModified:true,
-        cache:true,
-        async:true,	
-        url:    "/oadr/status",
-        dataType:"json",	
-        success: function(msg) { 
+    var page = this;
+    page.promise = new xhr.Request({
+        method: 'GET',
+        url: '/oadr/test'
+	contentType:'application/json',
+	timeout:600000,
+    }).finally(funciton() {
+	page.completed = Date.now();
+    }).
+	then(function(response) {
+	    page.response = response;
+	})
+        .catch(xhr.Error, function (error) {
+            page.error = error;
+	});
 	  const element = (
     <div>
       <h1>Hello, OADR {msg.content}</h1>
@@ -59,8 +64,7 @@ var OADR = React.createClass({
     This space for: listing each VEN, with time since last contact,
     reports, and events.
      {new Date().toLocaleTimeString()}
-Test <span id="oadr">TEST</span>
-{oadr()}
+Test <span id="oadr" onload="oadr()" >TEST</span>
     
       </div>
       
