@@ -27,14 +27,14 @@ var DeregisterPlatformConfirmation = require('../components/deregister-platform-
 
 function oadr() {
 	 $.ajax({
-        h	eaders: {          
-            Acce	pt : "application/json; charset=utf-8",         
-            "Content-Typ   e": "application/json; charset=utf-8"   
+        headers: {          
+            Accept : "application/json; charset=utf-8",         
+            "Content-Type": "application/json; charset=utf-8"   
         } , 
         ifModified:true,
         cache:true,
         async:true,	
-        url:    "/oadr/s	tatus",
+        url:    "/oadr/status",
         dataType:"json",	
         success: function(msg) { 
 	  const element = (
