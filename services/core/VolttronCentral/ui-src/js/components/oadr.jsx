@@ -34,6 +34,21 @@ var OADR = React.createClass({
     This space for: listing each VEN, with time since last contact,
     reports, and events.
      {new Date().toLocaleTimeString()}
+
+{
+$.ajax({
+        headers: {          
+            Accept : "application/json; charset=utf-8",         
+            "Content-Type": "application/json; charset=utf-8"   
+        } ,
+        ifModified:true,
+        cache:true,
+        async:true,
+        url:    "/oadr/status",
+        dataType:"json",
+        success: function(msg){ $("#foo").html(msg.content);}
+    });}
+    
       </div>
       
     </div>
