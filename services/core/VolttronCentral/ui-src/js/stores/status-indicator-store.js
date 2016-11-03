@@ -65,7 +65,7 @@ statusIndicatorStore.dispatchToken = dispatcher.register(function (action) {
             break;
 
         case ACTION_TYPES.CLOSE_STATUS:
-            _statusMessage = {};
+            _statusMessage = null;
             _status = null;
             statusIndicatorStore.emitChange();
             break;

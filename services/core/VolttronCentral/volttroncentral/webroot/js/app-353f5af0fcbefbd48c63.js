@@ -59501,7 +59501,7 @@
 	            break;
 	
 	        case ACTION_TYPES.CLOSE_STATUS:
-	            _statusMessage = {};
+	            _statusMessage = null;
 	            _status = null;
 	            statusIndicatorStore.emitChange();
 	            break;
@@ -112137,4 +112137,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-5d2084dadf3b9f70d2c1.js.map
+//# sourceMappingURL=app-353f5af0fcbefbd48c63.js.map
