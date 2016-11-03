@@ -91,9 +91,9 @@ class WebSubSystem(SubsystemBase):
 
         core.onstop.connect(onstop, self)
 
-    def register_route(self, endpoint, callback):
+    def register_endpoint(self, endpoint, callback):
         """
-        The :meth:`register_route` method registers an endpoint with the
+        The :meth:`register_endpoint` method registers an endpoint with the
         :class:`volttron.platform.web.MasterWebService` on the VOLTTRON
         instance.
 
@@ -116,11 +116,11 @@ class WebSubSystem(SubsystemBase):
         """
         _log.info('Registering route endpoint: {}'.format(endpoint))
         self._endpoints[endpoint] = callback
-        self._rpc().call(MASTER_WEB, 'register_route', endpoint)
+        self._rpc().call(MASTER_WEB, 'register_endpoint', endpoint)
 
     def register_path(self, prefix, static_path):
         """
-        The :meth:`register_route` method registers a prefix that can be used
+        The :meth:`register_endpoint` method registers a prefix that can be used
         for routing static files.
 
         .. versionadded:: VOLTTRON 4.0.1

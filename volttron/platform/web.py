@@ -356,15 +356,17 @@ class MasterWebService(Agent):
         return self.volttron_central_address
 
     @RPC.export
-    def register_route(self, endpoint):
+    def register_endpoint(self, endpoint):
         """
         RPC method to register a dynamic route.
 
         :param endpoint:
         :return:
         """
+        _log.debug('Registering route with endpoint: {}'.format(endpoint))
         # Get calling peer from the rpc context
         peer = bytes(self.vip.rpc.context.vip_message.peer)
+        _log.debug('Route is associated with peer: {}'.format(peer))
 
         if endpoint in self.endpoints:
             _log.error("Attempting to register an already existing endpoint.")
@@ -513,10 +515,14 @@ class MasterWebService(Agent):
         # Get the peer responsible for dealing with the endpoint.  If there
         # isn't a peer then fall back on the other methods of routing.
         peer = self.endpoints.get(path_info)
+        _log.debug('Peer we path_info is associated with: {}'.format(peer))
 
         # if we have a peer then we expect to call that peer's web subsystem
         # callback to perform whatever is required of the method.
         if peer:
+            _log.debug('Calling peer {} back with env={} data={}'.format(
+                peer, passenv, data
+            ))
             res = self.vip.rpc.call(peer, 'route.callback',
                                     passenv, data).get(timeout=60)
             return self.create_response(res, start_response)
