@@ -43,11 +43,11 @@ function oadr() {
 	    page.response = response;
 	    const element = (
 		    <div>
-      <h1>Hello, OADR {msg.content}</h1>
+      <h1>Hello, OADR {response.content}</h1>
       <h2>It is {new Date().toLocaleTimeString()}.</h2>
     </div>
   );
-	ReactDOM.render(
+	React.render(
     	element,
     	document.getElementById('oadr')
   	);	
@@ -56,11 +56,13 @@ function oadr() {
         .catch(xhr.Error, function (error) {
             page.error = error;
 	});
-    })}
-}
+    }
+    
+
 
 var OADR = React.createClass({
     render: function(){
+    oadr();
     return (
     <div className="view">
                 <div className="absolute_anchor">
@@ -68,7 +70,7 @@ var OADR = React.createClass({
     This space for: listing each VEN, with time since last contact,
     reports, and events.
      {new Date().toLocaleTimeString()}
-Test <span id="oadr" onload="oadr()" >TEST</span>
+Test <span id="oadr" >TEST</span>
     
       </div>
       
