@@ -493,119 +493,6 @@ class VolttronCentralAgent(Agent):
                 platform['last_seen_utc'] = headers['Date']
             self.vip.config.set(config_name, platform, True)
 
-
-
-    # def _handle_pubsub_register(self, message):
-    #     # register the platform if a local platform otherwise put it
-    #     # in a to_register store
-    #     required = ('serverkey', 'publickey', 'address')
-    #     valid = True
-    #     for p in required:
-    #         if not p in message or not message[p]:
-    #             _log.error('Invalid {} param not specified or invalid')
-    #             valid = False
-    #     # Exit loop if not valid.
-    #     if not valid:
-    #         _log.warn('Invalid message format for platform registration.')
-    #         return
-    #
-    #     _log.info('Attempting to register through pubsub address: {}'
-    #               .format(message['address']))
-    #
-    #     passed_uuid = None
-    #     if 'had_platform_uuid' in message:
-    #         passed_uuid = message['had_platform_uuid']
-    #
-    #         entry = self._registry.get_platform(passed_uuid)
-    #         if not entry:
-    #             _log.error('{} was not found as a previously registered '
-    #                        'platform. Address: {}'
-    #                        .format(passed_uuid, message['address']))
-    #             return
-    #
-    #         # Verify the platform address serverkey publickey are the
-    #         # same.
-    #         _log.debug('Refreshing registration for {}'
-    #                    .format(message['address']))
-    #
-    #     if self._local_address == message['address']:
-    #         if passed_uuid is not None:
-    #             _log.debug('Local platform entry attempting to re-register.')
-    #             local_entry = self._registry.get_platform(passed_uuid)
-    #             if passed_uuid in self._pa_agents.keys():
-    #                 if self._pa_agents[passed_uuid]:
-    #                     self._pa_agents[passed_uuid].disconnect()
-    #                 del self._pa_agents[passed_uuid]
-    #         else:
-    #             _log.debug('Local platform entry attempting to register.')
-    #             local_entry = PlatformRegistry.build_entry(
-    #                 None, None, None, is_local=True, display_name='local')
-    #             self._registry.register(local_entry)
-    #         connected = ConnectedLocalPlatform(self)
-    #         _log.debug('Calling manage on local vcp.')
-    #         pubkey = connected.agent.vip.rpc.call(
-    #             VOLTTRON_CENTRAL_PLATFORM, 'manage', self._local_address,
-    #             self.core.publickey, self._web_info.serverkey
-    #         )
-    #         _log.debug('Reconfiguring platform_uuid for local vcp.')
-    #         # Change the uuid of the agent.
-    #         connected.agent.vip.rpc.call(
-    #             VOLTTRON_CENTRAL_PLATFORM, 'reconfigure',
-    #             platform_uuid=local_entry.platform_uuid)
-    #         self._pa_agents[local_entry.platform_uuid] = connected
-    #
-    #     else:
-    #         _log.debug('External platform entry attempting to register.')
-    #         # TODO use the following to store data for registering
-    #         # platform.
-    #         # self._request_store[message['address']] = message
-    #         # self._request_store.sync()
-    #         connected = ConnectedPlatform(
-    #             address=message['address'],
-    #             serverkey=message['serverkey'],
-    #             publickey=self.core.publickey,
-    #             secretkey=self.core.secretkey
-    #         )
-    #
-    #         _log.debug('Connecting to external vcp.')
-    #         connected.connect()
-    #         if not connected.is_connected():
-    #             _log.error("Couldn't connect {} address"
-    #                        .format(message['address']))
-    #             return
-    #         _log.debug('Attempting to manage {} from address {}'
-    #                    .format(message['address'], self.core.address))
-    #         vcp_pubkey = connected.agent.vip.rpc.call(
-    #             VOLTTRON_CENTRAL_PLATFORM,
-    #             'manage', address=self.core.address,
-    #             vcserverkey=self._web_info.serverkey,
-    #             vcpublickey=self.core.publickey
-    #         ).get(timeout=15)
-    #
-    #         # Check that this pubkey is the same as the one passed through
-    #         # pubsub mechanism.
-    #         if not vcp_pubkey == message['publickey']:
-    #             _log.error("Publickey through pubsub doesn't match "
-    #                        "through manage platform call. ")
-    #             _log.error("Address {} was attempting to register."
-    #                        .format(message['address']))
-    #             return
-    #
-    #         if passed_uuid:
-    #             entry = self._registry.get_platform(passed_uuid)
-    #         else:
-    #             entry = PlatformRegistry.build_entry(
-    #                 vip_address=message['address'],
-    #                 serverkey=message['serverkey'],
-    #                 vcp_publickey=message['publickey'],
-    #                 is_local=False,
-    #                 discovery_address=message.get('discovery_address'),
-    #                 display_name=message.get('display_name')
-    #             )
-    #             self._registry.register(entry)
-    #
-    #         self._pa_agents[entry.platform_uuid] = connected
-
     @PubSub.subscribe("pubsub", "platforms")
     def _on_platforms_messsage(self, peer, sender, bus, topic, headers,
                                message):
@@ -631,36 +518,37 @@ class VolttronCentralAgent(Agent):
                                                   topicsplit[1], \
                                                   topicsplit[2], topicsplit[3:]
 
-        platform = self._registered_platforms.get(platform_uuid)
-        if platform is None:
-            _log.warn('Platform {} is not registered but sent message {}'
-                      .format(platform_uuid, message))
-            return
-
-        _log.debug('Doing operation: {}'.format(op_or_datatype))
-        _log.debug('Topic was: {}'.format(topic))
-        _log.debug('Message was: {}'.format(message))
-
-        if op_or_datatype == 'devices':
-            md5hash = message.get('md5hash')
-            if md5hash is None:
-                _log.error('Invalid topic for devices datatype.  Must contain '
-                           'md5hash in message.')
-            if message['md5hash'] not in self._hash_to_topic:
-                devices = platform.get("devices", {})
-                lookup_topic = '/'.join(other)
-                _log.debug("Lookup topic is: {}".format(lookup_topic))
-                vcp = self._get_connection(platform_uuid)
-                device_node = vcp.call("get_device", lookup_topic)
-                if device_node is not None:
-                    devices[lookup_topic] = device_node
-                    self._hash_to_topic[md5hash] = lookup_topic
-                else:
-                    _log.error("Couldn't retrive device topic {} from platform "
-                               "{}".format(lookup_topic, platform_uuid))
-        elif op_or_datatype in ('iam', 'configure'):
-            ws_endpoint = "/vc/ws/{}".format(op_or_datatype)
-            self.vip.web.send(ws_endpoint, jsonapi.dumps(message))
+        _log.warn(platform_uuid)
+        # platform = self._registered_platforms.get(platform_uuid)
+        # if platform is None:
+        #     _log.warn('Platform {} is not registered but sent message {}'
+        #               .format(platform_uuid, message))
+        #     return
+        #
+        # _log.debug('Doing operation: {}'.format(op_or_datatype))
+        # _log.debug('Topic was: {}'.format(topic))
+        # _log.debug('Message was: {}'.format(message))
+        #
+        # if op_or_datatype == 'devices':
+        #     md5hash = message.get('md5hash')
+        #     if md5hash is None:
+        #         _log.error('Invalid topic for devices datatype.  Must contain '
+        #                    'md5hash in message.')
+        #     if message['md5hash'] not in self._hash_to_topic:
+        #         devices = platform.get("devices", {})
+        #         lookup_topic = '/'.join(other)
+        #         _log.debug("Lookup topic is: {}".format(lookup_topic))
+        #         vcp = self._get_connection(platform_uuid)
+        #         device_node = vcp.call("get_device", lookup_topic)
+        #         if device_node is not None:
+        #             devices[lookup_topic] = device_node
+        #             self._hash_to_topic[md5hash] = lookup_topic
+        #         else:
+        #             _log.error("Couldn't retrive device topic {} from platform "
+        #                        "{}".format(lookup_topic, platform_uuid))
+        # elif op_or_datatype in ('iam', 'configure'):
+        #     ws_endpoint = "/vc/ws/{}".format(op_or_datatype)
+        #     self.vip.web.send(ws_endpoint, jsonapi.dumps(message))
 
     @PubSub.subscribe("pubsub", "datalogger/platforms")
     def _on_platform_log_message(self, peer, sender, bus, topic, headers,
@@ -728,12 +616,6 @@ class VolttronCentralAgent(Agent):
         :rtype: str
         """
         return self.core.publickey
-
-    #
-    # @RPC.export
-    # def list_platform_details(self):
-    #     _log.debug('list_platform_details {}', self._registry.get_platforms())
-    #     return self._registry.get_platforms()
 
     @RPC.export
     def unregister_platform(self, platform_uuid):
@@ -804,15 +686,6 @@ class VolttronCentralAgent(Agent):
         address_hash = hashlib.md5(address).hexdigest()
 
         cn = self.vcp_connections.get(address_hash)
-        #
-        # cn_uuid = self._address_to_uuid.get(address)
-        # cn = None
-        # if cn_uuid is not None:
-        #     cn = self._platform_connections.get(cn_uuid)
-        #     if cn is not None and cn.serverkey != serverkey:
-        #         cn.kill()
-        #         del self._platform_connections[cn_uuid]
-        #         cn = None
 
         if cn is None:
             cn = Connection(address=address, serverkey=serverkey,
@@ -862,32 +735,6 @@ class VolttronCentralAgent(Agent):
             results.append(obj)
 
         return results
-        # [dict(uuid=x['instance_uuid'], name=x['display_name'],
-        #       health=get_status(x['address'], x['instance_uuid']))
-        #  for x in self._registered_platforms.values()]
-
-        # def get_status(address, instance_uuid):
-        #     _log.debug('Getting status from platform at address: {}'.format(
-        #         address))
-        #     cn = self._build_connected_agent(address)
-        #     if cn is None:
-        #         _log.debug('cn is NONE so status is BAD for uuid {}'
-        #                    .format(instance_uuid))
-        #         return Status.build(BAD_STATUS,
-        #                             "Platform Unreachable.").as_dict()
-        #     try:
-        #         _log.debug('TRYING TO REACH address: {}'.format(address))
-        #         health = cn.call('health.get_status')
-        #     except Unreachable:
-        #         health = Status.build(BAD_STATUS,
-        #                               "Platform Unreachable.").as_dict()
-        #     return health
-        #
-        # _log.debug(
-        #     'Listing platforms: {}'.format(self._registered_platforms))
-        # return [dict(uuid=x['instance_uuid'], name=x['display_name'],
-        #              health=get_status(x['address'], x['instance_uuid']))
-        #         for x in self._registered_platforms.values()]
 
     def _register_instance(self, discovery_address, display_name=None):
         """ Register an instance with VOLTTRON Central based on jsonrpc.
@@ -1091,55 +938,6 @@ class VolttronCentralAgent(Agent):
 
     def _setupexternal(self):
         _log.debug(self.vip.ping('', "PING ROUTER?").get(timeout=3))
-
-    @Core.receiver('onstart')
-    def _starting(self, sender, **kwargs):
-        """ Starting of the platform
-        :param sender:
-        :param kwargs:
-        :return:
-        """
-        _log.info('Starting: {}'.format(self.__name__))
-        #
-        # self.vip.config.subscribe(self.configure_main, ['NEW', 'UPDATE'],
-        #                           "config")
-        #
-        # self.vip.config.subscribe(self.platform_updates, ['NEW', 'UPDATE'],
-        #                           "platforms")
-        #
-        #
-        # self.vip.heartbeat.start()
-        # # _log.debug(self.vip.ping('', "PING ROUTER?").get(timeout=3))
-        # #
-        # q = query.Query(self.core)
-        # # TODO: Use all addresses for fallback, #114
-        # self._external_addresses = q.query(b'addresses').get(timeout=30)
-        # assert self._external_addresses
-        # self._serverkey = q.query(b'serverkey').get(timeout=30)
-        #
-        # _log.debug("external addresses are: {}".format(
-        #     self._external_addresses
-        # ))
-        #
-        # # self._local_address = q.query('local_address').get(timeout=30)
-        # # _log.debug('Local address is? {}'.format(self._local_address))
-        # _log.info('Registering jsonrpc and /.* routes with {}'.format(
-        #     MASTER_WEB
-        # ))
-        #
-        # self.vip.rpc.call(MASTER_WEB, 'register_agent_route',
-        #                   r'^/jsonrpc.*',
-        #                   self.core.identity,
-        #                   'jsonrpc').get(timeout=10)
-        #
-        # self.vip.rpc.call(MASTER_WEB, 'register_path_route', VOLTTRON_CENTRAL,
-        #                   r'^/.*', self._webroot).get(timeout=20)
-        #
-        # self.webaddress = self.vip.rpc.call(
-        #     MASTER_WEB, 'get_bind_web_address').get(timeout=30)
-        #
-        # # Remove so that dynamic agents don't inherit the identity.
-        # os.environ.pop('AGENT_VIP_IDENTITY')
 
     def _configure_agent(self, endpoint, message):
         _log.debug('Configure agent: {} message: {}'.format(endpoint, message))
