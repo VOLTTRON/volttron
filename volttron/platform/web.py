@@ -119,23 +119,23 @@ class DiscoveryInfo(object):
         assert len(kwargs) == 0
 
     @staticmethod
-    def request_discovery_info(discovery_address):
+    def request_discovery_info(web_address):
         """  Construct a `DiscoveryInfo` object.
 
         Requests a response from discovery_address and constructs a
         `DiscoveryInfo` object with the returned json.
 
-        :param discovery_address: An http(s) address with volttron running.
+        :param web_address: An http(s) address with volttron running.
         :return:
         """
 
         try:
-            parsed = urlparse(discovery_address)
+            parsed = urlparse(web_address)
 
             assert parsed.scheme
             assert not parsed.path
 
-            real_url = urljoin(discovery_address, "/discovery/")
+            real_url = urljoin(web_address, "/discovery/")
             _log.info('Connecting to: {}'.format(real_url))
             response = requests.get(real_url)
 
@@ -145,8 +145,8 @@ class DiscoveryInfo(object):
                 )
         except AttributeError as e:
             raise DiscoveryError(
-                "Invalid discovery_address passed {}"
-                .format(discovery_address)
+                "Invalid web_address passed {}"
+                .format(web_address)
             )
         except (ConnectionError, NewConnectionError) as e:
             raise DiscoveryError(
@@ -156,7 +156,7 @@ class DiscoveryInfo(object):
             raise DiscoveryError("Unhandled exception {}".format(e))
 
         return DiscoveryInfo(
-            discovery_address=discovery_address, **(response.json()))
+            discovery_address=web_address, **(response.json()))
 
     def __str__(self):
         dk = {
