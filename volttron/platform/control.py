@@ -249,6 +249,30 @@ class ControlService(BaseAgent):
         return self._aip.agent_identity(uuid)
 
     @RPC.export
+    def get_all_agent_publickeys(self):
+        """
+        RPC method to retrieve the public keys of all of the agents installed
+        on the VOLTTRON instance.
+
+        This method does not differentiate between running and not running
+        agents.
+
+        .. note::
+
+            This method will only retrieve a publickey for an installed agents.
+            It is recommended that dynamic agents use the context of the
+            containing agent's publickey for connections to external instances.
+
+        :return: mapping of identity to agent publickey
+        :rtype: dict
+        """
+        id_map = self._aip.get_agent_identity_to_uuid_mapping()
+        retmap = {}
+        for id, uuid in id_map.items():
+            retmap[id] = self._aip.get_agent_keystore(uuid).public
+        return retmap
+
+    @RPC.export
     def install_agent_local(self, filename, vip_identity=None, publickey=None,
                             secretkey=None, add_auth=True):
         return self._aip.install_agent(filename, vip_identity=vip_identity,
