@@ -112,14 +112,16 @@ class DriverAgent(BasicAgent):
 
         self.update_scrape_schedule(time_slot, driver_scrape_interval)
 
-    def update_publish_types(self, default_publish_depth_first_all = True,
-                                     default_publish_breadth_first_all=True,
-                                     default_publish_depth_first=True,
-                                     default_publish_breadth_first=True):
-        self.publish_depth_first_all = bool(self.config.get("publish_depth_first_all", default_publish_depth_first_all))
-        self.publish_breadth_first_all = bool(self.config.get("publish_breadth_first_all", default_publish_breadth_first_all))
-        self.publish_depth_first = bool(self.config.get("publish_depth_first", default_publish_depth_first))
-        self.publish_breadth_first = bool(self.config.get("publish_breadth_first", default_publish_breadth_first))
+    def update_publish_types(self, publish_depth_first_all,
+                                   publish_breadth_first_all,
+                                   publish_depth_first,
+                                   publish_breadth_first):
+        """Setup which publish types happen for a scrape.
+           Values passed in are overridden by settings in the specific device configuration."""
+        self.publish_depth_first_all = bool(self.config.get("publish_depth_first_all", publish_depth_first_all))
+        self.publish_breadth_first_all = bool(self.config.get("publish_breadth_first_all", publish_breadth_first_all))
+        self.publish_depth_first = bool(self.config.get("publish_depth_first", publish_depth_first))
+        self.publish_breadth_first = bool(self.config.get("publish_breadth_first", publish_breadth_first))
 
 
     def update_scrape_schedule(self, time_slot, driver_scrape_interval):

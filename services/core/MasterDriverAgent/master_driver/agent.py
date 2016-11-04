@@ -134,6 +134,10 @@ class MasterDriverAgent(Agent):
                  max_open_sockets = None,
                  max_concurrent_publishes = 10000,
                  system_socket_limit = None,
+                 publish_depth_first_all=True,
+                 publish_breadth_first_all=True,
+                 publish_depth_first=True,
+                 publish_breadth_first=True,
                  **kwargs):
         super(MasterDriverAgent, self).__init__(**kwargs)
         self.instances = {}
@@ -158,7 +162,11 @@ class MasterDriverAgent(Agent):
                                "scalability_test_iterations": scalability_test_iterations,
                                "max_open_sockets": max_open_sockets,
                                "max_concurrent_publishes": max_concurrent_publishes,
-                               "driver_scrape_interval": driver_scrape_interval}
+                               "driver_scrape_interval": driver_scrape_interval,
+                               "publish_depth_first_all": publish_depth_first_all,
+                               "publish_breadth_first_all": publish_breadth_first_all,
+                               "publish_depth_first": publish_depth_first,
+                               "publish_breadth_firs": publish_breadth_first}
 
         self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
@@ -235,28 +243,31 @@ class MasterDriverAgent(Agent):
             driver_scrape_interval = float(config["driver_scrape_interval"])
         except ValueError as e:
             _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
-            _log.error("Master driver settings unchanged")
+            _log.error("Master driver scrape interval settings unchanged")
             # TODO: set a health status for the agent
-            return
-
-        if self.driver_scrape_interval == driver_scrape_interval:
-            #Setting unchanged.
-            return
 
         if self.scalability_test and action == "UPDATE":
             _log.info("Running scalability test. Settings may not be changed without restart.")
             return
 
-        self.driver_scrape_interval = driver_scrape_interval
+        if self.driver_scrape_interval != driver_scrape_interval:
+            self.driver_scrape_interval = driver_scrape_interval
 
-        _log.info("Setting time delta between driver device scrapes to  " + str(driver_scrape_interval))
+            _log.info("Setting time delta between driver device scrapes to  " + str(driver_scrape_interval))
 
-        #Reset all scrape schedules
-        self.freed_time_slots = []
-        time_slot = 0
+            #Reset all scrape schedules
+            self.freed_time_slots = []
+            time_slot = 0
+            for driver in self.instances.itervalues():
+                driver.update_scrape_schedule(time_slot, self.driver_scrape_interval)
+                time_slot+=1
+
+        #Update the publish settings
         for driver in self.instances.itervalues():
-            driver.update_scrape_schedule(time_slot, self.driver_scrape_interval)
-            time_slot+=1
+            driver.update_publish_types(config["publish_depth_first_all"],
+                                        config["publish_breadth_first_all"],
+                                        config["publish_depth_first"],
+                                        config["publish_breadth_first"])
 
     def derive_device_topic(self, config_name):
         _, topic = config_name.split('/', 1)
