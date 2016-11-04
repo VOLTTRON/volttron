@@ -332,7 +332,7 @@ class VolttronCentralAgent(Agent):
                              .format(parsed.scheme, valid_schemes))
 
         if parsed.scheme in ('http', 'https'):
-            self._register_instance(address,
+            self._register_instance(address, parsed.scheme,
                                     display_name=display_name)
         elif parsed.scheme == 'tcp':
             if not vcpserverkey or len(vcpserverkey) != 43:  # valid publickey length
@@ -462,11 +462,37 @@ class VolttronCentralAgent(Agent):
     #                        .format(entry.vip_address))
     #             self._pa_agents[entry.platform_uuid] = None
 
-    @PubSub.subscribe("pubsub", "heartbeat/volttroncentralplatform")
+    @PubSub.subscribe("pubsub", "heartbeat/platform")
     def _on_platform_heartbeat(self, peer, sender, bus, topic, headers,
                                message):
-        _log.debug('Got Heartbeat from: {}'.format(topic))
-        _log.debug('Heartbeat message: {}'.format(message))
+
+        address_hash = topic[len("heartbeat/platform."):]
+        config_name = "platforms/{}".format(address_hash)
+        if config_name not in self.vip.config.list():
+            _log.warn("Unrecognized platform {} sending heartbeat".format(
+                address_hash
+            ))
+        else:
+            platform = self.vip.config.get(config_name)
+            platform['health'] = message
+
+            # Because the status is only updated on the agent when it is changed
+            # and we want to have the same api for health of an agent, we are
+            # explicitly overwriting the last_update field of the health to
+            # reflect the time passed in the header of the message.
+
+            try:
+                if platform['health']['last_updated'] == \
+                        message['last_updated']:
+                    if 'Date' in headers:
+                        platform['health']['last_updated'] = headers['Date']
+            except KeyError:
+                _log.debug('Expected first time published.')
+
+            if 'Date' in headers:
+                platform['last_seen_utc'] = headers['Date']
+            self.vip.config.set(config_name, platform, True)
+
 
 
     # def _handle_pubsub_register(self, message):
@@ -775,8 +801,7 @@ class VolttronCentralAgent(Agent):
         :return:
         """
 
-        md5 = hashlib.md5(address)
-        address_hash = md5.hexdigest()
+        address_hash = hashlib.md5(address).hexdigest()
 
         cn = self.vcp_connections.get(address_hash)
         #

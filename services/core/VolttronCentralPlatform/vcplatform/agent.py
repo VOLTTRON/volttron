@@ -115,7 +115,7 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 # After setup logging
-from bacnet_proxy_reader import BACnetReader
+from . bacnet_proxy_reader import BACnetReader
 _log.debug('LOGGING SETUP?')
 
 
@@ -247,7 +247,14 @@ class VolttronCentralPlatform(Agent):
         :param contents:
         :return:
         """
+
         self.enable_registration = False
+        # If we are updating the main configuration we need to reset the
+        # connection to vc if present and initialize the state for reconnection.
+        if self.vc_connection is not None:
+            self.vc_connection.kill()
+            self.vc_connection = None
+        self.registration_state = RegistrationStates.NotRegistered
 
         if config_name == 'default_config':
             # we know this came from the config file that was specified
@@ -310,7 +317,9 @@ class VolttronCentralPlatform(Agent):
             self.current_config['vc_connect_address'] = vc_address
             self.current_config['vc_connect_serverkey'] = vc_serverkey
 
-        _log.info("Current configuration is: {}".format(self.current_config))
+        # Address hash that uniquely defines this platform in the network.
+        address_hash = hashlib.md5(external_addresses[0]).hexdigest()
+        self.current_config['address_hash'] = address_hash
 
         self.enable_registration = True
         self._periodic_attempt_registration()
@@ -568,15 +577,16 @@ class VolttronCentralPlatform(Agent):
                 authfile = AuthFile()
                 authfile.add(entry)
 
-                local_name = self.current_config.get('local_instance_name')
                 local_address = self.current_config.get(
                     'local_external_addresses')[0]
+                local_name = self.current_config.get('local_instance_name',
+                                                     local_address)
                 local_serverkey = self.current_config.get('local_serverkey')
                 vc_address = self.current_config.get('volttron_central_address')
 
                 _log.debug("Registering with vc from vcp.")
                 _log.debug("Instance is named: {}".format(local_name))
-                _log.debug("Address is: {}".format(local_address))
+                _log.debug("Local Address is: {}".format(local_address))
                 _log.debug("VC Address is: {}".format(vc_address))
 
                 vc.call('register_instance', address=local_address,
@@ -632,20 +642,58 @@ class VolttronCentralPlatform(Agent):
             self.vc_connection.kill()
             self.vc_connection = None
 
+        def sync_status_to_vc(status, context):
+            """
+            Sync the status of the current vcp object with that of the one that
+            is connected to the vc instance.
+
+            :param status:
+            :param context:
+            """
+            conn = self.vc_connection
+            conn.server.vip.health.set_status(status, context)
+
+        self.vip.health.add_status_callback(sync_status_to_vc)
+
+        def enable_connection_heartbeat():
+            """
+            Start publishing the heartbeat with the status messages.
+            """
+            conn = self.vc_connection
+            status = self.vip.health.get_status()
+            conn.server.vip.health.set_status(
+                status['status'], status['context']
+            )
+            conn.server.vip.heartbeat.start_with_period(5)
+
+        # We are going to use an identity of platform.address_hash for
+        # connections to vc.  This should allow us unique connection as well
+        # as allowing the vc to filter on the heartbeat status of the pubsub
+        # message to determine context.
+        vcp_identity_on_vc = 'platform.'
+
         # First check to see if there is a peer with a volttron.central
         # identity, if there is use it as the manager of the platform.
         peers = self.vip.peerlist().get(timeout=5)
         if VOLTTRON_CENTRAL in peers:
             _log.debug('VC is a local peer.')
+            # Address hash that uniquely defines this platform in the network.
+            address_hash = hashlib.md5(self.core.address).hexdigest()
+            self.current_config['address_hash'] = address_hash
+            vcp_identity_on_vc += address_hash
             self.vc_connection = Connection(
                 self.core.address, VOLTTRON_CENTRAL,
-                publickey=self.core.publickey, secretkey=self.core.secretkey
+                publickey=self.core.publickey, secretkey=self.core.secretkey,
+                identity=vcp_identity_on_vc
             )
             if self.vc_connection.is_connected() and \
                     self.vc_connection.is_peer_connected():
                 _log.debug("Connection has been established to local peer.")
             else:
                 _log.error('Unable to connect to local peer!')
+            if self.vc_connection.is_connected():
+                enable_connection_heartbeat()
+
             return self.vc_connection
 
         if self.current_config.get('vc_connect_address') is None or \
@@ -657,8 +705,10 @@ class VolttronCentralPlatform(Agent):
             return None
 
         c = self.current_config
+        address_hash = c.get('address_hash')
+        vcp_identity_on_vc += address_hash
         self.vc_connection = build_connection(
-            identity=c.get('local_instance_name'),
+            identity=vcp_identity_on_vc,
             peer=VOLTTRON_CENTRAL,
             address=c.get('vc_connect_address'),
             serverkey=c.get('vc_connect_serverkey'),
@@ -669,6 +719,9 @@ class VolttronCentralPlatform(Agent):
         if not self.vc_connection.is_peer_connected():
             _log.error('Peer: {} is not connected to the external platform'
                        .format(self.vc_connection.peer))
+
+        if self.vc_connection.is_connected():
+            enable_connection_heartbeat()
 
         return self.vc_connection
 
