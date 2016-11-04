@@ -84,6 +84,7 @@ def historian(config_path, **kwargs):
     custom_topic_list = config.get('custom_topic_list', [])
     topic_replace_list = config.get('topic_replace_list', [])
     destination_vip = config.get('destination-vip')
+    destination_serverkey = config.get('destination-serverkey')
     include_destination_in_header = config.get(
         'include_destination_in_header',
         False)
@@ -295,7 +296,11 @@ def historian(config_path, **kwargs):
                 _log.debug(
                     "Setting up to forward to {}".format(destination_vip))
                 event = gevent.event.Event()
-                agent = Agent(address=destination_vip, enable_store=False)
+                agent = Agent(address=destination_vip,
+                              serverkey=destination_serverkey,
+                              publickey=self.core.publickey,
+                              secretkey=self.core.secretkey,
+                              enable_store=False)
                 agent.core.onstart.connect(lambda *a, **kw: event.set(),
                                            event)
                 gevent.spawn(agent.core.run)
