@@ -254,11 +254,14 @@ class Interface(BasicRevert, BaseInterface):
     
     def _set_point(self, point_name, value):    
         register = self.get_register_by_name(point_name)
+        if register.read_only:
+            raise  IOError("Trying to write to a point configured read only: "+point_name)
+
         with modbus_client(self.ip_address, self.port) as client:
             try:
                 result = register.set_state(client, value)
-            except (ConnectionException, ModbusIOException, ModbusInterfaceException):
-                result = None
+            except (ConnectionException, ModbusIOException, ModbusInterfaceException) as ex:
+                IOError("Error encountered trying to write to point {}: {}".format(point_name, ex))
         return result
     
     def scrape_byte_registers(self, client, read_only):
