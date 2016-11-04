@@ -82,8 +82,10 @@ class Connection(object):
     """
     def __init__(self, address, peer=None, publickey=None,
                  secretkey=None, serverkey=None, volttron_home=None, **kwargs):
-        _log.debug("Connection: {}, {}, {}, {}, {}"
-                   .format(address, peer, publickey, secretkey, serverkey))
+        cnstring = "Connecting to address: {} using publickey credential: {} " \
+                   "serverkey: {}"
+
+        _log.debug(cnstring.format(address, publickey, serverkey))
         self._address = address
         self._peer = peer
         self._serverkey = None
@@ -100,7 +102,6 @@ class Connection(object):
             parsed = urlparse.urlparse(address)
             if parsed.scheme == 'tcp':
                 qs = urlparse.parse_qs(parsed.query)
-                _log.debug('QS IS: {}'.format(qs))
                 if 'serverkey' in qs:
                     self._serverkey = qs.get('serverkey')
                 else:
