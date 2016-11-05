@@ -1,5 +1,8 @@
+.. _vip-identity-assignment:
+
+===========================================
 Agent VIP IDENTITY Assignment Specification
-=====================================
+===========================================
 
 This document explains how an agent obtains it's VIP IDENTITY, how the platform sets an agent's VIP IDENTITY at startup, and what mechanisms are available to the user to set the VIP IDENTITY for any agent.
 
