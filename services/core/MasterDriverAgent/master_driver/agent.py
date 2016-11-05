@@ -118,13 +118,21 @@ def master_driver_agent(config_path, **kwargs):
         _log.warning("Master driver configured with old setting. This is no longer supported.")
         _log.warning('Use the script "scripts/update_master_driver_config.py" to convert the configuration.')
 
-    
+    publish_depth_first_all = bool(get_config("publish_depth_first_all", True))
+    publish_breadth_first_all = bool(get_config("publish_breadth_first_all", True))
+    publish_depth_first = bool(get_config("publish_depth_first", True))
+    publish_breadth_first = bool(get_config("publish_breadth_first", True))
+
     return MasterDriverAgent(driver_config_list, scalability_test,
                              scalability_test_iterations,
                              driver_scrape_interval,
                              max_open_sockets,
                              max_concurrent_publishes,
                              system_socket_limit,
+                             publish_depth_first_all,
+                             publish_breadth_first_all,
+                             publish_depth_first,
+                             publish_breadth_first,
                              heartbeat_autostart=True, **kwargs)
 
 class MasterDriverAgent(Agent):
@@ -151,6 +159,11 @@ class MasterDriverAgent(Agent):
         self.freed_time_slots = []
         self._name_map = {}
 
+        self.publish_depth_first_all = publish_depth_first_all
+        self.publish_breadth_first_all = publish_breadth_first_all
+        self.publish_depth_first = publish_depth_first
+        self.publish_breadth_first = publish_breadth_first
+
 
         if scalability_test:
             self.waiting_to_finish = set()
@@ -166,7 +179,7 @@ class MasterDriverAgent(Agent):
                                "publish_depth_first_all": publish_depth_first_all,
                                "publish_breadth_first_all": publish_breadth_first_all,
                                "publish_depth_first": publish_depth_first,
-                               "publish_breadth_firs": publish_breadth_first}
+                               "publish_breadth_first": publish_breadth_first}
 
         self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
@@ -262,12 +275,17 @@ class MasterDriverAgent(Agent):
                 driver.update_scrape_schedule(time_slot, self.driver_scrape_interval)
                 time_slot+=1
 
-        #Update the publish settings
+        self.publish_depth_first_all = bool(config["publish_depth_first_all"])
+        self.publish_breadth_first_all = bool(config["publish_breadth_first_all"])
+        self.publish_depth_first = bool(config["publish_depth_first"])
+        self.publish_breadth_first = bool(config["publish_breadth_first"])
+
+        #Update the publish settings on running devices.
         for driver in self.instances.itervalues():
-            driver.update_publish_types(config["publish_depth_first_all"],
-                                        config["publish_breadth_first_all"],
-                                        config["publish_depth_first"],
-                                        config["publish_breadth_first"])
+            driver.update_publish_types(self.publish_depth_first_all,
+                                        self.publish_breadth_first_all,
+                                        self.publish_depth_first,
+                                        self.publish_breadth_first)
 
     def derive_device_topic(self, config_name):
         _, topic = config_name.split('/', 1)
@@ -301,7 +319,11 @@ class MasterDriverAgent(Agent):
             slot = self.freed_time_slots.pop(0)
 
         _log.info("Starting driver: {}".format(topic))
-        driver = DriverAgent(self, contents, slot, self.driver_scrape_interval, topic)
+        driver = DriverAgent(self, contents, slot, self.driver_scrape_interval, topic,
+                             self.publish_depth_first_all,
+                             self.publish_breadth_first_all,
+                             self.publish_depth_first,
+                             self.publish_breadth_first)
         gevent.spawn(driver.core.run)
         self.instances[topic] = driver
         self._name_map[topic.lower()] = topic

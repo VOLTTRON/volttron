@@ -28,10 +28,22 @@ The following example sets the driver_scrape_interval to 0.05 seconds or 20 devi
 .. code-block:: json
 
     {
-        "driver_scrape_interval": 0.05
+        "driver_scrape_interval": 0.05,
+        "publish_breadth_first_all": false,
+        "publish_depth_first": false,
+        "publish_breadth_first": false,
+        "publish_depth_first_all": true
     }
     
 * **driver_scrape_interval** - Sets the interval between devices scrapes. Defaults to 0.02 or 50 devices per second. Useful for when the platform scrapes too many devices at once resulting in failed scrapes.
+
+In order to improve the scalability of the platform unneeded device state publishes for all devices can be turned off.
+All of the following setting are optional and default to `True`.
+
+* **publish_depth_first_all** - Enable "depth first" publish of all points to a single topic for all devices.
+* **publish_breadth_first_all** - Enable "breadth first" publish of all points to a single topic for all devices.
+* **publish_depth_first** - Enable "depth first" device state publishes for each register on the device for all devices.
+* **publish_breadth_first** - Enable "breadth first" device state publishes for each register on the device for all devices.
 
 An example master driver configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/master-driver.agent``.
 
@@ -245,7 +257,7 @@ Device Scalability Settings
 ---------------------------
 
 In order to improve the scalability of the platform unneeded device state publishes for a device can be turned off.
-All of the following setting are optional and default to `True`.
+All of the following setting are optional and will override the value set in the main master driver configuration.
 
     - **publish_depth_first_all** - Enable "depth first" publish of all points to a single topic.
     - **publish_breadth_first_all** - Enable "breadth first" publish of all points to a single topic.
