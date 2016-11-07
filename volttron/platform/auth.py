@@ -66,6 +66,7 @@ import os
 import random
 import re
 import shutil
+import uuid
 
 import gevent
 from gevent.fileobject import FileObject
@@ -518,17 +519,15 @@ class AuthFile(object):
         return entries, groups, roles
 
     def _upgrade(self, allow_list, groups, roles, version):
+        backup = self.auth_file + '.' + uuid.uuid4() + '.bak'
+        shutil.copy(self.auth_file, backup)
+        _log.info('Created backup of {} at {}'.format(self.auth_file, backup))
 
         def warn_invalid(entry, msg=''):
             _log.warn('Invalid entry {} in auth file {}. {}'
                       .format(entry, self.auth_file, msg))
 
         def upgrade_0_to_1():
-            backup_name = self.auth_file + '.bak'
-            shutil.copy(self.auth_file, backup_name)
-            _log.info('Created backup of {} at {}'.format(self.auth_file,
-                backup_name))
-
             new_allow_list = []
             for entry in allow_list:
                 try:
@@ -556,15 +555,15 @@ class AuthFile(object):
                         warn_invalid(entry, 'Unexpected credential format')
                         continue
                 new_allow_list.append({
-                    "domain": entry.get('domain', None),
-                    "address": entry.get('address', None),
+                    "domain": entry.get('domain'),
+                    "address": entry.get('address'),
                     "mechanism": mechanism,
                     "credentials": credentials,
-                    "user_id": entry.get('user_id', None),
+                    "user_id": entry.get('user_id'),
                     "groups": entry.get('groups', []),
                     "roles": entry.get('roles', []),
                     "capabilities": entry.get('capabilities', []),
-                    "comments": entry.get('comments', None),
+                    "comments": entry.get('comments'),
                     "enabled": entry.get('enabled', True)
                 })
             return new_allow_list
