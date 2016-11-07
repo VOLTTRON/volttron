@@ -207,6 +207,7 @@ class Dispatcher(jsonrpc.Dispatcher):
 class RPC(SubsystemBase):
     def __init__(self, core, owner):
         self.core = weakref.ref(core)
+        self._owner = owner
         self.context = None
         self._exports = {}
         self._dispatcher = None

@@ -85,17 +85,16 @@ class Auth(SubsystemBase):
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, 'auth.update')
 
-        def onstart(sender, **kwargs):
-            while self._dirty:
-                self._dirty = False
-                try:
-                    self._user_to_capabilities = rpc.call(AUTH,
-                        'get_user_to_capabilities').get(timeout=10)
-                except RemoteError:
-                    self._dirty = True
-
         core.onsetup.connect(onsetup, self)
-        core.onstart.connect(onstart, self)
+
+    def _fetch_capabilities(self):
+        while self._dirty:
+            self._dirty = False
+            try:
+                self._user_to_capabilities = self._rpc().call(AUTH,
+                    'get_user_to_capabilities').get(timeout=10)
+            except RemoteError:
+                self._dirty = True
 
     def get_capabilities(self, user_id):
         """Gets capabilities for a given user.
@@ -105,6 +104,7 @@ class Auth(SubsystemBase):
         :returns: list of capabilities
         :rtype: list
         """
+        self._fetch_capabilities()
         return self._user_to_capabilities.get(user_id, [])
 
     def _update_capabilities(self, user_to_capabilities):
