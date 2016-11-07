@@ -68,6 +68,7 @@ from zmq.utils import jsonapi
 from volttron.platform.vip.agent import Agent, Core, compat, Unreachable
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
+from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD, Status)
@@ -84,16 +85,15 @@ def historian(config_path, **kwargs):
     custom_topic_list = config.get('custom_topic_list', [])
     topic_replace_list = config.get('topic_replace_list', [])
     destination_vip = config.get('destination-vip')
-    destination_serverkey = config.get('destination-serverkey')
-    include_destination_in_header = config.get(
-        'include_destination_in_header',
-        False)
+
+    hosts = KnownHostsStore()
+    destination_serverkey = hosts.serverkey(destination_vip)
+    if destination_serverkey is None:
+        _log.info("Destination serverkey not found in known hosts file, using config")
+        destination_serverkey = config['destination-serverkey']
 
     required_target_agents = config.get('required_target_agents', [])
     backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
-    origin = config.get('origin', None)
-    overwrite_origin = config.get('overwrite_origin', False)
-    include_origin_in_header = config.get('include_origin_in_header', False)
     if 'all' in services_topic_list:
         services_topic_list = [topics.DRIVER_TOPIC_BASE, topics.LOGGER_BASE,
                                topics.ACTUATOR, topics.ANALYSIS_TOPIC_BASE]
@@ -187,9 +187,6 @@ def historian(config_path, **kwargs):
                                    'topic': topic,
                                    'readings': [(timestamp_string, payload)]})
 
-        def __platform(self, peer, sender, bus, topic, headers, message):
-            _log.debug('Platform is now: {}'.format(message))
-
         def publish_to_historian(self, to_publish_list):
             handled_records = []
 
@@ -235,22 +232,7 @@ def historian(config_path, **kwargs):
                     del headers['Destination']
                 except KeyError:
                     pass
-                # if not headers.get('Origin', None)
-                #     if overwrite_origin:
-                #         if not include_origin_in_header:
-                #             try:
-                #                 del headers['Origin']
-                #             except KeyError:
-                #                 pass
-                #         else:
-                #             headers['Origin'] = origin
-                #     else:
-                #     headers['Origin'] = parsed.hostname
-                #     headers['Destination'] = [next_dest.scheme +
-                #                               '://'+
-                #                               next_dest.hostname]
-                # else:
-                #    headers['Destination'].append(next_dest.hostname)
+
                 if timeout_occurred:
                     _log.error(
                         'A timeout has occured so breaking out of publishing')
@@ -292,28 +274,25 @@ def historian(config_path, **kwargs):
                                            status)
 
         def historian_setup(self):
-            try:
-                _log.debug(
-                    "Setting up to forward to {}".format(destination_vip))
-                event = gevent.event.Event()
-                agent = Agent(address=destination_vip,
-                              serverkey=destination_serverkey,
-                              publickey=self.core.publickey,
-                              secretkey=self.core.secretkey,
-                              enable_store=False)
-                agent.core.onstart.connect(lambda *a, **kw: event.set(),
-                                           event)
-                gevent.spawn(agent.core.run)
-                event.wait(timeout=10)
+            _log.debug(
+                "Setting up to forward to {}".format(destination_vip))
+            event = gevent.event.Event()
+            agent = Agent(address=destination_vip,
+                          serverkey=destination_serverkey,
+                          publickey=self.core.publickey,
+                          secretkey=self.core.secretkey,
+                          enable_store=False)
+
+            gevent.spawn(agent.core.run, event)
+            if event.wait(timeout=10):
                 self._target_platform = agent
-            except gevent.Timeout:
+            else:
                 self.vip.health.set_status(
                     STATUS_BAD, "Timeout in setup of agent")
                 status = Status.from_json(self.vip.health.get_status())
                 self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                            status)
 
-    ForwardHistorian.__name__ = 'ForwardHistorian'
     return ForwardHistorian(backup_storage_limit_gb=backup_storage_limit_gb,
                             **kwargs)
 
