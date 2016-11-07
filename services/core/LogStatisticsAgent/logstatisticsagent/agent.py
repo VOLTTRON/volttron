@@ -89,7 +89,7 @@ def log_statistics(config_path, **kwargs):
 class LogStatisticsAgent(Agent):
     """LogStatisticsAgent reads volttron.log file size every hour,
     compute the size delta from previous hour and publish the difference
-    with timestamp. It also publishes standard deviation at the end of the day.
+    with timestamp. It also publishes standard deviation every 24 hours.
 
 
     :param config: Configuration dict
