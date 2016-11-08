@@ -2,6 +2,7 @@
 
 import React from 'react';
 import BaseComponent from './base-component';
+import CheckBox from './check-box';
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
@@ -72,9 +73,10 @@ class EditPointForm extends BaseComponent {
                         {attributeInput}
                     </td>
                     <td className="centerContent">
-                        <input type="checkbox" 
-                            checked={item.keyProp} 
-                            onChange={this._toggleKeyProp.bind(this, item.key)}></input>
+                        <CheckBox
+                            oncheck={this._toggleKeyProp.bind(this, item.key)}
+                            selected={item.keyProp}>
+                        </CheckBox>
                     </td>
                 </tr>
             );

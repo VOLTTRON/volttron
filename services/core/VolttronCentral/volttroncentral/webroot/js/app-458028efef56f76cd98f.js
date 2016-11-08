@@ -59095,7 +59095,7 @@
 	
 	            if (device) {
 	                var attributes = device.registryConfig.find(function (attributes, index) {
-	                    var match = attributes.get(0).value === action.attributes.get(0).value;
+	                    var match = attributes[0].value === action.attributes.get(0).value;
 	
 	                    if (match) {
 	                        i = index;
@@ -61836,6 +61836,10 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
+	var _checkBox = __webpack_require__(304);
+	
+	var _checkBox2 = _interopRequireDefault(_checkBox);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -61934,9 +61938,9 @@
 	                    _react2.default.createElement(
 	                        'td',
 	                        { className: 'centerContent' },
-	                        _react2.default.createElement('input', { type: 'checkbox',
-	                            checked: item.keyProp,
-	                            onChange: this._toggleKeyProp.bind(this, item.key) })
+	                        _react2.default.createElement(_checkBox2.default, {
+	                            oncheck: this._toggleKeyProp.bind(this, item.key),
+	                            selected: item.keyProp })
 	                    )
 	                );
 	
@@ -112128,7 +112132,7 @@
 	                ),
 	                React.createElement(_checkBox2.default, {
 	                    id: 'pin',
-	                    controlClass: 'form__control form__control--inline',
+	                    controlClass: '',
 	                    oncheck: this._onPinChange }),
 	                React.createElement(
 	                    'label',
@@ -112248,4 +112252,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-8a858822666f708af6d9.js.map
+//# sourceMappingURL=app-458028efef56f76cd98f.js.map

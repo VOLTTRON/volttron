@@ -1414,6 +1414,7 @@ a.view__item:hover::before {
 
 .vc-checkbox {
     cursor: pointer;
+    float: left;
 }
 
 .vc-checkbox:hover > div > span::before {
@@ -1808,4 +1809,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-8a858822666f708af6d9.css.map*/
+/*# sourceMappingURL=app-458028efef56f76cd98f.css.map*/

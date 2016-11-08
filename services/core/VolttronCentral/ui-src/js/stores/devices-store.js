@@ -1261,7 +1261,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             if (device)
             {
                 var attributes = device.registryConfig.find(function (attributes, index) {
-                    var match = (attributes.get(0).value === action.attributes.get(0).value);
+                    var match = (attributes[0].value === action.attributes.get(0).value);
 
                     if (match)
                     {

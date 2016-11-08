@@ -1414,6 +1414,7 @@ a.view__item:hover::before {
 
 .vc-checkbox {
     cursor: pointer;
+    float: left;
 }
 
 .vc-checkbox:hover > div > span::before {

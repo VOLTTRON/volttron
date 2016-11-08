@@ -138,7 +138,7 @@ var NewChartForm = React.createClass({
                     <label>Dashboard</label>
                     <CheckBox
                         id="pin"
-                        controlClass="form__control form__control--inline"
+                        controlClass=""
                         oncheck={this._onPinChange}>
                     </CheckBox>
                     <label htmlFor="pin">Pin to dashboard</label>
