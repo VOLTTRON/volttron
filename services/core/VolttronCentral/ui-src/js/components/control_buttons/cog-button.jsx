@@ -2,7 +2,8 @@
 
 var React = require('react');
 
-var ControlButton = require('../control-button');
+import ControlButton from './control-button';
+
 var EditColumnButton = require('./edit-columns-button');
 // var controlButtonStore = require('../../stores/control-button-store');
 

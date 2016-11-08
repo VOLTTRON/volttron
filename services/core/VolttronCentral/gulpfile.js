@@ -7,6 +7,7 @@ var fs = require('fs');
 var gulp = require('gulp');
 var inject = require('gulp-inject');
 var rev = require('gulp-rev');
+var concat = require('gulp-concat');
 var source = require('vinyl-source-stream');
 var through2 = require('through2');
 
@@ -34,7 +35,8 @@ function cleanVendor(callback) {
 }
 
 function css() {
-    return gulp.src('ui-src/css/app.css')
+    return gulp.src('ui-src/css/*.css')
+        .pipe(concat('app.css'))
         .pipe(rev())
         .pipe(gulp.dest(BUILD_DIR + 'css'));
 }
@@ -78,14 +80,17 @@ function vendor() {
             'moment/min/moment.min.js',
             'node-uuid',
             'react-addons-pure-render-mixin',
+            'react-addons-shallow-compare',
             'react-click-outside',
             'nvd3/build/nv.d3.min',
             'keymirror',
             'react/dist/react',
             'react-dom/dist/react-dom',
             'react-router/umd/ReactRouter',
+            'react-virtualized/dist/umd/react-virtualized',
             'history/umd/history',
             'immutable/dist/immutable',
+            'react-select-me/lib/ReactSelectMe.js',
         ],
     })
         .require([
@@ -98,14 +103,17 @@ function vendor() {
             { file: 'moment/min/moment.min.js', expose: 'moment' },
             'node-uuid',
             'react-addons-pure-render-mixin',
+            'react-addons-shallow-compare',
             'react-click-outside',
             { file: 'nvd3/build/nv.d3.min', expose: 'nvd3' },
             'keymirror',
             { file: 'react/dist/react', expose: 'react' },
             { file: 'react-dom/dist/react-dom', expose: 'react-dom' },
+            { file: 'react-virtualized/dist/umd/react-virtualized', expose: 'react-virtualized' },
             { file: 'react-router/umd/ReactRouter', expose: 'react-router' },
             { file: 'history/umd/history', expose: 'history' },
             { file: 'immutable/dist/immutable', expose: 'immutable' },
+            { file: 'react-select-me/lib/ReactSelectMe.js', expose: 'react-select-me' },
         ])
         .transform(function (file) {
             if (file.match('/d3/d3.')) {

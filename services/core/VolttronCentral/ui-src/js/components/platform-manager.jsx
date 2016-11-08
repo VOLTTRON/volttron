@@ -20,6 +20,8 @@ var StatusIndicator = require('./status-indicator');
 var statusIndicatorStore = require('../stores/status-indicator-store');
 var platformsStore = require('../stores/platforms-store');
 
+import ColumnMover from './column-mover';
+
 class PlatformManager extends React.Component {
     constructor(props) {
         super(props);
@@ -90,7 +92,7 @@ class PlatformManager extends React.Component {
                 target.addEventListener("mouseup", onMouseUp);
 
                 evt.preventDefault();
-            }
+            };
 
             handle.addEventListener("mousedown", onMouseDown);
         }
@@ -164,7 +166,7 @@ class PlatformManager extends React.Component {
 
         if (this.state.status) {
             statusIndicator = (
-                <StatusIndicator></StatusIndicator>
+                <StatusIndicator status={this.state.statusMessage}></StatusIndicator>
             );
         }
 
@@ -183,6 +185,7 @@ class PlatformManager extends React.Component {
             <div className={classes.join(' ')}>
                 {statusIndicator}
                 {modal}
+                <ColumnMover/>
                 <div ref="main" className="main">
                     <Navigation />                
                     <PlatformsPanel/>
@@ -210,6 +213,7 @@ function getStateFromStores() {
         modalContent: modalStore.getModalContent(),
         expanded: platformsPanelStore.getExpanded(),
         status: statusIndicatorStore.getStatus(),
+        statusMessage: statusIndicatorStore.getStatusMessage(),
         initialized: platformsStore.getInitialized()
     };
 }

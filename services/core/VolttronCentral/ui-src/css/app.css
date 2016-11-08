@@ -45,7 +45,7 @@ a:hover {
 }
 
 input {
-    line-height: 1.5;
+    line-height: 1.5 !important;
 }
 
 pre, code {
@@ -54,6 +54,7 @@ pre, code {
 
 table {
     width: 100%;
+    border-collapse: collapse;
 }
 
 th {
@@ -62,13 +63,19 @@ th {
 }
 
 th, td {
-    padding: 0 0.6666em;
+    padding: 0 0.6666em !important;
     line-height: 2.5;
 }
 
 th:not(:first-child),
 td:not(:first-child) {
     border-left: 1px solid #ddd;
+}
+
+input, optgroup, select, textarea {
+    color: inherit;
+    font: inherit;
+    margin: 0;
 }
 
 .button {
@@ -251,6 +258,16 @@ br + .form__control-help {
 @keyframes fade-out {
     from {opacity: .7;}
     to {opacity: 0;}
+}
+
+.column-mover {
+    top: 40%;
+    bottom: 20%;
+    width: 4px;
+    background-color: #A0A0A0;
+    cursor: ew-resize;
+    position: absolute;
+    z-index: 900;
 }
 
 .main {
@@ -524,8 +541,10 @@ br + .form__control-help {
 
 .checkboxSpinner {
     color: #1BCDF5;
-    width: 13px;
-    margin-bottom: 1px;
+    width: .95em;
+    margin-bottom: 3px;
+    margin-right: 13px;
+    margin-top: 3px;
 }
 
 .cancelLoading, .cancelScanning {
@@ -535,10 +554,21 @@ br + .form__control-help {
 .cancelScanning {
     font-size: 2em;
     line-height: 14px;
-    width: 30px;
+    width: 24px;
     vertical-align: top;
+    margin: 0px;
+}
+
+.scanningSpinner {
     cursor: pointer;
-    margin: 0px 6px;
+}
+
+.scanningSpinner .fa-cog:hover {
+    opacity: .5;
+}
+
+.scanningSpinnertooltip {
+    position: relative;
 }
 
 .rotateRight {
@@ -682,197 +712,6 @@ br + .form__control-help {
     margin: 0px;
     padding: 0px;
     opacity: .5;*/
-}
-
-@font-face {
-  font-family: 'FontAwesome';
-  src: url('../fonts/fontawesome-webfont.eot?v=4.5.0');
-  src: url('../fonts/fontawesome-webfont.eot?#iefix&v=4.5.0') format('embedded-opentype'), url('../fonts/fontawesome-webfont.woff2?v=4.5.0') format('woff2'), url('../fonts/fontawesome-webfont.woff?v=4.5.0') format('woff'), url('../fonts/fontawesome-webfont.ttf?v=4.5.0') format('truetype'), url('../fonts/fontawesome-webfont.svg?v=4.5.0#fontawesomeregular') format('svg');
-  font-weight: normal;
-  font-style: normal;
-}
-
-.fa {
-  display: inline-block;
-  font: normal normal normal 14px/1 FontAwesome;
-  font-size: inherit;
-  text-rendering: auto;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-.fa-2x {
-  font-size: 2em;
-}
-.fa-3x {
-  font-size: 3em;
-}
-.fa-4x {
-  font-size: 4em;
-}
-.fa-5x {
-  font-size: 5em;
-}
-
-.fa-fw {
-  width: 1.28571429em;
-  text-align: center;
-}
-
-.fa-minus-circle:before {
-  content: "\f056";
-}
-
-.fa-square:before {
-  content: "\f0c8";
-}
-
-.fa-ban:before {
-  content: "\f05e";
-}
-
-.fa-search:before {
-  content: "\f002";
-}
-
-.fa-thumb-tack:before {
-  content: "\f08d";
-}
-
-.fa-line-chart:before {
-    content: "\f201";
-}
-
-.fa-arrow-left:before {
-  content: "\f060";
-}
-
-.fa-arrow-right:before {
-  content: "\f061";
-}
-
-.fa-refresh:before {
-  content: "\f021";
-}
-
-.fa-hourglass:before {
-  content: "\f254";
-}
-
-.fa-remove:before,
-.fa-close:before,
-.fa-times:before {
-  content: "\f00d";
-}
-
-.fa-plus:before {
-    content: "\f067";
-}
-
-.fa-minus:before {
-    content: "\f068";
-}
-
-.fa-clone:before {
-    content: "\f24d";
-}
-
-.fa-bars:before {
-    content: "\f0c9";
-}
-
-.fa-edit:before {
-    content: "\f044";
-}
-
-.fa-step-forward:before {
-    content: "\f051";
-}
-
-.fa-fast-forward:before {
-    content: "\f050";
-}
-
-.fa-save:before,
-.fa-floppy-o:before {
-    content: "\f0c7";
-}
-
-.fa-ellipsis-h:before {
-    content: "\f141";
-}
-
-.fa-pencil:before {
-    content: "\f040";
-}
-
-.fa-cog:before {
-    content: "\f013";
-}
-
-.fa-cogs:before {
-  content: "\f085";
-}
-
-.fa-file:before {
-    content: "\f15b";
-}
-
-.fa-filter:before {
-    content: "\f0b0";
-}
-
-.fa-keyboard-o:before {
-    content: "\f11c";
-}
-
-.fa-circle-o-notch:before {
-  content: "\f1ce";
-}
-
-.fa-spinner:before {
-    content: "\f110";
-}
-
-.fa-spin {
-  -webkit-animation: fa-spin 2s infinite linear;
-  animation: fa-spin 2s infinite linear;
-}
-.fa-pulse {
-  -webkit-animation: fa-spin 1s infinite steps(8);
-  animation: fa-spin 1s infinite steps(8);
-}
-@-webkit-keyframes fa-spin {
-  0% {
-    -webkit-transform: rotate(0deg);
-    transform: rotate(0deg);
-  }
-  100% {
-    -webkit-transform: rotate(359deg);
-    transform: rotate(359deg);
-  }
-}
-@keyframes fa-spin {
-  0% {
-    -webkit-transform: rotate(0deg);
-    transform: rotate(0deg);
-  }
-  100% {
-    -webkit-transform: rotate(359deg);
-    transform: rotate(359deg);
-  }
-}
-.fa-rotate-90 {
-  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);
-  -webkit-transform: rotate(90deg);
-  -ms-transform: rotate(90deg);
-  transform: rotate(90deg);
-}
-.fa-rotate-180 {
-  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=2);
-  -webkit-transform: rotate(180deg);
-  -ms-transform: rotate(180deg);
-  transform: rotate(180deg);
 }
 
 /*.tooltip_show {
@@ -1286,7 +1125,7 @@ a.view__item:hover::before {
 .resize-handle-td, .resize-handle-th {
     width: 2px;
     background-color: #ddd;
-    padding: 0;
+    padding: 0 !important;
     cursor: ew-resize;
 }
 
@@ -1501,7 +1340,14 @@ a.view__item:hover::before {
     position: absolute;
     top: 0px;
     right: -10px;
+}
+
+.refreshIcon {
     color: limegreen;
+}
+
+.configIcon {
+    color: darkblue;
 }
 
 .unpinned-chart {
@@ -1532,638 +1378,6 @@ a.view__item:hover::before {
 }
 
 /* end nvd3-related styles */
-
-/* start NVD3 styles */
-/* nvd3 version 1.8.1 (https://github.com/novus/nvd3) 2015-06-15 */
-.nvd3 .nv-axis {
-    pointer-events:none;
-    opacity: 1;
-}
-
-.nvd3 .nv-axis path {
-    fill: none;
-    stroke: #000;
-    stroke-opacity: .75;
-    shape-rendering: crispEdges;
-}
-
-.nvd3 .nv-axis path.domain {
-    stroke-opacity: .75;
-}
-
-.nvd3 .nv-axis.nv-x path.domain {
-    stroke-opacity: 0;
-}
-
-.nvd3 .nv-axis line {
-    fill: none;
-    stroke: #e5e5e5;
-    shape-rendering: crispEdges;
-}
-
-.nvd3 .nv-axis .zero line,
-    /*this selector may not be necessary*/ .nvd3 .nv-axis line.zero {
-    stroke-opacity: .75;
-}
-
-.nvd3 .nv-axis .nv-axisMaxMin text {
-    font-weight: bold;
-}
-
-.nvd3 .x  .nv-axis .nv-axisMaxMin text,
-.nvd3 .x2 .nv-axis .nv-axisMaxMin text,
-.nvd3 .x3 .nv-axis .nv-axisMaxMin text {
-    text-anchor: middle
-}
-
-.nvd3 .nv-axis.nv-disabled {
-    opacity: 0;
-}
-
-.nvd3 .nv-bars rect {
-    fill-opacity: .75;
-
-    transition: fill-opacity 250ms linear;
-    -moz-transition: fill-opacity 250ms linear;
-    -webkit-transition: fill-opacity 250ms linear;
-}
-
-.nvd3 .nv-bars rect.hover {
-    fill-opacity: 1;
-}
-
-.nvd3 .nv-bars .hover rect {
-    fill: lightblue;
-}
-
-.nvd3 .nv-bars text {
-    fill: rgba(0,0,0,0);
-}
-
-.nvd3 .nv-bars .hover text {
-    fill: rgba(0,0,0,1);
-}
-
-.nvd3 .nv-multibar .nv-groups rect,
-.nvd3 .nv-multibarHorizontal .nv-groups rect,
-.nvd3 .nv-discretebar .nv-groups rect {
-    stroke-opacity: 0;
-
-    transition: fill-opacity 250ms linear;
-    -moz-transition: fill-opacity 250ms linear;
-    -webkit-transition: fill-opacity 250ms linear;
-}
-
-.nvd3 .nv-multibar .nv-groups rect:hover,
-.nvd3 .nv-multibarHorizontal .nv-groups rect:hover,
-.nvd3 .nv-candlestickBar .nv-ticks rect:hover,
-.nvd3 .nv-discretebar .nv-groups rect:hover {
-    fill-opacity: 1;
-}
-
-.nvd3 .nv-discretebar .nv-groups text,
-.nvd3 .nv-multibarHorizontal .nv-groups text {
-    font-weight: bold;
-    fill: rgba(0,0,0,1);
-    stroke: rgba(0,0,0,0);
-}
-
-/* boxplot CSS */
-.nvd3 .nv-boxplot circle {
-  fill-opacity: 0.5;
-}
-
-.nvd3 .nv-boxplot circle:hover {
-  fill-opacity: 1;
-}
-
-.nvd3 .nv-boxplot rect:hover {
-  fill-opacity: 1;
-}
-
-.nvd3 line.nv-boxplot-median {
-  stroke: black;
-}
-
-.nv-boxplot-tick:hover {
-  stroke-width: 2.5px;
-}
-/* bullet */
-.nvd3.nv-bullet { font: 10px sans-serif; }
-.nvd3.nv-bullet .nv-measure { fill-opacity: .8; }
-.nvd3.nv-bullet .nv-measure:hover { fill-opacity: 1; }
-.nvd3.nv-bullet .nv-marker { stroke: #000; stroke-width: 2px; }
-.nvd3.nv-bullet .nv-markerTriangle { stroke: #000; fill: #fff; stroke-width: 1.5px; }
-.nvd3.nv-bullet .nv-tick line { stroke: #666; stroke-width: .5px; }
-.nvd3.nv-bullet .nv-range.nv-s0 { fill: #eee; }
-.nvd3.nv-bullet .nv-range.nv-s1 { fill: #ddd; }
-.nvd3.nv-bullet .nv-range.nv-s2 { fill: #ccc; }
-.nvd3.nv-bullet .nv-title { font-size: 14px; font-weight: bold; }
-.nvd3.nv-bullet .nv-subtitle { fill: #999; }
-
-
-.nvd3.nv-bullet .nv-range {
-    fill: #bababa;
-    fill-opacity: .4;
-}
-.nvd3.nv-bullet .nv-range:hover {
-    fill-opacity: .7;
-}
-
-.nvd3.nv-candlestickBar .nv-ticks .nv-tick {
-    stroke-width: 1px;
-}
-
-.nvd3.nv-candlestickBar .nv-ticks .nv-tick.hover {
-    stroke-width: 2px;
-}
-
-.nvd3.nv-candlestickBar .nv-ticks .nv-tick.positive rect {
-    stroke: #2ca02c;
-    fill: #2ca02c;
-}
-
-.nvd3.nv-candlestickBar .nv-ticks .nv-tick.negative rect {
-    stroke: #d62728;
-    fill: #d62728;
-}
-
-.with-transitions .nv-candlestickBar .nv-ticks .nv-tick {
-    transition: stroke-width 250ms linear, stroke-opacity 250ms linear;
-    -moz-transition: stroke-width 250ms linear, stroke-opacity 250ms linear;
-    -webkit-transition: stroke-width 250ms linear, stroke-opacity 250ms linear;
-
-}
-
-.nvd3.nv-candlestickBar .nv-ticks line {
-    stroke: #333;
-}
-
-
-.nvd3 .nv-legend .nv-disabled rect {
-    /*fill-opacity: 0;*/
-}
-
-.nvd3 .nv-check-box .nv-box {
-    fill-opacity:0;
-    stroke-width:2;
-}
-
-.nvd3 .nv-check-box .nv-check {
-    fill-opacity:0;
-    stroke-width:4;
-}
-
-.nvd3 .nv-series.nv-disabled .nv-check-box .nv-check {
-    fill-opacity:0;
-    stroke-opacity:0;
-}
-
-.nvd3 .nv-controlsWrap .nv-legend .nv-check-box .nv-check {
-    opacity: 0;
-}
-
-/* line plus bar */
-.nvd3.nv-linePlusBar .nv-bar rect {
-    fill-opacity: .75;
-}
-
-.nvd3.nv-linePlusBar .nv-bar rect:hover {
-    fill-opacity: 1;
-}
-.nvd3 .nv-groups path.nv-line {
-    fill: none;
-}
-
-.nvd3 .nv-groups path.nv-area {
-    stroke: none;
-}
-
-.nvd3.nv-line .nvd3.nv-scatter .nv-groups .nv-point {
-    fill-opacity: 0;
-    stroke-opacity: 0;
-}
-
-.nvd3.nv-scatter.nv-single-point .nv-groups .nv-point {
-    fill-opacity: .5 !important;
-    stroke-opacity: .5 !important;
-}
-
-
-.with-transitions .nvd3 .nv-groups .nv-point {
-    transition: stroke-width 250ms linear, stroke-opacity 250ms linear;
-    -moz-transition: stroke-width 250ms linear, stroke-opacity 250ms linear;
-    -webkit-transition: stroke-width 250ms linear, stroke-opacity 250ms linear;
-
-}
-
-.nvd3.nv-scatter .nv-groups .nv-point.hover,
-.nvd3 .nv-groups .nv-point.hover {
-    stroke-width: 7px;
-    fill-opacity: .95 !important;
-    stroke-opacity: .95 !important;
-}
-
-
-.nvd3 .nv-point-paths path {
-    stroke: #aaa;
-    stroke-opacity: 0;
-    fill: #eee;
-    fill-opacity: 0;
-}
-
-
-
-.nvd3 .nv-indexLine {
-    cursor: ew-resize;
-}
-
-/********************
- * SVG CSS
- */
-
-/********************
-  Default CSS for an svg element nvd3 used
-*/
-svg.nvd3-svg {
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -ms-user-select: none;
-    -moz-user-select: none;
-    user-select: none;
-    display: block;
-    width:100%;
-    height:100%;
-}
-
-/********************
-  Box shadow and border radius styling
-*/
-.nvtooltip.with-3d-shadow, .with-3d-shadow .nvtooltip {
-    -moz-box-shadow: 0 5px 10px rgba(0,0,0,.2);
-    -webkit-box-shadow: 0 5px 10px rgba(0,0,0,.2);
-    box-shadow: 0 5px 10px rgba(0,0,0,.2);
-
-    -webkit-border-radius: 5px;
-    -moz-border-radius: 5px;
-    border-radius: 5px;
-}
-
-
-.nvd3 text {
-    font: normal 12px Arial;
-}
-
-.nvd3 .title {
-    font: bold 14px Arial;
-}
-
-.nvd3 .nv-background {
-    fill: white;
-    fill-opacity: 0;
-}
-
-.nvd3.nv-noData {
-    font-size: 18px;
-    font-weight: bold;
-}
-
-
-/**********
-*  Brush
-*/
-
-.nv-brush .extent {
-    fill-opacity: .125;
-    shape-rendering: crispEdges;
-}
-
-.nv-brush .resize path {
-    fill: #eee;
-    stroke: #666;
-}
-
-
-/**********
-*  Legend
-*/
-
-.nvd3 .nv-legend .nv-series {
-    cursor: pointer;
-}
-
-.nvd3 .nv-legend .nv-disabled circle {
-    fill-opacity: 0;
-}
-
-/* focus */
-.nvd3 .nv-brush .extent {
-    fill-opacity: 0 !important;
-}
-
-.nvd3 .nv-brushBackground rect {
-    stroke: #000;
-    stroke-width: .4;
-    fill: #fff;
-    fill-opacity: .7;
-}
-
-
-.nvd3.nv-ohlcBar .nv-ticks .nv-tick {
-    stroke-width: 1px;
-}
-
-.nvd3.nv-ohlcBar .nv-ticks .nv-tick.hover {
-    stroke-width: 2px;
-}
-
-.nvd3.nv-ohlcBar .nv-ticks .nv-tick.positive {
-    stroke: #2ca02c;
-}
-
-.nvd3.nv-ohlcBar .nv-ticks .nv-tick.negative {
-    stroke: #d62728;
-}
-
-
-.nvd3 .background path {
-    fill: none;
-    stroke: #EEE;
-    stroke-opacity: .4;
-    shape-rendering: crispEdges;
-}
-
-.nvd3 .foreground path {
-    fill: none;
-    stroke-opacity: .7;
-}
-
-.nvd3 .nv-parallelCoordinates-brush .extent
-{
-    fill: #fff;
-    fill-opacity: .6;
-    stroke: gray;
-    shape-rendering: crispEdges;
-}
-
-.nvd3 .nv-parallelCoordinates .hover  {
-    fill-opacity: 1;
-    stroke-width: 3px;
-}
-
-
-.nvd3 .missingValuesline line {
-  fill: none;
-  stroke: black;
-  stroke-width: 1;
-  stroke-opacity: 1;
-  stroke-dasharray: 5, 5;
-}
-.nvd3.nv-pie path {
-    stroke-opacity: 0;
-    transition: fill-opacity 250ms linear, stroke-width 250ms linear, stroke-opacity 250ms linear;
-    -moz-transition: fill-opacity 250ms linear, stroke-width 250ms linear, stroke-opacity 250ms linear;
-    -webkit-transition: fill-opacity 250ms linear, stroke-width 250ms linear, stroke-opacity 250ms linear;
-
-}
-
-.nvd3.nv-pie .nv-pie-title {
-    font-size: 24px;
-    fill: rgba(19, 196, 249, 0.59);
-}
-
-.nvd3.nv-pie .nv-slice text {
-    stroke: #000;
-    stroke-width: 0;
-}
-
-.nvd3.nv-pie path {
-    stroke: #fff;
-    stroke-width: 1px;
-    stroke-opacity: 1;
-}
-
-.nvd3.nv-pie .hover path {
-    fill-opacity: .7;
-}
-.nvd3.nv-pie .nv-label {
-    pointer-events: none;
-}
-.nvd3.nv-pie .nv-label rect {
-    fill-opacity: 0;
-    stroke-opacity: 0;
-}
-
-/* scatter */
-.nvd3 .nv-groups .nv-point.hover {
-    stroke-width: 20px;
-    stroke-opacity: .5;
-}
-
-.nvd3 .nv-scatter .nv-point.hover {
-    fill-opacity: 1;
-}
-.nv-noninteractive {
-    pointer-events: none;
-}
-
-.nv-distx, .nv-disty {
-    pointer-events: none;
-}
-
-/* sparkline */
-.nvd3.nv-sparkline path {
-    fill: none;
-}
-
-.nvd3.nv-sparklineplus g.nv-hoverValue {
-    pointer-events: none;
-}
-
-.nvd3.nv-sparklineplus .nv-hoverValue line {
-    stroke: #333;
-    stroke-width: 1.5px;
-}
-
-.nvd3.nv-sparklineplus,
-.nvd3.nv-sparklineplus g {
-    pointer-events: all;
-}
-
-.nvd3 .nv-hoverArea {
-    fill-opacity: 0;
-    stroke-opacity: 0;
-}
-
-.nvd3.nv-sparklineplus .nv-xValue,
-.nvd3.nv-sparklineplus .nv-yValue {
-    stroke-width: 0;
-    font-size: .9em;
-    font-weight: normal;
-}
-
-.nvd3.nv-sparklineplus .nv-yValue {
-    stroke: #f66;
-}
-
-.nvd3.nv-sparklineplus .nv-maxValue {
-    stroke: #2ca02c;
-    fill: #2ca02c;
-}
-
-.nvd3.nv-sparklineplus .nv-minValue {
-    stroke: #d62728;
-    fill: #d62728;
-}
-
-.nvd3.nv-sparklineplus .nv-currentValue {
-    font-weight: bold;
-    font-size: 1.1em;
-}
-/* stacked area */
-.nvd3.nv-stackedarea path.nv-area {
-    fill-opacity: .7;
-    stroke-opacity: 0;
-    transition: fill-opacity 250ms linear, stroke-opacity 250ms linear;
-    -moz-transition: fill-opacity 250ms linear, stroke-opacity 250ms linear;
-    -webkit-transition: fill-opacity 250ms linear, stroke-opacity 250ms linear;
-}
-
-.nvd3.nv-stackedarea path.nv-area.hover {
-    fill-opacity: .9;
-}
-
-
-.nvd3.nv-stackedarea .nv-groups .nv-point {
-    stroke-opacity: 0;
-    fill-opacity: 0;
-}
-
-
-.nvtooltip {
-    position: absolute;
-    background-color: rgba(255,255,255,1.0);
-    color: rgba(0,0,0,1.0);
-    padding: 1px;
-    border: 1px solid rgba(0,0,0,.2);
-    z-index: 10000;
-    display: block;
-
-    font-family: Arial;
-    font-size: 13px;
-    text-align: left;
-    pointer-events: none;
-
-    white-space: nowrap;
-
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
-
-.nvtooltip {
-    background: rgba(255,255,255, 0.8);
-    border: 1px solid rgba(0,0,0,0.5);
-    border-radius: 4px;
-}
-
-/*Give tooltips that old fade in transition by
-    putting a "with-transitions" class on the container div.
-*/
-.nvtooltip.with-transitions, .with-transitions .nvtooltip {
-    transition: opacity 50ms linear;
-    -moz-transition: opacity 50ms linear;
-    -webkit-transition: opacity 50ms linear;
-
-    transition-delay: 200ms;
-    -moz-transition-delay: 200ms;
-    -webkit-transition-delay: 200ms;
-}
-
-.nvtooltip.x-nvtooltip,
-.nvtooltip.y-nvtooltip {
-    padding: 8px;
-}
-
-.nvtooltip h3 {
-    margin: 0;
-    padding: 4px 14px;
-    line-height: 18px;
-    font-weight: normal;
-    background-color: rgba(247,247,247,0.75);
-    color: rgba(0,0,0,1.0);
-    text-align: center;
-
-    border-bottom: 1px solid #ebebeb;
-
-    -webkit-border-radius: 5px 5px 0 0;
-    -moz-border-radius: 5px 5px 0 0;
-    border-radius: 5px 5px 0 0;
-}
-
-.nvtooltip p {
-    margin: 0;
-    padding: 5px 14px;
-    text-align: center;
-}
-
-.nvtooltip span {
-    display: inline-block;
-    margin: 2px 0;
-}
-
-.nvtooltip table {
-    margin: 6px;
-    border-spacing:0;
-}
-
-
-.nvtooltip table td {
-    padding: 2px 9px 2px 0;
-    vertical-align: middle;
-}
-
-.nvtooltip table td.key {
-    font-weight:normal;
-}
-.nvtooltip table td.value {
-    text-align: right;
-    font-weight: bold;
-}
-
-.nvtooltip table tr.highlight td {
-    padding: 1px 9px 1px 0;
-    border-bottom-style: solid;
-    border-bottom-width: 1px;
-    border-top-style: solid;
-    border-top-width: 1px;
-}
-
-.nvtooltip table td.legend-color-guide div {
-    width: 8px;
-    height: 8px;
-    vertical-align: middle;
-}
-
-.nvtooltip table td.legend-color-guide div {
-    width: 12px;
-    height: 12px;
-    border: 1px solid #999;
-}
-
-.nvtooltip .footer {
-    padding: 3px;
-    text-align: center;
-}
-
-.nvtooltip-pending-removal {
-    pointer-events: none;
-    display: none;
-}
 
 .displayNone {
     display: none;
@@ -2198,15 +1412,58 @@ svg.nvd3-svg {
     border-radius: inherit;
 }
 
-/****
-Interactive Layer
-*/
-.nvd3 .nv-interactiveGuideLine {
-    pointer-events:none;
+.vc-checkbox {
+    cursor: pointer;
 }
-.nvd3 line.nv-guideline {
-    stroke: #ccc;
+
+.vc-checkbox:hover > div > span::before {
+    border: 1px solid #A90DD4;
 }
+
+.vc-checkbox > div > span::before {
+    content: "";
+    display: inline-block;
+    box-sizing: border-box;
+    width: .95em;
+    height: 1em;
+    margin-right: .45em;
+    margin-left: 0.2em;
+    line-height: .9em;
+    text-align: center;
+    color: white;
+    border: 1px solid gray;
+    border-radius: 1px;
+    background: white;
+    font-style: normal;
+    text-decoration: none;
+}
+
+.vc-checkbox > .selected > span::before {
+    box-shadow: 0 0 0 0 #fff inset;
+    border: 1px solid #595959;
+    background: rgba(128,128,255,0.5);
+} 
+
+
+/***react-select-me style overrides ***/
+
+#app .dd__selectControl {
+    font-size: inherit;
+    padding: 2px 6px 2px 4px;
+    border-radius: 0px;
+    line-height: 18px;
+}
+
+#app .dd__expandIcon {
+    margin-left: 8px;
+}
+
+#app .dd__option {
+    line-height: 18px;
+    padding: 4px;
+}
+
+/***end react-select-me style overrides ***/
 
 .collapsible-registry-values.slow-show {
     height: 100%;
@@ -2274,7 +1531,7 @@ Interactive Layer
 }
 
 .registryConfigTable > tbody > tr:not(.selectedRegistryPoint):hover {
-    background-color: rgba(102, 153, 187, .3);
+    background-color: rgba(21, 81, 125, .3);
 }
 
 .registryConfigTable > tbody > tr > td > input {
@@ -2294,11 +1551,11 @@ Interactive Layer
 }
 
 .selectedRegistryPoint {
-    background-color: rgba(102, 153, 187, .5) !important;
+    background-color: rgba(21, 81, 125, .5) !important;
 }
 
 .keyboard-selected {
-    background-color: rgba(102, 153, 187, .3);
+    background-color: rgba(21, 81, 125, .3);
 }
 
 .th-inner {
@@ -2421,8 +1678,29 @@ td.plain {
     width: 600px;
 }
 
+.configDeviceContainer table {
+    border-collapse: separate;
+    border-spacing: 10px 8px;
+}
+
 .detectDevicesBox {    
     border: 1px solid black;
+    padding: 2px;
+}
+
+.detectDevicesBox table {
+    border-collapse: separate;
+    border-spacing: 2px;
+}
+
+.detectDevicesBox td {
+    padding: 0;
+}
+
+.detectDevicesBox input {
+    padding: 2px;
+    box-sizing: border-box;
+    border: 1px solid #373C43;
 }
 
 .devicesFoundBox {    
@@ -2503,6 +1781,7 @@ td.buffer_row {
     right: 0;
     z-index: 99;
     cursor: pointer;
+    width: 20px;
 }
 
 .fileButton {

@@ -1,13 +1,17 @@
 'use strict';
 
+var $ = require('jquery');
 import React from 'react';
 import BaseComponent from './base-component';
+import DevicesFound from './devices-found';
+
+import Select from 'react-select-me';
 
 var platformsStore = require('../stores/platforms-store');
 var devicesStore = require('../stores/devices-store');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
-import DevicesFound from './devices-found';
+
 const scanDuration = 10000; // 10 seconds
 
 class ConfigureDevices extends BaseComponent {
@@ -15,7 +19,8 @@ class ConfigureDevices extends BaseComponent {
         super(props);
         this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange',
                     '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan',
-                    '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded');
+                    '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded', '_showTooltip',
+                    '_hideTooltip');
 
         this.state = getInitialState();
     }
@@ -26,11 +31,6 @@ class ConfigureDevices extends BaseComponent {
     componentWillUnmount() {
         platformsStore.removeChangeListener(this._onPlatformStoresChange);
         devicesStore.removeChangeListener(this._onDevicesStoresChange);
-
-        if (this._scanTimeout)
-        {
-            clearTimeout(this._scanTimeout);    
-        }
     }
     _onPlatformStoresChange() {
 
@@ -51,20 +51,20 @@ class ConfigureDevices extends BaseComponent {
         if (devicesStore.getNewScan())
         {
             this.setState(getInitialState());
-
-            if (this._scanTimeout)
-            {
-                clearTimeout(this._scanTimeout);    
-            }
         }
-        else
+        else 
         {
             this.setState({devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyIdentity)});
+
+            if (devicesStore.getScanningComplete() && this.state.scanning)
+            {
+                this._cancelScan();
+            }
         }
     }
-    _onDeviceMethodChange(evt) {
+    _onDeviceMethodChange(selection) {
 
-        var deviceMethod = evt.target.value;
+        var deviceMethod = selection.value;
 
         if (this.state.bacnetProxies.length)
         {
@@ -76,8 +76,8 @@ class ConfigureDevices extends BaseComponent {
                 "Can't scan for devices: A BACNet proxy agent for the platform must be installed and running.", null, "left");
         }
     }
-    _onProxySelect(evt) {
-        var selectedProxyIdentity = evt.target.value;
+    _onProxySelect(selection) {
+        var selectedProxyIdentity = selection.value;
         this.setState({ selectedProxyIdentity: selectedProxyIdentity });
     }
     _onDeviceStart(evt) {
@@ -101,6 +101,9 @@ class ConfigureDevices extends BaseComponent {
     _onAddress(evt) {
         this.setState({ address: evt.target.value });
     }
+    _onDevicesLoaded(devicesLoaded) {
+        this.setState({devicesLoaded: devicesLoaded});
+    }
     _onStartScan(evt) {
         var platformAgentUuid = platformsStore.getPlatformAgentUuid(this.state.platform.uuid);
 
@@ -117,15 +120,7 @@ class ConfigureDevices extends BaseComponent {
         this.setState({ scanStarted: true });
         this.setState({ canceled: false });
 
-        if (this._scanTimeout)
-        {
-            clearTimeout(this._scanTimeout);    
-        }
-        
-        this._scanTimeout = setTimeout(this._cancelScan, scanDuration);
-    }
-    _onDevicesLoaded(devicesLoaded) {
-        this.setState({devicesLoaded: devicesLoaded});
+        this._hideTooltip();
     }
     _showCancel() {
 
@@ -144,6 +139,24 @@ class ConfigureDevices extends BaseComponent {
     _cancelScan() {
         this.setState({scanning: false});
         this.setState({canceled: true});
+
+        devicesActionCreators.cancelDeviceScan();
+    }
+    _showTooltip(evt) {
+
+        var sidePanel = document.querySelector(".platform-statuses");
+        var sidePanelRects = sidePanel.getClientRects();
+        var sidePanelWidth = sidePanelRects[0].width;
+
+        var targetRects = evt.target.getClientRects();
+        var targetLeft = targetRects[0].left;
+
+        this.setState({showTooltip: true});
+        this.setState({tooltipX: targetLeft - sidePanelWidth - 20});
+        this.setState({tooltipY: evt.clientY - 140});
+    }
+    _hideTooltip() {
+        this.setState({showTooltip: false});
     }
     render() {
 
@@ -154,16 +167,18 @@ class ConfigureDevices extends BaseComponent {
 
             var platform = this.state.platform;
 
+            var methodOptions = [
+                { value: "scanForDevices", label: "Scan for Devices"},
+                { value: "addDevicesManually", label: "Add Manually"}
+            ];
+
             var methodSelect = (
-                <select
-                    onChange={this._onDeviceMethodChange}
+                <Select
+                    name="method-select"
+                    options={methodOptions}
                     value={this.state.deviceMethod}
-                    autoFocus
-                    required
-                >
-                    <option value="scanForDevices">Scan for Devices</option>
-                    <option value="addDevicesManually">Add Manually</option>
-                </select>
+                    onChange={this._onDeviceMethodChange}>
+                </Select>
             );
 
             var proxySelect;
@@ -180,7 +195,7 @@ class ConfigureDevices extends BaseComponent {
             {
                 var proxies = this.state.bacnetProxies.map(function (proxy) {
                     return (
-                        <option key={proxy.identity} value={proxy.identity}>{proxy.name}</option>
+                        { value: proxy.identity, label: proxy.name } 
                     );
                 });
 
@@ -190,18 +205,14 @@ class ConfigureDevices extends BaseComponent {
 
                         <td className="plain"
                             colSpan={4}>
-                            <select
+                            <Select
                                 style={wideStyle}
+                                options={proxies}
                                 onChange={this._onProxySelect}
                                 value={this.state.selectedProxyIdentity}
-                                autoFocus
-                                required
-                            >
-                                {proxies}
-                            </select>
+                            >   
+                            </Select>
                         </td>
-
-                        <td className="plain" style={fifthCell}></td>
                     </tr>
                 );
             }
@@ -218,7 +229,7 @@ class ConfigureDevices extends BaseComponent {
             }
 
             var deviceRangeStyle = {
-                width: "70px"
+                width: "100%"
             }
 
             var tdStyle = {
@@ -249,7 +260,6 @@ class ConfigureDevices extends BaseComponent {
                                             onChange={this._onDeviceEnd}
                                             value={this.state.deviceEnd}></input>
                                     </td>
-                                    <td className="plain"></td>
                                 </tr>
                                 <tr>
                                     <td><b>Address</b></td>
@@ -261,7 +271,6 @@ class ConfigureDevices extends BaseComponent {
                                             onChange={this._onAddress}
                                             value={this.state.address}></input>
                                     </td>
-                                    <td className="plain" style={fifthCell}></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -292,7 +301,7 @@ class ConfigureDevices extends BaseComponent {
                 }
                 else
                 {
-                    spinnerContent = <i className="fa fa-cog fa-spin fa-2x fa-fw margin-bottom"></i>;
+                    spinnerContent = <i className="fa fa-cog fa-spin fa-2x margin-bottom"></i>;
                 }
 
                 scanButton = (
@@ -308,7 +317,34 @@ class ConfigureDevices extends BaseComponent {
             }
             else
             {
-                scanButton = <div style={scanOptionsStyle}><button style={buttonStyle} onClick={this._onStartScan}>Go</button></div>;
+                var tooltipStyle = {
+                    display: (this.state.showTooltip ? "block" : "none"),
+                    position: "absolute",
+                    top: this.state.tooltipY + "px",
+                    left: this.state.tooltipX + "px"
+                };
+
+                var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
+
+                scanButton = (
+                    <div style={scanOptionsStyle}>  
+                        <div className={toolTipClasses}
+                            style={tooltipStyle}>
+                            <div className="tooltip_inner">
+                                <div className="opaque_inner">
+                                    Find Devices
+                                </div>
+                            </div>
+                        </div>                   
+                        <div className="scanningSpinner tooltip_target" 
+                            style={buttonStyle} 
+                            onClick={this._onStartScan}
+                            onMouseEnter={this._showTooltip}
+                            onMouseLeave={this._hideTooltip}>
+                            <i className="fa fa-cog fa-2x margin-bottom"></i>
+                        </div>
+                    </div>
+                );
             }
 
             if (this.state.devicesLoaded || this.state.scanStarted)
@@ -390,9 +426,18 @@ function getInitialState() {
         state.devicesLoaded = false;
         state.scanStarted = false;
         state.cancelButton = false;
+
+        state.showTooltip = false;
+        state.tooltipX = 0;
+        state.tooltooltipY = 0;
     }
 
     return state;
+}
+
+function objectIsEmpty(obj)
+{
+    return Object.keys(obj).length === 0;
 }
 
 export default ConfigureDevices;

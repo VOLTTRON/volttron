@@ -2,10 +2,13 @@
 
 var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
+var devicesStore = require('../stores/devices-store');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+
+var pointsWs, pointsWebsocket, devicesWs, devicesWebsocket;
 
 var devicesActionCreators = {
     configureDevices: function (platform) {
@@ -43,6 +46,28 @@ var devicesActionCreators = {
             params.target_address = address;
         }
 
+        var setUpDevicesSocket = function(platformUuid, bacnetIdentity) {
+
+            // if (typeof pointsWs !== "undefined" && pointsWs !== null)
+            // {
+            //     pointsWs.close();
+            //     pointsWs = null;
+            // }
+
+            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
+            if (window.WebSocket) {
+                devicesWs = new WebSocket(devicesWebsocket);
+            }
+            else if (window.MozWebSocket) {
+                devicesWs = MozWebSocket(devicesWebsocket);
+            }
+
+            devicesWs.onmessage = function(evt)
+            {
+                devicesActionCreators.deviceMessageReceived(evt.data, platformUuid, bacnetIdentity);
+            };
+        }   
+
         return new rpc.Exchange({
             method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + platformAgentUuid + '.start_bacnet_scan',
             authorization: authorization,
@@ -56,7 +81,9 @@ var devicesActionCreators = {
                     low_device_id: low,
                     high_device_id: high,
                     target_address: address
-                });                
+                });
+
+                setUpDevicesSocket(platformUuid, bacnetProxyIdentity);        
             })
             .catch(rpc.Error, function (error) {
 
@@ -66,13 +93,49 @@ var devicesActionCreators = {
             });
         
     },
-    deviceDetected: function (device, platform, bacnet) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.DEVICE_DETECTED,
-            platform: platform,
-            bacnet: bacnet,
-            device: device
-        });
+    deviceMessageReceived: function (data, platform, bacnet) {
+        
+        if (data)
+        {
+            var device = JSON.parse(data);
+
+            if (device.hasOwnProperty("status"))
+            {
+                if (device.status === "FINISHED IAM")
+                {                    
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.DEVICE_SCAN_FINISHED
+                    });
+                }
+            }
+            else
+            {
+                var result = checkDevice(device, platform, bacnet);
+
+                if (!objectIsEmpty(result))
+                {            
+                    if (!objectIsEmpty(result.warning))
+                    {
+                        statusIndicatorActionCreators.openStatusIndicator(
+                            "error", 
+                            result.warning.message + "ID: " + result.warning.value, 
+                            result.warning.value, 
+                            "left"
+                        );
+                    }
+
+                    if (!objectIsEmpty(result.device))
+                    {
+                        dispatcher.dispatch({
+                            type: ACTION_TYPES.DEVICE_DETECTED,
+                            platform: platform,
+                            bacnet: bacnet,
+                            device: result.device
+                        });
+                    }
+                }
+            }
+        }
     },
     pointReceived: function (data, platform) {
         dispatcher.dispatch({
@@ -81,11 +144,12 @@ var devicesActionCreators = {
             data: data
         });
     },
-    cancelScan: function (platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CANCEL_SCANNING,
-            platform: platform
-        });
+    cancelDeviceScan: function () {
+        if (typeof devicesWs !== "undefined" && devicesWs !== null)
+        {
+            devicesWs.close();
+            devicesWs = null;
+        }
     },
     handleKeyDown: function (keydown) {
         dispatcher.dispatch({
@@ -102,12 +166,6 @@ var devicesActionCreators = {
 
         console.log("focused on device");
     },
-    // listDetectedDevices: function (platform) {
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.LIST_DETECTED_DEVICES,
-    //         platform: platform
-    //     });
-    // },
     configureDevice: function (device, bacnetIdentity, platformAgentUuid) {
         
         var authorization = authorizationStore.getAuthorization();
@@ -118,6 +176,30 @@ var devicesActionCreators = {
             device_id: Number(device.id), 
             proxy_identity: bacnetIdentity, 
             address: device.address
+        }
+
+        var setUpPointsSocket = function() {
+        
+            // if (typeof devicesWs !== "undefined" && devicesWs !== null)
+            // {
+            //     devicesWs.close();
+            //     devicesWs = null;
+            // }
+
+            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
+            if (window.WebSocket) {
+                pointsWs = new WebSocket(pointsWebsocket);
+            }
+            else if (window.MozWebSocket) {
+                pointsWs = MozWebSocket(pointsWebsocket);
+            }
+
+            pointsWs.onmessage = function(evt)
+            {
+                var platform = null;
+
+                devicesActionCreators.pointReceived(evt.data, platform);
+            };
         }
 
         return new rpc.Exchange({
@@ -131,6 +213,8 @@ var devicesActionCreators = {
                     type: ACTION_TYPES.CONFIGURE_DEVICE,
                     device: device
                 });
+
+                setUpPointsSocket();
             })
             .catch(rpc.Error, function (error) {
 
@@ -138,6 +222,8 @@ var devicesActionCreators = {
 
                 handle401(error, error.message);
             });
+
+        
     },
     toggleShowPoints: function (device) {
         dispatcher.dispatch({
@@ -205,6 +291,63 @@ var devicesActionCreators = {
         });
     },
 };
+
+function checkDevice(device, platformUuid, bacnetIdentity) 
+{
+    var result = {};
+
+    if (device.hasOwnProperty("device_id") && !device.hasOwnProperty("results"))
+    {
+        result = {
+            device: {},
+            warning: {}
+        }
+
+        var deviceIdStr = device.device_id.toString();
+        var addDevice = true;
+
+        var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
+
+        if (alreadyInList)
+        {
+            if (alreadyInList.address !== device.address)
+            {
+                // If there are multiple devices with same ID, see if there's another one
+                // with this same address
+                var sameDevice = devicesStore.getDeviceRef(deviceIdStr, device.address);
+
+                if (sameDevice)
+                {
+                    addDevice = false;
+                }
+                else
+                {
+                    result.warning = { 
+                        key: "duplicate_id", 
+                        message: "Duplicate device IDs found. Your network may not be set up correctly. ",
+                        value: deviceIdStr 
+                    };
+                }                
+            }
+            else // Same ID and same address means the device is already in the list, so don't add it
+            {
+                addDevice = false;
+            }
+        }
+        
+        if (addDevice) 
+        {
+            result.device = device;
+        }
+    }
+
+    return result;
+}
+
+function objectIsEmpty(obj)
+{
+    return Object.keys(obj).length === 0;
+}
 
 function handle401(error, message, highlight, orientation) {
    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {

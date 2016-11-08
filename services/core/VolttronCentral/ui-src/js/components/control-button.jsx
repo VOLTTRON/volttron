@@ -1,83 +1,84 @@
 'use strict';
 
-var React = require('react');
-var Router = require('react-router');
+import React from 'react';
+import BaseComponent from './base-component';
+
 var controlButtonStore = require('../stores/control-button-store');
 var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
 var OutsideClick = require('react-click-outside');
 
+class ControlButton extends BaseComponent {
+    constructor(props) {
+        super(props);
+        this._bind('_onStoresChange', 'handleClickOutside', '_showTaptip', '_hideTaptip', '_showTooltip', '_hideTooltip');
 
-var ControlButton = React.createClass({
-    getInitialState: function () {
-		var state = {};
+		this.state = {};
 
-		state.showTaptip = false;
-		state.showTooltip = false;
-		state.deactivateTooltip = false;
+		this.state.showTaptip = false;
+		this.state.showTooltip = false;
+		this.state.deactivateTooltip = false;
 
-        state.selected = (this.props.selected === true);
+        this.state.selected = (this.props.selected === true);
 
-		state.taptipX = 0;
-		state.taptipY = 0;
-        state.tooltipX = 0;
-        state.tooltipY = 0;
+		this.state.taptipX = 0;
+		this.state.taptipY = 0;
+        this.state.tooltipX = 0;
+        this.state.tooltipY = 0;
 
-        state.tooltipOffsetX = 0;
-        state.tooltipOffsetY = 0;
-        state.taptipOffsetX = 0;
-        state.taptipOffsetY = 0;
+        this.state.tooltipOffsetX = 0;
+        this.state.tooltipOffsetY = 0;
+        this.state.taptipOffsetX = 0;
+        this.state.taptipOffsetY = 0;
 
         if (this.props.hasOwnProperty("tooltip"))
         {
             if (this.props.tooltip.hasOwnProperty("x"))
-                state.tooltipX = this.props.tooltip.x;
+                this.state.tooltipX = this.props.tooltip.x;
 
             if (this.props.tooltip.hasOwnProperty("y"))
-                state.tooltipY = this.props.tooltip.y;
+                this.state.tooltipY = this.props.tooltip.y;
             
             if (this.props.tooltip.hasOwnProperty("xOffset"))
-                state.tooltipOffsetX = this.props.tooltip.xOffset;
+                this.state.tooltipOffsetX = this.props.tooltip.xOffset;
 
             if (this.props.tooltip.hasOwnProperty("yOffset"))
-                state.tooltipOffsetY = this.props.tooltip.yOffset;
+                this.state.tooltipOffsetY = this.props.tooltip.yOffset;
         }
 
         if (this.props.hasOwnProperty("taptip"))
         {
             if (this.props.taptip.hasOwnProperty("x"))
-                state.taptipX = this.props.taptip.x;
+                this.state.taptipX = this.props.taptip.x;
 
             if (this.props.taptip.hasOwnProperty("y"))
-                state.taptipY = this.props.taptip.y;
+                this.state.taptipY = this.props.taptip.y;
             
             if (this.props.taptip.hasOwnProperty("xOffset"))
-                state.taptipOffsetX = this.props.taptip.xOffset;
+                this.state.taptipOffsetX = this.props.taptip.xOffset;
 
             if (this.props.taptip.hasOwnProperty("yOffset"))
-                state.taptipOffsetY = this.props.taptip.yOffset;
+                this.state.taptipOffsetY = this.props.taptip.yOffset;
         }
-
-		return state;
-	},
-    componentDidMount: function () {
+	}
+    componentDidMount() {
         controlButtonStore.addChangeListener(this._onStoresChange);
 
         window.addEventListener('keydown', this._hideTaptip);
-    },
-    componentWillUnmount: function () {
+    }
+    componentWillUnmount() {
         controlButtonStore.removeChangeListener(this._onStoresChange);
 
         window.removeEventListener('keydown', this._hideTaptip);
-    },
-    componentWillReceiveProps: function (nextProps) {
+    }
+    componentWillReceiveProps(nextProps) {
     	this.setState({ selected: (nextProps.selected === true) });
 
     	if (nextProps.selected === true) 
     	{
     		this.setState({ showTooltip: false });
-    	}    	
-    },
-    _onStoresChange: function () {
+    	}
+    }
+    _onStoresChange() {
 
     	var showTaptip = controlButtonStore.getTaptip(this.props.name);
     	
@@ -102,14 +103,19 @@ var ControlButton = React.createClass({
                 }
             }
 	    }
-    },
-    handleClickOutside: function () {
+    }
+    handleClickOutside() {
         if (this.state.showTaptip)
         {
             controlButtonActionCreators.hideTaptip(this.props.name);
         }
-    },
-	_showTaptip: function (evt) {
+
+        if (this.state.showTooltip)
+        {
+            this._hideTooltip();
+        }
+    }
+	_showTaptip(evt) {
 
 		if (!this.state.showTaptip)
 		{
@@ -121,14 +127,14 @@ var ControlButton = React.createClass({
 		}
 
 		controlButtonActionCreators.toggleTaptip(this.props.name);
-	},
-	_hideTaptip: function (evt) {
+	}
+	_hideTaptip(evt) {
 		if (evt.keyCode === 27) 
 		{
 	        controlButtonActionCreators.hideTaptip(this.props.name);
         }
-	},
-    _showTooltip: function (evt) {
+	}
+    _showTooltip(evt) {
         this.setState({showTooltip: true});
 
         if (!this.props.tooltip.hasOwnProperty("x"))
@@ -140,11 +146,11 @@ var ControlButton = React.createClass({
         {
             this.setState({tooltipY: evt.clientY - this.state.tooltipOffsetY});
         }
-    },
-    _hideTooltip: function () {
+    }
+    _hideTooltip() {
         this.setState({showTooltip: false});
-    },
-    render: function () {
+    }
+    render() {
         
         var taptip;
         var tooltip;
@@ -267,13 +273,7 @@ var ControlButton = React.createClass({
                 </div>                  
             </div>
         );
-    },
-});
+    }
+}
 
-
-
-
-
-
-
-module.exports = OutsideClick(ControlButton);
+export default OutsideClick(ControlButton);

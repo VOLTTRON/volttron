@@ -3,9 +3,9 @@
 import React from 'react';
 import BaseComponent from './base-component';
 import ConfigureRegistry from './configure-registry';
+import ControlButton from './control-button';
 
 var ConfirmForm = require('./confirm-form');
-var ControlButton = require('./control-button');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -14,128 +14,29 @@ var devicesStore = require('../stores/devices-store');
 
 var CsvParse = require('babyparse');
 
-var devicesWs, devicesWebsocket;
-var pointsWs, pointsWebsocket;
-
 class DevicesFound extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind('_onStoresChange', '_uploadRegistryFile', '_setUpDevicesSocket', '_setUpPointsSocket', 
-            '_focusOnDevice', '_showFileButtonTooltip');
+        this._bind('_onStoresChange', '_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip');
 
         this.state = {
             triggerTooltip: {}
         };       
     }
     componentDidMount() {
-        // devicesStore.addChangeListener(this._onStoresChange);
-        this._setUpDevicesSocket()
+        // devicesStore.addChangeListener(this._onStoresChange);        
     }
     componentWillUnmount() {
         // devicesStore.removeChangeListener(this._onStoresChange);
     }
-    componentWillReceiveProps(nextProps) {
-        if (this.props.canceled !== nextProps.canceled)
-        {
-            if (nextProps.canceled)
-            {
-                if (typeof devicesWs !== "undefined" && devicesWs !== null)
-                {
-                    devicesWs.close();
-                    devicesWs = null;
-                }
-            }
-            else
-            {
-                this._setUpDevicesSocket();
-            }
-        }
+    _onStoresChange() {
 
+    }
+    componentWillReceiveProps(nextProps) {
         if (nextProps.devices !== this.props.devices)
         {
             this.props.devicesloaded(nextProps.devices.length > 0);
         }
-    }
-    _setUpDevicesSocket() {
-
-        if (typeof pointsWs !== "undefined" && pointsWs !== null)
-        {
-            pointsWs.close();
-            pointsWs = null;
-        }
-
-        devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
-        if (window.WebSocket) {
-            devicesWs = new WebSocket(devicesWebsocket);
-        }
-        else if (window.MozWebSocket) {
-            devicesWs = MozWebSocket(devicesWebsocket);
-        }
-
-        devicesWs.onmessage = function(evt)
-        {
-            devicesActionCreators.deviceDetected(evt.data, this.props.platform, this.props.bacnet);
-
-            var warnings = devicesStore.getWarnings();
-
-            if (!objectIsEmpty(warnings))
-            {
-                for (var key in warnings)
-                {
-                    var values = warnings[key].items.join(", ");
-
-                    statusIndicatorActionCreators.openStatusIndicator(
-                        "error", 
-                        warnings[key].message + "ID: " + values, 
-                        values, 
-                        "left"
-                    );
-                }
-            }
-
-        }.bind(this);
-    }    
-    _setUpPointsSocket() {
-        
-        if (typeof devicesWs !== "undefined" && devicesWs !== null)
-        {
-            devicesWs.close();
-            devicesWs = null;
-        }
-
-        pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
-        if (window.WebSocket) {
-            pointsWs = new WebSocket(pointsWebsocket);
-        }
-        else if (window.MozWebSocket) {
-            pointsWs = MozWebSocket(pointsWebsocket);
-        }
-
-        pointsWs.onmessage = function(evt)
-        {
-            devicesActionCreators.pointReceived(evt.data, this.props.platform);
-
-            var warnings = devicesStore.getWarnings();
-
-            if (!objectIsEmpty(warnings))
-            {
-                for (var key in warnings)
-                {
-                    var values = warnings[key].items.join(", ");
-
-                    statusIndicatorActionCreators.openStatusIndicator(
-                        "error", 
-                        warnings[key].message + "ID: " + values, 
-                        values, 
-                        "left"
-                    );
-                }
-            }
-
-        }.bind(this);
-    }
-    _onStoresChange() {
-        // var devices = devicesStore.getDevices(this.props.platform, this.props.bacnet); 
     }
     _configureDevice(device) {
         
@@ -143,15 +44,11 @@ class DevicesFound extends BaseComponent {
 
         device.showPoints = !device.showPoints;
 
-        // Don't set up the socket again if we've already set it up once.
-        // So before setting device.configuring to true, first check
-        // if we're going to show points but haven't started configuring yet.
-        // If so, set up the socket and set configuring to true.
-        if (device.showPoints && !device.configuring)
+        // Don't scan for points again if already scanning
+        if (device.showPoints && !device.configuringStarted)
         {
             var platformAgentUuid = platformsStore.getPlatformAgentUuid(device.platformUuid);
 
-            this._setUpPointsSocket();
             device.configuring = true;
             devicesActionCreators.configureDevice(device, this.props.bacnet, platformAgentUuid);
         }
@@ -176,11 +73,13 @@ class DevicesFound extends BaseComponent {
             triggerTooltip[deviceId] = Number(rowIndex);
         }
 
-        this.setState({ triggerTooltip: triggerTooltip })
+        this.setState({ triggerTooltip: triggerTooltip });
     }
     _uploadRegistryFile(evt) {
         
         var csvFile = evt.target.files[0];
+
+        evt.target.blur();
 
         if (!csvFile)
         {
@@ -274,7 +173,7 @@ class DevicesFound extends BaseComponent {
                         }, this);
 
                     var arrowTooltip = {
-                        content: (!device.configuring ? "Get Device Points" : "Hide/Show"),
+                        content: (!device.configuringStarted ? "Get Device Points" : "Hide/Show"),
                         "x": 40,
                         "yOffset": 140
                     }
@@ -287,17 +186,35 @@ class DevicesFound extends BaseComponent {
 
                     var triggerTooltip = (this.state.triggerTooltip[deviceId] === rowIndex);
 
+                    var configButton;
+
+                    if (!device.configuring)
+                    {
+                        configButton = (
+                            <ControlButton
+                                name={"config-arrow-" + deviceId + "-" + rowIndex}
+                                tooltip={arrowTooltip}
+                                controlclass={ device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow" }
+                                icon="&#9654;"
+                                clickAction={this._configureDevice.bind(this, device)}/>
+                            );
+                    }
+                    else
+                    {
+                        var spinIcon = <span className="configIcon"><i className="fa fa-refresh fa-spin fa-fw"></i></span>;
+
+                        configButton = (
+                            <ControlButton
+                                name={"config-arrow-" + deviceId + "-" + rowIndex}
+                                controlclass="configure-arrow"
+                                icon={spinIcon}/>
+                            );
+                    }
+
                     return (
                         <tr key={deviceId + deviceAddress}>
                             <td key={"config-arrow-" + deviceId + deviceAddress} className="plain">
-
-                                <ControlButton
-                                    name={"config-arrow-" + deviceId + "-" + rowIndex}
-                                    tooltip={arrowTooltip}
-                                    controlclass={ device.showPoints ? "configure-arrow rotateConfigure" : "configure-arrow" }
-                                    icon="&#9654;"
-                                    clickAction={this._configureDevice.bind(this, device)}/>
-
+                                {configButton}
                             </td>
 
                             { tds }
@@ -468,11 +385,6 @@ var parseCsvFile = (contents) => {
     results.data = registryValues;
 
     return results;
-}
-
-function objectIsEmpty(obj)
-{
-    return Object.keys(obj).length === 0;
 }
 
 export default DevicesFound;

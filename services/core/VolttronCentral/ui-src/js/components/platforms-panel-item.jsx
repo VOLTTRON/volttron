@@ -3,6 +3,8 @@
 var React = require('react');
 var Router = require('react-router');
 import BaseComponent from './base-component';
+import ControlButton from './control-button';
+import CheckBox from './check-box';
 import Immutable from 'immutable';
 
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
@@ -10,7 +12,6 @@ var platformsPanelActionCreators = require('../action-creators/platforms-panel-a
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
 var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
-var ControlButton = require('./control-button');
 
 
 class PlatformsPanelItem extends BaseComponent {
@@ -161,9 +162,7 @@ class PlatformsPanelItem extends BaseComponent {
             this.setState({cancelButton: false});
         }
     }
-    _checkItem (e) {
-
-        var checked = e.target.checked;
+    _checkItem (checked) {
 
         if (checked)
         {
@@ -307,11 +306,8 @@ class PlatformsPanelItem extends BaseComponent {
 
             ChartCheckbox = (
                 <div>
-                    <input className="panelItemCheckbox"
-                        type="checkbox"
-                        style={inputStyle}
-                        onChange={this._checkItem}
-                        checked={ ((typeof this.state.checked === "undefined" || this.state.checked === null) ? false : this.state.checked) }></input>
+                    <CheckBox controlClass="panelItemCheckbox" controlStyle={inputStyle}
+                        oncheck={this._checkItem}></CheckBox>
                     <div className="checkboxSpinner arrowButton"
                         style={spinnerStyle}>                        
                         <span style={arrowContentStyle}><i className="fa fa-circle-o-notch fa-spin fa-fw"></i></span>

@@ -1,6 +1,7 @@
 'use strict';
 
 import React from 'react';
+import ReactDOM from 'react-dom';
 import BaseComponent from './base-component';
 import EditPointForm from './edit-point-form';
 import PreviewRegistryForm from './preview-registry-form';
@@ -10,20 +11,19 @@ import EditSelectButton from './control_buttons/edit-select-button';
 import EditColumnButton from './control_buttons/edit-columns-button';
 import KeyboardHelpButton from './control_buttons/keyboard-help-button';
 import RegistryRow from './registry-row';
+import ControlButton from './control-button';
+import CheckBox from './check-box';
 import Immutable from 'immutable';
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var devicesStore = require('../stores/devices-store');
 var FilterPointsButton = require('./control_buttons/filter-points-button');
-var ControlButton = require('./control-button');
 var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
 
-var registryWs, registryWebsocket;
 var _defaultColumnWidth = "200px";
 var _tableWidth;
-var _table;
 
 class ConfigureRegistry extends BaseComponent {    
     constructor(props) {
@@ -31,7 +31,7 @@ class ConfigureRegistry extends BaseComponent {
         this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", 
             "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn",
             "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
-            "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", 
+            "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_getParentNode",
             "_cloneColumn", "_onStoresChange", "_fetchExtendedPoints", "_onRegistrySave", "_focusOnDevice",
             "_handleKeyDown", "_onSelectForDelete", "_resizeColumn", "_initializeTable", "_removeSelectedPoints" );
 
@@ -91,7 +91,7 @@ class ConfigureRegistry extends BaseComponent {
 
         if ((keydown.target.nodeName !== "INPUT" || 
             keydown.target.className === "uploadButton" ||
-            keydown.target.className === "registryCheckbox") && this.state.deviceHasFocus)
+            keydown.target.className === "registryCheckbox") && devicesStore.deviceHasFocus(this.props.device.id, this.props.device.address))
         { 
             if (this.state.keyboardStarted)
             {
@@ -118,6 +118,7 @@ class ConfigureRegistry extends BaseComponent {
                     case 32:    //Space
                     case 40:    //Down
                         keydown.preventDefault();
+                        keydown.stopPropagation();
 
                         if (keydown.shiftKey) // extend down
                         {
@@ -149,6 +150,7 @@ class ConfigureRegistry extends BaseComponent {
                         break;
                     case 38:    //Up
                         keydown.preventDefault();
+                        keydown.stopPropagation();
 
                         if (keydown.shiftKey) // extend up
                         {
@@ -217,16 +219,16 @@ class ConfigureRegistry extends BaseComponent {
         this.setState({ tableWidth: tableWidth + "px"});
         this.setState({ registryValues: newRegistryValues });
     }
-    _setTableTarget(table) {
-        _table = table;
-    }
     _initializeTable() {
-        var clientRect = _table.getClientRects();
+        var table = this._getParentNode();
+        var clientRect = table.getClientRects();
         _tableWidth = clientRect[0].width;
     }
     _resetState(device){
     
         var state = {};    
+
+        state.tableRef = "table-" + device.id + "-" + device.address;
 
         state.keyPropsList = device.keyProps;
         state.filterColumn = state.keyPropsList[0];
@@ -268,7 +270,7 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onStoresChange () {
 
-        var deviceHasFocus = devicesStore.deviceHasFocus(this.props.device.id);
+        var deviceHasFocus = devicesStore.deviceHasFocus(this.props.device.id, this.props.device.address);
 
         if (deviceHasFocus !== this.state.deviceHasFocus)
         {
@@ -301,11 +303,6 @@ class ConfigureRegistry extends BaseComponent {
         }, this);
 
         this.setState({ registryValues: registryValues });
-
-        // _setUpRegistrySocket();
-
-        //TODO: hook up onmessage in configure-registry.jsx or in registry-row.jsw
-        // registryWs.send(JSON.stringify(configRequests));
     }   
     _removeSelectedPoints(keyboardRange) {
 
@@ -325,44 +322,7 @@ class ConfigureRegistry extends BaseComponent {
         }
 
         this._onRemovePoints(pointNames);
-    } 
-
-    _setUpRegistrySocket() {
-
-        if (typeof registryWebsocket === "undefined" || registryWebsocket === null)
-        {
-            registryWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
-            if (window.WebSocket) {
-                registryWs = new WebSocket(devicesWebsocket);
-            }
-            else if (window.MozWebSocket) {
-                registryWs = MozWebSocket(devicesWebsocket);
-            }
-
-            registryWS.onmessage = function(evt)
-            {
-                // devicesActionCreators.pointDataReceived(evt.data, this.props.device);
-
-                // var warnings = devicesStore.getWarnings();
-
-                // if (!objectIsEmpty(warnings))
-                // {
-                //     for (var key in warnings)
-                //     {
-                //         var values = warnings[key].items.join(", ");
-
-                //         statusIndicatorActionCreators.openStatusIndicator(
-                //             "error", 
-                //             warnings[key].message + "ID: " + values, 
-                //             values, 
-                //             "left"
-                //         );
-                //     }
-                // }
-
-            }.bind(this);
-        }
-    }   
+    }
     _focusOnDevice() {
         devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
         console.log("focused on device");
@@ -484,9 +444,8 @@ class ConfigureRegistry extends BaseComponent {
         this.setState({ pointsToDelete: this.state.pointsToDelete });
 
     }
-    _selectAll() {
-        var allSelected = !this.state.allSelected;
-        this.setState({ allSelected: allSelected });
+    _selectAll(checked) {
+        this.setState({ allSelected: checked });
     }
     _onAddColumn(index) {
 
@@ -814,6 +773,9 @@ class ConfigureRegistry extends BaseComponent {
 
         modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device}/>);
     }
+    _getParentNode() {
+        return ReactDOM.findDOMNode(this.refs[this.state.tableRef]);
+    }
     render() {        
         
         var registryRows, registryHeader, registryButtons;
@@ -843,14 +805,17 @@ class ConfigureRegistry extends BaseComponent {
                     keyboardSelected: keyboardSelected
                 });
 
-                return (<RegistryRow 
-                            key={"registryRow-" + attributesList.get("attributes").get(0).value + "-" + rowIndex}
-                            attributesList={attributesList} 
-                            immutableProps={immutableProps}
-                            allSelected={this.state.allSelected}
-                            oncheckselect={this._onSelectForDelete}
-                            onresizecolumn={this._resizeColumn}
-                            oninitializetable={this._initializeTable}/>);
+                return (
+                    <RegistryRow 
+                        key={"registryRow-" + attributesList.get("attributes").get(0).value + "-" + rowIndex}
+                        attributesList={attributesList} 
+                        immutableProps={immutableProps}
+                        allSelected={this.state.allSelected}
+                        oncheckselect={this._onSelectForDelete}
+                        onresizecolumn={this._resizeColumn}
+                        oninitializetable={this._initializeTable}
+                        ongetparentnode={this._getParentNode}/>
+                );
                 
             }, this);
 
@@ -999,9 +964,8 @@ class ConfigureRegistry extends BaseComponent {
                 <tr key="header-values">
                     <th style={checkboxColumnStyle} key="header-checkbox">
                         <div className="th-inner">
-                            <input type="checkbox"
-                                onChange={this._selectAll}
-                                checked={this.state.allSelected}/>
+                            <CheckBox oncheck={this._selectAll}>
+                            </CheckBox>
                         </div>
                     </th>
                     { headerColumns }
@@ -1091,9 +1055,9 @@ class ConfigureRegistry extends BaseComponent {
                 <div className="fixed-table-container"> 
                     <div className="header-background"></div>      
                     <div className="fixed-table-container-inner">    
-                        <table 
+                        <table
                             style={tableStyle}
-                            ref={this._setTableTarget}
+                            ref={this.state.tableRef}
                             className="registryConfigTable">
                             <thead>
                                 { registryHeader }                                

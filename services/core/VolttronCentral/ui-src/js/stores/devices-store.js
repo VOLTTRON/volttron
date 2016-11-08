@@ -17,33 +17,9 @@ var _registryFiles = {};
 var _backupFileName = {};
 var _platform;
 var _devices = [];
-// var Device = Immutable.Record({
-//     id: undefined,
-//     name: undefined,
-//     vendor_id: undefined,
-//     address: undefined,
-//     max_apdu_length: undefined,
-//     segmentation_supported: undefined,
-//     showPoints: undefined,
-//     configuring: undefined,
-//     platformUuid: undefined,
-//     bacnetProxyUuid: undefined,
-//     registryConfig: [],
-//     keyProps: ["volttron_point_name", "units", "writable"],
-//     selectedPoints: [],
-//     items: [ 
-//         { key: "address", label: "Address", value: undefined },  
-//         { key: "deviceName", label: "Name", value: undefined },  
-//         { key: "deviceDescription", label: "Description", value: undefined }, 
-//         { key: "deviceId", label: "Device ID", value: undefined }, 
-//         { key: "vendorId", label: "Vendor ID", value: undefined }, 
-//         { key: "vendor", label: "Vendor", value: undefined },
-//         { key: "type", label: "Type", value: "BACnet" }
-//     ]
-// });
-
 
 var _newScan = false;
+var _scanningComplete = true;
 var _warnings = {};
 var _keyboard = {
     device: null,
@@ -51,10 +27,10 @@ var _keyboard = {
     cmd: null,
     started: false
 };
-var _focusedDevice = null;
+var _focusedDevice = {id: null, address: null};
 
 var _placeHolders = Immutable.List([ [
-    {"key": "Point_Name", "value": "", "editable": true},
+    {"key": "Point_Name", "value": ""},
     {"key": "Volttron_Point_Name", "value": ""},
     {"key": "Units", "value": ""},
     {"key": "Units_Details", "value": "" },
@@ -999,7 +975,7 @@ var vendorTable = {
     "931": "ODIN Automation Systems, LLC",
     "932": "Belparts NV",
     "999": "Reserved for ASHRAE"
-  };
+};
 
 
 devicesStore.getState = function () {
@@ -1068,7 +1044,7 @@ devicesStore.getDeviceRef = function (deviceId, deviceAddress) {
         return ((dvc.id === deviceId) && (dvc.address === deviceAddress));
     });
 
-    return device;
+    return (typeof device === "undefined" ? null : device);
 }
 
 devicesStore.getDevice = function (deviceId, deviceAddress) {
@@ -1101,151 +1077,82 @@ devicesStore.getKeyboard = function (deviceId) {
     return keyboard;
 }
 
-devicesStore.deviceHasFocus = function (deviceId) {
-    return _focusedDevice === deviceId;
+devicesStore.deviceHasFocus = function (deviceId, deviceAddress) {
+    return (_focusedDevice.id === deviceId && _focusedDevice.address === deviceAddress);
+}
+
+devicesStore.getScanningComplete = function () {
+    return (_scanningComplete);
 }
 
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
     switch (action.type) {
-        // case ACTION_TYPES.HANDLE_KEY_DOWN:
-            
-        //     if (_devices.length)
-        //     {
-        //         var keydown = action.keydown;
-
-        //         var emitKeyboard = function (keyboard)
-        //         {
-        //             devicesStore.emitChange();
-        //         }
-
-        //         switch (keydown.which)
-        //         {
-        //             case 17: // control
-
-        //                 if (!_keyboard.started)
-        //                 {
-        //                     if (_keyboard.device === null)
-        //                     {
-        //                         var focusedDevice = _devices.find(function (device) {
-        //                             return (device.registryConfig.length > 0);
-        //                         });
-
-        //                         _keyboard.device = focusedDevice.id;
-        //                     }
-
-        //                     if (_keyboard.device !== null)
-        //                     {
-        //                         _keyboard.active = true;
-        //                         _keyboard.cmd = "start";
-        //                         _keyboard.started = true;
-
-        //                         emitKeyboard(_keyboard);
-        //                     }
-        //                 }
-        //                 else
-        //                 {
-        //                     _keyboard.cmd = "resume";
-        //                     emitKeyboard(_keyboard);
-        //                 }
-        //                 break;
-        //             case 27: // ESC
-        //                 _keyboard.active = false;
-        //                 _keyboard.cmd = null;
-        //                 _keyboard.started = false;
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //             case 13: // Enter
-        //                 _keyboard.cmd = "enter";
-        //                 _keyboard.active = false;
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //             // case 9:    //Tab
-        //             case 32:    //Space
-        //             case 40:    //Down
-        //                 _keyboard.cmd = (keydown.shiftKey ? "extend_down" : "down");
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //             case 38:    //Up
-        //                 _keyboard.cmd = (keydown.shiftKey ? "extend_up" : "up");
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //             case 46:    //Delete
-        //                 _keyboard.cmd = "delete";
-        //                 emitKeyboard(_keyboard);
-        //                 break;
-        //         }
-        //     }
-            
-        //     break;
+        
         case ACTION_TYPES.CONFIGURE_DEVICES:
             _platform = action.platform;
             _devices = [];
             _newScan = true;
+            _scanningComplete = false;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.ADD_DEVICES:
-        case ACTION_TYPES.CANCEL_SCANNING:
             _action = "get_scan_settings";
             _view = "Detect Devices";
             _device = null;
             devicesStore.emitChange();
             break;
+        case ACTION_TYPES.CANCEL_SCANNING:
+            // _action = "get_scan_settings";
+            // _view = "Detect Devices";
+            // devicesWs.close();
+            // devicesWs = null;
+
+            // devicesStore.emitChange();
+            break;
         case ACTION_TYPES.LISTEN_FOR_IAMS:
             _newScan = false;
+            _scanningComplete = false;
             _warnings = {};
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.DEVICE_DETECTED:
             _action = "device_detected";
             _view = "Devices Found";
-            var warning = loadDevice(action.device, action.platform, action.bacnet);
+            // var warning = loadDevice(action.device, action.platform, action.bacnet);
 
-            if (!objectIsEmpty(warning))
-            {
-                if (_warnings.hasOwnProperty(warning.key))
-                {
-                    _warnings[warning.key].items.push(warning.value);
-                }
-                else
-                {
-                    _warnings[warning.key] = {
-                        message: warning.message,
-                        items: [
-                            warning.value
-                        ]
-                    };
-                }
-            }
+            // if (!objectIsEmpty(warning))
+            // {
+            //     statusIndicatorActionCreators.openStatusIndicator(
+            //         "error", 
+            //         warning.message + "ID: " + warning.value, 
+            //         warning.value, 
+            //         "left"
+            //     );
+            // }
+
+            loadDevice(action.device, action.platform, action.bacnet);
 
             if (_devices.length)
             {
                 devicesStore.emitChange();
             }
             break;
+        case ACTION_TYPES.DEVICE_SCAN_FINISHED:
+
+            _scanningComplete = true;
+
+            devicesStore.emitChange();
+            break;
         case ACTION_TYPES.POINT_RECEIVED:
             _action = "point_received";
             _view = "Devices Found";
-            var warning = loadPoint(action.data, action.platform);
-
-            if (!objectIsEmpty(warning))
+            if (loadPoint(action.data))
             {
-                if (_warnings.hasOwnProperty(warning.key))
-                {
-                    _warnings[warning.key].items.push(warning.value);
-                }
-                else
-                {
-                    _warnings[warning.key] = {
-                        message: warning.message,
-                        items: [
-                            warning.value
-                        ]
-                    };
-                }
+                devicesStore.emitChange();
             }
-            devicesStore.emitChange();
+
             break;
             
         case ACTION_TYPES.FOCUS_ON_DEVICE:
@@ -1254,9 +1161,10 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             if (focusedDevice)
             {
-                if (_focusedDevice !== focusedDevice.id)
+                if (_focusedDevice.id !== focusedDevice.id || _focusedDevice.address !== focusedDevice.address)
                 {
-                    _focusedDevice = focusedDevice.id
+                    _focusedDevice.id = focusedDevice.id;
+                    _focusedDevice.address = focusedDevice.address;
 
                     devicesStore.emitChange();
                 }
@@ -1275,6 +1183,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             {
                 device.showPoints = action.device.showPoints; 
                 device.configuring = action.device.configuring;
+                device.configuringStarted = true;
 
                 if (device.configuring)
                 {
@@ -1492,69 +1401,89 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                             cell.key === "reference_point_name" || 
                             cell.key === "object_type" || 
                             cell.key === "index");
+
+        cell.filterable = (cell.key === "point_name" || 
+                            cell.key === "reference_point_name" || 
+                            cell.key === "volttron_point_name" || 
+                            cell.key === "index");
     }
 
-    function loadPoint(data, platform) 
+    function loadPoint(data) 
     {
-        var warningMsg = {};
+        var emitChange = false;
 
         if (data)
         {
-            console.log(data);
-            var pointData = JSON.parse(data);  
+            // console.log(data);
+            var pointData = JSON.parse(data); 
 
-            if (!pointData.hasOwnProperty("status"))
-            { 
+            // can remove && !pointData.hasProp(device_name) if fix websocket endpoint collision
+            if (pointData.hasOwnProperty("device_id") && (!pointData.hasOwnProperty("device_name")))
+            {
                 var deviceId = pointData.device_id.toString();
                 var deviceAddress = pointData.address;
-                var addPoint = true;
-
                 var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
 
                 if (device)
                 {
-                    var pointInList = device.registryConfig.find(function (point) {
-                        var indexCell = point.find(function (cell) {
-                            return cell.key === "index";
-                        })
+                    if (!pointData.hasOwnProperty("status"))
+                    {  
+                        var pointInList = device.registryConfig.find(function (point) {
+                            var indexCell = point.find(function (cell) {
+                                return cell.key === "index";
+                            })
 
-                        var match = false;
+                            var match = false;
 
-                        if (indexCell)
+                            if (indexCell)
+                            {
+                                match = (indexCell.value === pointData.results.Index);
+                            }
+
+                            return match;
+                        });
+                    
+                        if (typeof pointInList === "undefined") 
                         {
-                            match = (indexCell.value === pointData.results.Index);
-                        }
+                            var newPoint = [];
 
-                        return match;
-                    });
-                
-                    if (typeof pointInList === "undefined") 
+                            for (var key in pointData.results)
+                            {
+                                var cell = {
+                                    key: key.toLowerCase().replace(/ /g, "_"),
+                                    label: key,
+                                    value: (pointData.results[key] === null ? "" : pointData.results[key])
+                                };
+
+                                prepCell(cell);
+
+                                newPoint.push(cell);
+                            }
+
+                            var sortedPoint = sortPointColumns(newPoint);
+                            device.registryConfig.push(sortedPoint);
+                        }
+                    }
+                    else
                     {
-                        var newPoint = [];
-
-                        for (var key in pointData.results)
+                        if (pointData.status === "COMPLETE")
                         {
-                            var cell = {
-                                key: key.toLowerCase().replace(/ /g, "_"),
-                                label: key,
-                                value: (pointData.results[key] === null ? "" : pointData.results[key])
-                            };
+                            console.log(pointData);
+                            // can remove fauxStart if fix false COMPLETE message arriving first
+                            if (device.hasOwnProperty("fauxStart"))
+                            {
+                                device.configuring = false;
+                                emitChange = true;
+                            }
 
-                            prepCell(cell);
-
-                            newPoint.push(cell);
+                            device.fauxStart = true;
                         }
-
-                        var sortedPoint = sortPointColumns(newPoint);
-
-                        // device.registryConfig.push(Immutable.List(sortedPoint));
-                        device.registryConfig.push(sortedPoint);
                     }
                 }
             }
         }
 
-        return warningMsg;
+        return emitChange;
     }
 
     function objectIsEmpty(obj)
@@ -1562,69 +1491,34 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         return Object.keys(obj).length === 0;
     }
 
-    function loadDevice(data, platform, bacnetIdentity) 
+    function loadDevice(device, platformUuid, bacnetIdentity) 
     {
-        var warningMsg = {};
+        var deviceIdStr = device.device_id.toString();
 
-        if (data)
-        {
-            var device = JSON.parse(data);
-
-            if (device.hasOwnProperty("device_id") && !device.hasOwnProperty("results"))
-            {
-                var deviceIdStr = device.device_id.toString();
-                var addDevice = true;
-
-                var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
-
-                if (alreadyInList)
-                {
-                    if (alreadyInList.address !== device.address)
-                    {
-                        warningMsg = { 
-                            key: "duplicate_id", 
-                            message: "Duplicate device IDs found. Your network may not be set up correctly. ",
-                            value: deviceIdStr 
-                        };
-                    }
-                    else // If the IDs are the same and the addresses are the same, assume
-                    {   // it's an IAM for a device we already know about
-
-                        addDevice = false;
-                    }
-                }
-                
-                if (addDevice) 
-                {
-                    _devices.push({
-                        id: deviceIdStr,
-                        name: device.device_name,
-                        vendor_id: device.vendor_id,
-                        address: device.address,
-                        max_apdu_length: device.max_apdu_length,
-                        segmentation_supported: device.segmentation_supported,
-                        showPoints: false,
-                        configuring: false,
-                        platformUuid: platform.uuid,
-                        bacnetProxyIdentity: bacnetIdentity,
-                        registryConfig: [],
-                        keyProps: ["volttron_point_name", "units", "writable"],
-                        selectedPoints: [],
-                        items: [
-                            { key: "address", label: "Address", value: device.address },  
-                            { key: "deviceName", label: "Name", value: device.device_name },  
-                            { key: "deviceDescription", label: "Description", value: device.device_description }, 
-                            { key: "deviceId", label: "Device ID", value: deviceIdStr }, 
-                            { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
-                            { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
-                            { key: "type", label: "Type", value: "BACnet" }
-                        ]
-                    });
-                }
-            }
-        }
-
-        return warningMsg;
+        _devices.push({
+            id: deviceIdStr,
+            name: device.device_name,
+            vendor_id: device.vendor_id,
+            address: device.address,
+            max_apdu_length: device.max_apdu_length,
+            segmentation_supported: device.segmentation_supported,
+            showPoints: false,
+            configuring: false,
+            platformUuid: platformUuid,
+            bacnetProxyIdentity: bacnetIdentity,
+            registryConfig: [],
+            keyProps: ["volttron_point_name", "units", "writable"],
+            selectedPoints: [],
+            items: [
+                { key: "address", label: "Address", value: device.address },  
+                { key: "deviceName", label: "Name", value: device.device_name },  
+                { key: "deviceDescription", label: "Description", value: device.device_description }, 
+                { key: "deviceId", label: "Device ID", value: deviceIdStr }, 
+                { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
+                { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
+                { key: "type", label: "Type", value: "BACnet" }
+            ]
+        });
     }
     
 });

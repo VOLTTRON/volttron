@@ -3,23 +3,20 @@
 import React from 'react';
 import BaseComponent from './base-component';
 import EditPointForm from './edit-point-form';
+import CheckBox from './check-box';
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
+var columnMoverActionCreators = require('../action-creators/column-mover-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var devicesStore = require('../stores/devices-store');
 import Immutable from 'immutable';
 
-var registryWs, registryWebsocket;
 class RegistryRow extends BaseComponent {
     constructor(props) {
         super(props);
         this._bind('_handleRowClick', '_selectForDelete');
 
         this.state = this._resetState(this.props);  
-    }
-    componentDidMount() {
-    }
-    componentWillUnmount() {
     }
     componentWillReceiveProps(nextProps)
     {
@@ -92,9 +89,9 @@ class RegistryRow extends BaseComponent {
                 deviceAddress={this.props.immutableProps.get("deviceAddress")}
                 attributes={this.state.attributesList.get("attributes")}/>);
     }
-    _selectForDelete() {
+    _selectForDelete(checked) {
         devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
-        this.setState({selectedForDelete: !this.state.selectedForDelete});
+        this.setState({selectedForDelete: checked});
 
         this.props.oncheckselect(this.state.attributesList.getIn(["attributes", 0]).value);
     }
@@ -126,20 +123,40 @@ class RegistryRow extends BaseComponent {
         var clientRect = targetColumn.getClientRects();
         var originalTargetWidth = clientRect[0].width;
 
+        var innerTable = this.props.ongetparentnode();
+
+        var top = innerTable.getClientRects()[0].top;
+        var height = innerTable.getClientRects()[0].height;
+
+        var view = document.querySelector(".view");
+        var viewRect = view.getClientRects();
+        var viewBottom = viewRect[0].bottom;
+
+        height = (viewBottom < top + height ? viewBottom - top : height);
+
+        columnMoverActionCreators.startColumnMovement(originalClientX, top, height);
+
         this.props.oninitializetable();
 
         var onMouseMove = function (evt)
         {            
             var movement = evt.clientX - originalClientX;
-            var targetWidth = originalTargetWidth + movement;
-            this.props.onresizecolumn(columnIndex, targetWidth + "px", movement);
+            columnMoverActionCreators.moveColumn(movement);
+
         }.bind(this);                    
 
         var onMouseUp = function (evt)
         {
             document.removeEventListener("mousemove", onMouseMove);
-            document.removeEventListener("mouseup", onMouseUp);        
-        }
+            document.removeEventListener("mouseup", onMouseUp);  
+
+            columnMoverActionCreators.endColumnMovement();
+
+            var movement = evt.clientX - originalClientX;
+            var targetWidth = originalTargetWidth + movement;
+            this.props.onresizecolumn(columnIndex, targetWidth + "px", movement);
+
+        }.bind(this); 
 
         document.addEventListener("mousemove", onMouseMove);
         document.addEventListener("mouseup", onMouseUp);
@@ -220,11 +237,11 @@ class RegistryRow extends BaseComponent {
                 className={selectedRowClasses.join(" ")}
                 style={visibleStyle}>
                 <td key={"checkbox-" + rowIndex}>
-                    <input type="checkbox"
-                        className="registryCheckbox"
-                        onChange={this._selectForDelete}
-                        checked={this.state.selectedForDelete}>
-                    </input>
+                    <CheckBox
+                        controlClass="registryCheckbox"
+                        oncheck={this._selectForDelete}
+                        selected={this.state.selectedForDelete}>
+                    </CheckBox>
                 </td>
                 { registryCells }                    
             </tr>

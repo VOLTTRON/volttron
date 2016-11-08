@@ -57,28 +57,28 @@ module.exports = keyMirror({
     CONFIGURE_DEVICES: null,
     FOCUS_ON_DEVICE: null,
     ADD_DEVICES: null,
-    // SCAN_FOR_DEVICES: null,
     LISTEN_FOR_IAMS: null,
     DEVICE_DETECTED: null,
+    DEVICE_SCAN_FINISHED: null,
     POINT_RECEIVED: null,
     CANCEL_SCANNING: null,
-    // LIST_DETECTED_DEVICES: null,
     CONFIGURE_DEVICE: null,
     TOGGLE_SHOW_POINTS: null,
     EDIT_REGISTRY: null,
     UPDATE_REGISTRY: null,
     LOAD_REGISTRY: null,
-    // GENERATE_REGISTRY: null,
     CANCEL_REGISTRY: null,
     SAVE_REGISTRY: null,
     SAVE_CONFIG: null,
 
-    // ADD_CONTROL_BUTTON: null,
-    // REMOVE_CONTROL_BUTTON: null,
     TOGGLE_TAPTIP: null,
     HIDE_TAPTIP: null,
     SHOW_TAPTIP: null,
     CLEAR_BUTTON: null,
+
+    START_COLUMN_MOVEMENT: null,
+    END_COLUMN_MOVEMENT: null,
+    MOVE_COLUMN: null,
 
     RECEIVE_CHART_TOPICS: null
 });

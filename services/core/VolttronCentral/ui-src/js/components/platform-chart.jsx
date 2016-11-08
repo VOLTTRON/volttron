@@ -8,6 +8,7 @@ var nv = require('nvd3');
 var moment = require('moment');
 var OutsideClick = require('react-click-outside');
 
+import ControlButton from './control-button';
 
 var chartStore = require('../stores/platform-chart-store');
 var platformChartStore = require('../stores/platform-chart-store');
@@ -16,7 +17,6 @@ var platformActionCreators = require('../action-creators/platform-action-creator
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var ConfirmForm = require('./confirm-form');
-var ControlButton = require('./control-button');
 
 var PlatformChart = React.createClass({
     getInitialState: function () {
