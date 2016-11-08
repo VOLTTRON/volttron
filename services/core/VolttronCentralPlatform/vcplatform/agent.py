@@ -789,31 +789,53 @@ class VolttronCentralPlatform(Agent):
 
     @RPC.export
     def get_devices(self):
-        cp = deepcopy(self._devices)
-        foundbad = False
+        """
+        RPC method for retrieving device data from the platform.
 
-        for k, v in cp.items():
-            dt = parse_timestamp_string(v['last_published_utc'])
-            dtnow = get_aware_utc_now()
-            if dt + datetime.timedelta(minutes=5) < dtnow:
-                v['health'] = Status.build(
-                    BAD_STATUS,
-                    'Too long between publishes for {}'.format(k)).as_dict()
-                foundbad = True
-            else:
-                v['health'] = Status.build(GOOD_STATUS).as_dict()
+        :return:
+        """
 
-        if len(cp):
-            if foundbad:
-                self.vip.health.set_status(
-                    BAD_STATUS,
-                    'At least one device has not published in 5 minutes')
-            else:
-                self.vip.health.set_status(
-                    GOOD_STATUS,
-                    'All devices publishing normally.'
-                )
-        return cp
+        _log.debug('Getting devices')
+        config_list = self.vip.rpc.call('config.store',
+                                        'manage_list_configs',
+                                        'platform.driver').get(timeout=5)
+
+        _log.debug('Config list is: {}'.format(config_list))
+        devices = defaultdict(dict)
+
+        for cfg_name in config_list:
+            # Skip as we are only looking to do devices in this call.
+            if not cfg_name.startswith('devices/'):
+                break
+
+            _log.debug('Reading config store for device {}'.format(cfg_name))
+
+            device_config = self.vip.rpc.call('config.store', 'manage_get',
+                                              'platform.driver',
+                                              cfg_name,
+                                              raw=False).get(timeout=5)
+            _log.debug('DEVICE CONFIG IS: {}'.format(device_config))
+
+            reg_cfg_name = device_config.get(
+                'registry_config')[len('config://'):]
+            _log.debug('Reading registry_config file {}'.format(
+                reg_cfg_name
+            ))
+            registry_config = self.vip.rpc.call('config.store',
+                                                'manage_get', 'platform.driver',
+                                                reg_cfg_name,
+                                                raw=False).get(timeout=5)
+            _log.debug('Registry Config: {}'.format(registry_config))
+
+            points = []
+            for pnt in registry_config:
+                points.append(pnt['Volttron Point Name'])
+
+            devices[cfg_name]['points'] = points
+
+        _log.debug('get_devices returning {}'.format(devices))
+
+        return devices
 
     @RPC.export
     def route_request(self, id, method, params):

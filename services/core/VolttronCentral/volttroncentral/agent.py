@@ -198,6 +198,9 @@ class VolttronCentralAgent(Agent):
         # Current sessions available to the
         self.web_sessions = None
 
+        # Platform health based upon device driver publishes
+        self.device_health = defaultdict(dict)
+
     def configure_main(self, config_name, action, contents):
         """
         The main configuration for volttron central.  This is where validation
@@ -411,9 +414,34 @@ class VolttronCentralAgent(Agent):
                     )
 
             data['health'] = connection.call('health.get_status')
+            devices = connection.call('get_devices')
+            data['devices'] = devices
 
             self.vip.config.set(config_name, data)
 
+            def ondevicemessage(peer, sender, bus, topic, headers, message):
+                if not topic.endswith('/all'):
+                    return
+
+                topic_no_all = topic[:-len('/all')]
+                device_health_name = "{}/{}".format(config_name, topic_no_all)
+                now_time_utc = get_aware_utc_now()
+                last_publish_utc = format_timestamp(now_time_utc)
+
+                status = Status.build(GOOD_STATUS,
+                                      context="Last publish {}".format(
+                                          last_publish_utc))
+                self.device_health[config_name] = {
+                    topic_no_all: dict(
+                        last_publish_utc=format_timestamp(now_time_utc),
+                        points=data['devices'][topic_no_all]['points'],
+                        health=status.as_dict()
+                    )
+                }
+
+            # Subscribe to the vcp instance for device publishes.
+            connection.server.vip.pubsub.subscribe('pubsub', 'devices',
+                                                   ondevicemessage)
     # # @Core.periodic(60)
     # def _reconnect_to_platforms(self):
     #     """ Attempt to reconnect to all the registered platforms.
