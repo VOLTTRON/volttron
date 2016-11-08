@@ -306,8 +306,10 @@ class PlatformsPanelItem extends BaseComponent {
 
             ChartCheckbox = (
                 <div>
-                    <CheckBox controlClass="panelItemCheckbox" controlStyle={inputStyle}
-                        oncheck={this._checkItem}></CheckBox>
+                    <CheckBox controlClass="panelItemCheckbox" 
+                        controlStyle={inputStyle}
+                        oncheck={this._checkItem}
+                        selected={((typeof this.state.checked === "undefined" || this.state.checked === null) ? false : this.state.checked)}></CheckBox>
                     <div className="checkboxSpinner arrowButton"
                         style={spinnerStyle}>                        
                         <span style={arrowContentStyle}><i className="fa fa-circle-o-notch fa-spin fa-fw"></i></span>
