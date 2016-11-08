@@ -59,12 +59,12 @@
 from __future__ import absolute_import, print_function
 
 import base64
-from copy import deepcopy
-from collections import namedtuple
+from collections import defaultdict
 import datetime
 from enum import Enum
 import hashlib
 import logging
+import os
 import re
 import shutil
 import sys
@@ -73,41 +73,25 @@ import urlparse
 
 import gevent
 import gevent.event
-from gevent.lock import BoundedSemaphore
 import psutil
-import requests
-from volttron.platform import get_home
-from volttron.platform.agent.utils import (
-    get_aware_utc_now, format_timestamp, parse_timestamp_string,
-    get_utc_seconds_from_epoch)
-from volttron.platform.messaging import topics
-from volttron.platform.messaging.topics import (LOGGER, PLATFORM_VCP_DEVICES,
-                                                PLATFORM)
-from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.vip.agent.connection import Connection
-
-from volttron.platform.vip.agent import *
 
 from volttron.platform import jsonrpc
+from volttron.platform.agent.utils import (get_utc_seconds_from_epoch)
 from volttron.platform.agent import utils
 from volttron.platform.agent.exit_codes import INVALID_CONFIGURATION_CODE
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM)
-from volttron.platform.agent.utils import (
-    get_aware_utc_now, format_timestamp, parse_timestamp_string)
+    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL)
+from volttron.platform.agent.utils import (get_aware_utc_now)
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
-from volttron.platform.keystore import KnownHostsStore
-from volttron.platform.messaging.health import Status, \
-    GOOD_STATUS, BAD_STATUS
-from volttron.platform.messaging.topics import (LOGGER, PLATFORM_VCP_DEVICES,
-                                                PLATFORM)
-from volttron.platform.vip.agent import *
+from volttron.platform.messaging import topics
+from volttron.platform.messaging.topics import (LOGGER, )
+from volttron.platform.vip.agent import (Agent, Core, RPC, PubSub, Unreachable)
 from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.vip.agent.utils import build_connection
 from volttron.platform.web import DiscoveryInfo
-from volttron.utils.persistance import load_create_store
+
 
 __version__ = '3.6.0'
 
@@ -194,6 +178,7 @@ class VolttronCentralPlatform(Agent):
         # This publickey is set during the manage rpc call.
         self.manager_publickey = None
 
+        # The state of registration of vcp with the vc instance.
         self.registration_state = RegistrationStates.NotRegistered
 
     def configure_main(self, config_name, action, contents):
@@ -205,7 +190,6 @@ class VolttronCentralPlatform(Agent):
         :param contents:
         :return:
         """
-
         self.enable_registration = False
         # If we are updating the main configuration we need to reset the
         # connection to vc if present and initialize the state for reconnection.
@@ -784,51 +768,13 @@ class VolttronCentralPlatform(Agent):
     def status_agents(self):
         return self.vip.rpc.call(CONTROL, 'status_agents').get(timeout=5)
 
+    @PubSub.subscribe('pubsub', 'devices')
+    def _on_record_message(self, peer, sender, bus, topic, headers, message):
+        pass
 
     @PubSub.subscribe('pubsub', 'devices')
-    def _on_device_message(self, peer, sender, bus, topic, headers, message):
-        # only deal with agents that have not been forwarded.
-        if headers.get('X-Forwarded', None):
-            return
-
-        # only listen to the ending all message.
-        if not re.match('.*/all$', topic):
-            return
-
-        topicsplit = topic.split('/')
-
-        # For devices we use everything between devices/../all as a unique
-        # key for determining the last time it was seen.
-        key = '/'.join(topicsplit[1: -1])
-
-        anon_topic = self._topic_replace_map.get(key)
-        publish_time_utc = format_timestamp(get_aware_utc_now())
-
-        if not anon_topic:
-            anon_topic = key
-
-            for sr in self._topic_replace_list:
-                _log.debug(
-                    'anon replacing {}->{}'.format(sr['from'], sr['to']))
-                anon_topic = anon_topic.replace(sr['from'],
-                                                sr['to'])
-            _log.debug('anon after replacing {}'.format(anon_topic))
-            _log.debug('Anon topic is: {}'.format(anon_topic))
-            self._topic_replace_map[key] = anon_topic
-            _log.debug('Only anon topics are being listed.')
-
-        hashable = anon_topic + str(message[0].keys())
-        _log.debug('Hashable is: {}'.format(hashable))
-        md5 = hashlib.md5(hashable)
-        # self._md5hasher.update(hashable)
-        hashed = md5.hexdigest()
-
-        self._device_topic_hashes[hashed] = anon_topic
-        self._devices[anon_topic] = {
-            'points': message[0].keys(),
-            'last_published_utc': publish_time_utc,
-            'md5hash': hashed
-        }
+    def _on_analysis_message(self, peer, sender, bus, topic, headers, message):
+        pass
 
     @RPC.export
     @RPC.allow("manager")
@@ -915,7 +861,8 @@ class VolttronCentralPlatform(Agent):
                                   'process_id': a[2][0],
                                   'return_code': a[2][1]}
                                  for a in
-                                 self.vip.rpc.call(CONTROL, method)]}
+                                 self.vip.rpc.call(CONTROL, method).get(
+                                     timeout=5)]}
 
         elif method in ('agent_status', 'start_agent', 'stop_agent',
                         'remove_agent', 'restart_agent'):
