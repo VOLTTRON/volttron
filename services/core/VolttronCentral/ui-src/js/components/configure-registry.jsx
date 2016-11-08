@@ -12,6 +12,7 @@ import EditColumnButton from './control_buttons/edit-columns-button';
 import KeyboardHelpButton from './control_buttons/keyboard-help-button';
 import RegistryRow from './registry-row';
 import ControlButton from './control-button';
+import CheckBox from './check-box';
 import Immutable from 'immutable';
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
@@ -443,9 +444,8 @@ class ConfigureRegistry extends BaseComponent {
         this.setState({ pointsToDelete: this.state.pointsToDelete });
 
     }
-    _selectAll() {
-        var allSelected = !this.state.allSelected;
-        this.setState({ allSelected: allSelected });
+    _selectAll(checked) {
+        this.setState({ allSelected: checked });
     }
     _onAddColumn(index) {
 
@@ -964,9 +964,8 @@ class ConfigureRegistry extends BaseComponent {
                 <tr key="header-values">
                     <th style={checkboxColumnStyle} key="header-checkbox">
                         <div className="th-inner">
-                            <input type="checkbox"
-                                onChange={this._selectAll}
-                                checked={this.state.allSelected}/>
+                            <CheckBox oncheck={this._selectAll}>
+                            </CheckBox>
                         </div>
                     </th>
                     { headerColumns }

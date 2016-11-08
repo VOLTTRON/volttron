@@ -3,6 +3,7 @@
 import React from 'react';
 import BaseComponent from './base-component';
 import EditPointForm from './edit-point-form';
+import CheckBox from './check-box';
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var columnMoverActionCreators = require('../action-creators/column-mover-action-creators');
@@ -88,9 +89,9 @@ class RegistryRow extends BaseComponent {
                 deviceAddress={this.props.immutableProps.get("deviceAddress")}
                 attributes={this.state.attributesList.get("attributes")}/>);
     }
-    _selectForDelete() {
+    _selectForDelete(checked) {
         devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
-        this.setState({selectedForDelete: !this.state.selectedForDelete});
+        this.setState({selectedForDelete: checked});
 
         this.props.oncheckselect(this.state.attributesList.getIn(["attributes", 0]).value);
     }
@@ -236,11 +237,11 @@ class RegistryRow extends BaseComponent {
                 className={selectedRowClasses.join(" ")}
                 style={visibleStyle}>
                 <td key={"checkbox-" + rowIndex}>
-                    <input type="checkbox"
-                        className="registryCheckbox"
-                        onChange={this._selectForDelete}
-                        checked={this.state.selectedForDelete}>
-                    </input>
+                    <CheckBox
+                        controlClass="registryCheckbox"
+                        oncheck={this._selectForDelete}
+                        selected={this.state.selectedForDelete}>
+                    </CheckBox>
                 </td>
                 { registryCells }                    
             </tr>

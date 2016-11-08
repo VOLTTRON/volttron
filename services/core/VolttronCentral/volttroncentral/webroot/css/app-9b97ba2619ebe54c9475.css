@@ -541,8 +541,10 @@ br + .form__control-help {
 
 .checkboxSpinner {
     color: #1BCDF5;
-    width: 13px;
-    margin-bottom: 1px;
+    width: .95em;
+    margin-bottom: 3px;
+    margin-right: 13px;
+    margin-top: 3px;
 }
 
 .cancelLoading, .cancelScanning {
@@ -1410,6 +1412,38 @@ a.view__item:hover::before {
     border-radius: inherit;
 }
 
+.vc-checkbox {
+    cursor: pointer;
+}
+
+.vc-checkbox:hover > div > span::before {
+    border: 1px solid #A90DD4;
+}
+
+.vc-checkbox > div > span::before {
+    content: "";
+    display: inline-block;
+    box-sizing: border-box;
+    width: .95em;
+    height: 1em;
+    margin-right: .45em;
+    margin-left: 0.2em;
+    line-height: .9em;
+    text-align: center;
+    color: white;
+    border: 1px solid gray;
+    border-radius: 1px;
+    background: white;
+    font-style: normal;
+    text-decoration: none;
+}
+
+.vc-checkbox > .selected > span::before {
+    box-shadow: 0 0 0 0 #fff inset;
+    border: 1px solid #595959;
+    background: rgba(128,128,255,0.5);
+} 
+
 
 /***react-select-me style overrides ***/
 
@@ -1497,7 +1531,7 @@ a.view__item:hover::before {
 }
 
 .registryConfigTable > tbody > tr:not(.selectedRegistryPoint):hover {
-    background-color: rgba(102, 153, 187, .3);
+    background-color: rgba(21, 81, 125, .3);
 }
 
 .registryConfigTable > tbody > tr > td > input {
@@ -1517,11 +1551,11 @@ a.view__item:hover::before {
 }
 
 .selectedRegistryPoint {
-    background-color: rgba(102, 153, 187, .5) !important;
+    background-color: rgba(21, 81, 125, .5) !important;
 }
 
 .keyboard-selected {
-    background-color: rgba(102, 153, 187, .3);
+    background-color: rgba(21, 81, 125, .3);
 }
 
 .th-inner {
@@ -1774,4 +1808,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-353f5af0fcbefbd48c63.css.map*/
+/*# sourceMappingURL=app-9b97ba2619ebe54c9475.css.map*/
