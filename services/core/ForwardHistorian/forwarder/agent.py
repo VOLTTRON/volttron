@@ -75,7 +75,7 @@ from volttron.platform.messaging.health import (STATUS_BAD,
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.5'
+__version__ = '3.6'
 
 
 def historian(config_path, **kwargs):

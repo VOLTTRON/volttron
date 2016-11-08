@@ -461,6 +461,21 @@ def watch_file(fullpath, callback):
                 if event.name == filename and event.mask & IN_MODIFY:
                     callback()
 
+def watch_file_with_fullpath(fullpath, callback):
+    """Run callback method whenever the file changes
+
+        Not available on OS X/MacOS.
+    """
+    dirname, filename = os.path.split(fullpath)
+    if inotify is None:
+        _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
+    else:
+        with inotify() as inot:
+            inot.add_watch(dirname, IN_MODIFY)
+            for event in inot:
+                if event.name == filename and event.mask & IN_MODIFY:
+                    callback(fullpath)
+
 
 def create_file_if_missing(path, permission=0o660, contents=None):
     dirname = os.path.dirname(path)

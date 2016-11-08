@@ -1,32 +1,24 @@
-import logging
+import os
+import tempfile
 import uuid
 
-import os
-import requests
-import tempfile
-
 import pytest
-import gevent
-from volttron.platform.messaging.health import STATUS_GOOD
-from volttron.platform.vip.connection import Connection
-from volttrontesting.utils.platformwrapper import PlatformWrapper
-from zmq.utils import jsonapi
-
-from volttron.platform.auth import AuthEntry, AuthFile
+import requests
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL_PLATFORM, VOLTTRON_CENTRAL)
+    VOLTTRON_CENTRAL_PLATFORM)
+from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.keystore import KeyStore
+from volttron.platform.messaging.health import STATUS_GOOD
+from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.web import DiscoveryInfo
-from volttrontesting.fixtures.volttron_platform_fixtures import (
-    get_rand_ip_and_port,
-)
+from zmq.utils import jsonapi
 
 
 def get_new_keypair():
     tf = tempfile.NamedTemporaryFile()
     ks = KeyStore(tf.name)
     ks.generate()
-    return ks.public(), ks.secret()
+    return ks.public, ks.secret
 
 
 def add_to_auth(volttron_home, publickey, capabilities=None):

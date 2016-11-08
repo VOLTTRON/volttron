@@ -74,8 +74,8 @@ with a Historian Agent in order to obtain that data as needed.
 
 While it is possible to create an Agent from scratch which handles gathering
 and storing device data it will miss out on the benefits of creating a proper
-Historian Agent that subclassing :py:class:`BaseHistorian`. The
-:py:class:`BaseHistorian` class provides the following features:
+Historian Agent that subclassing :py:class:`BaseHistorian`.
+The :py:class:`BaseHistorian` class provides the following features:
 
 - A separate thread for all communication with a data store removing the need
   to use or implement special libraries to work with gevent.
@@ -101,6 +101,13 @@ The new Agent must implement the following methods:
 - :py:meth:`BaseHistorianAgent.publish_to_historian`
 - :py:meth:`BaseQueryHistorianAgent.query_topic_list`
 - :py:meth:`BaseQueryHistorianAgent.query_historian`
+- :py:meth:`BaseQueryHistorianAgent.query_topics_metadata`
+
+If this historian has a corresponding  AggregateHistorian
+(see :py:class:`AggregateHistorian`) implement the following method in addition
+to the above ones:
+- :py:meth:`BaseQueryHistorianAgent.record_table_definitions`
+- :py:meth:`BaseQueryHistorianAgent.query_aggregate_topics`
 
 While not required this method may be overridden as needed:
 - :py:meth:`BaseHistorianAgent.historian_setup`
@@ -123,9 +130,14 @@ subscribes to all Historian related topics on the message bus. Whenever
 subscribed data comes in it is published to a Queue to be be processed by the
 publishing thread as soon as possible.
 
-At startup the publishing thread calls
-:py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
+At startup the publishing thread calls two methods:
+
+- :py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
 Historian a chance to setup any connections in the thread.
+- :py:meth:`BaseQueryHistorianAgent.record_table_definitions` to give the
+implemented Historian a chance to record the table/collection names into a
+meta table/collection with the named passed as parameter. The implemented
+historian is responsible for creating the meta table if it does not exist.
 
 The process thread then enters the following logic loop:
 ::
@@ -167,6 +179,7 @@ The `to_publish_list` argument of
 takes the following form:
 
 .. code-block:: python
+
     [
         {
             '_id': 1,
@@ -196,11 +209,15 @@ if everything was published.
 Querying Data
 -------------
 
-When an request is made to query data the
-:py:meth:`BaseQueryHistorianAgent.query_historian` method is called.
-When a request is made for the list of topics in the store
-:py:meth:`BaseQueryHistorianAgent.query_topic_list`
-will be called.
+- When an request is made to query data the
+  :py:meth:`BaseQueryHistorianAgent.query_historian` method is called.
+- When a request is made for the list of topics in the store
+  :py:meth:`BaseQueryHistorianAgent.query_topic_list` will be called.
+- When a request is made to get the metadata of a topic
+  :py:meth:`BaseQueryHistorianAgent.query_topics_metadata` will be called.
+- When a request is made for the list of aggregate topics available
+  :py:meth:`BaseQueryHistorianAgent.query_aggregate_topics` will be called
+
 
 Other Notes
 -----------
@@ -254,14 +271,17 @@ class BaseHistorianAgent(Agent):
     the same thread.
 
     By default the base historian will listen to 4 separate root topics (
-    datalogger/*, record/*, actuators/*, and device/*.  Messages that are
-    published to actuator are assumed to be part of the actuation process.
+    datalogger/*, record/*, analysis/*, and device/*.
     Messages published to datalogger will be assumed to be timepoint data that
     is composed of units and specific types with the assumption that they have
     the ability to be graphed easily. Messages published to devices
-    are data that comes directly from drivers.  Finally Messages that are
-    published to record will be handled as string data and can be customized
-    to the user specific situation.
+    are data that comes directly from drivers. Data sent to analysis/* topics
+    is result of analysis done by applications. The format of data sent to
+    analysis/* topics is similar to data sent to device/* topics.
+    Messages that are published to record will be handled as string data and
+    can be customized to the user specific situation. Refer to
+    `Historian-Topic-Syntax
+    </core_services/historians/Historian-Topic-Syntax.html>`_ for data syntax
 
     This base historian will cache all received messages to a local database
     before publishing it to the historian.  This allows recovery for
@@ -304,9 +324,9 @@ class BaseHistorianAgent(Agent):
         subscriptions = [
             (topics.DRIVER_TOPIC_BASE, self._capture_device_data),
             (topics.LOGGER_BASE, self._capture_log_data),
-            (topics.ACTUATOR, self._capture_actuator_data),
+            #(topics.ACTUATOR, self._capture_actuator_data),
             (topics.ANALYSIS_TOPIC_BASE, self._capture_analysis_data),
-            (topics.RECORD, self._capture_record_data)
+            (topics.RECORD_BASE, self._capture_record_data)
         ]
 
         for prefix, cb in subscriptions:
@@ -473,7 +493,6 @@ class BaseHistorianAgent(Agent):
         """
 
         if not ALL_REX.match(topic):
-            _log.debug("Unmatched topic: {}".format(topic))
             return
 
         # Anon the topic if necessary.
@@ -482,7 +501,7 @@ class BaseHistorianAgent(Agent):
         # Because of the above if we know that all is in the topic so
         # we strip it off to get the base device
         parts = topic.split('/')
-        device = '/'.join(parts[1:-1])  # '/'.join(reversed(parts[2:]))
+        device = '/'.join(parts[1:-1])
         self._capture_data(peer, sender, bus, topic, headers, message, device)
 
     def _capture_analysis_data(self, peer, sender, bus, topic, headers,
@@ -495,12 +514,11 @@ class BaseHistorianAgent(Agent):
         # Anon the topic.
         topic = self._get_topic(topic)
 
-        # topic now is going to always end in all.
-        if not topic.endswith('/'):
-            topic += '/'
+        if topic.endswith('/'):
+            topic = topic[:-1]
 
         if not topic.endswith('all'):
-            topic += 'all'
+            topic += '/all'
 
         parts = topic.split('/')
         # strip off the first part of the topic.
@@ -695,11 +713,10 @@ class BaseHistorianAgent(Agent):
 
     def report_all_handled(self):
         """
-            Call this from :py:meth:`BaseHistorianAgent.publish_to_historian
-            ` to report that all records
-             passed to :py:meth:`BaseHistorianAgent.publish_to_historian`
-             have been successfully published
-             and should be removed from the cache.
+        Call this from :py:meth:`BaseHistorianAgent.publish_to_historian`
+        to report that all records passed to
+        :py:meth:`BaseHistorianAgent.publish_to_historian`
+        have been successfully published and should be removed from the cache.
         """
         self._successful_published.add(None)
 
@@ -714,6 +731,7 @@ class BaseHistorianAgent(Agent):
         to_publish_list takes the following form:
 
         .. code-block:: python
+
             [
                 {
                     '_id': 1,
@@ -749,11 +767,13 @@ class BaseHistorianAgent(Agent):
         """
 
     def historian_setup(self):
-        """Optional setup routine, run in the processing thread before
-           main processing loop starts. Gives the Historian a chance to setup
-           connections in the publishing thread.
+        """
+        Optional setup routine, run in the processing thread before
+        main processing loop starts. Gives the Historian a chance to setup
+        connections in the publishing thread.
         """
 
+    @abstractmethod
     def record_table_definitions(self, meta_table_name):
         """
         Record the table or collection names in which data, topics and
@@ -761,6 +781,7 @@ class BaseHistorianAgent(Agent):
         information from information from configuration item
         'table_defs'. The metadata table contents will be used by the
         corresponding aggregate historian(if any)
+
         :param meta_table_name: table name into which the table names and
         table name prefix for data, topics, and meta tables should be inserted
         """
@@ -851,9 +872,11 @@ class BackupDatabase:
 
         :param successful_publishes: List of records that was published.
         :param submit_size: Number of things requested from previous call to
-        :py:meth:`get_outstanding_to_publish`.
+                            :py:meth:`get_outstanding_to_publish`
+
         :type successful_publishes: list
         :type submit_size: int
+
         """
 
         _log.debug("Cleaning up successfully published values.")
@@ -977,7 +1000,7 @@ class BaseQueryHistorianAgent(Agent):
 
     @RPC.export
     def get_topic_list(self):
-        """RPC call
+        """RPC call to get a list of topics in data store
 
         :return: List of topics in the data store.
         :rtype: list
@@ -993,16 +1016,19 @@ class BaseQueryHistorianAgent(Agent):
 
         :return: List of topics in the data store.
         :rtype: list
+
         """
 
     @RPC.export
     def get_aggregate_topics(self):
-        """RPC call
+        """
+        RPC call to get the list of aggregate topics
 
         :return: List of aggregate topics in the data store. Each list
-        element contains (topic_name, aggregation_type,
-        aggregation_time_period, metadata)
+                 element contains (topic_name, aggregation_type,
+                 aggregation_time_period, metadata)
         :rtype: list
+
         """
         return self.query_aggregate_topics()
 
@@ -1014,19 +1040,24 @@ class BaseQueryHistorianAgent(Agent):
         to find out the available aggregates in the data store
 
         :return: List of tuples containing (topic_name, aggregation_type,
-        aggregation_time_period, metadata)
+                 aggregation_time_period, metadata)
         :rtype: list
+
         """
 
     @RPC.export
     def get_topics_metadata(self, topics):
 
-        """RPC call
-        :param topics:
+        """
+        RPC call to get one or more topic's metadata
+
+        :param topics: single topic or list of topics for which metadata is
+                       requested
         :return: List of aggregate topics in the data store. Each list
-        element contains (topic_name, aggregation_type,
-        aggregation_time_period, metadata)
+                 element contains (topic_name, aggregation_type,
+                 aggregation_time_period, metadata)
         :rtype: list
+
         """
         if isinstance(topics, str) or isinstance(topics, list):
             return self.query_topics_metadata(topics)
@@ -1040,37 +1071,42 @@ class BaseQueryHistorianAgent(Agent):
         """
         This function is called by
         :py:meth:`BaseQueryHistorianAgent.get_topics_metadata`
-        to find out the available aggregates in the data store
+        to find out the metadata for the given topics
 
-        :return: dictionary of dictionaries, with the format
-        {topic_name: {metadata_key:metadata_value, ...},
-         topic_name: {metadata_key:metadata_value, ...} ...}
-        :rtype: list
+        :param topics: single topic or list of topics
+        :type topics: str or list
+        :return: dictionary with the format
+
+        .. code-block:: python
+
+                 {topic_name: {metadata_key:metadata_value, ...},
+                 topic_name: {metadata_key:metadata_value, ...} ...}
+
+        :rtype: dict
+
         """
 
     @RPC.export
     def query(self, topic=None, start=None, end=None, agg_type=None,
               agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
-        """RPC call
-
-        Call this method to query an Historian for time series data.
+        """RPC call to query an Historian for time series data.
 
         :param topic: Topic or topics to query for.
         :param start: Start time of the query. Defaults to None which is the
-        beginning of time.
+                      beginning of time.
         :param end: End time of the query.  Defaults to None which is the
-        end of time.
+                    end of time.
         :param skip: Skip this number of results.
         :param count: Limit results to this value.
         :param order: How to order the results, either "FIRST_TO_LAST" or
-        "LAST_TO_FIRST"
+                      "LAST_TO_FIRST"
         :type topic: str or list
         :type start: str
         :type end: str
         :param agg_type: If this is a query for aggregate data, the type of
-        aggregation ( for example, sum, avg)
+                         aggregation ( for example, sum, avg)
         :param agg_period: If this is a query for aggregate data, the time
-        period of aggregation
+                           period of aggregation
         :type skip: int
         :type count: int
         :type order: str
@@ -1096,8 +1132,7 @@ class BaseQueryHistorianAgent(Agent):
         special string "now".
 
         Times relative to "now" may be specified with a relative time string
-        using
-        the Unix "at"-style specifications. For instance "now -1h" will
+        using the Unix "at"-style specifications. For instance "now -1h" will
         specify one hour ago.
         "now -1d -1h -20m" would specify 25 hours and 20 minutes ago.
 
@@ -1149,18 +1184,35 @@ class BaseQueryHistorianAgent(Agent):
                         agg_period=None, skip=0, count=None, order=None):
         """
         This function is called by :py:meth:`BaseQueryHistorianAgent.query`
-        to actually query the data store
-        and must return the results of a query in the form:
+        to actually query the data store and must return the results of a
+        query in the following format:
+
+        **Single topic query:**
 
         .. code-block:: python
 
             {
-            "values": [(timestamp1: value1),
-                        (timestamp2: value2),
+            "values": [(timestamp1, value1),
+                        (timestamp2:,value2),
                         ...],
              "metadata": {"key1": value1,
                           "key2": value2,
                           ...}
+            }
+
+        **Multiple topics query:**
+
+        .. code-block:: python
+
+            {
+            "values": {topic_name:[(timestamp1, value1),
+                        (timestamp2:,value2),
+                        ...],
+                       topic_name:[(timestamp1, value1),
+                        (timestamp2:,value2),
+                        ...],
+                        ...}
+             "metadata": {} #empty metadata
             }
 
         Timestamps must be strings formatted by
@@ -1173,13 +1225,16 @@ class BaseQueryHistorianAgent(Agent):
         :param start: Start of query timestamp as a datetime.
         :param end: End of query timestamp as a datetime.
         :param agg_type: If this is a query for aggregate data, the type of
-        aggregation ( for example, sum, avg)
+                         aggregation ( for example, sum, avg)
         :param agg_period: If this is a query for aggregate data, the time
-        period of aggregation
+                           period of aggregation
         :param skip: Skip this number of results.
-        :param count: Limit results to this value.
+        :param count: Limit results to this value. When the query is for
+                      multiple topics, count applies to individual topics. For
+                      example, a query on 2 topics with count=5 will return 5
+                      records for each topic
         :param order: How to order the results, either "FIRST_TO_LAST" or
-        "LAST_TO_FIRST"
+                      "LAST_TO_FIRST"
         :type topic: str or list
         :type start: datetime
         :type end: datetime

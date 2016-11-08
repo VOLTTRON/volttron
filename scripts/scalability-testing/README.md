@@ -6,9 +6,21 @@ Benchmarks the message bus is generally performed with the following configurati
 
 This will create configuration files in configs/ directory to produce fake data from 1500 devices with 18 points each.
 
-With the platform running run
+Currently this will create old style Master Driver configuration files. To convert them to the new format run the following command.
 
-    ./launch_scalability_drivers.sh
+    python ../update_master_driver_config.py configs/master-driver.agent new_configs
+    
+That will create a new directory called new_configs with the new configuration files in it.
+
+To use put the configurations into the configuration store run the following command.
+
+    python ../install_master_driver_configs.py new_configs
+
+To start the test launch the Master Driver Agent. A shortcut is to launch the Master Driver is found in the scripts directory
+
+    cd ..
+    ./launch_drivers.sh
+    
 
 This will launch the master driver using the configurations created earlier. The MasterDriver will publish 5 sets of 1500 device "all" publishes and time the results. After 5 publishes have finished the master driver will print the average time and quit.
 

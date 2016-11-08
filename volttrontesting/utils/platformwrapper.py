@@ -1,35 +1,32 @@
 import ConfigParser as configparser
-import uuid
-from contextlib import closing
 import json
 import logging
 import os
-from os.path import dirname
 import shutil
 import sys
 import tempfile
 import time
+from contextlib import closing
+from os.path import dirname
+from subprocess import CalledProcessError
 
 import gevent
-from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
-from gevent.subprocess import Popen
 import requests
-from subprocess import CalledProcessError
-from zmq.utils import jsonapi
-
-from volttron.platform.vip.connection import Connection, DEFAULT_TIMEOUT
-from volttrontesting.utils.utils import get_rand_http_address
-from volttrontesting.utils.utils import get_rand_tcp_address
-
 from agent_additions import add_vc_to_instance
-from volttron.platform.auth import AuthFile, AuthEntry
-from volttron.platform.agent.utils import strip_comments
-from volttron.platform.vip.agent import Agent
-from volttron.platform.aip import AIPplatform
+from gevent.fileobject import FileObject
+from gevent.subprocess import Popen
 from volttron.platform import packaging
 from volttron.platform.agent import utils
+from volttron.platform.agent.utils import strip_comments
+from volttron.platform.aip import AIPplatform
+from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.keystore import KeyStore, KnownHostsStore
+from volttron.platform.vip.agent import Agent
+from volttron.platform.vip.agent.connection import Connection
+from volttrontesting.utils.utils import get_rand_http_address
+from volttrontesting.utils.utils import get_rand_tcp_address
+from zmq.utils import jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -240,8 +237,8 @@ class PlatformWrapper:
             keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
             keys = KeyStore(keyfile)
             keys.generate()
-            publickey = keys.public()
-            secretkey = keys.secret()
+            publickey = keys.public
+            secretkey = keys.secret
         if self.encrypt:
             conn = Connection(address=address, peer=peer, publickey=publickey,
                               secretkey=secretkey, serverkey=serverkey,
@@ -280,8 +277,8 @@ class PlatformWrapper:
                 keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
                 keys = KeyStore(keyfile)
                 keys.generate()
-                publickey=keys.public()
-                secretkey=keys.secret()
+                publickey=keys.public
+                secretkey=keys.secret
 
         if address is None:
             if not self.encrypt:
@@ -423,7 +420,7 @@ class PlatformWrapper:
         config = {}
 
         # Add platform's public key to known hosts file
-        publickey = self.keystore.public()
+        publickey = self.keystore.public
         known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
         known_hosts = KnownHostsStore(known_hosts_file)
         known_hosts.add(self.opts['vip_local_address'], publickey)
@@ -484,7 +481,7 @@ class PlatformWrapper:
         # A negative means that the process exited with an error.
         assert self.p_process.poll() is None
 
-        self.serverkey = self.keystore.public()
+        self.serverkey = self.keystore.public
         assert self.serverkey
         agent = self.build_agent()
 

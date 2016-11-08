@@ -64,15 +64,29 @@ from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.dbutils import sqlutils
 from volttron.platform.vip.agent import *
 
-__version__ = "3.5.0"
+__version__ = "3.6.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
 def historian(config_path, **kwargs):
-    config = utils.load_config(config_path)
-    connection = config.get('connection', None)
+    """
+    This method is called by the :py:func:`sqlhistorian.historian.main` to
+    parse the passed config file or configuration dictionary object, validate
+    the configuration entries, and create an instance of SQLHistorian
+
+    :param config_path: could be a path to a configuration file or can be a
+                        dictionary object
+    :param kwargs: additional keyword arguments if any
+    :return: an instance of :py:class:`sqlhistorian.historian.SQLHistorian`
+    """
+    if isinstance(config_path, dict):
+        config_dict = config_path
+    else:
+        config_dict = utils.load_config(config_path)
+
+    connection = config_dict.get('connection', None)
 
     assert connection is not None
     database_type = connection.get('type', None)
@@ -80,280 +94,265 @@ def historian(config_path, **kwargs):
     params = connection.get('params', None)
     assert params is not None
 
-    topic_replace_list = config.get("topic_replace_list", None)
+    identity_from_platform = kwargs.pop('identity', None)
+    identity = config_dict.get('identity')
+
+    if identity is not None:
+        _log.warning("DEPRECATION WARNING: Setting a historian's VIP IDENTITY"
+                     " from its configuration file will no longer be "
+                     "supported after VOLTTRON 4.0")
+        _log.warning("DEPRECATION WARNING: Using the identity configuration "
+                     "setting will override the value provided by the "
+                     "platform. This new value will not be reported correctly"
+                     " by 'volttron-ctl status'")
+        _log.warning("DEPRECATION WARNING: Please remove 'identity' from your "
+                     "configuration file and use the new method provided by "
+                     "the platform to set an agent's identity. See "
+                     "scripts/core/make-sqlite-historian.sh for an example "
+                     "of how this is done.")
+    else:
+        identity = identity_from_platform
+
+    topic_replace_list = config_dict.get("topic_replace_list", None)
     if topic_replace_list:
         _log.debug("topic replace list is: {}".format(topic_replace_list))
 
-    db_functs_class = sqlutils.get_dbfuncts_class(database_type)
-
-    class SQLHistorian(BaseHistorian):
-        """This is a simple example of a historian agent that writes stuff
-        to a SQLite database. It is designed to test some of the functionality
-        of the BaseHistorianAgent.
-        """
-
-        def __init__(self, **kwargs):
-            """ Initialise the historian.
-
-            The historian makes two connections to the data store.  Both of
-            these connections are available across the main and processing
-            thread of the historian.  topic_map and topic_meta are used as
-            cache for the meta data and topic maps.
-
-            :param kwargs:
-            :return:
-            """
-            super(SQLHistorian, self).__init__(
-                topic_replace_list=topic_replace_list, **kwargs)
-            self.tables_def, table_names = self.parse_table_def(config)
-            self.reader = db_functs_class(connection['params'], table_names)
-            self.writer = db_functs_class(connection['params'], table_names)
-            self.reader.setup_historian_tables()
-
-            self.topic_id_map = {}
-            self.topic_name_map = {}
-            self.topic_meta = {}
-            self.agg_topic_id_map = {}
-
-        @Core.receiver("onstart")
-        def starting(self, sender, **kwargs):
-            """ Called right after connections to the Router occured.
-
-            :param sender:
-            :param kwargs:
-            :return:
-            """
-            _log.info("Starting historian with identity: {}".format(
-                self.core.identity
-            ))
-            _log.debug("starting Thread is: {}".format(
-                threading.currentThread().getName())
-            )
-
-            topic_id_map, topic_name_map = self.reader.get_topic_map()
-            self.topic_id_map.update(topic_id_map)
-            self.topic_name_map.update(topic_name_map)
-            self.agg_topic_id_map = self.reader.get_agg_topic_map()
-
-            if self.core.identity == 'platform.historian':
-                if 'platform.agent' in self.vip.peerlist().get(timeout=2):
-                    _log.info(
-                        'Registering with platform.agent as a  service.'
-                    )
-                    self.vip.rpc.call('platform.agent', 'register_service',
-                                      self.core.identity).get(timeout=2)
-                else:
-                    _log.info('No platform.agent available to register with.')
-
-        def record_table_definitions(self, meta_table_name):
-            self.writer.record_table_definitions(self.tables_def,
-                                                 meta_table_name)
-
-        def publish_to_historian(self, to_publish_list):
-            thread_name = threading.currentThread().getName()
-            _log.debug("publish_to_historian number of items: {} Thread: {}"
-                       .format(len(to_publish_list), thread_name))
-
-            try:
-                real_published = []
-                for x in to_publish_list:
-                    ts = x['timestamp']
-                    topic = x['topic']
-                    value = x['value']
-                    meta = x['meta']
-
-                    # look at the topics that are stored in the database
-                    # already to see if this topic has a value
-                    lowercase_name = topic.lower()
-                    topic_id = self.topic_id_map.get(lowercase_name, None)
-                    db_topic_name = self.topic_name_map.get(lowercase_name,
-                                                            None)
-                    _log.debug('topic is {}, db topic is {}'
-                               .format(topic, db_topic_name))
-                    if topic_id is None:
-                        _log.debug('Inserting topic: {}'.format(topic))
-                        # Insert topic name as is in db
-                        row = self.writer.insert_topic(topic)
-                        topic_id = row[0]
-                        # user lower case topic name when storing in map
-                        # for case insensitive comparison
-                        self.topic_id_map[lowercase_name] = topic_id
-                        self.topic_name_map[lowercase_name] = topic
-                        _log.debug('TopicId: {} => {}'.format(topic_id, topic))
-                    elif db_topic_name != topic:
-                        _log.debug('Updating topic: {}'.format(topic))
-                        self.writer.update_topic(topic, topic_id)
-                        self.topic_name_map[lowercase_name] = topic
-
-                    old_meta = self.topic_meta.get(topic_id, {})
-                    if set(old_meta.items()) != set(meta.items()):
-                        _log.debug('Updating meta for topic: {} {}'.format(
-                            topic, meta
-                        ))
-                        self.writer.insert_meta(topic_id, meta)
-                        self.topic_meta[topic_id] = meta
-
-                    if self.writer.insert_data(ts, topic_id, value):
-                        # _log.debug('item was inserted')
-                        real_published.append(x)
-
-                if len(real_published) > 0:
-                    if self.writer.commit():
-                        _log.debug('published {} data values'.format(
-                            len(to_publish_list))
-                        )
-                        self.report_all_handled()
-                    else:
-                        msg = 'commit error. rolling back {} values.'
-                        _log.debug(msg.format(len(to_publish_list)))
-                        self.writer.rollback()
-                else:
-                    _log.debug('Unable to publish {}'.format(len(
-                        to_publish_list)))
-            except:
-                self.writer.rollback()
-                # Raise to the platform so it is logged properly.
-                raise
-
-        def query_topic_list(self):
-
-            _log.debug("query_topic_list Thread is: {}".format(
-                threading.currentThread().getName())
-            )
-            if len(self.topic_name_map) > 0:
-                return self.topic_name_map.values()
-            else:
-                # No topics present.
-                return []
-
-        def query_topics_metadata(self, topics):
-            meta = {}
-            if isinstance(topics, str):
-                topic_id = self.topic_id_map.get(topics.lower())
-                if topic_id:
-                    meta = {topics: self.topic_meta.get(topic_id)}
-            elif isinstance(topics, list):
-                for topic in topics:
-                    topic_id = self.topic_id_map.get(topic.lower())
-                    if topic_id:
-                        meta[topic] = self.topic_meta.get(topic_id)
-            return meta
-
-        def query_aggregate_topics(self):
-            return self.reader.get_agg_topics()
-
-        def query_historian(self, topic, start=None, end=None, agg_type=None,
-                            agg_period=None, skip=0, count=None,
-                            order="FIRST_TO_LAST"):
-            """This function should return the results of a query in the form:
-            {"values": [(timestamp1, value1), (timestamp2, value2), ...],
-             "metadata": {"key1": value1, "key2": value2, ...}}
-
-             metadata is not required (The caller will normalize this to {}
-             for you)
-             @param topic: Topic or topics to query for
-            @param start: Start of query timestamp as a datetime
-            @param end: End of query timestamp as a datetime
-            @param agg_type: If this is a query for aggregate data, the type of
-            aggregation ( for example, sum, avg)
-            @param agg_period: If this is a query for aggregate data, the time
-            period of aggregation
-            @param skip: Skip this number of results
-            @param count: Limit results to this value
-            @param order: How to order the results, either "FIRST_TO_LAST" or
-            "LAST_TO_FIRST"
-            @return: Results of the query
-            """
-            _log.debug("query_historian Thread is: {}".format(
-                threading.currentThread().getName())
-            )
-            results = dict()
-            topics_list = []
-            if isinstance(topic, str):
-                topics_list.append(topic)
-            elif isinstance(topic, list):
-                topics_list = topic
-
-            topic_ids = []
-            id_name_map = {}
-            for topic in topics_list:
-                topic_lower = topic.lower()
-                topic_id = self.topic_id_map.get(topic_lower)
-                if agg_type:
-                    agg_type = agg_type.lower()
-                    topic_id = self.agg_topic_id_map.get(
-                        (topic_lower, agg_type, agg_period))
-                    if topic_id is None:
-                        # load agg topic id again as it might be a newly
-                        # configured aggregation
-                        agg_map = self.reader.get_agg_topic_map()
-                        self.agg_topic_id_map.update(agg_map)
-                        _log.debug(" Agg topic map after updating {} "
-                                   "".format(self.agg_topic_id_map))
-                        topic_id = self.agg_topic_id_map.get(
-                            (topic_lower, agg_type, agg_period))
-                if topic_id:
-                    topic_ids.append(topic_id)
-                    id_name_map[topic_id] = topic
-                else:
-                    _log.warn('No such topic {}'.format(topic))
-
-            if not topic_ids:
-                _log.warn('No topic ids found for topics{}. Returning '
-                          'empty result'.format(topics_list))
-                return results
-
-            _log.debug("Querying db reader with topic_ids {} ".format(
-                topic_ids))
-            multi_topic_query = len(topic_ids) > 1
-
-            results = self.reader.query(
-                topic_ids, id_name_map, start=start, end=end,
-                agg_type=agg_type,
-                agg_period=agg_period, skip=skip, count=count,
-                order=order)
-
-            values = results.get('values', [])
-            metadata = {}
-            if len(values) > 0:
-                # If there are results add metadata if it is a query on a
-                # single topic
-                if not multi_topic_query:
-                    if agg_type:
-                        # if aggregation is on single topic find the topic id
-                        # in the topics table that corresponds to agg_topic_id
-                        # so that we can grab the correct metadata
-                        _log.debug("Single topic aggregate query. Try to get "
-                                   "metadata")
-                        tid = self.topic_id_map.get(topic.lower(), None)
-                        if tid:
-                            _log.debug("aggregation of a single topic, "
-                                       "found topic id in topic map. "
-                                       "topic_id={}".format(tid))
-                            metadata = self.topic_meta.get(tid, {})
-                        else:
-                            # if topic name does not have entry in topic_id_map
-                            # it is a user configured aggregation_topic_name
-                            # which denotes aggregation across multiple points
-                            metadata = {}
-                    else:
-                        # this is a query on raw data, get metadata for
-                        # topic from topic_meta map
-                        metadata = self.topic_meta.get(topic_ids[0], {})
-                return {
-                    'values': values,
-                    'metadata': metadata
-                }
-            else:
-                results = dict()
-            return results
-
-        def historian_setup(self):
-            thread_name = threading.currentThread().getName()
-            _log.debug("historian_setup on Thread: {}".format(thread_name))
 
     SQLHistorian.__name__ = 'SQLHistorian'
-    return SQLHistorian(**kwargs)
+    return SQLHistorian(config_dict, identity=identity,
+                        topic_replace_list=topic_replace_list, **kwargs)
+
+class SQLHistorian(BaseHistorian):
+    """This is a historian agent that writes data to a SQLite or Mysql
+    database based on the connection parameters in the configuration.
+
+    .. seealso::
+     - :py:mod:`volttron.platform.dbutils.basedb`
+     - :py:mod:`volttron.platform.dbutils.mysqlfuncts`
+     - :py:mod:`volttron.platform.dbutils.sqlitefuncts`
+
+    """
+
+    def __init__(self, config, **kwargs):
+        """Initialise the historian.
+
+        The historian makes two connections to the data store.  Both of
+        these connections are available across the main and processing
+        thread of the historian.  topic_map and topic_meta are used as
+        cache for the meta data and topic maps.
+
+        :param config: dictionary object containing the configurations for
+                       this historian
+        :param kwargs: additional keyword arguments. (optional identity and
+                       topic_replace_list used by parent classes)
+        """
+        self.config = config
+        self.topic_id_map = {}
+        self.topic_name_map = {}
+        self.topic_meta = {}
+        self.agg_topic_id_map = {}
+        self.tables_def = {}
+        self.reader = None
+        self.writer = None
+        super(SQLHistorian, self).__init__(**kwargs)
+
+
+    def record_table_definitions(self, meta_table_name):
+        self.writer.record_table_definitions(self.tables_def,
+                                             meta_table_name)
+
+    def publish_to_historian(self, to_publish_list):
+        thread_name = threading.currentThread().getName()
+        _log.debug(
+            "publish_to_historian number of items: {} Thread: {}".format(
+                len(to_publish_list), thread_name))
+
+        try:
+            real_published = []
+            for x in to_publish_list:
+                ts = x['timestamp']
+                topic = x['topic']
+                value = x['value']
+                meta = x['meta']
+
+                # look at the topics that are stored in the database
+                # already to see if this topic has a value
+                lowercase_name = topic.lower()
+                topic_id = self.topic_id_map.get(lowercase_name, None)
+                db_topic_name = self.topic_name_map.get(lowercase_name,
+                                                        None)
+                _log.debug('topic is {}, db topic is {}'.format(
+                    topic, db_topic_name))
+                if topic_id is None:
+                    _log.debug('Inserting topic: {}'.format(topic))
+                    # Insert topic name as is in db
+                    row = self.writer.insert_topic(topic)
+                    topic_id = row[0]
+                    # user lower case topic name when storing in map
+                    # for case insensitive comparison
+                    self.topic_id_map[lowercase_name] = topic_id
+                    self.topic_name_map[lowercase_name] = topic
+                    _log.debug('TopicId: {} => {}'.format(topic_id, topic))
+                elif db_topic_name != topic:
+                    _log.debug('Updating topic: {}'.format(topic))
+                    self.writer.update_topic(topic, topic_id)
+                    self.topic_name_map[lowercase_name] = topic
+
+                old_meta = self.topic_meta.get(topic_id, {})
+                if set(old_meta.items()) != set(meta.items()):
+                    _log.debug(
+                        'Updating meta for topic: {} {}'.format(topic,
+                                                                meta))
+                    self.writer.insert_meta(topic_id, meta)
+                    self.topic_meta[topic_id] = meta
+
+                if self.writer.insert_data(ts, topic_id, value):
+                    # _log.debug('item was inserted')
+                    real_published.append(x)
+
+            if len(real_published) > 0:
+                if self.writer.commit():
+                    _log.debug('published {} data values'.format(
+                        len(to_publish_list)))
+                    self.report_all_handled()
+                else:
+                    msg = 'commit error. rolling back {} values.'
+                    _log.debug(msg.format(len(to_publish_list)))
+                    self.writer.rollback()
+            else:
+                _log.debug(
+                    'Unable to publish {}'.format(len(to_publish_list)))
+        except:
+            self.writer.rollback()
+            # Raise to the platform so it is logged properly.
+            raise
+
+    def query_topic_list(self):
+
+        _log.debug("query_topic_list Thread is: {}".format(
+            threading.currentThread().getName()))
+        if len(self.topic_name_map) > 0:
+            return self.topic_name_map.values()
+        else:
+            # No topics present.
+            return []
+
+    def query_topics_metadata(self, topics):
+        meta = {}
+        if isinstance(topics, str):
+            topic_id = self.topic_id_map.get(topics.lower())
+            if topic_id:
+                meta = {topics: self.topic_meta.get(topic_id)}
+        elif isinstance(topics, list):
+            for topic in topics:
+                topic_id = self.topic_id_map.get(topic.lower())
+                if topic_id:
+                    meta[topic] = self.topic_meta.get(topic_id)
+        return meta
+
+    def query_aggregate_topics(self):
+        return self.reader.get_agg_topics()
+
+    def query_historian(self, topic, start=None, end=None, agg_type=None,
+                        agg_period=None, skip=0, count=None,
+                        order="FIRST_TO_LAST"):
+        _log.debug("query_historian Thread is: {}".format(
+            threading.currentThread().getName()))
+        results = dict()
+        topics_list = []
+        if isinstance(topic, str):
+            topics_list.append(topic)
+        elif isinstance(topic, list):
+            topics_list = topic
+
+        topic_ids = []
+        id_name_map = {}
+        for topic in topics_list:
+            topic_lower = topic.lower()
+            topic_id = self.topic_id_map.get(topic_lower)
+            if agg_type:
+                agg_type = agg_type.lower()
+                topic_id = self.agg_topic_id_map.get(
+                    (topic_lower, agg_type, agg_period))
+                if topic_id is None:
+                    # load agg topic id again as it might be a newly
+                    # configured aggregation
+                    agg_map = self.reader.get_agg_topic_map()
+                    self.agg_topic_id_map.update(agg_map)
+                    _log.debug(" Agg topic map after updating {} "
+                               "".format(self.agg_topic_id_map))
+                    topic_id = self.agg_topic_id_map.get(
+                        (topic_lower, agg_type, agg_period))
+            if topic_id:
+                topic_ids.append(topic_id)
+                id_name_map[topic_id] = topic
+            else:
+                _log.warn('No such topic {}'.format(topic))
+
+        if not topic_ids:
+            _log.warn('No topic ids found for topics{}. Returning '
+                      'empty result'.format(topics_list))
+            return results
+
+        _log.debug(
+            "Querying db reader with topic_ids {} ".format(topic_ids))
+        multi_topic_query = len(topic_ids) > 1
+
+        values = self.reader.query(topic_ids, id_name_map, start=start,
+                                   end=end, agg_type=agg_type,
+                                   agg_period=agg_period, skip=skip,
+                                   count=count, order=order)
+        metadata = {}
+
+        if len(values) > 0:
+            # If there are results add metadata if it is a query on a
+            # single topic
+            if not multi_topic_query:
+                values = values.values()[0]
+                if agg_type:
+                    # if aggregation is on single topic find the topic id
+                    # in the topics table that corresponds to agg_topic_id
+                    # so that we can grab the correct metadata
+                    _log.debug("Single topic aggregate query. Try to get "
+                               "metadata")
+                    tid = self.topic_id_map.get(topic.lower(), None)
+                    if tid:
+                        _log.debug("aggregation of a single topic, "
+                                   "found topic id in topic map. "
+                                   "topic_id={}".format(tid))
+                        metadata = self.topic_meta.get(tid, {})
+                    else:
+                        # if topic name does not have entry in topic_id_map
+                        # it is a user configured aggregation_topic_name
+                        # which denotes aggregation across multiple points
+                        metadata = {}
+                else:
+                    # this is a query on raw data, get metadata for
+                    # topic from topic_meta map
+                    metadata = self.topic_meta.get(topic_ids[0], {})
+            return {'values': values, 'metadata': metadata}
+        else:
+            results = dict()
+        return results
+
+    def historian_setup(self):
+        thread_name = threading.currentThread().getName()
+        _log.debug("historian_setup on Thread: {}".format(thread_name))
+
+        database_type = self.config['connection']['type']
+        self.tables_def, table_names = self.parse_table_def(self.config)
+        db_functs_class = sqlutils.get_dbfuncts_class(database_type)
+        self.reader = db_functs_class(self.config['connection']['params'],
+                                      table_names)
+        self.writer = db_functs_class(self.config['connection']['params'],
+                                      table_names)
+        self.reader.setup_historian_tables()
+
+        topic_id_map, topic_name_map = self.reader.get_topic_map()
+        self.topic_id_map.update(topic_id_map)
+        self.topic_name_map.update(topic_name_map)
+        self.agg_topic_id_map = self.reader.get_agg_topic_map()
+
 
 
 def main(argv=sys.argv):

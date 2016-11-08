@@ -147,13 +147,7 @@ class Heartbeat(SubsystemBase):
             self.period = period
 
     def publish(self):
-        topic = 'heartbeat/' + self.owner.__class__.__name__
-        try:
-            if os.environ['AGENT_UUID']:
-                topic += '/' + os.environ['AGENT_UUID']
-        except KeyError:
-            pass
-
+        topic = 'heartbeat/' + self.core().identity
         headers = {DATE: format_timestamp(get_aware_utc_now())}
         message = self.owner.vip.health.get_status()
 

@@ -1,11 +1,11 @@
-.. AgentManagement:
+.. _AgentManagement:
 
 Agent Lifecyle Management
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The VOLTTRON platform has several commands for controlling the lifecycle
 of agents. This page discusses how to use them, for details of operation
-please see `PlatformConfiguration <PlatformConfiguration>`__
+please see :ref:`PlatformConfiguration <PlatformConfiguration>`
 
 **These examples assume the VOLTTRON environment has been activated (.
 env/bin/activate). If not, add "bin/" to all commands.**
@@ -61,7 +61,7 @@ Agent Installation and Removal
 instance of an agent. This allows multiple instances of the same agent
 package to be installed on the platform.
 
-Agents can also be installed with a `tag <AgentTag>`__ by using:
+Agents can also be installed with a :ref:`tag <AgentTag>` by using:
 
 ``volttron-ctl install <TAG>=<PACKAGE>``
 
@@ -92,11 +92,11 @@ This can allow multiple agents to be started at once. For instance:
 ``volttron-ctl start --name myagent-0.1`` would start all instances of
 that agent regardless of their uuid, tag, or configuration information.
 After an agent is started, it will show up in
-`AgentStatus <AgentStatus>`__ as "running" with a process id.
+:ref:`AgentStatus <AgentStatus>` as "running" with a process id.
 
 Similarly, ``volttron-ctl stop <UUID>`` can also operate off the tag and
 name of agent(s). After an agent is stopped, it will show an exit code
-of 0 in `AgentStatus <AgentStatus>`__
+of 0 in :ref:`AgentStatus <AgentStatus>`
 
 Running an agent
 ----------------
@@ -111,4 +111,4 @@ Agent Status
 their priority
 | The ``volttron-ctl status`` shows the list of installed agents and
 whether they are running or have exited.
-| See `AgentStatus <AgentStatus>`__ for more details.
+| See :ref:`AgentStatus <AgentStatus>` for more details.

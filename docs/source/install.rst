@@ -1,3 +1,5 @@
+.. install:
+
 ============
 Installation
 ============
@@ -27,12 +29,6 @@ On **Arch Linux**, the following command will install the dependencies:
 Source Code
 -----------
 
-To work with the latest devlopment code clone from the develop branch by using
-the following git command.
-
-.. code-block:: bash
-
-    git clone https://github.com/VOLTTRON/volttron/ -b develop
 
 To work with the latest stable code clone the master branch using the following
 git command.
@@ -40,6 +36,17 @@ git command.
 .. code-block:: bash
 
     git clone https://github.com/VOLTTRON/volttron/
+
+
+To work with the latest devlopment code clone from the develop branch by using
+the following git command.
+
+
+.. code-block:: bash
+
+    git clone -b develop https://github.com/VOLTTRON/volttron/
+
+
 
 Bootstrap
 ---------
@@ -83,7 +90,7 @@ root directory using an activated command prompt:
 
 .. code-block:: bash
 
-    py.test
+    ./ci-integration/run-tests.sh
 
 
 Execution
@@ -103,7 +110,15 @@ volttron.log execute the following.
 
     volttron -vv -l volttron.log&
 
+Acquiring Third Party Agent Code
+---------------------------------
+
+Third party agents are available under volttron-applications repository. In order to use those agents, add
+volttron-applications repository under the volttron/applications directory by using following command:
+
+    git subtree add --prefix applications https://github.com/VOLTTRON/volttron-applications.git develop --squash
+
 Next Steps
 ----------
 
-* :doc:`agent-development`  
+* :doc:`Agent-Development`

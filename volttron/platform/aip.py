@@ -284,7 +284,8 @@ class AIPplatform(object):
             raise
         return agent_uuid
 
-    def install_agent(self, agent_wheel, vip_identity=None):
+    def install_agent(self, agent_wheel, vip_identity=None, publickey=None,
+                      secretkey=None, add_auth=True):
         while True:
             agent_uuid = str(uuid.uuid4())
             if agent_uuid in self.agents:
@@ -306,7 +307,13 @@ class AIPplatform(object):
             final_identity = self._setup_agent_vip_id(agent_uuid,
                                                       vip_identity=vip_identity)
 
-            self._authorize_agent_keys(agent_uuid, final_identity)
+            if publickey is not None and secretkey is not None:
+                keystore = self.get_agent_keystore(agent_uuid)
+                keystore.public = publickey
+                keystore.secret = secretkey
+
+            if add_auth:
+                self._authorize_agent_keys(agent_uuid, final_identity)
 
         except Exception:
             shutil.rmtree(agent_path)
@@ -364,24 +371,22 @@ class AIPplatform(object):
 
         return final_identity
 
-
-    def _get_agent_publickey(self, agent_uuid):
+    def get_agent_keystore(self, agent_uuid):
         agent_path = os.path.join(self.install_dir, agent_uuid)
         name = self.agent_name(agent_uuid)
         agent_path_with_name = os.path.join(agent_path, name)
         data_dir = self._get_data_dir(agent_path_with_name)
         keystore_path = os.path.join(data_dir, 'keystore.json')
-        keystore = KeyStore(keystore_path)
-        return keystore.public()
+        return KeyStore(keystore_path)
 
     def _authorize_agent_keys(self, agent_uuid, identity):
-        publickey = self._get_agent_publickey(agent_uuid)
+        publickey = self.get_agent_keystore(agent_uuid).public
         entry = AuthEntry(credentials=publickey, user_id=identity,
                           comments='Automatically added on agent install')
         AuthFile().add(entry)
 
     def _unauthorize_agent_keys(self, agent_uuid):
-        publickey = self._get_agent_publickey(agent_uuid)
+        publickey = self.get_agent_keystore(agent_uuid).public
         AuthFile().remove_by_credentials(publickey)
 
     def _get_data_dir(self, agent_path):
@@ -392,8 +397,8 @@ class AIPplatform(object):
             os.mkdir(data_dir)
         return data_dir
 
-    def get_all_agent_identities(self):
-        results = set()
+    def get_agent_identity_to_uuid_mapping(self):
+        results = {}
         for agent_uuid in self.list_agents():
             try:
                 agent_identity = self.agent_identity(agent_uuid)
@@ -401,9 +406,12 @@ class AIPplatform(object):
                 continue
 
             if agent_identity is not None:
-                results.add(agent_identity)
+                results[agent_identity] = agent_uuid
 
         return results
+
+    def get_all_agent_identities(self):
+       return self.get_agent_identity_to_uuid_mapping().keys()
 
     def _get_available_agent_identity(self, name_template):
         all_agent_identities = self.get_all_agent_identities()
@@ -420,12 +428,13 @@ class AIPplatform(object):
                 return test_name
             count += 1
 
-    def remove_agent(self, agent_uuid):
+    def remove_agent(self, agent_uuid, remove_auth=True):
         if agent_uuid not in os.listdir(self.install_dir):
             raise ValueError('invalid agent')
         self.stop_agent(agent_uuid)
         self.agents.pop(agent_uuid, None)
-        self._unauthorize_agent_keys(agent_uuid)
+        if remove_auth:
+            self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
 
     def agent_name(self, agent_uuid):

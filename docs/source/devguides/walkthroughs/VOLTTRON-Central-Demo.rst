@@ -1,16 +1,20 @@
 .. _VOLTTRON-Central-Demo:
+
+=====================
 VOLTTRON Central Demo
 =====================
 
 VOLTTRON Central is a platform management web application that allows
 platforms to communicate and to be managed from a centralized server.
-This agent alleviates the need to ssh into independent nodes in order 
-to manage them. The demo will start up three different instances of 
-VOLTTRON with three historians and different agents on each host. The 
-following entries will help to navigate around the VOLTTRON Central 
+This agent alleviates the need to ssh into independent nodes in order
+to manage them. The demo will start up three different instances of
+VOLTTRON with three historians and different agents on each host. The
+following entries will help to navigate around the VOLTTRON Central
 interface.
 
--  `Running the Demo <#running-the-demo>`__
+-  `Getting Started <#getting-started>`__
+-  `Remote Platform Configuration <#remote-platform-configuration>`__
+-  `Starting the Demo <#starting-the-demo>`__
 -  `Stopping the Demo <#stopping-the-demo>`__
 -  `Log In <#log-in>`__
 -  `Log Out <#log-out>`__
@@ -26,60 +30,136 @@ interface.
 -  `Dashboard Charts <#dashboard-charts>`__
 -  `Remove Charts <#remove-charts>`__
 
-Running the Demo
-~~~~~~~~~~~~~~~~
+Getting Started
+---------------
 
-After :ref:`building VOLTTRON <Building-VOLTTRON>`, open a shell with the
-current directory the root of the volttron repository. Activate the
-shell
+After :ref:`building VOLTTRON <Building-VOLTTRON>`, open three shells
+with the current directory the root of the VOLTTRON repository. Then activate
+the VOLTTRON environment and export the VOLTTRON\_HOME variable. The home
+variable needs to be different for each instance.
 
-::
+If you are using Terminator you can right click and select "Split Vertically".
+This helps us keep from losing terminal windows or duplicating work.
 
-    . env/bin/activate
+.. code-block:: console
 
-execute the script
+    $ source env/bin/activate
+    $ export VOLTTRON_HOME=~/.volttron1
 
-::
+|Terminator Setup|
 
-    ./volttron/scripts/management-service-demo/run-demo
+One of our instances will have a VOLTTRON Central agent. We will install a
+platform agent and a historian on all three platforms.
 
-Upon completion a browser window (opened to http://localhost:8080/)
-should be opened with a login prompt and the shell should look like the
-following image.
+Run `volttron-cfg` in the first shell. This command will ask how the instance
+should be set up. Many of the options have defaults that will be sufficient.
+When asked if this instance is a VOLTTRON Central enter `y`. Read through the
+options and use the enter key to accept default options. There are no default
+credentials for VOLTTRON Central.
 
-|Run VC Demo|
+|VC Config|
 
-#. Log in to the front page using credentials admin/admin.
-#. From the console window copy the first platform address from the
-   shell.
-#. In the upper right of the browser window, click Platforms, then click
-   Register Platform.
-#. Type 'Platform 1' in the name parameter and paste the first platforms
-   ipc address that you copied from step 2.
+Continue by configuring the the platform agent and installing the historian.
+The platform agent is installed if you accept the default `y` when asked if
+the instance will be controlled by a VOLTTRON Central. If you kept the
+VOLTTRON Central defaults then no changes need to be made to the platform agent.
+There are no options for the historian.
 
--  The Platform 1 should show up in the list of platforms on this page.
+VOLTTRON Central needs to accept the connecting instances'
+public keys. For this example we'll allow any CURVE credentials to be accepted.
+After `starting <#starting-the-demo>`__, the command **volttron-ctl auth add** will prompt the user for
+information about how the credentials should be used. We can simply hit Enter
+to select defaults on all fields except **credentials**, where we will type
+`/.*/`
 
-#. Repeat step 4 for the other two platforms.
+.. code-block:: console
+
+   $ volttron-ctl auth add
+   domain []:
+   address []:
+   user_id []:
+   capabilities (delimit multiple entries with comma) []:
+   roles (delimit multiple entries with comma) []:
+   groups (delimit multiple entries with comma) []:
+   mechanism [CURVE]:
+   credentials []: /.*/
+   comments []:
+   enabled [True]:
+   added entry domain=None, address=None, mechanism='CURVE', credentials=u'/.*/', user_id=None
+
+For more information on authorization see :ref:`authentication<VIP-Authentication>`.
+
+Remote Platform Configuration
+-----------------------------
+
+The next step is to configure the instances that will connect to VOLTTRON
+Central. In the second and third terminal windows run `volttron-cfg`. Like
+the VOLTTRON\_HOME variable, these instances need to have unique addresses.
+
+Install a platform agent and a historian as before. Since we used the default
+options when configuring VOLTTRON Central, we can use the default options when
+configuring these platform agents as well.
+
+|Platform Config|
+
+
+Starting the Demo
+-----------------
+
+Start each Volttron instance after configuration. The "-l" option in the
+following command tells volttron to log to a file. The file name
+should be different for each instance.
+
+.. code-block:: console
+
+    $ volttron -l log1&
+
+If you choose to not start your agents with their platforms they will need to
+be started by hand. List the installed agents with
+
+.. code-block:: console
+
+    $ volttron-ctl status
+
+A portion of each agent's uuid makes up the leftmost column of the status
+output. This is all that is needed to start or stop the agent. If any
+installed agents share a common prefix then more of the uuid will be needed
+to identify it.
+
+.. code-block:: console
+
+    $ volttron-ctl start uuid
+
+or
+
+.. code-block:: console
+
+    $ volttron-ctl start --tag tag
+
+Now point your browser to `localhost:8080` and and log in with the credentials
+you provided. The platform agents should automatically register with VOLTTRON
+central.
 
 Stopping the Demo
 -----------------
 
 Once you have completed your walk through of the different elements of
-the VOLTTRON Central demo you can stop the demos by executing
+the VOLTTRON Central demo you can stop the demos by executing the following
+command in each terminal window.
 
-::
+.. code-block:: console
 
-    ./scripts/management-service-demo/stop-platforms.sh
+    $ volttron-ctl shutdown --platform
 
-Once the demo is complete you may wish to see the 
-:ref:`VOLTTRON Central Management Agent <VOLTTRON-Central>` page for more 
+Once the demo is complete you may wish to see the
+:ref:`VOLTTRON Central Management Agent <VOLTTRON-Central>` page for more
 details on how to configure the agent for your specific use case.
 
 Log In
 ------
 
-To log in to VOLTTRON Central, navigate in a browser to localhost:8080, 
-and enter the username and password on the login screen.
+To log in to VOLTTRON Central, navigate in a browser to localhost:8080,
+and enter the user name and password on the login screen.
 
 |Login Screen|
 
@@ -102,8 +182,8 @@ reveal the tree view of registered platforms.
 |Platforms Tree|
 
 Top-level nodes in the tree are platforms. Platforms can be expanded
-in the tree to reveal installed agents, devices on buildings, and 
-performance statistics about the platform instances. 
+in the tree to reveal installed agents, devices on buildings, and
+performance statistics about the platform instances.
 
 Loading the Tree
 ----------------
@@ -119,7 +199,7 @@ can be quickly expanded by double-clicking on the node.
 Health Status
 -------------
 
-The health status of an item in the tree is indicated by the color  
+The health status of an item in the tree is indicated by the color
 and shape next to it. A green triangle means healthy, a red circle
 means there's a problem, and a gray rectangle means the status can't
 be determined.
@@ -132,7 +212,7 @@ cursor over the item.
 Filter the Tree
 ---------------
 
-The tree can be filtered by typing in the search field at the top or 
+The tree can be filtered by typing in the search field at the top or
 clicking on a status button next to the search field.
 
 |Filter Name|
@@ -149,9 +229,9 @@ Platforms Screen
 ~~~~~~~~~~~~~~~~
 
 This screen lists the registered VOLTTRON platforms and allows new
-platforms to be registered by clicking the Register Platform button. 
+platforms to be registered by clicking the Register Platform button.
 Each platform is listed with its unique ID and the number and status
-of its agents. The platform's name is a link that can be clicked on 
+of its agents. The platform's name is a link that can be clicked on
 to go to the platform management view.
 
 |Platforms|
@@ -160,7 +240,7 @@ Register New Platform
 ---------------------
 
 To register a new VOLTTRON platform, click the Register Platform button.
-You'll need to provide a name and the IP address of the platform. Click 
+You'll need to provide a name and the IP address of the platform. Click
 the Advanced link for additional configuration options.
 
 |Register Platform Information|
@@ -168,14 +248,14 @@ the Advanced link for additional configuration options.
 Deregister Platform
 -------------------
 
-To deregister a VOLTTRON Platform, click on the X button for that platform 
+To deregister a VOLTTRON Platform, click on the X button for that platform
 in the list.
 
 Platform View
 ~~~~~~~~~~~~~
 
 From the platforms screen, click on the name link of a platform to
-manage it. Managing a platform includes installing, starting, stopping, 
+manage it. Managing a platform includes installing, starting, stopping,
 and removing its agents.
 
 |Platform Screen|
@@ -184,8 +264,8 @@ To install a new agent, all you need is the agent’s wheel file. Click on
 the button and choose the file to upload it and install the agent.
 
 To start, stop, or remove an agent, click on the button next to the agent
-in the list. Buttons may be disabled if the user lacks the correct 
-permission to perform the action or if the action can't be performed 
+in the list. Buttons may be disabled if the user lacks the correct
+permission to perform the action or if the action can't be performed
 on a specific type of agent. For instance, platform agents and VOLTTRON
 Central agents can't be removed or stopped, but they can be restarted
 if they've been interrupted.
@@ -196,19 +276,19 @@ Add Charts
 Performance statistics and device points can be added to charts either
 from the Charts page or from the platforms tree in the side panel.
 
-Click the Charts link at the top-right corner of the screen to go to 
-the Charts page. 
+Click the Charts link at the top-right corner of the screen to go to
+the Charts page.
 
 |Charts Page|
 
 From the Charts page, click the Add Chart button to open the Add Chart
-window. 
+window.
 
 |Charts Button|
 
 |Charts Window|
 
-Click in the topics input field to make the list of available chart 
+Click in the topics input field to make the list of available chart
 topics appear.
 
 |Chart Topics|
@@ -218,17 +298,17 @@ list, and then select.
 
 |Filter Select|
 
-Select a chart type and click the Load Chart button to close the 
+Select a chart type and click the Load Chart button to close the
 window and load the chart.
 
 |Load Chart|
 
-To add charts from the side panel, check boxes next to items in the 
+To add charts from the side panel, check boxes next to items in the
 tree.
 
 |Tree Charts|
 
-Choose points with the same name from multiple platforms or devices 
+Choose points with the same name from multiple platforms or devices
 to plot more than one line in a chart.
 
 |Multiple Lines|
@@ -237,7 +317,7 @@ Move the cursor arrow over the chart to inspect the graphs.
 
 |Inspect Chart|
 
-To change the chart's type, click on the Chart Type button and choose 
+To change the chart's type, click on the Chart Type button and choose
 a different option.
 
 |Chart Type|
@@ -245,9 +325,9 @@ a different option.
 Dashboard Charts
 ----------------
 
-To pin a chart to the Dashboard, click the Pin Chart button to toggle 
-it. When the pin image is black and upright, the chart is pinned; when 
-the pin image is gray and diagonal, the chart is not pinned and won't 
+To pin a chart to the Dashboard, click the Pin Chart button to toggle
+it. When the pin image is black and upright, the chart is pinned; when
+the pin image is gray and diagonal, the chart is not pinned and won't
 appear on the Dashboard.
 
 |Pin Chart|
@@ -260,10 +340,15 @@ Remove Charts
 -------------
 
 To remove a chart, uncheck the box next to the item in the tree or click
-the X button next to the chart on the Charts page. Removing a chart 
+the X button next to the chart on the Charts page. Removing a chart
 removes it from the Charts page and the Dashboard.
 
-.. |Run VC Demo| image:: files/vc-run-demo.png
+.. |Terminator Setup| image:: files/terminator-setup.png
+                      :target: ../../_images/terminator-setup.png
+.. |VC Config| image:: files/vc-config.png
+               :target: ../../_images/vc-config.png
+.. |Platform Config| image:: files/platform-config.png
+                     :target: ../../_images/platform-config.png
 .. |Login Screen| image:: files/login-screen.png
 .. |Logout Button| image:: files/logout-button.png
 .. |Platforms| image:: files/platforms.png

@@ -24,15 +24,15 @@ def test_keystore_generated_when_created(tmpdir_factory):
     kspath = str(tmpdir_factory.mktemp('keys').join('keys.json'))
     ks = keystore.KeyStore(kspath)
     assert os.stat(kspath).st_mode & 0o777 == 0o600
-    assert ks.secret()
-    assert ks.public()
+    assert ks.secret
+    assert ks.public
 
 
 @pytest.mark.keystore
 def test_generated_keys_length(keystore_instance1):
     '''The keys should be the len:gth of an encoded curve-key (43)'''
-    assert len(keystore_instance1.public()) == 43
-    assert len(keystore_instance1.secret()) == 43
+    assert len(keystore_instance1.public) == 43
+    assert len(keystore_instance1.secret) == 43
 
 
 @pytest.mark.keystore
@@ -40,17 +40,17 @@ def test_keystore_with_same_path(keystore_instance1):
     '''Reading from the same path should fetch the same keys'''
     path = keystore_instance1.filename
     keys = keystore.KeyStore(path)
-    assert keystore_instance1.public() == keys.public()
-    assert keystore_instance1.secret() == keys.secret()
+    assert keystore_instance1.public == keys.public
+    assert keystore_instance1.secret == keys.secret
 
 
 @pytest.mark.keystore
 def test_keystore_overwrite_keys(keystore_instance1):
-    public = keystore_instance1.public()
-    secret = keystore_instance1.secret()
+    public = keystore_instance1.public
+    secret = keystore_instance1.secret
     keystore_instance1.generate()
-    assert keystore_instance1.public() != public
-    assert keystore_instance1.secret() != secret
+    assert keystore_instance1.public != public
+    assert keystore_instance1.secret != secret
 
 
 @pytest.fixture(scope="module")
@@ -103,4 +103,4 @@ def test_invalid_unicode_key(keystore_instance1):
         keystore_json = json.load(fp)
     keystore_json['public'] = u'\u0100'
     keystore_instance1.update(keystore_json)
-    assert keystore_instance1.public() is None
+    assert keystore_instance1.public is None

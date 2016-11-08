@@ -73,6 +73,14 @@ _log = logging.getLogger(__name__)
 
 
 class DbDriver(object):
+    """
+    Parent class used by :py:class:`sqlhistorian.historian.SQLHistorian` to
+    do the database operations. This class is inherited by
+
+    - :py:class:`volttron.platform.dbutils.mysqlfuncts.MySqlFuncts`
+    - :py:class:`volttron.platform.dbutils.sqlitefuncts.SqlLiteFuncts`
+
+    """
     def __init__(self, dbapimodule, **kwargs):
         thread_name = threading.currentThread().getName()
         _log.debug("Constructing Driver for {} in thread: {}".format(
@@ -98,6 +106,23 @@ class DbDriver(object):
         return self.__connection is not None
 
     def read_tablenames_from_db(self, meta_table_name):
+        """
+        Reads names of the tables used by this historian to store data,
+        topics, metadata, aggregate topics and aggregate metadata
+
+        :param meta_table_name: The volttron metadata table in which table
+                                definitions are stored
+        :return: table names
+        .. code-block:: python
+
+            {
+             'data_table': name of table that store data,
+             'topics_table':name of table that store list of topics,
+             'meta_table':name of table that store metadata,
+             'agg_topics_table':name of table that stores aggregate topics,
+             'agg_meta_table':name of table that store aggregate metadata
+             }
+        """
         rows = self.select("SELECT table_id, table_name, table_prefix from " +
                            meta_table_name, None)
         table_names = dict()
@@ -124,12 +149,20 @@ class DbDriver(object):
 
     @abstractmethod
     def get_topic_map(self):
+        """
+        Returns details of topics in database
+
+        :return: two dictionaries.
+        - First one maps topic_name.lower() to topic id  and
+        - Second one maps topic_name.lower() to topic name
+        """
         pass
 
     @abstractmethod
     def get_agg_topics(self):
         """
         Get the list of aggregate topics available
+
         :return: list of tuples containing
         (agg_topic_name, agg_type, agg_time_period, configured topics/topic
         name pattern)
@@ -140,6 +173,7 @@ class DbDriver(object):
     def get_agg_topic_map(self):
         """
         Get a map of aggregate_topics to aggregate_topic_id
+
         :return: dict of format
         {(agg_topic_name, agg_type, agg_time_period):agg_topic_id}
         """
@@ -157,41 +191,72 @@ class DbDriver(object):
 
     @abstractmethod
     def insert_data_query(self):
+        """
+        :return: query string to insert data into database
+        """
         pass
 
     @abstractmethod
     def insert_topic_query(self):
+        """
+        :return: query string to insert a topic into database
+        """
         pass
 
     @abstractmethod
     def update_topic_query(self):
+        """
+        :return: query string to update a topic in database
+        """
         pass
 
     @abstractmethod
     def insert_meta_query(self):
+        """
+        :return: query string to insert metadata for a topic into database
+        """
         pass
 
     @abstractmethod
     def get_aggregation_list(self):
         """
         Return list of aggregation supported by the specific data store
+
         :return: list of aggregations
         """
         pass
 
     @abstractmethod
     def insert_agg_topic_stmt(self):
+        """
+        :return: query string to insert an aggregate topic into database
+        """
         pass
 
     @abstractmethod
     def update_agg_topic_stmt(self):
+        """
+        :return: query string to update an aggregate topic in database
+        """
         pass
 
     @abstractmethod
     def insert_agg_meta_stmt(self):
+        """
+        :return: query string to insert metadata for an aggregate topic into
+        database
+        """
         pass
 
     def insert_stmt(self, stmt, args):
+        """
+        Executes an insert statement with arguments
+
+        :param stmt: insert statement
+        :param args: insert arguments
+        :return: True if execution completes. False if unable to connect to
+                 database
+        """
         if not self.__connect():
             return False
 
@@ -199,6 +264,14 @@ class DbDriver(object):
         return True
 
     def insert_meta(self, topic_id, metadata):
+        """
+        Inserts metadata for topic
+
+        :param topic_id: topic id for which metadata is inserted
+        :param metadata: metadata
+        :return: True if execution completes. False if unable to connect to
+                 database
+        """
         if not self.__connect():
             return False
 
@@ -207,6 +280,15 @@ class DbDriver(object):
         return True
 
     def insert_data(self, ts, topic_id, data):
+        """
+        Inserts data for topic
+
+        :param ts: timestamp
+        :param topic_id: topic id for which data is inserted
+        :param metadata: data values
+        :return: True if execution completes. False if unable to connect to
+                 database
+        """
         if not self.__connect():
             return False
 
@@ -215,6 +297,13 @@ class DbDriver(object):
         return True
 
     def insert_topic(self, topic):
+        """
+        Insert a new topic
+
+        :param topic: topic to insert
+        :return: id of the topic inserted if insert was successful.
+                 False if unable to connect to database
+        """
         if not self.__connect():
             return False
 
@@ -223,6 +312,14 @@ class DbDriver(object):
         return row
 
     def update_topic(self, topic, topic_id):
+        """
+        Update a topic name
+
+        :param topic: new topic name
+        :param topic_id: topic id for which update is done
+        :return: True if execution is complete. False if unable to connect
+        to database
+        """
 
         self.__connect()
 
@@ -237,6 +334,14 @@ class DbDriver(object):
         return True
 
     def insert_agg_meta(self, topic_id, metadata):
+        """
+        Inserts metadata for aggregate topic
+
+        :param topic_id: aggregate topic id for which metadata is inserted
+        :param metadata: metadata
+        :return: True if execution completes. False if unable to connect to
+                 database
+        """
         if not self.__connect():
             return False
 
@@ -250,6 +355,15 @@ class DbDriver(object):
         return True
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
+        """
+        Insert a new aggregate topic
+
+        :param topic: topic name to insert
+        :param agg_type: type of aggregation
+        :param agg_time_period: time period of aggregation
+        :return: id of the topic inserted if insert was successful.
+                 False if unable to connect to database
+        """
         if not self.__connect():
             return False
 
@@ -265,6 +379,14 @@ class DbDriver(object):
         return row
 
     def update_agg_topic(self, agg_id, agg_topic_name):
+        """
+        Update a aggregate topic name
+
+        :param agg_id: topic id for which update is done
+        :param agg_topic_name: new aggregate topic name
+        :return: True if execution is complete. False if unable to
+        connect to database
+        """
         if not self.__connect():
             return False
 
@@ -279,6 +401,11 @@ class DbDriver(object):
         self.commit()
 
     def commit(self):
+        """
+        Commit a transaction
+
+        :return: True if successful, False otherwise
+        """
         successful = False
         if self.__connection is not None:
             self.__connection.commit()
@@ -292,6 +419,11 @@ class DbDriver(object):
         return successful
 
     def rollback(self):
+        """
+        Rollback a transaction
+
+        :return: True if successful, False otherwise
+        """
         successful = False
         if self.__connection is not None:
             self.__connection.rollback()
@@ -305,6 +437,13 @@ class DbDriver(object):
         return successful
 
     def select(self, query, args):
+        """
+        Execute a select statement
+
+        :param query: select statement
+        :param args: arguments for the where clause
+        :return: resultant rows
+        """
         try:
             conn = self.__dbmodule.connect(**self.__connect_params)
         except Exception as e:
@@ -324,6 +463,12 @@ class DbDriver(object):
         return rows
 
     def execute_stmt(self, stmt):
+        """
+        Execute a sql statement
+
+        :param stmt: the statement to execute
+        :return: True if successful, False otherwise
+        """
         try:
             conn = self.__dbmodule.connect(**self.__connect_params)
         except Exception as e:
@@ -343,25 +488,87 @@ class DbDriver(object):
     def query(self, topic_ids, id_name_map, start=None, end=None,
               agg_type=None,
               agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
-        """This function should return the results of a query in the form:
-        {"values": [(timestamp1, value1), (timestamp2, value2), ...],
-         "metadata": {"key1": value1, "key2": value2, ...}}
+        """
+        Queries the raw historian data or aggregate data and returns the
+        results of the query
 
-         metadata is not required (The caller will normalize this to {} for
-         you)
+        :param topic_ids: list of topic ids to query for.
+        :param id_name_map: dictionary that maps topic id to topic name
+        :param start: Start of query timestamp as a datetime.
+        :param end: End of query timestamp as a datetime.
+        :param agg_type: If this is a query for aggregate data, the type of
+                         aggregation ( for example, sum, avg)
+        :param agg_period: If this is a query for aggregate data, the time
+                           period of aggregation
+        :param skip: Skip this number of results.
+        :param count: Limit results to this value. When the query is for
+                      multiple topics, count applies to individual topics. For
+                      example, a query on 2 topics with count=5 will return 5
+                      records for each topic
+        :param order: How to order the results, either "FIRST_TO_LAST" or
+                      "LAST_TO_FIRST"
+        :type topic: str or list
+        :type start: datetime
+        :type end: datetime
+        :type skip: int
+        :type count: int
+        :type order: str
+        :return: result of the query in the format:
+        .. code-block:: python
+
+            {
+            topic_name:[(timestamp1, value1),
+                        (timestamp2:,value2),
+                        ...],
+            topic_name:[(timestamp1, value1),
+                        (timestamp2:,value2),
+                        ...],
+            ...}
         """
         pass
 
     @abstractmethod
     def create_aggregate_store(self, agg_type, period):
+        """
+        Create the data structure (table or collection) that is going to store
+        the aggregate data for the give aggregation type and aggregation
+        time period. Table name should be constructed as <agg_type>_<period>
+
+        :param agg_type: The type of aggregation. (avg, sum etc.)
+        :param agg_time_period: The time period of aggregation
+        :return - True if successful, False otherwise
+        """
         pass
 
     @abstractmethod
     def insert_aggregate_stmt(self, table_name):
+        """
+        The sql statement to insert collected aggregate for a given time
+        period into database
+
+        :param table_name: name of the table into which the aggregate data
+                           needs to be inserted
+        :return: sql insert/replace statement to insert aggregate data for a
+                 specific time slice
+        :rtype: str
+        """
         pass
 
     def insert_aggregate(self, agg_topic_id, agg_type, period, ts,
                          data, topic_ids):
+        """
+        Insert aggregate data collected for a specific  time period into
+        database. Data is inserted into <agg_type>_<period> table
+
+        :param agg_topic_id: topic id
+        :param agg_type: type of aggregation
+        :param period: time period of aggregation
+        :param ts: end time of aggregation period (not inclusive)
+        :param data: computed aggregate
+        :param topic_ids: topic ids or topic ids for which aggregate was
+                          computed
+        :return: True if execution was successful, False otherwise
+        """
 
         if not self.__connect():
             print("connect to database failed.......")
@@ -377,4 +584,15 @@ class DbDriver(object):
 
     @abstractmethod
     def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
+        """
+        Collect the aggregate data by querying the historian's data store
+
+        :param topic_ids: list of topic ids for which aggregation should be
+                          performed.
+        :param agg_type: type of aggregation
+        :param start_time: start time for query (inclusive)
+        :param end_time:  end time for query (exclusive)
+        :return: a tuple of (aggregated value, count of records over which
+                 this aggregation was computed)
+        """
         pass

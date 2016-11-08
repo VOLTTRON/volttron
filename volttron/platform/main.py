@@ -353,9 +353,8 @@ class Router(BaseRouter):
                     value = self.local_address.base
                 # Allow the agents to know the serverkey.
                 elif name == b'serverkey':
-                    if self._publickey is None:
-                        return None
-                    value = encode_key(self._publickey)
+                    keystore = KeyStore()
+                    value = keystore.public
                 elif name == b'volttron-central-address':
                     value = self._volttron_central_address
                 elif name == b'volttron-central-serverkey':
@@ -517,7 +516,7 @@ def start_volttron_process(opts):
         st = os.stat(keystore.filename)
         if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
             _log.warning('insecure mode on key file')
-        publickey = decode_key(keystore.public())
+        publickey = decode_key(keystore.public)
         if publickey:
             _log.info('public key: %s', encode_key(publickey))
             # Authorize the platform key:
@@ -530,7 +529,7 @@ def start_volttron_process(opts):
             known_hosts.add(opts.vip_local_address, encode_key(publickey))
             for addr in opts.vip_address:
                 known_hosts.add(addr, encode_key(publickey))
-        secretkey = decode_key(keystore.secret())
+        secretkey = decode_key(keystore.secret)
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
@@ -595,7 +594,7 @@ def start_volttron_process(opts):
         services = [
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
-                           enable_store=False),
+                           enable_store=False, enable_channel=True),
             PubSubService(protected_topics_file, address=address,
                           identity='pubsub', heartbeat_autostart=True,
                           enable_store=False),

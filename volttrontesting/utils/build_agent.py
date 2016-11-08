@@ -31,10 +31,10 @@ def build_agent_with_key(platform, identity=None):
     keys.generate()
     agent = platform.build_agent(identity=identity,
                                   serverkey=platform.publickey,
-                                  publickey=keys.public(),
-                                  secretkey=keys.secret())
+                                  publickey=keys.public,
+                                  secretkey=keys.secret)
     # Make publickey easily accessible for these tests
-    agent.publickey = keys.public()
+    agent.publickey = keys.public
     gevent.sleep(0.1) # switch context for a bit
     os.environ.pop('VOLTTRON_HOME')
     return agent

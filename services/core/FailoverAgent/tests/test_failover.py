@@ -44,8 +44,8 @@ def tcp_to(instance):
     return "{}?serverkey={}&publickey={}&secretkey={}".format(
         instance.vip_address,
         instance.serverkey,
-        key.public(),
-        key.secret())
+        key.public,
+        key.secret)
 
 
 def all_agents_running(instance):

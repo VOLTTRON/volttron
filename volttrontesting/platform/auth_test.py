@@ -17,10 +17,10 @@ def build_agent(platform, identity):
     keys.generate()
     agent = platform.build_agent(identity=identity,
                                  serverkey=platform.serverkey,
-                                 publickey=keys.public(),
-                                 secretkey=keys.secret())
+                                 publickey=keys.public,
+                                 secretkey=keys.secret)
     # Make publickey easily accessible for these tests
-    agent.publickey = keys.public()
+    agent.publickey = keys.public
     return agent
 
 
@@ -33,6 +33,7 @@ def build_two_test_agents(platform):
     agent1 = build_agent(platform, 'agent1')
     gevent.sleep(1)
     agent2 = build_agent(platform, 'agent2')
+    gevent.sleep(1)
 
     agent1.foo = lambda x: x
     agent1.foo.__name__ = 'foo'
@@ -127,7 +128,11 @@ def test_pubsub_not_protected(volttron_instance_encrypt):
     """Tests pubsub without any topic protection """
     agent1, agent2, topic, msgs = build_two_agents_pubsub_agents(volttron_instance_encrypt)
     agent2.vip.pubsub.publish('pubsub', topic, message='hello agent').get(timeout=1)
-    assert poll_gevent_sleep(2, lambda: len(msgs) > 0 and msgs[0] == 'hello agent')
+    gevent.sleep(2.0)
+    assert len(msgs) > 0
+    assert msgs[0] == 'hello agent'
+    #This was the old method for checking for the results. Not sure which method is better.
+    #assert poll_gevent_sleep(2, lambda: len(msgs) > 0 and msgs[0] == 'hello agent')
 
 
 def build_protected_pubsub(instance, topic, capabilities, topic_regex=None,

@@ -8,8 +8,6 @@ import pytest
 from zmq.utils import jsonapi
 
 from volttron.platform.messaging import headers as headers_mod
-from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.keystore import KeyStore
 
 from volttrontesting.utils.platformwrapper import build_vip_address
 

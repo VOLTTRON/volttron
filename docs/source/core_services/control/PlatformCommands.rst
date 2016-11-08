@@ -29,13 +29,13 @@ All commands and sub-commands have help available with "-h" or "--help".
 Additional configuration files may be specified with "-c" or "--config".
 To specify a log file, use "-l" or "--log".
 
-::
+.. code-block:: bash
 
     env/bin/volttron -c config.ini -l volttron.log
 
 Full options:
 
-::
+.. code-block:: console
 
     VOLTTRON platform service
 
@@ -86,8 +86,17 @@ Full options:
 
 volttron-ctl Commands
 ---------------------
+volttron-ctl is used to issue commands to the platform from the command line. Through
+volttron-ctl it is possible to install and removed agents, start and stop agents,
+manage the configuration store, get the platform status, and shutdown the platform.
 
-::
+.. warning::
+    volttron-ctl creates a special temporary agent ito communicate with the
+    platform with a specific VIP IDENTITY, thus multiple instances of volttron-ctl
+    cannot run at the same time. Attempting to do so will result in a conflicting
+    identity error.
+
+.. code-block:: console
 
     usage: volttron-ctl command [OPTIONS] ...
 
@@ -117,7 +126,7 @@ volttron-ctl Commands
 volttron-ctl auth subcommands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-::
+.. code-block:: console
 
     subcommands:
 
@@ -125,6 +134,7 @@ volttron-ctl auth subcommands
         add-known-host      add server public key to known-hosts file
         keypair             generate CurveMQ keys for encrypting VIP connections
         list                list authentication records
+        publickey           show public key for each agent
         remove              removes one or more authentication records by indices
         serverkey           show the serverkey for the instance
         update              updates one authentication record by index
@@ -132,7 +142,7 @@ volttron-ctl auth subcommands
 volttron-ctl config subcommands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-::
+.. code-block:: console
 
     subcommands:
 
@@ -146,7 +156,7 @@ volttron-ctl config subcommands
 volttron-pkg Commands
 ---------------------
 
-::
+.. code-block:: console
 
     usage: volttron-pkg [-h] [-l FILE] [-L FILE] [-q] [-v] [--verboseness LEVEL]
                         {package,repackage,configure} ...
@@ -168,7 +178,7 @@ volttron-pkg Commands
 volttron-pkg commands (with Volttron Restricted package installed and
 enabled):
 
-::
+.. code-block:: console
 
     usage: volttron-pkg [-h] [-l FILE] [-L FILE] [-q] [-v] [--verboseness LEVEL]
                         {package,repackage,configure,create_ca,create_cert,sign,verify}
@@ -208,7 +218,7 @@ will start a *wizard* with a walk through for setting up instance configuration
 options and available agents.If only individual agents need to be configured
 they can be listed at the command line.
 
-::
+.. code-block:: console
 
     usage: volttron-cfg [-h] [--list-agents | --agent AGENT [AGENT ...]]
 

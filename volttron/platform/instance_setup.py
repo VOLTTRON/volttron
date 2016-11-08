@@ -269,7 +269,8 @@ def is_valid_port(port):
 def do_vip():
     global config_opts
 
-    parsed = urlparse.urlparse(config_opts.get('volttron', 'vip-address'))
+    parsed = urlparse.urlparse(config_opts.get('vip-address',
+                                               'tcp://127.0.0.1:22916'))
     vip_address = None
     if parsed.hostname is not None and parsed.scheme is not None:
         vip_address = parsed.scheme + '://' + parsed.hostname
@@ -348,8 +349,6 @@ internal address such as 127.0.0.1.
     valid_port = False
     vc_port = None
     while not valid_port:
-        vc_port = None
-
         prompt = 'What is the port for volttron central?'
         new_vc_port = prompt_response(prompt, default=port_only)
         valid_port = is_valid_port(new_vc_port)
@@ -407,16 +406,36 @@ def do_vcp():
     config_opts['instance-name'] = '"{}"'.format(instance_name)
 
     vc_address = config_opts.get('volttron-central-address',
-                                 config_opts.get('bind-web-address'))
+                                 config_opts.get('bind-web-address',
+                                                 'http://127.0.0.1'))
+
+    parsed = urlparse.urlparse(vc_address)
+    address_only = vc_address
+    port_only = None
+    if parsed.port is not None:
+        address_only = parsed.scheme + '://' + parsed.hostname
+        port_only = parsed.port
+    else:
+        port_only = 8080
 
     valid_vc = False
     while not valid_vc:
-        prompt = "Enter volttron central's web address "
-        new_vc_address = prompt_response(prompt, default=vc_address)
+        prompt = "Enter volttron central's web address"
+        new_vc_address = prompt_response(prompt, default=address_only)
         valid_vc = is_valid_url(new_vc_address, ['http', 'https'])
         if valid_vc:
             vc_address = new_vc_address
-    config_opts['volttron-central-address'] = vc_address
+
+    vc_port = None
+    while True:
+        prompt = 'What is the port for volttron central?'
+        new_vc_port = prompt_response(prompt, default=port_only)
+        if is_valid_port(new_vc_port):
+            vc_port = new_vc_port
+            break
+
+    new_address = '{}:{}'.format(vc_address, vc_port)
+    config_opts['volttron-central-address'] = new_address
 
     return {}
 

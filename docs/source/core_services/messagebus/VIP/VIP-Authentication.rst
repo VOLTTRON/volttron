@@ -1,9 +1,10 @@
+.. _VIP-Authentication:
+==================
 VIP Authentication
 ==================
 
-
-`VIP <VIP>`__ (VOLTTRON Interconnect Protocol) authentication is
-implemented in the auth module (*volttron/platform/auth.py*) and extends
+:ref:`VIP <VIP-Overview>` (VOLTTRON Interconnect Protocol) authentication is
+implemented in the :py:mod:`auth module<volttron.platform.auth>` and extends
 the ZeroMQ Authentication Protocol
 `ZAP <http://rfc.zeromq.org/spec:27>`__ to VIP by including the ZAP
 User-Id in the VIP payload, thus allowing peers to authorize access
@@ -24,16 +25,11 @@ Internet. Therefore, VOLTTRON automatically generates an encryption key
 and enables `CurveMQ <http://rfc.zeromq.org/spec:26>`__ by default on
 all TCP connections.
 
-The key is stored in ``$VOLTTRON_HOME/curve.key``, where VOLTTRON\_HOME
-defaults to ``$HOME/.volttron``. The base64-encode public key is printed
-in the log output at the **INFO** level when VOLTTRON starts (with -v
-option) and should be used when connecting remote peers. Look for output
-like this:
+To see VOLTTRON's public key run the ``volttron-ctl auth serverkey`` command.
+For example::
 
-::
-
-    (volttron)[user@home]$ volttron -v
-    2015-09-01 12:15:05,334 () volttron.platform.main INFO: public key: 9yHEnRB_ct3lwpZi05CKtklzpXw26ehjwH-GBmfguRM
+    (volttron)[user@home]$ volttron-ctl auth serverkey
+    FSG7LHhy3v8tdNz3gK35G6-oxUcyln54pYRKu5fBJzU
 
 Peer Authentication
 -------------------
@@ -52,17 +48,48 @@ During authentication, VOLTTRON checks these pieces against a list of
 accepted peers defined in a file, called the "auth file" in this
 document. This JSON-formatted file is located at
 ``$VOLTTRON_HOME/auth.json`` and must have a matching entry in the allow
-list for remote connections to be accepted. The file is initially
-generated automatically with a sample entry commented out. The file must
-consist of a dictionary with an "allow" key. The "allow" key should be a
-list of dictionaries containing auth entries. The only required key in
-those entries is "credentials" which is the colon-separated (:)
-concatenation of the auth mechanism (one of *NULL*, *CURVE*, or *PLAIN*)
-and the credentials. Optional keys in the auth entry are "domain" and
-"address". Here are some examples:
+list for remote connections to be accepted.
 
-| **Note:**
-| If using regular expressions in the "address" portion, denote this
+The auth file should not be modified directly. 
+To change the auth file, use ``volttron-ctl auth`` subcommands: ``add``,
+``list``, ``remove``, and ``update``. (Run ``volttron-ctl auth --help``
+for more details and see the 
+:ref:`authentication commands documentation<_AuthenticationCommands>`.)
+
+Here are some example entries::
+
+    (volttron)[user@home]$ volttron-ctl auth list
+
+    INDEX: 0
+    {
+      "domain": null, 
+      "user_id": "platform", 
+      "roles": [], 
+      "enabled": true, 
+      "mechanism": "CURVE", 
+      "capabilities": [], 
+      "groups": [], 
+      "address": null, 
+      "credentials": "k1C9-FPRAVjL-cH1iQqAJaCHUNVXaAlkVc7EqK0u9mI", 
+      "comments": "Automatically added by platform on start"
+    }
+    
+    INDEX: 2
+    {
+      "domain": null, 
+      "user_id": "platform.sysmon", 
+      "roles": [], 
+      "enabled": true, 
+      "mechanism": "CURVE", 
+      "capabilities": [], 
+      "groups": [], 
+      "address": null, 
+      "credentials": "5UD_GTk5dM2g4pk8d1-wM-BYgt4RAKiHf4SnT_YU6jY", 
+      "comments": "Automatically added on agent install"
+    }
+
+**Note:**
+If using regular expressions in the "address" portion, denote this
 with "/". Backslashes must be escaped "\\".
 
 This is a valid regular expression: ``"/192\\.168\\.1\\..*/"``
@@ -70,43 +97,31 @@ This is a valid regular expression: ``"/192\\.168\\.1\\..*/"``
 These are invalid:
 ``"/192\.168\.1\..*/", "/192\.168\.1\..*", "192\\.168\\.1\\..*"``
 
-.. code:: JSON
-
-    {
-        "allow": [
-            {"credentials": "CURVE:wk2BXQdHkAlMIoXthOPhFOqWpapD1eWsBQYY7h4-bXw", "domain": "vip", "address": "/192\\.168\\.1\\..*/"},
-            {"credentials": "/CURVE:.*/", "address": "127.0.0.1"},
-            {"credentials": "NULL", "address": "/localhost:1000:1000:.*/"}
-        ]
-    }
-
-Each entry can be a string or a list of strings. Strings beginning and
-ending with forward slashes are considered regular expressions and match
-that way. Backward slashes must be escaped within this regular
-expression "\\". When authenticating, the credentials are checked. If
+When authenticating, the credentials are checked. If
 they don't exist or don't match, authentication fails. Otherwise, if
 domain and address are not present (or are null), authentication
 succeeds. If address and/or domain exist, they must match as well for
 authentication to succeed.
 
-The *NULL* mechanism includes no credentials and is useful for IPC
-connections, which have an address like ``localhost:UID:GID:PID``, where
-the latter parts are the peer's user, group, and process IDs. *CURVE*
+*CURVE*
 credentials include the remote peer's public key. Watching the **INFO**
 level log output of the auth module can help determine the required
 values for a specific peer.
-
-It is unnecessary to provide auth entries for local agents started by
-the platform as long as the agent continues to run with the same process
-ID it was assigned when launched. Child processes are not currently
-tracked, but that may change in the future.
 
 Configuring Agents
 ------------------
 
 A remote agent must know the platform's public key (also called the
-server key) to successfully authenticate. The public key can be passed
-in via the remote address. VOLTTRON extends ZeroMQ's address scheme by
+server key) to successfully authenticate. This server key can be
+passed to the agent's ``__init__`` method in the ``serverkey``
+parameter, but in most scenarios it is preferable to add the server key
+to the :ref:`known-hosts file<Known-Hosts-File>`.
+
+
+URL-style Parameters
+~~~~~~~~~~~~~~~~~~~~
+
+VOLTTRON extends ZeroMQ's address scheme by
 supporting URL-style parameters for configuration. The following
 parameters are supported when connecting:
 
@@ -115,32 +130,13 @@ parameters are supported when connecting:
 -  publickey: agent's own public key
 -  ipv6: instructs ZeroMQ to attempt to use IPv6
 
-If either secretkey or publickey are missing and serverkey is defined, a
-temporary secret and public key will be automatically generated. This
-will only work if the auth entry on the remote host is configured to
-allow such broad authentication. More permanent keypairs may be
-generated using the ``volttron-ctl keypair`` command.
-
-::
-
-    (volttron)[brandon@deluxe platform]$ volttron-ctl keypair
-    public: EIBCsV7PUngWJDgj0-lxSEjh7YigL6sLI-lvFN8oYVc
-    secret: mgCegyw6CauL7EGifCPfxHSppdlC75MeGZ7O0VGN8og
-
-Given the agent keys above and the platform public key from the first
-example log output above, the following address could be constructed to
-connect an agent:
-
-::
-
-    tcp://some.remote.volttron.server:5432?serverkey=9yHEnRB_ct3lwpZi05CKtklzpXw26ehjwH-GBmfguRM&publickey=EIBCsV7PUngWJDgj0-lxSEjh7YigL6sLI-lvFN8oYVc&secretkey=mgCegyw6CauL7EGifCPfxHSppdlC75MeGZ7O0VGN8og
-
-The remote platform would require an auth entry similar to the following
-for the connection to succeed:
-
-.. code:: JSON
-
-    {"credentials": "CURVE:EIBCsV7PUngWJDgj0-lxSEjh7YigL6sLI-lvFN8oYVc"}
+  **Note:**
+  Although these parameters are still supported they should rarely
+  need to be specified in the VIP-address URL.
+  Agent 
+  :ref:`key stores<Key-Stores>` and the 
+  :ref:`known-hosts file<Known-Hosts-File>` are automatically
+  used when possible.
 
 Platform Configuration
 ----------------------
@@ -152,36 +148,65 @@ VIP address should follow the standard ZeroMQ convention of prefixing
 with the socket type (*ipc://* or *tcp://*) and may include any of the
 following additional URL parameters:
 
--  server: ZAP mechanism; must be one of *NULL*, *CURVE*, or *PLAIN*
-   (defaults to *NULL* for *ipc://* and *CURVE* for *tcp://*)
 -  domain: domain name to associate with this endpoint (defaults to
    "vip")
 -  secretkey: alternate private/secret key (defaults to generated key
    for *tcp://*)
 -  ipv6: instructs ZeroMQ to attempt to use IPv6
 
-If secretkey is provided without server, server is assumed to be CURVE.
+Example Setup
+-------------
 
-Questions and Answers
----------------------
+Suppose agent ``A`` needs to connect to a remote platform ``B``.
+First, agent ``A`` must know platform ``B``'s public key 
+(the *server key*) and platform ``B``'s IP address (including port).
+Also, platform ``B`` needs to know agent ``A``'s public key
+(let's say it is ``HOVXfTspZWcpHQcYT_xGcqypBHzQHTgqEzVb4iXrcDg``).
 
--  I really don't like security or encrypting my important data. Can I
-   disable the default TCP encryption?
+Given these values, a user on agent ``A``'s platform adds platform
+``B``'s information to the :ref:`known-hosts file<Known-Hosts-File>`.
 
-   Yes, but we strongly advise against it for production deployments.
-   Simply truncate the key file to zero bytes
-   (``truncate -s 0 $VOLTTRON_HOME/curve.key``).
+At this point agent ``A`` has all the infomration needed to connect to 
+platform ``B``, but platform ``B`` still needs to add an authentication entry
+for agent ``A``.
 
--  Can I temporarily disable encryption and authentication for testing
-   or development?
+If agent ``A`` tried to connect to platform ``B`` at this point both parties
+would see an error. Agent ``A`` would see an error similar to:
 
-   Yes. Simply use the ``--developer-mode`` option when launching
-   VOLTTRON.
+::
 
--  I am binding to the loopback address. Can I disable CURVE
-   authentication just for that address?
+    No response to hello message after 10 seconds.
+    A common reason for this is a conflicting VIP IDENTITY.
+    Shutting down agent.
 
-   Yes. Just use an address like ``tcp://127.0.0.1:5432?server=NULL``
-   (*?server=NULL* being the key).
+Platform ``B`` (if started with `-v` or `-vv`) will show an error:
 
+::
 
+    2016-10-19 14:21:20,934 () volttron.platform.auth INFO: authentication failure: domain='vip', address='127.0.0.1', mechanism='CURVE', credentials=['HOVXfTspZWcpHQcYT_xGcqypBHzQHTgqEzVb4iXrcDg']
+
+Agent ``A`` failed to authenticat to platform ``B`` because the platform
+didn't have agent ``A``'s public in the authentication list.
+
+To add agent ``A``'s public key, a user on platform ``B`` runs::
+
+    (volttron)[user@platform-b]$ volttron-ctl auth add
+    domain []: 
+    address []: 
+    user_id []: Agent-A
+    capabilities (delimit multiple entries with comma) []: 
+    roles (delimit multiple entries with comma) []: 
+    groups (delimit multiple entries with comma) []: 
+    mechanism [CURVE]: 
+    credentials []: HOVXfTspZWcpHQcYT_xGcqypBHzQHTgqEzVb4iXrcDg
+    comments []: 
+    enabled [True]:
+
+Now if agent ``A`` can successfully connect to platform ``B``, and platform
+``B``'s log will show:
+
+::
+
+    2016-10-19 14:26:16,446 () volttron.platform.auth INFO: authentication success: domain='vip', address='127.0.0.1', mechanism='CURVE', credentials=['HOVXfTspZWcpHQcYT_xGcqypBHzQHTgqEzVb4iXrcDg'], user_id='Agent-A'
+
+For a more details see the :ref:`authentication walkthrough<_AgentAuthentication>`.

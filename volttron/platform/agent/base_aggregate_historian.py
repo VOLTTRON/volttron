@@ -81,28 +81,21 @@ class AggregateHistorian(Agent):
     Different subclasses of this agent is needed to interact with different
     type of historians. Subclasses should implement the following methods
 
-    - :py:meth:`get_topic_map()
-        <AggregateHistorian.get_topic_map>`
-    - :py:meth:`get_agg_topic_map()
-        <AggregateHistorian.get_agg_topic_map>`
-    - :py:meth:`find_topics_by_pattern()
-        <AggregateHistorian.find_topics_by_pattern>`
-    - :py:meth:`initialize_aggregate_store()
-        <AggregateHistorian.initialize_aggregate_store>`
-    - :py:meth:`update_aggregate_metadata()
-        <AggregateHistorian.update_aggregate_metadata>`
-    - :py:meth:`collect_aggregate()
-        <AggregateHistorian.collect_aggregate>`
-    - :py:meth:`insert_aggregate()
-        <AggregateHistorian.insert_aggregate>`
-    - :py:meth:`get_aggregation_list()
-        <AggregateHistorian.get_aggregation_list>`
+    - :py:meth:`get_topic_map() <AggregateHistorian.get_topic_map>`
+    - :py:meth:`get_agg_topic_map() <AggregateHistorian.get_agg_topic_map>`
+    - :py:meth:`find_topics_by_pattern() <AggregateHistorian.find_topics_by_pattern>`
+    - :py:meth:`initialize_aggregate_store() <AggregateHistorian.initialize_aggregate_store>`
+    - :py:meth:`update_aggregate_metadata() <AggregateHistorian.update_aggregate_metadata>`
+    - :py:meth:`collect_aggregate() <AggregateHistorian.collect_aggregate>`
+    - :py:meth:`insert_aggregate() <AggregateHistorian.insert_aggregate>`
+    - :py:meth:`get_aggregation_list() <AggregateHistorian.get_aggregation_list>`
 
     """
 
     def __init__(self, config_path, **kwargs):
         """
         Call super init class. Loads config file
+
         :param config_path: configuration file path
         :param kwargs:
         """
@@ -124,10 +117,11 @@ class AggregateHistorian(Agent):
         Converts aggregation time period into seconds, validates
         configuration values and calls the collect aggregate method for the
         first time
+
         :param config_name: name of the config entry in store. We only use
-        one config store entry with the default name config
+                            one config store entry with the default name config
         :param action: "NEW or "UPDATE" code treats both the same way
-        :param config: configuratuion as json object
+        :param config: configuration as json object
         """
 
         _log.debug("In configure of aggregate historian. current time"
@@ -170,7 +164,7 @@ class AggregateHistorian(Agent):
             else:
                 utc_collection_start_time = datetime.utcnow().replace(
                     tzinfo=pytz.utc)
-            self._collect_aggregate_data(
+            self.collect_aggregate_data(
                 utc_collection_start_time,
                 agg_time_period,
                 use_calendar_periods,
@@ -290,8 +284,8 @@ class AggregateHistorian(Agent):
             _log.debug("End of loop in init_agg_group. ids {}".format(
                 data['topic_ids']))
 
-    def _collect_aggregate_data(self, collection_time, agg_time_period,
-                                use_calendar_periods, points):
+    def collect_aggregate_data(self, collection_time, agg_time_period,
+                               use_calendar_periods, points):
 
         """
         Method that does the collection and computation of aggregate data based
@@ -301,35 +295,34 @@ class AggregateHistorian(Agent):
         collection of aggregate data, this methods schedules itself to be
         called after a specific period of time. The time interval is
         calculated by
-        :py:meth:`compute_next_collection_time()
-        <AggregateHistorian.compute_next_collection_time>`
+        :py:meth:`compute_next_collection_time() <AggregateHistorian.compute_next_collection_time>`
         This method in turn calls the following methods implemented by
         child classes:
 
-        - :py:meth:`find_topics_by_pattern()
-        <AggregateHistorian.find_topics_by_pattern>`
-        - :py:meth:`collect_aggregate()
-        <AggregateHistorian.collect_aggregate>`
-        - :py:meth:`insert_aggregate()
-        <AggregateHistorian.insert_aggregate>`
+        - :py:meth:`find_topics_by_pattern() <AggregateHistorian.find_topics_by_pattern>`
+        - :py:meth:`collect_aggregate() <AggregateHistorian.collect_aggregate>`
+        - :py:meth:`insert_aggregate() <AggregateHistorian.insert_aggregate>`
 
         :param collection_time:  time of aggregation collection
-        :param param agg_time_period: - time agg_time_period for which data
-        needs  to be collected and aggregated
+        :param param agg_time_period: time agg_time_period for which data
+                                      needs to be collected and aggregated
         :param param use_calendar_periods: flag that indicates if time
-        agg_time_period should be aligned to calendar times
+                                           agg_time_period should be aligned
+                                           to calendar times
         :param param points: list of points for which aggregate data needs
-        to be collected. Each element in the list is a dictionary containing
-            topic_names/topic_name_pattern,
-            aggregation_type(ex. sum, avg etc.), and
-            min_count(minimum number of raw data to be present within the
-            given time agg_time_period for the aggregate to be computed. If
-            count is less than minimum no aggregate is computed for that time
-            agg_time_period)
+                             to be collected. Each element in the list is a
+                             dictionary containing
+                             topic_names/topic_name_pattern,
+                             aggregation_type(ex. sum, avg etc.), and
+                             min_count(minimum number of raw data to be
+                             present within the given time agg_time_period
+                             for the aggregate to be computed. If
+                             count is less than minimum no aggregate is
+                             computed for that agg_time_period)
         """
 
         _log.debug(
-            "In _collect_aggregate_data: Time agg_time_period passed as arg  "
+            "In collect_aggregate_data: Time agg_time_period passed as arg  "
             "{} use_calendar={}".format(agg_time_period, use_calendar_periods))
         _log.debug("points passed as arg  {} ".format(points))
 
@@ -406,7 +399,7 @@ class AggregateHistorian(Agent):
             _log.debug(
                 "Scheduling next collection at {}".format(collection_time))
             event = self.core.schedule(collection_time,
-                                       self._collect_aggregate_data,
+                                       self.collect_aggregate_data,
                                        collection_time,
                                        agg_time_period,
                                        use_calendar_periods,
@@ -418,8 +411,8 @@ class AggregateHistorian(Agent):
         """
         Query the topics table and create a map of topic name to topic id.
         This should be done as part of init
-        :return: Returns a list of topic_map containing
-        {topic_name.lower():id}
+
+        :return: Returns a list of topic_map containing {topic_name.lower():id}
         """
         pass
 
@@ -428,16 +421,20 @@ class AggregateHistorian(Agent):
         """
         Query the aggregate_topics table and create a map of
         (topic name, aggregation type, aggregation time period) to
-        topic id.
-        This should be done as part of init
+        topic id. This should be done as part of init
+
         :return: Returns a list of topic_map containing
-        {(agg_topic_name.lower(), agg_type, agg_time_period) :id}
+        ::
+
+            {(agg_topic_name.lower(), agg_type, agg_time_period) :id}
+
         """
         pass
 
     @abstractmethod
     def find_topics_by_pattern(self, topic_pattern):
         """ Find the list of topics and its id for a given topic_pattern
+
         :return: returns list of dictionary object {topic_name.lower():id}"""
 
     @abstractmethod
@@ -447,17 +444,22 @@ class AggregateHistorian(Agent):
         Create the data structure (table or collection) that is going to store
         the aggregate data for the give aggregation type and aggregation
         time period
+
         :param aggregation_topic_name: Unique topic name for this
-        aggregation. If aggregation is done over multiple points it is a
-        unique name given by user, else it is same as topic_name for which
-        aggregation is done
+                                       aggregation. If aggregation is done
+                                       over multiple points it is a
+                                       unique name given by user, else it is
+                                       same as topic_name for which
+                                       aggregation is done
         :param agg_type: The type of aggregation. For example, avg, sum etc.
         :param agg_time_period: The time period of aggregation
         :param topics_meta: String that represents the list of topics across
-        which this aggregation is computed. It could be topic name pattern
-        or list of topics. This information should go into metadata table
+                            which this aggregation is computed. It could be
+                            topic name pattern or list of topics. This
+                            information should go into metadata table
         :return: Return a aggregation_topic_id after inserting
-        aggregation_topic_name into topics table
+                 aggregation_topic_name into topics table
+
         """
 
     @abstractmethod
@@ -466,6 +468,7 @@ class AggregateHistorian(Agent):
         """
         Update aggregation_topic_name and topic_meta data for the given
         agg_id.
+
         :param agg_id: Aggregation topic id for which update should be done
         :param aggregation_topic_name: New aggregation_topic_name
         :param topic_meta: new topic metadata
@@ -474,9 +477,10 @@ class AggregateHistorian(Agent):
     @abstractmethod
     def collect_aggregate(self, topic_ids, agg_type, start_time, end_time):
         """
-        Collects the aggregate data by querying the historian's data store
+        Collect the aggregate data by querying the historian's data store
+
         :param topic_ids: list of topic ids for which aggregation should be
-        performed.
+                          performed.
         :param agg_type: type of aggregation
         :param start_time: start time for query (inclusive)
         :param end_time:  end time for query (exclusive)
@@ -489,9 +493,13 @@ class AggregateHistorian(Agent):
     def insert_aggregate(self, agg_topic_id, agg_type, agg_time_period,
                          end_time, value, topic_ids):
         """
+        Insert aggregate data collected for a specific  time period into
+        database. Data is inserted into <agg_type>_<period> table
+
         :param agg_topic_id: If len(topic_ids) is 1. This would be the same
-        as the topic_ids[0]. Else this id corresponds to the unique topic name
-        given by user for this aggregation across multiple points.
+                             as the topic_ids[0]. Else this id corresponds to
+                             the unique topic name given by user for this
+                             aggregation across multiple points.
         :param agg_type: type of aggregation
         :param agg_time_period: The time period of aggregation
         :param end_time: end time used for query records that got aggregated
@@ -504,6 +512,7 @@ class AggregateHistorian(Agent):
         """
         Checks if the given aggregation is supported by the historian's
         data store
+
         :param agg_type: The type of aggregation to be computed
         :return: True is supported False otherwise
         """
@@ -521,6 +530,7 @@ class AggregateHistorian(Agent):
     def get_aggregation_list(self):
         """
         Returns a list of supported aggregations
+
         :return: list of supported aggregations
         """
         pass
@@ -532,6 +542,7 @@ class AggregateHistorian(Agent):
         Validates and normalizes aggregation time period. For example,
         if aggregation time period is given as 48h it will get converted
         into 2d
+
         :param time_period: time period string to be validated and normalized
         :return: normalized time period
         """
@@ -573,12 +584,14 @@ class AggregateHistorian(Agent):
         """
         compute the next collection time based on current time in utc and
         aggregation time period.
+
         :param collection_time: time of aggregate collection
         :param agg_period: period string from AggregateHistorian config
         :param use_calendar_periods: boolean to say if aggregate period
-        should be
-        based on calendar periods. For example: Week = Sunday to Saturday,
-        Hourly average would be 1AM= 2AM, 2AM-3AM etc
+                                     should be based on calendar periods.
+                                     For example: Week = Sunday to Saturday,
+                                     Hourly average would be 1AM= 2AM, 2AM-3AM
+                                     etc.
         :return: next collection time in utc
 
         """
@@ -612,12 +625,14 @@ class AggregateHistorian(Agent):
         periods should align to calendar time periods. For example a daily
         average could be computed for data collected between 12am to 11.59am of
         a specific date or data between (collection_time - 24 hours) and
-        current_time.
-        Setting use_calendar_time_periods to true results in former.
+        current_time. Setting use_calendar_time_periods to true results in
+        former.
+
         :param collection_time: Time of aggregation collection
         :param agg_period: time period of the aggregation
         :param use_calender_time_periods: boolean to indicate if the time
-        period should align to the calendar time periods
+                                          period should align to the calendar
+                                          time periods
         :return: start and end time of aggregation. start time is inclusive
         and end time is not.
         """

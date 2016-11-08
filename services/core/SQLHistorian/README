@@ -16,3 +16,9 @@ The mysql user must have READ, WRITE, UPDATE, and DElETE privileges.
 The tables in the sql database will not be created as part of the execution
 of the SQLHistorianAgent.  There is a mysql-create.sql script as well as
 a mysql-drop.sql script for your convenience.
+
+On Ubuntu 16.04
+
+pip install does not work. Please download the connector from
+https://launchpad.net/ubuntu/xenial/+package/python-mysql.connector
+and follow instructions on README

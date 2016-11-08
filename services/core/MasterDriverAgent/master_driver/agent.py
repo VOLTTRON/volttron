@@ -69,7 +69,7 @@ from driver_locks import configure_socket_lock, configure_publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '0.2'
+__version__ = '2.0'
 
 def master_driver_agent(config_path, **kwargs):
 

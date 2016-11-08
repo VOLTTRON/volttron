@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+# Build a temp file string for use with the configuration
+export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
+
+# Put contents of the config file in between the EOL markers.
+# NOTE: Be mindful of the commas this is JSON (except for the comments)
+#       not python.  Trailing ',' are an error.
+cat > $CONFIG <<EOL
+{
+    # log-level can be DEBUG, INFO, WARN or ERROR
+    # verbosity is decreased from left to right above
+    # default: INFO
+    "log-level": "INFO",
+
+    # This will be printed in the context of the heartbeat.
+    "message": "hello",
+
+    # The heartbeat period in seconds to print a message for knowing the
+    # agent is still working.
+    # Note: 0 for no heartbeat
+    "heartbeat_period": 5
+}
+EOL
+
+export SOURCE=examples/ListenerAgent/
+export TAG=listener
+
+# Upgrade requires that the identity be set to upgrade the agent.
+# NOTE: if the agent doesn't exist it will be installed.
+export AGENT_VIP_IDENTITY="listeneragent-3.2_1"
+
+# Add NO_START parameter if the agent shouldn't start
+# export NO_START=1
+
+./scripts/core/upgrade-agent.sh
+
+# To set the agent to autostart with the platform, pass "enable" 
+# to make-agent.sh: ./scripts/core/make-agent.sh enable
+
+# Finally remove the temporary config file
+rm $CONFIG

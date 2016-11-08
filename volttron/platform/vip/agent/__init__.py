@@ -73,13 +73,15 @@ from .... platform.agent.utils import is_valid_identity
 class Agent(object):
     class Subsystems(object):
         def __init__(self, owner, core, heartbeat_autostart,
-                     heartbeat_period, enable_store, enable_web):
+                     heartbeat_period, enable_store, enable_web,
+                     enable_channel):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner)
             self.hello = Hello(core)
             self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
-            self.channel = Channel(core)
+            if enable_channel:
+                self.channel = Channel(core)
             self.health = Health(owner, core, self.rpc)
             self.heartbeat = Heartbeat(owner, core, self.rpc, self.pubsub,
                                        heartbeat_autostart, heartbeat_period)
@@ -93,21 +95,24 @@ class Agent(object):
                  heartbeat_autostart=False, heartbeat_period=60,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, enable_store=True, developer_mode=False,
-                 enable_web=False):
+                 enable_web=False, enable_channel=False,
+                 reconnect_interval=None):
 
         if identity is not None and not is_valid_identity(identity):
-            _log.warn('Deprecation warining')
+            _log.warn('Deprecation warning')
             _log.warn(
                 'All characters in {identity} are not in the valid set.'.format(
-                    idenity=identity))
+                    identity=identity))
 
         self.core = Core(self, identity=identity, address=address,
                          context=context, publickey=publickey,
                          secretkey=secretkey, serverkey=serverkey,
                          volttron_home=volttron_home, agent_uuid=agent_uuid,
-                         developer_mode=developer_mode)
+                         developer_mode=developer_mode,
+                         reconnect_interval=reconnect_interval)
         self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
-                                    heartbeat_period, enable_store, enable_web)
+                                    heartbeat_period, enable_store, enable_web,
+                                    enable_channel)
         self.core.setup()
 
 

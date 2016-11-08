@@ -13,8 +13,8 @@ Agent <../../core_services/drivers/Driver-Configuration>`.
 Each of these driver sub-agents is responsible for creating an interface
 to a single device. Creating that interface is facilitated by an
 instance of an interface class. Currently there are two interface
-classes included: `Modbus <Modbus-Driver>`__ and
-`BACnet <BACnet-Driver>`__.
+classes included: :ref:`Modbus <Modbus-Driver>` and
+:ref:`BACnet <BACnet-Driver>`.
 
 Existing Drivers
 ----------------
@@ -46,6 +46,16 @@ Looking at those two files is a good introduction into how they work.
 The file name is used when configuring a driver to determine which
 interface to use. The name of the interface class in the file must be
 called Interface.
+
+.. note::
+
+    Developing a new driver does not require that your code live with the
+    MasterDriverAgent code. You may create the interface file anywhere that
+    you would like and then create a symbolic link to the interface file
+    in the interfaces directory. When the MasterDriverAgent is packed for
+    distribution the a copy of the file represented by the symbolic link
+    is packed into the agent wheel.
+    See :ref:`Using Third Party Drivers <Using-Third-Party-Drivers>`
 
 Interface Basics
 ----------------

@@ -56,7 +56,6 @@
 #}}}
 
 import sys
-import argparse
 from csv import DictWriter
 
 import logging
@@ -65,10 +64,14 @@ import argparse
 import gevent
 import os
 
-from volttron.platform import get_address
-from volttron.platform.vip.agent import Agent, Core, PubSub, compat
+from volttron.platform.keystore import KeyStore
+
+from volttron.platform import get_address, get_home
+
+from volttron.platform.vip.agent import Agent, PubSub
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
+from volttron.platform.vip.agent import errors
 from bacpypes.object import get_datatype
 
 from gevent.event import AsyncResult
@@ -78,16 +81,14 @@ from bacpypes.primitivedata import Enumerated, Unsigned, Boolean, Integer, Real,
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-if "VOLTTRON_HOME" not in os.environ:
-    os.environ["VOLTTRON_HOME"] = '`/.volttron'
-
 class BACnetInteraction(Agent):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, proxy_id, *args, **kwargs):
         super(BACnetInteraction, self).__init__(*args, **kwargs)
+        self.proxy_id = proxy_id
         self.callbacks = {}
     def get_iam(self, device_id, callback, address=None):
         self.callbacks[device_id] = callback
-        self.vip.rpc.call("platform.bacnet_proxy", "who_is",
+        self.vip.rpc.call(self.proxy_id, "who_is",
                            low_device_id=device_id,
                            high_device_id=device_id,
                            target_address=address).get(timeout=5.0)
@@ -99,12 +100,12 @@ class BACnetInteraction(Agent):
         if callback is not None:
             callback(message)
 
-agent = BACnetInteraction("bacnet_interaction", address=get_address())
-gevent.spawn(agent.core.run).join(0)
 
 """
 Simple utility to scrape device registers and write them to a configuration file.
 """
+
+agent = None
 
 
 def read_props(address, parameters):
@@ -330,6 +331,7 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
     config_writer.writerow(results)
 
 def main():
+    global agent
     # parse the command line arguments
     arg_parser = argparse.ArgumentParser(description=__doc__)
         
@@ -347,20 +349,41 @@ def main():
                             help='Affects how very large numbers are reported in the "Unit Details" column of the output. ' 
                             'Does not affect driver behavior.',
                             default=1.0e+20 )
+
+    arg_parser.add_argument("--proxy-id",
+                            help="VIP IDENTITY of the BACnet proxy agent.",
+                            default="platform.bacnet_proxy")
     
     args = arg_parser.parse_args()
 
     _log.debug("initialization")
     _log.debug("    - args: %r", args)
 
+    key_store = KeyStore()
+    agent = BACnetInteraction(args.proxy_id,
+                              address=get_address(),
+                              volttron_home=get_home(),
+                              publickey=key_store.public,
+                              secretkey=key_store.secret,
+                              enable_store=False)
 
-    _log.debug("starting build")
+    event = gevent.event.Event()
+    gevent.spawn(agent.core.run, event)
+    event.wait()
 
     async_result = AsyncResult()
 
-    agent.get_iam(args.device_id, async_result.set, args.address)
+    try:
+        agent.get_iam(args.device_id, async_result.set, args.address)
+    except errors.Unreachable:
+        _log.error("There is no BACnet proxy Agent running on the platform with the VIP IDENTITY {}".format(args.proxy_id))
+        sys.exit(1)
 
-    results = async_result.get()
+    try:
+        results = async_result.get(timeout=5.0)
+    except gevent.Timeout:
+        _log.error("No response from device id {}".format(args.device_id))
+        sys.exit(1)
 
     target_address = results["address"]
     device_id = results["device_id"]

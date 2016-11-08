@@ -6,6 +6,8 @@ would see with Python 3.x.
 
 Basic usage:
 
+.. code-block:: python
+
     def foo(arg1, *args, **kwargs):
         # Use required context manager to convert KeyError exceptions
         # to TypeError with an appropriate message.
@@ -16,6 +18,7 @@ Basic usage:
         arg4 = kwargs.pop('arg4', 'default value')
         # Include the next line to disallow additional keyword args
         assertempty(kwargs)
+
 '''
 
 __all__ = ['required', 'assertempty']
