@@ -201,6 +201,9 @@ class VolttronCentralAgent(Agent):
         # Platform health based upon device driver publishes
         self.device_health = defaultdict(dict)
 
+        # Used to hold scheduled reconnection event for vcp agents.
+        self._vcp_reconnect_event = None
+
     def configure_main(self, config_name, action, contents):
         """
         The main configuration for volttron central.  This is where validation
@@ -258,6 +261,9 @@ class VolttronCentralAgent(Agent):
         self.vip.web.register_websocket(r'/vc/ws', self._ws_opened, self._ws_closed, self._ws_received)
         self.vip.web.register_endpoint(r'/jsonrpc', self.jsonrpc)
         self.vip.web.register_path(r'^/.*', self.runtime_config.get('webroot'))
+
+        # Keep connections in sync if necessary.
+        self._periodic_reconnect_to_platforms()
 
     def configure_platforms(self, config_name, action, contents):
         _log.debug('Platform configuration updated.')
@@ -442,61 +448,58 @@ class VolttronCentralAgent(Agent):
             # Subscribe to the vcp instance for device publishes.
             connection.server.vip.pubsub.subscribe('pubsub', 'devices',
                                                    ondevicemessage)
-    # # @Core.periodic(60)
-    # def _reconnect_to_platforms(self):
-    #     """ Attempt to reconnect to all the registered platforms.
-    #     """
-    #     _log.info('Reconnecting to platforms')
-    #     for entry in self._registry.get_platforms():
-    #         try:
-    #             conn_to_instance = None
-    #             if entry.is_local:
-    #                 _log.debug('connecting to vip address: {}'.format(
-    #                     self._local_address
-    #                 ))
-    #                 conn_to_instance = ConnectedLocalPlatform(self)
-    #             elif entry.platform_uuid in self._pa_agents.keys():
-    #                 conn_to_instance = self._pa_agents.get(entry.platform_uuid)
-    #                 try:
-    #                     if conn_to_instance.agent.vip.peerlist.get(timeout=15):
-    #                         pass
-    #                 except gevent.Timeout:
-    #                     del self._pa_agents[entry.platform_uuid]
-    #                     conn_to_instance = None
-    #
-    #             if not conn_to_instance:
-    #                 _log.debug('connecting to vip address: {}'.format(
-    #                     entry.vip_address
-    #                 ))
-    #                 conn_to_instance = ConnectedPlatform(
-    #                     address=entry.vip_address,
-    #                     serverkey=entry.serverkey,
-    #                     publickey=self.core.publickey,
-    #                     secretkey=self.core.secretkey
-    #                 )
-    #
-    #             # Subscribe to the underlying agent's pubsub bus.
-    #             _log.debug("subscribing to platforms pubsub bus.")
-    #             conn_to_instance.agent.vip.pubsub.subscribe(
-    #                 "pubsub", "platforms", self._on_platforms_messsage)
-    #             self._pa_agents[entry.platform_uuid] = conn_to_instance
-    #             _log.debug('Configuring platform to be the correct uuid.')
-    #             conn_to_instance.agent.vip.rpc.call(
-    #                 VOLTTRON_CENTRAL_PLATFORM, "reconfigure",
-    #                 platform_uuid=entry.platform_uuid).get(timeout=15)
-    #
-    #         except (gevent.Timeout, Unreachable) as e:
-    #             _log.error("Unreachable platform address: {}"
-    #                        .format(entry.vip_address))
-    #             self._pa_agents[entry.platform_uuid] = None
+
+    def _periodic_reconnect_to_platforms(self):
+        _log.debug('Reconnecting to external platforms.')
+        if self._vcp_reconnect_event is not None:
+            # This won't hurt anything if we are canceling ourselves.
+            self._vcp_reconnect_event.cancel()
+
+        platforms = [x for x in self.vip.config.list()
+                     if x.startswith('platforms/')]
+        _log.debug('Platforms: {}'.format(platforms))
+        for x in platforms:
+            platform = self.vip.config.get(x)
+            address = platform.get('address')
+            serverkey = platform.get('serverkey')
+            _log.debug('Address: {} Serverkey: {}'.format(address, serverkey))
+            cn = self.vcp_connections.get(platform.get('instance_uuid'))
+            if cn is not None:
+                if cn.is_connected() and cn.is_peer_connected():
+                    _log.debug('Platform {} already connected'.format(
+                        platform.get('address')))
+                    continue
+                elif cn.is_connected() and not cn.is_peer_connected():
+                    _log.debug("Connection available, missing peer.")
+                    continue
+
+            _log.debug('Reconnecting to: {}'.format(platform.get('address')))
+            try:
+                cn = self._build_connection(address, serverkey)
+            except gevent.Timeout:
+                _log.error("Unable to reconnect to the external instances.")
+                continue
+
+            if cn is not None and cn.is_connected():
+                self.vcp_connections[x] = cn
+                cn.call('manage', self.runtime_config['local_external_address'])
+            else:
+                _log.debug('Not connected nor managed.')
+
+        now = get_aware_utc_now()
+        next_update_time = now + datetime.timedelta(seconds=10)
+
+        self._vcp_reconnect_event = self.core.schedule(
+            next_update_time, self._periodic_reconnect_to_platforms)
 
     @PubSub.subscribe("pubsub", "heartbeat/platform")
     def _on_platform_heartbeat(self, peer, sender, bus, topic, headers,
                                message):
 
-        address_hash = topic[len("heartbeat/platform."):]
+        address_hash = topic[len("heartbeat/platforms"):]
         config_name = "platforms/{}".format(address_hash)
         if config_name not in self.vip.config.list():
+            _log.warn("config unrecoginized {}".format(config_name))
             _log.warn("Unrecognized platform {} sending heartbeat".format(
                 address_hash
             ))
