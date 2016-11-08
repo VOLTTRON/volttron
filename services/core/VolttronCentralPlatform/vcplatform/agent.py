@@ -373,6 +373,7 @@ class VolttronCentralPlatform(Agent):
             self._scheduled_connection_event.cancel()
 
         if not self.enable_registration:
+            _log.debug('Registration of vcp is not enabled.')
             now = get_aware_utc_now()
             next_update_time = now + datetime.timedelta(
                 seconds=10)
@@ -544,6 +545,10 @@ class VolttronCentralPlatform(Agent):
         if not self.vc_connection.is_peer_connected():
             _log.error('Peer: {} is not connected to the external platform'
                        .format(self.vc_connection.peer))
+            self.vc_connection.kill()
+            self.vc_connection = None
+            self.registration_state = RegistrationStates.NotRegistered
+            return None
 
         if self.vc_connection.is_connected():
             enable_connection_heartbeat()
@@ -673,8 +678,8 @@ class VolttronCentralPlatform(Agent):
             _log.debug('Publishing to vc topic: {}'.format(topic))
             vc.publish(topic=topic, headers=headers, message=message)
 
-
     @RPC.export
+    @RPC.allow("manager")
     def unmanage(self):
         pass
         # self._is_registering = False
@@ -682,46 +687,103 @@ class VolttronCentralPlatform(Agent):
         # self._was_unmanaged = True
 
     @RPC.export
-    # @RPC.allow("manager") #TODO: uncomment allow decorator
+    @RPC.allow("manager")
     def list_agents(self):
-        """ List the agents that are installed on the platform.
-
-        Note this only lists the agents that are actually installed on the
-        instance.
+        """
+        RPC method to list the agents installed on the platform.
 
         :return: A list of agents.
         """
-        return self._get_agent_list()
+
+        agents = self.vip.rpc.call(CONTROL, "list_agents").get(timeout=5)
+        status_running = self.status_agents()
+        uuid_to_status = {}
+        # proc_info has a list of [startproc, endprox]
+        for a in agents:
+            pinfo = None
+            is_running = False
+            for uuid, name, proc_info in status_running:
+                if a['uuid'] == uuid:
+                    is_running = proc_info[0] > 0 and proc_info[1] == None
+                    pinfo = proc_info
+                    break
+
+            uuid_to_status[a['uuid']] = {
+                'is_running': is_running,
+                'process_id': None,
+                'error_code': None,
+                'permissions': {
+                    'can_stop': is_running,
+                    'can_start': not is_running,
+                    'can_restart': True,
+                    'can_remove': True
+                }
+            }
+
+            if pinfo:
+                uuid_to_status[a['uuid']]['process_id'] = proc_info[0]
+                uuid_to_status[a['uuid']]['error_code'] = proc_info[1]
+
+            if 'volttroncentral' in a['name'] or \
+                            'vcplatform' in a['name']:
+                uuid_to_status[a['uuid']]['permissions']['can_stop'] = False
+                uuid_to_status[a['uuid']]['permissions']['can_remove'] = False
+
+            # The default agent is stopped health looks like this.
+            uuid_to_status[a['uuid']]['health'] = {
+                'status': 'UNKNOWN',
+                'context': None,
+                'last_updated': None
+            }
+
+            if is_running:
+                identity = self.vip.rpc.call(CONTROL, 'agent_vip_identity',
+                                             a['uuid']).get(timeout=30)
+                try:
+                    status = self.vip.rpc.call(identity,
+                                               'health.get_status').get(
+                        timeout=5)
+                    uuid_to_status[a['uuid']]['health'] = status
+                except gevent.Timeout:
+                    _log.error("Couldn't get health from {} uuid: {}".format(
+                        identity, a['uuid']
+                    ))
+                except Unreachable:
+                    _log.error(
+                        "Couldn't reach agent identity {} uuid: {}".format(
+                            identity, a['uuid']
+                        ))
+        for a in agents:
+            if a['uuid'] in uuid_to_status.keys():
+                _log.debug('UPDATING STATUS OF: {}'.format(a['uuid']))
+                a.update(uuid_to_status[a['uuid']])
+        return agents
 
     @RPC.export
-    # @RPC.allow("can_manage")
+    @RPC.allow("manager")
     def start_agent(self, agent_uuid):
-        self.control_connection.call("start_agent", agent_uuid)
+        self.vip.rpc.call(CONTROL, "start_agent", agent_uuid)
 
     @RPC.export
-    # @RPC.allow("can_manage")
+    @RPC.allow("manager")
     def stop_agent(self, agent_uuid):
-        proc_result = self.control_connection.call("stop_agent", agent_uuid)
+        proc_result = self.vip.rpc.call(CONTROL, "stop_agent", agent_uuid)
 
     @RPC.export
-    # @RPC.allow("can_manage")
+    @RPC.allow("manager")
     def restart_agent(self, agent_uuid):
-        self.control_connection.call("restart_agent", agent_uuid)
+        self.vip.rpc.call(CONTROL, "restart_agent", agent_uuid)
         gevent.sleep(0.2)
-        return self.agent_status(agent_uuid)
+        return self.agent_status(agent_uuid).get(timeout=5)
 
     @RPC.export
     def agent_status(self, agent_uuid):
-        return self.control_connection.call("agent_status", agent_uuid)
+        return self.vip.rpc.call(CONTROL, "agent_status", agent_uuid).get(timeout=5)
 
     @RPC.export
     def status_agents(self):
-        return self.control_connection.call('status_agents')
+        return self.vip.rpc.call(CONTROL, 'status_agents').get(timeout=5)
 
-    @RPC.export
-    def get_device(self, topic):
-        _log.debug('Get device for topic: {}'.format(topic))
-        return self._devices.get(topic)
 
     @PubSub.subscribe('pubsub', 'devices')
     def _on_device_message(self, peer, sender, bus, topic, headers, message):
@@ -768,24 +830,16 @@ class VolttronCentralPlatform(Agent):
             'md5hash': hashed
         }
 
-        vc = self.get_vc_connection()
-        if vc is not None:
-            message = dict(md5hash=hashed, last_publish_utc=publish_time_utc)
+    @RPC.export
+    @RPC.allow("manager")
+    def set_config(self, identity, config_name, raw_contents, config_type="raw"):
+        self.vip.rpc.call('config.store', identity, config_name, raw_contents,
+                          config_type)
 
-            if self._local_instance_uuid is not None:
-                vcp_topic = PLATFORM_VCP_DEVICES(
-                    platform_uuid=self._local_instance_uuid,
-                    topic=anon_topic
-                )
-                vc.publish(vcp_topic.format(), message=message)
-            else:
-                local_topic = PLATFORM(
-                    subtopic="devices/{}".format(anon_topic))
-                self.vip.pubsub.publish("pubsub", local_topic, message=message)
-
-            _log.debug('Devices: {} Hashes: {} Platform: {}'.format(
-                len(self._devices), self._device_topic_hashes,
-                self._local_instance_name))
+    @RPC.export
+    @RPC.allow("manager")
+    def get_config(self, identity, config_name, raw=True):
+        return self.vip.rpc.call('config.store', identity, config_name, raw)
 
     @RPC.export
     def get_devices(self):
@@ -796,8 +850,7 @@ class VolttronCentralPlatform(Agent):
         """
 
         _log.debug('Getting devices')
-        config_list = self.vip.rpc.call('config.store',
-                                        'manage_list_configs',
+        config_list = self.vip.rpc.call('config.store', 'manage_list_configs',
                                         'platform.driver').get(timeout=5)
 
         _log.debug('Config list is: {}'.format(config_list))
@@ -862,7 +915,7 @@ class VolttronCentralPlatform(Agent):
                                   'process_id': a[2][0],
                                   'return_code': a[2][1]}
                                  for a in
-                                 self.control_connection.call(method)]}
+                                 self.vip.rpc.call(CONTROL, method)]}
 
         elif method in ('agent_status', 'start_agent', 'stop_agent',
                         'remove_agent', 'restart_agent'):
@@ -882,7 +935,7 @@ class VolttronCentralPlatform(Agent):
                 _log.debug('calling control with method: {} uuid: {}'.format(
                     method, uuid
                 ))
-                status = self.control_connection.call(method, uuid)
+                status = self.vip.rpc.call(CONTROL, method, uuid)
                 if method == 'stop_agent' or status == None:
                     # Note we recurse here to get the agent status.
                     result = self.route_request(id, 'agent_status', uuid)
@@ -923,7 +976,8 @@ class VolttronCentralPlatform(Agent):
                         result = self.publish_bacnet_props(identity, **params)
                 else:
                     # find the identity of the agent so we can call it by name.
-                    identity = self._control_connection.call('agent_vip_identity', agent_uuid)
+                    identity = self.vip.rpc.call(CONTROL,
+                        'agent_vip_identity', agent_uuid).get(timeout=5)
                     if params:
                         if isinstance(params, list):
                             result = self.vip.rpc.call(identity, agent_method, *params).get(timeout=30)
@@ -932,8 +986,8 @@ class VolttronCentralPlatform(Agent):
                     else:
                         result = self.vip.rpc.call(identity, agent_method).get(timeout=30)
                 # find the identity of the agent so we can call it by name.
-                identity = self.control_connection.call('agent_vip_identity',
-                                                        agent_uuid)
+                identity = self.vip.rpc.call(CONTROL, 'agent_vip_identity',
+                                             agent_uuid).get(timeout=5)
                 if params:
                     if isinstance(params, list):
                         result = self.vip.rpc.call(identity, agent_method,
@@ -969,8 +1023,8 @@ class VolttronCentralPlatform(Agent):
                             base64.decodestring(f['file'].split('base64,')[1]))
 
                 _log.debug('Calling control install agent.')
-                uuid = self.vip.rpc.call('control', 'install_agent_local',
-                                         path).get()
+                uuid = self.vip.rpc.call(CONTROL,  'install_agent_local',
+                                         path).get(timeout=30)
 
             except Exception as e:
                 results.append({'error': str(e)})
@@ -1024,84 +1078,12 @@ class VolttronCentralPlatform(Agent):
     @Core.receiver('onstop')
     def onstop(self, sender, **kwargs):
         if self.vc_connection is not None:
-            self.vc_connection.kill()
-            self.vc_connection = None
-        if self.control_connection is not None:
-            self.control_connection.kill()
-            self.control_connection = None
-            # self._is_registered = False
-            # self._is_registering = False
-
-    def _get_agent_list(self):
-        """ Retrieve a list of agents on the platform.
-
-        Each entry in the list
-
-        :return: list: A list of agent data.
-        """
-
-        agents = self.control_connection.call("list_agents")
-        status_running = self.status_agents()
-        uuid_to_status = {}
-        # proc_info has a list of [startproc, endprox]
-        for a in agents:
-            pinfo = None
-            is_running = False
-            for uuid, name, proc_info in status_running:
-                if a['uuid'] == uuid:
-                    is_running = proc_info[0] > 0 and proc_info[1] == None
-                    pinfo = proc_info
-                    break
-
-            uuid_to_status[a['uuid']] = {
-                'is_running': is_running,
-                'process_id': None,
-                'error_code': None,
-                'permissions': {
-                    'can_stop': is_running,
-                    'can_start': not is_running,
-                    'can_restart': True,
-                    'can_remove': True
-                }
-            }
-
-            if pinfo:
-                uuid_to_status[a['uuid']]['process_id'] = proc_info[0]
-                uuid_to_status[a['uuid']]['error_code'] = proc_info[1]
-
-            if 'volttroncentral' in a['name'] or \
-                            'vcplatform' in a['name']:
-                uuid_to_status[a['uuid']]['permissions']['can_stop'] = False
-                uuid_to_status[a['uuid']]['permissions']['can_remove'] = False
-
-            # The default agent is stopped health looks like this.
-            uuid_to_status[a['uuid']]['health'] = {
-                'status': 'UNKNOWN',
-                'context': None,
-                'last_updated': None
-            }
-
-            if is_running:
-                identity = self.vip.rpc.call('control', 'agent_vip_identity',
-                                             a['uuid']).get(timeout=30)
-                try:
-                    status = self.vip.rpc.call(identity,
-                                               'health.get_status').get(timeout=5)
-                    uuid_to_status[a['uuid']]['health'] = status
-                except gevent.Timeout:
-                    _log.error("Couldn't get health from {} uuid: {}".format(
-                        identity, a['uuid']
-                    ))
-                except Unreachable:
-                    _log.error("Couldn't reach agent identity {} uuid: {}".format(
-                        identity, a['uuid']
-                    ))
-        for a in agents:
-            if a['uuid'] in uuid_to_status.keys():
-                _log.debug('UPDATING STATUS OF: {}'.format(a['uuid']))
-                a.update(uuid_to_status[a['uuid']])
-        return agents
-
+            try:
+                self.vc_connection.kill()
+            except:
+                _log.error("killing vc_connection connection")
+            finally:
+                self.vc_connection = None
 
 def main(argv=sys.argv):
     """ Main method called by the eggsecutable.
