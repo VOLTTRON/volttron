@@ -52191,7 +52191,11 @@
 	    }, {
 	        key: 'componentWillReceiveProps',
 	        value: function componentWillReceiveProps(nextProps) {
-	            if (nextProps.selected !== this.props.selected) {
+	            // if (nextProps.selected !== this.props.selected)
+	            //    {
+	            //        this.setState({checked: nextProps.selected});
+	            //    }
+	            if (typeof nextProps.selected !== "undefined") {
 	                this.setState({ checked: nextProps.selected });
 	            }
 	        }
@@ -112252,4 +112256,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-458028efef56f76cd98f.js.map
+//# sourceMappingURL=app-2b860532fe0d1978099a.js.map

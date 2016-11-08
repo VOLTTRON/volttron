@@ -20,7 +20,11 @@ class CheckBox extends BaseComponent {
         
     }
     componentWillReceiveProps(nextProps) {
-    	if (nextProps.selected !== this.props.selected)
+    	// if (nextProps.selected !== this.props.selected)
+     //    {
+     //        this.setState({checked: nextProps.selected});
+     //    }
+        if (typeof nextProps.selected !== "undefined")
         {
             this.setState({checked: nextProps.selected});
         }
