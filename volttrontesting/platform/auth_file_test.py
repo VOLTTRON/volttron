@@ -240,7 +240,7 @@ def test_groups_and_roles(auth_file_platform_tuple):
 
 
 @pytest.mark.auth
-def test_upgrade_file_verison_0_to_1(tmpdir_factory):
+def test_upgrade_file_verison_0_to_1_1(tmpdir_factory):
     mechanism = "CURVE"
     publickey = "A" * 43
     version0 = {
@@ -282,7 +282,7 @@ def test_upgrade_file_verison_0_to_1(tmpdir_factory):
 
 
 @pytest.mark.auth
-def test_upgrade_file_verison_0_to_1_minium_entries(tmpdir_factory):
+def test_upgrade_file_verison_0_to_1_1_minimum_entries(tmpdir_factory):
     """The only required field in 'version 0' was credentials"""
     mechanism = "CURVE"
     publickey = "A" * 43
@@ -297,13 +297,14 @@ def test_upgrade_file_verison_0_to_1_minium_entries(tmpdir_factory):
     upgraded = AuthFile(filename)
     entries = upgraded.read()[0]
     assert len(entries) == 1
+    assert entries[0].user_id is not None
 
     expected = version0['allow'][0]
     expected["credentials"] = publickey
     expected["mechanism"] = mechanism
     expected["domain"] = None
     expected["address"] = None
-    expected["user_id"] = None
+    expected["user_id"] = entries[0].user_id # this will be a UUID
     expected["enabled"] = True
     expected["comments"] = None
     expected["capabilities"] = []

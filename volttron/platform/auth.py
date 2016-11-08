@@ -386,7 +386,9 @@ class AuthEntry(object):
         self.capabilities = AuthEntry._build_field(capabilities, list,
                                                    str) or []
         self.comments = AuthEntry._build_field(comments)
-        self.user_id = None if user_id is None else user_id.encode('utf-8')
+        if user_id is None:
+            user_id = str(uuid.uuid4())
+        self.user_id = user_id.encode('utf-8')
         self.enabled = enabled
         if kwargs:
             _log.debug(
@@ -472,7 +474,7 @@ class AuthFile(object):
 
     @property
     def version(self):
-        return {'major': 1, 'minor': 0}
+        return {'major': 1, 'minor': 1}
 
     def _check_for_upgrade(self):
         allow_list, groups, roles, version = self._read()
@@ -519,7 +521,7 @@ class AuthFile(object):
         return entries, groups, roles
 
     def _upgrade(self, allow_list, groups, roles, version):
-        backup = self.auth_file + '.' + uuid.uuid4() + '.bak'
+        backup = self.auth_file + '.' + str(uuid.uuid4()) + '.bak'
         shutil.copy(self.auth_file, backup)
         _log.info('Created backup of {} at {}'.format(self.auth_file, backup))
 
@@ -527,7 +529,7 @@ class AuthFile(object):
             _log.warn('Invalid entry {} in auth file {}. {}'
                       .format(entry, self.auth_file, msg))
 
-        def upgrade_0_to_1():
+        def upgrade_0_to_1(allow_list):
             new_allow_list = []
             for entry in allow_list:
                 try:
@@ -568,8 +570,33 @@ class AuthFile(object):
                 })
             return new_allow_list
 
+        def upgrade_1_0_to_1_1(allow_list):
+            new_allow_list = []
+            user_id_set = set()
+            for entry in allow_list:
+                user_id = entry.get('user_id')
+                if user_id:
+                    if user_id in user_id_set:
+                        new_user_id = str(uuid.uuid4())
+                        msg = ('user_id {} is already present in '
+                               'authentication entry. Changed to user_id to '
+                               '{}').format(user_id, new_user_id)
+                        _log.warn(msg)
+                        user_id_ = new_user_id
+                else:
+                    user_id = str(uuid.uuid4())
+                user_id_set.add(user_id)
+                entry['user_id'] = user_id
+                new_allow_list.append(entry)
+            return new_allow_list
+
         if version['major'] == 0:
-            allow_list = upgrade_0_to_1()
+            allow_list = upgrade_0_to_1(allow_list)
+            version['major'] = 1
+            version['minor'] = 0
+        if version['major'] == 1 and version['minor'] == 0:
+            allow_list = upgrade_1_0_to_1_1(allow_list)
+
         entries = self._get_entries(allow_list)
         self._write(entries, groups, roles)
 
@@ -621,14 +648,12 @@ class AuthFile(object):
 
     def _check_if_exists(self, entry):
         """Raises AuthFileEntryAlreadyExists if entry is already in file"""
-        matching_indices = []
         for index, prev_entry in enumerate(self.read_allow_entries()):
-            if (entry.domain == prev_entry.domain and
-                    entry.address == prev_entry.address and
-                    entry.credentials == prev_entry.credentials):
-                matching_indices.append(index)
-        if matching_indices:
-            raise AuthFileEntryAlreadyExists(matching_indices)
+            if entry.user_id == prev_entry.user_id:
+                raise AuthFileUserIdAlreadyExists(entry.user_id, [index])
+            if prev_entry.match(entry.domain, entry.address, entry.mechanism,
+                                [entry.credentials]):
+                raise AuthFileEntryAlreadyExists([index])
 
     def _update_by_indices(self, auth_entry, indices):
         """Updates all entries at given indices with auth_entry"""
@@ -784,3 +809,13 @@ class AuthFileEntryAlreadyExists(AuthFileIndexError):
             message = ('entry matches domain, address and credentials at '
                        'index {}').format(indicies)
         super(AuthFileEntryAlreadyExists, self).__init__(indicies, message)
+
+
+class AuthFileUserIdAlreadyExists(AuthFileEntryAlreadyExists):
+    """Exception if adding an entry that has a taken user_id"""
+
+    def __init__(self, user_id, indicies, message=None):
+        if message is None:
+            message = ('user_id {} is already in use at '
+                       'index {}').format(user_id, indicies)
+        super(AuthFileUserIdAlreadyExists, self).__init__(indicies, message)
