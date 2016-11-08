@@ -174,10 +174,11 @@ def weather_service(config_path, **kwargs):
     config = utils.load_config(config_path)
 
     def get_config(name):
-        try:
-            return kwargs.pop(name)
-        except KeyError:
-            return config.get(name, '')
+		try:
+			return config[name]
+		except KeyError:
+			_log.debug("Config does not have keyword = %s"%name)
+			return ''
 
     agent_id = get_config('agentid')
     poll_time = get_config('poll_time')
@@ -190,8 +191,10 @@ def weather_service(config_path, **kwargs):
 
     region = state if state != "" else country
     max_requests_per_day = get_config('daily_threshold')
+    print "DAP: type requests_per_day = %s"%type(max_requests_per_day)
     max_requests_per_minute = get_config('minute_threshold')
-
+    print "DAP: type max_requests_per_minute = %s"%type(max_requests_per_minute)
+	
     class WeatherAgent(Agent):
         """Agent for querying WeatherUndergrounds API"""
 
