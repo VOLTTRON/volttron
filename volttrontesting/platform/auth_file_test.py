@@ -65,6 +65,7 @@ from py.test import raises
 from volttron.platform import jsonrpc
 from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,
                                     AuthFileEntryAlreadyExists,
+                                    AuthFileUserIdAlreadyExists,
                                     AuthEntryInvalid)
 from volttrontesting.platform.auth_control_test import assert_auth_entries_same
 
@@ -84,7 +85,7 @@ def auth_entry_only_creds():
     return AuthEntry(credentials='B'*43)
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def auth_entry1():
     return AuthEntry(domain='domain1', address='tcp://127.0.0.1',
                      mechanism='NULL', user_id='user1', groups=['group1'],
@@ -92,7 +93,7 @@ def auth_entry1():
                      enabled=True)
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def auth_entry2():
     return AuthEntry(domain='domain2', address='tcp://127.0.0.2',
                      credentials='A'*43,
@@ -100,7 +101,7 @@ def auth_entry2():
                      capabilities=['cap2'], comments='com2', enabled=False)
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def auth_entry3():
     return AuthEntry(domain='domain3', address='tcp://127.0.0.3',
                      credentials='B'*43,
@@ -112,10 +113,18 @@ def auth_entry3():
 def test_auth_file_overwrite(auth_file_platform_tuple, auth_entry_only_creds):
     authfile, platform = auth_file_platform_tuple
     authfile.add(auth_entry_only_creds)
-    authfile.add(auth_entry_only_creds)
+    authfile.add(auth_entry_only_creds, overwrite=True)
     with raises(AuthFileEntryAlreadyExists):
-        authfile.add(auth_entry_only_creds, False)
+        authfile.add(auth_entry_only_creds)
 
+
+@pytest.mark.auth
+def test_auth_file_same_user_id(auth_file_platform_tuple, auth_entry1, auth_entry2):
+    authfile, platform = auth_file_platform_tuple
+    authfile.add(auth_entry1)
+    auth_entry2.user_id = auth_entry1.user_id
+    with raises(AuthFileUserIdAlreadyExists):
+        authfile.add(auth_entry2, False)
 
 @pytest.mark.auth
 def test_auth_file_api(auth_file_platform_tuple, auth_entry1,

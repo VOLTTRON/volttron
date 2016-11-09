@@ -651,8 +651,13 @@ class AuthFile(object):
         for index, prev_entry in enumerate(self.read_allow_entries()):
             if entry.user_id == prev_entry.user_id:
                 raise AuthFileUserIdAlreadyExists(entry.user_id, [index])
-            if prev_entry.match(entry.domain, entry.address, entry.mechanism,
-                                [entry.credentials]):
+
+            # Compare AuthEntry objects component-wise, rather than
+            # using match, because match will evaluate regex.
+            if (prev_entry.domain == entry.domain and
+                    prev_entry.address == entry.address and
+                    prev_entry.mechanism == entry.mechanism and
+                    prev_entry.credentials == entry.credentials):
                 raise AuthFileEntryAlreadyExists([index])
 
     def _update_by_indices(self, auth_entry, indices):
@@ -660,7 +665,7 @@ class AuthFile(object):
         for index in indices:
             self.update_by_index(auth_entry, index)
 
-    def add(self, auth_entry, overwrite=True):
+    def add(self, auth_entry, overwrite=False):
         """Adds an AuthEntry to the auth file
 
         :param auth_entry: authentication entry

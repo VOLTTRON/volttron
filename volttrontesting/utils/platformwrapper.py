@@ -20,7 +20,8 @@ from volttron.platform import packaging
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import strip_comments
 from volttron.platform.aip import AIPplatform
-from volttron.platform.auth import AuthFile, AuthEntry
+from volttron.platform.auth import (AuthFile, AuthEntry,
+                                    AuthFileEntryAlreadyExists)
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
@@ -219,7 +220,10 @@ class PlatformWrapper:
         """
         entry = AuthEntry(credentials="/.*/")
         authfile = AuthFile(self.volttron_home + "/auth.json")
-        authfile.add(entry)
+        try:
+            authfile.add(entry)
+        except AuthFileEntryAlreadyExists:
+            pass
 
     def build_connection(self, peer=None, address=None, identity=None,
                          publickey=None, secretkey=None, serverkey=None,
@@ -335,7 +339,10 @@ class PlatformWrapper:
     def _append_allow_curve_key(self, publickey):
         entry = AuthEntry(credentials=publickey)
         authfile = AuthFile(self.volttron_home + "/auth.json")
-        authfile.add(entry)
+        try:
+            authfile.add(entry)
+        except AuthFileEntryAlreadyExists:
+            pass
 
     def add_vc(self):
         return add_vc_to_instance(self)
