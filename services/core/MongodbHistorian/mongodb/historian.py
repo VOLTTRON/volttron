@@ -59,6 +59,7 @@ import logging
 import sys
 from collections import defaultdict
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 import pymongo
 from bson.objectid import ObjectId
@@ -241,10 +242,24 @@ class MongodbHistorian(BaseHistorian):
         """
         start_time = datetime.utcnow()
         collection_name = self._data_collection
-
+        using_rolled_data = False
         if agg_type and agg_period:
             # query aggregate data collection instead
             collection_name = agg_type + "_" + agg_period
+        else:
+            _log.debug("In else")
+            # See if we can use rolled up data
+            if start and end:
+                diff = relativedelta(start, end)
+                if diff.minutes == 0 and diff.seconds == 0:
+                    collection_name = "hourly_data"
+                    using_rolled_data = True
+                    if diff.hours == 0:
+                        collection_name = "daily_data"
+                        using_rolled_data = True
+                        if diff.days == 0:
+                            collection_name = "monthly_data"
+                            using_rolled_data = True
 
         topics_list = []
         if isinstance(topic, str):
@@ -288,6 +303,7 @@ class MongodbHistorian(BaseHistorian):
         order_by = 1
         if order == 'LAST_TO_FIRST':
             order_by = -1
+
         if start is not None:
             ts_filter["$gte"] = start
         if end is not None:
@@ -309,27 +325,39 @@ class MongodbHistorian(BaseHistorian):
         for x in topic_ids:
             find_params['topic_id'] = ObjectId(x)
             _log.debug("querying table with params {}".format(find_params))
+            if using_rolled_data:
+                project = {"_id": 0, "data_refs": 1}
+            else:
+                project = {"_id": 0, "timestamp": {
+                '$dateToString': {'format': "%Y-%m-%dT%H:%M:%S.%L000+00:00",
+                    "date": "$ts"}}, "value": 1}
             pipeline = [{"$match": find_params}, {"$skip": skip_count},
                         {"$sort": {"ts": order_by}}, {"$limit": count}, {
-                            "$project": {"_id": 0, "timestamp": {
-                                '$dateToString': {
-                                    'format':
-                                        "%Y-%m-%dT%H:%M:%S.%L000+00:00",
-                                    "date": "$ts"}}, "value": 1}}]
+                            "$project": project}]
             _log.debug("pipeline for agg query is {}".format(pipeline))
+            _log.debug("collection_name is "+ collection_name)
             cursor = db[collection_name].aggregate(pipeline)
 
             rows = list(cursor)
             _log.debug("Time after fetch {}".format(
                 datetime.utcnow() - start_time))
-            for row in rows:
-                values[id_name_map[x]].append(
-                    (row['timestamp'], row['value']))
+            if using_rolled_data:
+                for row in rows:
+                    for timestep in row['data_refs']:
+                        values[id_name_map[x]].append(
+                            (utils.format_timestamp(timestep[0]),
+                             timestep[1]))
+            else:
+                for row in rows:
+                    values[id_name_map[x]].append(
+                        (row['timestamp'], row['value']))
             _log.debug("Time taken to load into values {}".format(
                 datetime.utcnow() - start_time))
+            _log.debug("rows length {}".format(len(rows)))
 
         _log.debug("Time taken to load all values {}".format(
             datetime.utcnow() - start_time))
+        _log.debug("Results got {}".format(values))
 
         if len(values) > 0:
             # If there are results add metadata if it is a query on a
@@ -357,9 +385,10 @@ class MongodbHistorian(BaseHistorian):
                     # this is a query on raw data, get metadata for
                     # topic from topic_meta map
                     _log.debug("Single topic regular query. Get "
-                               "metadata from meta map")
+                               "metadata from meta map for {}".format(
+                        topic_ids[0]))
                     metadata = self._topic_meta.get(topic_ids[0], {})
-
+                    _log.debug("Metadata found {}".format(metadata))
                 return {'values': values, 'metadata': metadata}
             else:
                 _log.debug("return values without metadata for multi "
