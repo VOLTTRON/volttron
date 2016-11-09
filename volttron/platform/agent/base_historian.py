@@ -247,7 +247,7 @@ import re
 from dateutil.parser import parse
 from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from volttron.platform.agent.utils import process_timestamp, \
-    fix_sqlite3_datetime, get_aware_utc_now
+    fix_sqlite3_datetime, get_aware_utc_now, parse_timestamp_string
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
@@ -318,6 +318,12 @@ class BaseHistorianAgent(Agent):
         self._process_thread = Thread(target=self._process_loop)
         self._process_thread.daemon = True  # Don't wait on thread to exit.
         self._process_thread.start()
+
+    @RPC.export
+    def insert(self, records):
+        for r in records:
+            r['timestamp'] = parse_timestamp_string(r['timestamp'])
+            self._event_queue.put(r)
 
     def _create_subscriptions(self):
 
