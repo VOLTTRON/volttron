@@ -437,8 +437,12 @@ class VolttronCentralAgent(Agent):
                 if not topic.endswith('/all'):
                     return
 
+                # used in the devices structure.
                 topic_no_all = topic[:-len('/all')]
-                device_health_name = "{}/{}".format(config_name, topic_no_all)
+
+                # Used in the devices_health structure.
+                no_devices_prefix = topic_no_all[len('devices/'):]
+
                 now_time_utc = get_aware_utc_now()
                 last_publish_utc = format_timestamp(now_time_utc)
 
@@ -446,29 +450,29 @@ class VolttronCentralAgent(Agent):
                                       context="Last publish {}".format(
                                           last_publish_utc))
                 try:
-                    self.device_health[config_name] = {
-                        topic_no_all: dict(
-                            last_publish_utc=format_timestamp(now_time_utc),
-                            points=data['devices'][topic_no_all]['points'],
-                            health=status.as_dict()
-                        )
-                    }
-                except KeyError as ke:
-                    explaination = "There was a key error.  This could have " \
-                                   "been caused a change in the device config" \
-                                   "path for {}.".format(connection.address)
-                    _log.warn(explaination)
-                    _log.warn("Updating device data for {}".format(
-                        connection.address))
-                    try:
-                        devices = connection.call('get_devices')
-                        data['devices'] = devices
+                    data = self.vip.config.get(config_name)
+                except KeyError:
+                    _log.error('Invalid configuration name: {}'.format(
+                        config_name))
+                    return
 
-                        self.vip.config.set(config_name, data)
-                    except Unreachable:
-                        _log.error("platform.agent on {} unreachable".format(
-                            connection.address
-                        ))
+                cp = deepcopy(data)
+                try:
+                    device_health = cp['devices_health'][no_devices_prefix]
+                except KeyError:
+                    _log.warn('No device health for: {}'.format(no_devices_prefix))
+                    device_health=dict(
+                        points=cp['devices'][topic_no_all]['points'])
+
+                # Build a dictionary to easily update the status of our device
+                # health.
+                update = dict(last_publish_utc=last_publish_utc,
+                              health=status.as_dict())
+                device_health.update(update)
+                # Might need to provide protection around these three lines
+                data = self.vip.config.get(config_name)
+                data.update(cp)
+                self.vip.config.set(config_name, cp)
 
             # Subscribe to the vcp instance for device publishes.
             connection.server.vip.pubsub.subscribe('pubsub', 'devices',
@@ -1086,22 +1090,14 @@ class VolttronCentralAgent(Agent):
             )
         return performances
 
-    def _handle_list_devices(self):
-        _log.debug('Listing devices from vc')
-        config_list = [x for x in self.vip.config.list()
-                       if x.startswith('platforms/')]
+    def _handle_get_devices(self, uuid):
+        _log.debug('handlinglin get_devices')
 
-        devices = []
-        for x in config_list:
-            platform = self.vip.config.get(x)
-            devices.append(
-                {
-                    'platform.uuid': platform['instance_uuid'],
-                    'devices': platform.get('devices', [])
-                }
-            )
-        return devices
-
+        try:
+            platform = self.vip.config.get('platforms/{}'.format(uuid))
+            return platform['devices_health'].copy()
+        except KeyError:
+            _log.warn('Unknown platform uuid specified! {}'.format(uuid))
 
     def _route_request(self, session_user, id, method, params):
         """ Handle the methods volttron central can or pass off to platforms.
@@ -1137,18 +1133,12 @@ class VolttronCentralAgent(Agent):
 
             return jsonrpc.json_result(id, routes)
 
-        if method.endswith('list_devices'):
-            _log.debug('DOING LIST DEVICES')
-            _, _, platform_uuid, _ = method.split('.')
-            return self.device_health['platforms/{}'.format(platform_uuid)]
         if method.endswith('get_devices'):
-            _log.debug('DOING GET DEVICES')
             _, _, platform_uuid, _ = method.split('.')
-            return self.device_health['platforms/{}'.format(platform_uuid)]
+            return self._handle_get_devices(platform_uuid)
 
 
         method_dict = {
-            'list_deivces': self._handle_list_devices,
             'list_platforms': self._handle_list_platforms,
             'list_performance': self._handle_list_performance
         }
