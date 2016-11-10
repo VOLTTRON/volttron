@@ -433,13 +433,30 @@ class VolttronCentralAgent(Agent):
                 status = Status.build(GOOD_STATUS,
                                       context="Last publish {}".format(
                                           last_publish_utc))
-                self.device_health[config_name] = {
-                    topic_no_all: dict(
-                        last_publish_utc=format_timestamp(now_time_utc),
-                        points=data['devices'][topic_no_all]['points'],
-                        health=status.as_dict()
-                    )
-                }
+                try:
+                    self.device_health[config_name] = {
+                        topic_no_all: dict(
+                            last_publish_utc=format_timestamp(now_time_utc),
+                            points=data['devices'][topic_no_all]['points'],
+                            health=status.as_dict()
+                        )
+                    }
+                except KeyError as ke:
+                    explaination = "There was a key error.  This could have " \
+                                   "been caused a change in the device config" \
+                                   "path for {}.".format(connection.address)
+                    _log.warn(explaination)
+                    _log.warn("Updating device data for {}".format(
+                        connection.address))
+                    try:
+                        devices = connection.call('get_devices')
+                        data['devices'] = devices
+
+                        self.vip.config.set(config_name, data)
+                    except Unreachable:
+                        _log.error("platform.agent on {} unreachable".format(
+                            connection.address
+                        ))
 
             # Subscribe to the vcp instance for device publishes.
             connection.server.vip.pubsub.subscribe('pubsub', 'devices',
@@ -476,7 +493,7 @@ class VolttronCentralAgent(Agent):
                 _log.error("Unable to reconnect to the external instances.")
                 continue
 
-            if cn is not None and cn.is_connected():
+            if cn is not None and cn.is_connected() and cn.is_peer_connected():
                 self.vcp_connections[x] = cn
                 cn.call('manage', self.runtime_config['local_external_address'])
             else:
