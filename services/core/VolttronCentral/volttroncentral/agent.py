@@ -419,6 +419,18 @@ class VolttronCentralAgent(Agent):
             devices = connection.call('get_devices')
             data['devices'] = devices
 
+            status = Status.build(UNKNOWN_STATUS,
+                                  context="Not published since update")
+            devices_health = {}
+            for device, item in devices.items():
+                device_no_prefix = device[len('devices/'):]
+                devices_health[device_no_prefix] = dict(
+                    last_publish_utc=None,
+                    health=status.as_dict(),
+                    points=item.get('points', [])
+                )
+            data['devices_health'] = devices_health
+
             self.vip.config.set(config_name, data)
 
             def ondevicemessage(peer, sender, bus, topic, headers, message):
