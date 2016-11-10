@@ -220,17 +220,17 @@ class DriverAgent(BasicAgent):
                                      'type': ts_type,
                                      'tz': config['timezone']}
             
-        self.base_topic = DEVICES_VALUE(campus='',
-                                        building='',
-                                        unit='',
+        self.base_topic = DEVICES_VALUE(campus=config.get('campus',''),
+                                        building=config.get('building',''),
+                                        unit=config.get('unit',''),
                                         path=self.device_path,
                                         point=None)
         
-        self.device_name = DEVICES_PATH(base='',
+        self.device_name = DEVICES_PATH(campus=config.get('campus',''),
+                                        building=config.get('building',''),
+                                        unit=config.get('unit',''),
+                                        base='',
                                         node='',
-                                        campus='',
-                                        building='',
-                                        unit='',
                                         path=self.device_path,
                                         point='')
         
