@@ -1079,21 +1079,17 @@ class VolttronCentralAgent(Agent):
         config_list = [x for x in self.vip.config.list()
                        if x.startswith('platforms/')]
 
-        performances = []
+        devices = []
         for x in config_list:
             platform = self.vip.config.get(x)
-            performances.append(
+            devices.append(
                 {
                     'platform.uuid': platform['instance_uuid'],
                     'devices': platform.get('devices', [])
                 }
             )
-        return performances
+        return devices
 
-        return [{'platform.uuid': x.instance_uuid,
-                 'devices': x.get("devices", [])}
-                for x in self._registered_platforms.values()
-                if len(x.get("devices"))]
 
     def _route_request(self, session_user, id, method, params):
         """ Handle the methods volttron central can or pass off to platforms.
