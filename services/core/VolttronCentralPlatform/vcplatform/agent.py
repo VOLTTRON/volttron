@@ -90,8 +90,7 @@ from volttron.platform.vip.agent import (Agent, Core, RPC, PubSub, Unreachable)
 from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.vip.agent.utils import build_connection
-from volttron.platform.web import DiscoveryInfo
-
+from volttron.platform.web import DiscoveryInfo, DiscoveryError
 
 __version__ = '3.6.0'
 
@@ -252,7 +251,16 @@ class VolttronCentralPlatform(Agent):
 
         if parsed.scheme in ('http', 'https'):
             _log.debug('vc_address is {}'.format(vc_address))
-            info = DiscoveryInfo.request_discovery_info(vc_address)
+            info = None
+            while info is None:
+                try:
+                    info = DiscoveryInfo.request_discovery_info(vc_address)
+                except DiscoveryError as e:
+                    _log.error(
+                        "Unable to retrieve discovery info from volttron central.")
+                    gevent.sleep(10)
+
+
             self.current_config['vc_connect_address'] = info.vip_address
             self.current_config['vc_connect_serverkey'] = info.serverkey
         else:
