@@ -1,32 +1,51 @@
 'use strict';
 
-var React = require('react');
-
+import React from 'react';
+import BaseComponent from '../base-component';
 import ControlButton from '../control-button';
 
-var FilterPointsButton = React.createClass({
-    getInitialState: function () {
-        return getStateFromStores();
-    },
-    _onFilterBoxChange: function (e) {
+class FilterPointsButton extends BaseComponent {
+    constructor(props) {
+        super(props);
+        this._bind("_onFilterBoxChange", "_onKeyDown", "_onClearFilter");
+
+        this.state = getStateFromStores();
+    }
+    _onFilterBoxChange(e) {
         var filterValue = e.target.value;
 
         this.setState({ filterValue: filterValue });
 
-        if (filterValue !== "")
+        // if (filterValue !== "")
+        // {
+        //     this.props.onfilter(e.target.value, this.props.column);
+        // }
+        // else
+        // {
+        //     this.props.onclear();
+        // }
+    }
+    _onKeyDown(e) {
+
+        var filterValue = e.target.value;
+        
+        if (e.keyCode === 13) //Enter
         {
-            this.props.onfilter(e.target.value, this.props.column);
+            if (filterValue !== "")
+            {
+                this.props.onfilter(e.target.value, this.props.column);
+            }
+            else
+            {
+                this.props.onclear();
+            }
         }
-        else
-        {
-            this.props.onclear();
-        }
-    },
-    _onClearFilter: function (e) {
+    }
+    _onClearFilter(e) {
         this.setState({ filterValue: "" });
         this.props.onclear();
-    },
-    render: function () {
+    }
+    render() {
 
         var filterBoxContainer = {
             position: "relative"
@@ -63,6 +82,7 @@ var FilterPointsButton = React.createClass({
                             type="search"
                             style={inputStyle}
                             onChange={this._onFilterBoxChange}
+                            onKeyDown={this._onKeyDown}
                             value={ this.state.filterValue }
                         />
                     </div>
@@ -93,8 +113,8 @@ var FilterPointsButton = React.createClass({
                 staySelected={holdSelect}
                 icon={filterIcon}></ControlButton>
         );
-    },
-});
+    }
+};
 
 function getStateFromStores() {
     return {
@@ -102,4 +122,4 @@ function getStateFromStores() {
     };
 }
 
-module.exports = FilterPointsButton;
+export default FilterPointsButton;

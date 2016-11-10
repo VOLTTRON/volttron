@@ -52191,10 +52191,6 @@
 	    }, {
 	        key: 'componentWillReceiveProps',
 	        value: function componentWillReceiveProps(nextProps) {
-	            // if (nextProps.selected !== this.props.selected)
-	            //    {
-	            //        this.setState({checked: nextProps.selected});
-	            //    }
 	            if (typeof nextProps.selected !== "undefined") {
 	                this.setState({ checked: nextProps.selected });
 	            }
@@ -60677,6 +60673,10 @@
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
+	var _filterPointsButton = __webpack_require__(324);
+	
+	var _filterPointsButton2 = _interopRequireDefault(_filterPointsButton);
+	
 	var _checkBox = __webpack_require__(304);
 	
 	var _checkBox2 = _interopRequireDefault(_checkBox);
@@ -60695,7 +60695,6 @@
 	
 	var devicesActionCreators = __webpack_require__(307);
 	var devicesStore = __webpack_require__(308);
-	var FilterPointsButton = __webpack_require__(324);
 	var ConfirmForm = __webpack_require__(325);
 	var modalActionCreators = __webpack_require__(287);
 	
@@ -61380,19 +61379,19 @@
 	        value: function _onClearFind(column) {
 	            var _this3 = this;
 	
-	            // var registryValues = this.state.registryValues.slice();
+	            if (this.state.selectedCells.length) {
+	                this.state.selectedCells.forEach(function (row) {
+	                    _this3.state.registryValues[row] = _this3.state.registryValues[row].updateIn(["attributes", column], function (item) {
+	                        item.selected = false;
+	                        return item;
+	                    });
+	                }, this);
 	
-	            this.state.selectedCells.forEach(function (row) {
-	                _this3.state.registryValues[row] = _this3.state.registryValues[row].updateIn(["attributes", column], function (item) {
-	                    item.selected = false;
-	                    return item;
-	                });
-	            }, this);
-	
-	            this.setState({ registryValues: this.state.registryValues });
-	            this.setState({ selectedCells: [] });
-	            this.setState({ selectedCellRow: null });
-	            this.setState({ selectedCellColumn: null });
+	                this.setState({ registryValues: this.state.registryValues });
+	                this.setState({ selectedCells: [] });
+	                this.setState({ selectedCellRow: null });
+	                this.setState({ selectedCellColumn: null });
+	            }
 	        }
 	    }, {
 	        key: '_goToNext',
@@ -61527,7 +61526,7 @@
 	                                "y": -60
 	                            };
 	
-	                            var filterButton = _react2.default.createElement(FilterPointsButton, {
+	                            var filterButton = _react2.default.createElement(_filterPointsButton2.default, {
 	                                name: "filterRegistryPoints-" + this.props.device.id,
 	                                tooltipMsg: filterPointsTooltip,
 	                                onfilter: this._onFilterBoxChange,
@@ -63670,15 +63669,22 @@
 	            var innerTable = this.props.ongetparentnode();
 	
 	            var top = innerTable.getClientRects()[0].top;
+	            var bottom = innerTable.getClientRects()[0].bottom;
 	            var height = innerTable.getClientRects()[0].height;
 	
 	            var view = document.querySelector(".view");
 	            var viewRect = view.getClientRects();
 	            var viewBottom = viewRect[0].bottom;
 	
-	            height = viewBottom < top + height ? viewBottom - top : height;
+	            viewBottom = bottom > viewBottom ? viewBottom : bottom;
 	
-	            columnMoverActionCreators.startColumnMovement(originalClientX, top, height);
+	            var viewTop = viewRect[0].top;
+	
+	            viewTop = top > viewTop ? top : viewTop;
+	
+	            height = viewBottom < viewTop + height ? viewBottom - viewTop : height;
+	
+	            columnMoverActionCreators.startColumnMovement(originalClientX, viewTop, height);
 	
 	            this.props.oninitializetable();
 	
@@ -63844,106 +63850,162 @@
 
 	'use strict';
 	
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+	
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	
+	var _react = __webpack_require__(3);
+	
+	var _react2 = _interopRequireDefault(_react);
+	
+	var _baseComponent = __webpack_require__(99);
+	
+	var _baseComponent2 = _interopRequireDefault(_baseComponent);
+	
 	var _controlButton = __webpack_require__(300);
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
-	var React = __webpack_require__(3);
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 	
-	var FilterPointsButton = React.createClass({
-	    displayName: 'FilterPointsButton',
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 	
-	    getInitialState: function getInitialState() {
-	        return getStateFromStores();
-	    },
-	    _onFilterBoxChange: function _onFilterBoxChange(e) {
-	        var filterValue = e.target.value;
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	        this.setState({ filterValue: filterValue });
+	var FilterPointsButton = function (_BaseComponent) {
+	    _inherits(FilterPointsButton, _BaseComponent);
 	
-	        if (filterValue !== "") {
-	            this.props.onfilter(e.target.value, this.props.column);
-	        } else {
+	    function FilterPointsButton(props) {
+	        _classCallCheck(this, FilterPointsButton);
+	
+	        var _this = _possibleConstructorReturn(this, (FilterPointsButton.__proto__ || Object.getPrototypeOf(FilterPointsButton)).call(this, props));
+	
+	        _this._bind("_onFilterBoxChange", "_onKeyDown", "_onClearFilter");
+	
+	        _this.state = getStateFromStores();
+	        return _this;
+	    }
+	
+	    _createClass(FilterPointsButton, [{
+	        key: '_onFilterBoxChange',
+	        value: function _onFilterBoxChange(e) {
+	            var filterValue = e.target.value;
+	
+	            this.setState({ filterValue: filterValue });
+	
+	            // if (filterValue !== "")
+	            // {
+	            //     this.props.onfilter(e.target.value, this.props.column);
+	            // }
+	            // else
+	            // {
+	            //     this.props.onclear();
+	            // }
+	        }
+	    }, {
+	        key: '_onKeyDown',
+	        value: function _onKeyDown(e) {
+	
+	            var filterValue = e.target.value;
+	
+	            if (e.keyCode === 13) //Enter
+	                {
+	                    if (filterValue !== "") {
+	                        this.props.onfilter(e.target.value, this.props.column);
+	                    } else {
+	                        this.props.onclear();
+	                    }
+	                }
+	        }
+	    }, {
+	        key: '_onClearFilter',
+	        value: function _onClearFilter(e) {
+	            this.setState({ filterValue: "" });
 	            this.props.onclear();
 	        }
-	    },
-	    _onClearFilter: function _onClearFilter(e) {
-	        this.setState({ filterValue: "" });
-	        this.props.onclear();
-	    },
-	    render: function render() {
+	    }, {
+	        key: 'render',
+	        value: function render() {
 	
-	        var filterBoxContainer = {
-	            position: "relative"
-	        };
+	            var filterBoxContainer = {
+	                position: "relative"
+	            };
 	
-	        var inputStyle = {
-	            width: "100%",
-	            marginLeft: "10px",
-	            fontWeight: "normal"
-	        };
+	            var inputStyle = {
+	                width: "100%",
+	                marginLeft: "10px",
+	                fontWeight: "normal"
+	            };
 	
-	        var divWidth = {
-	            width: "85%"
-	        };
+	            var divWidth = {
+	                width: "85%"
+	            };
 	
-	        var clearTooltip = {
-	            content: "Clear Filter",
-	            "x": 80,
-	            "y": 0
-	        };
+	            var clearTooltip = {
+	                content: "Clear Filter",
+	                "x": 80,
+	                "y": 0
+	            };
 	
-	        var filterBox = React.createElement(
-	            'div',
-	            { style: filterBoxContainer },
-	            React.createElement(_controlButton2.default, {
-	                fontAwesomeIcon: 'ban',
-	                tooltip: clearTooltip,
-	                clickAction: this._onClearFilter }),
-	            React.createElement(
+	            var filterBox = _react2.default.createElement(
 	                'div',
-	                { className: 'inlineBlock' },
-	                React.createElement(
+	                { style: filterBoxContainer },
+	                _react2.default.createElement(_controlButton2.default, {
+	                    fontAwesomeIcon: 'ban',
+	                    tooltip: clearTooltip,
+	                    clickAction: this._onClearFilter }),
+	                _react2.default.createElement(
 	                    'div',
 	                    { className: 'inlineBlock' },
-	                    React.createElement('span', { className: 'fa fa-filter' })
-	                ),
-	                React.createElement(
-	                    'div',
-	                    { className: 'inlineBlock', style: divWidth },
-	                    React.createElement('input', {
-	                        type: 'search',
-	                        style: inputStyle,
-	                        onChange: this._onFilterBoxChange,
-	                        value: this.state.filterValue
-	                    })
+	                    _react2.default.createElement(
+	                        'div',
+	                        { className: 'inlineBlock' },
+	                        _react2.default.createElement('span', { className: 'fa fa-filter' })
+	                    ),
+	                    _react2.default.createElement(
+	                        'div',
+	                        { className: 'inlineBlock', style: divWidth },
+	                        _react2.default.createElement('input', {
+	                            type: 'search',
+	                            style: inputStyle,
+	                            onChange: this._onFilterBoxChange,
+	                            onKeyDown: this._onKeyDown,
+	                            value: this.state.filterValue
+	                        })
+	                    )
 	                )
-	            )
-	        );
+	            );
 	
-	        var filterTaptip = {
-	            "title": "Filter Points",
-	            "content": filterBox,
-	            "x": 80,
-	            "y": -150,
-	            "styles": [{ "key": "width", "value": "200px" }]
-	        };
+	            var filterTaptip = {
+	                "title": "Filter Points",
+	                "content": filterBox,
+	                "x": 80,
+	                "y": -150,
+	                "styles": [{ "key": "width", "value": "200px" }]
+	            };
 	
-	        var filterIcon = React.createElement('i', { className: 'fa fa-filter' });
+	            var filterIcon = _react2.default.createElement('i', { className: 'fa fa-filter' });
 	
-	        var holdSelect = this.state.filterValue !== "";
+	            var holdSelect = this.state.filterValue !== "";
 	
-	        return React.createElement(_controlButton2.default, {
-	            name: this.props.name + "-ControlButton",
-	            taptip: filterTaptip,
-	            tooltip: this.props.tooltipMsg,
-	            controlclass: 'filter_button',
-	            staySelected: holdSelect,
-	            icon: filterIcon });
-	    }
-	});
+	            return _react2.default.createElement(_controlButton2.default, {
+	                name: this.props.name + "-ControlButton",
+	                taptip: filterTaptip,
+	                tooltip: this.props.tooltipMsg,
+	                controlclass: 'filter_button',
+	                staySelected: holdSelect,
+	                icon: filterIcon });
+	        }
+	    }]);
+	
+	    return FilterPointsButton;
+	}(_baseComponent2.default);
+	
+	;
 	
 	function getStateFromStores() {
 	    return {
@@ -63951,7 +64013,7 @@
 	    };
 	}
 	
-	module.exports = FilterPointsButton;
+	exports.default = FilterPointsButton;
 
 /***/ },
 /* 325 */
@@ -112256,4 +112318,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-2b860532fe0d1978099a.js.map
+//# sourceMappingURL=app-2fa23ae83532cbb866f9.js.map

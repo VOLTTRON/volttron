@@ -12,12 +12,12 @@ import EditColumnButton from './control_buttons/edit-columns-button';
 import KeyboardHelpButton from './control_buttons/keyboard-help-button';
 import RegistryRow from './registry-row';
 import ControlButton from './control-button';
+import FilterPointsButton from './control_buttons/filter-points-button';
 import CheckBox from './check-box';
 import Immutable from 'immutable';
 
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var devicesStore = require('../stores/devices-store');
-var FilterPointsButton = require('./control_buttons/filter-points-button');
 var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
@@ -710,21 +710,21 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onClearFind(column) {
 
-        // var registryValues = this.state.registryValues.slice();
+        if (this.state.selectedCells.length)
+        {
+            this.state.selectedCells.forEach((row) => {
+                this.state.registryValues[row] = this.state.registryValues[row].updateIn(["attributes", column], function (item) {                    
+                    item.selected = false;
+                    return item;
+                });
 
-        this.state.selectedCells.forEach((row) => {
-            this.state.registryValues[row] = this.state.registryValues[row].updateIn(["attributes", column], function (item) {                    
-                item.selected = false;
-                return item;
-            });
+            }, this);
 
-        }, this);
-
-        this.setState({ registryValues: this.state.registryValues });
-        this.setState({ selectedCells: [] });
-        this.setState({ selectedCellRow: null });
-        this.setState({ selectedCellColumn: null });
-
+            this.setState({ registryValues: this.state.registryValues });
+            this.setState({ selectedCells: [] });
+            this.setState({ selectedCellRow: null });
+            this.setState({ selectedCellColumn: null });
+        }
     }
     _goToNext(selectedCellRow, selectedCells) {
 

@@ -126,15 +126,22 @@ class RegistryRow extends BaseComponent {
         var innerTable = this.props.ongetparentnode();
 
         var top = innerTable.getClientRects()[0].top;
+        var bottom = innerTable.getClientRects()[0].bottom;
         var height = innerTable.getClientRects()[0].height;
 
         var view = document.querySelector(".view");
         var viewRect = view.getClientRects();
         var viewBottom = viewRect[0].bottom;
 
-        height = (viewBottom < top + height ? viewBottom - top : height);
+        viewBottom = (bottom > viewBottom ? viewBottom : bottom); 
 
-        columnMoverActionCreators.startColumnMovement(originalClientX, top, height);
+        var viewTop = viewRect[0].top;
+
+        viewTop = (top > viewTop ? top : viewTop);
+
+        height = (viewBottom < viewTop + height ? viewBottom - viewTop : height);
+
+        columnMoverActionCreators.startColumnMovement(originalClientX, viewTop, height);
 
         this.props.oninitializetable();
 
