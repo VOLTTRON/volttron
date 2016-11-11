@@ -14,12 +14,12 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 var modalStore = require('../stores/modal-store');
 var Navigation = require('./navigation');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-var PlatformsPanel = require('./platforms-panel');
 var platformsPanelStore = require('../stores/platforms-panel-store');
 var StatusIndicator = require('./status-indicator');
 var statusIndicatorStore = require('../stores/status-indicator-store');
 var platformsStore = require('../stores/platforms-store');
 
+import PlatformsPanel from './platforms-panel';
 import ColumnMover from './column-mover';
 
 class PlatformManager extends React.Component {

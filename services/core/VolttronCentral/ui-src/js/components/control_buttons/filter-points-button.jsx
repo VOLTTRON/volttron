@@ -15,20 +15,11 @@ class FilterPointsButton extends BaseComponent {
         var filterValue = e.target.value;
 
         this.setState({ filterValue: filterValue });
-
-        // if (filterValue !== "")
-        // {
-        //     this.props.onfilter(e.target.value, this.props.column);
-        // }
-        // else
-        // {
-        //     this.props.onclear();
-        // }
     }
     _onKeyDown(e) {
 
         var filterValue = e.target.value;
-        
+
         if (e.keyCode === 13) //Enter
         {
             if (filterValue !== "")

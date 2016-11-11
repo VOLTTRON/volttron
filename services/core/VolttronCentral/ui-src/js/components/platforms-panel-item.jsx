@@ -1,7 +1,7 @@
 'use strict';
 
-var React = require('react');
-var Router = require('react-router');
+import React from 'react';
+import Router from 'react-router';
 import BaseComponent from './base-component';
 import ControlButton from './control-button';
 import CheckBox from './check-box';

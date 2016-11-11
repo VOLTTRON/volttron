@@ -1,7 +1,8 @@
 'use strict';
 
-var React = require('react');
-var Router = require('react-router');
+import React from 'react';
+import Router from 'react-router';
+import BaseComponent from './base-component';
 import PlatformsPanelItem from './platforms-panel-item';
 import ControlButton from './control-button';
 import Immutable from 'immutable';
@@ -11,17 +12,20 @@ var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 
 
-var PlatformsPanel = React.createClass({
-    getInitialState: function () {
-        var state = {};
-        state.platforms = [];     
-        state.expanded = platformsPanelStore.getExpanded();
-        state.filterValue = "";
-        state.filterStatus = "";
+class PlatformsPanel extends BaseComponent {
+    constructor(props) {
+        super(props);
+        this._bind('_onPanelStoreChange', '_onPanelItemsStoreChange', '_onFilterBoxChange', 
+            '_onFilterBad', '_onFilterUnknown', '_onFilterOff', '_togglePanel', '_onFilterGood',
+            '_onKeyDown');
 
-        return state;
-    },
-    componentDidMount: function () {
+        this.state = {};
+        this.state.platforms = [];     
+        this.state.expanded = platformsPanelStore.getExpanded();
+        this.state.filterValue = "";
+        this.state.filterStatus = "";
+    }
+    componentDidMount() {
         platformsPanelStore.addChangeListener(this._onPanelStoreChange);
         platformsPanelItemsStore.addChangeListener(this._onPanelItemsStoreChange);
 
@@ -36,12 +40,12 @@ var PlatformsPanel = React.createClass({
                 break;
             }
         }
-    },
-    componentWillUnmount: function () {
+    }
+    componentWillUnmount() {
         platformsPanelStore.removeChangeListener(this._onPanelStoreChange);
         platformsPanelItemsStore.removeChangeListener(this._onPanelItemsStoreChange);
-    },
-    _onPanelStoreChange: function () {
+    }
+    _onPanelStoreChange() {
         var expanded = platformsPanelStore.getExpanded();
 
         if (expanded !== this.state.expanded)
@@ -67,42 +71,50 @@ var PlatformsPanel = React.createClass({
             this.platformsPanel.style.width = "";
             this.exteriorPanel.style.width = "";
         }
-    },
-    _onPanelItemsStoreChange: function () {
+    }
+    _onPanelItemsStoreChange() {
         if (this.state.expanded !== null)
         {
             this.setState({platforms: platformsPanelItemsStore.getChildren("platforms", null)});
         }
-    },
-    _onFilterBoxChange: function (e) {
+    }
+    _onFilterBoxChange(e) {
         this.setState({ filterValue: e.target.value });
-        platformsPanelActionCreators.loadFilteredItems(e.target.value, "");
+        
         this.setState({ filterStatus: "" });
-    },
-    _onFilterGood: function (e) {
+    }
+    _onKeyDown(e) {
+        var filterValue = e.target.value;
+
+        if (e.keyCode === 13) //Enter
+        {
+            platformsPanelActionCreators.loadFilteredItems(e.target.value, "");
+        }
+    }
+    _onFilterGood(e) {
         platformsPanelActionCreators.loadFilteredItems("", "GOOD");
         this.setState({ filterStatus: "GOOD" });
         this.setState({ filterValue: "" });
-    },
-    _onFilterBad: function (e) {
+    }
+    _onFilterBad(e) {
         platformsPanelActionCreators.loadFilteredItems("", "BAD");
         this.setState({ filterStatus: "BAD" });
         this.setState({ filterValue: "" });
-    },
-    _onFilterUnknown: function (e) {
+    }
+    _onFilterUnknown(e) {
         platformsPanelActionCreators.loadFilteredItems("", "UNKNOWN");
         this.setState({ filterStatus: "UNKNOWN" });
         this.setState({ filterValue: "" });
-    },
-    _onFilterOff: function (e) {
+    }
+    _onFilterOff(e) {
         platformsPanelActionCreators.loadFilteredItems("", "");
         this.setState({ filterValue: "" });
         this.setState({ filterStatus: "" });
-    },
-    _togglePanel: function () {
+    }
+    _togglePanel() {
         platformsPanelActionCreators.togglePanel();
-    },
-    render: function () {
+    }
+    render() {
         var platforms;
         
         var classes = (this.state.expanded === null ? 
@@ -253,8 +265,9 @@ var PlatformsPanel = React.createClass({
                         <input
                             type="search"
                             onChange={this._onFilterBoxChange}
+                            onKeyDown={this._onKeyDown}
                             value={ this.state.filterValue }
-                        />
+                        ></input>
                         <div className="inlineBlock">
                             {filterGoodControlButton}
                             {filterBadControlButton}
@@ -268,8 +281,8 @@ var PlatformsPanel = React.createClass({
                 </div>
             </div>
         );
-    },
-});
+    }
+};
 
 
-module.exports = PlatformsPanel;
+export default PlatformsPanel;
