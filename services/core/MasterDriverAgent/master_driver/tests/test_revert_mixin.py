@@ -64,7 +64,7 @@ FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 
 
 registry_config = process_raw_config(registry_config_string, config_type="csv")
 
-@pytest.mark.revert
+@pytest.mark.driver
 def test_revert_point():
     interface = Interface()
     interface.configure({}, registry_config)
@@ -79,7 +79,7 @@ def test_revert_point():
     value = interface.get_point("Float")
     assert value == 50.0
     
-@pytest.mark.revert
+@pytest.mark.driver
 def test_revert_device():
     interface = Interface()
     interface.configure({}, registry_config)
@@ -94,7 +94,7 @@ def test_revert_device():
     value = interface.get_point("Float")
     assert value == 50.0
     
-@pytest.mark.revert
+@pytest.mark.driver
 def test_revert_point_no_default():
     interface = Interface()
     interface.configure({}, registry_config)
@@ -123,7 +123,7 @@ def test_revert_point_no_default():
     temp_value = interface.get_point("FloatNoDefault")
     assert temp_value == initial_value
     
-@pytest.mark.revert
+@pytest.mark.driver
 def test_revert_all_no_default():
     interface = Interface()
     interface.configure({}, registry_config)
@@ -152,7 +152,7 @@ def test_revert_all_no_default():
     temp_value = interface.get_point("FloatNoDefault")
     assert temp_value == initial_value
     
-@pytest.mark.revert
+@pytest.mark.driver
 def test_revert_no_default_changing_value():
     interface = Interface()
     interface.configure({}, registry_config)

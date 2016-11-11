@@ -292,7 +292,6 @@ def test_repackage_new_dest_dir(volttron_instance):
         if dest_dir:
             shutil.rmtree(dest_dir)
 
-@pytest.mark.dev
 @pytest.mark.packaging
 def test_repackage_invalid_dest_dir(volttron_instance):
     """

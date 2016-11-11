@@ -62,6 +62,7 @@ import inspect
 from .base import SubsystemBase
 from volttron.platform.storeutils import list_unique_links, check_for_config_link
 from volttron.platform.vip.agent import errors
+from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 
 from collections import defaultdict
 from copy import deepcopy
@@ -111,7 +112,7 @@ class ConfigStore(SubsystemBase):
     def _onconfig(self, sender, **kwargs):
         if not self._initialized:
             try:
-                self._rpc().call("config.store", "get_configs").get()
+                self._rpc().call(CONFIGURATION_STORE, "get_configs").get()
             except errors.Unreachable as e:
                 _log.error("Connected platform does not support the Configuration Store feature.")
                 return
@@ -325,7 +326,7 @@ class ConfigStore(SubsystemBase):
         # Handle case were we are called during "onstart".
         if not self._initialized:
             try:
-                self._rpc().call("config.store", "get_configs").get()
+                self._rpc().call(CONFIGURATION_STORE, "get_configs").get()
             except errors.Unreachable as e:
                 _log.error("Connected platform does not support the Configuration Store feature.")
             except errors.VIPError as e:
@@ -357,7 +358,7 @@ class ConfigStore(SubsystemBase):
         #may be a default configuration to grab.
         if not self._initialized:
             try:
-                self._rpc().call("config.store", "get_configs").get()
+                self._rpc().call(CONFIGURATION_STORE, "get_configs").get()
             except errors.Unreachable as e:
                 _log.error("Connected platform does not support the Configuration Store feature.")
             except errors.VIPError as e:
@@ -395,7 +396,7 @@ class ConfigStore(SubsystemBase):
         """
         self._check_call_from_process_callbacks()
 
-        self._rpc().call("config.store", "set_config", config_name, contents, trigger_callback=trigger_callback).get(timeout=10.0)
+        self._rpc().call(CONFIGURATION_STORE, "set_config", config_name, contents, trigger_callback=trigger_callback).get(timeout=10.0)
 
     def set_default(self, config_name, contents):
         """Called to set the contents of a default configuration file. Default configurations are used if the
@@ -456,7 +457,7 @@ class ConfigStore(SubsystemBase):
             """
         self._check_call_from_process_callbacks()
 
-        self._rpc().call("config.store", "delete_config", config_name, trigger_callback=trigger_callback).get(timeout=10.0)
+        self._rpc().call(CONFIGURATION_STORE, "delete_config", config_name, trigger_callback=trigger_callback).get(timeout=10.0)
 
     def subscribe(self, callback, actions=VALID_ACTIONS, pattern="*"):
         """Subscribe to changes to a configuration.

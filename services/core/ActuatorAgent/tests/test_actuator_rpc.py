@@ -67,6 +67,7 @@ from gevent.subprocess import Popen
 from mock import MagicMock
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 REQUEST_CANCEL_SCHEDULE = 'request_cancel_schedule'
 REQUEST_NEW_SCHEDULE = 'request_new_schedule'
@@ -94,7 +95,7 @@ def publish_agent(request, volttron_instance1):
     developer_mode = volttron_instance1.opts.get('developer_mode', False)
 
     # Reset master driver config store
-    cmd = ['volttron-ctl', 'config', 'delete', 'platform.driver', '--all']
+    cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
     if developer_mode:
         cmd.append('--developer-mode')
     process = Popen(cmd, env=volttron_instance1.env,
@@ -105,7 +106,7 @@ def publish_agent(request, volttron_instance1):
     assert result == 0
 
     # Add master driver configuration files to config store.
-    cmd = ['volttron-ctl', 'config', 'store','platform.driver',
+    cmd = ['volttron-ctl', 'config', 'store',PLATFORM_DRIVER,
            'fake.csv', 'fake_unit_testing.csv', '--csv']
     if developer_mode:
         cmd.append('--developer-mode')
@@ -118,7 +119,7 @@ def publish_agent(request, volttron_instance1):
 
     for i in xrange(4):
         config_name = "devices/fakedriver{}".format(i)
-        cmd = ['volttron-ctl', 'config', 'store', 'platform.driver',
+        cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
                config_name, 'fake_unit_testing.config', '--json']
         if developer_mode:
             cmd.append('--developer-mode')
