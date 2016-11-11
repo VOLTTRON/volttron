@@ -149,7 +149,7 @@ def test_can_connect(database_client):
 #     # track of the published data so that we can query the historian.
 #     publisher = volttron_instance.build_agent()
 #     assert publisher is not None
-#     expected = publish_fake_data(publisher)
+#     expected = publish_devices_fake_data(publisher)
 #
 #     # Query the historian
 #     for qp in query_points.keys():
