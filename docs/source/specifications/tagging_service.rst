@@ -17,9 +17,9 @@ VOLLTTRON will use tags from
 Tags defined in haystack will be imported into VOLTTRON and grouped by
 categories to tag entities.
 
-******************
-Software Interface
-******************
+**********
+Dependency
+**********
 
 Once data in VOLTTRON has been tagged, users will be able to query topics
 based on tags through the historian
@@ -46,3 +46,45 @@ Features
  6. When users query for topics based on a tag, the results would correspond
     to the current metadata values. It is up to the calling agent/application to
     periodically query for latest updates if needed.
+ 7. Allow for count and skip parameters in queries to restrict count and
+    allow pagination
+
+
+***
+API
+***
+
+1. Get the list of topic groups available
+-----------------------------------------
+   rpc call to tagging service method *'get_tag_groups'*
+
+2. Get the list of tags for a specific group
+--------------------------------------------
+   rpc call to tagging service method *'get_group_tags'* with
+   parameter *group=<string>*
+
+3. Get the list of tags for a topic_name or topic_name_prefix
+-------------------------------------------------------------
+   rpc call to tagging service method *get_tags* with
+   parameter topic_prefix=<string>
+
+4. Find topic names by tags
+---------------------------
+   rpc call to tagging service method 'get_topics_by_tags' with the one or
+   more of the following tags
+
+   1. and - dictionary of tag and its corresponding values that should be
+      matched with AND condition. only topics that contain all the tags in the
+      list would be returned
+   2. or -  dictionary of tag and its corresponding values that should be
+      matched with OR condition. topics that contain any of the tags in the
+      list would be returned.
+   3. regex_and
+   4. regex_or
+   5. condition - json query string
+
+
+5. Query data based on tags
+---------------------------
+   Use above api to get topics by tags and then use the result to query
+   historian's query api.
