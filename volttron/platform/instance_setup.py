@@ -67,6 +67,8 @@ from gevent.subprocess import Popen
 from zmq.utils import jsonapi
 from zmq import green as zmq
 
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
+
 from . import get_home
 
 # Global configuration options.  Must be key=value strings.  No cascading
@@ -460,9 +462,9 @@ def add_fake_device_to_configstore():
     prompt = 'Install a fake device on the master driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
-        _cmd(['volttron-ctl', 'config', 'store', 'platform.driver',
+        _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
               'fake.csv', 'examples/configurations/drivers/fake.csv', '--csv'])
-        _cmd(['volttron-ctl', 'config', 'store', 'platform.driver',
+        _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
               'devices/fake', 'examples/configurations/drivers/fake.config'])
 
 
