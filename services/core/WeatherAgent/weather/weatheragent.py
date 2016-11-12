@@ -191,10 +191,7 @@ def weather_service(config_path, **kwargs):
 
     region = state if state != "" else country
     max_requests_per_day = get_config('daily_threshold')
-    print "DAP: type requests_per_day = %s"%type(max_requests_per_day)
     max_requests_per_minute = get_config('minute_threshold')
-    print "DAP: type max_requests_per_minute = %s"%type(max_requests_per_minute)
-	
     class WeatherAgent(Agent):
         """Agent for querying WeatherUndergrounds API"""
 
