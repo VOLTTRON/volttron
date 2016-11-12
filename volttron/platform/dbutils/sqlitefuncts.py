@@ -249,20 +249,28 @@ class SqlLiteFuncts(DbDriver):
 
         where_clauses = ["WHERE topic_id = ?"]
         args = [topic_ids[0]]
-
-        if start is not None:
+        start_str = ""
+        end_str = ""
+        if start:
             start_str = start.isoformat(' ')
-            where_clauses.append("ts >= ?")
             if start_str[-6:] != "+00:00":
                 start_str += "+00:00"
-            args.append(start_str)
 
-        if end is not None:
+        if end:
             end_str = end.isoformat(' ')
-            where_clauses.append("ts <= ?")
             if end_str[-6:] != "+00:00":
                 end_str += "+00:00"
+
+        if start and end and start == end:
+            where_clauses.append("ts = ?")
+            args.append(start_str)
+        elif start:
+            where_clauses.append("ts >= ?")
+            args.append(start_str)
+        elif end:
+            where_clauses.append("ts < ?")
             args.append(end_str)
+
 
         where_statement = ' AND '.join(where_clauses)
 

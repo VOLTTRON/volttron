@@ -477,6 +477,7 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.utils import normtopic
 from volttron.platform.vip.agent import Agent, Core, RPC, Unreachable, compat
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
 REVERT_POINT_RESPONSE_PREFIX = topics.ACTUATOR_REVERTED_POINT()
@@ -528,7 +529,7 @@ def actuator_agent(config_path, **kwargs):
     schedule_publish_interval = int(
         config.get('schedule_publish_interval', 60))
     preempt_grace_time = config.get('preempt_grace_time', 60)
-    driver_vip_identity = config.get('driver_vip_identity', 'platform.driver')
+    driver_vip_identity = config.get('driver_vip_identity', PLATFORM_DRIVER)
 
     return ActuatorAgent(heartbeat_interval, schedule_publish_interval,
                          preempt_grace_time,
@@ -562,7 +563,7 @@ class ActuatorAgent(Agent):
 
     def __init__(self, heartbeat_interval=60, schedule_publish_interval=60,
                  preempt_grace_time=60,
-                 driver_vip_identity='platform.driver', **kwargs):
+                 driver_vip_identity=PLATFORM_DRIVER, **kwargs):
 
         super(ActuatorAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
