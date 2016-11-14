@@ -21,6 +21,13 @@ An authentication record is created by using :code:`volttron-ctl auth add` comma
         comments []:
         enabled [True]:
 
+The listed fields can also be specified on the command line::
+
+    volttron-ctl auth add --user_id bob --credentials ABCD...
+
+If any field is specified on the command line, then the interactive menu
+will not be used.
+
 The simplest way of creating an authentication record is by entering the user_id and credential values.
 User_id is a arbitrary string for VOLTTRON to identify the agent. Credential is the encoded public key string
 for the agent. Create a public/private key pair for the agent and enter encoded public key for credential parameter.
