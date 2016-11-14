@@ -51481,8 +51481,10 @@
 	                ChartCheckbox = React.createElement(
 	                    'div',
 	                    null,
-	                    React.createElement(_checkBox2.default, { controlClass: 'panelItemCheckbox', controlStyle: inputStyle,
-	                        oncheck: this._checkItem }),
+	                    React.createElement(_checkBox2.default, { controlClass: 'panelItemCheckbox',
+	                        controlStyle: inputStyle,
+	                        oncheck: this._checkItem,
+	                        selected: typeof this.state.checked === "undefined" || this.state.checked === null ? false : this.state.checked }),
 	                    React.createElement(
 	                        'div',
 	                        { className: 'checkboxSpinner arrowButton',
@@ -52175,7 +52177,7 @@
 	        _this._bind('_onCheck');
 	
 	        _this.state = {
-	            checked: false
+	            checked: _this.props.selected ? _this.props.selected : false
 	        };
 	        return _this;
 	    }
@@ -111976,6 +111978,10 @@
 	
 	var _reactSelectMe2 = _interopRequireDefault(_reactSelectMe);
 	
+	var _checkBox = __webpack_require__(304);
+	
+	var _checkBox2 = _interopRequireDefault(_checkBox);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	var React = __webpack_require__(3);
@@ -112034,6 +112040,9 @@
 	        }
 	
 	        this.setState(state);
+	    },
+	    _onPinChange: function _onPinChange(checked) {
+	        this.setState({ pin: checked });
 	    },
 	    _onChartTypeChange: function _onChartTypeChange(selection) {
 	        this.setState({ chartType: selection.value });
@@ -112117,14 +112126,10 @@
 	                    null,
 	                    'Dashboard'
 	                ),
-	                React.createElement('input', {
-	                    className: 'form__control form__control--inline',
-	                    type: 'checkbox',
+	                React.createElement(_checkBox2.default, {
 	                    id: 'pin',
-	                    onChange: this._onPropChange,
-	                    checked: this.state.pin
-	                }),
-	                '\xA0',
+	                    controlClass: 'form__control form__control--inline',
+	                    oncheck: this._onPinChange }),
 	                React.createElement(
 	                    'label',
 	                    { htmlFor: 'pin' },
@@ -112243,4 +112248,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-9b97ba2619ebe54c9475.js.map
+//# sourceMappingURL=app-8a858822666f708af6d9.js.map

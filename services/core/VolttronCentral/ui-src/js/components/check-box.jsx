@@ -10,7 +10,7 @@ class CheckBox extends BaseComponent {
         this._bind('_onCheck');
 
 		this.state = {
-            checked: false
+            checked: (this.props.selected ? this.props.selected : false)
         };
 	}
     componentDidMount() {

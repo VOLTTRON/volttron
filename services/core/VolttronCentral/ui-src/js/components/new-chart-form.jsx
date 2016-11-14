@@ -10,6 +10,7 @@ var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var chartStore = require('../stores/platform-chart-store');
 
 import Select from 'react-select-me';
+import CheckBox from './check-box';
 
 var NewChartForm = React.createClass({
     getInitialState: function () {
@@ -57,6 +58,10 @@ var NewChartForm = React.createClass({
         }
 
         this.setState(state);
+    },
+    _onPinChange: function (checked)
+    {
+        this.setState({pin: checked});
     },
     _onChartTypeChange: function (selection) {
         this.setState({chartType: selection.value});
@@ -131,13 +136,11 @@ var NewChartForm = React.createClass({
                 </div>
                 <div className="form__control-group">
                     <label>Dashboard</label>
-                    <input
-                        className="form__control form__control--inline"
-                        type="checkbox"
+                    <CheckBox
                         id="pin"
-                        onChange={this._onPropChange}
-                        checked={this.state.pin}
-                    />&nbsp;
+                        controlClass="form__control form__control--inline"
+                        oncheck={this._onPinChange}>
+                    </CheckBox>
                     <label htmlFor="pin">Pin to dashboard</label>
                 </div>
                 <div className="form__control-group">
