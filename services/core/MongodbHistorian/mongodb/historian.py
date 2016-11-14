@@ -291,7 +291,7 @@ class MongodbHistorian(BaseHistorian):
         if start is not None:
             ts_filter["$gte"] = start
         if end is not None:
-            ts_filter["$lte"] = end
+            ts_filter["$lt"] = end
         if count is None:
             count = 100
         skip_count = 0
@@ -300,7 +300,10 @@ class MongodbHistorian(BaseHistorian):
 
         find_params = {}
         if ts_filter:
-            find_params = {'ts': ts_filter}
+            if start == end :
+                find_params = {'ts' : start}
+            else:
+                find_params = {'ts': ts_filter}
 
         values = defaultdict(list)
         for x in topic_ids:

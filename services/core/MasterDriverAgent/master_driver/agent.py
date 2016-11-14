@@ -60,6 +60,7 @@ import gevent
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent import utils
 from volttron.platform.agent import math_utils
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from driver import DriverAgent
 import resource
 from datetime import datetime
@@ -408,7 +409,7 @@ class MasterDriverAgent(Agent):
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(master_driver_agent, identity='platform.driver')
+    utils.vip_main(master_driver_agent, identity=PLATFORM_DRIVER)
 
 
 if __name__ == '__main__':
