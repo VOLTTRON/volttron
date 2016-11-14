@@ -923,7 +923,6 @@ def add_auth(opts):
         "capabilities": _comma_split(opts.capabilities),
         "comments": opts.comments,
     }
-    enabled = not opts.disabled
 
     if any(fields.values()):
         # Remove unspecified options so the default parameters are used
@@ -934,6 +933,17 @@ def add_auth(opts):
         # No options were specified, use interactive wizard
         responses = _ask_for_auth_fields()
         entry = AuthEntry(**responses)
+
+    if opts.add_known_host:
+        if entry.address is None:
+            raise ValueError('host (--address) is required when '
+                             '--add-known-host is specified')
+        if entry.credentials is None:
+            raise ValueError('serverkey (--credentials) is required when '
+                             '--add-known-host is specified')
+        opts.host = entry.address
+        opts.serverkey = entry.credentials
+        add_server_key(opts)
 
     auth_file = _get_auth_file(opts.volttron_home)
     try:
@@ -1414,6 +1424,8 @@ def main(argv=sys.argv):
             help='delimit multiple entries with comma')
     auth_add.add_argument('--comments', default=None)
     auth_add.add_argument('--disabled', action='store_true')
+    auth_add.add_argument('--add-known-host', action='store_true',
+            help='adds entry in known host')
     auth_add.set_defaults(func=add_auth)
 
     auth_add_known_host = add_parser('add-known-host', subparser=auth_subparsers,
