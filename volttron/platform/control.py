@@ -777,7 +777,7 @@ def do_stats(opts):
 
 
 def show_serverkey(opts):
-    """ 
+    """
     write serverkey to standard out.
 
     return 0 if success, 1 if false
@@ -853,14 +853,6 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                 self._fields[name]['response'] = callback(response)
             return {k: self._fields[k]['response'] for k in self._fields}
 
-    def comma_split(response):
-        if not isinstance(response, basestring):
-            return response
-        response = response.strip()
-        if not response:
-            return []
-        return [word.strip() for word in response.split(',')]
-
     def to_true_or_false(response):
         if isinstance(response, basestring):
             return {'true': True, 'false': False}[response.lower()]
@@ -892,11 +884,11 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
     asker.add('address', address)
     asker.add('user_id', user_id)
     asker.add('capabilities', capabilities,
-              'delimit multiple entries with comma', comma_split)
+              'delimit multiple entries with comma', _comma_split)
     asker.add('roles', roles, 'delimit multiple entries with comma',
-              comma_split)
+              _comma_split)
     asker.add('groups', groups, 'delimit multiple entries with comma',
-              comma_split)
+              _comma_split)
     asker.add('mechanism', mechanism, validate=valid_mech)
     asker.add('credentials', credentials, validate=valid_creds)
     asker.add('comments', comments)
@@ -906,9 +898,43 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
     return asker.ask()
 
 
+def _comma_split(line):
+    if not isinstance(line, basestring):
+        return line
+    line = line.strip()
+    if not line:
+        return []
+    return [word.strip() for word in line.split(',')]
+
+
 def add_auth(opts):
-    responses = _ask_for_auth_fields()
-    entry = AuthEntry(**responses)
+    """Add authorization entry.
+
+    If all options are None, then use interactive 'wizard.'
+    """
+    fields = {
+        "domain": opts.domain,
+        "address": opts.address,
+        "mechanism": opts.mechanism,
+        "credentials": opts.credentials,
+        "user_id": opts.user_id,
+        "groups": _comma_split(opts.groups),
+        "roles": _comma_split(opts.roles),
+        "capabilities": _comma_split(opts.capabilities),
+        "comments": opts.comments,
+    }
+    enabled = not opts.disabled
+
+    if any(fields.values()):
+        # Remove unspecified options so the default parameters are used
+        fields = {k: v for k, v in fields.items() if v}
+        fields['enabled'] = not opts.disabled
+        entry = AuthEntry(**fields)
+    else:
+        # No options were specified, use interactive wizard
+        responses = _ask_for_auth_fields()
+        entry = AuthEntry(**responses)
+
     auth_file = _get_auth_file(opts.volttron_home)
     try:
         auth_file.add(entry, overwrite=False)
@@ -1372,8 +1398,22 @@ def main(argv=sys.argv):
     auth_subparsers = auth_cmds.add_subparsers(title='subcommands',
             metavar='', dest='store_commands')
 
-    auth_add = add_parser('add', help='add new authentication record',
+    auth_add = add_parser('add',
+            help='add new authentication record',
             subparser=auth_subparsers)
+    auth_add.add_argument('--domain', default=None)
+    auth_add.add_argument('--address', default=None)
+    auth_add.add_argument('--mechanism', default=None)
+    auth_add.add_argument('--credentials', default=None)
+    auth_add.add_argument('--user_id', default=None)
+    auth_add.add_argument('--groups', default=None,
+            help='delimit multiple entries with comma')
+    auth_add.add_argument('--roles', default=None,
+            help='delimit multiple entries with comma')
+    auth_add.add_argument('--capabilities', default=None,
+            help='delimit multiple entries with comma')
+    auth_add.add_argument('--comments', default=None)
+    auth_add.add_argument('--disabled', action='store_true')
     auth_add.set_defaults(func=add_auth)
 
     auth_add_known_host = add_parser('add-known-host', subparser=auth_subparsers,

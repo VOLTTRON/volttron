@@ -67,6 +67,25 @@ def auth_add(platform, entry):
     assert p.returncode == 0
 
 
+def auth_add_cmd_line(platform, entry):
+    args = ['volttron-ctl', 'auth', 'add']
+    fields = entry.__dict__.copy()
+    enabled = fields.pop('enabled')
+    for k, v in fields.items():
+        if isinstance(v, list):
+            v = ','.join(v)
+        if v:
+            args.extend(['--' + k, v])
+
+    if not enabled:
+        args.append('--disabled')
+
+    env = get_env(platform)
+    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
+    p.communicate()
+    assert p.returncode == 0
+
+
 def auth_remove(platform, index):
     env = get_env(platform)
     p = subprocess.Popen(['volttron-ctl', 'auth', 'remove', str(index)], env=env,
@@ -102,6 +121,17 @@ def test_auth_add(volttron_instance_encrypt):
     """Add a single entry"""
     platform = volttron_instance_encrypt
     auth_add(platform, _auth_entry1)
+    # Verify entry shows up in list
+    entries = auth_list_json(platform)
+    assert len(entries) > 0
+    assert_auth_entries_same(entries[-1], _auth_entry1.__dict__)
+
+
+@pytest.mark.control
+def test_auth_add_cmd_line(volttron_instance_encrypt):
+    """Add a single entry, specifying parameters on the command line"""
+    platform = volttron_instance_encrypt
+    auth_add_cmd_line(platform, _auth_entry1)
     # Verify entry shows up in list
     entries = auth_list_json(platform)
     assert len(entries) > 0
