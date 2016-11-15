@@ -64,7 +64,7 @@ from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.dbutils import sqlutils
 from volttron.platform.vip.agent import *
 
-__version__ = "3.6.0"
+__version__ = "3.6.1"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -146,47 +146,16 @@ class SQLHistorian(BaseHistorian):
         :param kwargs: additional keyword arguments. (optional identity and
                        topic_replace_list used by parent classes)
         """
-        super(SQLHistorian, self).__init__(**kwargs)
-        database_type = config['connection']['type']
-        self.tables_def, table_names = self.parse_table_def(config)
-        db_functs_class = sqlutils.get_dbfuncts_class(database_type)
-        self.reader = db_functs_class(config['connection']['params'],
-                                      table_names)
-        self.writer = db_functs_class(config['connection']['params'],
-                                      table_names)
-        self.reader.setup_historian_tables()
-
+        self.config = config
         self.topic_id_map = {}
         self.topic_name_map = {}
         self.topic_meta = {}
         self.agg_topic_id_map = {}
+        self.tables_def = {}
+        self.reader = None
+        self.writer = None
+        super(SQLHistorian, self).__init__(**kwargs)
 
-    @Core.receiver("onstart")
-    def starting(self, sender, **kwargs):
-        """ Called right after connections to the Router occurred.
-        Loads list of topics , aggregate topics, and metadata in memory for
-        use during query
-
-        :param sender:
-        :param kwargs:
-        """
-        _log.info("Starting historian with identity: {}".format(
-            self.core.identity))
-        _log.debug("starting Thread is: {}".format(
-            threading.currentThread().getName()))
-
-        topic_id_map, topic_name_map = self.reader.get_topic_map()
-        self.topic_id_map.update(topic_id_map)
-        self.topic_name_map.update(topic_name_map)
-        self.agg_topic_id_map = self.reader.get_agg_topic_map()
-
-        if self.core.identity == 'platform.historian':
-            if 'platform.agent' in self.vip.peerlist().get(timeout=2):
-                _log.info('Registering with platform.agent as a  service.')
-                self.vip.rpc.call('platform.agent', 'register_service',
-                                  self.core.identity).get(timeout=2)
-            else:
-                _log.info('No platform.agent available to register with.')
 
     def record_table_definitions(self, meta_table_name):
         self.writer.record_table_definitions(self.tables_def,
@@ -369,6 +338,20 @@ class SQLHistorian(BaseHistorian):
     def historian_setup(self):
         thread_name = threading.currentThread().getName()
         _log.debug("historian_setup on Thread: {}".format(thread_name))
+
+        database_type = self.config['connection']['type']
+        self.tables_def, table_names = self.parse_table_def(self.config)
+        db_functs_class = sqlutils.get_dbfuncts_class(database_type)
+        self.reader = db_functs_class(self.config['connection']['params'],
+                                      table_names)
+        self.writer = db_functs_class(self.config['connection']['params'],
+                                      table_names)
+        self.reader.setup_historian_tables()
+
+        topic_id_map, topic_name_map = self.reader.get_topic_map()
+        self.topic_id_map.update(topic_id_map)
+        self.topic_name_map.update(topic_name_map)
+        self.agg_topic_id_map = self.reader.get_agg_topic_map()
 
 
 

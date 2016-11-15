@@ -279,3 +279,34 @@ def test_upgrade_file_verison_0_to_1(tmpdir_factory):
     expected["credentials"] = publickey
     expected["mechanism"] = mechanism
     assert_auth_entries_same(expected, vars(entries[0]))
+
+
+@pytest.mark.auth
+def test_upgrade_file_verison_0_to_1_minium_entries(tmpdir_factory):
+    """The only required field in 'version 0' was credentials"""
+    mechanism = "CURVE"
+    publickey = "A" * 43
+    version0 = {
+        "allow": [{"credentials": mechanism + ":" + publickey}],
+    }
+
+    filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
+    with open(filename, 'w') as fp:
+        fp.write(json.dumps(version0, indent=2))
+
+    upgraded = AuthFile(filename)
+    entries = upgraded.read()[0]
+    assert len(entries) == 1
+
+    expected = version0['allow'][0]
+    expected["credentials"] = publickey
+    expected["mechanism"] = mechanism
+    expected["domain"] = None
+    expected["address"] = None
+    expected["user_id"] = None
+    expected["enabled"] = True
+    expected["comments"] = None
+    expected["capabilities"] = []
+    expected["roles"] = []
+    expected["groups"] = []
+    assert_auth_entries_same(expected, vars(entries[0]))

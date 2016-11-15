@@ -26,6 +26,9 @@ DAEMON_ARGS="-v -l $VLHOME/volttron.log"
 PIDFILE=/var/run/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
 
+#Uncomment and change this to specify a different VOLTTRON_HOME
+#export VOLTTRON_HOME=/home/volttron/.volttron
+
 # Exit if the package is not installed
 [ -x "$DAEMON" ] || exit 0
 

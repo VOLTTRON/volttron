@@ -80,7 +80,7 @@ from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform import get_home, get_address
 
 from .agent import utils
-from .agent.known_identities import CONTROL_CONNECTION
+from .agent.known_identities import CONTROL_CONNECTION, CONFIGURATION_STORE
 from .vip.agent import Agent as BaseAgent, Core, RPC
 from . import aip as aipmod
 from . import config
@@ -796,7 +796,7 @@ def gen_keypair(opts):
 
 def add_server_key(opts):
     store = KnownHostsStore()
-    store.add(opts.host, opts.server_key)
+    store.add(opts.host, opts.serverkey)
     _stdout.write('server key written to {}\n'.format(store.filename))
 
 
@@ -1108,7 +1108,7 @@ def get_agent_publickey(opts):
 #                client.send_and_start_agent(file)
 
 def add_config_to_store(opts):
-    opts.connection.peer = "config.store"
+    opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
 
     file_contents = opts.infile.read()
@@ -1116,7 +1116,7 @@ def add_config_to_store(opts):
     call("manage_store", opts.identity, opts.name, file_contents, config_type=opts.config_type)
 
 def delete_config_from_store(opts):
-    opts.connection.peer = "config.store"
+    opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
     if opts.delete_store:
         call("manage_delete_store", opts.identity)
@@ -1130,7 +1130,7 @@ def delete_config_from_store(opts):
 
 
 def list_store(opts):
-    opts.connection.peer = "config.store"
+    opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
     results = []
     if opts.identity is None:
@@ -1142,7 +1142,7 @@ def list_store(opts):
         _stdout.write(item+"\n")
 
 def get_config(opts):
-    opts.connection.peer = "config.store"
+    opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
     results = call("manage_get", opts.identity, opts.name, raw=opts.raw)
 
@@ -1422,7 +1422,7 @@ def main(argv=sys.argv):
             help='add server public key to known-hosts file')
     auth_add_known_host.add_argument('--host', required=True,
             help='hostname or IP address with optional port')
-    auth_add_known_host.add_argument('--server-key', required=True)
+    auth_add_known_host.add_argument('--serverkey', required=True)
     auth_add_known_host.set_defaults(func=add_server_key)
 
     auth_keypair = add_parser('keypair', subparser=auth_subparsers,

@@ -31,19 +31,19 @@ connected to the network that can reach the device.
 In Linux you can usually get the addresses bound to all interfaces by running
 ``ifconfig`` from the command line.
 
-If a different outgoing port other than the default 47808 must be used
-the it can be specified as part of the address in the form
+If a different outgoing port other than the default 47808 must be used,
+it can be specified as part of the address in the form
 
     ``<ADDRESS>:<PORT>``
     
-In some cases the netmask of the network will be needed for proper configuration.
+In some cases, the netmask of the network will be needed for proper configuration.
 This can be done following this format
 
     ``<ADDRESS>/<NETMASK>:<PORT>``
     
 where ``<NETMASK>`` is the netmask length. The most common value is 24. See http://www.computerhope.com/jargon/n/netmask.htm
 
-In some cases you may also need to specify a different device ID by 
+In some cases, you may also need to specify a different device ID by
 changing the value of **objectIdentifier** so the virtual BACnet device does
 not conflict with any devices on the network. **objectIdentifier**
 defaults to 599.
@@ -94,7 +94,7 @@ The address where the device can be reached is listed on the **Device Address** 
 The BACnet device ID is listed on the **Device Id** line.
 The remaining lines are informational and not needed to configure the BACnet driver.
 
-For the first example the IP address ``192.168.1.42`` can be used to reach
+For the first example, the IP address ``192.168.1.42`` can be used to reach
 the device. The second device is behind a BACnet router and can be
 reached at ``1002:11``. See RouterAddressing Remote Station addressing.
 
@@ -124,19 +124,19 @@ information and print the resulting CSV file to the console.
 In order to save the configuration to a file use the ``--out-file`` option to specify the
 output file name.
 
-Optionally the ``--address`` option can be used to specify the address of the target. In some cases this is needed to help
+Optionally the ``--address`` option can be used to specify the address of the target. In some cases, this is needed to help
 establish a route to the device.
 
 Output and Assumptions
 **********************
 
 Attempts at determining if a point is writable proved too unreliable.
-Therefore all points are considered to be read only in the output.
+Therefore all points are considered to be read-only in the output.
 
 The only property for which a point is setup for an object is
 **presentValue**. 
 
-By default the **Volttron Point Name** is set to the value of the **name**
+By default, the **Volttron Point Name** is set to the value of the **name**
 property of the BACnet object on the device. In most cases this name is vague.
 No attempt is made at choosing a better name. A
 duplicate of "Volttron Point Name" column called "Reference Point Name" is created to so that
@@ -162,7 +162,7 @@ Problems and Debugging
 **********************
 
 Typically the utility should run quickly and finish in 30 seconds or
-less. In our testing we have never seen a successful scrape take more
+less. In our testing, we have never seen a successful scrape take more
 than 15 seconds on a very slow device with many points. Many devices
 will scrape in less that 3 seconds.
 

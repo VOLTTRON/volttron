@@ -19,7 +19,7 @@ Suppose a user wants to connect to a platform at ``192.168.0.42:22916``, and the
 platform's public key is ``uhjbCUm3kT5QWj5Py9w0XZ7c1p6EP8pdo4Hq4dNEIiQ``.
 To save this address-to-server-key association, the user can run::
 
-    volttron-ctl auth add-known-host --host 192.168.0.42:22916 --server-key uhjbCUm3kT5QWj5Py9w0XZ7c1p6EP8pdo4Hq4dNEIiQ
+    volttron-ctl auth add-known-host --host 192.168.0.42:22916 --serverkey uhjbCUm3kT5QWj5Py9w0XZ7c1p6EP8pdo4Hq4dNEIiQ
 
 Now agents on this system will automatically use the correct server key when
 connecting to the platform at ``192.168.0.42:22916``.

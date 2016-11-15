@@ -1,0 +1,18 @@
+This agent example is meant to be run the command line, as opposed to
+installing it like other agents. From this directory the command to start
+it is:
+
+$ AGENT_CONFIG=config python -m ddsagent.agent
+
+The rticonnextdds-connector library needs to be installed for this example
+to function properly. We'll retrieve it from github since it is not available
+through pip. Download the source with
+
+$ wget https://github.com/rticommunity/rticonnextdds-connector/archive/master.zip
+
+and unpack it in DDSAgent/ddsagent with
+
+$ unzip master.zip
+
+The demo_publish() output can be viewed with the rtishapesdemo available
+from rti.

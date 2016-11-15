@@ -65,6 +65,7 @@ import logging
 import os
 import random
 import re
+import shutil
 
 import gevent
 from gevent.fileobject import FileObject
@@ -499,6 +500,11 @@ class AuthFile(object):
                       .format(entry, self.auth_file, msg))
 
         def upgrade_0_to_1():
+            backup_name = self.auth_file + '.bak'
+            shutil.copy(self.auth_file, backup_name)
+            _log.info('Created backup of {} at {}'.format(self.auth_file,
+                backup_name))
+
             new_allow_list = []
             for entry in allow_list:
                 try:
@@ -526,16 +532,16 @@ class AuthFile(object):
                         warn_invalid(entry, 'Unexpected credential format')
                         continue
                 new_allow_list.append({
-                    "domain": entry['domain'],
-                    "address": entry['address'],
+                    "domain": entry.get('domain', None),
+                    "address": entry.get('address', None),
                     "mechanism": mechanism,
                     "credentials": credentials,
-                    "user_id": entry['user_id'],
-                    "groups": entry['groups'],
-                    "roles": entry['roles'],
-                    "capabilities": entry['capabilities'],
-                    "comments": entry['comments'],
-                    "enabled": entry['enabled']
+                    "user_id": entry.get('user_id', None),
+                    "groups": entry.get('groups', []),
+                    "roles": entry.get('roles', []),
+                    "capabilities": entry.get('capabilities', []),
+                    "comments": entry.get('comments', None),
+                    "enabled": entry.get('enabled', True)
                 })
             return new_allow_list
 

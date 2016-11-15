@@ -77,6 +77,7 @@ instance with VCA.
    
 """
 import errno
+import hashlib
 import logging
 import os
 import os.path as p
@@ -111,7 +112,7 @@ from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 from volttron.utils.persistance import load_create_store
 from zmq.utils import jsonapi
 
-__version__ = "3.5.4"
+__version__ = "3.5.5"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -397,11 +398,6 @@ class VolttronCentralAgent(Agent):
                                                   topicsplit[1], \
                                                   topicsplit[2], topicsplit[3:]
 
-        if len(platform_uuid) != 36:
-            _log.error('Invalid platform id detected {}'
-                       .format(platform_uuid))
-            return
-
         platform = self._registered_platforms.get(platform_uuid)
         if platform is None:
             _log.warn('Platform {} is not registered but sent message {}'
@@ -577,7 +573,8 @@ class VolttronCentralAgent(Agent):
         assert cn.is_connected(), "Connection unavailable for address {}"\
             .format(address)
         if cn_uuid is None:
-            cn_uuid = str(uuid.uuid4())
+            md5 = hashlib.md5(address)
+            cn_uuid = md5.hexdigest()
             self._address_to_uuid[address] = cn_uuid
         self._platform_connections[cn_uuid] = cn
         return cn
@@ -680,7 +677,8 @@ class VolttronCentralAgent(Agent):
                             instance_uuid=address_uuid
                         )
                 else:
-                    address_uuid = str(uuid.uuid4())
+                    md5 = hashlib.md5(address)
+                    address_uuid = md5.hexdigest()
                     _log.debug("New platform with uuid: {}".format(
                         address_uuid))
                     connection.call('reconfigure',
