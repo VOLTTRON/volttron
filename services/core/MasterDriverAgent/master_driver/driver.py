@@ -78,7 +78,12 @@ _log = logging.getLogger(__name__)
 
 
 class DriverAgent(BasicAgent): 
-    def __init__(self, parent, config, time_slot, driver_scrape_interval, device_path, **kwargs):
+    def __init__(self, parent, config, time_slot, driver_scrape_interval, device_path,
+                 default_publish_depth_first_all = True,
+                 default_publish_breadth_first_all=True,
+                 default_publish_depth_first=True,
+                 default_publish_breadth_first=True,
+                 **kwargs):
         super(DriverAgent, self).__init__(**kwargs)
         self.heart_beat_value = 0
         self.device_name = ''
@@ -87,6 +92,11 @@ class DriverAgent(BasicAgent):
         self.vip = parent.vip
         self.config = config
         self.device_path = device_path
+
+        self.update_publish_types(default_publish_depth_first_all ,
+                                 default_publish_breadth_first_all,
+                                 default_publish_depth_first,
+                                 default_publish_breadth_first)
 
 
         try:
@@ -101,6 +111,17 @@ class DriverAgent(BasicAgent):
         self.periodic_read_event = None
 
         self.update_scrape_schedule(time_slot, driver_scrape_interval)
+
+    def update_publish_types(self, publish_depth_first_all,
+                                   publish_breadth_first_all,
+                                   publish_depth_first,
+                                   publish_breadth_first):
+        """Setup which publish types happen for a scrape.
+           Values passed in are overridden by settings in the specific device configuration."""
+        self.publish_depth_first_all = bool(self.config.get("publish_depth_first_all", publish_depth_first_all))
+        self.publish_breadth_first_all = bool(self.config.get("publish_breadth_first_all", publish_breadth_first_all))
+        self.publish_depth_first = bool(self.config.get("publish_depth_first", publish_depth_first))
+        self.publish_breadth_first = bool(self.config.get("publish_breadth_first", publish_breadth_first))
 
 
     def update_scrape_schedule(self, time_slot, driver_scrape_interval):
@@ -178,10 +199,7 @@ class DriverAgent(BasicAgent):
         
         self.heart_beat_point = config.get("heart_beat_point") 
         
-        self.publish_depth_first_all = bool(config.get("publish_depth_first_all", True))
-        self.publish_breadth_first_all = bool(config.get("publish_breadth_first_all", True))
-        self.publish_depth_first = bool(config.get("publish_depth_first", True))
-        self.publish_breadth_first = bool(config.get("publish_breadth_first", True))
+
                            
         self.interface = self.get_interface(driver_type, driver_config, registry_config)
         self.meta_data = {}

@@ -60,6 +60,7 @@ import gevent
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent import utils
 from volttron.platform.agent import math_utils
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from driver import DriverAgent
 import resource
 from datetime import datetime
@@ -118,13 +119,21 @@ def master_driver_agent(config_path, **kwargs):
         _log.warning("Master driver configured with old setting. This is no longer supported.")
         _log.warning('Use the script "scripts/update_master_driver_config.py" to convert the configuration.')
 
-    
+    publish_depth_first_all = bool(get_config("publish_depth_first_all", True))
+    publish_breadth_first_all = bool(get_config("publish_breadth_first_all", True))
+    publish_depth_first = bool(get_config("publish_depth_first", True))
+    publish_breadth_first = bool(get_config("publish_breadth_first", True))
+
     return MasterDriverAgent(driver_config_list, scalability_test,
                              scalability_test_iterations,
                              driver_scrape_interval,
                              max_open_sockets,
                              max_concurrent_publishes,
                              system_socket_limit,
+                             publish_depth_first_all,
+                             publish_breadth_first_all,
+                             publish_depth_first,
+                             publish_breadth_first,
                              heartbeat_autostart=True, **kwargs)
 
 class MasterDriverAgent(Agent):
@@ -134,6 +143,10 @@ class MasterDriverAgent(Agent):
                  max_open_sockets = None,
                  max_concurrent_publishes = 10000,
                  system_socket_limit = None,
+                 publish_depth_first_all=True,
+                 publish_breadth_first_all=True,
+                 publish_depth_first=True,
+                 publish_breadth_first=True,
                  **kwargs):
         super(MasterDriverAgent, self).__init__(**kwargs)
         self.instances = {}
@@ -147,6 +160,11 @@ class MasterDriverAgent(Agent):
         self.freed_time_slots = []
         self._name_map = {}
 
+        self.publish_depth_first_all = publish_depth_first_all
+        self.publish_breadth_first_all = publish_breadth_first_all
+        self.publish_depth_first = publish_depth_first
+        self.publish_breadth_first = publish_breadth_first
+
 
         if scalability_test:
             self.waiting_to_finish = set()
@@ -158,7 +176,11 @@ class MasterDriverAgent(Agent):
                                "scalability_test_iterations": scalability_test_iterations,
                                "max_open_sockets": max_open_sockets,
                                "max_concurrent_publishes": max_concurrent_publishes,
-                               "driver_scrape_interval": driver_scrape_interval}
+                               "driver_scrape_interval": driver_scrape_interval,
+                               "publish_depth_first_all": publish_depth_first_all,
+                               "publish_breadth_first_all": publish_breadth_first_all,
+                               "publish_depth_first": publish_depth_first,
+                               "publish_breadth_first": publish_breadth_first}
 
         self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
@@ -235,28 +257,36 @@ class MasterDriverAgent(Agent):
             driver_scrape_interval = float(config["driver_scrape_interval"])
         except ValueError as e:
             _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
-            _log.error("Master driver settings unchanged")
+            _log.error("Master driver scrape interval settings unchanged")
             # TODO: set a health status for the agent
-            return
-
-        if self.driver_scrape_interval == driver_scrape_interval:
-            #Setting unchanged.
-            return
 
         if self.scalability_test and action == "UPDATE":
             _log.info("Running scalability test. Settings may not be changed without restart.")
             return
 
-        self.driver_scrape_interval = driver_scrape_interval
+        if self.driver_scrape_interval != driver_scrape_interval:
+            self.driver_scrape_interval = driver_scrape_interval
 
-        _log.info("Setting time delta between driver device scrapes to  " + str(driver_scrape_interval))
+            _log.info("Setting time delta between driver device scrapes to  " + str(driver_scrape_interval))
 
-        #Reset all scrape schedules
-        self.freed_time_slots = []
-        time_slot = 0
+            #Reset all scrape schedules
+            self.freed_time_slots = []
+            time_slot = 0
+            for driver in self.instances.itervalues():
+                driver.update_scrape_schedule(time_slot, self.driver_scrape_interval)
+                time_slot+=1
+
+        self.publish_depth_first_all = bool(config["publish_depth_first_all"])
+        self.publish_breadth_first_all = bool(config["publish_breadth_first_all"])
+        self.publish_depth_first = bool(config["publish_depth_first"])
+        self.publish_breadth_first = bool(config["publish_breadth_first"])
+
+        #Update the publish settings on running devices.
         for driver in self.instances.itervalues():
-            driver.update_scrape_schedule(time_slot, self.driver_scrape_interval)
-            time_slot+=1
+            driver.update_publish_types(self.publish_depth_first_all,
+                                        self.publish_breadth_first_all,
+                                        self.publish_depth_first,
+                                        self.publish_breadth_first)
 
     def derive_device_topic(self, config_name):
         _, topic = config_name.split('/', 1)
@@ -290,7 +320,11 @@ class MasterDriverAgent(Agent):
             slot = self.freed_time_slots.pop(0)
 
         _log.info("Starting driver: {}".format(topic))
-        driver = DriverAgent(self, contents, slot, self.driver_scrape_interval, topic)
+        driver = DriverAgent(self, contents, slot, self.driver_scrape_interval, topic,
+                             self.publish_depth_first_all,
+                             self.publish_breadth_first_all,
+                             self.publish_depth_first,
+                             self.publish_breadth_first)
         gevent.spawn(driver.core.run)
         self.instances[topic] = driver
         self._name_map[topic.lower()] = topic
@@ -375,7 +409,7 @@ class MasterDriverAgent(Agent):
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(master_driver_agent, identity='platform.driver')
+    utils.vip_main(master_driver_agent, identity=PLATFORM_DRIVER)
 
 
 if __name__ == '__main__':
