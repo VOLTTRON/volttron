@@ -77,7 +77,7 @@ from volttron.platform.messaging.health import (STATUS_BAD,
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.6'
+__version__ = '0.1'
 
 
 def historian(config_path, **kwargs):
@@ -86,12 +86,6 @@ def historian(config_path, **kwargs):
     custom_topic_list = config.get('custom_topic_list', [])
     topic_replace_list = config.get('topic_replace_list', [])
     destination_vip = config.get('destination-vip')
-
-    # hosts = KnownHostsStore()
-    # destination_serverkey = hosts.serverkey(destination_vip)
-    # if destination_serverkey is None:
-    #     _log.info("Destination serverkey not found in known hosts file, using config")
-    #     destination_serverkey = config['destination-serverkey']
 
     required_target_agents = config.get('required_target_agents', [])
     backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
@@ -148,7 +142,6 @@ def historian(config_path, **kwargs):
                 # so we can do the proper thing when it is here
                 _log.debug("message in capture_data {}".format(message))
                 if sender == 'pubsub.compat':
-                    # data = jsonapi.loads(message[0])
                     data = compat.unpack_legacy_message(headers, message)
                     _log.debug("data in capture_data {}".format(data))
                 if isinstance(data, dict):
@@ -157,8 +150,6 @@ def historian(config_path, **kwargs):
                         isinstance(data, float) or \
                         isinstance(data, long):
                     data = data
-                    # else:
-                    #     data = data[0]
             except ValueError as e:
                 log_message = "message for {topic} bad message string:" \
                               "{message_string}"
@@ -219,73 +210,15 @@ def historian(config_path, **kwargs):
                     return
 
             # timestamp objects are not serializable to json
-            # for x in to_publish_list:
-            #     x['timestamp'] = utils.format_timestamp(x['timestamp'])
-
-            # try:
-            #     self._target_platform.vip.rpc.call(destinationst_historian_identity,
-            #                                        'insert', to_publish_list).get()
-            # except Unreachable:
-            #     _log.error("Can not call RPC method on target platform")
-            #     return
-
-            # self.report_all_handled()
-
+            to_send = []
             for x in to_publish_list:
-                topic = x['topic']
-                value = x['value']
-                # payload = jsonapi.loads(value)
-                payload = value
-                headers = payload['headers']
-                headers['X-Forwarded'] = True
-                try:
-                    del headers['Origin']
-                except KeyError:
-                    pass
-                try:
-                    del headers['Destination']
-                except KeyError:
-                    pass
+                to_send.append({'topic': x['topic'],
+                                'headers': x['value']['headers'],
+                                'message': x['value']['message']})
 
-                if timeout_occurred:
-                    _log.error(
-                        'A timeout has occured so breaking out of publishing')
-                    break
-                with gevent.Timeout(30):
-                    try:
-                        _log.debug('debugger: {} {} {}'.format(topic,
-                                                               headers,
-                                                               payload))
-                        self._target_platform.vip.pubsub.publish(
-                            peer='pubsub',
-                            topic=topic,
-                            headers=headers,
-                            message=payload['message']).get()
-                    except gevent.Timeout:
-                        _log.debug("Timout occurred email should send!")
-                        timeout_occurred = True
-                        self._last_timeout = self.timestamp()
-                        self._num_failures += 1
-                        # Stop the current platform from attempting to
-                        # connect
-                        self._target_platform.core.stop()
-                        self._target_platform = None
-                        self.vip.health.set_status(
-                            STATUS_BAD, "Timout occured")
-                    except Exception as e:
-                        _log.error(e)
-                    else:
-                        handled_records.append(x)
-
-            _log.debug("handled: {} number of items".format(
-                len(to_publish_list)))
-            self.report_handled(handled_records)
-
-            if timeout_occurred:
-                _log.debug('Sending alert from the ForwardHistorian')
-                status = Status.from_json(self.vip.health.get_status())
-                self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
-                                           status)
+            self._target_platform.vip.rpc.call('platform.historian',
+                                               'insert', to_send).get(timeout=10)
+            self.report_all_handled()
 
         def historian_setup(self):
             _log.debug(
