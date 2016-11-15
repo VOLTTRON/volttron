@@ -60,21 +60,16 @@ import datetime
 import logging
 import sys
 import time
-from urlparse import urlparse
 import threading
 import gevent
-from zmq.utils import jsonapi
 
-from volttron.platform.vip.agent import Agent, Core, compat, Unreachable
+from volttron.platform.vip.agent import Agent, Core, compat
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent.utils import build_connection
-from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.messaging import topics, headers as headers_mod
-from volttron.platform.messaging.health import (STATUS_BAD,
-                                                STATUS_GOOD, Status)
+from volttron.platform.messaging.health import STATUS_BAD, Status
 
-FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
+DATAMOVER_TIMEOUT_KEY = 'DATAMOVER_TIMEOUT_KEY'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '0.1'
@@ -82,27 +77,28 @@ __version__ = '0.1'
 
 def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
-    services_topic_list = config.get('services_topic_list', ['all'])
+    services_topic_list = config.get('services_topic_list', [
+        topics.DRIVER_TOPIC_BASE,
+        topics.LOGGER_BASE,
+        topics.ACTUATOR,
+        topics.ANALYSIS_TOPIC_BASE
+    ])
     custom_topic_list = config.get('custom_topic_list', [])
     topic_replace_list = config.get('topic_replace_list', [])
     destination_vip = config.get('destination-vip')
-
-    required_target_agents = config.get('required_target_agents', [])
+    destination_historian_identity = config.get('destination-historian-identity',
+                                                'platform.historian')
     backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
-    if 'all' in services_topic_list:
-        services_topic_list = [topics.DRIVER_TOPIC_BASE, topics.LOGGER_BASE,
-                               topics.ACTUATOR, topics.ANALYSIS_TOPIC_BASE]
 
-    class ForwardHistorian(BaseHistorian):
+    class DataMover(BaseHistorian):
         '''This historian forwards data to another platform.
         '''
 
         def __init__(self, **kwargs):
             # will be available in both threads.
             self._topic_replace_map = {}
-            self._num_failures = 0
             self._last_timeout = 0
-            super(ForwardHistorian, self).__init__(**kwargs)
+            super(DataMover, self).__init__(**kwargs)
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
@@ -110,20 +106,13 @@ def historian(config_path, **kwargs):
             Subscribes to the platform message bus on the actuator, record,
             datalogger, and device topics to capture data.
             '''
+            _log.debug("Starting DataMover")
 
-            def subscriber(subscription, callback_method):
-                _log.debug("subscribing to {}".format(subscription))
+            for topic in services_topic_list + custom_topic_list:
+                _log.debug("subscribing to {}".format(topic))
                 self.vip.pubsub.subscribe(peer='pubsub',
-                                          prefix=subscription,
-                                          callback=callback_method)
-
-            _log.debug("Starting Forward historian")
-            for topic_subscriptions in services_topic_list:
-                subscriber(topic_subscriptions, self.capture_data)
-
-            for custom_topic in custom_topic_list:
-                subscriber(custom_topic, self.capture_data)
-
+                                          prefix=topic,
+                                          callback=self.capture_data)
             self._started = True
 
         def timestamp(self):
@@ -180,17 +169,12 @@ def historian(config_path, **kwargs):
                                    'readings': [(timestamp_string, payload)]})
 
         def publish_to_historian(self, to_publish_list):
-            handled_records = []
-
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
-            parsed = urlparse(self.core.address)
-            next_dest = urlparse(destination_vip)
             current_time = self.timestamp()
             last_time = self._last_timeout
-            _log.debug('Lasttime: {} currenttime: {}'.format(last_time,
-                                                             current_time))
-            timeout_occurred = False
+            _log.debug('Last timeout: {} current time: {}'.format(last_time,
+                                                                  current_time))
             if self._last_timeout:
                 # if we failed we need to wait 60 seconds before we go on.
                 if self.timestamp() < self._last_timeout + 60:
@@ -202,23 +186,22 @@ def historian(config_path, **kwargs):
                 _log.debug('Could not connect to target')
                 return
 
-            for vip_id in required_target_agents:
-                try:
-                    self._target_platform.vip.ping(vip_id).get()
-                except Unreachable:
-                    _log.warning("Skipping publish: Target platform not running required agent {}".format(vip_id))
-                    return
-
-            # timestamp objects are not serializable to json
             to_send = []
             for x in to_publish_list:
                 to_send.append({'topic': x['topic'],
                                 'headers': x['value']['headers'],
                                 'message': x['value']['message']})
 
-            self._target_platform.vip.rpc.call('platform.historian',
-                                               'insert', to_send).get(timeout=10)
-            self.report_all_handled()
+            try:
+                self._target_platform.vip.rpc.call(destination_historian_identity,
+                                                   'insert', to_send).get(timeout=10)
+                self.report_all_handled()
+            except gevent.Timeout:
+                self._last_timeout = self.timestamp()
+                self._target_platform.core.stop()
+                self._target_platform = None
+                self.vip.health.set_status(
+                    STATUS_BAD, "Timout occured")
 
         def historian_setup(self):
             _log.debug(
@@ -232,24 +215,18 @@ def historian(config_path, **kwargs):
                 self.vip.health.set_status(
                     STATUS_BAD, "Timeout in setup of agent")
                 status = Status.from_json(self.vip.health.get_status())
-                self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
+                self.vip.health.send_alert(DATAMOVER_TIMEOUT_KEY,
                                            status)
 
-    return ForwardHistorian(backup_storage_limit_gb=backup_storage_limit_gb,
-                            **kwargs)
+    return DataMover(backup_storage_limit_gb=backup_storage_limit_gb,
+                     **kwargs)
 
 
 def main(argv=sys.argv):
-    '''Main method called by the aip.'''
-    try:
-        utils.vip_main(historian)
-    except Exception as e:
-        print(e)
-        _log.exception('unhandled exception')
+    utils.vip_main(historian)
 
 
 if __name__ == '__main__':
-    # Entry point for script
     try:
         sys.exit(main())
     except KeyboardInterrupt:
