@@ -84,20 +84,26 @@ class BaseJSONStore(object):
         os.chmod(filename, permissions)
 
     def store(self, data):
-        fd = os.open(self.filename, os.O_CREAT | os.O_WRONLY, self.permissions)
+        fd = os.open(self.filename, os.O_CREAT | os.O_WRONLY | os.O_TRUNC,
+                     self.permissions)
         try:
             os.write(fd, json.dumps(data, indent=4))
         finally:
             os.close(fd)
 
     def load(self):
+        with open(self.filename, 'r') as json_file:
+            return json.load(json_file)
+
+    def remove(self, key):
+        data = self.load()
         try:
-            with open(self.filename, 'r') as json_file:
-                return json.load(json_file)
-        except IOError:
-            return {}
-        except ValueError:
-            return {}
+            del data[key]
+        except KeyError as e:
+            msg = 'Key "{}" is not present in {}'.format(key, self.filename)
+            raise KeyError(msg)
+        else:
+            self.store(data)
 
     def update(self, new_data):
         data = self.load()
