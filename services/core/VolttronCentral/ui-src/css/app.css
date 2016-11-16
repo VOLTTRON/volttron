@@ -409,13 +409,16 @@ br + .form__control-help {
     background-color: #f8f8f8;
     overflow-y: auto;
     overflow-x: hidden;
-    border-right: 1px #ddd solid;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     -khtml-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+
+.platform-statuses.platform-collapsed {
+    border-right: 1px #ddd solid;
 }
 
 .platform-link {
@@ -1691,6 +1694,10 @@ td.plain {
 
 .detectDevicesContainer {
     width: 450px;
+}
+
+.config-devices-table {
+    width: auto;
 }
 
 .devicesFoundContainer {

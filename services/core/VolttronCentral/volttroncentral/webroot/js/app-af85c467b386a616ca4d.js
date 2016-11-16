@@ -60010,13 +60010,6 @@
 	                    height: "24px"
 	                };
 	
-	                var platformNameLength = platform.name.length * 6;
-	
-	                var platformNameStyle = {
-	                    width: "25%",
-	                    minWidth: platformNameLength
-	                };
-	
 	                var deviceRangeStyle = {
 	                    width: "100%"
 	                };
@@ -60115,13 +60108,7 @@
 	                );
 	
 	                var scanOptionsStyle = {
-	                    float: "left",
-	                    marginRight: "10px"
-	                };
-	
-	                var platformNameStyle = {
-	                    float: "left",
-	                    width: "100%"
+	                    float: "left"
 	                };
 	
 	                var devicesContainer;
@@ -60200,47 +60187,71 @@
 	                        bacnet: this.state.selectedProxyIdentity });
 	                }
 	
+	                var cellStyle = {
+	                    verticalAlign: "top"
+	                };
+	
 	                deviceContent = _react2.default.createElement(
 	                    'div',
 	                    { className: 'device-box device-scan' },
 	                    _react2.default.createElement(
-	                        'div',
-	                        { style: platformNameStyle },
+	                        'table',
+	                        { className: 'config-devices-table' },
 	                        _react2.default.createElement(
-	                            'div',
-	                            { style: scanOptionsStyle },
-	                            _react2.default.createElement(
-	                                'b',
-	                                null,
-	                                'Platform: '
-	                            )
-	                        ),
-	                        _react2.default.createElement(
-	                            'div',
-	                            { style: scanOptionsStyle },
-	                            platform.name
-	                        )
-	                    ),
-	                    _react2.default.createElement(
-	                        'div',
-	                        { style: scanOptionsStyle },
-	                        _react2.default.createElement(
-	                            'b',
+	                            'tbody',
 	                            null,
-	                            'Method: '
+	                            _react2.default.createElement(
+	                                'tr',
+	                                null,
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    _react2.default.createElement(
+	                                        'b',
+	                                        null,
+	                                        'Platform: '
+	                                    )
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    platform.name
+	                                ),
+	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle }),
+	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle })
+	                            ),
+	                            _react2.default.createElement(
+	                                'tr',
+	                                null,
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    _react2.default.createElement(
+	                                        'b',
+	                                        null,
+	                                        'Method: '
+	                                    )
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    methodSelect
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    scanOptions
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    ' ',
+	                                    scanButton,
+	                                    ' '
+	                                )
+	                            )
 	                        )
-	                    ),
-	                    _react2.default.createElement(
-	                        'div',
-	                        { style: scanOptionsStyle },
-	                        methodSelect
-	                    ),
-	                    _react2.default.createElement(
-	                        'div',
-	                        { style: scanOptionsStyle },
-	                        scanOptions
-	                    ),
-	                    scanButton
+	                    )
 	                );
 	            } else {
 	                defaultMessage = _react2.default.createElement(
@@ -112447,4 +112458,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-076f6d85d7162df77dfc.js.map
+//# sourceMappingURL=app-af85c467b386a616ca4d.js.map

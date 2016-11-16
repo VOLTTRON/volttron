@@ -260,13 +260,6 @@ class ConfigureDevices extends BaseComponent {
                 height: "24px"
             }
 
-            var platformNameLength = platform.name.length * 6;
-
-            var platformNameStyle = {
-                width: "25%",
-                minWidth: platformNameLength
-            }
-
             var deviceRangeStyle = {
                 width: "100%"
             }
@@ -325,13 +318,7 @@ class ConfigureDevices extends BaseComponent {
             )
 
             var scanOptionsStyle = {
-                float: "left",
-                marginRight: "10px"
-            }
-
-            var platformNameStyle = {
-                float: "left",
-                width: "100%"
+                float: "left"
             }
 
             var devicesContainer;
@@ -405,18 +392,30 @@ class ConfigureDevices extends BaseComponent {
                 );
             }
 
+            var cellStyle = {
+                verticalAlign: "top"
+            };
+
             deviceContent = (
                 <div className="device-box device-scan">
-                    <div style={platformNameStyle}>
-                        <div style={scanOptionsStyle}>
-                            <b>Platform: </b>
-                        </div>
-                        <div style={scanOptionsStyle}>{platform.name}</div>
-                    </div>
-                    <div style={scanOptionsStyle}><b>Method: </b></div>
-                    <div style={scanOptionsStyle}>{methodSelect}</div>  
-                    <div style={scanOptionsStyle}>{scanOptions}</div>
-                    {scanButton}
+                    <table className="config-devices-table">
+                        <tbody>
+                            <tr>
+                                <td className="plain" style={cellStyle}>
+                                    <b>Platform: </b>
+                                </td>
+                                <td className="plain" style={cellStyle}>{platform.name}</td>
+                                <td className="plain" style={cellStyle}></td>
+                                <td className="plain" style={cellStyle}></td>
+                            </tr>
+                            <tr>
+                                <td className="plain" style={cellStyle}><b>Method: </b></td>
+                                <td className="plain" style={cellStyle}>{methodSelect}</td>  
+                                <td className="plain" style={cellStyle}>{scanOptions}</td>
+                                <td className="plain" style={cellStyle}> {scanButton} </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             )
             

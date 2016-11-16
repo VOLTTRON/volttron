@@ -409,13 +409,16 @@ br + .form__control-help {
     background-color: #f8f8f8;
     overflow-y: auto;
     overflow-x: hidden;
-    border-right: 1px #ddd solid;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     -khtml-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+
+.platform-statuses.platform-collapsed {
+    border-right: 1px #ddd solid;
 }
 
 .platform-link {
@@ -1693,6 +1696,10 @@ td.plain {
     width: 450px;
 }
 
+.config-devices-table {
+    width: auto;
+}
+
 .devicesFoundContainer {
     width: 800px;
 }
@@ -1833,4 +1840,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-076f6d85d7162df77dfc.css.map*/
+/*# sourceMappingURL=app-af85c467b386a616ca4d.css.map*/
