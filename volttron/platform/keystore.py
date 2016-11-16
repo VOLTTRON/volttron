@@ -80,7 +80,7 @@ class BaseJSONStore(object):
     def __init__(self, filename, permissions=0o600):
         self.filename = filename
         self.permissions = permissions
-        create_file_if_missing(filename)
+        create_file_if_missing(filename, contents='{}')
         os.chmod(filename, permissions)
 
     def store(self, data):
