@@ -758,6 +758,30 @@ def add_server_key(opts):
     _stdout.write('server key written to {}\n'.format(store.filename))
 
 
+def list_known_hosts(opts):
+
+    def print_two_columns(dict_, key_name, value_name):
+        padding = 2
+        key_lengths = [len(key) for key in dict_] + [len(key_name)]
+        max_key_len = max(key_lengths) + padding
+        _stdout.write('{}{}{}\n'.format(key_name,
+            ' ' * (max_key_len - len(key_name)), value_name))
+        _stdout.write('{}{}{}\n'.format('-' * len(key_name),
+            ' ' * (max_key_len - len(key_name)),
+            '-' * len(value_name)))
+        for key in dict_:
+             _stdout.write('{}{}{}\n'.format(key,
+                 ' ' * (max_key_len - len(key)),
+                 dict_[key]))
+
+    store = KnownHostsStore()
+    entries = store.load()
+    if entries:
+        print_two_columns(entries, 'HOST', 'CURVE KEY')
+    else:
+        _stdout.write('No entries in {}\n'.format(store.filename))
+
+
 def remove_known_host(opts):
     store = KnownHostsStore()
     store.remove(opts.host)
@@ -1435,14 +1459,21 @@ def main(argv=sys.argv):
             help='adds entry in known host')
     auth_add.set_defaults(func=add_auth)
 
-    auth_add_known_host = add_parser('add-known-host', subparser=auth_subparsers,
+    auth_add_known_host = add_parser('add-known-host',
+            subparser=auth_subparsers,
             help='add server public key to known-hosts file')
     auth_add_known_host.add_argument('--host', required=True,
             help='hostname or IP address with optional port')
     auth_add_known_host.add_argument('--serverkey', required=True)
     auth_add_known_host.set_defaults(func=add_server_key)
 
-    auth_remove_known_host = add_parser('remove-known-host', subparser=auth_subparsers,
+    auth_list_known_host = add_parser('list-known-hosts',
+            subparser=auth_subparsers,
+            help='list entries from known-hosts file')
+    auth_list_known_host.set_defaults(func=list_known_hosts)
+
+    auth_remove_known_host = add_parser('remove-known-host',
+            subparser=auth_subparsers,
             help='remove entry from known-hosts file')
     auth_remove_known_host.add_argument('--host', required=True,
             help='hostname or IP address with optional port')
