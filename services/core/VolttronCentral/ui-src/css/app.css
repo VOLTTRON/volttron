@@ -1445,6 +1445,28 @@ a.view__item:hover::before {
     background: rgba(128,128,255,0.5);
 } 
 
+.advanced-toggle {
+    cursor: pointer;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    color: #50959C;
+    background-color: #50959C;
+    height: 30px;
+    width: 30px;
+    transform: rotate(45deg) translate(26px, 0px);
+
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.advanced-toggle:hover {
+    opacity: 0.8;
+}
 
 /***react-select-me style overrides ***/
 
@@ -1687,6 +1709,8 @@ td.plain {
 .detectDevicesBox {    
     border: 1px solid black;
     padding: 2px;
+    overflow: hidden;
+    position: relative;
 }
 
 .detectDevicesBox table {

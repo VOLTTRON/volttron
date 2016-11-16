@@ -23,7 +23,7 @@ var devicesActionCreators = {
             platform: platform
         });
     },
-    scanForDevices: function (platformUuid, platformAgentUuid, bacnetProxyIdentity, low, high, address) {
+    scanForDevices: function (platformUuid, platformAgentUuid, bacnetProxyIdentity, low, high, address, scan_length) {
 
         var authorization = authorizationStore.getAuthorization();
 
@@ -44,6 +44,11 @@ var devicesActionCreators = {
         if (address)
         {
             params.target_address = address;
+        }
+
+        if (scan_length)
+        {
+            params.scan_length = scan_length;
         }
 
         var setUpDevicesSocket = function(platformUuid, bacnetIdentity) {

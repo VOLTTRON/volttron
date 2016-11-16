@@ -35349,6 +35349,8 @@
 	            agentsHealth = checkStatuses(agentsHealth, agentProps);
 	        });
 	
+	        platform.expanded = platform.agents.children.length > 0;
+	
 	        platform.agents.status = agentsHealth;
 	        platform.agents.statusLabel = getStatusLabel(agentsHealth);
 	    }
@@ -35479,6 +35481,10 @@
 	        buildings.forEach(function (blg) {
 	            buildingsHealth = checkStatuses(buildingsHealth, blg);
 	        });
+	
+	        if (platform.buildings.children.length > 0) {
+	            platform.expanded = true;
+	        }
 	
 	        platform.buildings.status = buildingsHealth;
 	        platform.buildings.statusLabel = getStatusLabel(buildingsHealth);
@@ -36444,7 +36450,7 @@
 	
 	                    var pointsList = [];
 	
-	                    if (platformPerformance) {
+	                    if (platformPerformance && platformPerformance.performance.hasOwnProperty("points")) {
 	                        var points = platformPerformance.performance.points;
 	
 	                        points.forEach(function (point) {
@@ -56731,7 +56737,7 @@
 	            platform: platform
 	        });
 	    },
-	    scanForDevices: function scanForDevices(platformUuid, platformAgentUuid, bacnetProxyIdentity, low, high, address) {
+	    scanForDevices: function scanForDevices(platformUuid, platformAgentUuid, bacnetProxyIdentity, low, high, address, scan_length) {
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
@@ -56749,6 +56755,10 @@
 	
 	        if (address) {
 	            params.target_address = address;
+	        }
+	
+	        if (scan_length) {
+	            params.scan_length = scan_length;
 	        }
 	
 	        var setUpDevicesSocket = function setUpDevicesSocket(platformUuid, bacnetIdentity) {
@@ -59738,7 +59748,7 @@
 	
 	        var _this = _possibleConstructorReturn(this, (ConfigureDevices.__proto__ || Object.getPrototypeOf(ConfigureDevices)).call(this, props));
 	
-	        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan', '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded', '_showTooltip', '_hideTooltip');
+	        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan', '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded', '_showTooltip', '_hideTooltip', '_toggleAdvanced', '_onScanLength');
 	
 	        _this.state = getInitialState();
 	        return _this;
@@ -59837,7 +59847,7 @@
 	        value: function _onStartScan(evt) {
 	            var platformAgentUuid = platformsStore.getPlatformAgentUuid(this.state.platform.uuid);
 	
-	            devicesActionCreators.scanForDevices(this.state.platform.uuid, platformAgentUuid, this.state.selectedProxyIdentity, this.state.deviceStart, this.state.deviceEnd, this.state.address);
+	            devicesActionCreators.scanForDevices(this.state.platform.uuid, platformAgentUuid, this.state.selectedProxyIdentity, this.state.deviceStart, this.state.deviceEnd, this.state.address, this.state.scan_length);
 	
 	            this.setState({ scanning: true });
 	            this.setState({ scanStarted: true });
@@ -59890,6 +59900,27 @@
 	            this.setState({ showTooltip: false });
 	        }
 	    }, {
+	        key: '_toggleAdvanced',
+	        value: function _toggleAdvanced() {
+	            var showAdvanced = !this.state.showAdvanced;
+	
+	            if (!showAdvanced) {
+	                this.setState({ scan_length: "" });
+	                this.setState({ address: "" });
+	            }
+	
+	            this.setState({ showAdvanced: showAdvanced });
+	        }
+	    }, {
+	        key: '_onScanLength',
+	        value: function _onScanLength(evt) {
+	            var scanLength = evt.target.value;
+	
+	            if (scanLength > -1) {
+	                this.setState({ scan_length: scanLength });
+	            }
+	        }
+	    }, {
 	        key: 'render',
 	        value: function render() {
 	
@@ -59907,7 +59938,7 @@
 	                    value: this.state.deviceMethod,
 	                    onChange: this._onDeviceMethodChange });
 	
-	                var proxySelect;
+	                var proxySelect, scanLength;
 	
 	                var wideStyle = {
 	                    width: "100%"
@@ -59916,6 +59947,8 @@
 	                var fifthCell = {
 	                    width: "20px"
 	                };
+	
+	                var advancedClass = this.state.showAdvanced ? "" : "displayNone";
 	
 	                if (this.state.deviceMethod === "scanForDevices") {
 	                    var proxies = this.state.bacnetProxies.map(function (proxy) {
@@ -59931,7 +59964,7 @@
 	                            _react2.default.createElement(
 	                                'b',
 	                                null,
-	                                'BACNet Proxy Agent '
+	                                'BACNet\xA0Proxy\xA0Agent '
 	                            )
 	                        ),
 	                        _react2.default.createElement(
@@ -59944,6 +59977,31 @@
 	                                onChange: this._onProxySelect,
 	                                value: this.state.selectedProxyIdentity
 	                            })
+	                        )
+	                    );
+	
+	                    scanLength = _react2.default.createElement(
+	                        'tr',
+	                        { className: advancedClass },
+	                        _react2.default.createElement(
+	                            'td',
+	                            null,
+	                            _react2.default.createElement(
+	                                'b',
+	                                null,
+	                                'Scan\xA0Duration\xA0(sec)'
+	                            )
+	                        ),
+	                        _react2.default.createElement(
+	                            'td',
+	                            { className: 'plain',
+	                                colSpan: 4 },
+	                            _react2.default.createElement('input', {
+	                                style: wideStyle,
+	                                type: 'number',
+	                                min: '0',
+	                                onChange: this._onScanLength,
+	                                value: this.state.scan_length })
 	                        )
 	                    );
 	                }
@@ -59989,7 +60047,7 @@
 	                                        _react2.default.createElement(
 	                                            'b',
 	                                            null,
-	                                            'Device ID Range'
+	                                            'Device\xA0ID\xA0Range'
 	                                        )
 	                                    ),
 	                                    _react2.default.createElement(
@@ -60023,7 +60081,7 @@
 	                                ),
 	                                _react2.default.createElement(
 	                                    'tr',
-	                                    null,
+	                                    { className: advancedClass },
 	                                    _react2.default.createElement(
 	                                        'td',
 	                                        null,
@@ -60043,8 +60101,15 @@
 	                                            onChange: this._onAddress,
 	                                            value: this.state.address })
 	                                    )
-	                                )
+	                                ),
+	                                scanLength
 	                            )
+	                        ),
+	                        _react2.default.createElement(
+	                            'div',
+	                            { className: 'advanced-toggle',
+	                                onClick: this._toggleAdvanced },
+	                            'X'
 	                        )
 	                    )
 	                );
@@ -60222,6 +60287,8 @@
 	        state.deviceStart = "";
 	        state.deviceEnd = "";
 	        state.address = "";
+	        state.scan_length = "";
+	        state.showAdvanced = false;
 	
 	        state.startedInputtingDeviceEnd = false;
 	
@@ -112063,7 +112130,7 @@
 	        if (platformCharts.length === 0) {
 	            var noCharts = React.createElement(
 	                'p',
-	                { className: 'empty-help' },
+	                { key: 'no-charts', className: 'empty-help' },
 	                'No charts have been loaded.'
 	            );
 	            platformCharts.push(noCharts);
@@ -112380,4 +112447,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-bfd06483a2243e9c3199.js.map
+//# sourceMappingURL=app-076f6d85d7162df77dfc.js.map

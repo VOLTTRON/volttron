@@ -20,7 +20,7 @@ class ConfigureDevices extends BaseComponent {
         this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange',
                     '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan',
                     '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded', '_showTooltip',
-                    '_hideTooltip');
+                    '_hideTooltip', '_toggleAdvanced', '_onScanLength');
 
         this.state = getInitialState();
     }
@@ -113,7 +113,8 @@ class ConfigureDevices extends BaseComponent {
             this.state.selectedProxyIdentity,
             this.state.deviceStart, 
             this.state.deviceEnd, 
-            this.state.address
+            this.state.address,
+            this.state.scan_length
         );
 
         this.setState({ scanning: true });
@@ -158,6 +159,25 @@ class ConfigureDevices extends BaseComponent {
     _hideTooltip() {
         this.setState({showTooltip: false});
     }
+    _toggleAdvanced() {
+        var showAdvanced = !this.state.showAdvanced;
+
+        if (!showAdvanced)
+        {
+            this.setState({scan_length: ""});
+            this.setState({address: ""});
+        }
+
+        this.setState({showAdvanced: showAdvanced});
+    }
+    _onScanLength(evt) {
+        var scanLength = evt.target.value;
+
+        if (scanLength > -1)
+        {
+            this.setState({scan_length: scanLength});
+        }
+    }
     render() {
 
         var deviceContent, defaultMessage;
@@ -181,7 +201,7 @@ class ConfigureDevices extends BaseComponent {
                 </Select>
             );
 
-            var proxySelect;
+            var proxySelect, scanLength;
 
             var wideStyle = {
                 width: "100%"
@@ -190,6 +210,10 @@ class ConfigureDevices extends BaseComponent {
             var fifthCell = {
                 width: "20px"
             }        
+
+            var advancedClass = (
+                this.state.showAdvanced ? "" : "displayNone"
+            );
 
             if (this.state.deviceMethod === "scanForDevices")
             {
@@ -201,7 +225,7 @@ class ConfigureDevices extends BaseComponent {
 
                 proxySelect = (
                     <tr>
-                        <td className="plain"><b>BACNet Proxy Agent </b></td>
+                        <td className="plain"><b>BACNet&nbsp;Proxy&nbsp;Agent </b></td>
 
                         <td className="plain"
                             colSpan={4}>
@@ -212,6 +236,21 @@ class ConfigureDevices extends BaseComponent {
                                 value={this.state.selectedProxyIdentity}
                             >   
                             </Select>
+                        </td>
+                    </tr>
+                );
+
+                scanLength = (
+                    <tr className={advancedClass}>
+                        <td><b>Scan&nbsp;Duration&nbsp;(sec)</b></td>
+                        <td className="plain"
+                            colSpan={4}>
+                            <input 
+                                style={wideStyle}
+                                type="number"
+                                min="0"
+                                onChange={this._onScanLength}
+                                value={this.state.scan_length}></input>
                         </td>
                     </tr>
                 );
@@ -243,7 +282,9 @@ class ConfigureDevices extends BaseComponent {
                             <tbody>
                                 {proxySelect}
                                 <tr>
-                                    <td className="plain" style={tdStyle}><b>Device ID Range</b></td>
+                                    <td className="plain" style={tdStyle}>                                        
+                                        <b>Device&nbsp;ID&nbsp;Range</b>
+                                    </td>
                                     <td className="plain">Min:</td>
                                     <td className="plain">
                                         <input
@@ -261,7 +302,7 @@ class ConfigureDevices extends BaseComponent {
                                             value={this.state.deviceEnd}></input>
                                     </td>
                                 </tr>
-                                <tr>
+                                <tr className={advancedClass}>
                                     <td><b>Address</b></td>
                                     <td className="plain"
                                         colSpan={4}>
@@ -272,8 +313,13 @@ class ConfigureDevices extends BaseComponent {
                                             value={this.state.address}></input>
                                     </td>
                                 </tr>
+                                {scanLength}
                             </tbody>
                         </table>
+                        <div className="advanced-toggle"
+                            onClick={this._toggleAdvanced}>
+                            X
+                        </div>
                     </div>                
                 </div>
             )
@@ -410,6 +456,8 @@ function getInitialState() {
         state.deviceStart = "";
         state.deviceEnd = "";
         state.address = "";
+        state.scan_length = "";
+        state.showAdvanced = false;
 
         state.startedInputtingDeviceEnd = false;
 
