@@ -54,7 +54,7 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 
 import datetime
 import logging
@@ -66,14 +66,13 @@ from volttron.platform.vip.agent import Agent, RPC, Core
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import get_aware_utc_now
 
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '3.6'
 
 
 def log_statistics(config_path, **kwargs):
-    """Load the FileWatchPublisher agent configuration and returns and instance
+    """Load the LogStatisticsAgent agent configuration and returns and instance
         of the agent created using that configuration.
 
     :param config_path: Path to a configuration file.
@@ -100,24 +99,28 @@ class LogStatisticsAgent(Agent):
     .. code-block:: python
 
     {
-        "analysis_interval" : 60
-    }
+    "file_path" : "/home/volttron/volttron.log",
+    "analysis_interval_sec" : 60,
+    "publish_topic" : "platform/log_statistics",
+    "historian_topic" : "analysis/log_statistics"
+}
 
     """
+
     def __init__(self, config, **kwargs):
         super(LogStatisticsAgent, self).__init__(**kwargs)
-        self.analysis_interval = config["analysis_interval"]
-        self.filepath = config["filepath"]
-        self.topic = "platform/log/hourly_size_delta"
+        self.analysis_interval_sec = config["analysis_interval_sec"]
+        self.file_path = config["file_path"]
+        self.publish_topic = config["publish_topic"]
+        self.historian_topic = config["historian_topic"]
         self.size_delta_list = []
         self.file_start_size = None
         self.prev_file_size = None
         self._scheduled_event = None
 
-
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
-        _log.info("Starting "+self.__class__.__name__+" agent")
+        _log.info("Starting " + self.__class__.__name__ + " agent")
         self.publish_analysis()
 
     def publish_analysis(self):
@@ -132,34 +135,50 @@ class LogStatisticsAgent(Agent):
             # read file size
             curr_file_size = self.get_file_size()
 
-            #calculate size delta
+            # calculate size delta
             size_delta = curr_file_size - self.prev_file_size
             self.prev_file_size = curr_file_size
 
             self.size_delta_list.append(size_delta)
 
-            message = {'timestamp': datetime.datetime.utcnow().isoformat() + 'Z',
-                       'size_delta' : size_delta}
+            headers = {'Date': datetime.datetime.utcnow().isoformat() + 'Z'}
+
+            publish_message = {'timestamp': datetime.datetime.utcnow().isoformat() + 'Z',
+                               'log_size_delta': size_delta}
+            historian_message = [{"log_size_delta ": size_delta},
+                                 {"log_size_delta ": {'units': 'bytes', 'tz': 'UTC', 'type': 'float'}}]
+
             if len(self.size_delta_list) == 24:
                 standard_deviation = statistics.stdev(self.size_delta_list)
-                message['std_dev'] = standard_deviation
-            _log.debug('publishing message {} on topic {}'.format(message, self.topic))
-            self.vip.pubsub.publish(peer="pubsub", topic=self.topic,
-                                    message=message)
+                publish_message['log_std_dev'] = standard_deviation
+                historian_message[0]['log_std_dev'] = standard_deviation
+                historian_message[1]['log_std_dev'] = {'units': 'bytes', 'tz': 'UTC', 'type': 'float'}
+
+                _log.debug('publishing message {} with header {} on historian topic {}'
+                           .format(historian_message, headers, self.historian_topic))
+                self.vip.pubsub.publish(peer="pubsub", topic=self.historian_topic, headers = headers,
+                                        message=historian_message)
+
+                self.size_delta_list = []
+
+            _log.debug('publishing message {} on topic {}'.format(publish_message, self.publish_topic))
+            self.vip.pubsub.publish(peer="pubsub", topic=self.publish_topic,
+                                    message=publish_message)
 
         _log.debug('Scheduling next periodic call')
         now = get_aware_utc_now()
         next_update_time = now + datetime.timedelta(
-            seconds=self.analysis_interval)
+            seconds=self.analysis_interval_sec)
 
         self._scheduled_event = self.core.schedule(
-            next_update_time, self.publish_analysis())
+            next_update_time, self.publish_analysis)
 
     def get_file_size(self):
         try:
-            return os.path.getsize(self.filepath)
+            return os.path.getsize(self.file_path)
         except OSError as e:
             _log.error(e.message)
+
 
 def main(argv=sys.argv):
     """Main method called by the platform."""
