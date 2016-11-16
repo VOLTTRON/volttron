@@ -92,8 +92,12 @@ class BaseJSONStore(object):
             os.close(fd)
 
     def load(self):
-        with open(self.filename, 'r') as json_file:
-            return json.load(json_file)
+        try:
+            with open(self.filename, 'r') as json_file:
+                return json.load(json_file)
+        except ValueError:
+            # If the file is empty json.load will raise ValueError
+            return {}
 
     def remove(self, key):
         data = self.load()
