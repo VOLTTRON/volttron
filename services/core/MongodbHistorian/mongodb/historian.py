@@ -68,10 +68,11 @@ from pymongo.errors import BulkWriteError
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.dbutils import mongoutils
+import re
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '1.0'
+__version__ = '2.0'
 
 
 def historian(config_path, **kwargs):
@@ -242,24 +243,26 @@ class MongodbHistorian(BaseHistorian):
         """
         start_time = datetime.utcnow()
         collection_name = self._data_collection
-        using_rolled_data = False
+        use_rolled_up_data = False
         if agg_type and agg_period:
             # query aggregate data collection instead
             collection_name = agg_type + "_" + agg_period
         else:
-            _log.debug("In else")
+
             # See if we can use rolled up data
-            if start and end:
+            p = re.compile('(\d+)\D+(\d+)\D+(\d+)\D*')
+            version_nums = p.match(__version__[0]).groups()
+            if int(version_nums[0]) >= 2 and start and end and start != end:
                 diff = relativedelta(start, end)
                 if diff.minutes == 0 and diff.seconds == 0:
                     collection_name = "hourly_data"
-                    using_rolled_data = True
+                    use_rolled_up_data = True
                     if diff.hours == 0:
                         collection_name = "daily_data"
-                        using_rolled_data = True
+                        use_rolled_up_data = True
                         if diff.days == 0:
                             collection_name = "monthly_data"
-                            using_rolled_data = True
+                            use_rolled_up_data = True
 
         topics_list = []
         if isinstance(topic, str):
@@ -325,7 +328,7 @@ class MongodbHistorian(BaseHistorian):
         for x in topic_ids:
             find_params['topic_id'] = ObjectId(x)
             _log.debug("querying table with params {}".format(find_params))
-            if using_rolled_data:
+            if use_rolled_up_data:
                 project = {"_id": 0, "data_refs": 1}
             else:
                 project = {"_id": 0, "timestamp": {
@@ -341,12 +344,12 @@ class MongodbHistorian(BaseHistorian):
             rows = list(cursor)
             _log.debug("Time after fetch {}".format(
                 datetime.utcnow() - start_time))
-            if using_rolled_data:
+            if use_rolled_up_data:
                 for row in rows:
-                    for timestep in row['data_refs']:
+                    for timestamp in row['data_refs']:
                         values[id_name_map[x]].append(
-                            (utils.format_timestamp(timestep[0]),
-                             timestep[1]))
+                            (utils.format_timestamp(timestamp[0]),
+                             timestamp[1]))
             else:
                 for row in rows:
                     values[id_name_map[x]].append(
@@ -357,7 +360,7 @@ class MongodbHistorian(BaseHistorian):
 
         _log.debug("Time taken to load all values {}".format(
             datetime.utcnow() - start_time))
-        _log.debug("Results got {}".format(values))
+        #_log.debug("Results got {}".format(values))
 
         if len(values) > 0:
             # If there are results add metadata if it is a query on a
