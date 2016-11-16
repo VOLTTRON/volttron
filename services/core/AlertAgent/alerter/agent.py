@@ -66,7 +66,7 @@ from volttron.platform.agent.known_identities import PLATFORM_ALERTER
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-__version__ = '0.2'
+__version__ = '0.3'
 
 
 class AlertAgent(Agent):
@@ -158,7 +158,20 @@ class AlertAgent(Agent):
 
     def reset_time(self, peer, sender, bus, topic, headers, message):
         if topic not in self.wait_time:
-            return
+            found = False
+            # if topic isn't in wait time we need to figure out the
+            # prefix topic so that we can determine the wait time
+            for x in self.wait_time:
+                # TODO: order the wait_time topics so furthest down the tree wins.
+                if topic.startswith(x):
+                    topic = x
+                    found = True
+                    break
+            if not found:
+                _log.debug("No configured topic prefix for topic {}".format(
+                    topic)
+                )
+                return
 
         _log.debug("Resetting timeout for {}".format(topic))
 
@@ -181,6 +194,9 @@ class AlertAgent(Agent):
             self.topic_ttl[topic] -= 1
             if self.topic_ttl[topic] <= 0:
                 self.send_alert(topic)
+                self.topic_ttl[topic] = self.wait_time[topic]
+
+
 
             # Send an alert if a point hasn't been seen
             try:
@@ -189,6 +205,7 @@ class AlertAgent(Agent):
                     self.point_ttl[topic][p] -= 1
                     if self.point_ttl[topic][p] <= 0:
                         self.send_alert(topic, p)
+                        self.point_ttl[topic][p] = self.wait_time[topic]
             except KeyError:
                 pass
 
