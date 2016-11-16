@@ -758,6 +758,13 @@ def add_server_key(opts):
     _stdout.write('server key written to {}\n'.format(store.filename))
 
 
+def remove_known_host(opts):
+    store = KnownHostsStore()
+    store.remove(opts.host)
+    _stdout.write('host "{}" removed from {}\n'.format(opts.host,
+            store.filename))
+
+
 def do_stats(opts):
     call = opts.connection.call
     if opts.op == 'status':
@@ -1434,6 +1441,12 @@ def main(argv=sys.argv):
             help='hostname or IP address with optional port')
     auth_add_known_host.add_argument('--serverkey', required=True)
     auth_add_known_host.set_defaults(func=add_server_key)
+
+    auth_remove_known_host = add_parser('remove-known-host', subparser=auth_subparsers,
+            help='remove entry from known-hosts file')
+    auth_remove_known_host.add_argument('--host', required=True,
+            help='hostname or IP address with optional port')
+    auth_remove_known_host.set_defaults(func=remove_known_host)
 
     auth_keypair = add_parser('keypair', subparser=auth_subparsers,
             help='generate CurveMQ keys for encrypting VIP connections')
