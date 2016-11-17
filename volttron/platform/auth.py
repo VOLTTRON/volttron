@@ -693,7 +693,7 @@ class AuthFile(object):
         self._write(entries, groups, roles)
 
     def set_groups(self, groups):
-        """Define the mapping of group names to capability lists
+        """Define the mapping of group names to role lists
 
         :param groups: dict where the keys are group names and the
                        values are lists of capability names
@@ -704,7 +704,7 @@ class AuthFile(object):
         self._set_groups_or_roles(groups, is_group=True)
 
     def set_roles(self, roles):
-        """Define the mapping of role names to group lists
+        """Define the mapping of role names to capability lists
 
         :param roles: dict where the keys are role names and the
                       values are lists of group names
