@@ -1104,9 +1104,11 @@ class VolttronCentralAgent(Agent):
     def _handle_bacnet_scan(self, session_user, platform_uuid, params):
         _log.debug('Handling bacnet_scan platform: {}'.format(platform_uuid))
 
-        scan_length = params.pop('scan_lenth', 5)
+        scan_length = params.pop('scan_length', 5)
 
         try:
+            scan_length = float(scan_length)
+            params['scan_length'] = scan_length
             vcp_conn = self._get_connection(platform_uuid)
             iam_topic = "{}/iam".format(session_user['token'])
             ws_socket_topic = "/vc/ws/{}".format(iam_topic)
