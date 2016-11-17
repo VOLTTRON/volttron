@@ -759,25 +759,10 @@ def add_server_key(opts):
 
 
 def list_known_hosts(opts):
-
-    def print_two_columns(dict_, key_name, value_name):
-        padding = 2
-        key_lengths = [len(key) for key in dict_] + [len(key_name)]
-        max_key_len = max(key_lengths) + padding
-        _stdout.write('{}{}{}\n'.format(key_name,
-            ' ' * (max_key_len - len(key_name)), value_name))
-        _stdout.write('{}{}{}\n'.format('-' * len(key_name),
-            ' ' * (max_key_len - len(key_name)),
-            '-' * len(value_name)))
-        for key in dict_:
-             _stdout.write('{}{}{}\n'.format(key,
-                 ' ' * (max_key_len - len(key)),
-                 dict_[key]))
-
     store = KnownHostsStore()
     entries = store.load()
     if entries:
-        print_two_columns(entries, 'HOST', 'CURVE KEY')
+        _print_two_columns(entries, 'HOST', 'CURVE KEY')
     else:
         _stdout.write('No entries in {}\n'.format(store.filename))
 
@@ -826,6 +811,21 @@ def show_serverkey(opts):
 def _get_auth_file(volttron_home):
     path = os.path.join(volttron_home, 'auth.json')
     return AuthFile(path)
+
+
+def _print_two_columns(dict_, key_name, value_name):
+        padding = 2
+        key_lengths = [len(key) for key in dict_] + [len(key_name)]
+        max_key_len = max(key_lengths) + padding
+        _stdout.write('{}{}{}\n'.format(key_name,
+            ' ' * (max_key_len - len(key_name)), value_name))
+        _stdout.write('{}{}{}\n'.format('-' * len(key_name),
+            ' ' * (max_key_len - len(key_name)),
+            '-' * len(value_name)))
+        for key in dict_:
+             _stdout.write('{}{}{}\n'.format(key,
+                 ' ' * (max_key_len - len(key)),
+                 dict_[key]))
 
 
 def list_auth(opts, indices=None):
@@ -1046,6 +1046,92 @@ def update_auth(opts):
         _stderr.write('ERROR: invalid index %s\n' % opts.index)
     except AuthException as err:
         _stderr.write('ERROR: %s\n' % err.message)
+
+
+def add_role(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    roles = auth_file.read()[2]
+    if opts.role in roles:
+        _stderr.write('role "{}" already exists\n'.format(opts.role))
+        return
+    roles[opts.role] = list(set(opts.capabilities))
+    auth_file.set_roles(roles)
+    _stdout.write('added role "{}"\n'.format(opts.role))
+
+
+def list_roles(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    roles = auth_file.read()[2]
+    _print_two_columns(roles, 'ROLE', 'CAPABILITIES')
+
+
+def update_role(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    roles = auth_file.read()[2]
+    if opts.role not in roles:
+        _stderr.write('role "{}" does not exist\n'.format(opts.role))
+        return
+    caps = roles[opts.role]
+    if opts.remove:
+        roles[opts.role] = list(set(caps) - set(opts.capabilities))
+    else:
+        roles[opts.role] = list(set(caps) | set(opts.capabilities))
+    auth_file.set_roles(roles)
+    _stdout.write('updated role "{}"\n'.format(opts.role))
+
+
+def remove_role(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    roles = auth_file.read()[2]
+    if opts.role not in roles:
+        _stderr.write('role "{}" does not exist\n'.format(opts.role))
+        return
+    del roles[opts.role]
+    auth_file.set_roles(roles)
+    _stdout.write('removed role "{}"\n'.format(opts.role))
+
+
+def add_group(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    groups = auth_file.read()[1]
+    if opts.group in groups:
+        _stderr.write('group "{}" already exists\n'.format(opts.group))
+        return
+    groups[opts.group] = list(set(opts.roles))
+    auth_file.set_groups(groups)
+    _stdout.write('added group "{}"\n'.format(opts.group))
+
+
+def list_groups(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    groups = auth_file.read()[1]
+    _print_two_columns(groups, 'GROUPS', 'ROLES')
+
+
+def update_group(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    groups = auth_file.read()[1]
+    if opts.group not in groups:
+        _stderr.write('group "{}" does not exist\n'.format(opts.group))
+        return
+    roles = groups[opts.group]
+    if opts.remove:
+        groups[opts.group] = list(set(roles) - set(opts.roles))
+    else:
+        groups[opts.group] = list(set(roles) | set(opts.roles))
+    auth_file.set_groups(groups)
+    _stdout.write('updated group "{}"\n'.format(opts.group))
+
+
+def remove_group(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    groups = auth_file.read()[1]
+    if opts.group not in groups:
+        _stderr.write('group "{}" does not exist\n'.format(opts.group))
+        return
+    del groups[opts.group]
+    auth_file.set_groups(groups)
+    _stdout.write('removed group "{}"\n'.format(opts.group))
 
 
 def _show_filtered_agents(opts, field_name, field_callback, agents=None):
@@ -1514,6 +1600,65 @@ def main(argv=sys.argv):
             help='index of record to update')
     auth_update.set_defaults(func=update_auth)
 
+    auth_add_role = add_parser('add-role',
+            subparser=auth_subparsers,
+            help='associate a role name with a set of capabilities')
+    auth_add_role.add_argument('role', metavar='ROLE', help='name of role')
+    auth_add_role.add_argument('capabilities', metavar='CAPABILITY',
+            nargs='*', help='capabilities to associate with the role')
+    auth_add_role.set_defaults(func=add_role)
+
+    auth_list_roles = add_parser('list-roles',
+            subparser=auth_subparsers,
+            help='show list of role names and their sets of capabilities')
+    auth_list_roles.set_defaults(func=list_roles)
+
+    auth_update_role = add_parser('update-role',
+            subparser=auth_subparsers,
+            help='update role to include (or remove) given capabilities')
+    auth_update_role.add_argument('role', metavar='ROLE', help='name of role')
+    auth_update_role.add_argument('capabilities', nargs='*',
+            metavar='CAPABILITY',
+            help='capabilities to append to (or remove from) the role')
+    auth_update_role.add_argument('--remove', action='store_true',
+            help='remove (rather than append) given capabilities')
+    auth_update_role.set_defaults(func=update_role)
+
+    auth_remove_role = add_parser('remove-role',
+            subparser=auth_subparsers,
+            help='disassociate a role name from a set of capabilities')
+    auth_remove_role.add_argument('role', help='name of role')
+    auth_remove_role.set_defaults(func=remove_role)
+
+    auth_add_group = add_parser('add-group',
+            subparser=auth_subparsers,
+            help='associate a group name with a set of roles')
+    auth_add_group.add_argument('group', metavar='GROUP', help='name of group')
+    auth_add_group.add_argument('roles', metavar='ROLE',
+            nargs='*', help='roles to associate with the group')
+    auth_add_group.set_defaults(func=add_group)
+
+    auth_list_groups = add_parser('list-groups',
+            subparser=auth_subparsers,
+            help='show list of group names and their sets of roles')
+    auth_list_groups.set_defaults(func=list_groups)
+
+    auth_update_group = add_parser('update-group',
+            subparser=auth_subparsers,
+            help='update group to include (or remove) given roles')
+    auth_update_group.add_argument('group', metavar='GROUP', help='name of group')
+    auth_update_group.add_argument('roles', nargs='*',
+            metavar='ROLE',
+            help='roles to append to (or remove from) the group')
+    auth_update_group.add_argument('--remove', action='store_true',
+            help='remove (rather than append) given roles')
+    auth_update_group.set_defaults(func=update_group)
+
+    auth_remove_group = add_parser('remove-group',
+            subparser=auth_subparsers,
+            help='disassociate a group name from a set of roles')
+    auth_remove_group.add_argument('group', help='name of group')
+    auth_remove_group.set_defaults(func=remove_group)
 
     config_store = add_parser("config",
                               help="manage the platform configuration store")
