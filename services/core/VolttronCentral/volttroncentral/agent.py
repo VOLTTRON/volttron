@@ -753,6 +753,8 @@ class VolttronCentralAgent(Agent):
                             publickey=self.core.publickey,
                             secretkey=self.core.secretkey,
                             peer=VOLTTRON_CENTRAL_PLATFORM)
+            _log.debug('Connection established for publickey: {}'.format(
+                self.core.publickey))
 
         assert cn.is_connected(), "Connection unavailable for address {}"\
             .format(address)
@@ -761,7 +763,7 @@ class VolttronCentralAgent(Agent):
         return cn
 
     def _get_connection(self, platform_hash):
-        cn = self._platform_connections.get(platform_hash)
+        cn = self.vcp_connections.get(platform_hash)
 
         if cn is None:
             raise ValueError('Invalid platform_hash specified {}'
@@ -1090,14 +1092,41 @@ class VolttronCentralAgent(Agent):
             )
         return performances
 
-    def _handle_get_devices(self, uuid):
-        _log.debug('handlinglin get_devices')
+    def _handle_get_devices(self, platform_uuid):
+        _log.debug('handling get_devices platform: {}'.format(platform_uuid))
 
         try:
-            platform = self.vip.config.get('platforms/{}'.format(uuid))
+            platform = self.vip.config.get('platforms/{}'.format(platform_uuid))
             return platform['devices_health'].copy()
         except KeyError:
-            _log.warn('Unknown platform uuid specified! {}'.format(uuid))
+            _log.warn('Unknown platform platform_uuid specified! {}'.format(platform_uuid))
+
+    def _handle_bacnet_scan(self, session_user, platform_uuid, params):
+        _log.debug('Handling bacnet_scan platform: {}'.format(platform_uuid))
+
+        scan_length = params.pop('scan_lenth', 5)
+
+        try:
+            vcp_conn = self._get_connection(platform_uuid)
+            iam_topic = "{}/iam".format(session_user['token'])
+            ws_socket_topic = "/vc/ws/{}".format(iam_topic)
+            self.vip.web.register_websocket(ws_socket_topic, self._ws_opened,
+                                            self._ws_closed, self._ws_received)
+            vcp_conn.call("start_bacnet_scan", iam_topic, **params)
+
+            def close_socket():
+                _log.debug('Closing bacnet scan for {}'.format(platform_uuid))
+                self.vip.web.unregister_websocket(ws_socket_topic)
+
+            gevent.spawn_later(scan_length, close_socket)
+        except ValueError:
+            return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
+                                      "Couldn't connect to platform {}".format(
+                                          platform_uuid
+                                      ))
+        except KeyError:
+            return jsonrpc.json_error(id, UNAUTHORIZED,
+                                      "Invalid user sessoin token")
 
     def _route_request(self, session_user, id, method, params):
         """ Handle the methods volttron central can or pass off to platforms.
@@ -1115,6 +1144,13 @@ class VolttronCentralAgent(Agent):
 
         def err(message, code=METHOD_NOT_FOUND):
             return {'error': {'code': code, 'message': message}}
+
+        if method == 'start_bacnet_scan':
+            platform_uuid = params.pop('platform_uuid', None)
+            if not platform_uuid:
+                return err("Invalid platform_uuid specified as parameter",
+                           INVALID_PARAMS)
+            return self._handle_bacnet_scan(session_user, platform_uuid, params)
 
         if method == 'open_websockets':
             token = session_user['token']
