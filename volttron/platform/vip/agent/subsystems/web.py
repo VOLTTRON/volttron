@@ -182,7 +182,13 @@ class WebSubSystem(SubsystemBase):
         :type received: function
         """
         self._ws_endpoint[endpoint] = (opened, closed, received)
-        self._rpc().call(MASTER_WEB, 'register_websocket', endpoint).get(timeout=5)
+        self._rpc().call(MASTER_WEB, 'register_websocket', endpoint).get(
+            timeout=5)
+
+    def unregister_websocket(self, endpoint):
+        self._rpc().call(MASTER_WEB, 'unregister_websocket', endpoint).get(
+            timeout=5
+        )
 
     def send(self, endpoint, message=''):
         """
@@ -218,7 +224,6 @@ class WebSubSystem(SubsystemBase):
         else:
             if callbacks[0]:
                 callbacks[0](endpoint)
-
 
     def _closed(self, endpoint):
         _log.debug('Client closed callback endpoint: {}'.format(endpoint))

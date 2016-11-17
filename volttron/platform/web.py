@@ -199,7 +199,7 @@ class VolttronWebSocket(WebSocket):
         print('Socket opened')
         app = self.environ['ws4py.app']
         identity, endpoint = self._get_identity_and_endpoint()
-        app.clients.append(self)
+        app.client_opened(self, endpoint, identity)
         app.emit_opened(identity, endpoint)
 
     def received_message(self, m):
@@ -209,22 +209,13 @@ class VolttronWebSocket(WebSocket):
         print('Socket received message: {}'.format(m))
         app = self.environ['ws4py.app']
         identity, endpoint = self._get_identity_and_endpoint()
-        app.emit_received(identity, endpoint, m)
-        # for client in app.clients:
-        #     client.send(m)
+        app.client_received(endpoint, m)
 
     def closed(self, code, reason="A client left the room without a proper explanation."):
         print('Socket closed!')
         app = self.environ.pop('ws4py.app')
         identity, endpoint = self._get_identity_and_endpoint()
-        app.emit_closed(identity, endpoint)
-        if self in app.clients:
-            app.clients.remove(self)
-            for client in app.clients:
-                try:
-                    client.send(reason)
-                except:
-                    pass
+        app.client_closed(self, endpoint, identity, reason)
 
 
 class WebApplicationWrapper(object):
@@ -238,6 +229,7 @@ class WebApplicationWrapper(object):
         self.host = host
         self.ws = WebSocketWSGIApplication(handler_cls=VolttronWebSocket)
         self.clients = []
+        self.endpoint_clients = {}
         self._wsregistry = {}
 
     def favicon(self, environ, start_response):
@@ -249,21 +241,38 @@ class WebApplicationWrapper(object):
         start_response(status, headers)
         return ""
 
-    def emit_opened(self, identity, endpoint):
+    def client_opened(self, client, endpoint, identity):
+        if endpoint not in self.endpoint_clients:
+            self.endpoint_clients[endpoint] = set()
+
+        self.endpoint_clients[endpoint].add((identity, client))
         self.masterweb.vip.rpc.call(identity, 'client.opened', endpoint)
 
-    def emit_closed(self, identity, endpoint):
-        self.masterweb.vip.rpc.call(identity, 'client.closed', endpoint)
+    def client_received(self, endpoint, message):
+        clients = self.endpoint_clients.get(endpoint, [])
+        for identity, _ in clients:
+            self.masterweb.vip.rpc.call(identity, 'client.message',
+                                        str(endpoint), str(message))
 
-    def emit_received(self, identity, endpoint, message):
-        print('The message is {} of {}'.format(message, type(message)))
-        self.masterweb.vip.rpc.call(identity, 'client.message',
-                                    str(endpoint), str(message))
+    def client_closed(self, client, endpoint, identity,
+                      reason="Client left without proper explaination"):
+
+        clients = self.endpoint_clients.get(endpoint, [])
+        key = (identity, client)
+        if key in clients:
+            self.masterweb.vip.rpc.call(identity, 'client.closed', endpoint)
+            clients.remove(key)
 
     def create_ws_endpoint(self, endpoint, identity):
-        print(endpoint, identity)
+        if endpoint in self.endpoint_clients:
+            print('Already have clients for endpoint {}'.format(endpoint))
+        self.endpoint_clients[endpoint] = set()
         self._wsregistry[endpoint] = identity
 
+    def destroy_ws_endpoint(self, endpoint):
+        clients = self.endpoint_clients.get(endpoint, [])
+        for identity, client in clients:
+            client.close(reason="Endpoint closed.")
     def websocket_send(self, endpoint, message):
         print('Sending message to clients!')
         for c in self.clients:
@@ -432,6 +441,12 @@ class MasterWebService(Agent):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
         _log.debug('Caller identity: {}'.format(identity))
         self.appContainer.create_ws_endpoint(endpoint, identity)
+
+    @RPC.export
+    def unregister_websocket(self, endpoint):
+        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        _log.debug('Caller identity: {}'.format(identity))
+        self.appContainer.destroy_ws_endpoint(endpoint)
 
     def _redirect_index(self, env, start_response, data=None):
         """ Redirect to the index page.
