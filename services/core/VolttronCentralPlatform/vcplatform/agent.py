@@ -565,7 +565,7 @@ class VolttronCentralPlatform(Agent):
 
     @RPC.export
     def get_instance_uuid(self):
-        return self._local_instance_uuid
+        return self.current_config.get('instance_id')
 
     @RPC.export
     @RPC.allow("manager")
@@ -618,7 +618,7 @@ class VolttronCentralPlatform(Agent):
 
 
     @RPC.export
-    def start_bacnet_scan(self, proxy_identity, low_device_id=None,
+    def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
                           high_device_id=None, target_address=None,
                           scan_length=5):
         """This function is a wrapper around the bacnet proxy scan.
@@ -628,35 +628,40 @@ class VolttronCentralPlatform(Agent):
                 proxy_identity))
         _log.info('Starting bacnet_scan with who_is request to {}'.format(
             proxy_identity))
+
+        def handle_iam(peer, sender, bus, topic, headers, message):
+            if self._publish_bacnet_iam:
+                proxy_identity = sender
+                address = message['address']
+                device_id = message['device_id']
+                bn = BACnetReader(self.vip.rpc, proxy_identity)
+                message['device_name'] = bn.read_device_name(address, device_id)
+                message['device_description'] = bn.read_device_description(
+                    address,
+                    device_id)
+                self._pub_to_vc(iam_topic, message=message)
+
+        def stop_iam():
+            _log.debug('Done publishing i am responses.')
+            stop_timestamp = get_utc_seconds_from_epoch()
+            self._pub_to_vc(iam_topic, message=dict(
+                status="FINISHED IAM",
+                timestamp=stop_timestamp
+            ))
+            self.vip.pubsub.unsubscribe('pubsub', topics.BACNET_I_AM,
+                                        handle_iam)
+
+        self.vip.pubsub.subscribe('pubsub', topics.BACNET_I_AM, handle_iam)
+
         self.vip.rpc.call(proxy_identity, "who_is", low_device_id=low_device_id,
                           high_device_id=high_device_id,
                           target_address=target_address).get(timeout=5.0)
         timestamp = get_utc_seconds_from_epoch()
-        self._publish_bacnet_iam = True
-        self._pub_to_vc("iam", message=dict(status="STARTED IAM",
-                                            timestamp=timestamp))
 
-        def stop_iam():
-            stop_timestamp = get_utc_seconds_from_epoch()
-            self._pub_to_vc("iam", message=dict(
-                status="FINISHED IAM",
-                timestamp=stop_timestamp
-            ))
-            self._publish_bacnet_iam = False
+        self._pub_to_vc(iam_topic, message=dict(status="STARTED IAM",
+                                                timestamp=timestamp))
 
-        gevent.spawn_later(scan_length, stop_iam)
-
-    @PubSub.subscribe('pubsub', topics.BACNET_I_AM)
-    def _iam_handler(self, peer, sender, bus, topic, headers, message):
-        if self._publish_bacnet_iam:
-            proxy_identity = sender
-            address = message['address']
-            device_id = message['device_id']
-            bn = BACnetReader(self.vip.rpc, proxy_identity)
-            message['device_name'] = bn.read_device_name(address, device_id)
-            message['device_description'] = bn.read_device_description(address,
-                                                                       device_id)
-            self._pub_to_vc("iam", message=message)
+        gevent.spawn_later(float(scan_length), stop_iam)
 
     def _pub_to_vc(self, topic_leaf, headers=None, message=None):
         vc = self.get_vc_connection()
@@ -665,8 +670,8 @@ class VolttronCentralPlatform(Agent):
             _log.error('Platform must have connection to vc to publish {}'
                        .format(topic_leaf))
         else:
-            topic = "platforms/{}/{}".format(self._local_instance_uuid,
-                                                  topic_leaf)
+            topic = "platforms/{}/{}".format(self.get_instance_uuid(),
+                                             topic_leaf)
             _log.debug('Publishing to vc topic: {}'.format(topic))
             vc.publish(topic=topic, headers=headers, message=message)
 
