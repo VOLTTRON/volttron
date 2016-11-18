@@ -1545,6 +1545,14 @@ def main(argv=sys.argv):
             help='adds entry in known host')
     auth_add.set_defaults(func=add_auth)
 
+    auth_add_group = add_parser('add-group',
+            subparser=auth_subparsers,
+            help='associate a group name with a set of roles')
+    auth_add_group.add_argument('group', metavar='GROUP', help='name of group')
+    auth_add_group.add_argument('roles', metavar='ROLE',
+            nargs='*', help='roles to associate with the group')
+    auth_add_group.set_defaults(func=add_group)
+
     auth_add_known_host = add_parser('add-known-host',
             subparser=auth_subparsers,
             help='add server public key to known-hosts file')
@@ -1553,17 +1561,13 @@ def main(argv=sys.argv):
     auth_add_known_host.add_argument('--serverkey', required=True)
     auth_add_known_host.set_defaults(func=add_server_key)
 
-    auth_list_known_host = add_parser('list-known-hosts',
+    auth_add_role = add_parser('add-role',
             subparser=auth_subparsers,
-            help='list entries from known-hosts file')
-    auth_list_known_host.set_defaults(func=list_known_hosts)
-
-    auth_remove_known_host = add_parser('remove-known-host',
-            subparser=auth_subparsers,
-            help='remove entry from known-hosts file')
-    auth_remove_known_host.add_argument('--host', required=True,
-            help='hostname or IP address with optional port')
-    auth_remove_known_host.set_defaults(func=remove_known_host)
+            help='associate a role name with a set of capabilities')
+    auth_add_role.add_argument('role', metavar='ROLE', help='name of role')
+    auth_add_role.add_argument('capabilities', metavar='CAPABILITY',
+            nargs='*', help='capabilities to associate with the role')
+    auth_add_role.set_defaults(func=add_role)
 
     auth_keypair = add_parser('keypair', subparser=auth_subparsers,
             help='generate CurveMQ keys for encrypting VIP connections')
@@ -1575,6 +1579,21 @@ def main(argv=sys.argv):
     auth_list = add_parser('list', help='list authentication records',
             subparser=auth_subparsers)
     auth_list.set_defaults(func=list_auth)
+
+    auth_list_groups = add_parser('list-groups',
+            subparser=auth_subparsers,
+            help='show list of group names and their sets of roles')
+    auth_list_groups.set_defaults(func=list_groups)
+
+    auth_list_known_host = add_parser('list-known-hosts',
+            subparser=auth_subparsers,
+            help='list entries from known-hosts file')
+    auth_list_known_host.set_defaults(func=list_known_hosts)
+
+    auth_list_roles = add_parser('list-roles',
+            subparser=auth_subparsers,
+            help='show list of role names and their sets of capabilities')
+    auth_list_roles.set_defaults(func=list_roles)
 
     auth_publickey = add_parser('publickey', parents=[filterable],
             subparser=auth_subparsers, help='show public key for each agent')
@@ -1590,6 +1609,25 @@ def main(argv=sys.argv):
             help='index or indices of record(s) to remove')
     auth_remove.set_defaults(func=remove_auth)
 
+    auth_remove_group = add_parser('remove-group',
+            subparser=auth_subparsers,
+            help='disassociate a group name from a set of roles')
+    auth_remove_group.add_argument('group', help='name of group')
+    auth_remove_group.set_defaults(func=remove_group)
+
+    auth_remove_known_host = add_parser('remove-known-host',
+            subparser=auth_subparsers,
+            help='remove entry from known-hosts file')
+    auth_remove_known_host.add_argument('--host', required=True,
+            help='hostname or IP address with optional port')
+    auth_remove_known_host.set_defaults(func=remove_known_host)
+
+    auth_remove_role = add_parser('remove-role',
+            subparser=auth_subparsers,
+            help='disassociate a role name from a set of capabilities')
+    auth_remove_role.add_argument('role', help='name of role')
+    auth_remove_role.set_defaults(func=remove_role)
+
     auth_serverkey = add_parser('serverkey', subparser=auth_subparsers,
             help="show the serverkey for the instance")
     auth_serverkey.set_defaults(func=show_serverkey)
@@ -1599,49 +1637,6 @@ def main(argv=sys.argv):
     auth_update.add_argument('index', type=int,
             help='index of record to update')
     auth_update.set_defaults(func=update_auth)
-
-    auth_add_role = add_parser('add-role',
-            subparser=auth_subparsers,
-            help='associate a role name with a set of capabilities')
-    auth_add_role.add_argument('role', metavar='ROLE', help='name of role')
-    auth_add_role.add_argument('capabilities', metavar='CAPABILITY',
-            nargs='*', help='capabilities to associate with the role')
-    auth_add_role.set_defaults(func=add_role)
-
-    auth_list_roles = add_parser('list-roles',
-            subparser=auth_subparsers,
-            help='show list of role names and their sets of capabilities')
-    auth_list_roles.set_defaults(func=list_roles)
-
-    auth_update_role = add_parser('update-role',
-            subparser=auth_subparsers,
-            help='update role to include (or remove) given capabilities')
-    auth_update_role.add_argument('role', metavar='ROLE', help='name of role')
-    auth_update_role.add_argument('capabilities', nargs='*',
-            metavar='CAPABILITY',
-            help='capabilities to append to (or remove from) the role')
-    auth_update_role.add_argument('--remove', action='store_true',
-            help='remove (rather than append) given capabilities')
-    auth_update_role.set_defaults(func=update_role)
-
-    auth_remove_role = add_parser('remove-role',
-            subparser=auth_subparsers,
-            help='disassociate a role name from a set of capabilities')
-    auth_remove_role.add_argument('role', help='name of role')
-    auth_remove_role.set_defaults(func=remove_role)
-
-    auth_add_group = add_parser('add-group',
-            subparser=auth_subparsers,
-            help='associate a group name with a set of roles')
-    auth_add_group.add_argument('group', metavar='GROUP', help='name of group')
-    auth_add_group.add_argument('roles', metavar='ROLE',
-            nargs='*', help='roles to associate with the group')
-    auth_add_group.set_defaults(func=add_group)
-
-    auth_list_groups = add_parser('list-groups',
-            subparser=auth_subparsers,
-            help='show list of group names and their sets of roles')
-    auth_list_groups.set_defaults(func=list_groups)
 
     auth_update_group = add_parser('update-group',
             subparser=auth_subparsers,
@@ -1654,11 +1649,16 @@ def main(argv=sys.argv):
             help='remove (rather than append) given roles')
     auth_update_group.set_defaults(func=update_group)
 
-    auth_remove_group = add_parser('remove-group',
+    auth_update_role = add_parser('update-role',
             subparser=auth_subparsers,
-            help='disassociate a group name from a set of roles')
-    auth_remove_group.add_argument('group', help='name of group')
-    auth_remove_group.set_defaults(func=remove_group)
+            help='update role to include (or remove) given capabilities')
+    auth_update_role.add_argument('role', metavar='ROLE', help='name of role')
+    auth_update_role.add_argument('capabilities', nargs='*',
+            metavar='CAPABILITY',
+            help='capabilities to append to (or remove from) the role')
+    auth_update_role.add_argument('--remove', action='store_true',
+            help='remove (rather than append) given capabilities')
+    auth_update_role.set_defaults(func=update_role)
 
     config_store = add_parser("config",
                               help="manage the platform configuration store")
