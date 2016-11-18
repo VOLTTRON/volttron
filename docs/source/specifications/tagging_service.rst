@@ -6,7 +6,7 @@ Tagging service specification
 Description
 ***********
 Tagging service provides VOLTTRON users the ability add semantic tags to
-different topics so that topic can be queries by tags instead of specific
+different topics so that topic can be queried by tags instead of specific
 topic name or topic name pattern.
 
 ********
@@ -15,14 +15,14 @@ Taxonomy
 VOLLTTRON will use tags from
 `Project Haystack <http://project-haystack.org/tag>`_.
 Tags defined in haystack will be imported into VOLTTRON and grouped by
-categories to tag entities.
+categories to tag topics and topic name prefix.
 
 **********
 Dependency
 **********
 
 Once data in VOLTTRON has been tagged, users will be able to query topics
-based on tags through the historian
+based on tags and use the resultant topics to query the historian
 
 ********
 Features
@@ -31,10 +31,10 @@ Features
  1. User should be able to tag individual components of a topic such as campus,
     building, device, point etc.
  2. Using the tagging service users should only be able to add tags already
-    defined in the volttron taggging schema. New tags should be explicitly added
+    defined in the volttron tagging schema. New tags should be explicitly added
     to the tagging schema before it can be used to tag topics or topic prefix
  3. Tag inheritance should be supported. For example, tags applied to
-    /campus1/building1 should be inherited by /campus1/building1/device1
+    /campus1/building1 should be referenced by /campus1/building1/device1
  4. Users should be able batch process and tag multiple topic names or topic
     prefix using a template. At the end of this, users should be notified about
     the list of topics that did not confirm to the template. This will help users
@@ -44,11 +44,10 @@ Features
     denotes a new version, then older value of the tag should preserved in a
     history/audit store
  6. When users query for topics based on a tag, the results would correspond
-    to the current metadata values. It is up to the calling agent/application to
-    periodically query for latest updates if needed.
+    to the current metadata values. It is up to the calling agent/application
+    to periodically query for latest updates if needed.
  7. Allow for count and skip parameters in queries to restrict count and
     allow pagination
-
 
 ***
 API
@@ -56,35 +55,102 @@ API
 
 1. Get the list of topic groups available
 -----------------------------------------
-   rpc call to tagging service method *'get_tag_groups'*
+   rpc call to tagging service method **'get_tag_groups'** with optional parameters:
+
+   1. **count** - limit the total number of tag groups returned to given count
+   2. **skip** - number of groups to skip. this parameter along with count can be
+      used for paginating results
+   3. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
+      ascending order
 
 2. Get the list of tags for a specific group
 --------------------------------------------
-   rpc call to tagging service method *'get_group_tags'* with
-   parameter *group=<string>*
+   rpc call to tagging service method **'get_group_tags'** with
+   parameter:
+
+   1. **group** - <group name>
+
+   and optional parameters:
+
+   2. **count** - limit the total number of tag groups returned to given count
+   3. **skip** - number of groups to skip. this parameter along with count can be
+      used for paginating results
+   4. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
+      ascending order
 
 3. Get the list of tags for a topic_name or topic_name_prefix
 -------------------------------------------------------------
-   rpc call to tagging service method *get_tags* with
-   parameter topic_prefix=<string>
+   rpc call to tagging service method **get_tags** with
+   parameter topic_prefix=<string> and optional parameters:
+
+   1. **count** - limit the total number of tag groups returned to given count
+   2. **skip** - number of groups to skip. this parameter along with count can be
+      used for paginating results
+   3. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
+      ascending order
 
 4. Find topic names by tags
 ---------------------------
-   rpc call to tagging service method 'get_topics_by_tags' with the one or
+   rpc call to tagging service method **'get_topics_by_tags'** with the one or
    more of the following tags
 
-   1. and - dictionary of tag and its corresponding values that should be
-      matched with AND condition. only topics that contain all the tags in the
-      list would be returned
-   2. or -  dictionary of tag and its corresponding values that should be
-      matched with OR condition. topics that contain any of the tags in the
-      list would be returned.
-   3. regex_and
-   4. regex_or
-   5. condition - json query string
+   1. **and** - dictionary of tag and its corresponding values that should be
+      matched using equality operator and combined with AND condition.
+      only topics that match all the tags in the list would be returned
+   2. **or** -  dictionary of tag and its corresponding values that should be
+      matched using equality operator and combined with OR condition.
+      topics that match any of the tags in the list would be returned.
+   3. **regex_and** - dictionary of tag and its corresponding values that should be
+      matched using a regular expression match and combined with AND condition.
+      only topics that match all the tags in the list would be returned
+   4. **regex_or** -  dictionary of tag and its corresponding values that should be
+      matched using a regular expression match and combined with OR condition.
+      topics that match any of the tags in the list would be returned.
+   5. **condition** - conditional statement to be used for matching tags. If this
+      parameter is provided the above four parameters are ignored. The value
+      for this parameter should be an expression that contains one or more
+      query conditions combined together with an "AND" or "OR".
+      Query conditions can be grouped together using parenthesis.
+      Each condition in the expression should conform to one of the following format:
+
+      1. <tag name> <binary_operator> <value>
+      2. has <tag name>
+      3. <tag name> REGEXP <regular expression within single quotes>
+      4. the word NOT can be prefixed before any of the above three to negate
+         the condition
+         For example
+
+         .. code-block: python
+
+        condition="(tag1 = 1 or tag1 = 2) and not (tag2 < '' and tag2 > '') and not has tag3 and tag4 REGEXP '^a.*b$'"
+
+   6. **count** - limit the total number of tag groups returned to given count
+   7. **skip** - number of groups to skip. this parameter along with count can be
+      used for paginating results
+   8. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
+      ascending order
 
 
 5. Query data based on tags
 ---------------------------
    Use above api to get topics by tags and then use the result to query
    historian's query api.
+
+6. Add tags to specific topic name or topic name prefix
+-------------------------------------------------------
+   rpc call to to tagging service method **'add_topic_tags'** with parameters:
+
+   1. **topic_prefix** - topic name or topic name prefix
+   2. **tags** - {<valid tag>:value, <valid_tag>: value,... }
+   3. **update_version** - True/False. Default to False. If set to True and if any
+      of the tags update an existing tag value the older value would be preserved
+      as part of tag version history
+
+7. Add tags to multiple topics
+------------------------------
+   rpc call to to tagging service method **'add_tags'** with parameters:
+
+   1. **tags**  -{<topic_name or prefix>: {<valid tag>:<value>, ... }, ... }
+   2. **update_version** - True/False. Default to False. If set to True and if any
+      of the tags update an existing tag value the older value would be preserved
+      as part of tag version history
