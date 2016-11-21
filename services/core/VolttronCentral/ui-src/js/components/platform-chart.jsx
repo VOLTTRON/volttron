@@ -153,6 +153,7 @@ var PlatformChart = React.createClass({
                                         name={this.props.chartKey}
                                         hideControls={this.props.hideControls}
                                         refreshInterval={this.props.chart.refreshInterval}
+                                        dataLength={this.props.chart.dataLength}
                                         max={chartData.max}
                                         min={chartData.min}
                                         pinned={this.props.chart.pinned}
