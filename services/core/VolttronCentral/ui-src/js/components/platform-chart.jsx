@@ -62,7 +62,7 @@ var PlatformChart = React.createClass({
 	    console.log(this.state.dataLength);
             platformChartActionCreators.refreshChart(
                 this.props.chart.series,
-		this.state.dataLength
+		this.props.chart.dataLength
             );
 
             if (this.state.refreshInterval) {
