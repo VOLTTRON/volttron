@@ -462,7 +462,7 @@ var GraphLineChart = React.createClass({
 
         var dataLengthTaptip = { 
             "title": "Data Length", 
-            "content": refreshChart,
+            "content": lengthChart,
             "x": taptipX,
             "y": taptipY
         };
