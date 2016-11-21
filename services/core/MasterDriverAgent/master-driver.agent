@@ -1,7 +1,7 @@
 {
     "agentid": "master_driver",
     "driver_config_list": [
-    	"/home/volttron/volttron/services/core/MasterDriverAgent/master_driver/modbus1.config"
+    	"/home/volttron/volttron/services/core/MasterDriverAgent/master_driver/modbus1.config",
     	"/home/volttron/volttron/services/core/MasterDriverAgent/master_driver/modbus2.config"
     					  ]
 }
