@@ -59,7 +59,7 @@ var PlatformChart = React.createClass({
         if (this.props.hasOwnProperty("chart"))
         {
             this.setState({refreshing: true});
-
+	    console.log(this.state.dataLength);
             platformChartActionCreators.refreshChart(
                 this.props.chart.series,
 		this.state.dataLength
