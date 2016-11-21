@@ -150,7 +150,7 @@ var NewChartForm = React.createClass({
                     </span>
                 </div>
                 <div className="form__control-group">
-                    <label htmlFor="dataLength">Refresh interval (ms)</label>
+                    <label htmlFor="dataLength">Data Length</label>
                     <input
                         className="form__control form__control--inline"
                         type="number"
