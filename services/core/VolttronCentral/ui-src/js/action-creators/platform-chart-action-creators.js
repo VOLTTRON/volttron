@@ -62,7 +62,7 @@ var platformChartActionCreators = {
                 method: 'historian.query',
                 params: { // TODO
                     topic: item.topic,
-                    count: length,
+                    count: (length > 0 ? length: 20 ),
                     order: 'LAST_TO_FIRST',
                 },
                 authorization: authorization,
@@ -102,7 +102,7 @@ var platformChartActionCreators = {
             method: 'historian.query',
             params: { // TODO
                 topic: panelItem.topic,
-                count: length,
+                count: (length > 0? length:20),
                 order: 'LAST_TO_FIRST',
             },
             authorization: authorization,
