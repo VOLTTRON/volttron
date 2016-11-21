@@ -447,6 +447,9 @@ var GraphLineChart = React.createClass({
         var refreshChartIcon = (
             <i className="fa fa-hourglass"></i>
         );
+        var lengthIcon = (
+            <i className="fa fa-arrows-h"></i>
+        );
         var refreshChartTooltip = {
             "content": "Refresh Rate",
             "x": tooltipX,
@@ -479,7 +482,7 @@ var GraphLineChart = React.createClass({
 		name={this.state.chartName + "_dataLengthButton"}
 		taptip={dataLengthTaptip}
 		tooltip={dataLengthTooltip}
-		icon={refreshChartIcon}></ControlButton>
+		icon={lengthIcon}></ControlButton>
 
 	);
 
