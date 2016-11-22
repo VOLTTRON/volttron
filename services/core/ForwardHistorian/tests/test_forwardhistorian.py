@@ -633,7 +633,7 @@ def test_actuator_topic(publish_agent, query_agent):
     # using the configs created above
     master_uuid = volttron_instance1.install_agent(
         agent_dir="services/core/MasterDriverAgent",
-        config_file="scripts/scalability-testing/configs/master-driver.agent",
+        config_file="scripts/scalability-testing/configs/config",
         start=True)
     print("agent id: ", master_uuid)
     gevent.sleep(2)  # wait for the agent to start and start the devices
