@@ -201,28 +201,20 @@ class Interface(BasicRevert, BaseInterface):
         
     def insert_register(self, register):
         super(Interface, self).insert_register(register)
+
+        #MODBUS requires extra bookkeeping.
         register_type = register.get_register_type()
         register_range = self.register_ranges[register_type]
         register_count = register.get_register_count()
+
+        #Store the range of registers for each point.
         start, end = register.address, register.address + register_count - 1
         register_range.append([start,end,[register]])
 
-        # register_type = register.get_register_type()
-        #
-        # register_range = self.register_ranges[register_type]
-        # register_count = register.get_register_count()
-        #
-        # start, end = register.address, register.address + register_count - 1
-        #
-        # if register_range[0] is None:
-        #     register_range[:] = start, end
-        # else:
-        #     if register_range[0] > start:
-        #         register_range[0] = start
-        #     if register_range[1] < end:
-        #         register_range[1] = end
 
     def merge_register_ranges(self):
+        """Merges any adjacent registers for more efficient scraping.
+           May only be called after all registers have been inserted."""
         for key, register_ranges in self.register_ranges.items():
             if not register_ranges:
                 continue
@@ -374,7 +366,8 @@ class Interface(BasicRevert, BaseInterface):
                             
                 else:
                     _log.info("No default value supplied for point {}. Using default revert method.".format(point_path))
-                        
+
+         #Merge adjacent ranges for efficiency.
          self.merge_register_ranges()
                 
             
