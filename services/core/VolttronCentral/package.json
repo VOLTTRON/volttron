@@ -63,6 +63,7 @@
     "react-select-me": "^0.6.4",
     "react-sortable-hoc": "^0.1.0",
     "react-virtualized": "^8.1.1",
+    "redux": "^3.6.0",
     "through2": "^2.0.0"
   },
   "peerDependencies": {}

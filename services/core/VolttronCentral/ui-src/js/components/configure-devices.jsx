@@ -105,11 +105,8 @@ class ConfigureDevices extends BaseComponent {
         this.setState({devicesLoaded: devicesLoaded});
     }
     _onStartScan(evt) {
-        var platformAgentUuid = platformsStore.getPlatformAgentUuid(this.state.platform.uuid);
-
         devicesActionCreators.scanForDevices(
             this.state.platform.uuid, 
-            platformAgentUuid,
             this.state.selectedProxyIdentity,
             this.state.deviceStart, 
             this.state.deviceEnd, 

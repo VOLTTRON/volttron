@@ -23,12 +23,13 @@ var devicesActionCreators = {
             platform: platform
         });
     },
-    scanForDevices: function (platformUuid, platformAgentUuid, bacnetProxyIdentity, low, high, address, scan_length) {
+    scanForDevices: function (platformUuid, bacnetProxyIdentity, low, high, address, scan_length) {
 
         var authorization = authorizationStore.getAuthorization();
 
         var params = {
-            proxy_identity: bacnetProxyIdentity
+            proxy_identity: bacnetProxyIdentity,
+            platform_uuid: platformUuid
         };
 
         if (low)
@@ -59,7 +60,7 @@ var devicesActionCreators = {
             //     pointsWs = null;
             // }
 
-            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
+            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/iam";
             if (window.WebSocket) {
                 devicesWs = new WebSocket(devicesWebsocket);
             }
@@ -71,10 +72,17 @@ var devicesActionCreators = {
             {
                 devicesActionCreators.deviceMessageReceived(evt.data, platformUuid, bacnetIdentity);
             };
+
+            devicesWs.onclose = function (evt) 
+            {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.DEVICE_SCAN_FINISHED
+                });
+            };
         }   
 
         return new rpc.Exchange({
-            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + platformAgentUuid + '.start_bacnet_scan',
+            method: 'start_bacnet_scan',
             authorization: authorization,
             params: params,
         }).promise
@@ -103,41 +111,29 @@ var devicesActionCreators = {
         if (data)
         {
             var device = JSON.parse(data);
+            
+            var result = checkDevice(device, platform, bacnet);
 
-            if (device.hasOwnProperty("status"))
-            {
-                if (device.status === "FINISHED IAM")
-                {                    
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.DEVICE_SCAN_FINISHED
-                    });
+            if (!objectIsEmpty(result))
+            {            
+                if (!objectIsEmpty(result.warning))
+                {
+                    statusIndicatorActionCreators.openStatusIndicator(
+                        "error", 
+                        result.warning.message + "ID: " + result.warning.value, 
+                        result.warning.value, 
+                        "left"
+                    );
                 }
-            }
-            else
-            {
-                var result = checkDevice(device, platform, bacnet);
 
-                if (!objectIsEmpty(result))
-                {            
-                    if (!objectIsEmpty(result.warning))
-                    {
-                        statusIndicatorActionCreators.openStatusIndicator(
-                            "error", 
-                            result.warning.message + "ID: " + result.warning.value, 
-                            result.warning.value, 
-                            "left"
-                        );
-                    }
-
-                    if (!objectIsEmpty(result.device))
-                    {
-                        dispatcher.dispatch({
-                            type: ACTION_TYPES.DEVICE_DETECTED,
-                            platform: platform,
-                            bacnet: bacnet,
-                            device: result.device
-                        });
-                    }
+                if (!objectIsEmpty(result.device))
+                {
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.DEVICE_DETECTED,
+                        platform: platform,
+                        bacnet: bacnet,
+                        device: result.device
+                    });
                 }
             }
         }
@@ -171,15 +167,16 @@ var devicesActionCreators = {
 
         console.log("focused on device");
     },
-    configureDevice: function (device, bacnetIdentity, platformAgentUuid) {
+    configureDevice: function (device, bacnetIdentity) {
         
         var authorization = authorizationStore.getAuthorization();
 
         var params = {
             // expanded:false, 
             // "filter":[3000124], 
-            device_id: Number(device.id), 
             proxy_identity: bacnetIdentity, 
+            platform_uuid: device.platformUuid,
+            device_id: Number(device.id), 
             address: device.address
         }
 
@@ -191,7 +188,7 @@ var devicesActionCreators = {
             //     devicesWs = null;
             // }
 
-            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
+            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/configure";
             if (window.WebSocket) {
                 pointsWs = new WebSocket(pointsWebsocket);
             }
@@ -205,10 +202,18 @@ var devicesActionCreators = {
 
                 devicesActionCreators.pointReceived(evt.data, platform);
             };
+
+            pointsWs.onclose = function (evt)
+            {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.POINT_SCAN_FINISHED,
+                    device: device
+                });
+            };
         }
 
         return new rpc.Exchange({
-            method: 'platform.uuid.' + device.platformUuid + '.agent.uuid.' + platformAgentUuid + '.publish_bacnet_props',
+            method: 'publish_bacnet_props',
             authorization: authorization,
             params: params,
         }).promise
@@ -236,18 +241,6 @@ var devicesActionCreators = {
             device: device
         });
     },
-    // configureRegistry: function (device) {
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.CONFIGURE_REGISTRY,
-    //         device: device
-    //     });
-    // },
-    // generateRegistry: function (device) {
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.GENERATE_REGISTRY,
-    //         device: device
-    //     });
-    // },
     cancelRegistry: function (device) {
         dispatcher.dispatch({
             type: ACTION_TYPES.CANCEL_REGISTRY,

@@ -11697,6 +11697,7 @@
 	    LISTEN_FOR_IAMS: null,
 	    DEVICE_DETECTED: null,
 	    DEVICE_SCAN_FINISHED: null,
+	    POINT_SCAN_FINISHED: null,
 	    POINT_RECEIVED: null,
 	    CANCEL_SCANNING: null,
 	    CONFIGURE_DEVICE: null,
@@ -36286,33 +36287,6 @@
 	    return bacnetProxies;
 	};
 	
-	platformsStore.getPlatformAgentUuid = function (uuid) {
-	    var platformAgentUuid;
-	
-	    if (_platforms) {
-	        if (_platforms.length) {
-	            var foundPlatform = _platforms.find(function (platform) {
-	                return platform.uuid === uuid;
-	            });
-	
-	            if (foundPlatform) {
-	                if (foundPlatform.hasOwnProperty("agents")) {
-	                    var platformAgent = foundPlatform.agents.find(function (agent) {
-	
-	                        return agent.name.toLowerCase().indexOf("vcplatformagent") > -1 && agent.actionPending === false && agent.process_id !== null && agent.return_code === null;
-	                    });
-	
-	                    if (typeof platformAgent !== "undefined") {
-	                        platformAgentUuid = platformAgent.uuid;
-	                    }
-	                }
-	            }
-	        }
-	    }
-	
-	    return platformAgentUuid;
-	};
-	
 	platformsStore.getForwarderRunning = function (platformUuid) {
 	
 	    var platform = platformsStore.getPlatform(platformUuid);
@@ -56737,12 +56711,13 @@
 	            platform: platform
 	        });
 	    },
-	    scanForDevices: function scanForDevices(platformUuid, platformAgentUuid, bacnetProxyIdentity, low, high, address, scan_length) {
+	    scanForDevices: function scanForDevices(platformUuid, bacnetProxyIdentity, low, high, address, scan_length) {
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
 	        var params = {
-	            proxy_identity: bacnetProxyIdentity
+	            proxy_identity: bacnetProxyIdentity,
+	            platform_uuid: platformUuid
 	        };
 	
 	        if (low) {
@@ -56769,7 +56744,7 @@
 	            //     pointsWs = null;
 	            // }
 	
-	            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
+	            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/iam";
 	            if (window.WebSocket) {
 	                devicesWs = new WebSocket(devicesWebsocket);
 	            } else if (window.MozWebSocket) {
@@ -56779,10 +56754,16 @@
 	            devicesWs.onmessage = function (evt) {
 	                devicesActionCreators.deviceMessageReceived(evt.data, platformUuid, bacnetIdentity);
 	            };
+	
+	            devicesWs.onclose = function (evt) {
+	                dispatcher.dispatch({
+	                    type: ACTION_TYPES.DEVICE_SCAN_FINISHED
+	                });
+	            };
 	        };
 	
 	        return new rpc.Exchange({
-	            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + platformAgentUuid + '.start_bacnet_scan',
+	            method: 'start_bacnet_scan',
 	            authorization: authorization,
 	            params: params
 	        }).promise.then(function (result) {
@@ -56808,28 +56789,20 @@
 	        if (data) {
 	            var device = JSON.parse(data);
 	
-	            if (device.hasOwnProperty("status")) {
-	                if (device.status === "FINISHED IAM") {
-	                    dispatcher.dispatch({
-	                        type: ACTION_TYPES.DEVICE_SCAN_FINISHED
-	                    });
+	            var result = checkDevice(device, platform, bacnet);
+	
+	            if (!objectIsEmpty(result)) {
+	                if (!objectIsEmpty(result.warning)) {
+	                    statusIndicatorActionCreators.openStatusIndicator("error", result.warning.message + "ID: " + result.warning.value, result.warning.value, "left");
 	                }
-	            } else {
-	                var result = checkDevice(device, platform, bacnet);
 	
-	                if (!objectIsEmpty(result)) {
-	                    if (!objectIsEmpty(result.warning)) {
-	                        statusIndicatorActionCreators.openStatusIndicator("error", result.warning.message + "ID: " + result.warning.value, result.warning.value, "left");
-	                    }
-	
-	                    if (!objectIsEmpty(result.device)) {
-	                        dispatcher.dispatch({
-	                            type: ACTION_TYPES.DEVICE_DETECTED,
-	                            platform: platform,
-	                            bacnet: bacnet,
-	                            device: result.device
-	                        });
-	                    }
+	                if (!objectIsEmpty(result.device)) {
+	                    dispatcher.dispatch({
+	                        type: ACTION_TYPES.DEVICE_DETECTED,
+	                        platform: platform,
+	                        bacnet: bacnet,
+	                        device: result.device
+	                    });
 	                }
 	            }
 	        }
@@ -56862,15 +56835,16 @@
 	
 	        console.log("focused on device");
 	    },
-	    configureDevice: function configureDevice(device, bacnetIdentity, platformAgentUuid) {
+	    configureDevice: function configureDevice(device, bacnetIdentity) {
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
 	        var params = {
 	            // expanded:false, 
 	            // "filter":[3000124], 
-	            device_id: Number(device.id),
 	            proxy_identity: bacnetIdentity,
+	            platform_uuid: device.platformUuid,
+	            device_id: Number(device.id),
 	            address: device.address
 	        };
 	
@@ -56882,7 +56856,7 @@
 	            //     devicesWs = null;
 	            // }
 	
-	            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
+	            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/configure";
 	            if (window.WebSocket) {
 	                pointsWs = new WebSocket(pointsWebsocket);
 	            } else if (window.MozWebSocket) {
@@ -56894,10 +56868,17 @@
 	
 	                devicesActionCreators.pointReceived(evt.data, platform);
 	            };
+	
+	            pointsWs.onclose = function (evt) {
+	                dispatcher.dispatch({
+	                    type: ACTION_TYPES.POINT_SCAN_FINISHED,
+	                    device: device
+	                });
+	            };
 	        };
 	
 	        return new rpc.Exchange({
-	            method: 'platform.uuid.' + device.platformUuid + '.agent.uuid.' + platformAgentUuid + '.publish_bacnet_props',
+	            method: 'publish_bacnet_props',
 	            authorization: authorization,
 	            params: params
 	        }).promise.then(function (result) {
@@ -56921,18 +56902,6 @@
 	            device: device
 	        });
 	    },
-	    // configureRegistry: function (device) {
-	    //     dispatcher.dispatch({
-	    //         type: ACTION_TYPES.CONFIGURE_REGISTRY,
-	    //         device: device
-	    //     });
-	    // },
-	    // generateRegistry: function (device) {
-	    //     dispatcher.dispatch({
-	    //         type: ACTION_TYPES.GENERATE_REGISTRY,
-	    //         device: device
-	    //     });
-	    // },
 	    cancelRegistry: function cancelRegistry(device) {
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.CANCEL_REGISTRY,
@@ -58171,6 +58140,16 @@
 	        case ACTION_TYPES.DEVICE_SCAN_FINISHED:
 	
 	            _scanningComplete = true;
+	
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.POINT_SCAN_FINISHED:
+	
+	            var devideId = action.device.id;
+	            var deviceAddress = action.device.address;
+	            var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
+	
+	            device.configuring = false;
 	
 	            devicesStore.emitChange();
 	            break;
@@ -59845,9 +59824,7 @@
 	    }, {
 	        key: '_onStartScan',
 	        value: function _onStartScan(evt) {
-	            var platformAgentUuid = platformsStore.getPlatformAgentUuid(this.state.platform.uuid);
-	
-	            devicesActionCreators.scanForDevices(this.state.platform.uuid, platformAgentUuid, this.state.selectedProxyIdentity, this.state.deviceStart, this.state.deviceEnd, this.state.address, this.state.scan_length);
+	            devicesActionCreators.scanForDevices(this.state.platform.uuid, this.state.selectedProxyIdentity, this.state.deviceStart, this.state.deviceEnd, this.state.address, this.state.scan_length);
 	
 	            this.setState({ scanning: true });
 	            this.setState({ scanStarted: true });
@@ -60421,10 +60398,8 @@
 	
 	            // Don't scan for points again if already scanning
 	            if (device.showPoints && !device.configuringStarted) {
-	                var platformAgentUuid = platformsStore.getPlatformAgentUuid(device.platformUuid);
-	
 	                device.configuring = true;
-	                devicesActionCreators.configureDevice(device, this.props.bacnet, platformAgentUuid);
+	                devicesActionCreators.configureDevice(device, this.props.bacnet);
 	            } else {
 	                devicesActionCreators.toggleShowPoints(device);
 	            }
@@ -112458,4 +112433,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-af85c467b386a616ca4d.js.map
+//# sourceMappingURL=app-05a0d657d0af346480cd.js.map
