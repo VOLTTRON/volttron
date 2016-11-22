@@ -88,6 +88,8 @@ from urlparse import urlparse
 
 import datetime
 import gevent
+from zmq.utils import jsonapi
+
 from authenticate import Authenticate
 from sessions import SessionHandler
 from volttron.platform import jsonrpc
@@ -253,7 +255,7 @@ class VolttronCentralAgent(Agent):
             external_addresses = q.query('addresses').get(timeout=5)
             self.runtime_config['local_external_address'] = external_addresses[0]
 
-        self.vip.web.register_websocket(r'/vc/ws', self._ws_opened, self._ws_closed, self._ws_received)
+        self.vip.web.register_websocket(r'/vc/ws', self.open_authenticate_ws_endpoint, self._ws_closed, self._ws_received)
         self.vip.web.register_endpoint(r'/jsonrpc', self.jsonrpc)
         self.vip.web.register_path(r'^/.*', self.runtime_config.get('webroot'))
 
@@ -265,8 +267,33 @@ class VolttronCentralAgent(Agent):
         _log.debug('ACTION IS {}'.format(action))
         _log.debug('CONTENT IS {}'.format(contents))
 
-    def _ws_opened(self, endpoint):
-        _log.debug("OPENED endpoint: {}".format(endpoint))
+    def open_authenticate_ws_endpoint(self, fromip, endpoint):
+        """
+        Callback method from when websockets are opened.  The endpoine must
+        be '/' delimited with the second to last section being the session
+        of a logged in user to volttron central itself.
+
+        :param fromip:
+        :param endpoint:
+            A string representing the endpoint of the websocket.
+        :return:
+        """
+        _log.debug("OPENED ip: {} endpoint: {}".format(fromip, endpoint))
+        try:
+            session = endpoint.split('/')[-2]
+        except IndexError:
+            _log.error("Malformed endpoint. Must be delimited by '/'")
+            _log.error(
+                'Endpoint must have valid session in second to last position')
+            return False
+
+        if not self.web_sessions.check_session(session, fromip):
+            _log.error("Authentication error for session!")
+            return False
+
+        _log.debug('Websocket allowed.')
+
+        return True
 
     def _ws_closed(self, endpoint):
         _log.debug("CLOSED endpoint: {}".format(endpoint))
@@ -579,6 +606,19 @@ class VolttronCentralAgent(Agent):
                                                   topicsplit[2], topicsplit[3:]
 
         _log.warn(platform_uuid)
+        _log.warn(op_or_datatype)
+        _log.warn(other)
+        if op_or_datatype in ('iam', 'configure'):
+            if not other:
+                _log.error("Invalid response to iam or configure endpoint")
+                _log.error(
+                    "the sesson token was not included in response from vcp.")
+                return
+
+            ws_endpoint = "/vc/ws/{}/{}".format(other[0], op_or_datatype)
+            _log.debug('SENDING MESSAGE TO {}'.format(ws_endpoint))
+            self.vip.web.send(ws_endpoint, jsonapi.dumps(message))
+
         # platform = self._registered_platforms.get(platform_uuid)
         # if platform is None:
         #     _log.warn('Platform {} is not registered but sent message {}'
@@ -1101,6 +1141,30 @@ class VolttronCentralAgent(Agent):
         except KeyError:
             _log.warn('Unknown platform platform_uuid specified! {}'.format(platform_uuid))
 
+    def _handle_bacnet_props(self, session_user, platform_uuid, params):
+        _log.debug('Handling bacnet_props platform: {}'.format(platform_uuid))
+
+        configure_topic = "{}/configure".format(session_user['token'])
+        ws_socket_topic = "/vc/ws/{}".format(configure_topic)
+        self.vip.web.register_websocket(ws_socket_topic,
+                                        self.open_authenticate_ws_endpoint,
+                                        self._ws_closed, self._ws_received)
+
+        def start_sending_props():
+            response_topic = "configure/{}".format(session_user['token'])
+            # Two ways we could have handled this is to pop the identity off
+            # of the params and then passed both the identity and the response
+            # topic.  Or what I chose to do and to put the argument in a
+            # copy of the params.
+            cp = params.copy()
+            cp['publish_topic'] = response_topic
+            cp['device_id'] = int(cp['device_id'])
+            vcp_conn = self._get_connection(platform_uuid)
+            _log.debug('PARAMS: {}'.format(cp))
+            vcp_conn.call("publish_bacnet_props", **cp)
+
+        gevent.spawn_later(3, start_sending_props)
+
     def _handle_bacnet_scan(self, session_user, platform_uuid, params):
         _log.debug('Handling bacnet_scan platform: {}'.format(platform_uuid))
 
@@ -1112,15 +1176,25 @@ class VolttronCentralAgent(Agent):
             vcp_conn = self._get_connection(platform_uuid)
             iam_topic = "{}/iam".format(session_user['token'])
             ws_socket_topic = "/vc/ws/{}".format(iam_topic)
-            self.vip.web.register_websocket(ws_socket_topic, self._ws_opened,
+            self.vip.web.register_websocket(ws_socket_topic,
+                                            self.open_authenticate_ws_endpoint,
                                             self._ws_closed, self._ws_received)
-            vcp_conn.call("start_bacnet_scan", iam_topic, **params)
 
-            def close_socket():
-                _log.debug('Closing bacnet scan for {}'.format(platform_uuid))
-                self.vip.web.unregister_websocket(ws_socket_topic)
+            def start_scan():
+                # We want the datatype (iam) to be second in the response so
+                # we need to reposition the iam and the session id to the topic
+                # that is passed to the rpc function on vcp
+                iam_session_topic = "iam/{}".format(session_user['token'])
+                vcp_conn.call("start_bacnet_scan", iam_session_topic, **params)
 
-            gevent.spawn_later(scan_length, close_socket)
+                def close_socket():
+                    _log.debug('Closing bacnet scan for {}'.format(platform_uuid))
+                    self.vip.web.unregister_websocket(ws_socket_topic)
+
+                gevent.spawn_later(scan_length, close_socket)
+            # By starting the scan a couple seconds later we allow the websockt
+            # client to subscribe to the newly available endpoint.
+            gevent.spawn_later(3, start_scan)
         except ValueError:
             return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
                                       "Couldn't connect to platform {}".format(
@@ -1128,7 +1202,7 @@ class VolttronCentralAgent(Agent):
                                       ))
         except KeyError:
             return jsonrpc.json_error(id, UNAUTHORIZED,
-                                      "Invalid user sessoin token")
+                                      "Invalid user session token")
 
     def _route_request(self, session_user, id, method, params):
         """ Handle the methods volttron central can or pass off to platforms.
@@ -1153,6 +1227,13 @@ class VolttronCentralAgent(Agent):
                 return err("Invalid platform_uuid specified as parameter",
                            INVALID_PARAMS)
             return self._handle_bacnet_scan(session_user, platform_uuid, params)
+        elif method == 'publish_bacnet_props':
+            platform_uuid = params.pop('platform_uuid', None)
+            if not platform_uuid:
+                return err("Invalid platform_uuid specified as parameter",
+                           INVALID_PARAMS)
+            return self._handle_bacnet_props(session_user, platform_uuid,
+                                             params)
 
         if method == 'open_websockets':
             token = session_user['token']

@@ -18,7 +18,8 @@ MAX_RANGE_REPORT = 1.0e+20
 
 
 class BACnetReader(object):
-    def __init__(self, rpc, bacnet_proxy_identity, response_function=None):
+    def __init__(self, rpc, bacnet_proxy_identity,
+                 response_function=None):
         _log.info("Creating {}".format(self.__class__.__name__))
         self._rpc = weakref.ref(rpc)
         self._proxy_identity = bacnet_proxy_identity
@@ -32,6 +33,7 @@ class BACnetReader(object):
             :return: The device name or the string "MISSING DEVICE NAME"
         """
         try:
+            _log.debug("Reading device name.")
             device_name = self._read_prop(address, "device", device_id,
                                          "objectName")
             _log.debug('device_name = ' + str(device_name))
@@ -48,6 +50,7 @@ class BACnetReader(object):
             :return: The device desciption or an empty string
         """
         try:
+            _log.debug("Reading device description.")
             device_description = self._read_prop(address, "device", device_id,
                                                 "description")
             _log.debug('description = ' + str(device_description))
@@ -76,14 +79,19 @@ class BACnetReader(object):
                 where the bacnet_type is one of the bacnet_type strings and the
                 [index] is an array of indexes to return.
         """
-        _log.info('read_device_primary called.')
+        _log.info(
+            'read_device_properties called target_address: {} device_id: {}'.format(
+                target_address, device_id
+            ))
         try:
+            _log.debug("Reading objectList from device index 0")
             object_count = self._read_prop(target_address, "device", device_id,
-                                          "objectList", index=0)
+                                           "objectList", index=0)
             list_property = "objectList"
         except TypeError:
+            _log.debug("Type error so reading structuredObjectList of index 0")
             object_count = self._read_prop(target_address, "device", device_id,
-                                          "structuredObjectList", index=0)
+                                           "structuredObjectList", index=0)
             list_property = "structuredObjectList"
 
         _log.debug('object_count = ' + str(object_count))
@@ -97,6 +105,7 @@ class BACnetReader(object):
         # that specific datatype.
         type_map = defaultdict(list)
 
+        _log.debug("query_map: {}".format(query_map))
         # Loop over each of the objects and interrogate the device for the
         # properties types and indexes.  After this for loop type_map will
         # hold the readable properties from the bacnet device ordered by
@@ -107,23 +116,21 @@ class BACnetReader(object):
             query_map[object_index] = [
                 "device", device_id, list_property, object_index
             ]
+
             if count >= 25:
+                _log.debug("query_map: {}".format(query_map))
                 results = self._read_props(target_address, query_map)
-                presentValues = self._filter_present_value_from_results(results)
-                for pv in presentValues:
-                    type_map[pv['bacnet_type']].append(pv)
+                present_values = self._filter_present_value_from_results(
+                    results)
+                self._process_input(target_address, device_id, present_values)
                 query_map = {}
                 count = 0
 
         if count > 0:
+            _log.debug("query_map: {}".format(query_map))
             results = self._read_props(target_address, query_map)
-            presentValues = self._filter_present_value_from_results(results)
-            for pv in presentValues:
-                type_map[pv['bacnet_type']].append(pv)
-
-        for k, v in type_map.items():
-            _log.debug('Processing {}'.format(k))
-            self._process_input(target_address, device_id, v)
+            present_values = self._filter_present_value_from_results(results)
+            self._process_input(target_address, device_id, present_values)
 
     def _build_query_map_for_type(self, object_type, index):
         """ Build a map that can be sent to the _read_props function.
@@ -372,6 +379,7 @@ class BACnetReader(object):
         :return:
         """
 
+        _log.debug('emit_responses: objects: {}'.format(objects))
         for index, obj in objects.items():
             object_type = obj['object_type']
             present_value_type = get_datatype(object_type, 'presentValue')
@@ -406,15 +414,23 @@ class BACnetReader(object):
                                          address=target_address), results)
 
     def _process_input(self, target_address, device_id, input_items):
-
+        _log.debug('process_input: items: {}'.format(input_items))
         query_mapping = {}
         results = None
         object_notes = None
         count = 0
         output = {}
+        processed = {}
+
         for item in input_items:
             index = item['index']
             object_type = item['bacnet_type']
+            key = (target_address, device_id, object_type, index)
+            if key in processed:
+                _log.debug("Duplicate detected continuing")
+                continue
+
+            processed[key] = 1
 
             new_map = self._build_query_map_for_type(object_type, index)
             query_mapping.update(new_map)
@@ -425,9 +441,8 @@ class BACnetReader(object):
                     results = self._read_props(target_address, query_mapping)
                     objects = self._build_results(object_type, query_mapping,
                                                   results)
-                    _log.debug('Built bacnet Objects: {}'.format(objects))
+                    _log.debug('Built bacnet Objects 1: {}'.format(objects))
                     self._emit_responses(device_id, target_address, objects)
-                    #break
                     count = 0
                 except RemoteError as e:
                     _log.error('REMOTE ERROR: {}'.format(e))
@@ -438,7 +453,7 @@ class BACnetReader(object):
             results = self._read_props(target_address, query_mapping)
             objects = self._build_results(object_type, query_mapping,
                                           results)
-            _log.debug('Built bacnet Objects: {}'.format(objects))
+            _log.debug('Built bacnet Objects 2: {}'.format(objects))
             self._emit_responses(device_id, target_address, objects)
 
         self._response_function(dict(device_id=device_id,
@@ -465,6 +480,9 @@ class BACnetReader(object):
         return presentValues
 
     def _read_props(self, address, parameters):
+        _log.debug("_read_props for address: {} params: {}".format(
+            address, parameters
+        ))
         return self._rpc().call(self._proxy_identity, "read_properties",
                                 address,
                                 parameters).get(timeout=20)
