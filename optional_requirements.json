@@ -15,7 +15,7 @@
         "help": "Installs requirements for mongo databases",
         "packages": ["pymongo"]
     },
-    "--all-databases": {
+    "--databases": {
         "help": "Installs support for all known databases",
         "packages": ["pymongo", "mysql-connector-python-rf"]
     }

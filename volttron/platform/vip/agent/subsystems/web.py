@@ -182,7 +182,13 @@ class WebSubSystem(SubsystemBase):
         :type received: function
         """
         self._ws_endpoint[endpoint] = (opened, closed, received)
-        self._rpc().call(MASTER_WEB, 'register_websocket', endpoint).get(timeout=5)
+        self._rpc().call(MASTER_WEB, 'register_websocket', endpoint).get(
+            timeout=5)
+
+    def unregister_websocket(self, endpoint):
+        self._rpc().call(MASTER_WEB, 'unregister_websocket', endpoint).get(
+            timeout=5
+        )
 
     def send(self, endpoint, message=''):
         """
@@ -198,7 +204,9 @@ class WebSubSystem(SubsystemBase):
         :type endpoint: str
         :type message: str
         """
-        self._rpc().call(MASTER_WEB, 'websocket_send', endpoint, message).get(timeout=5)
+        _log.debug('SENDING DATA TO CALLBACK {} {}'.format(endpoint, message))
+        self._rpc().call(MASTER_WEB, 'websocket_send', endpoint, message).get(
+            timeout=5)
 
     def _route_callback(self, env, data):
         _log.debug('Routing callback env: {} data: {}'.format(env, data))
@@ -209,16 +217,18 @@ class WebSubSystem(SubsystemBase):
 
         return None
 
-    def _opened(self, endpoint):
-        _log.debug('Client opened callback endpoint: {}'.format(endpoint))
+    def _opened(self, fromip, endpoint):
+        _log.debug('Client opened callback ip: {} endpoint: {}'.format(
+            fromip, endpoint))
         callbacks = self._ws_endpoint.get(endpoint)
         if callbacks is None:
             _log.error('Websocket endpoint {} is not available'.format(
                 endpoint))
         else:
             if callbacks[0]:
-                callbacks[0](endpoint)
+                return callbacks[0](fromip, endpoint)
 
+        return False
 
     def _closed(self, endpoint):
         _log.debug('Client closed callback endpoint: {}'.format(endpoint))

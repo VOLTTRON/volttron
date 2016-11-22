@@ -190,41 +190,44 @@ def is_ip_private(vip_address):
 
 class VolttronWebSocket(WebSocket):
 
+    def __init__(self, **kwargs):
+        super(VolttronWebSocket, self).__init__(**kwargs)
+        self._log = logging.getLogger(self.__class__.__name__)
+
     def _get_identity_and_endpoint(self):
         identity = self.environ['identity']
         endpoint = self.environ['PATH_INFO']
         return identity, endpoint
 
     def opened(self):
-        print('Socket opened')
+        self._log.info('Socket opened')
         app = self.environ['ws4py.app']
         identity, endpoint = self._get_identity_and_endpoint()
-        app.clients.append(self)
-        app.emit_opened(identity, endpoint)
+        app.client_opened(self, endpoint, identity)
 
     def received_message(self, m):
         # self.clients is set from within the server
         # and holds the list of all connected servers
         # we can dispatch to
-        print('Socket received message: {}'.format(m))
+        self._log.debug('Socket received message: {}'.format(m))
         app = self.environ['ws4py.app']
         identity, endpoint = self._get_identity_and_endpoint()
-        app.emit_received(identity, endpoint, m)
-        # for client in app.clients:
-        #     client.send(m)
+        ip = self.environ['']
+        app.client_received(endpoint, m)
 
     def closed(self, code, reason="A client left the room without a proper explanation."):
-        print('Socket closed!')
+        self._log.info('Socket closed!')
         app = self.environ.pop('ws4py.app')
         identity, endpoint = self._get_identity_and_endpoint()
-        app.emit_closed(identity, endpoint)
-        if self in app.clients:
-            app.clients.remove(self)
-            for client in app.clients:
-                try:
-                    client.send(reason)
-                except:
-                    pass
+        app.client_closed(self, endpoint, identity, reason)
+
+        # if self in app.clients:
+        #     app.clients.remove(self)
+        #     for client in app.clients:
+        #         try:
+        #             client.send(reason)
+        #         except:
+        #             pass
 
 
 class WebApplicationWrapper(object):
@@ -238,7 +241,9 @@ class WebApplicationWrapper(object):
         self.host = host
         self.ws = WebSocketWSGIApplication(handler_cls=VolttronWebSocket)
         self.clients = []
+        self.endpoint_clients = {}
         self._wsregistry = {}
+        self._log = logging.getLogger(self.__class__.__name__)
 
     def favicon(self, environ, start_response):
         """
@@ -249,26 +254,68 @@ class WebApplicationWrapper(object):
         start_response(status, headers)
         return ""
 
-    def emit_opened(self, identity, endpoint):
-        self.masterweb.vip.rpc.call(identity, 'client.opened', endpoint)
+    def client_opened(self, client, endpoint, identity):
 
-    def emit_closed(self, identity, endpoint):
-        self.masterweb.vip.rpc.call(identity, 'client.closed', endpoint)
+        ip = client.environ['REMOTE_ADDR']
+        should_open = self.masterweb.vip.rpc.call(identity, 'client.opened',
+                                                  ip, endpoint)
+        if not should_open:
+            self._log.error("Authentication failure, closing websocket.")
+            client.close(reason='Authentication failure!')
+            return
 
-    def emit_received(self, identity, endpoint, message):
-        print('The message is {} of {}'.format(message, type(message)))
-        self.masterweb.vip.rpc.call(identity, 'client.message',
-                                    str(endpoint), str(message))
+        if endpoint not in self.endpoint_clients:
+            self.endpoint_clients[endpoint] = set()
+
+        self.endpoint_clients[endpoint].add((identity, client))
+
+
+    def client_received(self, endpoint, message):
+        clients = self.endpoint_clients.get(endpoint, [])
+        for identity, _ in clients:
+            self.masterweb.vip.rpc.call(identity, 'client.message',
+                                        str(endpoint), str(message))
+
+    def client_closed(self, client, endpoint, identity,
+                      reason="Client left without proper explaination"):
+
+        clients = self.endpoint_clients.get(endpoint, [])
+        key = (identity, client)
+        if key in clients:
+            self.masterweb.vip.rpc.call(identity, 'client.closed', endpoint)
+            clients.remove(key)
 
     def create_ws_endpoint(self, endpoint, identity):
-        print(endpoint, identity)
+        #_log.debug()print(endpoint, identity)
+        # if endpoint in self.endpoint_clients:
+        #     peers = self.masterweb.vip.peerlist.get()
+        #     old_identity = self._wsregistry[endpoint]
+        #     if old_identity not in peers:
+        #         for client in self.endpoint_clients.values():
+        #             client.close()
+        #         r
+        if endpoint in self.endpoint_clients:
+            self._log.warn('Already have clients for endpoint {}'.format(
+                endpoint))
+        self.endpoint_clients[endpoint] = set()
         self._wsregistry[endpoint] = identity
 
+    def destroy_ws_endpoint(self, endpoint):
+        clients = self.endpoint_clients.get(endpoint, [])
+        for identity, client in clients:
+            client.close(reason="Endpoint closed.")
+
     def websocket_send(self, endpoint, message):
-        print('Sending message to clients!')
-        for c in self.clients:
-            print('Sending endpoint&&message {}&&{}'.format(endpoint, message))
-            c.send(message)
+        self._log.debug('Sending message to clients!')
+        clients = self.endpoint_clients.get(endpoint, [])
+        if not clients:
+            self._log.warn("There were no clients for endpoint {}".format(
+                endpoint))
+        for c in clients:
+            identity, client = c
+            self._log.debug('Sending endpoint&&message {}&&{}'.format(
+                endpoint, message))
+            client.send(message)
 
     def __call__(self, environ, start_response):
         """
@@ -336,6 +383,8 @@ class MasterWebService(Agent):
 
     @RPC.export
     def websocket_send(self, endpoint, message):
+        _log.debug("Sending data to {} with message {}".format(endpoint,
+                                                               message))
         self.appContainer.websocket_send(endpoint, message)
 
     @RPC.export
@@ -432,6 +481,12 @@ class MasterWebService(Agent):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
         _log.debug('Caller identity: {}'.format(identity))
         self.appContainer.create_ws_endpoint(endpoint, identity)
+
+    @RPC.export
+    def unregister_websocket(self, endpoint):
+        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        _log.debug('Caller identity: {}'.format(identity))
+        self.appContainer.destroy_ws_endpoint(endpoint)
 
     def _redirect_index(self, env, start_response, data=None):
         """ Redirect to the index page.
