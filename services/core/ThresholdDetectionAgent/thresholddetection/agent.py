@@ -72,14 +72,13 @@ __version__ = '3.6'
 def thresholddetection_agent(config_path, **kwargs):
     """Load configuration for ThresholdDetectionAgent
 
-    :param config_path: Path to a configuration file.
+    :param config_path: Path to a configuration file. Ignored.
 
     :type config_path: str
     :returns: ThresholdDetectionAgent instance
     :rtype: ThresholdDetectionAgent
     """
-    config = utils.load_config(config_path)
-    return ThresholdDetectionAgent(config, **kwargs)
+    return ThresholdDetectionAgent(**kwargs)
 
 
 class ThresholdDetectionAgent(Agent):
@@ -118,12 +117,15 @@ class ThresholdDetectionAgent(Agent):
         }
 
     """
-    def __init__(self, config, **kwargs):
-        self.config = config
+    def __init__(self, **kwargs):
         super(ThresholdDetectionAgent, self).__init__(**kwargs)
 
-    @Core.receiver('onstart')
-    def start(self, sender, **kwargs):
+        self.config_topics = {}
+
+        self.vip.config.subscribe(self.threshold_add, actions="NEW", pattern="*")
+        self.vip.config.subscribe(self.threshold_del, actions="DELETE", pattern="*")
+
+    def threshold_add(self, config_name, action, contents):
 
         def is_number(x):
             try:
@@ -145,16 +147,28 @@ class ThresholdDetectionAgent(Agent):
         comparators = {'watch_max': lambda x, y: x > y,
                        'watch_min': lambda x, y: x < y}
 
+
+        self.config_topics[config_name] = set()
         for key, comparator in comparators.iteritems():
-            for item in self.config.get(key, []):
-                if item.get('enabled', True):
-                    # replaces keywords ({topic}, {threshold})
-                    # with values in the message:
-                    msg = item['message'].format(**item)
-                    callback = generate_callback(
-                        msg, item['threshold'], comparator)
-                    self.vip.pubsub.subscribe(
-                        'pubsub', item['topic'], callback)
+            for item in contents.get(key, []):
+                # replaces keywords ({topic}, {threshold})
+                # with values in the message:
+                msg = item['message'].format(**item)
+                callback = generate_callback(msg, item['threshold'], comparator)
+
+                topic = item['topic']
+                _log.info("Subscribing to {}".format(topic))
+                self.config_topics[config_name].add(topic)
+                self.vip.pubsub.subscribe('pubsub', topic, callback)
+
+    def threshold_del(self, config_name, action, contents):
+        topics = self.config_topics[config_name]
+        for t in topics:
+            self.vip.pubsub.unsubscribe(peer='pubsub',
+                                        prefix=t,
+                                        callback=None).get()
+
+        self.config_topics.pop(config_name)
 
     def alert(self, message, topic):
         """
