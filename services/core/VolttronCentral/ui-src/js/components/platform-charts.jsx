@@ -50,7 +50,7 @@ var PlatformCharts = React.createClass({
 
         if (platformCharts.length === 0)
         {
-            var noCharts = <p className="empty-help">No charts have been loaded.</p>
+            var noCharts = <p key="no-charts" className="empty-help">No charts have been loaded.</p>
             platformCharts.push(noCharts);
         }
 

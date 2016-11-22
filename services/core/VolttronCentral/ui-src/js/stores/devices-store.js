@@ -1145,6 +1145,16 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             devicesStore.emitChange();
             break;
+        case ACTION_TYPES.POINT_SCAN_FINISHED:
+
+            var devideId = action.device.id;
+            var deviceAddress = action.device.address;
+            var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
+
+            device.configuring = false;
+
+            devicesStore.emitChange();
+            break;
         case ACTION_TYPES.POINT_RECEIVED:
             _action = "point_received";
             _view = "Devices Found";

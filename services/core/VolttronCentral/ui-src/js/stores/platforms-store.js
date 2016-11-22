@@ -127,42 +127,6 @@ platformsStore.getRunningBacnetProxies = function (uuid)
     return bacnetProxies;
 };
 
-platformsStore.getPlatformAgentUuid = function (uuid)
-{
-    var platformAgentUuid;
-
-    if (_platforms)
-    {
-        if (_platforms.length)
-        {
-            var foundPlatform = _platforms.find(function (platform) {
-                return platform.uuid === uuid;
-            });
-
-            if (foundPlatform)
-            {
-                if (foundPlatform.hasOwnProperty("agents"))
-                {
-                    var platformAgent = foundPlatform.agents.find(function (agent) {
-
-                        return ((agent.name.toLowerCase().indexOf("vcplatformagent") > -1) &&
-                                            (agent.actionPending === false) && 
-                                            (agent.process_id !== null) &&
-                                            (agent.return_code === null));
-                    });
-
-                    if (typeof platformAgent !== "undefined")
-                    {
-                        platformAgentUuid = platformAgent.uuid;
-                    }
-                }
-            }
-        }
-    }    
-
-    return platformAgentUuid;
-};
-
 platformsStore.getForwarderRunning = function (platformUuid) {
 
     var platform = platformsStore.getPlatform(platformUuid);

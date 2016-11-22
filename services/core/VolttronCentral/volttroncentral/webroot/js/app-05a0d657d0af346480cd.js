@@ -11697,6 +11697,7 @@
 	    LISTEN_FOR_IAMS: null,
 	    DEVICE_DETECTED: null,
 	    DEVICE_SCAN_FINISHED: null,
+	    POINT_SCAN_FINISHED: null,
 	    POINT_RECEIVED: null,
 	    CANCEL_SCANNING: null,
 	    CONFIGURE_DEVICE: null,
@@ -35349,6 +35350,8 @@
 	            agentsHealth = checkStatuses(agentsHealth, agentProps);
 	        });
 	
+	        platform.expanded = platform.agents.children.length > 0;
+	
 	        platform.agents.status = agentsHealth;
 	        platform.agents.statusLabel = getStatusLabel(agentsHealth);
 	    }
@@ -35479,6 +35482,10 @@
 	        buildings.forEach(function (blg) {
 	            buildingsHealth = checkStatuses(buildingsHealth, blg);
 	        });
+	
+	        if (platform.buildings.children.length > 0) {
+	            platform.expanded = true;
+	        }
 	
 	        platform.buildings.status = buildingsHealth;
 	        platform.buildings.statusLabel = getStatusLabel(buildingsHealth);
@@ -36280,33 +36287,6 @@
 	    return bacnetProxies;
 	};
 	
-	platformsStore.getPlatformAgentUuid = function (uuid) {
-	    var platformAgentUuid;
-	
-	    if (_platforms) {
-	        if (_platforms.length) {
-	            var foundPlatform = _platforms.find(function (platform) {
-	                return platform.uuid === uuid;
-	            });
-	
-	            if (foundPlatform) {
-	                if (foundPlatform.hasOwnProperty("agents")) {
-	                    var platformAgent = foundPlatform.agents.find(function (agent) {
-	
-	                        return agent.name.toLowerCase().indexOf("vcplatformagent") > -1 && agent.actionPending === false && agent.process_id !== null && agent.return_code === null;
-	                    });
-	
-	                    if (typeof platformAgent !== "undefined") {
-	                        platformAgentUuid = platformAgent.uuid;
-	                    }
-	                }
-	            }
-	        }
-	    }
-	
-	    return platformAgentUuid;
-	};
-	
 	platformsStore.getForwarderRunning = function (platformUuid) {
 	
 	    var platform = platformsStore.getPlatform(platformUuid);
@@ -36444,7 +36424,7 @@
 	
 	                    var pointsList = [];
 	
-	                    if (platformPerformance) {
+	                    if (platformPerformance && platformPerformance.performance.hasOwnProperty("points")) {
 	                        var points = platformPerformance.performance.points;
 	
 	                        points.forEach(function (point) {
@@ -56731,12 +56711,13 @@
 	            platform: platform
 	        });
 	    },
-	    scanForDevices: function scanForDevices(platformUuid, platformAgentUuid, bacnetProxyIdentity, low, high, address) {
+	    scanForDevices: function scanForDevices(platformUuid, bacnetProxyIdentity, low, high, address, scan_length) {
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
 	        var params = {
-	            proxy_identity: bacnetProxyIdentity
+	            proxy_identity: bacnetProxyIdentity,
+	            platform_uuid: platformUuid
 	        };
 	
 	        if (low) {
@@ -56751,6 +56732,10 @@
 	            params.target_address = address;
 	        }
 	
+	        if (scan_length) {
+	            params.scan_length = scan_length;
+	        }
+	
 	        var setUpDevicesSocket = function setUpDevicesSocket(platformUuid, bacnetIdentity) {
 	
 	            // if (typeof pointsWs !== "undefined" && pointsWs !== null)
@@ -56759,7 +56744,7 @@
 	            //     pointsWs = null;
 	            // }
 	
-	            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/iam";
+	            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/iam";
 	            if (window.WebSocket) {
 	                devicesWs = new WebSocket(devicesWebsocket);
 	            } else if (window.MozWebSocket) {
@@ -56769,10 +56754,16 @@
 	            devicesWs.onmessage = function (evt) {
 	                devicesActionCreators.deviceMessageReceived(evt.data, platformUuid, bacnetIdentity);
 	            };
+	
+	            devicesWs.onclose = function (evt) {
+	                dispatcher.dispatch({
+	                    type: ACTION_TYPES.DEVICE_SCAN_FINISHED
+	                });
+	            };
 	        };
 	
 	        return new rpc.Exchange({
-	            method: 'platform.uuid.' + platformUuid + '.agent.uuid.' + platformAgentUuid + '.start_bacnet_scan',
+	            method: 'start_bacnet_scan',
 	            authorization: authorization,
 	            params: params
 	        }).promise.then(function (result) {
@@ -56798,28 +56789,20 @@
 	        if (data) {
 	            var device = JSON.parse(data);
 	
-	            if (device.hasOwnProperty("status")) {
-	                if (device.status === "FINISHED IAM") {
-	                    dispatcher.dispatch({
-	                        type: ACTION_TYPES.DEVICE_SCAN_FINISHED
-	                    });
+	            var result = checkDevice(device, platform, bacnet);
+	
+	            if (!objectIsEmpty(result)) {
+	                if (!objectIsEmpty(result.warning)) {
+	                    statusIndicatorActionCreators.openStatusIndicator("error", result.warning.message + "ID: " + result.warning.value, result.warning.value, "left");
 	                }
-	            } else {
-	                var result = checkDevice(device, platform, bacnet);
 	
-	                if (!objectIsEmpty(result)) {
-	                    if (!objectIsEmpty(result.warning)) {
-	                        statusIndicatorActionCreators.openStatusIndicator("error", result.warning.message + "ID: " + result.warning.value, result.warning.value, "left");
-	                    }
-	
-	                    if (!objectIsEmpty(result.device)) {
-	                        dispatcher.dispatch({
-	                            type: ACTION_TYPES.DEVICE_DETECTED,
-	                            platform: platform,
-	                            bacnet: bacnet,
-	                            device: result.device
-	                        });
-	                    }
+	                if (!objectIsEmpty(result.device)) {
+	                    dispatcher.dispatch({
+	                        type: ACTION_TYPES.DEVICE_DETECTED,
+	                        platform: platform,
+	                        bacnet: bacnet,
+	                        device: result.device
+	                    });
 	                }
 	            }
 	        }
@@ -56852,15 +56835,16 @@
 	
 	        console.log("focused on device");
 	    },
-	    configureDevice: function configureDevice(device, bacnetIdentity, platformAgentUuid) {
+	    configureDevice: function configureDevice(device, bacnetIdentity) {
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
 	        var params = {
 	            // expanded:false, 
 	            // "filter":[3000124], 
-	            device_id: Number(device.id),
 	            proxy_identity: bacnetIdentity,
+	            platform_uuid: device.platformUuid,
+	            device_id: Number(device.id),
 	            address: device.address
 	        };
 	
@@ -56872,7 +56856,7 @@
 	            //     devicesWs = null;
 	            // }
 	
-	            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/configure";
+	            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/configure";
 	            if (window.WebSocket) {
 	                pointsWs = new WebSocket(pointsWebsocket);
 	            } else if (window.MozWebSocket) {
@@ -56884,10 +56868,17 @@
 	
 	                devicesActionCreators.pointReceived(evt.data, platform);
 	            };
+	
+	            pointsWs.onclose = function (evt) {
+	                dispatcher.dispatch({
+	                    type: ACTION_TYPES.POINT_SCAN_FINISHED,
+	                    device: device
+	                });
+	            };
 	        };
 	
 	        return new rpc.Exchange({
-	            method: 'platform.uuid.' + device.platformUuid + '.agent.uuid.' + platformAgentUuid + '.publish_bacnet_props',
+	            method: 'publish_bacnet_props',
 	            authorization: authorization,
 	            params: params
 	        }).promise.then(function (result) {
@@ -56911,18 +56902,6 @@
 	            device: device
 	        });
 	    },
-	    // configureRegistry: function (device) {
-	    //     dispatcher.dispatch({
-	    //         type: ACTION_TYPES.CONFIGURE_REGISTRY,
-	    //         device: device
-	    //     });
-	    // },
-	    // generateRegistry: function (device) {
-	    //     dispatcher.dispatch({
-	    //         type: ACTION_TYPES.GENERATE_REGISTRY,
-	    //         device: device
-	    //     });
-	    // },
 	    cancelRegistry: function cancelRegistry(device) {
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.CANCEL_REGISTRY,
@@ -58161,6 +58140,16 @@
 	        case ACTION_TYPES.DEVICE_SCAN_FINISHED:
 	
 	            _scanningComplete = true;
+	
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.POINT_SCAN_FINISHED:
+	
+	            var devideId = action.device.id;
+	            var deviceAddress = action.device.address;
+	            var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
+	
+	            device.configuring = false;
 	
 	            devicesStore.emitChange();
 	            break;
@@ -59738,7 +59727,7 @@
 	
 	        var _this = _possibleConstructorReturn(this, (ConfigureDevices.__proto__ || Object.getPrototypeOf(ConfigureDevices)).call(this, props));
 	
-	        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan', '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded', '_showTooltip', '_hideTooltip');
+	        _this._bind('_onPlatformStoresChange', '_onDevicesStoresChange', '_onDeviceMethodChange', '_onProxySelect', '_onDeviceStart', '_onDeviceEnd', '_onAddress', '_onStartScan', '_showCancel', '_resumeScan', '_cancelScan', '_onDevicesLoaded', '_showTooltip', '_hideTooltip', '_toggleAdvanced', '_onScanLength');
 	
 	        _this.state = getInitialState();
 	        return _this;
@@ -59835,9 +59824,7 @@
 	    }, {
 	        key: '_onStartScan',
 	        value: function _onStartScan(evt) {
-	            var platformAgentUuid = platformsStore.getPlatformAgentUuid(this.state.platform.uuid);
-	
-	            devicesActionCreators.scanForDevices(this.state.platform.uuid, platformAgentUuid, this.state.selectedProxyIdentity, this.state.deviceStart, this.state.deviceEnd, this.state.address);
+	            devicesActionCreators.scanForDevices(this.state.platform.uuid, this.state.selectedProxyIdentity, this.state.deviceStart, this.state.deviceEnd, this.state.address, this.state.scan_length);
 	
 	            this.setState({ scanning: true });
 	            this.setState({ scanStarted: true });
@@ -59890,6 +59877,27 @@
 	            this.setState({ showTooltip: false });
 	        }
 	    }, {
+	        key: '_toggleAdvanced',
+	        value: function _toggleAdvanced() {
+	            var showAdvanced = !this.state.showAdvanced;
+	
+	            if (!showAdvanced) {
+	                this.setState({ scan_length: "" });
+	                this.setState({ address: "" });
+	            }
+	
+	            this.setState({ showAdvanced: showAdvanced });
+	        }
+	    }, {
+	        key: '_onScanLength',
+	        value: function _onScanLength(evt) {
+	            var scanLength = evt.target.value;
+	
+	            if (scanLength > -1) {
+	                this.setState({ scan_length: scanLength });
+	            }
+	        }
+	    }, {
 	        key: 'render',
 	        value: function render() {
 	
@@ -59907,7 +59915,7 @@
 	                    value: this.state.deviceMethod,
 	                    onChange: this._onDeviceMethodChange });
 	
-	                var proxySelect;
+	                var proxySelect, scanLength;
 	
 	                var wideStyle = {
 	                    width: "100%"
@@ -59916,6 +59924,8 @@
 	                var fifthCell = {
 	                    width: "20px"
 	                };
+	
+	                var advancedClass = this.state.showAdvanced ? "" : "displayNone";
 	
 	                if (this.state.deviceMethod === "scanForDevices") {
 	                    var proxies = this.state.bacnetProxies.map(function (proxy) {
@@ -59931,7 +59941,7 @@
 	                            _react2.default.createElement(
 	                                'b',
 	                                null,
-	                                'BACNet Proxy Agent '
+	                                'BACNet\xA0Proxy\xA0Agent '
 	                            )
 	                        ),
 	                        _react2.default.createElement(
@@ -59946,17 +59956,35 @@
 	                            })
 	                        )
 	                    );
+	
+	                    scanLength = _react2.default.createElement(
+	                        'tr',
+	                        { className: advancedClass },
+	                        _react2.default.createElement(
+	                            'td',
+	                            null,
+	                            _react2.default.createElement(
+	                                'b',
+	                                null,
+	                                'Scan\xA0Duration\xA0(sec)'
+	                            )
+	                        ),
+	                        _react2.default.createElement(
+	                            'td',
+	                            { className: 'plain',
+	                                colSpan: 4 },
+	                            _react2.default.createElement('input', {
+	                                style: wideStyle,
+	                                type: 'number',
+	                                min: '0',
+	                                onChange: this._onScanLength,
+	                                value: this.state.scan_length })
+	                        )
+	                    );
 	                }
 	
 	                var buttonStyle = {
 	                    height: "24px"
-	                };
-	
-	                var platformNameLength = platform.name.length * 6;
-	
-	                var platformNameStyle = {
-	                    width: "25%",
-	                    minWidth: platformNameLength
 	                };
 	
 	                var deviceRangeStyle = {
@@ -59989,7 +60017,7 @@
 	                                        _react2.default.createElement(
 	                                            'b',
 	                                            null,
-	                                            'Device ID Range'
+	                                            'Device\xA0ID\xA0Range'
 	                                        )
 	                                    ),
 	                                    _react2.default.createElement(
@@ -60023,7 +60051,7 @@
 	                                ),
 	                                _react2.default.createElement(
 	                                    'tr',
-	                                    null,
+	                                    { className: advancedClass },
 	                                    _react2.default.createElement(
 	                                        'td',
 	                                        null,
@@ -60043,20 +60071,21 @@
 	                                            onChange: this._onAddress,
 	                                            value: this.state.address })
 	                                    )
-	                                )
+	                                ),
+	                                scanLength
 	                            )
+	                        ),
+	                        _react2.default.createElement(
+	                            'div',
+	                            { className: 'advanced-toggle',
+	                                onClick: this._toggleAdvanced },
+	                            'X'
 	                        )
 	                    )
 	                );
 	
 	                var scanOptionsStyle = {
-	                    float: "left",
-	                    marginRight: "10px"
-	                };
-	
-	                var platformNameStyle = {
-	                    float: "left",
-	                    width: "100%"
+	                    float: "left"
 	                };
 	
 	                var devicesContainer;
@@ -60135,47 +60164,71 @@
 	                        bacnet: this.state.selectedProxyIdentity });
 	                }
 	
+	                var cellStyle = {
+	                    verticalAlign: "top"
+	                };
+	
 	                deviceContent = _react2.default.createElement(
 	                    'div',
 	                    { className: 'device-box device-scan' },
 	                    _react2.default.createElement(
-	                        'div',
-	                        { style: platformNameStyle },
+	                        'table',
+	                        { className: 'config-devices-table' },
 	                        _react2.default.createElement(
-	                            'div',
-	                            { style: scanOptionsStyle },
-	                            _react2.default.createElement(
-	                                'b',
-	                                null,
-	                                'Platform: '
-	                            )
-	                        ),
-	                        _react2.default.createElement(
-	                            'div',
-	                            { style: scanOptionsStyle },
-	                            platform.name
-	                        )
-	                    ),
-	                    _react2.default.createElement(
-	                        'div',
-	                        { style: scanOptionsStyle },
-	                        _react2.default.createElement(
-	                            'b',
+	                            'tbody',
 	                            null,
-	                            'Method: '
+	                            _react2.default.createElement(
+	                                'tr',
+	                                null,
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    _react2.default.createElement(
+	                                        'b',
+	                                        null,
+	                                        'Platform: '
+	                                    )
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    platform.name
+	                                ),
+	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle }),
+	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle })
+	                            ),
+	                            _react2.default.createElement(
+	                                'tr',
+	                                null,
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    _react2.default.createElement(
+	                                        'b',
+	                                        null,
+	                                        'Method: '
+	                                    )
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    methodSelect
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    scanOptions
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    ' ',
+	                                    scanButton,
+	                                    ' '
+	                                )
+	                            )
 	                        )
-	                    ),
-	                    _react2.default.createElement(
-	                        'div',
-	                        { style: scanOptionsStyle },
-	                        methodSelect
-	                    ),
-	                    _react2.default.createElement(
-	                        'div',
-	                        { style: scanOptionsStyle },
-	                        scanOptions
-	                    ),
-	                    scanButton
+	                    )
 	                );
 	            } else {
 	                defaultMessage = _react2.default.createElement(
@@ -60222,6 +60275,8 @@
 	        state.deviceStart = "";
 	        state.deviceEnd = "";
 	        state.address = "";
+	        state.scan_length = "";
+	        state.showAdvanced = false;
 	
 	        state.startedInputtingDeviceEnd = false;
 	
@@ -60343,10 +60398,8 @@
 	
 	            // Don't scan for points again if already scanning
 	            if (device.showPoints && !device.configuringStarted) {
-	                var platformAgentUuid = platformsStore.getPlatformAgentUuid(device.platformUuid);
-	
 	                device.configuring = true;
-	                devicesActionCreators.configureDevice(device, this.props.bacnet, platformAgentUuid);
+	                devicesActionCreators.configureDevice(device, this.props.bacnet);
 	            } else {
 	                devicesActionCreators.toggleShowPoints(device);
 	            }
@@ -112063,7 +112116,7 @@
 	        if (platformCharts.length === 0) {
 	            var noCharts = React.createElement(
 	                'p',
-	                { className: 'empty-help' },
+	                { key: 'no-charts', className: 'empty-help' },
 	                'No charts have been loaded.'
 	            );
 	            platformCharts.push(noCharts);
@@ -112380,4 +112433,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-bfd06483a2243e9c3199.js.map
+//# sourceMappingURL=app-05a0d657d0af346480cd.js.map

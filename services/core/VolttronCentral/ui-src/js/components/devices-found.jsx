@@ -47,10 +47,8 @@ class DevicesFound extends BaseComponent {
         // Don't scan for points again if already scanning
         if (device.showPoints && !device.configuringStarted)
         {
-            var platformAgentUuid = platformsStore.getPlatformAgentUuid(device.platformUuid);
-
             device.configuring = true;
-            devicesActionCreators.configureDevice(device, this.props.bacnet, platformAgentUuid);
+            devicesActionCreators.configureDevice(device, this.props.bacnet);
         }
         else
         {
