@@ -190,8 +190,8 @@ def is_ip_private(vip_address):
 
 class VolttronWebSocket(WebSocket):
 
-    def __init__(self, **kwargs):
-        super(VolttronWebSocket, self).__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super(VolttronWebSocket, self).__init__(*args, **kwargs)
         self._log = logging.getLogger(self.__class__.__name__)
 
     def _get_identity_and_endpoint(self):
