@@ -329,7 +329,7 @@ class VolttronCentralPlatform(Agent):
                                   #address=jsonresp['vip-address']
                                   )
                 authfile = AuthFile(get_home() + "/auth.json")
-                authfile.add(entry)
+                authfile.add(entry, overwrite=True)
                 self._volttron_central_tcp_address = jsonresp['vip-address']
                 self._volttron_central_serverkey = jsonresp['serverkey']
 
@@ -362,7 +362,7 @@ class VolttronCentralPlatform(Agent):
                     credentials= self._volttron_central_publickey,
                     capabilities=['manager'])
                 authfile = AuthFile()
-                authfile.add(entry)
+                authfile.add(entry, overwrite=True)
 
             self._volttron_central_connection = vc_conn
 

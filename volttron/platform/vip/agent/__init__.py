@@ -84,6 +84,7 @@ class Agent(object):
                                        heartbeat_autostart, heartbeat_period)
             if enable_store:
                 self.config = ConfigStore(owner, core, self.rpc)
+            self.auth = Auth(owner, core, self.rpc)
 
     def __init__(self, identity=None, address=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,

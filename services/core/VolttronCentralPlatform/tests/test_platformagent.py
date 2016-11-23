@@ -26,7 +26,7 @@ def add_to_auth(volttron_home, publickey, capabilities=None):
     entry = AuthEntry(
         credentials=publickey, mechanism="CURVE", capabilities=capabilities
     )
-    authfile.add(entry)
+    authfile.add(entry, overwrite=True)
 
 
 def do_rpc(jsonrpc_address, method, params=None, authentication=None ):

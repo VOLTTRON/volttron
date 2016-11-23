@@ -207,6 +207,7 @@ class Dispatcher(jsonrpc.Dispatcher):
 class RPC(SubsystemBase):
     def __init__(self, core, owner):
         self.core = weakref.ref(core)
+        self._owner = owner
         self.context = None
         self._exports = {}
         self._dispatcher = None
@@ -242,7 +243,7 @@ class RPC(SubsystemBase):
         '''
         def checked_method(*args, **kwargs):
             user = str(self.context.vip_message.user)
-            caps = self.call('auth', 'get_capabilities', user_id=user).get(timeout=5)
+            caps = self._owner.vip.auth.get_capabilities(user)
             if not required_caps <= set(caps):
                 msg = ('method "{}" requires capabilities {},'
                       ' but capability list {} was'
@@ -324,7 +325,7 @@ class RPC(SubsystemBase):
     def allow(cls, capabilities):
         """
         Decorator specifies required agent capabilities to call a method.
-     
+
         This is designed to be used with the export decorator:
 
         .. code-block:: python

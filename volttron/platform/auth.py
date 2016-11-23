@@ -66,6 +66,7 @@ import os
 import random
 import re
 import shutil
+import uuid
 
 import gevent
 from gevent.fileobject import FileObject
@@ -117,6 +118,7 @@ class AuthService(Agent):
         self.zap_socket = None
         self._zap_greenlet = None
         self.auth_entries = []
+        self._is_connected = False
 
     @Core.receiver('onsetup')
     def setup_zap(self, sender, **kwargs):
@@ -135,6 +137,14 @@ class AuthService(Agent):
         entries.sort()
         self.auth_entries = entries
         _log.info('auth file %s loaded', self.auth_file_path)
+        if self._is_connected:
+            self._send_update()
+
+    def _send_update(self):
+        user_to_caps = self.get_user_to_capabilities()
+        peers = self.vip.peerlist().get(timeout=5)
+        for peer in peers:
+            self.vip.rpc.call(peer, 'auth.update', user_to_caps)
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):
@@ -148,6 +158,7 @@ class AuthService(Agent):
 
     @Core.receiver('onstart')
     def zap_loop(self, sender, **kwargs):
+        self._is_connected = True
         self._zap_greenlet = gevent.getcurrent()
         sock = self.zap_socket
         time = gevent.core.time
@@ -227,6 +238,20 @@ class AuthService(Agent):
                 return dump_user(domain, address, mechanism, *credentials[:1])
         if self.allow_any:
             return dump_user(domain, address, mechanism, *credentials[:1])
+
+    @RPC.export
+    def get_user_to_capabilities(self):
+        """RPC method
+
+        Gets a mapping of all users to their capabiliites.
+
+        :returns: mapping of users to capabilities
+        :rtype: dict
+        """
+        user_to_caps = {}
+        for entry in self.auth_entries:
+            user_to_caps[entry.user_id] = entry.capabilities
+        return user_to_caps
 
     @RPC.export
     def get_authorizations(self, user_id):
@@ -361,7 +386,9 @@ class AuthEntry(object):
         self.capabilities = AuthEntry._build_field(capabilities, list,
                                                    str) or []
         self.comments = AuthEntry._build_field(comments)
-        self.user_id = None if user_id is None else user_id.encode('utf-8')
+        if user_id is None:
+            user_id = str(uuid.uuid4())
+        self.user_id = user_id.encode('utf-8')
         self.enabled = enabled
         if kwargs:
             _log.debug(
@@ -447,7 +474,7 @@ class AuthFile(object):
 
     @property
     def version(self):
-        return {'major': 1, 'minor': 0}
+        return {'major': 1, 'minor': 1}
 
     def _check_for_upgrade(self):
         allow_list, groups, roles, version = self._read()
@@ -494,17 +521,15 @@ class AuthFile(object):
         return entries, groups, roles
 
     def _upgrade(self, allow_list, groups, roles, version):
+        backup = self.auth_file + '.' + str(uuid.uuid4()) + '.bak'
+        shutil.copy(self.auth_file, backup)
+        _log.info('Created backup of {} at {}'.format(self.auth_file, backup))
 
         def warn_invalid(entry, msg=''):
             _log.warn('Invalid entry {} in auth file {}. {}'
                       .format(entry, self.auth_file, msg))
 
-        def upgrade_0_to_1():
-            backup_name = self.auth_file + '.bak'
-            shutil.copy(self.auth_file, backup_name)
-            _log.info('Created backup of {} at {}'.format(self.auth_file,
-                backup_name))
-
+        def upgrade_0_to_1(allow_list):
             new_allow_list = []
             for entry in allow_list:
                 try:
@@ -532,21 +557,46 @@ class AuthFile(object):
                         warn_invalid(entry, 'Unexpected credential format')
                         continue
                 new_allow_list.append({
-                    "domain": entry.get('domain', None),
-                    "address": entry.get('address', None),
+                    "domain": entry.get('domain'),
+                    "address": entry.get('address'),
                     "mechanism": mechanism,
                     "credentials": credentials,
-                    "user_id": entry.get('user_id', None),
+                    "user_id": entry.get('user_id'),
                     "groups": entry.get('groups', []),
                     "roles": entry.get('roles', []),
                     "capabilities": entry.get('capabilities', []),
-                    "comments": entry.get('comments', None),
+                    "comments": entry.get('comments'),
                     "enabled": entry.get('enabled', True)
                 })
             return new_allow_list
 
+        def upgrade_1_0_to_1_1(allow_list):
+            new_allow_list = []
+            user_id_set = set()
+            for entry in allow_list:
+                user_id = entry.get('user_id')
+                if user_id:
+                    if user_id in user_id_set:
+                        new_user_id = str(uuid.uuid4())
+                        msg = ('user_id {} is already present in '
+                               'authentication entry. Changed to user_id to '
+                               '{}').format(user_id, new_user_id)
+                        _log.warn(msg)
+                        user_id_ = new_user_id
+                else:
+                    user_id = str(uuid.uuid4())
+                user_id_set.add(user_id)
+                entry['user_id'] = user_id
+                new_allow_list.append(entry)
+            return new_allow_list
+
         if version['major'] == 0:
-            allow_list = upgrade_0_to_1()
+            allow_list = upgrade_0_to_1(allow_list)
+            version['major'] = 1
+            version['minor'] = 0
+        if version['major'] == 1 and version['minor'] == 0:
+            allow_list = upgrade_1_0_to_1_1(allow_list)
+
         entries = self._get_entries(allow_list)
         self._write(entries, groups, roles)
 
@@ -598,21 +648,24 @@ class AuthFile(object):
 
     def _check_if_exists(self, entry):
         """Raises AuthFileEntryAlreadyExists if entry is already in file"""
-        matching_indices = []
         for index, prev_entry in enumerate(self.read_allow_entries()):
-            if (entry.domain == prev_entry.domain and
-                    entry.address == prev_entry.address and
-                    entry.credentials == prev_entry.credentials):
-                matching_indices.append(index)
-        if matching_indices:
-            raise AuthFileEntryAlreadyExists(matching_indices)
+            if entry.user_id == prev_entry.user_id:
+                raise AuthFileUserIdAlreadyExists(entry.user_id, [index])
+
+            # Compare AuthEntry objects component-wise, rather than
+            # using match, because match will evaluate regex.
+            if (prev_entry.domain == entry.domain and
+                    prev_entry.address == entry.address and
+                    prev_entry.mechanism == entry.mechanism and
+                    prev_entry.credentials == entry.credentials):
+                raise AuthFileEntryAlreadyExists([index])
 
     def _update_by_indices(self, auth_entry, indices):
         """Updates all entries at given indices with auth_entry"""
         for index in indices:
             self.update_by_index(auth_entry, index)
 
-    def add(self, auth_entry, overwrite=True):
+    def add(self, auth_entry, overwrite=False):
         """Adds an AuthEntry to the auth file
 
         :param auth_entry: authentication entry
@@ -761,3 +814,13 @@ class AuthFileEntryAlreadyExists(AuthFileIndexError):
             message = ('entry matches domain, address and credentials at '
                        'index {}').format(indicies)
         super(AuthFileEntryAlreadyExists, self).__init__(indicies, message)
+
+
+class AuthFileUserIdAlreadyExists(AuthFileEntryAlreadyExists):
+    """Exception if adding an entry that has a taken user_id"""
+
+    def __init__(self, user_id, indicies, message=None):
+        if message is None:
+            message = ('user_id {} is already in use at '
+                       'index {}').format(user_id, indicies)
+        super(AuthFileUserIdAlreadyExists, self).__init__(indicies, message)
