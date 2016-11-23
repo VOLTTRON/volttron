@@ -108,3 +108,4 @@ def add_listener(wrapper, config={}):
         config_file=config,
         agent_dir="examples/ListenerAgent"
     )
+    return agent_uuid
