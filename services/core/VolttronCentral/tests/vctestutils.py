@@ -50,6 +50,10 @@ class APITester(object):
         return self.do_rpc('register_instance', discovery_address=addr,
                            display_name=name)
 
+    def register_instance_with_serverkey(self, addr, serverkey, name=None):
+        return self.do_rpc('register_instance', adress=addr,
+                           serverkey=serverkey, display_name=name)
+
     def list_platforms(self):
         return self.do_rpc('list_platforms')
 

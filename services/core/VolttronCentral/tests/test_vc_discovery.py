@@ -13,16 +13,50 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
 
 
-@pytest.fixture(params=['vc-first', 'vcp-first'])
-def vc_with_vcp_tcp(request):
+@pytest.fixture(params=["use-serverkey-publickey", "use-http"])
+def vc_vcp_platforms(request):
+    vc = PlatformWrapper()
+    vcp = PlatformWrapper()
+
+    # VC is setup to allow all connections
+    vc.allow_all_connections()
+    start_wrapper_platform(vc, with_http=True)
+
+    if request.param == 'use-http':
+        start_wrapper_platform(vcp,
+                               volttron_central_address=vc.bind_web_address)
+    else:
+        start_wrapper_platform(vcp, volttron_central_address=vc.vip_address,
+                               volttron_central_serverkey=vc.serverkey)
+
+    vcp_uuid = add_volttron_central_platform(vcp)
+    vc_uuid = add_volttron_central(vc)
+
+    yield vc, vcp
+
+    vc.shutdown_platform()
+    vcp.shutdown_platform()
+
+
+@pytest.fixture(params=[
+    ('vc-first', 'local'),
+    ('vc-first', 'http'),
+    ('vcp-first', 'local'),
+    ('vcp-first', 'http')
+])
+def both_with_vc_vcp(request):
     """
     Adds the volttron-central-address and volttron-central-serverkey to the
     main instance configuration file before starting the platform
     """
     p = PlatformWrapper()
-    start_wrapper_platform(p, with_http=True, add_local_vc_address=True)
 
-    if request.param == 'vcp-first':
+    if request.param[1] == 'local':
+        start_wrapper_platform(p, with_http=True, add_local_vc_address=True)
+    else:
+        start_wrapper_platform(p, with_http=True)
+
+    if request.param[0] == 'vcp-first':
         vcp_uuid = add_volttron_central_platform(p)
         vc_uuid = add_volttron_central(p)
     else:
@@ -34,30 +68,11 @@ def vc_with_vcp_tcp(request):
     p.shutdown_platform()
 
 
-@pytest.fixture(params=['vc-first', 'vcp-first'])
-def vc_with_vcp_ipc(request):
-    """
+def test_autoregister_external(vc_vcp_platforms):
+    gevent.sleep(15)
+    vc, vcp = vc_vcp_platforms
 
-    """
-    p = PlatformWrapper()
-    start_wrapper_platform(p, with_http=True)
-
-    if request.param == 'vcp-first':
-        vcp_uuid = add_volttron_central_platform(p)
-        vc_uuid = add_volttron_central(p)
-    else:
-        vc_uuid = add_volttron_central(p)
-        vcp_uuid = add_volttron_central_platform(p)
-
-    yield p
-
-    p.shutdown_platform()
-
-
-def test_autoregister_local(vc_with_vcp_ipc):
-    gevent.sleep(10)
-
-    api = APITester(vc_with_vcp_ipc.jsonrpc_endpoint)
+    api = APITester(vc.jsonrpc_endpoint)
 
     platforms = api.list_platforms()
     assert platforms.ok
@@ -65,13 +80,14 @@ def test_autoregister_local(vc_with_vcp_ipc):
     assert len(results) == 1
 
 
-def test_autoregister_local_tcp_serverkey(vc_with_vcp_tcp):
-    gevent.sleep(10)
+def test_autoregister_local(both_with_vc_vcp):
+    gevent.sleep(15)
 
-    api = APITester(vc_with_vcp_tcp.jsonrpc_endpoint)
+    api = APITester(both_with_vc_vcp.jsonrpc_endpoint)
 
     platforms = api.list_platforms()
     assert platforms.ok
     results = platforms.json().get('result', None)
     assert len(results) == 1
+
 
