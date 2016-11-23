@@ -1,4 +1,5 @@
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
+from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging.health import STATUS_GOOD
 
 import pytest
@@ -38,25 +39,35 @@ def setup_platform(get_volttron_instances):
 
 
 @pytest.fixture
-def vcp_conn(setup_platform):
-    vcp = setup_platform
+def vcp_conn_as_manager(setup_platform):
+    assert setup_platform.is_running()
+
     conn = setup_platform.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM,
                                            capabilities=['manager'])
     yield conn
     conn.kill()
 
 
+@pytest.fixture
+def vcp_conn(setup_platform):
+    assert setup_platform.is_running()
+
+    conn = setup_platform.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
+    yield conn
+    conn.kill()
+
+
 @pytest.mark.vcp
-def test_list_agents(vcp_conn):
+def test_list_agents(vcp_conn_as_manager):
 
-    assert VOLTTRON_CENTRAL_PLATFORM in vcp_conn.peers()
+    assert VOLTTRON_CENTRAL_PLATFORM in vcp_conn_as_manager.peers()
 
-    agent_list = vcp_conn.call("list_agents")
+    agent_list = vcp_conn_as_manager.call("list_agents")
     assert agent_list and len(agent_list) == 1
 
     try:
         listener_uuid = add_listener(vcp)
-        agent_list = vcp_conn.call("list_agents")
+        agent_list = vcp_conn_as_manager.call("list_agents")
         assert agent_list and len(agent_list) == 2
 
     finally:
@@ -65,9 +76,9 @@ def test_list_agents(vcp_conn):
 
 
 @pytest.mark.vcp
-def test_can_inspect_agent(vcp_conn):
+def test_can_inspect_agent(vcp_conn_as_manager):
 
-    output = vcp_conn.call('inspect')
+    output = vcp_conn_as_manager.call('inspect')
     methods = output['methods']
     assert 'list_agents' in methods
     assert 'start_agent' in methods
@@ -81,6 +92,7 @@ def test_can_inspect_agent(vcp_conn):
     assert 'get_health' in methods
     assert 'get_instance_uuid' in methods
     assert 'list_agent_methods' in methods
+    assert 'status_agents' in methods
 
 
 @pytest.mark.vcp
@@ -89,3 +101,19 @@ def test_can_call_rpc_method(vcp_conn):
     assert health['status'] == STATUS_GOOD
 
 
+@pytest.mark.vcp
+def test_manager_required(vcp_conn):
+
+    # These methods require manage capability in the auth.json file to work.
+    # They also have no parameters in order for them to be called this way.
+    retrieval_methods = (
+        'get_publickey', 'list_agents', 'status_agents', 'get_devices',
+        'get_instance_uuid'
+    )
+
+    for method in retrieval_methods:
+        with pytest.raises(RemoteError):
+            output = vcp_conn.call(method)
+
+    # with pytest.raises(RemoteError):
+    #     pass
