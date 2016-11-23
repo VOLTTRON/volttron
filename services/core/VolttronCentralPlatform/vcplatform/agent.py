@@ -80,7 +80,7 @@ from volttron.platform.agent.utils import (get_utc_seconds_from_epoch)
 from volttron.platform.agent import utils
 from volttron.platform.agent.exit_codes import INVALID_CONFIGURATION_CODE
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL)
+    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL, CONFIGURATION_STORE)
 from volttron.platform.agent.utils import (get_aware_utc_now)
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
@@ -766,6 +766,27 @@ class VolttronCentralPlatform(Agent):
 
     @RPC.export
     @RPC.allow("manager")
+    def store_agent_config(self, agent_identity, config_name, raw_contents,
+                            config_type='raw'):
+        self.vip.rpc.call(CONFIGURATION_STORE, "manage_store", agent_identity,
+                          config_name, raw_contents, config_type)
+
+    @RPC.export
+    @RPC.allow("manager")
+    def list_agent_configs(self, agent_identity):
+        return self.vip.rpc.call(CONFIGURATION_STORE, "manage_list_configs",
+                                 agent_identity).get(timeout=5)
+
+    @RPC.export
+    @RPC.allow("manager")
+    def get_agent_config(self, agent_identity, config_name, raw=True):
+        data = self.vip.rpc.call(CONFIGURATION_STORE, "manage_get",
+                                 agent_identity, config_name, raw).get(timeout=5)
+        return data or ""
+
+
+    @RPC.export
+    @RPC.allow("manager")
     def start_agent(self, agent_uuid):
         self.vip.rpc.call(CONTROL, "start_agent", agent_uuid)
 
@@ -786,6 +807,7 @@ class VolttronCentralPlatform(Agent):
         return self.vip.rpc.call(CONTROL, "agent_status", agent_uuid).get(timeout=5)
 
     @RPC.export
+    @RPC.allow("manager")
     def status_agents(self):
         return self.vip.rpc.call(CONTROL, 'status_agents').get(timeout=5)
 
@@ -798,17 +820,6 @@ class VolttronCentralPlatform(Agent):
         pass
 
     @RPC.export
-    @RPC.allow("manager")
-    def set_config(self, identity, config_name, raw_contents, config_type="raw"):
-        self.vip.rpc.call('config.store', identity, config_name, raw_contents,
-                          config_type)
-
-    @RPC.export
-    @RPC.allow("manager")
-    def get_config(self, identity, config_name, raw=True):
-        return self.vip.rpc.call('config.store', identity, config_name, raw)
-
-    @RPC.export
     def get_devices(self):
         """
         RPC method for retrieving device data from the platform.
@@ -817,7 +828,8 @@ class VolttronCentralPlatform(Agent):
         """
 
         _log.debug('Getting devices')
-        config_list = self.vip.rpc.call('config.store', 'manage_list_configs',
+        config_list = self.vip.rpc.call(CONFIGURATION_STORE,
+                                        'manage_list_configs',
                                         'platform.driver').get(timeout=5)
 
         _log.debug('Config list is: {}'.format(config_list))
