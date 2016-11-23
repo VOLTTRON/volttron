@@ -7,11 +7,16 @@
 # Author: Craig Allwardt
 import random
 from datetime import datetime
+from calendar import monthrange
+
 
 import gevent
 import pytest
+import re
 from volttron.platform.agent.utils import (get_aware_utc_now, format_timestamp)
 from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.agent import utils
+
 
 try:
     import pymongo
@@ -687,3 +692,96 @@ def test_multi_topic(volttron_instance, database_client):
     finally:
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
+
+@pytest.mark.dev
+@pytest.mark.historian
+@pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_data_rollup_feature(volttron_instance, database_client):
+    """
+    Test basic functionality of sql historian. Inserts three points as part
+    of all topic and checks
+    if all three got into the database
+    :param database_client:
+    :param volttron_instance: The instance against which the test is run
+    """
+    global query_points
+
+    agent_uuid = install_historian_agent(volttron_instance,
+                                         mongo_agent_config())
+
+    try:
+        # print('HOME', volttron_instance.volttron_home)
+        print("\n** test_data_rollup_feature **")
+
+        publish_agent = volttron_instance.build_agent()
+
+        version = publish_agent.vip.rpc.call('platform.historian',
+                                   'get_version').get(timeout=5)
+
+        version_nums = version.split(".")
+        if int(version_nums[0]) < 2:
+            pytest.skip("Only version >= 2.0 support rolled up data.")
+
+
+        # Clean data and roll up tables
+        db = database_client.get_default_database()
+        db['data'].drop()
+        db['topics'].drop()
+        db['hourly_data'].drop()
+        db['daily_data'].drop()
+        db['monthly_data'].drop()
+
+
+        # Publish data to message bus that should be recorded in the mongo
+        # database.
+        expected1 = publish_fake_data(publish_agent)
+        gevent.sleep(0.5)
+        expected2 = publish_fake_data(publish_agent)
+        gevent.sleep(1)
+
+        # Query the historian
+        result = publish_agent.vip.rpc.call(
+            'platform.historian',
+            'query',
+            topic=query_points['oat_point'],
+            count=20,
+            order="FIRST_TO_LAST").get(timeout=10)
+
+        print result
+        expected_t1 = expected1['datetime'].isoformat()[:-3] + '000+00:00'
+        assert expected_t1 == result['values'][0][0]
+        assert result['values'][0][1] == expected1['oat_point']
+
+        expected_t2 = expected2['datetime'].isoformat()[:-3] + '000+00:00'
+        assert expected_t2 == result['values'][1][0]
+        assert result['values'][1][1] == expected2['oat_point']
+
+        cursor = db['topics'].find({'topic_name':query_points['oat_point']})
+        rows = list(cursor)
+        id = rows[0]['_id']
+        cursor = db['daily_data'].find({'topic_id':id})
+        rows = list(cursor)
+        rollup_hour = expected1['datetime'].replace(minute=0, second=0, microsecond=0)
+        rollup_day = rollup_hour.replace(hour=0)
+        rollup_month = rollup_day.replace(day=1)
+        weekday, num_days = monthrange(rollup_month.year, rollup_month.month)
+        assert len(rows[0]['data']) == 24 * 60
+        #print rows[0]['data']
+        rolled_up_data = rows[0]['data'][
+            expected1['datetime'].hour * 60 + expected1['datetime'].minute]
+
+        compare_rolled_up_data(rolled_up_data, expected_t1,
+                               expected1['oat_point'])
+        compare_rolled_up_data(rolled_up_data, expected_t2,
+                               expected2['oat_point'])
+
+    finally:
+        volttron_instance.stop_agent(agent_uuid)
+        volttron_instance.remove_agent(agent_uuid)
+
+
+def compare_rolled_up_data(rolled_up_data, expected_time, expected_value):
+    assert utils.format_timestamp(
+        rolled_up_data[0][0]) + '+00:00' == expected_time
+    assert rolled_up_data[0][1] == expected_value

@@ -1,17 +1,11 @@
-import pytz
-
 try:
     import pymongo
 except:
     raise Exception("Required: pymongo")
 from datetime import datetime
-from bson.objectid import ObjectId
-
-from pymongo import ReplaceOne
 from numbers import Number
 
-from volttron.platform.agent import utils
-
+from bson.objectid import ObjectId
 
 local_source_params = {
             "host": "localhost",
@@ -77,20 +71,6 @@ def hourly_rollup(source_params, dest_params, start_date, end_date):
         dest_db = connect_mongodb(dest_params)
         dest_tables = get_table_names(dest_params)
 
-        records = []
-        for record in source_db[source_tables['topics_table']].find():
-            records.append(record)
-        print("total records {}".format(len(records)))
-        dest_db[dest_tables['topics_table']].insert_many(
-            records)
-
-        records = []
-        for record in source_db[source_tables['meta_table']].find():
-            records.append(record)
-        print("total records {}".format(len(records)))
-        dest_db[dest_tables['meta_table']].insert_many(
-            records)
-
         dest_db['hourly_data'].create_index(
             [('topic_id', pymongo.DESCENDING),
              ('ts', pymongo.DESCENDING)],
@@ -102,18 +82,11 @@ def hourly_rollup(source_params, dest_params, start_date, end_date):
             [('ts', pymongo.ASCENDING)],
             background=False)
 
-
-        print ("start obj:{}".format(ObjectId.from_datetime(start_date)))
-        print ("end obj:{}".format(ObjectId.from_datetime(end_date)))
-
         cursor = source_db[source_tables['data_table']].find(
-            {'$and':
-                 [{'ts': {'$gte': start_date}},
-                  {'ts': {'$lt': end_date}}]}
+            {'ts': {'$gte': start_date,'$lt': end_date}}
         ).sort([('topic_id', pymongo.ASCENDING), ('ts', pymongo.ASCENDING)])
 
-        cursor = source_db[source_tables['data_table']].find().\
-            sort([('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)])
+
 
         print ("Record count from cursor {}".format(cursor.count()))
         topic_id =''
@@ -141,9 +114,7 @@ def hourly_rollup(source_params, dest_params, start_date, end_date):
                     dest_db['hourly_data'].update_one(
                         {'topic_id': topic_id, 'ts':
                             datetime(date.year, date.month, date.day, hour)},
-                        {"$set":{'sum':sum, 'avg': sum/count if count>0 else 0 ,
-                         'count':count,
-                                 'data':data}}
+                        {"$set":{'sum':sum, 'count':count, 'data':data}}
                     )
                     sum = 0
                     count = 0
@@ -162,10 +133,10 @@ def hourly_rollup(source_params, dest_params, start_date, end_date):
                     {'topic_id': topic_id,
                      'ts': datetime(date.year, date.month, date.day, hour)
                     }, upsert=True)
-                print("Finished insert for {} , {}".format(
-                    topic_id,
-                    datetime(date.year, date.month, date.day, hour)
-                ))
+                # print("Finished insert for {} , {}".format(
+                #     topic_id,
+                #     datetime(date.year, date.month, date.day, hour)
+                # ))
 
             # append data and calculate aggregate values
             data.append((record['ts'], record['value']))
@@ -174,9 +145,9 @@ def hourly_rollup(source_params, dest_params, start_date, end_date):
                 count = count + 1
     finally:
         if source_db:
-            source_db.close()
+            source_db.client.close()
         if dest_db:
-            dest_db.close()
+            dest_db.client.close()
 
 
 def daily_rollup(db_params, start_date, end_date):
@@ -208,10 +179,10 @@ def daily_rollup(db_params, start_date, end_date):
                        'topic_id': {"$first":"$topic_id"},
                        'sum': { "$sum": "$sum" },
                        'count': { "$sum": "$count" },
-                       'data_refs': {"$push": "$data"}
+                       'data': {"$push": "$data"}
                         }})
-        pipeline.append({"$unwind":"$data_refs"})
-        pipeline.append({"$unwind": "$data_refs"})
+        pipeline.append({"$unwind":"$data"})
+        pipeline.append({"$unwind": "$data"})
         pipeline.append({'$group' : {
                         '_id': "$_id",
                         'ts': {"$first":"$ts"},
@@ -225,7 +196,7 @@ def daily_rollup(db_params, start_date, end_date):
                         'topic_id': {"$first": "$topic_id"},
                         'sum': { "$first": "$sum" },
                         'count': { '$first': "$count" },
-                        'data_refs': {'$push': "$data_refs"}
+                        'data': {'$push': "$data"}
                         }})
         pipeline.append({'$project':{
             '_id': 0,
@@ -240,8 +211,8 @@ def daily_rollup(db_params, start_date, end_date):
             'topic_id':1,
             'sum': 1,
             'count': 1,
-            'data_refs': 1}})
-        pipeline.append({"$out":"daily_data2"})
+            'data': 1}})
+        pipeline.append({"$out":"daily_data"})
 
         dest_db['hourly_data'].aggregate(pipeline, allowDiskUse=True)
 
@@ -272,10 +243,10 @@ def monthly_rollup(db_params, start_date, end_date):
                        'topic_id': {"$first":"$topic_id"},
                        'sum': { "$sum": "$sum" },
                        'count': { "$sum": "$count" },
-                       'data_refs': {"$push": "$data"}
+                       'data': {"$push": "$data"}
                         }})
-        pipeline.append({"$unwind":"$data_refs"})
-        pipeline.append({"$unwind": "$data_refs"})
+        pipeline.append({"$unwind":"$data"})
+        pipeline.append({"$unwind": "$data"})
         pipeline.append({'$group' : {
                         '_id': "$_id",
                         'ts': {"$first":"$ts"},
@@ -289,7 +260,7 @@ def monthly_rollup(db_params, start_date, end_date):
                         'topic_id': {"$first": "$topic_id"},
                         'sum': { "$first": "$sum" },
                         'count': { '$first': "$count" },
-                        'data_refs': {'$push': "$data_refs"}
+                        'data': {'$push': "$data"}
                         }})
         pipeline.append({'$project':{
             '_id': 0,
@@ -308,10 +279,10 @@ def monthly_rollup(db_params, start_date, end_date):
             'topic_id':1,
             'sum': 1,
             'count': 1,
-            'data_refs': 1}})
-        pipeline.append({"$out":"monthly_data2"})
+            'data': 1}})
+        pipeline.append({"$out":"monthly_data"})
         print (pipeline)
-        #dest_db['daily_data'].aggregate(pipeline, allowDiskUse=True)
+        dest_db['daily_data'].aggregate(pipeline, allowDiskUse=True)
 
     finally:
         if dest_db:
@@ -323,9 +294,10 @@ def rollup_data(source, dest, start, end):
     monthly_rollup(dest, start, end)
 
 if __name__ == '__main__':
-
+    start = datetime.utcnow()
     rollup_data(local_source_params, local_dest_params,
-         datetime.strptime('01Mar2016','%d%b%Y'),
-         datetime.strptime('02Apr2016','%d%b%Y'))
-
+         datetime.strptime('01May2016','%d%b%Y'),
+         datetime.strptime('16May2016','%d%b%Y'))
+    print ("Total time for roll up of data: {}".format(datetime.utcnow() -
+                                                       start))
 
