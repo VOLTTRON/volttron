@@ -564,6 +564,7 @@ class VolttronCentralPlatform(Agent):
         return self.vip.health.get_status()
 
     @RPC.export
+    @RPC.allow("manager")
     def get_instance_uuid(self):
         return self.current_config.get('instance_id')
 
@@ -820,6 +821,7 @@ class VolttronCentralPlatform(Agent):
         pass
 
     @RPC.export
+    @RPC.allow("manager")
     def get_devices(self):
         """
         RPC method for retrieving device data from the platform.
@@ -870,6 +872,7 @@ class VolttronCentralPlatform(Agent):
         return devices
 
     @RPC.export
+    @RPC.allow("manager")
     def route_request(self, id, method, params):
         _log.debug(
             'platform agent routing request: {}, {}'.format(id, method))
