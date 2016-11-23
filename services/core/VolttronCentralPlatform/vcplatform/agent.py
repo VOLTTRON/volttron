@@ -804,6 +804,7 @@ class VolttronCentralPlatform(Agent):
         return self.agent_status(agent_uuid).get(timeout=5)
 
     @RPC.export
+    @RPC.allow("manager")
     def agent_status(self, agent_uuid):
         return self.vip.rpc.call(CONTROL, "agent_status", agent_uuid).get(timeout=5)
 
@@ -1018,11 +1019,6 @@ class VolttronCentralPlatform(Agent):
         shutil.rmtree(tmpdir, ignore_errors=True)
 
         return results
-
-    @RPC.export
-    def list_agent_methods(self, method, params, id, agent_uuid):
-        return jsonrpc.json_error(ident=id, code=INTERNAL_ERROR,
-                                  message='Not implemented')
 
     def _publish_stats(self):
         """

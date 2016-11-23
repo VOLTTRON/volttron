@@ -1,5 +1,5 @@
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
-from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.jsonrpc import RemoteError, UNAUTHORIZED
 from volttron.platform.messaging.health import STATUS_GOOD
 
 import pytest
@@ -91,7 +91,6 @@ def test_can_inspect_agent(vcp_conn_as_manager):
     assert 'unmanage' in methods
     assert 'get_health' in methods
     assert 'get_instance_uuid' in methods
-    assert 'list_agent_methods' in methods
     assert 'status_agents' in methods
 
 
@@ -104,16 +103,21 @@ def test_can_call_rpc_method(vcp_conn):
 @pytest.mark.vcp
 def test_manager_required(vcp_conn):
 
-    # These methods require manage capability in the auth.json file to work.
-    # They also have no parameters in order for them to be called this way.
+    # These are the rpc methods that require management.  We can test
+    # all of them through a loop because the verification of the capability
+    # happens before the execution of the rpc method.
+    #
+    # However if there is not a manager capability required then we must
+    # check to make sure that the RemoteError is the UNAUTHORIZED rather
+    # than a parameter issue.
     retrieval_methods = (
         'get_publickey', 'list_agents', 'status_agents', 'get_devices',
-        'get_instance_uuid'
+        'get_instance_uuid', 'start_agent', 'stop_agent', 'agent_status',
+        'restart_agent', 'route_request', 'get_agent_config',
+        'list_agent_configs', 'store_agent_config'
     )
 
     for method in retrieval_methods:
-        with pytest.raises(RemoteError):
+        with pytest.raises(RemoteError) as einfo:
             output = vcp_conn.call(method)
-
-    # with pytest.raises(RemoteError):
-    #     pass
+        assert str(UNAUTHORIZED) in str(einfo.value)
