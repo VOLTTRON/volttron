@@ -88,6 +88,7 @@ from urlparse import urlparse
 
 import datetime
 import gevent
+from volttron.platform.auth import AuthFile, AuthEntry
 from zmq.utils import jsonapi
 
 from authenticate import Authenticate
@@ -258,6 +259,16 @@ class VolttronCentralAgent(Agent):
         self.vip.web.register_websocket(r'/vc/ws', self.open_authenticate_ws_endpoint, self._ws_closed, self._ws_received)
         self.vip.web.register_endpoint(r'/jsonrpc', self.jsonrpc)
         self.vip.web.register_path(r'^/.*', self.runtime_config.get('webroot'))
+
+        auth_file = AuthFile()
+        entry = auth_file.find_by_credentials(self.core.publickey)[0]
+        if 'manager' not in entry.capabilities:
+            _log.debug('Adding manager capability for volttron.central to '
+                       'local instance. Publickey is {}'.format(
+                self.core.publickey))
+            entry.add_capabilities(['manager'])
+            auth_file.add(entry, True)
+            gevent.sleep(0.1)
 
         # Keep connections in sync if necessary.
         self._periodic_reconnect_to_platforms()

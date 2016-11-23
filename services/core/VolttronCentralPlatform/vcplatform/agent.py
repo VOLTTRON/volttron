@@ -218,9 +218,11 @@ class VolttronCentralPlatform(Agent):
         vc_address = q.query('volttron-central-address').get(timeout=5)
         vc_serverkey = q.query('volttron-central-serverkey').get(timeout=5)
         instance_name = q.query('instance-name').get(timeout=5)
+        bind_web_address = q.query('bind-web-address').get(timeout=5)
         instance_id = hashlib.md5(external_addresses[0]).hexdigest()
 
         updates = dict(
+            bind_web_address=bind_web_address,
             volttron_central_address=vc_address,
             volttron_central_serverkey=vc_serverkey,
             instance_name=instance_name,
@@ -247,27 +249,36 @@ class VolttronCentralPlatform(Agent):
         vc_address = self.current_config['volttron_central_address']
         vc_serverkey = self.current_config['volttron_central_serverkey']
 
-        parsed = urlparse.urlparse(vc_address)
+        if vc_address:
+            parsed = urlparse.urlparse(vc_address)
 
-        if parsed.scheme in ('http', 'https'):
-            _log.debug('vc_address is {}'.format(vc_address))
-            info = None
-            while info is None:
-                try:
-                    info = DiscoveryInfo.request_discovery_info(vc_address)
-                except DiscoveryError as e:
-                    _log.error(
-                        "Unable to retrieve discovery info from volttron central.")
-                    gevent.sleep(10)
+            if parsed.scheme in ('http', 'https'):
+                _log.debug('vc_address is {}'.format(vc_address))
+                info = None
+                while info is None:
+                    try:
+                        info = DiscoveryInfo.request_discovery_info(vc_address)
+                    except DiscoveryError as e:
+                        _log.error(
+                            "Unable to retrieve discovery info from volttron central.")
+                        gevent.sleep(10)
 
-
-            self.current_config['vc_connect_address'] = info.vip_address
-            self.current_config['vc_connect_serverkey'] = info.serverkey
+                self.current_config['vc_connect_address'] = info.vip_address
+                self.current_config['vc_connect_serverkey'] = info.serverkey
+            else:
+                self.current_config['vc_connect_address'] = vc_address
+                self.current_config['vc_connect_serverkey'] = vc_serverkey
         else:
-            self.current_config['vc_connect_address'] = vc_address
-            self.current_config['vc_connect_serverkey'] = vc_serverkey
+            if bind_web_address:
+                info = DiscoveryInfo.request_discovery_info(bind_web_address)
+                # This will allow us to register with the current instance if
+                # there is an http server running here.
+                self.current_config['vc_connect_address'] = info.vip_address
+                self.current_config['vc_connect_serverkey'] = info.serverkey
 
-        # Address hash that uniquely defines this platform in the network.
+        # Address hash that uniquely defines this instance in the network.
+        # Note: if there isn't a true tcp address then external_address[0] is
+        # going to be the ipc address
         address_hash = hashlib.md5(external_addresses[0]).hexdigest()
         self.current_config['address_hash'] = address_hash
 
