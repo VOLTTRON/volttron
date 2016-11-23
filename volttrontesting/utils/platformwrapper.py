@@ -223,7 +223,7 @@ class PlatformWrapper:
 
     def build_connection(self, peer=None, address=None, identity=None,
                          publickey=None, secretkey=None, serverkey=None,
-                         **kwargs):
+                         capabilities=[], **kwargs):
 
         if self.encrypt:
             self.allow_all_connections()
@@ -239,6 +239,12 @@ class PlatformWrapper:
             keys.generate()
             publickey = keys.public
             secretkey = keys.secret
+            entry = AuthEntry(capabilities=capabilities,
+                              comments="Added by test",
+                              credentials=keys.public)
+            file = AuthFile(self.volttron_home+"/auth.json")
+            file.add(entry)
+
         if self.encrypt:
             conn = Connection(address=address, peer=peer, publickey=publickey,
                               secretkey=secretkey, serverkey=serverkey,
