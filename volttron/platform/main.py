@@ -94,7 +94,7 @@ from .control import ControlService
 from .web import MasterWebService
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB, AUTH
+from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 
@@ -560,7 +560,7 @@ def start_volttron_process(opts):
     try:
 
         # Start the config store before auth so we may one day have auth use it.
-        config_store = ConfigStoreService( address=address, identity='config.store')
+        config_store = ConfigStoreService( address=address, identity=CONFIGURATION_STORE)
 
         event = gevent.event.Event()
         config_store_task = gevent.spawn(config_store.core.run, event)
