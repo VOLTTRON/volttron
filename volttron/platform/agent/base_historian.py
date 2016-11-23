@@ -956,7 +956,8 @@ class BackupDatabase:
                                          ts timestamp NOT NULL,
                                          source TEXT NOT NULL,
                                          topic_id INTEGER NOT NULL,
-                                         value_string TEXT NOT NULL)''')
+                                         value_string TEXT NOT NULL,
+                                         UNIQUE(ts, topic_id, source))''')
 
         c.execute("SELECT name FROM sqlite_master WHERE type='table' "
                   "AND name='metadata';")
