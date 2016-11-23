@@ -2,7 +2,7 @@ from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL, \
     VOLTTRON_CENTRAL_PLATFORM
 
 
-def add_volttron_central(wrapper, config=None):
+def add_volttron_central(wrapper, config=None, **kwargs):
     config_dict = {
         # The agentid is used during display on the VOLTTRON central platform
         # it does not need to be unique.
@@ -45,67 +45,76 @@ def add_volttron_central(wrapper, config=None):
     agent_uuid = wrapper.install_agent(
         config_file=config_dict,
         agent_dir="services/core/VolttronCentral",
-        vip_identity=VOLTTRON_CENTRAL
+        vip_identity=VOLTTRON_CENTRAL,
+        **kwargs
     )
 
     return agent_uuid
 
 
-def add_volttron_central_platform(wrapper):
+def add_volttron_central_platform(wrapper, config={}, **kwargs):
     print('Adding vcp to {}'.format(wrapper.vip_address))
     agent_uuid = wrapper.install_agent(
-        config_file={},
+        config_file=config,
         agent_dir="services/core/VolttronCentralPlatform",
         vip_identity=VOLTTRON_CENTRAL_PLATFORM
     )
     return agent_uuid
 
 
-def add_sqlhistorian(wrapper, config, vip_identity='platform.historian'):
+def add_sqlhistorian(wrapper, config, vip_identity='platform.historian',
+                     **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
         agent_dir="services/core/SQLHistorian",
-        vip_identity=vip_identity
+        vip_identity=vip_identity,
+        **kwargs
     )
     return agent_uuid
 
 
-def add_mongohistorian(wrapper, config, vip_identity='platform.historian'):
+def add_mongohistorian(wrapper, config, vip_identity='platform.historian',
+                       **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
         agent_dir="services/core/MongodbHistorian",
-        vip_identity=vip_identity
+        vip_identity=vip_identity,
+        **kwargs
     )
     return agent_uuid
 
 
-def add_sysmon(wrapper, config):
+def add_sysmon(wrapper, config, **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
-        agent_dir="services/core/SysMonAgent"
+        agent_dir="services/core/SysMonAgent",
+        **kwargs
     )
     return agent_uuid
 
 
-def add_thresholddetection(wrapper, config):
+def add_thresholddetection(wrapper, config, **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
-        agent_dir="services/core/ThresholdDetectionAgent"
+        agent_dir="services/core/ThresholdDetectionAgent",
+        **kwargs
     )
     return agent_uuid
 
 
-def add_emailer(wrapper, config):
+def add_emailer(wrapper, config, **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
-        agent_dir="services/core/EmailerAgent"
+        agent_dir="services/core/EmailerAgent",
+        **kwargs
     )
     return agent_uuid
 
 
-def add_listener(wrapper, config={}):
+def add_listener(wrapper, config={}, **kwargs):
     agent_uuid = wrapper.install_agent(
         config_file=config,
-        agent_dir="examples/ListenerAgent"
+        agent_dir="examples/ListenerAgent",
+        **kwargs
     )
     return agent_uuid
