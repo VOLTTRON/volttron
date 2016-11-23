@@ -66,7 +66,7 @@ from volttron.platform.messaging.health import Status, STATUS_BAD
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.6'
+__version__ = '3.7'
 
 
 def thresholddetection_agent(config_path, **kwargs):
@@ -87,33 +87,22 @@ class ThresholdDetectionAgent(Agent):
 
     The agent's configuration specifies which topics to watch, the
     topic's threshold, and the message to send in an alert. Topics
-    in the `watch_max` list trigger alerts when the published data
-    are greater than the specified threshold. Topics in the
-    `watch_min` list trigger alerts when the published data are
-    less than the specified threshold. Non-numberic data will be
-    ignored.
+    can specify a maximum and minimum threshold. Non-numberic data
+    will be ignored.
 
     Example configuration:
 
     .. code-block:: python
 
         {
-          "watch_max": [
-            {
-              "topic": "datalogger/log/platform/cpu_percent",
-              "threshold": 99,
-              "message": "CPU ({topic}) exceeded {threshold} percent",
-              "enabled": true
-            }
-          ]
-          "watch_min": [
-            {
-              "topic": "some/temperature/topic",
-              "threshold": 0,
-              "message": "Temperature is below {threshold}",
-              "enabled": true
-            }
-          ]
+          "datalogger/log/platfor/cpu_percent": {
+              "threshold_max": 99,
+              "message": "CPU ({topic}) exceeded {threshold} percent"
+          },
+          "some/temperature/topic": {
+              "threshold_min": 0,
+              "message": "Temperature is below {threshold}"
+          }
         }
 
     """
@@ -122,8 +111,9 @@ class ThresholdDetectionAgent(Agent):
 
         self.config_topics = {}
 
-        self.vip.config.subscribe(self.threshold_add, actions="NEW", pattern="*")
-        self.vip.config.subscribe(self.threshold_del, actions="DELETE", pattern="*")
+        self.vip.config.subscribe(self.threshold_add, actions="NEW")
+        self.vip.config.subscribe(self.threshold_del, actions="DELETE")
+        self.vip.config.subscribe(self.threshold_mod, actions="UPDATE")
 
     def threshold_add(self, config_name, action, contents):
 
@@ -144,31 +134,35 @@ class ThresholdDetectionAgent(Agent):
                         self.alert(alert_message, topic)
             return callback
 
-        comparators = {'watch_max': lambda x, y: x > y,
-                       'watch_min': lambda x, y: x < y}
-
-
         self.config_topics[config_name] = set()
-        for key, comparator in comparators.iteritems():
-            for item in contents.get(key, []):
-                # replaces keywords ({topic}, {threshold})
-                # with values in the message:
-                msg = item['message'].format(**item)
-                callback = generate_callback(msg, item['threshold'], comparator)
+        for topic, values in contents.iteritems():
+            self.config_topics[config_name].add(topic)
+            _log.info("Subscribing to {}".format(topic))
 
-                topic = item['topic']
-                _log.info("Subscribing to {}".format(topic))
-                self.config_topics[config_name].add(topic)
+            threshold_max = values.get('threshold_max')
+            if threshold_max is not None:
+                msg = values['message'].format(topic=topic, threshold=threshold_max)
+                callback = generate_callback(msg, threshold_max, lambda x, y: x > y)
                 self.vip.pubsub.subscribe('pubsub', topic, callback)
 
+            threshold_min = values.get('threshold_min')
+            if threshold_min is not None:
+                msg = values['message'].format(topic=topic, threshold=threshold_min)
+                callback = generate_callback(msg, threshold_min, lambda x, y: x < y)
+                self.vip.pubsub.subscribe('pubsub', topic, callback)
+
+
     def threshold_del(self, config_name, action, contents):
-        topics = self.config_topics[config_name]
+        topics = self.config_topics.pop(config_name)
         for t in topics:
+            _log.info("Unsubscribing from {}".format(t))
             self.vip.pubsub.unsubscribe(peer='pubsub',
                                         prefix=t,
                                         callback=None).get()
 
-        self.config_topics.pop(config_name)
+    def threshold_mod(self, *args):
+        self.threshold_del(*args)
+        self.threshold_add(*args)
 
     def alert(self, message, topic):
         """

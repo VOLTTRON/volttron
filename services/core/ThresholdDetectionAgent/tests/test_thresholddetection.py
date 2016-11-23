@@ -70,22 +70,14 @@ from volttron.platform.vip.agent import Agent, PubSub
 from volttrontesting.utils.utils import poll_gevent_sleep
 
 _test_config = {
-    "watch_max": [
-        {
-            "topic": "test1",
-            "threshold": 10,
-            "message": "{topic} > {threshold}",
-            "enabled": True
-        },
-    ],
-    "watch_min": [
-        {
-            "topic": "test3",
-            "threshold": 10,
-            "message": "{topic} < {threshold}",
-            "enabled": True
-        }
-    ]
+    "test1": {
+        "threshold_max": 10,
+        "message": "{topic} > {threshold}"
+    },
+    "test3": {
+        "threshold_min": 10,
+        "message": "{topic} < {threshold}"
+    }
 }
 
 
@@ -134,9 +126,16 @@ def threshold_tester_agent(request, volttron_instance):
 
 
 def publish(agent, config, operation, to_max=True):
-    for entry in config['watch_max' if to_max else 'watch_min']:
-        agent.vip.pubsub.publish('pubsub', entry['topic'], None,
-                              operation(entry['threshold'])).get()
+    for topic, value in config.iteritems():
+
+        if to_max is True and value.get('threshold_max') is not None:
+            threshold = value['threshold_max']
+        elif to_max is False and value.get('threshold_min') is not None:
+            threshold = value['threshold_min']
+        else:
+            continue
+
+        agent.vip.pubsub.publish('pubsub', topic, None, operation(threshold)).get()
 
 
 def test_above_max(threshold_tester_agent):
@@ -166,6 +165,7 @@ def test_below_min(threshold_tester_agent):
     check = lambda: threshold_tester_agent.seen_alert_keys == set(['test3'])
     assert poll_gevent_sleep(2, check)
 
+
 def test_remove_from_config_store(threshold_tester_agent):
     threshold_tester_agent.vip.rpc.call(CONFIGURATION_STORE,
                                         'manage_delete_config',
@@ -175,3 +175,25 @@ def test_remove_from_config_store(threshold_tester_agent):
     publish(threshold_tester_agent, _test_config, lambda x: x-1, to_max=False)
     gevent.sleep(1)
     assert len(threshold_tester_agent.seen_alert_keys) == 0
+
+
+def test_update_config(threshold_tester_agent):
+    updated_config = {
+        "updated_topic": {
+            "threshold_max": 10,
+            "threshold_min": 0,
+            "message": "{topic} out or range {threshold}"
+        }
+    }
+
+    threshold_tester_agent.vip.rpc.call(CONFIGURATION_STORE,
+                                        'manage_store',
+                                        'platform.thresholddetection',
+                                        'test_config',
+                                        json.dumps(updated_config),
+                                        'json').get(timeout=10)
+
+    publish(threshold_tester_agent, _test_config, lambda x: x+1)
+    publish(threshold_tester_agent, updated_config, lambda x: x+1)
+    check = lambda: threshold_tester_agent.seen_alert_keys == set(['updated_topic'])
+    assert poll_gevent_sleep(2, check)
