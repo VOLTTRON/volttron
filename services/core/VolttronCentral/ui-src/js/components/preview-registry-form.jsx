@@ -29,7 +29,7 @@ class PreviewRegistryForm extends BaseComponent {
     _onSubmit(e) {
         e.preventDefault();
         modalActionCreators.closeModal();
-        this.props.onsaveregistry();
+        this.props.onsaveregistry(this.state.fileName);
     }
     render() {
 

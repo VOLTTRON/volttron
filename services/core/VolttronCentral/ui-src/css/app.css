@@ -941,6 +941,10 @@ br + .form__control-help {
     margin-top: 1.5em;
 }
 
+.edit-registry-form input {
+    width: 100%;
+}
+
 .edit-chart-form {
     width: 400px;
 }

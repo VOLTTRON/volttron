@@ -941,6 +941,10 @@ br + .form__control-help {
     margin-top: 1.5em;
 }
 
+.edit-registry-form input {
+    width: 100%;
+}
+
 .edit-chart-form {
     width: 400px;
 }
@@ -1840,4 +1844,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-05a0d657d0af346480cd.css.map*/
+/*# sourceMappingURL=app-5d7bfe9d714714685436.css.map*/

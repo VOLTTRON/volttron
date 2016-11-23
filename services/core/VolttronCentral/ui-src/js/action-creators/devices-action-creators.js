@@ -54,12 +54,6 @@ var devicesActionCreators = {
 
         var setUpDevicesSocket = function(platformUuid, bacnetIdentity) {
 
-            // if (typeof pointsWs !== "undefined" && pointsWs !== null)
-            // {
-            //     pointsWs.close();
-            //     pointsWs = null;
-            // }
-
             devicesWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/iam";
             if (window.WebSocket) {
                 devicesWs = new WebSocket(devicesWebsocket);
@@ -182,12 +176,6 @@ var devicesActionCreators = {
 
         var setUpPointsSocket = function() {
         
-            // if (typeof devicesWs !== "undefined" && devicesWs !== null)
-            // {
-            //     devicesWs.close();
-            //     devicesWs = null;
-            // }
-
             pointsWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/configure";
             if (window.WebSocket) {
                 pointsWs = new WebSocket(pointsWebsocket);
@@ -273,20 +261,107 @@ var devicesActionCreators = {
             attributes: attributes
         });
     },
-    saveRegistry: function (deviceId, deviceAddress, values) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.SAVE_REGISTRY,
-            deviceId: deviceId,
-            deviceAddress: deviceAddress,
-            data: values
-        });
+    saveRegistry: function (device, fileName, values) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        var params = {
+            platform_uuid: device.platformUuid, 
+            agent_identity: "platform.driver", 
+            config_name: fileName,
+            config_type: "csv",
+            raw_contents: values
+        };
+
+        return new rpc.Exchange({
+            method: 'store_agent_config',
+            authorization: authorization,
+            params: params,
+        }).promise
+            .then(function (result) {
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.SAVE_REGISTRY,
+                    fileName: fileName,
+                    deviceId: device.id,
+                    deviceAddress: device.address,
+                    data: values
+                });
+
+            })
+            .catch(rpc.Error, function (error) {
+
+                error.message = "Unable to save registry configuration. " + error.message + ".";
+
+                handle401(error, error.message);
+            });
+        
     },
-    saveConfig: function (device, settings) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.SAVE_CONFIG,
-            device: device,
-            settings: settings
+    saveBacnetConfig: function (device, settings, registryFile) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        var values = {};
+
+        values.driver_type = "bacnet"; //TODO: get this dynamically
+        values.driver_config = {
+            device_address: device.address,
+            device_id: device.id,
+            proxy_address: "platform.bacnet_proxy" //TODO: get this dynamically
+        };
+
+        values.interval = 60;
+        values.publish_breadth_first_all = false;
+        values.publish_depth_first = false;
+        values.publish_breadth_first = false;
+        values.timezone = "US/Pacific";
+        values.registry_config = "config://" + registryFile;
+
+        var campus = settings.find(function (setting) {
+            return setting.key === "campus";
         });
+
+        var building = settings.find(function (setting) {
+            return setting.key === "building";
+        });
+
+        var unit = settings.find(function (setting) {
+            return setting.key === "unit";
+        });
+
+        var path = settings.find(function (setting) {
+            return setting.key === "path";
+        });
+
+        var params = {
+            platform_uuid: device.platformUuid, 
+            agent_identity: "platform.driver", 
+            config_name: "devices/" + campus.value + "/" + building.value + "/" + unit.value + "/" + path.value,
+            config_type: "json",
+            raw_contents: JSON.stringify(values)
+        };
+
+        return new rpc.Exchange({
+            method: 'store_agent_config',
+            authorization: authorization,
+            params: params,
+        }).promise
+            .then(function (result) {
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.SAVE_CONFIG,
+                    device: device,
+                    settings: settings
+                });
+
+            })
+            .catch(rpc.Error, function (error) {
+
+                error.message = "Unable to save device configuration. " + error.message + ".";
+
+                handle401(error, error.message);
+            });
+        
     },
 };
 

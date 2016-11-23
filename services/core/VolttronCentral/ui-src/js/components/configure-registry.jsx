@@ -761,17 +761,33 @@ class ConfigureRegistry extends BaseComponent {
                 onsaveregistry={this._saveRegistry}>
             </PreviewRegistryForm>);
     }
-    _saveRegistry() {
+    _saveRegistry(fileName) {
 
-        devicesActionCreators.saveRegistry(
-                                this.props.device.id, 
-                                this.props.device.address, 
-                                this.state.registryValues.map(function (row) {
-                                        return row.get("attributes");
-                                    })
-                                );
+        var csvData = "";
 
-        modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device}/>);
+        var headerRow = [];
+
+        this.state.registryValues[0].get("attributes").forEach(function (item) {
+            headerRow.push(item.label);
+        });
+
+        csvData = headerRow.join() + "\n";
+
+        this.state.registryValues.forEach(function (attributeRow, rowIndex) {
+
+            var newRow = [];
+
+            attributeRow.get("attributes").forEach(function (columnCell, columnIndex) {
+                newRow.push(columnCell.value);
+            });
+
+            csvData = csvData.concat(newRow.join() + "\n");
+
+        });
+
+        devicesActionCreators.saveRegistry(this.props.device, fileName, csvData);
+
+        modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device} registryFile={fileName}/>);
     }
     _getParentNode() {
         return ReactDOM.findDOMNode(this.refs[this.state.tableRef]);

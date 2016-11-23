@@ -56738,12 +56738,6 @@
 	
 	        var setUpDevicesSocket = function setUpDevicesSocket(platformUuid, bacnetIdentity) {
 	
-	            // if (typeof pointsWs !== "undefined" && pointsWs !== null)
-	            // {
-	            //     pointsWs.close();
-	            //     pointsWs = null;
-	            // }
-	
 	            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/iam";
 	            if (window.WebSocket) {
 	                devicesWs = new WebSocket(devicesWebsocket);
@@ -56850,12 +56844,6 @@
 	
 	        var setUpPointsSocket = function setUpPointsSocket() {
 	
-	            // if (typeof devicesWs !== "undefined" && devicesWs !== null)
-	            // {
-	            //     devicesWs.close();
-	            //     devicesWs = null;
-	            // }
-	
 	            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/configure";
 	            if (window.WebSocket) {
 	                pointsWs = new WebSocket(pointsWebsocket);
@@ -56934,19 +56922,98 @@
 	            attributes: attributes
 	        });
 	    },
-	    saveRegistry: function saveRegistry(deviceId, deviceAddress, values) {
-	        dispatcher.dispatch({
-	            type: ACTION_TYPES.SAVE_REGISTRY,
-	            deviceId: deviceId,
-	            deviceAddress: deviceAddress,
-	            data: values
+	    saveRegistry: function saveRegistry(device, fileName, values) {
+	
+	        var authorization = authorizationStore.getAuthorization();
+	
+	        var params = {
+	            platform_uuid: device.platformUuid,
+	            agent_identity: "platform.driver",
+	            config_name: fileName,
+	            config_type: "csv",
+	            raw_contents: values
+	        };
+	
+	        return new rpc.Exchange({
+	            method: 'store_agent_config',
+	            authorization: authorization,
+	            params: params
+	        }).promise.then(function (result) {
+	
+	            dispatcher.dispatch({
+	                type: ACTION_TYPES.SAVE_REGISTRY,
+	                fileName: fileName,
+	                deviceId: device.id,
+	                deviceAddress: device.address,
+	                data: values
+	            });
+	        }).catch(rpc.Error, function (error) {
+	
+	            error.message = "Unable to save registry configuration. " + error.message + ".";
+	
+	            handle401(error, error.message);
 	        });
 	    },
-	    saveConfig: function saveConfig(device, settings) {
-	        dispatcher.dispatch({
-	            type: ACTION_TYPES.SAVE_CONFIG,
-	            device: device,
-	            settings: settings
+	    saveBacnetConfig: function saveBacnetConfig(device, settings, registryFile) {
+	
+	        var authorization = authorizationStore.getAuthorization();
+	
+	        var values = {};
+	
+	        values.driver_type = "bacnet"; //TODO: get this dynamically
+	        values.driver_config = {
+	            device_address: device.address,
+	            device_id: device.id,
+	            proxy_address: "platform.bacnet_proxy" //TODO: get this dynamically
+	        };
+	
+	        values.interval = 60;
+	        values.publish_breadth_first_all = false;
+	        values.publish_depth_first = false;
+	        values.publish_breadth_first = false;
+	        values.timezone = "US/Pacific";
+	        values.registry_config = "config://" + registryFile;
+	
+	        var campus = settings.find(function (setting) {
+	            return setting.key === "campus";
+	        });
+	
+	        var building = settings.find(function (setting) {
+	            return setting.key === "building";
+	        });
+	
+	        var unit = settings.find(function (setting) {
+	            return setting.key === "unit";
+	        });
+	
+	        var path = settings.find(function (setting) {
+	            return setting.key === "path";
+	        });
+	
+	        var params = {
+	            platform_uuid: device.platformUuid,
+	            agent_identity: "platform.driver",
+	            config_name: "devices/" + campus.value + "/" + building.value + "/" + unit.value + "/" + path.value,
+	            config_type: "json",
+	            raw_contents: JSON.stringify(values)
+	        };
+	
+	        return new rpc.Exchange({
+	            method: 'store_agent_config',
+	            authorization: authorization,
+	            params: params
+	        }).promise.then(function (result) {
+	
+	            dispatcher.dispatch({
+	                type: ACTION_TYPES.SAVE_CONFIG,
+	                device: device,
+	                settings: settings
+	            });
+	        }).catch(rpc.Error, function (error) {
+	
+	            error.message = "Unable to save device configuration. " + error.message + ".";
+	
+	            handle401(error, error.message);
 	        });
 	    }
 	};
@@ -61555,13 +61622,32 @@
 	        }
 	    }, {
 	        key: '_saveRegistry',
-	        value: function _saveRegistry() {
+	        value: function _saveRegistry(fileName) {
 	
-	            devicesActionCreators.saveRegistry(this.props.device.id, this.props.device.address, this.state.registryValues.map(function (row) {
-	                return row.get("attributes");
-	            }));
+	            var csvData = "";
 	
-	            modalActionCreators.openModal(_react2.default.createElement(_configDeviceForm2.default, { device: this.props.device }));
+	            var headerRow = [];
+	
+	            this.state.registryValues[0].get("attributes").forEach(function (item) {
+	                headerRow.push(item.label);
+	            });
+	
+	            csvData = headerRow.join() + "\n";
+	
+	            this.state.registryValues.forEach(function (attributeRow, rowIndex) {
+	
+	                var newRow = [];
+	
+	                attributeRow.get("attributes").forEach(function (columnCell, columnIndex) {
+	                    newRow.push(columnCell.value);
+	                });
+	
+	                csvData = csvData.concat(newRow.join() + "\n");
+	            });
+	
+	            devicesActionCreators.saveRegistry(this.props.device, fileName, csvData);
+	
+	            modalActionCreators.openModal(_react2.default.createElement(_configDeviceForm2.default, { device: this.props.device, registryFile: fileName }));
 	        }
 	    }, {
 	        key: '_getParentNode',
@@ -62212,7 +62298,7 @@
 	        value: function _onSubmit(e) {
 	            e.preventDefault();
 	            modalActionCreators.closeModal();
-	            this.props.onsaveregistry();
+	            this.props.onsaveregistry(this.state.fileName);
 	        }
 	    }, {
 	        key: 'render',
@@ -62652,7 +62738,7 @@
 	        key: '_onSubmit',
 	        value: function _onSubmit(e) {
 	            e.preventDefault();
-	            devicesActionCreators.saveConfig(this.props.device, this.state.settings);
+	            devicesActionCreators.saveBacnetConfig(this.props.device, this.state.settings, this.props.registryFile);
 	            modalActionCreators.closeModal();
 	        }
 	    }, {
@@ -62824,7 +62910,7 @@
 	var getStateFromStores = function getStateFromStores(device) {
 	
 	    return {
-	        settings: [{ key: "unit", value: "", label: "Unit" }, { key: "building", value: "", label: "Building" }, { key: "path", value: "", label: "Path" }, { key: "interval", value: "", label: "Interval" }, { key: "timezone", value: "", label: "Timezone" }, { key: "heartbeat_point", value: "", label: "Heartbeat Point" }, { key: "minimum_priority", value: "", label: "Minimum Priority" }, { key: "max_objs_per_read", value: "", label: "Maximum Objects per Read" }]
+	        settings: [{ key: "campus", value: "", label: "Campus" }, { key: "building", value: "", label: "Building" }, { key: "unit", value: "", label: "Unit" }, { key: "path", value: "", label: "Path" }, { key: "interval", value: "", label: "Interval" }, { key: "timezone", value: "", label: "Timezone" }, { key: "heartbeat_point", value: "", label: "Heartbeat Point" }, { key: "minimum_priority", value: "", label: "Minimum Priority" }, { key: "max_objs_per_read", value: "", label: "Maximum Objects per Read" }]
 	    };
 	};
 	
@@ -112433,4 +112519,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-05a0d657d0af346480cd.js.map
+//# sourceMappingURL=app-5d7bfe9d714714685436.js.map

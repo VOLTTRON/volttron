@@ -35,7 +35,7 @@ class ConfigDeviceForm extends BaseComponent {
     }
     _onSubmit(e) {
         e.preventDefault();
-        devicesActionCreators.saveConfig(this.props.device, this.state.settings);
+        devicesActionCreators.saveBacnetConfig(this.props.device, this.state.settings, this.props.registryFile);
         modalActionCreators.closeModal();
     }
     render() {       
@@ -142,8 +142,9 @@ var getStateFromStores = (device) => {
 
     return {
         settings: [
-            { key: "unit", value: "", label: "Unit" },
+            { key: "campus", value: "", label: "Campus" },
             { key: "building", value: "", label: "Building" },
+            { key: "unit", value: "", label: "Unit" },
             { key: "path", value: "", label: "Path" },
             { key: "interval", value: "", label: "Interval" },
             { key: "timezone", value: "", label: "Timezone" },
