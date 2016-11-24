@@ -90,136 +90,155 @@ def historian(config_path, **kwargs):
                                                 'platform.historian')
     backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
 
-    class DataMover(BaseHistorian):
-        '''This historian forwards data to another platform.
-        '''
-
-        def __init__(self, **kwargs):
-            # will be available in both threads.
-            self._topic_replace_map = {}
-            self._last_timeout = 0
-            super(DataMover, self).__init__(**kwargs)
-
-        @Core.receiver("onstart")
-        def starting_base(self, sender, **kwargs):
-            '''
-            Subscribes to the platform message bus on the actuator, record,
-            datalogger, and device topics to capture data.
-            '''
-            _log.debug("Starting DataMover")
-
-            for topic in services_topic_list + custom_topic_list:
-                _log.debug("subscribing to {}".format(topic))
-                self.vip.pubsub.subscribe(peer='pubsub',
-                                          prefix=topic,
-                                          callback=self.capture_data)
-            self._started = True
-
-        def timestamp(self):
-            return time.mktime(datetime.datetime.now().timetuple())
-
-        def capture_data(self, peer, sender, bus, topic, headers, message):
-
-            # Grab the timestamp string from the message (we use this as the
-            # value in our readings at the end of this method)
-            _log.debug("In capture data")
-            timestamp_string = headers.get(headers_mod.DATE, None)
-
-            data = message
-            try:
-                # 2.0 agents compatability layer makes sender = pubsub.compat
-                # so we can do the proper thing when it is here
-                _log.debug("message in capture_data {}".format(message))
-                if sender == 'pubsub.compat':
-                    data = compat.unpack_legacy_message(headers, message)
-                    _log.debug("data in capture_data {}".format(data))
-                if isinstance(data, dict):
-                    data = data
-                elif isinstance(data, int) or \
-                        isinstance(data, float) or \
-                        isinstance(data, long):
-                    data = data
-            except ValueError as e:
-                log_message = "message for {topic} bad message string:" \
-                              "{message_string}"
-                _log.error(log_message.format(topic=topic,
-                                              message_string=message[0]))
-                raise
-
-            if topic_replace_list:
-                if topic in self._topic_replace_map.keys():
-                    topic = self._topic_replace_map[topic]
-                else:
-                    self._topic_replace_map[topic] = topic
-                    temptopics = {}
-                    for x in topic_replace_list:
-                        if x['from'] in topic:
-                            new_topic = temptopics.get(topic, topic)
-                            temptopics[topic] = new_topic.replace(
-                                x['from'], x['to'])
-
-                    for k, v in temptopics.items():
-                        self._topic_replace_map[k] = v
-                    topic = self._topic_replace_map[topic]
-
-            payload = {'headers': headers, 'message': data}
-
-            self._event_queue.put({'source': "forwarded",
-                                   'topic': topic,
-                                   'readings': [(timestamp_string, payload)]})
-
-        def publish_to_historian(self, to_publish_list):
-            _log.debug("publish_to_historian number of items: {}"
-                       .format(len(to_publish_list)))
-            current_time = self.timestamp()
-            last_time = self._last_timeout
-            _log.debug('Last timeout: {} current time: {}'.format(last_time,
-                                                                  current_time))
-            if self._last_timeout:
-                # if we failed we need to wait 60 seconds before we go on.
-                if self.timestamp() < self._last_timeout + 60:
-                    _log.debug('Not allowing send < 60 seconds from failure')
-                    return
-            if not self._target_platform:
-                self.historian_setup()
-            if not self._target_platform:
-                _log.debug('Could not connect to target')
-                return
-
-            to_send = []
-            for x in to_publish_list:
-                to_send.append({'topic': x['topic'],
-                                'headers': x['value']['headers'],
-                                'message': x['value']['message']})
-
-            try:
-                self._target_platform.vip.rpc.call(destination_historian_identity,
-                                                   'insert', to_send).get(timeout=10)
-                self.report_all_handled()
-            except gevent.Timeout:
-                self._last_timeout = self.timestamp()
-                self._target_platform.core.stop()
-                self._target_platform = None
-                self.vip.health.set_status(
-                    STATUS_BAD, "Timout occured")
-
-        def historian_setup(self):
-            _log.debug(
-                "Setting up to forward to {}".format(destination_vip))
-            event = gevent.event.Event()
-            agent = Agent(address=destination_vip, enable_store=False)
-            gevent.spawn(agent.core.run, event)
-            if event.wait(timeout=10):
-                self._target_platform = agent
-            else:
-                self.vip.health.set_status(
-                    STATUS_BAD, "Timeout in setup of agent")
-                status = Status.from_json(self.vip.health.get_status())
-                self.vip.health.send_alert(DATAMOVER_TIMEOUT_KEY,
-                                           status)
-
-    return DataMover(backup_storage_limit_gb=backup_storage_limit_gb,
+    return DataMover(services_topic_list,
+                     custom_topic_list,
+                     topic_replace_list,
+                     destination_vip,
+                     destination_historian_identity,
+                     backup_storage_limit_gb=backup_storage_limit_gb,
                      **kwargs)
+
+
+class DataMover(BaseHistorian):
+    '''This historian forwards data to another platform.
+    '''
+
+    def __init__(self,
+                 services_topic_list,
+                 custom_topic_list,
+                 topic_replace_list,
+                 destination_vip,
+                 destination_historian_identity,
+                 **kwargs):
+
+        self.services_topic_list = services_topic_list
+        self.custom_topic_list = custom_topic_list
+        self.topic_replace_list = topic_replace_list
+        self.destination_vip = destination_vip
+        self.destination_historian_identity = destination_historian_identity
+
+        # will be available in both threads.
+        self._topic_replace_map = {}
+        self._last_timeout = 0
+        super(DataMover, self).__init__(**kwargs)
+
+    @Core.receiver("onstart")
+    def starting_base(self, sender, **kwargs):
+        '''
+        Subscribes to the platform message bus on the actuator, record,
+        datalogger, and device topics to capture data.
+        '''
+        _log.debug("Starting DataMover")
+
+        for topic in self.services_topic_list + self.custom_topic_list:
+            _log.debug("subscribing to {}".format(topic))
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topic,
+                                      callback=self.capture_data)
+        self._started = True
+
+    def timestamp(self):
+        return time.mktime(datetime.datetime.now().timetuple())
+
+    def capture_data(self, peer, sender, bus, topic, headers, message):
+
+        # Grab the timestamp string from the message (we use this as the
+        # value in our readings at the end of this method)
+        _log.debug("In capture data")
+        timestamp_string = headers.get(headers_mod.DATE, None)
+
+        data = message
+        try:
+            # 2.0 agents compatability layer makes sender = pubsub.compat
+            # so we can do the proper thing when it is here
+            _log.debug("message in capture_data {}".format(message))
+            if sender == 'pubsub.compat':
+                data = compat.unpack_legacy_message(headers, message)
+                _log.debug("data in capture_data {}".format(data))
+            if isinstance(data, dict):
+                data = data
+            elif isinstance(data, int) or \
+                    isinstance(data, float) or \
+                    isinstance(data, long):
+                data = data
+        except ValueError as e:
+            log_message = "message for {topic} bad message string:" \
+                          "{message_string}"
+            _log.error(log_message.format(topic=topic,
+                                          message_string=message[0]))
+            raise
+
+        if self.topic_replace_list:
+            if topic in self._topic_replace_map.keys():
+                topic = self._topic_replace_map[topic]
+            else:
+                self._topic_replace_map[topic] = topic
+                temptopics = {}
+                for x in self.topic_replace_list:
+                    if x['from'] in topic:
+                        new_topic = temptopics.get(topic, topic)
+                        temptopics[topic] = new_topic.replace(
+                            x['from'], x['to'])
+
+                for k, v in temptopics.items():
+                    self._topic_replace_map[k] = v
+                topic = self._topic_replace_map[topic]
+
+        payload = {'headers': headers, 'message': data}
+
+        self._event_queue.put({'source': "forwarded",
+                               'topic': topic,
+                               'readings': [(timestamp_string, payload)]})
+
+    def publish_to_historian(self, to_publish_list):
+        _log.debug("publish_to_historian number of items: {}"
+                   .format(len(to_publish_list)))
+        current_time = self.timestamp()
+        last_time = self._last_timeout
+        _log.debug('Last timeout: {} current time: {}'.format(last_time,
+                                                              current_time))
+        if self._last_timeout:
+            # if we failed we need to wait 60 seconds before we go on.
+            if self.timestamp() < self._last_timeout + 60:
+                _log.debug('Not allowing send < 60 seconds from failure')
+                return
+        if not self._target_platform:
+            self.historian_setup()
+        if not self._target_platform:
+            _log.debug('Could not connect to target')
+            return
+
+        to_send = []
+        for x in to_publish_list:
+            to_send.append({'topic': x['topic'],
+                            'headers': x['value']['headers'],
+                            'message': x['value']['message']})
+
+        try:
+            self._target_platform.vip.rpc.call(self.destination_historian_identity,
+                                               'insert', to_send).get(timeout=10)
+            self.report_all_handled()
+        except gevent.Timeout:
+            self._last_timeout = self.timestamp()
+            self._target_platform.core.stop()
+            self._target_platform = None
+            self.vip.health.set_status(
+                STATUS_BAD, "Timout occured")
+
+    def historian_setup(self):
+        _log.debug(
+            "Setting up to forward to {}".format(self.destination_vip))
+        event = gevent.event.Event()
+        agent = Agent(address=self.destination_vip, enable_store=False)
+        gevent.spawn(agent.core.run, event)
+        if event.wait(timeout=10):
+            self._target_platform = agent
+        else:
+            self.vip.health.set_status(
+                STATUS_BAD, "Timeout in setup of agent")
+            status = Status.from_json(self.vip.health.get_status())
+            self.vip.health.send_alert(DATAMOVER_TIMEOUT_KEY,
+                                       status)
 
 
 def main(argv=sys.argv):

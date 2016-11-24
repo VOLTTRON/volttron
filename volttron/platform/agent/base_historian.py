@@ -321,6 +321,11 @@ class BaseHistorianAgent(Agent):
 
     @RPC.export
     def insert(self, records):
+        """RPC method to allow remote inserts to the local cache
+
+        :param records: List of items to be added to the local event queue
+        :type records: list of dictionaries
+        """
         for r in records:
             topic = r['topic']
             headers = r['headers']
