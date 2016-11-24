@@ -55,18 +55,60 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-from __future__ import absolute_import
+import logging
+import weakref
 
-from .channel import Channel
-from .hello import Hello
-from .peerlist import PeerList
-from .ping import Ping
-from .pubsub import PubSub
-from .rpc import RPC
-from .heartbeat import Heartbeat
-from .health import Health
-from .configstore import ConfigStore
-from .auth import Auth
+from .base import SubsystemBase
 
-__all__ = ['PeerList', 'Ping', 'RPC', 'Hello', 'PubSub', 'Channel',
-           'Heartbeat', 'Health', 'ConfigStore', 'Auth']
+from volttron.platform.agent.known_identities import AUTH
+from volttron.platform.jsonrpc import RemoteError
+
+"""
+The auth subsystem allows an agent to quickly query authorization state
+(e.g., which capabilities each user has been granted).
+"""
+
+__docformat__ = 'reStructuredText'
+__version__ = '1.0'
+
+_log = logging.getLogger(__name__)
+
+
+class Auth(SubsystemBase):
+    def __init__(self, owner, core, rpc):
+        self._owner = owner
+        self._core = weakref.ref(core)
+        self._rpc = weakref.ref(rpc)
+        self._user_to_capabilities = {}
+        self._dirty = True
+
+        def onsetup(sender, **kwargs):
+            rpc.export(self._update_capabilities, 'auth.update')
+
+        core.onsetup.connect(onsetup, self)
+
+    def _fetch_capabilities(self):
+        while self._dirty:
+            self._dirty = False
+            try:
+                self._user_to_capabilities = self._rpc().call(AUTH,
+                    'get_user_to_capabilities').get(timeout=10)
+            except RemoteError:
+                self._dirty = True
+
+    def get_capabilities(self, user_id):
+        """Gets capabilities for a given user.
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        :returns: list of capabilities
+        :rtype: list
+        """
+        self._fetch_capabilities()
+        return self._user_to_capabilities.get(user_id, [])
+
+    def _update_capabilities(self, user_to_capabilities):
+        identity = bytes(self._rpc().context.vip_message.peer)
+        if identity == AUTH:
+            self._user_to_capabilities = user_to_capabilities
+            self._dirty = True

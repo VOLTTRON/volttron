@@ -65,7 +65,8 @@ from volttron.platform.agent import PublishMixin
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
-from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.auth import (AuthEntry, AuthFile,
+                                    AuthFileEntryAlreadyExists)
 from volttron.platform.keystore import KeyStore
 from gevent.subprocess import Popen
 import gevent.subprocess as subprocess
@@ -194,7 +195,10 @@ def forwarder(request, volttron_instances):
         # add public key of instance1 to instance2 auth file
         authfile = AuthFile(volttron_instance2.volttron_home + "/auth.json")
         entry = AuthEntry(credentials=ks.public)
-        authfile.add(entry)
+        try:
+            authfile.add(entry)
+        except AuthFileEntryAlreadyExists:
+            pass
 
         # setup destination address to include keys
         forwarder_config["destination-vip"] =\
@@ -633,7 +637,7 @@ def test_actuator_topic(publish_agent, query_agent):
     # using the configs created above
     master_uuid = volttron_instance1.install_agent(
         agent_dir="services/core/MasterDriverAgent",
-        config_file="scripts/scalability-testing/configs/master-driver.agent",
+        config_file="scripts/scalability-testing/configs/config",
         start=True)
     print("agent id: ", master_uuid)
     gevent.sleep(2)  # wait for the agent to start and start the devices
