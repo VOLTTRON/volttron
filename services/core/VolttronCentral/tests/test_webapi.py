@@ -1,15 +1,45 @@
 import json
+
+import gevent
 import pytest
 import requests
 import sys
 
+from volttrontesting.utils.core_service_installs import \
+    add_volttron_central_platform, add_volttron_central
+
 from volttron.platform.messaging.health import STATUS_GOOD
+from volttrontesting.utils.platformwrapper import PlatformWrapper, \
+    start_wrapper_platform
 from volttrontesting.utils.utils import poll_gevent_sleep
 from zmq.utils import jsonapi
 from vctestutils import (APITester, FailedToGetAuthorization,
                          check_multiple_platforms, validate_response,
                          authenticate, do_rpc, validate_at_least_one,
                          each_result_contains)
+
+
+@pytest.fixture(scope="module")
+def vc_vcp_platforms():
+    vc = PlatformWrapper()
+    vcp = PlatformWrapper()
+
+    # VC is setup to allow all connections
+    vc.allow_all_connections()
+    start_wrapper_platform(vc, with_http=True)
+
+    start_wrapper_platform(vcp, volttron_central_address=vc.vip_address,
+                           volttron_central_serverkey=vc.serverkey)
+
+    vc_uuid = add_volttron_central(vc)
+    vcp_uuid = add_volttron_central_platform(vcp)
+
+    # Sleep so we know we are registred
+    gevent.sleep(15)
+    yield vc, vcp
+
+    vc.shutdown_platform()
+    vcp.shutdown_platform()
 
 
 @pytest.fixture(scope="function")
@@ -145,3 +175,36 @@ def test_login_rejected_for_foo(vc_instance):
     vc_jsonrpc = vc_instance[2]
     with pytest.raises(FailedToGetAuthorization):
         tester = APITester(vc_jsonrpc, "foo", "")
+
+
+@pytest.mark.vc
+def test_store_list_get_configuration(vc_vcp_platforms):
+    vc, vcp = vc_vcp_platforms
+
+    data = dict(
+        bim=50,
+        baz="foo",
+        bar="lambda"
+    )
+    str_data = jsonapi.dumps(data)
+    identity = "foo.bar"
+    config_name = "fuzzywidgets"
+    api = APITester(vc.jsonrpc_endpoint)
+
+    platforms = api.list_platforms().json()['result']
+    platform_uuid = platforms[0]["uuid"]
+
+    json = api.store_agent_config(platform_uuid, identity, config_name,
+                                  str_data).json()
+    assert json['result'] is None
+
+    json = api.list_agent_configs(platform_uuid, identity).json()
+    assert json['result']
+    assert config_name == json['result'][0]
+
+    json = api.get_agent_config(platform_uuid, identity, config_name).json()
+    assert str_data == json['result']
+
+
+
+

@@ -123,7 +123,8 @@ _log = logging.getLogger(__name__)
 DEFAULT_WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot/'))
 
 Platform = namedtuple('Platform', ['instance_name', 'serverkey', 'vip_address'])
-
+RequiredArgs = namedtuple('RequiredArgs', ['id', 'session_user',
+                                           'platform_uuid'])
 
 class VolttronCentralAgent(Agent):
     """ Agent for managing many volttron instances from a central web ui.
@@ -1215,6 +1216,31 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(id, UNAUTHORIZED,
                                       "Invalid user session token")
 
+    def _handle_store_agent_config(self, req_args, params):
+        required = ('agent_identity', 'config_name', 'raw_contents')
+        errors = []
+        for r in required:
+            if r not in params:
+                errors.append('Missing {}'.format(r))
+        config_type = params.get('config_type', None)
+        if config_type:
+            if config_type not in ('raw', 'json', 'csv'):
+                errors.append('Invalid config_type parameter')
+
+        if errors:
+            return jsonrpc.json_error(req_args.id, INVALID_PARAMS,
+                                      "\n".join(errors))
+        vcp_conn = self._get_connection(req_args.platform_uuid)
+        vcp_conn.call("store_agent_config", **params)
+
+    def _handle_get_agent_config(self, req_args, params):
+        vcp_conn = self._get_connection(req_args.platform_uuid)
+        return vcp_conn.call("get_agent_config", **params)
+
+    def _handle_list_agent_configs(self, req_args, params):
+        vcp_conn = self._get_connection(req_args.platform_uuid)
+        return vcp_conn.call("list_agent_configs", **params)
+
     def _route_request(self, session_user, id, method, params):
         """ Handle the methods volttron central can or pass off to platforms.
 
@@ -1232,19 +1258,38 @@ class VolttronCentralAgent(Agent):
         def err(message, code=METHOD_NOT_FOUND):
             return {'error': {'code': code, 'message': message}}
 
-        if method == 'start_bacnet_scan':
+        platform_methods = dict(
+            start_bacnet_scan=self._handle_bacnet_scan,
+            publish_bacnet_props=self._handle_bacnet_props,
+            store_agent_config=self._handle_store_agent_config,
+            get_agent_config=self._handle_get_agent_config,
+            list_agent_configs=self._handle_list_agent_configs
+        )
+
+        if method in platform_methods:
             platform_uuid = params.pop('platform_uuid', None)
             if not platform_uuid:
                 return err("Invalid platform_uuid specified as parameter",
                            INVALID_PARAMS)
-            return self._handle_bacnet_scan(session_user, platform_uuid, params)
-        elif method == 'publish_bacnet_props':
-            platform_uuid = params.pop('platform_uuid', None)
-            if not platform_uuid:
-                return err("Invalid platform_uuid specified as parameter",
-                           INVALID_PARAMS)
-            return self._handle_bacnet_props(session_user, platform_uuid,
-                                             params)
+            try:
+                cn = self._get_connection(platform_uuid)
+                if not cn.is_connected:
+                    return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
+                                              "Couldn't connect to platform "
+                                              "{}".format(platform_uuid))
+
+            except ValueError:
+                return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
+                                          "Couldn't connect to platform "
+                                          "{}".format(platform_uuid))
+
+            # No matter what else, we are going to need to pass the session
+            # and the platform we are talking to.  The methods may not use
+            # both, but they are available if we need to extend this to
+            # more arguments.
+            req_args = RequiredArgs(id, session_user, platform_uuid)
+
+            return platform_methods[method](req_args, params)
 
         if method == 'open_websockets':
             token = session_user['token']

@@ -796,7 +796,6 @@ class VolttronCentralPlatform(Agent):
                                  agent_identity, config_name, raw).get(timeout=5)
         return data or ""
 
-
     @RPC.export
     @RPC.allow("manager")
     def start_agent(self, agent_uuid):
