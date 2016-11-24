@@ -206,6 +206,7 @@ apply only to a single entityFor example:
         {
         'dis': "building1 chilled water system - CHW",
         'equip': true,
+        'siteRef': '@buildingname',
         'chilled': true,
         'water' : true,
         'secondaryLoop': true
@@ -215,21 +216,24 @@ apply only to a single entityFor example:
         {
         'dis': "building1 chilled water system - point1",
         'point': true,
-        'kind': 'Bool'
+        'kind': 'Bool',
+        'siteRef': '@buildingname'
         }
     # tags that apply to point2 of all device of a specific type
     '/campus1/building1/deviceA*/point2':
         {
         'dis': "building1 chilled water system - point2",
         'point': true,
-        'kind': 'Number'
+        'kind': 'Number',
+        'siteRef': '@buildingname'
         }
     # tags that apply to point3 of all device of a specific type
     '/campus1/building1/deviceA*/point3':
         {
         'dis': "building1 chilled water system - point3",
         'point': true,
-        'kind': 'Number'
+        'kind': 'Number',
+        'siteRef': '@buildingname'
         }
     # tags that apply to all device of a specific type
     '/campus1/building1/deviceB*':
@@ -238,29 +242,106 @@ apply only to a single entityFor example:
         'equip': true,
         'chilled': true,
         'water' : true,
-        'secondaryLoop': true
+        'secondaryLoop': true,
+        'siteRef': '@buildingname'
         }
     # tags that apply to point1 of all device of a specific type
     '/campus1/building1/deviceB*/point1':
         {
         'dis': "building1 device B - point1",
         'point': true,
-        'kind': 'Bool'
+        'kind': 'Bool',
+        'siteRef': '@buildingname',
+        'command':true
         }
     # tags that apply to point1 of all device of a specific type
     '/campus1/building1/deviceB*/point2':
         {
         'dis': "building1 device B - point2",
         'point': true,
-        'kind': 'Number'
+        'kind': 'Number',
+        'siteRef': '@buildingname',
         }
     }
 
+Step 2: Create tags using template above
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Make an RPC call to the add_tags method and pass a pointer to the above file
 
-Step 2: optional
-^^^^^^^^^^^^^^^^
- Any tags that were not included in step one and needs to be added later can be
- added using the rpc call to tagging service method **'add_topic_tags'**
+Step 3: Create tags specific to a point or device
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Any tags that were not included in step one and needs to be added later can be
+added using the rpc call to tagging service either the method
+**'add_topic_tags'** **'add_tags'**
+
+ For example:
+
+    .. code-block::
+
+    agent.vip.rpc.call(
+            'platform.tagging',
+            'add_topic_tags',
+            topic_prefix='/campus1/building1/deviceA1',
+            tags={'id':'@buildingname.deviceA1','tag1':'value'})
 
 
+    .. code-block::
+
+    agent.vip.rpc.call(
+            'platform.tagging',
+            'add_topic_tags',
+            tags={
+                '/campus1/building1/deviceA2':
+                    {'id':'@buildingname.deviceA2','tag1':'value'},
+                '/campus1/building1/deviceA2/point1':
+                    {'equipRef':'@buildingname.deviceA2'}
+                 }
+            )
+
+
+
+2. Querying based on a topic's tag and it parent's tags
+-------------------------------------------------------
+
+Query - Find all points that have the tag 'command' and belong to a device/unit
+that has a tag 'chilled'
+
+. code-block::
+
+    agent.vip.rpc.call(
+            'platform.tagging',
+            'get_topics_by_tags',
+            condition='has command and has equip.chilled')
+
+In the above code block 'command' and 'chilled' are the tag names that would be
+searched, but since the tag 'chilled' is prefixed with 'equip.' the tag in a parent topic
+
+The above query would match the topic '/campus1/building1/deviceB1/point1' if
+tags in the system are as follows
+
+'/campus1/building1/deviceB1/point1' tags:
+
+. code-block::
+
+        {
+        'dis': "building1 device B - point1",
+        'point': true,
+        'kind': 'Bool',
+        'siteRef': '@buildingname',
+        'equipRef: '@buildingname.deviceB1',
+        'command':true
+        }
+
+'/campus1/building1/deviceB1' tags
+
+. code-block::
+
+        {
+        'dis': "building1 device of type B",
+        'equip': true,
+        'chilled': true,
+        'water' : true,
+        'secondaryLoop': true,
+        'siteRef': '@buildingname'
+        }
 
