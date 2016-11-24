@@ -1,16 +1,71 @@
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+
+# Copyright (c) 2016, Battelle Memorial Institute
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation
+# are those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD
+# Project.
+#
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization that
+# has cooperated in the development of these materials, makes any
+# warranty, express or implied, or assumes any legal liability or
+# responsibility for the accuracy, completeness, or usefulness or any
+# information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does not
+# necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+# }}}
+
+
+from __future__ import absolute_import, print_function
 from collections import defaultdict
-from csv import DictWriter
 import logging
 import weakref
-from cStringIO import StringIO
 
 from bacpypes.object import get_datatype
 from bacpypes.primitivedata import (Enumerated, Unsigned, Boolean, Integer,
                                     Real, Double)
 
 from volttron.platform.jsonrpc import RemoteError
-
-_log = logging.getLogger(__name__)
 
 # Deals with the largest numbers that can be reported.
 # see proxy_grab_bacnet_config.py
@@ -20,7 +75,8 @@ MAX_RANGE_REPORT = 1.0e+20
 class BACnetReader(object):
     def __init__(self, rpc, bacnet_proxy_identity,
                  response_function=None):
-        _log.info("Creating {}".format(self.__class__.__name__))
+        self._log = logging.getLogger(self.__class__.__name__)
+        self._log.info("Creating {}".format(self.__class__.__name__))
         self._rpc = weakref.ref(rpc)
         self._proxy_identity = bacnet_proxy_identity
         self._response_function = response_function
@@ -33,12 +89,12 @@ class BACnetReader(object):
             :return: The device name or the string "MISSING DEVICE NAME"
         """
         try:
-            _log.debug("Reading device name.")
+            self._log.debug("Reading device name.")
             device_name = self._read_prop(address, "device", device_id,
                                          "objectName")
-            _log.debug('device_name = ' + str(device_name))
+            self._log.debug('device_name = ' + str(device_name))
         except TypeError:
-            _log.debug("device missing objectName")
+            self._log.debug("device missing objectName")
             device_name = "MISSING DEVICE NAME"
         return device_name
 
@@ -50,12 +106,12 @@ class BACnetReader(object):
             :return: The device desciption or an empty string
         """
         try:
-            _log.debug("Reading device description.")
+            self._log.debug("Reading device description.")
             device_description = self._read_prop(address, "device", device_id,
                                                 "description")
-            _log.debug('description = ' + str(device_description))
+            self._log.debug('description = ' + str(device_description))
         except TypeError:
-            _log.debug('device missing description')
+            self._log.debug('device missing description')
             device_description = ""
         return device_description
 
@@ -79,22 +135,22 @@ class BACnetReader(object):
                 where the bacnet_type is one of the bacnet_type strings and the
                 [index] is an array of indexes to return.
         """
-        _log.info(
+        self._log.info(
             'read_device_properties called target_address: {} device_id: {}'.format(
                 target_address, device_id
             ))
         try:
-            _log.debug("Reading objectList from device index 0")
+            self._log.debug("Reading objectList from device index 0")
             object_count = self._read_prop(target_address, "device", device_id,
                                            "objectList", index=0)
             list_property = "objectList"
         except TypeError:
-            _log.debug("Type error so reading structuredObjectList of index 0")
+            self._log.debug("Type error so reading structuredObjectList of index 0")
             object_count = self._read_prop(target_address, "device", device_id,
                                            "structuredObjectList", index=0)
             list_property = "structuredObjectList"
 
-        _log.debug('object_count = ' + str(object_count))
+        self._log.debug('object_count = ' + str(object_count))
 
         query_map = {}
         count = 0
@@ -105,7 +161,7 @@ class BACnetReader(object):
         # that specific datatype.
         type_map = defaultdict(list)
 
-        _log.debug("query_map: {}".format(query_map))
+        self._log.debug("query_map: {}".format(query_map))
         # Loop over each of the objects and interrogate the device for the
         # properties types and indexes.  After this for loop type_map will
         # hold the readable properties from the bacnet device ordered by
@@ -118,7 +174,7 @@ class BACnetReader(object):
             ]
 
             if count >= 25:
-                _log.debug("query_map: {}".format(query_map))
+                self._log.debug("query_map: {}".format(query_map))
                 results = self._read_props(target_address, query_map)
                 present_values = self._filter_present_value_from_results(
                     results)
@@ -127,7 +183,7 @@ class BACnetReader(object):
                 count = 0
 
         if count > 0:
-            _log.debug("query_map: {}".format(query_map))
+            self._log.debug("query_map: {}".format(query_map))
             results = self._read_props(target_address, query_map)
             present_values = self._filter_present_value_from_results(results)
             self._process_input(target_address, device_id, present_values)
@@ -264,8 +320,8 @@ class BACnetReader(object):
         if not object_type.endswith('Input'):
             default_value = obj.get("relinquishDefault")
             if default_value:
-                _log.debug('DEFAULT VALUE IS: {}'.format(default_value))
-                _log.debug('ENUMERATION VALUES: {}'.format(
+                self._log.debug('DEFAULT VALUE IS: {}'.format(default_value))
+                self._log.debug('ENUMERATION VALUES: {}'.format(
                     present_value_type.enumerations))
                 for k, v in present_value_type.enumerations.items():
                     if v == default_value:
@@ -379,7 +435,7 @@ class BACnetReader(object):
         :return:
         """
 
-        _log.debug('emit_responses: objects: {}'.format(objects))
+        self._log.debug('emit_responses: objects: {}'.format(objects))
         for index, obj in objects.items():
             object_type = obj['object_type']
             present_value_type = get_datatype(object_type, 'presentValue')
@@ -414,7 +470,7 @@ class BACnetReader(object):
                                          address=target_address), results)
 
     def _process_input(self, target_address, device_id, input_items):
-        _log.debug('process_input: items: {}'.format(input_items))
+        self._log.debug('process_input: items: {}'.format(input_items))
         query_mapping = {}
         results = None
         object_notes = None
@@ -427,7 +483,7 @@ class BACnetReader(object):
             object_type = item['bacnet_type']
             key = (target_address, device_id, object_type, index)
             if key in processed:
-                _log.debug("Duplicate detected continuing")
+                self._log.debug("Duplicate detected continuing")
                 continue
 
             processed[key] = 1
@@ -441,11 +497,11 @@ class BACnetReader(object):
                     results = self._read_props(target_address, query_mapping)
                     objects = self._build_results(object_type, query_mapping,
                                                   results)
-                    _log.debug('Built bacnet Objects 1: {}'.format(objects))
+                    self._log.debug('Built bacnet Objects 1: {}'.format(objects))
                     self._emit_responses(device_id, target_address, objects)
                     count = 0
                 except RemoteError as e:
-                    _log.error('REMOTE ERROR: {}'.format(e))
+                    self._log.error('REMOTE ERROR: {}'.format(e))
                 query_mapping = {}
             count += 1
 
@@ -453,7 +509,7 @@ class BACnetReader(object):
             results = self._read_props(target_address, query_mapping)
             objects = self._build_results(object_type, query_mapping,
                                           results)
-            _log.debug('Built bacnet Objects 2: {}'.format(objects))
+            self._log.debug('Built bacnet Objects 2: {}'.format(objects))
             self._emit_responses(device_id, target_address, objects)
 
         self._response_function(dict(device_id=device_id,
@@ -480,7 +536,7 @@ class BACnetReader(object):
         return presentValues
 
     def _read_props(self, address, parameters):
-        _log.debug("_read_props for address: {} params: {}".format(
+        self._log.debug("_read_props for address: {} params: {}".format(
             address, parameters
         ))
         return self._rpc().call(self._proxy_identity, "read_properties",
@@ -510,7 +566,7 @@ class BACnetReader(object):
                                        property_name, index=0)
 
         for object_index in xrange(1, object_count + 1):
-            _log.debug('property_name index = ' + repr(object_index))
+            self._log.debug('property_name index = ' + repr(object_index))
 
             object_reference = self._read_prop(address,
                                                obj_type,
@@ -529,8 +585,8 @@ class BACnetReader(object):
                                  config_writer)
 
     def _process_object(self, address, obj_type, index, max_range_report):
-        _log.debug('obj_type = ' + repr(obj_type))
-        _log.debug('bacnet_index = ' + repr(index))
+        self._log.debug('obj_type = ' + repr(obj_type))
+        self._log.debug('bacnet_index = ' + repr(index))
         context = None
         if obj_type == "device":
             context = dict(address=address, device=index)
@@ -539,7 +595,7 @@ class BACnetReader(object):
 
         subondinate_list_property = get_datatype(obj_type, 'subordinateList')
         if subondinate_list_property is not None:
-            _log.debug('Processing StructuredViewObject')
+            self._log.debug('Processing StructuredViewObject')
             # self._process_device_object_reference(address, obj_type, index,
             #                                      'subordinateList',
             #                                      max_range_report,
@@ -548,7 +604,7 @@ class BACnetReader(object):
 
         subondinate_list_property = get_datatype(obj_type, 'zoneMembers')
         if subondinate_list_property is not None:
-            _log.debug('Processing LifeSafetyZoneObject')
+            self._log.debug('Processing LifeSafetyZoneObject')
             # self._process_device_object_reference(address, obj_type, index,
             #                                      'zoneMembers',
             #                                      max_range_report,
@@ -557,7 +613,7 @@ class BACnetReader(object):
 
         present_value_type = get_datatype(obj_type, 'presentValue')
         if present_value_type is None:
-            _log.debug('This object type has no presentValue. Skipping.')
+            self._log.debug('This object type has no presentValue. Skipping.')
             return
 
         if not issubclass(present_value_type, (Enumerated,
@@ -566,14 +622,14 @@ class BACnetReader(object):
                                                Integer,
                                                Real,
                                                Double)):
-            _log.debug(
+            self._log.debug(
                 'presenValue is an unsupported type: ' + repr(
                     present_value_type))
             return
 
         try:
             object_name = self._read_prop(address, obj_type, index, "objectName")
-            _log.debug('object name = ' + object_name)
+            self._log.debug('object name = ' + object_name)
         except TypeError:
             object_name = "NO NAME! PLEASE NAME THIS."
 
@@ -726,9 +782,9 @@ class BACnetReader(object):
                     except (TypeError, ValueError):
                         pass
 
-        _log.debug('  object units = ' + str(object_units))
-        _log.debug('  object units details = ' + str(object_units_details))
-        _log.debug('  object notes = ' + str(object_notes))
+        self._log.debug('  object units = ' + str(object_units))
+        self._log.debug('  object units details = ' + str(object_units_details))
+        self._log.debug('  object notes = ' + str(object_notes))
 
         results = {}
         results['Reference Point Name'] = results[

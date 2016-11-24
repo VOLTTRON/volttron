@@ -88,6 +88,7 @@ from urlparse import urlparse
 
 import datetime
 import gevent
+from volttron.platform.auth import AuthFile, AuthEntry
 from zmq.utils import jsonapi
 
 from authenticate import Authenticate
@@ -122,7 +123,8 @@ _log = logging.getLogger(__name__)
 DEFAULT_WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot/'))
 
 Platform = namedtuple('Platform', ['instance_name', 'serverkey', 'vip_address'])
-
+RequiredArgs = namedtuple('RequiredArgs', ['id', 'session_user',
+                                           'platform_uuid'])
 
 class VolttronCentralAgent(Agent):
     """ Agent for managing many volttron instances from a central web ui.
@@ -258,6 +260,16 @@ class VolttronCentralAgent(Agent):
         self.vip.web.register_websocket(r'/vc/ws', self.open_authenticate_ws_endpoint, self._ws_closed, self._ws_received)
         self.vip.web.register_endpoint(r'/jsonrpc', self.jsonrpc)
         self.vip.web.register_path(r'^/.*', self.runtime_config.get('webroot'))
+
+        auth_file = AuthFile()
+        entry = auth_file.find_by_credentials(self.core.publickey)[0]
+        if 'manager' not in entry.capabilities:
+            _log.debug('Adding manager capability for volttron.central to '
+                       'local instance. Publickey is {}'.format(
+                self.core.publickey))
+            entry.add_capabilities(['manager'])
+            auth_file.add(entry, True)
+            gevent.sleep(0.1)
 
         # Keep connections in sync if necessary.
         self._periodic_reconnect_to_platforms()
@@ -403,8 +415,6 @@ class VolttronCentralAgent(Agent):
 
         try:
             if address_type == 'tcp':
-                self.core.publickey
-
                 _log.debug(
                     'TCP calling manage. my publickey: {}'.format(
                         self.core.publickey))
@@ -1141,17 +1151,20 @@ class VolttronCentralAgent(Agent):
         except KeyError:
             _log.warn('Unknown platform platform_uuid specified! {}'.format(platform_uuid))
 
-    def _handle_bacnet_props(self, session_user, platform_uuid, params):
-        _log.debug('Handling bacnet_props platform: {}'.format(platform_uuid))
+    def _handle_bacnet_props(self, req_args, params):
+        _log.debug('Handling bacnet_props platform: {}'.format(
+            req_args.platform_uuid))
 
-        configure_topic = "{}/configure".format(session_user['token'])
+        configure_topic = "{}/configure".format(req_args.session_user['token'])
+
         ws_socket_topic = "/vc/ws/{}".format(configure_topic)
         self.vip.web.register_websocket(ws_socket_topic,
                                         self.open_authenticate_ws_endpoint,
                                         self._ws_closed, self._ws_received)
 
         def start_sending_props():
-            response_topic = "configure/{}".format(session_user['token'])
+            response_topic = "configure/{}".format(
+                req_args.session_user['token'])
             # Two ways we could have handled this is to pop the identity off
             # of the params and then passed both the identity and the response
             # topic.  Or what I chose to do and to put the argument in a
@@ -1159,22 +1172,23 @@ class VolttronCentralAgent(Agent):
             cp = params.copy()
             cp['publish_topic'] = response_topic
             cp['device_id'] = int(cp['device_id'])
-            vcp_conn = self._get_connection(platform_uuid)
+            vcp_conn = self._get_connection(req_args.platform_uuid)
             _log.debug('PARAMS: {}'.format(cp))
             vcp_conn.call("publish_bacnet_props", **cp)
 
         gevent.spawn_later(3, start_sending_props)
 
-    def _handle_bacnet_scan(self, session_user, platform_uuid, params):
-        _log.debug('Handling bacnet_scan platform: {}'.format(platform_uuid))
+    def _handle_bacnet_scan(self, req_args, params):
+        _log.debug('Handling bacnet_scan platform: {}'.format(
+            req_args.platform_uuid))
 
         scan_length = params.pop('scan_length', 5)
 
         try:
             scan_length = float(scan_length)
             params['scan_length'] = scan_length
-            vcp_conn = self._get_connection(platform_uuid)
-            iam_topic = "{}/iam".format(session_user['token'])
+            vcp_conn = self._get_connection(req_args.platform_uuid)
+            iam_topic = "{}/iam".format(req_args.session_user['token'])
             ws_socket_topic = "/vc/ws/{}".format(iam_topic)
             self.vip.web.register_websocket(ws_socket_topic,
                                             self.open_authenticate_ws_endpoint,
@@ -1184,25 +1198,52 @@ class VolttronCentralAgent(Agent):
                 # We want the datatype (iam) to be second in the response so
                 # we need to reposition the iam and the session id to the topic
                 # that is passed to the rpc function on vcp
-                iam_session_topic = "iam/{}".format(session_user['token'])
+                iam_session_topic = "iam/{}".format(
+                    req_args.session_user['token'])
                 vcp_conn.call("start_bacnet_scan", iam_session_topic, **params)
 
                 def close_socket():
-                    _log.debug('Closing bacnet scan for {}'.format(platform_uuid))
+                    _log.debug('Closing bacnet scan for {}'.format(
+                        req_args.platform_uuid))
                     self.vip.web.unregister_websocket(ws_socket_topic)
 
                 gevent.spawn_later(scan_length, close_socket)
-            # By starting the scan a couple seconds later we allow the websockt
+            # By starting the scan a second later we allow the websocket
             # client to subscribe to the newly available endpoint.
             gevent.spawn_later(3, start_scan)
         except ValueError:
             return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
                                       "Couldn't connect to platform {}".format(
-                                          platform_uuid
+                                          req_args.platform_uuid
                                       ))
         except KeyError:
             return jsonrpc.json_error(id, UNAUTHORIZED,
                                       "Invalid user session token")
+
+    def _handle_store_agent_config(self, req_args, params):
+        required = ('agent_identity', 'config_name', 'raw_contents')
+        errors = []
+        for r in required:
+            if r not in params:
+                errors.append('Missing {}'.format(r))
+        config_type = params.get('config_type', None)
+        if config_type:
+            if config_type not in ('raw', 'json', 'csv'):
+                errors.append('Invalid config_type parameter')
+
+        if errors:
+            return jsonrpc.json_error(req_args.id, INVALID_PARAMS,
+                                      "\n".join(errors))
+        vcp_conn = self._get_connection(req_args.platform_uuid)
+        vcp_conn.call("store_agent_config", **params)
+
+    def _handle_get_agent_config(self, req_args, params):
+        vcp_conn = self._get_connection(req_args.platform_uuid)
+        return vcp_conn.call("get_agent_config", **params)
+
+    def _handle_list_agent_configs(self, req_args, params):
+        vcp_conn = self._get_connection(req_args.platform_uuid)
+        return vcp_conn.call("list_agent_configs", **params)
 
     def _route_request(self, session_user, id, method, params):
         """ Handle the methods volttron central can or pass off to platforms.
@@ -1221,19 +1262,38 @@ class VolttronCentralAgent(Agent):
         def err(message, code=METHOD_NOT_FOUND):
             return {'error': {'code': code, 'message': message}}
 
-        if method == 'start_bacnet_scan':
+        platform_methods = dict(
+            start_bacnet_scan=self._handle_bacnet_scan,
+            publish_bacnet_props=self._handle_bacnet_props,
+            store_agent_config=self._handle_store_agent_config,
+            get_agent_config=self._handle_get_agent_config,
+            list_agent_configs=self._handle_list_agent_configs
+        )
+
+        if method in platform_methods:
             platform_uuid = params.pop('platform_uuid', None)
             if not platform_uuid:
                 return err("Invalid platform_uuid specified as parameter",
                            INVALID_PARAMS)
-            return self._handle_bacnet_scan(session_user, platform_uuid, params)
-        elif method == 'publish_bacnet_props':
-            platform_uuid = params.pop('platform_uuid', None)
-            if not platform_uuid:
-                return err("Invalid platform_uuid specified as parameter",
-                           INVALID_PARAMS)
-            return self._handle_bacnet_props(session_user, platform_uuid,
-                                             params)
+            try:
+                cn = self._get_connection(platform_uuid)
+                if not cn.is_connected:
+                    return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
+                                              "Couldn't connect to platform "
+                                              "{}".format(platform_uuid))
+
+            except ValueError:
+                return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
+                                          "Couldn't connect to platform "
+                                          "{}".format(platform_uuid))
+
+            # No matter what else, we are going to need to pass the session
+            # and the platform we are talking to.  The methods may not use
+            # both, but they are available if we need to extend this to
+            # more arguments.
+            req_args = RequiredArgs(id, session_user, platform_uuid)
+
+            return platform_methods[method](req_args, params)
 
         if method == 'open_websockets':
             token = session_user['token']

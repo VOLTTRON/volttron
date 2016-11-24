@@ -131,7 +131,9 @@ def build_vip_address(dest_wrapper, agent):
 
 
 def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
-                           volttron_central_address=None):
+                           volttron_central_address=None,
+                           volttron_central_serverkey=None,
+                           add_local_vc_address=False):
     """ Customize easily customize the platform wrapper before starting it.
     """
     assert not wrapper.is_running()
@@ -142,9 +144,17 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
         encrypt = True
     else:
         encrypt = False
+
+    if add_local_vc_address:
+        ks = KeyStore(os.path.join(wrapper.volttron_home, 'keystore'))
+        ks.generate()
+        volttron_central_address = vc_tcp
+        volttron_central_serverkey = ks.public
+
     wrapper.startup_platform(encrypt=encrypt, vip_address=vc_tcp,
                              bind_web_address=vc_http,
-                             volttron_central_address=volttron_central_address)
+                             volttron_central_address=volttron_central_address,
+                             volttron_central_serverkey=volttron_central_serverkey)
     if with_http:
         discovery = "{}/discovery/".format(vc_http)
         response = requests.get(discovery)
@@ -223,7 +233,7 @@ class PlatformWrapper:
 
     def build_connection(self, peer=None, address=None, identity=None,
                          publickey=None, secretkey=None, serverkey=None,
-                         **kwargs):
+                         capabilities=[], **kwargs):
 
         if self.encrypt:
             self.allow_all_connections()
@@ -239,6 +249,12 @@ class PlatformWrapper:
             keys.generate()
             publickey = keys.public
             secretkey = keys.secret
+            entry = AuthEntry(capabilities=capabilities,
+                              comments="Added by test",
+                              credentials=keys.public)
+            file = AuthFile(self.volttron_home+"/auth.json")
+            file.add(entry)
+
         if self.encrypt:
             conn = Connection(address=address, peer=peer, publickey=publickey,
                               secretkey=secretkey, serverkey=serverkey,
@@ -435,7 +451,9 @@ class PlatformWrapper:
         if volttron_central_address:
             parser.set('volttron', 'volttron-central-address',
                        volttron_central_address)
-
+        if volttron_central_serverkey:
+            parser.set('volttron', 'volttron-central-serverkey',
+                       volttron_central_serverkey)
         if self.mode == UNRESTRICTED:
             # TODO Restricted code should set with volttron as contianer
             # if RESTRICTED_AVAILABLE:
