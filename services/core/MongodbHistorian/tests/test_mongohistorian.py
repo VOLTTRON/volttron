@@ -8,7 +8,7 @@
 import random
 from datetime import datetime
 from calendar import monthrange
-
+from datetime import timedelta
 
 import gevent
 import pytest
@@ -16,6 +16,7 @@ import re
 from volttron.platform.agent.utils import (get_aware_utc_now, format_timestamp)
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
+from dateutil.tz import tzutc
 
 
 try:
@@ -278,7 +279,7 @@ def publish_minute_data_for_two_hours(agent):
     return expectation
 
 
-def publish_fake_data(agent):
+def publish_fake_data(agent, now=None):
     """
     Publishes an all message to the passed instances of volttron's message bus.
 
@@ -314,11 +315,13 @@ def publish_fake_data(agent):
 
     # Create timestamp (no parameter to isoformat so the result is a T
     # separator) The now value is a string after this function is called.
-    now = datetime.utcnow()
+
     # now = now.replace(microsecond=random.randint(0,100))
     # now = datetime(now.year, now.month, now.day, now.hour,
     #     now.minute, now.second)
     # now = now.isoformat()
+    if not now:
+        now = datetime.utcnow()
     print('NOW IS: ', now)
 
     # now = '2015-12-02T00:00:00'
@@ -693,26 +696,34 @@ def test_multi_topic(volttron_instance, database_client):
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
 
-@pytest.mark.dev
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_data_rollup_feature(volttron_instance, database_client):
+def test_data_rollup_insert(volttron_instance, database_client):
     """
-    Test basic functionality of sql historian. Inserts three points as part
-    of all topic and checks
-    if all three got into the database
+    Test the creation of rolled up data in hourly, daily and monthly data
+    tables when data is published for new or existing topics
     :param database_client:
     :param volttron_instance: The instance against which the test is run
     """
     global query_points
 
-    agent_uuid = install_historian_agent(volttron_instance,
-                                         mongo_agent_config())
-
     try:
         # print('HOME', volttron_instance.volttron_home)
-        print("\n** test_data_rollup_feature **")
+        print("\n** test_data_rollup_insert **")
+
+        # Clean data and roll up tables
+        db = database_client.get_default_database()
+        db['data'].drop()
+        db['topics'].drop()
+        db['meta'].drop()
+        db['hourly_data'].drop()
+        db['daily_data'].drop()
+        db['monthly_data'].drop()
+        gevent.sleep(1)
+
+        agent_uuid = install_historian_agent(volttron_instance,
+                                             mongo_agent_config())
 
         publish_agent = volttron_instance.build_agent()
 
@@ -724,21 +735,19 @@ def test_data_rollup_feature(volttron_instance, database_client):
             pytest.skip("Only version >= 2.0 support rolled up data.")
 
 
-        # Clean data and roll up tables
-        db = database_client.get_default_database()
-        db['data'].drop()
-        db['topics'].drop()
-        db['hourly_data'].drop()
-        db['daily_data'].drop()
-        db['monthly_data'].drop()
 
-
-        # Publish data to message bus that should be recorded in the mongo
-        # database.
-        expected1 = publish_fake_data(publish_agent)
+        # ###################
+        # Initialization test
+        # ###################
+        # Publish data to message bus that should be
+        # recorded in the mongo
+        # database. All topics are new
+        now = datetime(year=2016, month=03, day=01, hour= 01, minute=01,
+                       second=01, microsecond=123, tzinfo=tzutc())
+        expected1 = publish_fake_data(publish_agent, now)
+        expected2 = publish_fake_data(publish_agent, now + timedelta(
+            minutes=1))
         gevent.sleep(0.5)
-        expected2 = publish_fake_data(publish_agent)
-        gevent.sleep(1)
 
         # Query the historian
         result = publish_agent.vip.rpc.call(
@@ -749,39 +758,186 @@ def test_data_rollup_feature(volttron_instance, database_client):
             order="FIRST_TO_LAST").get(timeout=10)
 
         print result
-        expected_t1 = expected1['datetime'].isoformat()[:-3] + '000+00:00'
-        assert expected_t1 == result['values'][0][0]
-        assert result['values'][0][1] == expected1['oat_point']
+        compare_data_and_rollup_data(db,
+                                     expected1,
+                                     expected2,
+                                     None,
+                                     query_points,
+                                     result)
 
-        expected_t2 = expected2['datetime'].isoformat()[:-3] + '000+00:00'
-        assert expected_t2 == result['values'][1][0]
-        assert result['values'][1][1] == expected2['oat_point']
+        # ##########
+        # Insert test
+        # ##########
+        # publish again. this time topic is not new. rolled up data should
+        # get append in the array initialized during last publish
+        expected3 = publish_fake_data(publish_agent,
+                                      now + timedelta(minutes=4))
+        gevent.sleep(0.5)
+        result = publish_agent.vip.rpc.call('platform.historian', 'query',
+            topic=query_points['oat_point'], count=20,
+            order="FIRST_TO_LAST").get(timeout=10)
 
-        cursor = db['topics'].find({'topic_name':query_points['oat_point']})
-        rows = list(cursor)
-        id = rows[0]['_id']
-        cursor = db['daily_data'].find({'topic_id':id})
-        rows = list(cursor)
-        rollup_hour = expected1['datetime'].replace(minute=0, second=0, microsecond=0)
-        rollup_day = rollup_hour.replace(hour=0)
-        rollup_month = rollup_day.replace(day=1)
-        weekday, num_days = monthrange(rollup_month.year, rollup_month.month)
-        assert len(rows[0]['data']) == 24 * 60
-        #print rows[0]['data']
-        rolled_up_data = rows[0]['data'][
-            expected1['datetime'].hour * 60 + expected1['datetime'].minute]
-
-        compare_rolled_up_data(rolled_up_data, expected_t1,
-                               expected1['oat_point'])
-        compare_rolled_up_data(rolled_up_data, expected_t2,
-                               expected2['oat_point'])
+        print result
+        compare_data_and_rollup_data(db, expected1, expected2, expected3,
+                                     query_points, result)
 
     finally:
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
 
+@pytest.mark.historian
+@pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_data_rollup_query(volttron_instance, database_client):
+    """
+    Test the query of rolled up data from hourly, daily and monthly data
+    tables
+    :param database_client:
+    :param volttron_instance: The instance against which the test is run
+    """
+    global query_points
+
+    try:
+        # Clean data and roll up tables
+        db = database_client.get_default_database()
+        db['data'].drop()
+        db['topics'].drop()
+        db['meta'].drop()
+        db['hourly_data'].drop()
+        db['daily_data'].drop()
+        db['monthly_data'].drop()
+
+        agent_uuid = install_historian_agent(volttron_instance,
+                                             mongo_agent_config())
+        # print('HOME', volttron_instance.volttron_home)
+        print("\n** test_data_rollup_insert **")
+
+        publish_agent = volttron_instance.build_agent()
+
+        version = publish_agent.vip.rpc.call('platform.historian',
+                                             'get_version').get(timeout=5)
+
+        version_nums = version.split(".")
+        if int(version_nums[0]) < 2:
+            pytest.skip("Only version >= 2.0 support rolled up data.")
+
+
+
+        now = datetime(year=2016, month=3, day=1, hour=1, minute=10,
+                       second=1, microsecond=0, tzinfo=tzutc())
+        now = datetime.utcnow().replace(tzinfo=tzutc())
+        expected1 = publish_fake_data(publish_agent, now)
+        expected2 = publish_fake_data(publish_agent,
+                                      now + timedelta(minutes=1))
+        gevent.sleep(1)
+
+        # test query from hourly_data table
+        db['data'].drop()
+        result = publish_agent.vip.rpc.call(
+            'platform.historian',
+            'query',
+            topic=query_points['oat_point'],
+            count=20,
+            start = (now - timedelta(seconds=1)).isoformat(), #because mongo
+            # loses the microsecond precision
+            end = (now + timedelta(hours=3)).isoformat(),
+            order="FIRST_TO_LAST").get(timeout=10)
+        print result
+        assert expected1['datetime'].isoformat()[:-9] + '000+00:00' == \
+               result['values'][0][0]
+        assert result['values'][0][1] == expected1['oat_point']
+        assert expected2['datetime'].isoformat()[:-9] + '000+00:00' == \
+               result['values'][1][0]
+        assert result['values'][1][1] == expected2['oat_point']
+
+    finally:
+        volttron_instance.stop_agent(agent_uuid)
+        volttron_instance.remove_agent(agent_uuid)
+
+def compare_data_and_rollup_data(db, expected1, expected2,
+                                 expected3, query_points,
+                                 result):
+    print "exepected t1 {}".format(expected1['datetime'].isoformat())
+    expected_t1 = expected1['datetime'].isoformat()[:-9] + '000+00:00'
+    assert expected_t1 == result['values'][0][0]
+    assert result['values'][0][1] == expected1['oat_point']
+    expected_t2 = expected2['datetime'].isoformat()[:-9] + '000+00:00'
+    assert expected_t2 == result['values'][1][0]
+    assert result['values'][1][1] == expected2['oat_point']
+    if expected3:
+        expected_t3 = expected3['datetime'].isoformat()[:-9] + '000+00:00'
+        assert expected_t3 == result['values'][2][0]
+        assert result['values'][2][1] == expected3['oat_point']
+
+    rollup_month = expected1['datetime'].replace(day=1, hour=0, minute=0,
+                                                 second=0, microsecond=0)
+    weekday, num_days = monthrange(rollup_month.year, rollup_month.month)
+    cursor = db['topics'].find({'topic_name': query_points['oat_point']})
+    rows = list(cursor)
+    id = rows[0]['_id']
+    # verify hourly rollup
+    cursor = db['hourly_data'].find({'topic_id': id})
+    rows = list(cursor)
+    assert len(rows[0]['data']) == 60
+    print rows[0]['data']
+    rolled_up_data1 = rows[0]['data'][expected1['datetime'].minute]
+    rolled_up_data2 = rows[0]['data'][expected2['datetime'].minute]
+    if expected3:
+        rolled_up_data3 = rows[0]['data'][expected3['datetime'].minute]
+    compare_rolled_up_data(rolled_up_data1, expected_t1,
+                           expected1['oat_point'])
+    compare_rolled_up_data(rolled_up_data2, expected_t2,
+                           expected2['oat_point'])
+    if expected3:
+        rolled_up_data3 = rows[0]['data'][expected3['datetime'].minute]
+        compare_rolled_up_data(rolled_up_data3, expected_t3, expected3[
+            'oat_point'])
+
+    # verify daily data
+    cursor = db['daily_data'].find({'topic_id': id})
+    rows = list(cursor)
+    assert len(rows[0]['data']) == 24 * 60
+    # print rows[0]['data']
+    rolled_up_data1 = rows[0]['data'][
+        expected1['datetime'].hour * 60 + expected1['datetime'].minute]
+    rolled_up_data2 = rows[0]['data'][
+        expected2['datetime'].hour * 60 + expected2['datetime'].minute]
+    compare_rolled_up_data(rolled_up_data1, expected_t1,
+                           expected1['oat_point'])
+    compare_rolled_up_data(rolled_up_data2, expected_t2,
+                           expected2['oat_point'])
+    if expected3:
+        rolled_up_data3 = rows[0]['data'][
+            expected3['datetime'].hour * 60 + expected3['datetime'].minute]
+        compare_rolled_up_data(rolled_up_data3, expected_t3,
+                               expected3['oat_point'])
+
+    # verify monthly data
+    cursor = db['monthly_data'].find({'topic_id': id})
+    rows = list(cursor)
+    assert len(rows[0]['data']) == num_days * 24 * 60
+    # print rows[0]['data']
+    rolled_up_data1 = rows[0]['data'][
+        expected1['datetime'].day * 24 * 60 + expected1['datetime'].hour * 60 +
+        expected1['datetime'].minute]
+    rolled_up_data2 = rows[0]['data'][
+        expected2['datetime'].day * 24 * 60 + expected2['datetime'].hour * 60 +
+        expected2['datetime'].minute]
+    compare_rolled_up_data(rolled_up_data1, expected_t1,
+                           expected1['oat_point'])
+    compare_rolled_up_data(rolled_up_data2, expected_t2,
+                           expected2['oat_point'])
+    if expected3:
+        rolled_up_data3 = rows[0]['data'][
+            expected3['datetime'].day * 24 * 60 + expected3[
+                'datetime'].hour * 60 + expected3['datetime'].minute]
+        compare_rolled_up_data(rolled_up_data3, expected_t3,
+                               expected3['oat_point'])
+
+
+
 
 def compare_rolled_up_data(rolled_up_data, expected_time, expected_value):
-    assert utils.format_timestamp(
-        rolled_up_data[0][0]) + '+00:00' == expected_time
-    assert rolled_up_data[0][1] == expected_value
+    assert utils.format_timestamp(rolled_up_data[0]) + '+00:00' == \
+           expected_time
+    assert rolled_up_data[1] == expected_value

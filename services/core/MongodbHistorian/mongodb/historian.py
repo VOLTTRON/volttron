@@ -61,6 +61,8 @@ from collections import defaultdict
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from calendar import monthrange
+from datetime import timedelta
+from dateutil.tz import tzutc
 
 import pymongo
 from bson.objectid import ObjectId
@@ -262,18 +264,24 @@ class MongodbHistorian(BaseHistorian):
             if int(self.version_nums[0]) >= 2:
                 bulk_publish_hour.append(UpdateOne(
                     {'ts': rollup_hour, 'topic_id': topic_id},
-                    {'$push': {"data."+ str(ts.minute) : [ts, value]}}
+                    {'$push': {"data."+ str(ts.minute) :
+                                   {'$each': [ts, value]}},
+                      '$inc':{'count': 1, 'sum': value}}
                 ))
 
                 position = ts.hour * 60 + ts.minute
                 bulk_publish_day.append(UpdateOne(
                     {'ts': rollup_day, 'topic_id': topic_id},
-                    {'$push': {"data." + str(position): [ts, value]}}))
+                    {'$push': {"data." + str(position):
+                                   {'$each': [ts, value]}},
+                     '$inc': {'count': 1, 'sum': value}}))
 
                 position = (ts.day * 24 * 60) + (ts.hour * 60) + ts.minute
                 bulk_publish_month.append(UpdateOne(
                     {'ts': rollup_month, 'topic_id': topic_id},
-                    {'$push':{"data." + str(position): [ts, value]}}))
+                    {'$push':{"data." + str(position):
+                                  {'$each': [ts, value]}},
+                     '$inc': {'count': 1, 'sum': value}}))
 
 
         # done going through all data and adding appropriate updates stmts
@@ -343,16 +351,45 @@ class MongodbHistorian(BaseHistorian):
             # See if we can use rolled up data
             if int(self.version_nums[0]) >= 2 and start and end \
                     and start != end:
-                diff = relativedelta(start, end)
-                if diff.minutes == 0 and diff.seconds == 0:
+                diff = (end - start).total_seconds()
+                _log.debug("total seconds between end and start {}".format(
+                    diff))
+                if diff > 30 * 24 * 3600:
+                    collection_name = "monthly_data"
+                    use_rolled_up_data = True
+                    query_start = start.replace(days=1,
+                                                hour=0,
+                                                minute=0,
+                                                second=0,
+                                                microsecond=0)
+                    query_end = (end + relativedelta(months=1)).replace(
+                        days=1,
+                        hour=0,
+                        minute=0,
+                        second=0, microsecond=0)
+                elif diff >= 24 * 3600:
+                    collection_name = "daily_data"
+                    use_rolled_up_data = True
+                    query_start = start.replace(hour=0,
+                                                minute=0,
+                                                second=0,
+                                                microsecond=0)
+                    query_end = (end + timedelta(days=1)).replace(
+                        hour=0,
+                        minute=0,
+                        second=0,
+                        microsecond=0)
+                elif diff >= 3600*3: #more than 3 hours of data
                     collection_name = "hourly_data"
                     use_rolled_up_data = True
-                    if diff.hours == 0:
-                        collection_name = "daily_data"
-                        use_rolled_up_data = True
-                        if diff.days == 0:
-                            collection_name = "monthly_data"
-                            use_rolled_up_data = True
+                    query_start = start.replace(minute=0, second=0,
+                                                microsecond=0)
+                    query_end = (end+timedelta(hours=1)).replace(
+                        minute=0,
+                        second=0,
+                        microsecond=0)
+
+
 
         topics_list = []
         if isinstance(topic, str):
@@ -398,9 +435,16 @@ class MongodbHistorian(BaseHistorian):
             order_by = -1
 
         if start is not None:
-            ts_filter["$gte"] = start
+            if use_rolled_up_data:
+                ts_filter["$gte"] = query_start
+            else:
+                ts_filter["$gte"] = start
         if end is not None:
-            ts_filter["$lt"] = end
+            if use_rolled_up_data:
+                ts_filter["$lt"] = query_end
+            else:
+                ts_filter["$lt"] = end
+
         if count is None:
             count = 100
         skip_count = 0
@@ -436,10 +480,18 @@ class MongodbHistorian(BaseHistorian):
                 datetime.utcnow() - start_time))
             if use_rolled_up_data:
                 for row in rows:
-                    for timestamp in row['data']:
-                        values[id_name_map[x]].append(
-                            (utils.format_timestamp(timestamp[0]),
-                             timestamp[1]))
+                    for data in row['data']:
+                        if data:
+                            _log.debug("start {}".format(start))
+                            _log.debug("end {}".format(end))
+                            if start.tzinfo:
+                                data[0] = data[0].replace(tzinfo=tzutc())
+                            _log.debug("data[0] {}".format(data[0]))
+                            if data[0] >= start and data[0] < end:
+                                values[id_name_map[x]].append(
+                                    (utils.format_timestamp(data[0]),
+                                     data[1]))
+                _log.debug("values len {}".format(len(values)))
             else:
                 for row in rows:
                     values[id_name_map[x]].append(
