@@ -1175,18 +1175,19 @@ class VolttronCentralAgent(Agent):
             _log.debug('PARAMS: {}'.format(cp))
             vcp_conn.call("publish_bacnet_props", **cp)
 
-        gevent.spawn_later(3, start_sending_props)
+        gevent.spawn_later(1, start_sending_props)
 
-    def _handle_bacnet_scan(self, session_user, platform_uuid, params):
-        _log.debug('Handling bacnet_scan platform: {}'.format(platform_uuid))
+    def _handle_bacnet_scan(self, req_args, params):
+        _log.debug('Handling bacnet_scan platform: {}'.format(
+            req_args.platform_uuid))
 
         scan_length = params.pop('scan_length', 5)
 
         try:
             scan_length = float(scan_length)
             params['scan_length'] = scan_length
-            vcp_conn = self._get_connection(platform_uuid)
-            iam_topic = "{}/iam".format(session_user['token'])
+            vcp_conn = self._get_connection(req_args.platform_uuid)
+            iam_topic = "{}/iam".format(req_args.session_user['token'])
             ws_socket_topic = "/vc/ws/{}".format(iam_topic)
             self.vip.web.register_websocket(ws_socket_topic,
                                             self.open_authenticate_ws_endpoint,
@@ -1196,21 +1197,23 @@ class VolttronCentralAgent(Agent):
                 # We want the datatype (iam) to be second in the response so
                 # we need to reposition the iam and the session id to the topic
                 # that is passed to the rpc function on vcp
-                iam_session_topic = "iam/{}".format(session_user['token'])
+                iam_session_topic = "iam/{}".format(
+                    req_args.session_user['token'])
                 vcp_conn.call("start_bacnet_scan", iam_session_topic, **params)
 
                 def close_socket():
-                    _log.debug('Closing bacnet scan for {}'.format(platform_uuid))
+                    _log.debug('Closing bacnet scan for {}'.format(
+                        req_args.platform_uuid))
                     self.vip.web.unregister_websocket(ws_socket_topic)
 
                 gevent.spawn_later(scan_length, close_socket)
-            # By starting the scan a couple seconds later we allow the websockt
+            # By starting the scan a second later we allow the websocket
             # client to subscribe to the newly available endpoint.
-            gevent.spawn_later(3, start_scan)
+            gevent.spawn_later(1, start_scan)
         except ValueError:
             return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
                                       "Couldn't connect to platform {}".format(
-                                          platform_uuid
+                                          req_args.platform_uuid
                                       ))
         except KeyError:
             return jsonrpc.json_error(id, UNAUTHORIZED,
