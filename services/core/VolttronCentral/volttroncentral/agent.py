@@ -415,8 +415,6 @@ class VolttronCentralAgent(Agent):
 
         try:
             if address_type == 'tcp':
-                self.core.publickey
-
                 _log.debug(
                     'TCP calling manage. my publickey: {}'.format(
                         self.core.publickey))
@@ -1157,8 +1155,8 @@ class VolttronCentralAgent(Agent):
         _log.debug('Handling bacnet_props platform: {}'.format(
             req_args.platform_uuid))
 
-        configure_topic = "{}/configure".format(req_args.platform_uuid,
-                                                req_args.session_user['token'])
+        configure_topic = "{}/configure".format(req_args.session_user['token'])
+
         ws_socket_topic = "/vc/ws/{}".format(configure_topic)
         self.vip.web.register_websocket(ws_socket_topic,
                                         self.open_authenticate_ws_endpoint,
@@ -1178,7 +1176,7 @@ class VolttronCentralAgent(Agent):
             _log.debug('PARAMS: {}'.format(cp))
             vcp_conn.call("publish_bacnet_props", **cp)
 
-        gevent.spawn_later(1, start_sending_props)
+        gevent.spawn_later(3, start_sending_props)
 
     def _handle_bacnet_scan(self, req_args, params):
         _log.debug('Handling bacnet_scan platform: {}'.format(
@@ -1212,7 +1210,7 @@ class VolttronCentralAgent(Agent):
                 gevent.spawn_later(scan_length, close_socket)
             # By starting the scan a second later we allow the websocket
             # client to subscribe to the newly available endpoint.
-            gevent.spawn_later(1, start_scan)
+            gevent.spawn_later(3, start_scan)
         except ValueError:
             return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
                                       "Couldn't connect to platform {}".format(
