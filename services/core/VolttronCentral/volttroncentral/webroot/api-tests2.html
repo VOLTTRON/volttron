@@ -314,6 +314,12 @@
 
     function open_socket(path, data_callback) {
         var endpoint = "ws"; // location.protocol;
+        console.log(location.protocal)
+        console.log(location)
+        if (location.protocol == 'https:'){
+            endpoint = "wss";
+        }
+        console.log('Endpoint is: ' + endpoint)
         var slashes = endpoint.concat("://");
         var host = slashes.concat(window.location.host);
         var websocket = host.concat(path)
