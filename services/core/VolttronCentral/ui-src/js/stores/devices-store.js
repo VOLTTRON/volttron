@@ -17,6 +17,7 @@ var _registryFiles = {};
 var _backupFileName = {};
 var _platform;
 var _devices = [];
+var _settingsTemplate = {};
 
 var _newScan = false;
 var _scanningComplete = true;
@@ -1002,6 +1003,11 @@ devicesStore.getRegistryValues = function (device) {
     return config;    
 };
 
+devicesStore.getSettingsTemplate = function () {
+
+    return (ObjectIsEmpty(_settingsTemplate) ? null : _settingsTemplate);
+}
+
 devicesStore.getDataLoaded = function (device) {
     return ( (_data.hasOwnProperty(device.deviceId) && 
                 (_data.hasOwnProperty(device.deviceId))) ? _data[device.deviceId].length : false);
@@ -1120,17 +1126,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.DEVICE_DETECTED:
             _action = "device_detected";
             _view = "Devices Found";
-            // var warning = loadDevice(action.device, action.platform, action.bacnet);
-
-            // if (!objectIsEmpty(warning))
-            // {
-            //     statusIndicatorActionCreators.openStatusIndicator(
-            //         "error", 
-            //         warning.message + "ID: " + warning.value, 
-            //         warning.value, 
-            //         "left"
-            //     );
-            // }
 
             loadDevice(action.device, action.platform, action.bacnet);
 
@@ -1147,7 +1142,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             break;
         case ACTION_TYPES.POINT_SCAN_FINISHED:
 
-            var devideId = action.device.id;
+            var deviceId = action.device.id;
             var deviceAddress = action.device.address;
             var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
 
@@ -1194,6 +1189,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 device.showPoints = action.device.showPoints; 
                 device.configuring = action.device.configuring;
                 device.configuringStarted = true;
+                device.bacnetProxy = action.bacnet;
 
                 if (device.configuring)
                 {
@@ -1221,8 +1217,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _action = "configure_device";
             _view = "Configure Device";
             _device = action.device;
-            // _data[_device.deviceId] = (_backupData.hasOwnProperty(_device.deviceId) ? JSON.parse(JSON.stringify(_backupData[_device.deviceId])) : []);
-            // _registryFiles[_device.deviceId] = (_backupFileName.hasOwnProperty(_device.deviceId) ? _backupFileName[_device.deviceId] : "");
             
             var device = devicesStore.getDeviceRef(_device.id, _device.address);
 
@@ -1231,6 +1225,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 device.registryConfig = [];
                 device.showPoints = false;
                 device.configuring = false;
+                device.configuringStarted = false;
             }
 
             devicesStore.emitChange();
@@ -1238,11 +1233,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.LOAD_REGISTRY:
             _action = "configure_registry";
             _view = "Registry Configuration";
-            // _device = action.device;
-            // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
-            // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
-            // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
-
+            
             var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 
             if (device)
@@ -1258,11 +1249,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.UPDATE_REGISTRY:
             _action = "update_registry";
             _view = "Registry Configuration";
-            // _device = action.device;
-            // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
-            // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
-            // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
-
+            
             var i = -1;
             var keyProps = [];
 
@@ -1292,11 +1279,11 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
                 if (typeof attributes !== "undefined")
                 {                
-                    device.registryConfig[i] = action.attributes;                    
+                    device.registryConfig[i] = action.attributes.toJS();                    
                 }
                 else
                 {
-                    device.registryConfig.push(action.attributes);
+                    device.registryConfig.push(action.attributes.toJS());
                 }
 
                 device.selectedPoints = action.selectedPoints;
@@ -1315,17 +1302,25 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.SAVE_REGISTRY:
             _action = "configure_device";
             _view = "Configure Device";
-            // _device = action.device;
-
+            
             var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 
             if (device)
             {
-                device.registryConfig = action.data;
                 device.showPoints = false;
             }
 
             devicesStore.emitChange();
+            break;
+        case ACTION_TYPES.SAVE_CONFIG:
+            _action = "configure_device";
+            _view = "Configure Device";
+            
+            if (ObjectIsEmpty(_settingsTemplate))
+            {
+                _settingsTemplate = action.settings;
+            }
+
             break;
     }
 
@@ -1496,11 +1491,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         return emitChange;
     }
 
-    function objectIsEmpty(obj)
-    {
-        return Object.keys(obj).length === 0;
-    }
-
     function loadDevice(device, platformUuid, bacnetIdentity) 
     {
         var deviceIdStr = device.device_id.toString();
@@ -1508,6 +1498,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         _devices.push({
             id: deviceIdStr,
             name: device.device_name,
+            type: device.type,
             vendor_id: device.vendor_id,
             address: device.address,
             max_apdu_length: device.max_apdu_length,
@@ -1526,11 +1517,16 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 { key: "deviceId", label: "Device ID", value: deviceIdStr }, 
                 { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
                 { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
-                { key: "type", label: "Type", value: "BACnet" }
+                { key: "type", label: "Type", value: device.type }
             ]
         });
     }
     
 });
+
+function ObjectIsEmpty(obj)
+{
+    return Object.keys(obj).length === 0;
+}
 
 module.exports = devicesStore;

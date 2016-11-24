@@ -52,7 +52,7 @@ class DevicesFound extends BaseComponent {
         }
         else
         {
-            devicesActionCreators.toggleShowPoints(device);
+            devicesActionCreators.toggleShowPoints(device); 
         }
     }
     _focusOnDevice(evt) {
@@ -136,7 +136,6 @@ class DevicesFound extends BaseComponent {
 
                     if (!results.meta.aborted)            
                     {
-                        // this.setState({registry_config: fileName});       
                         devicesActionCreators.loadRegistry(device.id, device.address, results.data, fileName);
                     }
                 }

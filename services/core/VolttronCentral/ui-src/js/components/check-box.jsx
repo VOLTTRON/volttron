@@ -25,7 +25,9 @@ class CheckBox extends BaseComponent {
             this.setState({checked: nextProps.selected});
         }
     }
-    _onCheck() {
+    _onCheck(evt) {
+
+        var dataItem = evt.currentTarget.dataset.item;
 
         var checked = !this.state.checked;
 
@@ -33,7 +35,7 @@ class CheckBox extends BaseComponent {
 
         if (typeof this.props.oncheck === "function")
         {
-            this.props.oncheck(checked);
+            this.props.oncheck(checked, dataItem);
         }
     }
     render() {
@@ -48,6 +50,7 @@ class CheckBox extends BaseComponent {
             <div className={classes}
                 style={styles}>
                 <div className={selected}
+                    data-item={this.props.dataItem}
                     onClick={this._onCheck}>
                     <span>
                         {this.props.label}

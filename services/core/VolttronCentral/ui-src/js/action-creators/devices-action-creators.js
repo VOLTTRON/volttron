@@ -106,7 +106,7 @@ var devicesActionCreators = {
         {
             var device = JSON.parse(data);
             
-            var result = checkDevice(device, platform, bacnet);
+            var result = checkDevice(device, platform);
 
             if (!objectIsEmpty(result))
             {            
@@ -118,6 +118,11 @@ var devicesActionCreators = {
                         result.warning.value, 
                         "left"
                     );
+                }
+
+                if (bacnet)
+                {
+                    result.device.type = "bacnet";
                 }
 
                 if (!objectIsEmpty(result.device))
@@ -195,9 +200,9 @@ var devicesActionCreators = {
             {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.POINT_SCAN_FINISHED,
-                    device: device
+                    device: this
                 });
-            };
+            }.bind(device);
         }
 
         return new rpc.Exchange({
@@ -209,7 +214,8 @@ var devicesActionCreators = {
 
                 dispatcher.dispatch({
                     type: ACTION_TYPES.CONFIGURE_DEVICE,
-                    device: device
+                    device: device,
+                    bacnet: bacnetIdentity
                 });
 
                 setUpPointsSocket();
@@ -297,48 +303,29 @@ var devicesActionCreators = {
             });
         
     },
-    saveBacnetConfig: function (device, settings, registryFile) {
+    saveConfig: function (device, settings) {
 
         var authorization = authorizationStore.getAuthorization();
 
-        var values = {};
 
-        values.driver_type = "bacnet"; //TODO: get this dynamically
-        values.driver_config = {
-            device_address: device.address,
-            device_id: device.id,
-            proxy_address: "platform.bacnet_proxy" //TODO: get this dynamically
-        };
+        var config_name =  settings.campus + "/" + 
+                settings.building + "/" + 
+                settings.unit + 
+                (settings.path ? + "/" + settings.path : "")
 
-        values.interval = 60;
-        values.publish_breadth_first_all = false;
-        values.publish_depth_first = false;
-        values.publish_breadth_first = false;
-        values.timezone = "US/Pacific";
-        values.registry_config = "config://" + registryFile;
+        var config = {};
 
-        var campus = settings.find(function (setting) {
-            return setting.key === "campus";
-        });
-
-        var building = settings.find(function (setting) {
-            return setting.key === "building";
-        });
-
-        var unit = settings.find(function (setting) {
-            return setting.key === "unit";
-        });
-
-        var path = settings.find(function (setting) {
-            return setting.key === "path";
-        });
+        for (var key in settings.config)
+        {
+            config[key] = (settings.config[key].hasOwnProperty("value") ? settings.config[key].value : settings.config[key]);
+        }
 
         var params = {
             platform_uuid: device.platformUuid, 
             agent_identity: "platform.driver", 
-            config_name: "devices/" + campus.value + "/" + building.value + "/" + unit.value + "/" + path.value,
+            config_name: config_name,
             config_type: "json",
-            raw_contents: JSON.stringify(values)
+            raw_contents: JSON.stringify(config)
         };
 
         return new rpc.Exchange({
@@ -350,7 +337,6 @@ var devicesActionCreators = {
 
                 dispatcher.dispatch({
                     type: ACTION_TYPES.SAVE_CONFIG,
-                    device: device,
                     settings: settings
                 });
 
@@ -365,7 +351,7 @@ var devicesActionCreators = {
     },
 };
 
-function checkDevice(device, platformUuid, bacnetIdentity) 
+function checkDevice(device, platformUuid) 
 {
     var result = {};
 

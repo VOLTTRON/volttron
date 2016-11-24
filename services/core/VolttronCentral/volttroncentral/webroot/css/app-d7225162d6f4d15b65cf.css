@@ -846,6 +846,10 @@ br + .form__control-help {
     color: #a00;
 }
 
+.required-field {
+    color: red;
+}
+
 .login-form {
     position: absolute;
     top: 42.2%;
@@ -1576,6 +1580,11 @@ a.view__item:hover::before {
     white-space: nowrap;
 }
 
+.preview-registry-table tr:nth-child(even),
+.preview-registry-table thead tr {
+    background-color: rgba(218, 218, 214, 0.53);
+}
+
 .disableReplace {
     opacity: .4;
 }
@@ -1712,10 +1721,9 @@ td.plain {
     width: 600px;
 }
 
-.configDeviceContainer table {
-    border-collapse: separate;
-    border-spacing: 10px 8px;
-}
+.configDeviceContainer table td:first-child {
+    background-color: rgba(160, 221, 243, 0.59);
+} 
 
 .detectDevicesBox {    
     border: 1px solid black;
@@ -1773,33 +1781,6 @@ td.plain {
     border: 1px solid black;
 }*/
 
-.uneditableAttributes {
-    padding: 0px 140px 0px 140px;
-    margin-top: 20px;
-}
-
-.uneditableAttributes > table > tbody > tr > td {
-    height: 10px;
-    line-height: 1;
-    padding-left: 60px;
-    padding-right: 0px;
-}
-
-.uneditableAttributes > table > tbody > tr:first-child > td {
-    padding-top: 20px;
-}
-
-.uneditableAttributes > table > tbody > tr:not(:first-child) > td {
-    padding-top: 5px;
-}
-
-.uneditableAttributes > table > tbody > tr:last-child > td {
-    padding-bottom: 20px;
-}
-.uneditableAttributes > table > tbody > tr:not(:last-child) > td {
-    padding-bottom: 0px;
-}
-
 .table_label {
     font-weight: bold;
 }
@@ -1844,4 +1825,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-5d7bfe9d714714685436.css.map*/
+/*# sourceMappingURL=app-d7225162d6f4d15b65cf.css.map*/

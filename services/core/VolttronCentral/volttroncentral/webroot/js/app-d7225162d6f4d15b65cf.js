@@ -29811,14 +29811,16 @@
 	        }
 	    }, {
 	        key: '_onCheck',
-	        value: function _onCheck() {
+	        value: function _onCheck(evt) {
+	
+	            var dataItem = evt.currentTarget.dataset.item;
 	
 	            var checked = !this.state.checked;
 	
 	            this.setState({ checked: checked });
 	
 	            if (typeof this.props.oncheck === "function") {
-	                this.props.oncheck(checked);
+	                this.props.oncheck(checked, dataItem);
 	            }
 	        }
 	    }, {
@@ -29838,6 +29840,7 @@
 	                _react2.default.createElement(
 	                    'div',
 	                    { className: selected,
+	                        'data-item': this.props.dataItem,
 	                        onClick: this._onCheck },
 	                    _react2.default.createElement(
 	                        'span',
@@ -56783,11 +56786,15 @@
 	        if (data) {
 	            var device = JSON.parse(data);
 	
-	            var result = checkDevice(device, platform, bacnet);
+	            var result = checkDevice(device, platform);
 	
 	            if (!objectIsEmpty(result)) {
 	                if (!objectIsEmpty(result.warning)) {
 	                    statusIndicatorActionCreators.openStatusIndicator("error", result.warning.message + "ID: " + result.warning.value, result.warning.value, "left");
+	                }
+	
+	                if (bacnet) {
+	                    result.device.type = "bacnet";
 	                }
 	
 	                if (!objectIsEmpty(result.device)) {
@@ -56860,9 +56867,9 @@
 	            pointsWs.onclose = function (evt) {
 	                dispatcher.dispatch({
 	                    type: ACTION_TYPES.POINT_SCAN_FINISHED,
-	                    device: device
+	                    device: this
 	                });
-	            };
+	            }.bind(device);
 	        };
 	
 	        return new rpc.Exchange({
@@ -56873,7 +56880,8 @@
 	
 	            dispatcher.dispatch({
 	                type: ACTION_TYPES.CONFIGURE_DEVICE,
-	                device: device
+	                device: device,
+	                bacnet: bacnetIdentity
 	            });
 	
 	            setUpPointsSocket();
@@ -56954,48 +56962,24 @@
 	            handle401(error, error.message);
 	        });
 	    },
-	    saveBacnetConfig: function saveBacnetConfig(device, settings, registryFile) {
+	    saveConfig: function saveConfig(device, settings) {
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
-	        var values = {};
+	        var config_name = settings.campus + "/" + settings.building + "/" + settings.unit + (settings.path ? +"/" + settings.path : "");
 	
-	        values.driver_type = "bacnet"; //TODO: get this dynamically
-	        values.driver_config = {
-	            device_address: device.address,
-	            device_id: device.id,
-	            proxy_address: "platform.bacnet_proxy" //TODO: get this dynamically
-	        };
+	        var config = {};
 	
-	        values.interval = 60;
-	        values.publish_breadth_first_all = false;
-	        values.publish_depth_first = false;
-	        values.publish_breadth_first = false;
-	        values.timezone = "US/Pacific";
-	        values.registry_config = "config://" + registryFile;
-	
-	        var campus = settings.find(function (setting) {
-	            return setting.key === "campus";
-	        });
-	
-	        var building = settings.find(function (setting) {
-	            return setting.key === "building";
-	        });
-	
-	        var unit = settings.find(function (setting) {
-	            return setting.key === "unit";
-	        });
-	
-	        var path = settings.find(function (setting) {
-	            return setting.key === "path";
-	        });
+	        for (var key in settings.config) {
+	            config[key] = settings.config[key].hasOwnProperty("value") ? settings.config[key].value : settings.config[key];
+	        }
 	
 	        var params = {
 	            platform_uuid: device.platformUuid,
 	            agent_identity: "platform.driver",
-	            config_name: "devices/" + campus.value + "/" + building.value + "/" + unit.value + "/" + path.value,
+	            config_name: config_name,
 	            config_type: "json",
-	            raw_contents: JSON.stringify(values)
+	            raw_contents: JSON.stringify(config)
 	        };
 	
 	        return new rpc.Exchange({
@@ -57006,7 +56990,6 @@
 	
 	            dispatcher.dispatch({
 	                type: ACTION_TYPES.SAVE_CONFIG,
-	                device: device,
 	                settings: settings
 	            });
 	        }).catch(rpc.Error, function (error) {
@@ -57018,7 +57001,7 @@
 	    }
 	};
 	
-	function checkDevice(device, platformUuid, bacnetIdentity) {
+	function checkDevice(device, platformUuid) {
 	    var result = {};
 	
 	    if (device.hasOwnProperty("device_id") && !device.hasOwnProperty("results")) {
@@ -57103,6 +57086,7 @@
 	var _backupFileName = {};
 	var _platform;
 	var _devices = [];
+	var _settingsTemplate = {};
 	
 	var _newScan = false;
 	var _scanningComplete = true;
@@ -58074,6 +58058,11 @@
 	    return config;
 	};
 	
+	devicesStore.getSettingsTemplate = function () {
+	
+	    return ObjectIsEmpty(_settingsTemplate) ? null : _settingsTemplate;
+	};
+	
 	devicesStore.getDataLoaded = function (device) {
 	    return _data.hasOwnProperty(device.deviceId) && _data.hasOwnProperty(device.deviceId) ? _data[device.deviceId].length : false;
 	};
@@ -58186,17 +58175,6 @@
 	        case ACTION_TYPES.DEVICE_DETECTED:
 	            _action = "device_detected";
 	            _view = "Devices Found";
-	            // var warning = loadDevice(action.device, action.platform, action.bacnet);
-	
-	            // if (!objectIsEmpty(warning))
-	            // {
-	            //     statusIndicatorActionCreators.openStatusIndicator(
-	            //         "error", 
-	            //         warning.message + "ID: " + warning.value, 
-	            //         warning.value, 
-	            //         "left"
-	            //     );
-	            // }
 	
 	            loadDevice(action.device, action.platform, action.bacnet);
 	
@@ -58212,7 +58190,7 @@
 	            break;
 	        case ACTION_TYPES.POINT_SCAN_FINISHED:
 	
-	            var devideId = action.device.id;
+	            var deviceId = action.device.id;
 	            var deviceAddress = action.device.address;
 	            var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
 	
@@ -58255,6 +58233,7 @@
 	                device.showPoints = action.device.showPoints;
 	                device.configuring = action.device.configuring;
 	                device.configuringStarted = true;
+	                device.bacnetProxy = action.bacnet;
 	
 	                if (device.configuring) {
 	                    device.registryConfig = [];
@@ -58280,8 +58259,6 @@
 	            _action = "configure_device";
 	            _view = "Configure Device";
 	            _device = action.device;
-	            // _data[_device.deviceId] = (_backupData.hasOwnProperty(_device.deviceId) ? JSON.parse(JSON.stringify(_backupData[_device.deviceId])) : []);
-	            // _registryFiles[_device.deviceId] = (_backupFileName.hasOwnProperty(_device.deviceId) ? _backupFileName[_device.deviceId] : "");
 	
 	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
 	
@@ -58289,6 +58266,7 @@
 	                device.registryConfig = [];
 	                device.showPoints = false;
 	                device.configuring = false;
+	                device.configuringStarted = false;
 	            }
 	
 	            devicesStore.emitChange();
@@ -58296,10 +58274,6 @@
 	        case ACTION_TYPES.LOAD_REGISTRY:
 	            _action = "configure_registry";
 	            _view = "Registry Configuration";
-	            // _device = action.device;
-	            // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
-	            // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
-	            // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
 	
 	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 	
@@ -58315,10 +58289,6 @@
 	        case ACTION_TYPES.UPDATE_REGISTRY:
 	            _action = "update_registry";
 	            _view = "Registry Configuration";
-	            // _device = action.device;
-	            // _backupData[_device.id] = (_data.hasOwnProperty(_device.id) ? JSON.parse(JSON.stringify(_data[_device.id])) : []);
-	            // _backupFileName[_device.id] = (_registryFiles.hasOwnProperty(_device.id) ? _registryFiles[_device.id] : "");
-	            // _data[_device.id] = JSON.parse(JSON.stringify(action.data));
 	
 	            var i = -1;
 	            var keyProps = [];
@@ -58345,9 +58315,9 @@
 	                device.keyProps = keyProps;
 	
 	                if (typeof attributes !== "undefined") {
-	                    device.registryConfig[i] = action.attributes;
+	                    device.registryConfig[i] = action.attributes.toJS();
 	                } else {
-	                    device.registryConfig.push(action.attributes);
+	                    device.registryConfig.push(action.attributes.toJS());
 	                }
 	
 	                device.selectedPoints = action.selectedPoints;
@@ -58366,16 +58336,23 @@
 	        case ACTION_TYPES.SAVE_REGISTRY:
 	            _action = "configure_device";
 	            _view = "Configure Device";
-	            // _device = action.device;
 	
 	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 	
 	            if (device) {
-	                device.registryConfig = action.data;
 	                device.showPoints = false;
 	            }
 	
 	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.SAVE_CONFIG:
+	            _action = "configure_device";
+	            _view = "Configure Device";
+	
+	            if (ObjectIsEmpty(_settingsTemplate)) {
+	                _settingsTemplate = action.settings;
+	            }
+	
 	            break;
 	    }
 	
@@ -58517,16 +58494,13 @@
 	        return emitChange;
 	    }
 	
-	    function objectIsEmpty(obj) {
-	        return Object.keys(obj).length === 0;
-	    }
-	
 	    function loadDevice(device, platformUuid, bacnetIdentity) {
 	        var deviceIdStr = device.device_id.toString();
 	
 	        _devices.push({
 	            id: deviceIdStr,
 	            name: device.device_name,
+	            type: device.type,
 	            vendor_id: device.vendor_id,
 	            address: device.address,
 	            max_apdu_length: device.max_apdu_length,
@@ -58538,10 +58512,14 @@
 	            registryConfig: [],
 	            keyProps: ["volttron_point_name", "units", "writable"],
 	            selectedPoints: [],
-	            items: [{ key: "address", label: "Address", value: device.address }, { key: "deviceName", label: "Name", value: device.device_name }, { key: "deviceDescription", label: "Description", value: device.device_description }, { key: "deviceId", label: "Device ID", value: deviceIdStr }, { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] }, { key: "type", label: "Type", value: "BACnet" }]
+	            items: [{ key: "address", label: "Address", value: device.address }, { key: "deviceName", label: "Name", value: device.device_name }, { key: "deviceDescription", label: "Description", value: device.device_description }, { key: "deviceId", label: "Device ID", value: deviceIdStr }, { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] }, { key: "type", label: "Type", value: device.type }]
 	        });
 	    }
 	});
+	
+	function ObjectIsEmpty(obj) {
+	    return Object.keys(obj).length === 0;
+	}
 	
 	module.exports = devicesStore;
 
@@ -60206,7 +60184,7 @@
 	                                _react2.default.createElement(
 	                                    'div',
 	                                    { className: 'opaque_inner' },
-	                                    'Find Devices'
+	                                    'Find\xA0Devices'
 	                                )
 	                            )
 	                        ),
@@ -60546,7 +60524,6 @@
 	                        }
 	
 	                        if (!results.meta.aborted) {
-	                            // this.setState({registry_config: fileName});       
 	                            devicesActionCreators.loadRegistry(device.id, device.address, results.data, fileName);
 	                        }
 	                    }
@@ -62419,7 +62396,7 @@
 	
 	                content = _react2.default.createElement(
 	                    'table',
-	                    null,
+	                    { className: 'preview-registry-table' },
 	                    _react2.default.createElement(
 	                        'thead',
 	                        null,
@@ -62448,9 +62425,9 @@
 	                _react2.default.createElement(
 	                    'h4',
 	                    null,
-	                    this.props.deviceAddress,
-	                    ' / ',
 	                    this.props.deviceName,
+	                    ' / ',
+	                    this.props.deviceAddress,
 	                    ' / ',
 	                    this.props.deviceId
 	                ),
@@ -62686,6 +62663,10 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
+	var _checkBox = __webpack_require__(252);
+	
+	var _checkBox2 = _interopRequireDefault(_checkBox);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -62696,6 +62677,7 @@
 	
 	var modalActionCreators = __webpack_require__(306);
 	var devicesActionCreators = __webpack_require__(294);
+	var devicesStore = __webpack_require__(295);
 	
 	var ConfigDeviceForm = function (_BaseComponent) {
 	    _inherits(ConfigDeviceForm, _BaseComponent);
@@ -62705,29 +62687,55 @@
 	
 	        var _this = _possibleConstructorReturn(this, (ConfigDeviceForm.__proto__ || Object.getPrototypeOf(ConfigDeviceForm)).call(this, props));
 	
-	        _this._bind("_updateSetting", "_onSubmit");
+	        _this._bind("_updateSetting", "_checkItem", "_updateCampus", "_updateBuilding", "_updateUnit", "_updatePath", "_onSubmit");
 	
-	        _this.state = getStateFromStores(_this.props.device);
+	        var settingsTemplate = devicesStore.getSettingsTemplate();
+	
+	        _this.state = {
+	            campus: settingsTemplate ? settingsTemplate.campus : "",
+	            building: settingsTemplate ? settingsTemplate.building : "",
+	            unit: "",
+	            path: ""
+	        };
+	
+	        _this.state.settings = initializeSettings(_this.props.device.type, settingsTemplate);
+	        _this.state.driver_config = initializeDriverConfig(_this.props.device);
 	        return _this;
 	    }
 	
 	    _createClass(ConfigDeviceForm, [{
 	        key: '_updateSetting',
 	        value: function _updateSetting(evt) {
-	            var newVal = evt.target.value;
 	            var key = evt.currentTarget.dataset.setting;
 	
-	            var tmpState = JSON.parse(JSON.stringify(this.state));
-	
-	            var newSettings = tmpState.settings.map(function (item) {
-	                if (item.key === key) {
-	                    item.value = newVal;
-	                }
-	
-	                return item;
-	            });
-	
-	            this.setState({ settings: newSettings });
+	            this.state.settings[key].value = evt.target.value;
+	            this.setState({ settings: this.state.settings });
+	        }
+	    }, {
+	        key: '_checkItem',
+	        value: function _checkItem(checked, key) {
+	            this.state.settings[key].value = checked;
+	            this.setState({ settings: this.state.settings });
+	        }
+	    }, {
+	        key: '_updateCampus',
+	        value: function _updateCampus(evt) {
+	            this.setState({ campus: evt.target.value });
+	        }
+	    }, {
+	        key: '_updateBuilding',
+	        value: function _updateBuilding(evt) {
+	            this.setState({ building: evt.target.value });
+	        }
+	    }, {
+	        key: '_updateUnit',
+	        value: function _updateUnit(evt) {
+	            this.setState({ unit: evt.target.value });
+	        }
+	    }, {
+	        key: '_updatePath',
+	        value: function _updatePath(evt) {
+	            this.setState({ path: evt.target.value });
 	        }
 	    }, {
 	        key: '_onCancelClick',
@@ -62737,68 +62745,27 @@
 	    }, {
 	        key: '_onSubmit',
 	        value: function _onSubmit(e) {
+	
 	            e.preventDefault();
-	            devicesActionCreators.saveBacnetConfig(this.props.device, this.state.settings, this.props.registryFile);
+	
+	            var settings = {
+	                config: this.state.settings,
+	                campus: this.state.campus,
+	                building: this.state.building,
+	                unit: this.state.unit,
+	                path: this.state.path
+	            };
+	
+	            settings.config.driver_config = this.state.driver_config;
+	            settings.config.registry_config = "config://" + this.props.registryFile;
+	
+	            devicesActionCreators.saveConfig(this.props.device, settings);
+	
 	            modalActionCreators.closeModal();
 	        }
 	    }, {
 	        key: 'render',
 	        value: function render() {
-	
-	            var tableStyle = {
-	                backgroundColor: "#E7E7E7"
-	            };
-	
-	            var uneditableAttributes = _react2.default.createElement(
-	                'table',
-	                { style: tableStyle },
-	                _react2.default.createElement(
-	                    'tbody',
-	                    null,
-	                    _react2.default.createElement(
-	                        'tr',
-	                        null,
-	                        _react2.default.createElement(
-	                            'td',
-	                            null,
-	                            'Proxy Address'
-	                        ),
-	                        _react2.default.createElement(
-	                            'td',
-	                            { className: 'plain' },
-	                            '10.0.2.15'
-	                        )
-	                    ),
-	                    _react2.default.createElement(
-	                        'tr',
-	                        null,
-	                        _react2.default.createElement(
-	                            'td',
-	                            null,
-	                            'Network Interface'
-	                        ),
-	                        _react2.default.createElement(
-	                            'td',
-	                            { className: 'plain' },
-	                            'UDP/IP'
-	                        )
-	                    ),
-	                    _react2.default.createElement(
-	                        'tr',
-	                        null,
-	                        _react2.default.createElement(
-	                            'td',
-	                            null,
-	                            'Campus'
-	                        ),
-	                        _react2.default.createElement(
-	                            'td',
-	                            { className: 'plain' },
-	                            'PNNL'
-	                        )
-	                    )
-	                )
-	            );
 	
 	            var firstStyle = {
 	                width: "30%",
@@ -62809,44 +62776,61 @@
 	                width: "50%"
 	            };
 	
-	            var settingsRows = this.state.settings.map(function (setting) {
+	            var editableAttributes = [];
 	
-	                var stateSetting = this.state.settings.find(function (s) {
-	                    return s.key === setting.key;
-	                });
+	            for (var key in this.state.settings) {
+	                var setting;
 	
-	                return _react2.default.createElement(
-	                    'tr',
-	                    { key: setting.key },
-	                    _react2.default.createElement(
-	                        'td',
-	                        { style: firstStyle },
-	                        setting.label
-	                    ),
-	                    _react2.default.createElement(
-	                        'td',
-	                        { style: secondStyle,
-	                            className: 'plain' },
-	                        _react2.default.createElement('input', {
-	                            className: 'form__control form__control--block',
-	                            type: 'text',
-	                            'data-setting': setting.key,
-	                            onChange: this._updateSetting,
-	                            value: stateSetting.value
-	                        })
-	                    )
-	                );
-	            }, this);
+	                if (this.state.settings[key].type === "bool") {
+	                    setting = _react2.default.createElement(
+	                        'tr',
+	                        { key: key },
+	                        _react2.default.createElement(
+	                            'td',
+	                            { style: firstStyle },
+	                            this.state.settings[key].label
+	                        ),
+	                        _react2.default.createElement(
+	                            'td',
+	                            { style: secondStyle,
+	                                className: 'plain' },
+	                            _react2.default.createElement(
+	                                'div',
+	                                { textAlign: 'center',
+	                                    width: '100%' },
+	                                _react2.default.createElement(_checkBox2.default, {
+	                                    dataItem: key,
+	                                    oncheck: this._checkItem,
+	                                    selected: this.state.settings[key].value })
+	                            )
+	                        )
+	                    );
+	                } else {
+	                    setting = _react2.default.createElement(
+	                        'tr',
+	                        { key: key },
+	                        _react2.default.createElement(
+	                            'td',
+	                            { style: firstStyle },
+	                            this.state.settings[key].label
+	                        ),
+	                        _react2.default.createElement(
+	                            'td',
+	                            { style: secondStyle,
+	                                className: 'plain' },
+	                            _react2.default.createElement('input', {
+	                                className: 'form__control form__control--block',
+	                                type: this.state.settings[key].type,
+	                                'data-setting': key,
+	                                onChange: this._updateSetting,
+	                                value: this.state.settings[key].value
+	                            })
+	                        )
+	                    );
+	                }
 	
-	            var editableAttributes = _react2.default.createElement(
-	                'table',
-	                null,
-	                _react2.default.createElement(
-	                    'tbody',
-	                    null,
-	                    settingsRows
-	                )
-	            );
+	                editableAttributes.push(setting);
+	            }
 	
 	            var configDeviceBox = {
 	                padding: "0px 50px",
@@ -62858,26 +62842,129 @@
 	                'form',
 	                { className: 'config-device-form', onSubmit: this._onSubmit },
 	                _react2.default.createElement(
-	                    'div',
-	                    { className: 'centerContent' },
-	                    _react2.default.createElement(
-	                        'h3',
-	                        null,
-	                        'Device Configuration'
-	                    )
+	                    'h1',
+	                    null,
+	                    'Device Configuration'
+	                ),
+	                _react2.default.createElement(
+	                    'h4',
+	                    null,
+	                    this.props.device.name,
+	                    ' / ',
+	                    this.props.device.address,
+	                    ' / ',
+	                    this.props.device.id
 	                ),
 	                _react2.default.createElement(
 	                    'div',
 	                    { className: 'configDeviceContainer' },
 	                    _react2.default.createElement(
 	                        'div',
-	                        { className: 'uneditableAttributes' },
-	                        uneditableAttributes
-	                    ),
-	                    _react2.default.createElement(
-	                        'div',
 	                        { style: configDeviceBox },
-	                        editableAttributes
+	                        _react2.default.createElement(
+	                            'table',
+	                            null,
+	                            _react2.default.createElement(
+	                                'tbody',
+	                                null,
+	                                _react2.default.createElement(
+	                                    'tr',
+	                                    { key: 'campus' },
+	                                    _react2.default.createElement(
+	                                        'td',
+	                                        { style: firstStyle },
+	                                        _react2.default.createElement(
+	                                            'span',
+	                                            { className: 'required-field' },
+	                                            '*'
+	                                        ),
+	                                        'Campus'
+	                                    ),
+	                                    _react2.default.createElement(
+	                                        'td',
+	                                        { style: secondStyle,
+	                                            className: 'plain' },
+	                                        _react2.default.createElement('input', {
+	                                            className: 'form__control form__control--block',
+	                                            type: 'text',
+	                                            onChange: this._updateCampus,
+	                                            value: this.state.campus
+	                                        })
+	                                    )
+	                                ),
+	                                _react2.default.createElement(
+	                                    'tr',
+	                                    { key: 'building' },
+	                                    _react2.default.createElement(
+	                                        'td',
+	                                        { style: firstStyle },
+	                                        _react2.default.createElement(
+	                                            'span',
+	                                            { className: 'required-field' },
+	                                            '*'
+	                                        ),
+	                                        'Building'
+	                                    ),
+	                                    _react2.default.createElement(
+	                                        'td',
+	                                        { style: secondStyle,
+	                                            className: 'plain' },
+	                                        _react2.default.createElement('input', {
+	                                            className: 'form__control form__control--block',
+	                                            type: 'text',
+	                                            onChange: this._updateBuilding,
+	                                            value: this.state.building
+	                                        })
+	                                    )
+	                                ),
+	                                _react2.default.createElement(
+	                                    'tr',
+	                                    { key: 'unit' },
+	                                    _react2.default.createElement(
+	                                        'td',
+	                                        { style: firstStyle },
+	                                        _react2.default.createElement(
+	                                            'span',
+	                                            { className: 'required-field' },
+	                                            '*'
+	                                        ),
+	                                        'Unit'
+	                                    ),
+	                                    _react2.default.createElement(
+	                                        'td',
+	                                        { style: secondStyle,
+	                                            className: 'plain' },
+	                                        _react2.default.createElement('input', {
+	                                            className: 'form__control form__control--block',
+	                                            type: 'text',
+	                                            onChange: this._updateUnit,
+	                                            value: this.state.unit
+	                                        })
+	                                    )
+	                                ),
+	                                _react2.default.createElement(
+	                                    'tr',
+	                                    { key: 'path' },
+	                                    _react2.default.createElement(
+	                                        'td',
+	                                        { style: firstStyle },
+	                                        'Path'
+	                                    ),
+	                                    _react2.default.createElement(
+	                                        'td',
+	                                        { style: secondStyle,
+	                                            className: 'plain' },
+	                                        _react2.default.createElement('input', {
+	                                            className: 'form__control form__control--block',
+	                                            type: 'text',
+	                                            onChange: this._updatePath,
+	                                            value: this.state.path
+	                                        })
+	                                    )
+	                                ),
+	                                editableAttributes
+	                            )
+	                        )
 	                    )
 	                ),
 	                _react2.default.createElement(
@@ -62894,7 +62981,8 @@
 	                    ),
 	                    _react2.default.createElement(
 	                        'button',
-	                        { className: 'button' },
+	                        { className: 'button',
+	                            disabled: !this.state.campus || !this.state.building || !this.state.unit },
 	                        'Save'
 	                    )
 	                )
@@ -62907,11 +62995,93 @@
 	
 	;
 	
-	var getStateFromStores = function getStateFromStores(device) {
-	
-	    return {
-	        settings: [{ key: "campus", value: "", label: "Campus" }, { key: "building", value: "", label: "Building" }, { key: "unit", value: "", label: "Unit" }, { key: "path", value: "", label: "Path" }, { key: "interval", value: "", label: "Interval" }, { key: "timezone", value: "", label: "Timezone" }, { key: "heartbeat_point", value: "", label: "Heartbeat Point" }, { key: "minimum_priority", value: "", label: "Minimum Priority" }, { key: "max_objs_per_read", value: "", label: "Maximum Objects per Read" }]
+	var initializeDriverConfig = function initializeDriverConfig(device) {
+	    var driver_config = {
+	        device_address: device.address,
+	        device_id: device.id,
+	        proxy_address: device.bacnetProxy
 	    };
+	
+	    return driver_config;
+	};
+	
+	var initializeSettings = function initializeSettings(type, settingsTemplate) {
+	
+	    var settings = {};
+	
+	    switch (type) {
+	        case "bacnet":
+	
+	            if (settingsTemplate) {
+	                settings = settingsTemplate.config;
+	            } else {
+	                settings = {
+	                    driver_type: {
+	                        value: "bacnet",
+	                        label: "Driver Type",
+	                        type: "text"
+	                    },
+	                    interval: {
+	                        value: "",
+	                        label: "Interval",
+	                        type: "number"
+	                    },
+	                    timezone: {
+	                        value: "",
+	                        label: "Timezone",
+	                        type: "text"
+	                    },
+	                    heartbeat_point: {
+	                        value: "",
+	                        label: "Heartbeat Point",
+	                        type: "text"
+	                    },
+	                    minimum_priority: {
+	                        value: 8,
+	                        label: "Minimum Priority",
+	                        type: "number"
+	                    },
+	                    max_objs_per_read: {
+	                        value: "",
+	                        label: "Maximum Objects per Read",
+	                        type: "number"
+	                    },
+	                    publish_depth_first: {
+	                        value: false,
+	                        label: "Publish Depth-First",
+	                        type: "bool"
+	                    },
+	                    publish_breadth_first: {
+	                        value: false,
+	                        label: "Publish Breadth-First",
+	                        type: "bool"
+	                    },
+	                    publish_breadth_first_all: {
+	                        value: false,
+	                        label: "Publish Breadth-First All",
+	                        type: "bool"
+	                    }
+	                };
+	            }
+	
+	            break;
+	    }
+	
+	    // return {
+	    //     settings: [
+	    //         { key: "campus", value: "", label: "Campus" },
+	    //         { key: "building", value: "", label: "Building" },
+	    //         { key: "unit", value: "", label: "Unit" },
+	    //         { key: "path", value: "", label: "Path" },
+	    //         { key: "interval", value: "", label: "Interval" },
+	    //         { key: "timezone", value: "", label: "Timezone" },
+	    //         { key: "heartbeat_point", value: "", label: "Heartbeat Point" },
+	    //         { key: "minimum_priority", value: "", label: "Minimum Priority" },
+	    //         { key: "max_objs_per_read", value: "", label: "Maximum Objects per Read" }
+	    //     ]
+	    // };
+	
+	    return settings;
 	};
 	
 	exports.default = ConfigDeviceForm;
@@ -112519,4 +112689,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-5d7bfe9d714714685436.js.map
+//# sourceMappingURL=app-d7225162d6f4d15b65cf.js.map
