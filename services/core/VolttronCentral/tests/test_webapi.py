@@ -34,7 +34,7 @@ def vc_vcp_platforms():
     vc_uuid = add_volttron_central(vc)
     vcp_uuid = add_volttron_central_platform(vcp)
 
-    # Sleep so we know we are registred
+    # Sleep so we know we are registered
     gevent.sleep(15)
     yield vc, vcp
 
@@ -157,7 +157,6 @@ def test_vc_settings_store(vc_instance):
 
 
 @pytest.mark.vc
-@pytest.mark.skipif(reason="Fixing it")
 def test_unregister_platform(web_api_tester):
     platforms = web_api_tester.list_platforms().json()['result']
     orig_platform_count = len(platforms)
@@ -205,6 +204,19 @@ def test_store_list_get_configuration(vc_vcp_platforms):
     json = api.get_agent_config(platform_uuid, identity, config_name).json()
     assert str_data == json['result']
 
+
+@pytest.mark.vc
+def test_listagent(vc_vcp_platforms):
+    vc, vcp = vc_vcp_platforms
+
+    api = APITester(vc.jsonrpc_endpoint)
+
+    platform = api.get_result(api.list_platforms)[0]
+    print('The platform is {}'.format(platform))
+
+    agent_list = api.get_result(api.list_agents, platform_uuid=platform['uuid'])
+    print('The agent list is: {}'.format(agent_list))
+    assert len(agent_list) == 1
 
 
 

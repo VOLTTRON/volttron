@@ -38,6 +38,7 @@ def vc_vcp_platforms(request):
     vcp.shutdown_platform()
 
 
+@pytest.mark.vc
 @pytest.fixture(params=[
     ('vc-first', 'local'),
     ('vc-first', 'http'),
@@ -68,6 +69,7 @@ def both_with_vc_vcp(request):
     p.shutdown_platform()
 
 
+@pytest.mark.vc
 def test_autoregister_external(vc_vcp_platforms):
     gevent.sleep(15)
     vc, vcp = vc_vcp_platforms
@@ -80,6 +82,7 @@ def test_autoregister_external(vc_vcp_platforms):
     assert len(results) == 1
 
 
+@pytest.mark.vc
 def test_autoregister_local(both_with_vc_vcp):
     gevent.sleep(15)
 

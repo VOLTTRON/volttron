@@ -35,16 +35,8 @@ def setup_first(request, get_volttron_instances):
     return wrapper
 
 
-def test_agentlist(setup_first):
-    wrapper = setup_first
 
-    try:
-        cn_vcp = wrapper.build_connection(peer=VOLTTRON_CENTRAL_PLATFORM)
-        assert len(cn_vcp.call('list_agents')) == 2
-    finally:
-        cn_vcp.kill()
-
-
+@pytest.mark.vc
 def test_discovered(setup_first):
     wrapper = setup_first
 
