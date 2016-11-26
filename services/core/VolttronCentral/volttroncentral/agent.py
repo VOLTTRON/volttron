@@ -126,6 +126,7 @@ Platform = namedtuple('Platform', ['instance_name', 'serverkey', 'vip_address'])
 RequiredArgs = namedtuple('RequiredArgs', ['id', 'session_user',
                                            'platform_uuid'])
 
+
 class VolttronCentralAgent(Agent):
     """ Agent for managing many volttron instances from a central web ui.
 
