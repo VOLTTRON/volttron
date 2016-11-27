@@ -54,7 +54,9 @@ var devicesActionCreators = {
 
         var setUpDevicesSocket = function(platformUuid, bacnetIdentity) {
 
-            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/iam";
+            var endpoint = (window.location.protocol === "https:" ? "wss://" : "ws://");
+            devicesWebsocket = endpoint + window.location.host + "/vc/ws/" + authorization + "/iam";
+
             if (window.WebSocket) {
                 devicesWs = new WebSocket(devicesWebsocket);
             }
@@ -181,7 +183,9 @@ var devicesActionCreators = {
 
         var setUpPointsSocket = function() {
         
-            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/configure";
+            var endpoint = (window.location.protocol === "https:" ? "wss://" : "ws://");
+            pointsWebsocket = endpoint + window.location.host + "/vc/ws/" + authorization + "/configure";
+
             if (window.WebSocket) {
                 pointsWs = new WebSocket(pointsWebsocket);
             }
@@ -240,6 +244,90 @@ var devicesActionCreators = {
             type: ACTION_TYPES.CANCEL_REGISTRY,
             device: device
         });
+    },
+    loadRegistryFiles: function (device, bacnetProxyIdentity) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        var params = {
+            platform_uuid: device.platformUuid, 
+            agent_identity: bacnetProxyIdentity
+        };
+
+        return new rpc.Exchange({
+            method: 'list_agent_configs',
+            authorization: authorization,
+            params: params,
+        }).promise
+            .then(function (result) {
+
+                console.log("list_agent_configs");
+                console.log(result);
+
+                result = [
+                    { name: "file1" },
+                    { name: "file2" },
+                    { name: "file3" },
+                    { name: "file4" },
+                    { name: "file5" },
+                ];
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.LOAD_REGISTRY_FILES,
+                    registryFiles: result,
+                    deviceId: device.id,
+                    deviceAddress: device.address
+                });
+
+            })
+            .catch(rpc.Error, function (error) {
+
+                error.message = "Unable to load saved registry files. " + error.message + ".";
+
+                handle401(error, error.message);
+            });
+    },
+    unloadRegistryFiles: function () {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.UNLOAD_REGISTRY_FILES
+        });
+    },
+    loadRegistryFile: function (registryFile, device, bacnetProxyIdentity) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        var params = {
+            platform_uuid: device.platformUuid, 
+            agent_identity: bacnetProxyIdentity,
+            config_name: registryFile
+        }
+
+        return new rpc.Exchange({
+            method: 'get_agent_config',
+            authorization: authorization,
+            params: params,
+        }).promise
+            .then(function (result) {
+
+                console.log("get_agent_config");
+                console.log(result);
+
+                devicesActionCreators.unloadRegistryFiles();
+
+                devicesActionCreators.loadRegistry(
+                    device.id, 
+                    device.address,
+                    result,
+                    registryFile 
+                );
+
+            })
+            .catch(rpc.Error, function (error) {
+
+                error.message = "Unable to load saved registry files. " + error.message + ".";
+
+                handle401(error, error.message);
+            });
     },
     loadRegistry: function (deviceId, deviceAddress, csvData, fileName) {
         dispatcher.dispatch({

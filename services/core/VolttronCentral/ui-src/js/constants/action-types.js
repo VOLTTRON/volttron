@@ -68,6 +68,8 @@ module.exports = keyMirror({
     EDIT_REGISTRY: null,
     UPDATE_REGISTRY: null,
     LOAD_REGISTRY: null,
+    LOAD_REGISTRY_FILES: null,
+    UNLOAD_REGISTRY_FILES: null,
     CANCEL_REGISTRY: null,
     SAVE_REGISTRY: null,
     SAVE_CONFIG: null,

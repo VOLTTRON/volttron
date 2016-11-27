@@ -18,7 +18,7 @@ var _backupFileName = {};
 var _platform;
 var _devices = [];
 var _settingsTemplate = {};
-
+var _savedRegistryFiles = {};
 var _newScan = false;
 var _scanningComplete = true;
 var _warnings = {};
@@ -1021,6 +1021,10 @@ devicesStore.getRegistryFile = function (device) {
     
 };
 
+devicesStore.getSavedRegistryFiles = function () {
+    return (ObjectIsEmpty(_savedRegistryFiles) ? null : _savedRegistryFiles);
+};
+
 devicesStore.getWarnings = function () {
     return _warnings;
 };
@@ -1244,6 +1248,27 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             }
 
             _registryFiles[action.deviceId] = action.file;             
+            devicesStore.emitChange();
+            break;
+
+        case ACTION_TYPES.LOAD_REGISTRY_FILES:
+            _action = "configure_registry";
+            _view = "Registry Configuration";
+            
+            _savedRegistryFiles = {
+                files: action.registryFiles,
+                deviceId: action.deviceId,
+                deviceAddress: action.deviceAddress
+            };
+             
+            devicesStore.emitChange();
+            break;
+        case ACTION_TYPES.UNLOAD_REGISTRY_FILES:
+            _action = "configure_registry";
+            _view = "Registry Configuration";
+            
+            _savedRegistryFiles = {};
+             
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.UPDATE_REGISTRY:

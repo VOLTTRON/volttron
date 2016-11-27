@@ -6,10 +6,10 @@ import ConfigureRegistry from './configure-registry';
 import ControlButton from './control-button';
 
 var ConfirmForm = require('./confirm-form');
+var RegistryFilesModal = require('./registry-files-modal');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
-var platformsStore = require('../stores/platforms-store');
 var devicesStore = require('../stores/devices-store');
 
 var CsvParse = require('babyparse');
@@ -17,20 +17,22 @@ var CsvParse = require('babyparse');
 class DevicesFound extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind('_onStoresChange', '_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip');
+        this._bind('_onStoresChange', '_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip',
+                    '_loadSavedRegistryFiles');
 
         this.state = {
-            triggerTooltip: {}
+            triggerTooltip: {},
+            savedRegistryFiles: {}
         };       
     }
     componentDidMount() {
-        // devicesStore.addChangeListener(this._onStoresChange);        
+        devicesStore.addChangeListener(this._onStoresChange);        
     }
     componentWillUnmount() {
-        // devicesStore.removeChangeListener(this._onStoresChange);
+        devicesStore.removeChangeListener(this._onStoresChange);
     }
     _onStoresChange() {
-
+        this.setState({ savedRegistryFiles: devicesStore.getSavedRegistryFiles()});
     }
     componentWillReceiveProps(nextProps) {
         if (nextProps.devices !== this.props.devices)
@@ -72,6 +74,10 @@ class DevicesFound extends BaseComponent {
         }
 
         this.setState({ triggerTooltip: triggerTooltip });
+    }
+    _loadSavedRegistryFiles(device)
+    {
+        devicesActionCreators.loadRegistryFiles(device, this.props.bacnet)
     }
     _uploadRegistryFile(evt) {
         
@@ -151,7 +157,8 @@ class DevicesFound extends BaseComponent {
     }
     render() {        
         
-        var devicesContainer;
+        var devicesContainer, savedRegistryFiles;
+
         if (this.props.devices.length)
         {
             var devices = 
@@ -175,8 +182,14 @@ class DevicesFound extends BaseComponent {
                         "yOffset": 140
                     }
 
+                    var fileSelectTooltip = {
+                        content: "Select Registry File CSV)",
+                        "x": -20,
+                        "y": -120
+                    }
+
                     var fileUploadTooltip = {
-                        content: "Upload Registry File (CSV)",
+                        content: "Import Registry File (CSV)",
                         "x": -20,
                         "y": -120
                     }
@@ -217,23 +230,33 @@ class DevicesFound extends BaseComponent {
                             { tds }
 
                             <td key={"file-upload-" + deviceId + deviceAddress} className="plain">
-                                <div className="fileButton">
-                                    <ControlButton
-                                        name={"file-upload-" + deviceId + "-" + rowIndex}
-                                        tooltip={fileUploadTooltip}
-                                        controlclass="file-button"
-                                        fontAwesomeIcon="file"
-                                        triggerTooltip={triggerTooltip}/>
-                                    <input 
-                                        className="uploadButton" 
-                                        type="file"
-                                        data-id={deviceId}
-                                        data-address={deviceAddress}
-                                        data-row={rowIndex}
-                                        onChange={this._uploadRegistryFile}
-                                        onFocus={this._focusOnDevice}
-                                        onMouseEnter={this._showFileButtonTooltip.bind(this, true)}
-                                        onMouseLeave={this._showFileButtonTooltip.bind(this, false)}/>
+                                <div className="fileSelectContainer">
+                                    <div className="fileSelectButton">
+                                        <ControlButton
+                                            name={"file-select-" + deviceId + "-" + rowIndex}
+                                            tooltip={fileSelectTooltip}
+                                            controlclass="file-select-button"
+                                            fontAwesomeIcon="file"
+                                            clickAction={this._loadSavedRegistryFiles.bind(this, device)}/>
+                                    </div>
+                                    <div className="fileButton">
+                                        <ControlButton
+                                            name={"file-upload-" + deviceId + "-" + rowIndex}
+                                            tooltip={fileUploadTooltip}
+                                            controlclass="file-button"
+                                            fontAwesomeIcon="upload"
+                                            triggerTooltip={triggerTooltip}/>
+                                        <input 
+                                            className="uploadButton" 
+                                            type="file"
+                                            data-id={deviceId}
+                                            data-address={deviceAddress}
+                                            data-row={rowIndex}
+                                            onChange={this._uploadRegistryFile}
+                                            onFocus={this._focusOnDevice}
+                                            onMouseEnter={this._showFileButtonTooltip.bind(this, true)}
+                                            onMouseLeave={this._showFileButtonTooltip.bind(this, false)}/>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -281,6 +304,17 @@ class DevicesFound extends BaseComponent {
                     </tbody>
                 </table>
             );   
+
+            if (this.state.savedRegistryFiles)
+            {
+                savedRegistryFiles = (
+                    <RegistryFilesModal
+                        registryFiles={this.state.savedRegistryFiles.files}
+                        device={this.state.savedRegistryFiles.device}
+                        bacnet={this.props.bacnet}>
+                    </RegistryFilesModal>
+                );
+            }
         }
         else
         {
@@ -297,6 +331,7 @@ class DevicesFound extends BaseComponent {
         return (
             <div className="devicesFoundContainer">
                 <div className="devicesFoundBox">
+                    {savedRegistryFiles}
                     {devicesContainer}
                 </div>
             </div>
