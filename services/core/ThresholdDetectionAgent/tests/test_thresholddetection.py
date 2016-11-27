@@ -112,7 +112,7 @@ def threshold_tester_agent(request, volttron_instance):
     agent.vip.rpc.call(CONFIGURATION_STORE,
                        'manage_store',
                        'platform.thresholddetection',
-                       'test_config',
+                       'config',
                        json.dumps(_test_config),
                        'json').get(timeout=10)
 
@@ -170,12 +170,11 @@ def test_remove_from_config_store(threshold_tester_agent):
     threshold_tester_agent.vip.rpc.call(CONFIGURATION_STORE,
                                         'manage_delete_config',
                                         'platform.thresholddetection',
-                                        'test_config').get()
+                                        'config').get()
     publish(threshold_tester_agent, _test_config, lambda x: x+1)
     publish(threshold_tester_agent, _test_config, lambda x: x-1, to_max=False)
     gevent.sleep(1)
     assert len(threshold_tester_agent.seen_alert_keys) == 0
-
 
 def test_update_config(threshold_tester_agent):
     updated_config = {
@@ -189,7 +188,7 @@ def test_update_config(threshold_tester_agent):
     threshold_tester_agent.vip.rpc.call(CONFIGURATION_STORE,
                                         'manage_store',
                                         'platform.thresholddetection',
-                                        'test_config',
+                                        'config',
                                         json.dumps(updated_config),
                                         'json').get(timeout=10)
 

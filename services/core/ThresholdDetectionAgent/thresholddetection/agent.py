@@ -78,7 +78,8 @@ def thresholddetection_agent(config_path, **kwargs):
     :returns: ThresholdDetectionAgent instance
     :rtype: ThresholdDetectionAgent
     """
-    return ThresholdDetectionAgent(**kwargs)
+    config = utils.load_config(config_path)
+    return ThresholdDetectionAgent(config, **kwargs)
 
 
 class ThresholdDetectionAgent(Agent):
@@ -106,14 +107,14 @@ class ThresholdDetectionAgent(Agent):
         }
 
     """
-    def __init__(self, **kwargs):
+    def __init__(self, config, **kwargs):
         super(ThresholdDetectionAgent, self).__init__(**kwargs)
-
         self.config_topics = {}
 
-        self.vip.config.subscribe(self.threshold_add, actions="NEW")
-        self.vip.config.subscribe(self.threshold_del, actions="DELETE")
-        self.vip.config.subscribe(self.threshold_mod, actions="UPDATE")
+        self.vip.config.set_default("config", config)
+        self.vip.config.subscribe(self.threshold_add, actions="NEW", pattern="config")
+        self.vip.config.subscribe(self.threshold_del, actions="DELETE", pattern="config")
+        self.vip.config.subscribe(self.threshold_mod, actions="UPDATE", pattern="config")
 
     def threshold_add(self, config_name, action, contents):
 
