@@ -664,7 +664,12 @@ br + .form__control-help {
 }
 
 .registry-file:hover {
-    border: 1px solid gray;
+    border: 1px solid rgba(21, 81, 125, .8);
+    color: rgba(21, 81, 125, .8);
+}
+
+.registry-file:hover i {
+    color: rgba(21, 81, 125, .8);
 }
 
 .rotateConfigure{

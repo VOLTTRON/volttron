@@ -6,7 +6,7 @@ import ConfigureRegistry from './configure-registry';
 import ControlButton from './control-button';
 
 var ConfirmForm = require('./confirm-form');
-var RegistryFilesModal = require('./registry-files-modal');
+var RegistryFilesForm = require('./registry-files-form');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -21,18 +21,18 @@ class DevicesFound extends BaseComponent {
                     '_loadSavedRegistryFiles');
 
         this.state = {
-            triggerTooltip: {},
+            triggerTooltip: -1,
             savedRegistryFiles: {}
         };       
     }
     componentDidMount() {
-        devicesStore.addChangeListener(this._onStoresChange);        
+        // devicesStore.addChangeListener(this._onStoresChange);        
     }
     componentWillUnmount() {
-        devicesStore.removeChangeListener(this._onStoresChange);
+        // devicesStore.removeChangeListener(this._onStoresChange);
     }
     _onStoresChange() {
-        this.setState({ savedRegistryFiles: devicesStore.getSavedRegistryFiles()});
+        // this.setState({ savedRegistryFiles: devicesStore.getSavedRegistryFiles()});
     }
     componentWillReceiveProps(nextProps) {
         if (nextProps.devices !== this.props.devices)
@@ -57,27 +57,30 @@ class DevicesFound extends BaseComponent {
             devicesActionCreators.toggleShowPoints(device); 
         }
     }
-    _focusOnDevice(evt) {
-        var deviceId = evt.target.dataset.id;
-        var address = evt.target.dataset.address;
-        devicesActionCreators.focusOnDevice(deviceId, address);
+    _focusOnDevice(deviceId, deviceAddress, evt) {
+        devicesActionCreators.focusOnDevice(deviceId, deviceAddress);
     }
-    _showFileButtonTooltip(showTooltip, evt) {
-        var deviceId = evt.target.dataset.id;
-        var rowIndex = evt.target.dataset.row;
-
-        var triggerTooltip = {};
+    _showFileButtonTooltip(showTooltip, rowIndex) {
+        
+        var triggerTooltip = -1;
 
         if (showTooltip)
         {
-            triggerTooltip[deviceId] = Number(rowIndex);
+            triggerTooltip = rowIndex;
         }
 
         this.setState({ triggerTooltip: triggerTooltip });
     }
     _loadSavedRegistryFiles(device)
     {
-        devicesActionCreators.loadRegistryFiles(device, this.props.bacnet)
+        devicesActionCreators.loadRegistryFiles(device)
+
+        modalActionCreators.openModal(
+            <RegistryFilesForm
+                device={device}
+                bacnet={this.props.bacnet}>
+            </RegistryFilesForm>
+        );
     }
     _uploadRegistryFile(evt) {
         
@@ -171,9 +174,9 @@ class DevicesFound extends BaseComponent {
                             return (<td 
                                         key={d.key + "-" + i} 
                                         className="plain"
-                                        data-id={deviceId}
-                                        data-address={deviceAddress}
-                                        onClick={this._focusOnDevice}>{ d.value }</td>)
+                                        onClick={this._focusOnDevice.bind(this, deviceId, deviceAddress)}>
+                                        { d.value }
+                                    </td>);
                         }, this);
 
                     var arrowTooltip = {
@@ -194,7 +197,7 @@ class DevicesFound extends BaseComponent {
                         "y": -120
                     }
 
-                    var triggerTooltip = (this.state.triggerTooltip[deviceId] === rowIndex);
+                    var triggerTooltip = (this.state.triggerTooltip === rowIndex);
 
                     var configButton;
 
@@ -249,13 +252,10 @@ class DevicesFound extends BaseComponent {
                                         <input 
                                             className="uploadButton" 
                                             type="file"
-                                            data-id={deviceId}
-                                            data-address={deviceAddress}
-                                            data-row={rowIndex}
                                             onChange={this._uploadRegistryFile}
-                                            onFocus={this._focusOnDevice}
-                                            onMouseEnter={this._showFileButtonTooltip.bind(this, true)}
-                                            onMouseLeave={this._showFileButtonTooltip.bind(this, false)}/>
+                                            onFocus={this._focusOnDevice.bind(this, deviceId, deviceAddress)}
+                                            onMouseEnter={this._showFileButtonTooltip.bind(this, true, rowIndex)}
+                                            onMouseLeave={this._showFileButtonTooltip.bind(this, false, rowIndex)}/>
                                     </div>
                                 </div>
                             </td>
@@ -303,18 +303,7 @@ class DevicesFound extends BaseComponent {
                         {devices}
                     </tbody>
                 </table>
-            );   
-
-            if (this.state.savedRegistryFiles)
-            {
-                savedRegistryFiles = (
-                    <RegistryFilesModal
-                        registryFiles={this.state.savedRegistryFiles.files}
-                        device={this.state.savedRegistryFiles.device}
-                        bacnet={this.props.bacnet}>
-                    </RegistryFilesModal>
-                );
-            }
+            );
         }
         else
         {

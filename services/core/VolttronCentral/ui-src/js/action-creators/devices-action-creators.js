@@ -245,13 +245,13 @@ var devicesActionCreators = {
             device: device
         });
     },
-    loadRegistryFiles: function (device, bacnetProxyIdentity) {
+    loadRegistryFiles: function (device) {
 
         var authorization = authorizationStore.getAuthorization();
 
         var params = {
             platform_uuid: device.platformUuid, 
-            agent_identity: bacnetProxyIdentity
+            agent_identity: device.bacnetProxyIdentity
         };
 
         return new rpc.Exchange({
@@ -292,13 +292,13 @@ var devicesActionCreators = {
             type: ACTION_TYPES.UNLOAD_REGISTRY_FILES
         });
     },
-    loadRegistryFile: function (registryFile, device, bacnetProxyIdentity) {
+    loadRegistryFile: function (registryFile, device) {
 
         var authorization = authorizationStore.getAuthorization();
 
         var params = {
             platform_uuid: device.platformUuid, 
-            agent_identity: bacnetProxyIdentity,
+            agent_identity: device.bacnetProxyIdentity,
             config_name: registryFile
         }
 
@@ -324,7 +324,7 @@ var devicesActionCreators = {
             })
             .catch(rpc.Error, function (error) {
 
-                error.message = "Unable to load saved registry files. " + error.message + ".";
+                error.message = "Unable to load selected registry file. " + error.message + ".";
 
                 handle401(error, error.message);
             });

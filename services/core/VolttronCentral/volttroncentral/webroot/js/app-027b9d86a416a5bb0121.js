@@ -56910,13 +56910,13 @@
 	            device: device
 	        });
 	    },
-	    loadRegistryFiles: function loadRegistryFiles(device, bacnetProxyIdentity) {
+	    loadRegistryFiles: function loadRegistryFiles(device) {
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
 	        var params = {
 	            platform_uuid: device.platformUuid,
-	            agent_identity: bacnetProxyIdentity
+	            agent_identity: device.bacnetProxyIdentity
 	        };
 	
 	        return new rpc.Exchange({
@@ -56948,13 +56948,13 @@
 	            type: ACTION_TYPES.UNLOAD_REGISTRY_FILES
 	        });
 	    },
-	    loadRegistryFile: function loadRegistryFile(registryFile, device, bacnetProxyIdentity) {
+	    loadRegistryFile: function loadRegistryFile(registryFile, device) {
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
 	        var params = {
 	            platform_uuid: device.platformUuid,
-	            agent_identity: bacnetProxyIdentity,
+	            agent_identity: device.bacnetProxyIdentity,
 	            config_name: registryFile
 	        };
 	
@@ -56972,7 +56972,7 @@
 	            devicesActionCreators.loadRegistry(device.id, device.address, result, registryFile);
 	        }).catch(rpc.Error, function (error) {
 	
-	            error.message = "Unable to load saved registry files. " + error.message + ".";
+	            error.message = "Unable to load selected registry file. " + error.message + ".";
 	
 	            handle401(error, error.message);
 	        });
@@ -60487,7 +60487,7 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var ConfirmForm = __webpack_require__(325);
-	var RegistryFilesModal = __webpack_require__(326);
+	var RegistryFilesForm = __webpack_require__(326);
 	var devicesActionCreators = __webpack_require__(294);
 	var modalActionCreators = __webpack_require__(306);
 	var statusIndicatorActionCreators = __webpack_require__(258);
@@ -60506,7 +60506,7 @@
 	        _this._bind('_onStoresChange', '_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip', '_loadSavedRegistryFiles');
 	
 	        _this.state = {
-	            triggerTooltip: {},
+	            triggerTooltip: -1,
 	            savedRegistryFiles: {}
 	        };
 	        return _this;
@@ -60515,17 +60515,17 @@
 	    _createClass(DevicesFound, [{
 	        key: 'componentDidMount',
 	        value: function componentDidMount() {
-	            devicesStore.addChangeListener(this._onStoresChange);
+	            // devicesStore.addChangeListener(this._onStoresChange);        
 	        }
 	    }, {
 	        key: 'componentWillUnmount',
 	        value: function componentWillUnmount() {
-	            devicesStore.removeChangeListener(this._onStoresChange);
+	            // devicesStore.removeChangeListener(this._onStoresChange);
 	        }
 	    }, {
 	        key: '_onStoresChange',
 	        value: function _onStoresChange() {
-	            this.setState({ savedRegistryFiles: devicesStore.getSavedRegistryFiles() });
+	            // this.setState({ savedRegistryFiles: devicesStore.getSavedRegistryFiles()});
 	        }
 	    }, {
 	        key: 'componentWillReceiveProps',
@@ -60552,21 +60552,17 @@
 	        }
 	    }, {
 	        key: '_focusOnDevice',
-	        value: function _focusOnDevice(evt) {
-	            var deviceId = evt.target.dataset.id;
-	            var address = evt.target.dataset.address;
-	            devicesActionCreators.focusOnDevice(deviceId, address);
+	        value: function _focusOnDevice(deviceId, deviceAddress, evt) {
+	            devicesActionCreators.focusOnDevice(deviceId, deviceAddress);
 	        }
 	    }, {
 	        key: '_showFileButtonTooltip',
-	        value: function _showFileButtonTooltip(showTooltip, evt) {
-	            var deviceId = evt.target.dataset.id;
-	            var rowIndex = evt.target.dataset.row;
+	        value: function _showFileButtonTooltip(showTooltip, rowIndex) {
 	
-	            var triggerTooltip = {};
+	            var triggerTooltip = -1;
 	
 	            if (showTooltip) {
-	                triggerTooltip[deviceId] = Number(rowIndex);
+	                triggerTooltip = rowIndex;
 	            }
 	
 	            this.setState({ triggerTooltip: triggerTooltip });
@@ -60574,7 +60570,11 @@
 	    }, {
 	        key: '_loadSavedRegistryFiles',
 	        value: function _loadSavedRegistryFiles(device) {
-	            devicesActionCreators.loadRegistryFiles(device, this.props.bacnet);
+	            devicesActionCreators.loadRegistryFiles(device);
+	
+	            modalActionCreators.openModal(_react2.default.createElement(RegistryFilesForm, {
+	                device: device,
+	                bacnet: this.props.bacnet }));
 	        }
 	    }, {
 	        key: '_uploadRegistryFile',
@@ -60658,9 +60658,7 @@
 	                            {
 	                                key: d.key + "-" + i,
 	                                className: 'plain',
-	                                'data-id': deviceId,
-	                                'data-address': deviceAddress,
-	                                onClick: this._focusOnDevice },
+	                                onClick: this._focusOnDevice.bind(this, deviceId, deviceAddress) },
 	                            d.value
 	                        );
 	                    }, this);
@@ -60683,7 +60681,7 @@
 	                        "y": -120
 	                    };
 	
-	                    var triggerTooltip = this.state.triggerTooltip[deviceId] === rowIndex;
+	                    var triggerTooltip = this.state.triggerTooltip === rowIndex;
 	
 	                    var configButton;
 	
@@ -60744,13 +60742,10 @@
 	                                    _react2.default.createElement('input', {
 	                                        className: 'uploadButton',
 	                                        type: 'file',
-	                                        'data-id': deviceId,
-	                                        'data-address': deviceAddress,
-	                                        'data-row': rowIndex,
 	                                        onChange: this._uploadRegistryFile,
-	                                        onFocus: this._focusOnDevice,
-	                                        onMouseEnter: this._showFileButtonTooltip.bind(this, true),
-	                                        onMouseLeave: this._showFileButtonTooltip.bind(this, false) })
+	                                        onFocus: this._focusOnDevice.bind(this, deviceId, deviceAddress),
+	                                        onMouseEnter: this._showFileButtonTooltip.bind(this, true, rowIndex),
+	                                        onMouseLeave: this._showFileButtonTooltip.bind(this, false, rowIndex) })
 	                                )
 	                            )
 	                        )
@@ -60804,13 +60799,6 @@
 	                        devices
 	                    )
 	                );
-	
-	                if (this.state.savedRegistryFiles) {
-	                    savedRegistryFiles = _react2.default.createElement(RegistryFilesModal, {
-	                        registryFiles: this.state.savedRegistryFiles.files,
-	                        device: this.state.savedRegistryFiles.device,
-	                        bacnet: this.props.bacnet });
-	                }
 	            } else {
 	                if (this.props.canceled) {
 	                    devicesContainer = _react2.default.createElement(
@@ -64620,86 +64608,105 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var devicesActionCreators = __webpack_require__(294);
+	var modalActionCreators = __webpack_require__(306);
+	var devicesStore = __webpack_require__(295);
 	
-	var RegistryFilesModal = function (_BaseComponent) {
-	    _inherits(RegistryFilesModal, _BaseComponent);
+	var RegistryFilesForm = function (_BaseComponent) {
+	    _inherits(RegistryFilesForm, _BaseComponent);
 	
-	    function RegistryFilesModal(props) {
-	        _classCallCheck(this, RegistryFilesModal);
+	    function RegistryFilesForm(props) {
+	        _classCallCheck(this, RegistryFilesForm);
 	
-	        var _this = _possibleConstructorReturn(this, (RegistryFilesModal.__proto__ || Object.getPrototypeOf(RegistryFilesModal)).call(this, props));
+	        var _this = _possibleConstructorReturn(this, (RegistryFilesForm.__proto__ || Object.getPrototypeOf(RegistryFilesForm)).call(this, props));
 	
-	        _this._bind("_loadRegistryFile", "_closeModal");
+	        _this._bind("_loadRegistryFile", "_closeModal", "_onStoresChange");
+	
+	        _this.state = {
+	            registryFiles: devicesStore.getSavedRegistryFiles()
+	        };
 	        return _this;
 	    }
 	
-	    _createClass(RegistryFilesModal, [{
+	    _createClass(RegistryFilesForm, [{
+	        key: 'componentDidMount',
+	        value: function componentDidMount() {
+	            devicesStore.addChangeListener(this._onStoresChange);
+	        }
+	    }, {
+	        key: 'componentWillUnmount',
+	        value: function componentWillUnmount() {
+	            devicesStore.removeChangeListener(this._onStoresChange);
+	        }
+	    }, {
+	        key: '_onStoresChange',
+	        value: function _onStoresChange() {
+	            this.setState({ registryFiles: devicesStore.getSavedRegistryFiles() });
+	        }
+	    }, {
 	        key: '_loadRegistryFile',
 	        value: function _loadRegistryFile(registryFile) {
-	            devicesActionCreators.loadRegistryFile(registryFile.name, this.props.device, this.props.bacnet);
+	            devicesActionCreators.loadRegistryFile(registryFile.name, this.props.device);
+	
+	            modalActionCreators.closeModal();
 	        }
 	    }, {
 	        key: '_closeModal',
 	        value: function _closeModal(e) {
 	            if (e.target === e.currentTarget) {
-	                devicesActionCreators.unloadRegistryFiles();
+	                modalActionCreators.closeModal();
 	            }
 	        }
 	    }, {
 	        key: 'render',
 	        value: function render() {
 	
-	            var filesList = this.props.registryFiles.map(function (registryFile) {
+	            var filesList;
 	
-	                return _react2.default.createElement(
-	                    'div',
-	                    { key: registryFile.name + "-rf",
-	                        className: 'registry-file',
-	                        onClick: this._loadRegistryFile.bind(this, registryFile) },
-	                    _react2.default.createElement(
-	                        'div',
-	                        null,
-	                        _react2.default.createElement('i', { className: 'fa fa-file' })
-	                    ),
-	                    _react2.default.createElement(
-	                        'div',
-	                        null,
-	                        registryFile.name
-	                    )
-	                );
-	            }, this);
+	            if (this.state.registryFiles) {
+	                filesList = this.state.registryFiles.files.map(function (registryFile) {
 	
-	            return _react2.default.createElement(
-	                'div',
-	                { className: 'modal__overlay', onClick: this._closeModal },
-	                _react2.default.createElement(
-	                    'div',
-	                    { className: 'modal__dialog' },
-	                    _react2.default.createElement(
+	                    return _react2.default.createElement(
 	                        'div',
-	                        { className: 'registryFilesList' },
+	                        { key: registryFile.name + "-rf",
+	                            className: 'registry-file',
+	                            onClick: this._loadRegistryFile.bind(this, registryFile) },
 	                        _react2.default.createElement(
-	                            'h3',
+	                            'div',
 	                            null,
-	                            'Previously Configured Registry Files'
+	                            _react2.default.createElement('i', { className: 'fa fa-file' })
 	                        ),
 	                        _react2.default.createElement(
 	                            'div',
 	                            null,
-	                            filesList
+	                            registryFile.name
 	                        )
-	                    )
+	                    );
+	                }, this);
+	            }
+	
+	            return _react2.default.createElement(
+	                'div',
+	                { className: 'registryFilesList' },
+	                _react2.default.createElement(
+	                    'h3',
+	                    null,
+	                    'Previously Configured Registry Files'
+	                ),
+	                _react2.default.createElement(
+	                    'div',
+	                    null,
+	                    filesList
 	                )
 	            );
 	        }
 	    }]);
 	
-	    return RegistryFilesModal;
+	    return RegistryFilesForm;
 	}(_baseComponent2.default);
 	
 	;
 	
-	module.exports = RegistryFilesModal;
+	module.exports = RegistryFilesForm;
 
 /***/ },
 /* 327 */
@@ -112930,4 +112937,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-7d81c4e5a100d82af0eb.js.map
+//# sourceMappingURL=app-027b9d86a416a5bb0121.js.map
