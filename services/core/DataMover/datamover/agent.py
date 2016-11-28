@@ -64,6 +64,7 @@ import threading
 import gevent
 
 from volttron.platform.vip.agent import Agent, Core, compat
+from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
@@ -226,19 +227,19 @@ class DataMover(BaseHistorian):
                 STATUS_BAD, "Timout occured")
 
     def historian_setup(self):
-        _log.debug(
-            "Setting up to forward to {}".format(self.destination_vip))
-        event = gevent.event.Event()
-        agent = Agent(address=self.destination_vip, enable_store=False)
-        gevent.spawn(agent.core.run, event)
-        if event.wait(timeout=10):
-            self._target_platform = agent
-        else:
+        _log.debug("Setting up to forward to {}".format(self.destination_vip))
+        try:
+            agent = build_agent(address=self.destination_vip,
+                                enable_store=False)
+
+        except gevent.Timeout:
             self.vip.health.set_status(
                 STATUS_BAD, "Timeout in setup of agent")
             status = Status.from_json(self.vip.health.get_status())
             self.vip.health.send_alert(DATAMOVER_TIMEOUT_KEY,
                                        status)
+        else:
+            self._target_platform = agent
 
 
 def main(argv=sys.argv):
