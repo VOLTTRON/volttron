@@ -100,8 +100,8 @@ def historian(config_path, **kwargs):
                                topics.ACTUATOR, topics.ANALYSIS_TOPIC_BASE]
 
     class ForwardHistorian(BaseHistorian):
-        '''This historian forwards data to another platform.
-        '''
+        """This historian forwards data to another platform.
+        """
 
         def __init__(self, **kwargs):
             # will be available in both threads.
@@ -112,10 +112,10 @@ def historian(config_path, **kwargs):
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
-            '''
+            """
             Subscribes to the platform message bus on the actuator, record,
             datalogger, and device topics to capture data.
-            '''
+            """
 
             def subscriber(subscription, callback_method):
                 _log.debug("subscribing to {}".format(subscription))
@@ -298,7 +298,7 @@ def historian(config_path, **kwargs):
 
 
 def main(argv=sys.argv):
-    '''Main method called by the aip.'''
+    """Main method called by the aip."""
     try:
         utils.vip_main(historian)
     except Exception as e:
