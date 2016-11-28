@@ -72,10 +72,11 @@ class EditPointForm extends BaseComponent {
                     <td>
                         {attributeInput}
                     </td>
-                    <td className="centerContent">
+                    <td className="centerContent flexContent">
                         <CheckBox
                             oncheck={this._toggleKeyProp.bind(this, item.key)}
-                            selected={item.keyProp}>
+                            selected={item.keyProp}
+                            controlClass="flexChild">
                         </CheckBox>
                     </td>
                 </tr>

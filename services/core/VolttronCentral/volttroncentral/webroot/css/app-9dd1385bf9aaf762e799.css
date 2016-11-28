@@ -618,6 +618,60 @@ br + .form__control-help {
     vertical-align: middle;
 }
 
+.file-select-button {
+    cursor: pointer;
+    height: 12px;
+}
+
+.fileSelectContainer {
+    width: 60px;
+    display: block;
+}
+
+.fileSelectContainer > div {
+    display: inline-block;
+}
+
+.registryFilesList {
+    height: 300px;
+    width: 400px;
+    overflow-y: auto;
+}
+
+.registryFilesList > div {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.registryFilesList > div > div {
+    flex: 1;
+    min-width: 20%;
+    max-width: 20%;
+    padding-top: 20px;
+    text-align: center;
+}
+
+.registryFilesList i {
+    font-size: 40px;
+    color: gray;
+}
+
+.registry-file {
+    margin: 10px;
+    cursor: pointer;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+}
+
+.registry-file:hover {
+    border: 1px solid rgba(21, 81, 125, .8);
+    color: rgba(21, 81, 125, .8);
+}
+
+.registry-file:hover i {
+    color: rgba(21, 81, 125, .8);
+}
+
 .rotateConfigure{
     animation: arrow-down-from-right .1s;
     animation-fill-mode: forwards;
@@ -692,6 +746,14 @@ br + .form__control-help {
 
 .centerContent {
     text-align: center;
+}
+
+.flexContent {
+    display: flex;
+}
+
+.flexChild {
+    flex: 1;
 }
 
 .propsButton {
@@ -806,6 +868,7 @@ br + .form__control-help {
 }
 
 .file-button > .centeredDiv,
+.file-select-button > .centeredDiv,
 .configure-arrow > .centeredDiv {
     transform: translateY(-20%);   
 }
@@ -844,6 +907,10 @@ br + .form__control-help {
     border-radius: 0.3333rem;
     padding: 1em;
     color: #a00;
+}
+
+.required-field {
+    color: red;
 }
 
 .login-form {
@@ -939,6 +1006,10 @@ br + .form__control-help {
 
 .register-platform-form .error {
     margin-top: 1.5em;
+}
+
+.edit-registry-form input {
+    width: 100%;
 }
 
 .edit-chart-form {
@@ -1572,6 +1643,11 @@ a.view__item:hover::before {
     white-space: nowrap;
 }
 
+.preview-registry-table tr:nth-child(even),
+.preview-registry-table thead tr {
+    background-color: rgba(218, 218, 214, 0.53);
+}
+
 .disableReplace {
     opacity: .4;
 }
@@ -1701,17 +1777,16 @@ td.plain {
 }
 
 .devicesFoundContainer {
-    width: 800px;
+    width: 900px;
 }
 
 .configDeviceContainer {
     width: 600px;
 }
 
-.configDeviceContainer table {
-    border-collapse: separate;
-    border-spacing: 10px 8px;
-}
+.configDeviceContainer table td:first-child {
+    background-color: rgba(160, 221, 243, 0.59);
+} 
 
 .detectDevicesBox {    
     border: 1px solid black;
@@ -1769,33 +1844,6 @@ td.plain {
     border: 1px solid black;
 }*/
 
-.uneditableAttributes {
-    padding: 0px 140px 0px 140px;
-    margin-top: 20px;
-}
-
-.uneditableAttributes > table > tbody > tr > td {
-    height: 10px;
-    line-height: 1;
-    padding-left: 60px;
-    padding-right: 0px;
-}
-
-.uneditableAttributes > table > tbody > tr:first-child > td {
-    padding-top: 20px;
-}
-
-.uneditableAttributes > table > tbody > tr:not(:first-child) > td {
-    padding-top: 5px;
-}
-
-.uneditableAttributes > table > tbody > tr:last-child > td {
-    padding-bottom: 20px;
-}
-.uneditableAttributes > table > tbody > tr:not(:last-child) > td {
-    padding-bottom: 0px;
-}
-
 .table_label {
     font-weight: bold;
 }
@@ -1816,12 +1864,25 @@ td.buffer_row {
     width: 20px;
 }
 
-.fileButton {
+.fileButton, .fileSelectButton {
     position: relative;
-    cursor: pointer;
+    display: inline-block;
     height: 20px;
     width: 20px;
     text-align: center;
+}
+
+.fileSelectButton {
+    line-height: 16px;
+}
+
+.fileButton {
+    line-height: 12px;
+}
+
+.fileButton > div {
+    line-height: 16px;
+    transform: translateY(6px);
 }
 
 .buttonWrapper {
@@ -1836,8 +1897,8 @@ td.buffer_row {
     border: 2px outset buttonface;
 }
 
-.buttonWrapper, .fileButton > div {
+.buttonWrapper {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-05a0d657d0af346480cd.css.map*/
+/*# sourceMappingURL=app-9dd1385bf9aaf762e799.css.map*/

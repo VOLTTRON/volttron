@@ -6,6 +6,8 @@ var devicesStore = require('../stores/devices-store');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
+var CsvParse = require('babyparse');
+
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
 var pointsWs, pointsWebsocket, devicesWs, devicesWebsocket;
@@ -54,13 +56,9 @@ var devicesActionCreators = {
 
         var setUpDevicesSocket = function(platformUuid, bacnetIdentity) {
 
-            // if (typeof pointsWs !== "undefined" && pointsWs !== null)
-            // {
-            //     pointsWs.close();
-            //     pointsWs = null;
-            // }
+            var endpoint = (window.location.protocol === "https:" ? "wss://" : "ws://");
+            devicesWebsocket = endpoint + window.location.host + "/vc/ws/" + authorization + "/iam";
 
-            devicesWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/iam";
             if (window.WebSocket) {
                 devicesWs = new WebSocket(devicesWebsocket);
             }
@@ -112,7 +110,7 @@ var devicesActionCreators = {
         {
             var device = JSON.parse(data);
             
-            var result = checkDevice(device, platform, bacnet);
+            var result = checkDevice(device, platform);
 
             if (!objectIsEmpty(result))
             {            
@@ -124,6 +122,12 @@ var devicesActionCreators = {
                         result.warning.value, 
                         "left"
                     );
+                }
+
+                if (bacnet)
+                {
+                    result.device.type = "bacnet";
+                    result.device.agentDriver = "platform.driver";
                 }
 
                 if (!objectIsEmpty(result.device))
@@ -182,13 +186,9 @@ var devicesActionCreators = {
 
         var setUpPointsSocket = function() {
         
-            // if (typeof devicesWs !== "undefined" && devicesWs !== null)
-            // {
-            //     devicesWs.close();
-            //     devicesWs = null;
-            // }
+            var endpoint = (window.location.protocol === "https:" ? "wss://" : "ws://");
+            pointsWebsocket = endpoint + window.location.host + "/vc/ws/" + authorization + "/configure";
 
-            pointsWebsocket = "ws://" + window.location.host + "/vc/ws/" + authorization + "/configure";
             if (window.WebSocket) {
                 pointsWs = new WebSocket(pointsWebsocket);
             }
@@ -207,9 +207,9 @@ var devicesActionCreators = {
             {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.POINT_SCAN_FINISHED,
-                    device: device
+                    device: this
                 });
-            };
+            }.bind(device);
         }
 
         return new rpc.Exchange({
@@ -221,7 +221,8 @@ var devicesActionCreators = {
 
                 dispatcher.dispatch({
                     type: ACTION_TYPES.CONFIGURE_DEVICE,
-                    device: device
+                    device: device,
+                    bacnet: bacnetIdentity
                 });
 
                 setUpPointsSocket();
@@ -246,6 +247,95 @@ var devicesActionCreators = {
             type: ACTION_TYPES.CANCEL_REGISTRY,
             device: device
         });
+    },
+    loadRegistryFiles: function (device) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        var params = {
+            platform_uuid: device.platformUuid, 
+            agent_identity: device.agentDriver
+        };
+
+        return new rpc.Exchange({
+            method: 'list_agent_configs',
+            authorization: authorization,
+            params: params,
+        }).promise
+            .then(function (result) {
+
+                console.log("list_agent_configs");
+                console.log(result);
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.LOAD_REGISTRY_FILES,
+                    registryFiles: result.filter(function (registryFile) {
+                        var index = registryFile.indexOf("devices/");
+
+                        return index !== 0;
+                    }),
+                    deviceId: device.id,
+                    deviceAddress: device.address
+                });
+
+            })
+            .catch(rpc.Error, function (error) {
+
+                error.message = "Unable to load saved registry files. " + error.message + ".";
+
+                handle401(error, error.message);
+            });
+    },
+    unloadRegistryFiles: function () {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.UNLOAD_REGISTRY_FILES
+        });
+    },
+    loadRegistryFile: function (registryFile, device) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        var params = {
+            platform_uuid: device.platformUuid, 
+            agent_identity: device.agentDriver,
+            config_name: registryFile
+        }
+
+        return new rpc.Exchange({
+            method: 'get_agent_config',
+            authorization: authorization,
+            params: params,
+        }).promise
+            .then(function (result) {
+
+                devicesActionCreators.unloadRegistryFiles();
+
+                console.log("get_agent_config");
+                console.log(result);
+
+                var csvData = parseCsvFile(result);
+
+                if (csvData.warnings.length)
+                {
+                    console.log(csvData.warnings[0]);
+                }
+                else
+                {
+                    devicesActionCreators.loadRegistry(
+                        device.id, 
+                        device.address,
+                        csvData.data,
+                        registryFile 
+                    );
+                }
+
+            })
+            .catch(rpc.Error, function (error) {
+
+                error.message = "Unable to load selected registry file. " + error.message + ".";
+
+                handle401(error, error.message);
+            });
     },
     loadRegistry: function (deviceId, deviceAddress, csvData, fileName) {
         dispatcher.dispatch({
@@ -273,24 +363,92 @@ var devicesActionCreators = {
             attributes: attributes
         });
     },
-    saveRegistry: function (deviceId, deviceAddress, values) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.SAVE_REGISTRY,
-            deviceId: deviceId,
-            deviceAddress: deviceAddress,
-            data: values
-        });
+    saveRegistry: function (device, fileName, values) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        var params = {
+            platform_uuid: device.platformUuid, 
+            agent_identity: "platform.driver", 
+            config_name: fileName,
+            config_type: "csv",
+            raw_contents: values
+        };
+
+        return new rpc.Exchange({
+            method: 'store_agent_config',
+            authorization: authorization,
+            params: params,
+        }).promise
+            .then(function (result) {
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.SAVE_REGISTRY,
+                    fileName: fileName,
+                    deviceId: device.id,
+                    deviceAddress: device.address,
+                    data: values
+                });
+
+            })
+            .catch(rpc.Error, function (error) {
+
+                error.message = "Unable to save registry configuration. " + error.message + ".";
+
+                handle401(error, error.message);
+            });
+        
     },
     saveConfig: function (device, settings) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.SAVE_CONFIG,
-            device: device,
-            settings: settings
-        });
+
+        var authorization = authorizationStore.getAuthorization();
+
+
+        var config_name =  "devices/" +
+                settings.campus + "/" + 
+                settings.building + "/" + 
+                settings.unit + 
+                (settings.path ? + "/" + settings.path : "")
+
+        var config = {};
+
+        for (var key in settings.config)
+        {
+            config[key] = (settings.config[key].hasOwnProperty("value") ? settings.config[key].value : settings.config[key]);
+        }
+
+        var params = {
+            platform_uuid: device.platformUuid, 
+            agent_identity: "platform.driver", 
+            config_name: config_name,
+            config_type: "json",
+            raw_contents: JSON.stringify(config)
+        };
+
+        return new rpc.Exchange({
+            method: 'store_agent_config',
+            authorization: authorization,
+            params: params,
+        }).promise
+            .then(function (result) {
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.SAVE_CONFIG,
+                    settings: settings
+                });
+
+            })
+            .catch(rpc.Error, function (error) {
+
+                error.message = "Unable to save device configuration. " + error.message + ".";
+
+                handle401(error, error.message);
+            });
+        
     },
 };
 
-function checkDevice(device, platformUuid, bacnetIdentity) 
+function checkDevice(device, platformUuid) 
 {
     var result = {};
 
@@ -340,6 +498,86 @@ function checkDevice(device, platformUuid, bacnetIdentity)
     }
 
     return result;
+}
+
+var parseCsvFile = (contents) => {
+
+    var results = CsvParse.parse(contents);
+
+    var registryValues = [];
+
+    var header = [];
+
+    var data = results.data;
+
+    results.warnings = [];
+
+    if (data.length)
+    {
+        header = data.slice(0, 1);
+    }
+
+    var template = [];
+
+    if (header[0].length)
+    {
+        header[0].forEach(function (column) {
+            template.push({ "key": column.replace(/ /g, "_"), "value": null, "label": column });
+        });
+
+        var templateLength = template.length;
+
+        if (data.length > 1)
+        {
+            var rows = data.slice(1);
+
+            var rowsCount = rows.length;
+
+            rows.forEach(function (r, num) {
+
+                if (r.length)
+                {   
+                    if (r.length !== templateLength) 
+                    {                           
+                        if ((num === (rowsCount - 1)) && (r.length === 0 || ((r.length === 1) && (r[0] === "") )))
+                        {
+                            // Suppress the warning message if the out-of-sync row is the last one and it has no elements
+                            // or all it has is an empty point name -- which can happen naturally when reading the csv file
+                        }
+                        else
+                        {
+                            results.warnings.push({ message: "Row " +  num + " was omitted for having the wrong number of columns."});
+                        }
+                    }
+                    else
+                    {
+                        if (r.length === templateLength) // Have to check again, to keep from adding the empty point name
+                        {                                // in the last row
+                            var newTemplate = JSON.parse(JSON.stringify(template));
+
+                            var newRow = [];
+
+                            r.forEach( function (value, i) {
+                                newTemplate[i].value = value;
+
+                                newRow.push(newTemplate[i]);
+                            });
+
+                            registryValues.push(newRow);
+                        }
+                    }
+                }
+            });
+        }
+        else
+        {
+            registryValues = template;
+        }
+    }
+
+    results.data = registryValues;
+
+    return results;
 }
 
 function objectIsEmpty(obj)

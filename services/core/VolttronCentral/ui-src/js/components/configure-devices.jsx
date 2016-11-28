@@ -362,7 +362,7 @@ class ConfigureDevices extends BaseComponent {
                             style={tooltipStyle}>
                             <div className="tooltip_inner">
                                 <div className="opaque_inner">
-                                    Find Devices
+                                    Find&nbsp;Devices
                                 </div>
                             </div>
                         </div>                   

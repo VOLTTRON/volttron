@@ -29,7 +29,7 @@ class PreviewRegistryForm extends BaseComponent {
     _onSubmit(e) {
         e.preventDefault();
         modalActionCreators.closeModal();
-        this.props.onsaveregistry();
+        this.props.onsaveregistry(this.state.fileName);
     }
     render() {
 
@@ -116,7 +116,7 @@ class PreviewRegistryForm extends BaseComponent {
             }, this);
 
 
-            content = (<table>
+            content = (<table className="preview-registry-table">
                             <thead>
                                 <tr>
                                     {headerRow}
@@ -131,7 +131,7 @@ class PreviewRegistryForm extends BaseComponent {
         return (
             <form className="preview-registry-form" onSubmit={this._onSubmit}>
                 <h1>Save this registry configuration?</h1>
-                <h4>{this.props.deviceAddress} / {this.props.deviceName} / {this.props.deviceId}</h4>
+                <h4>{this.props.deviceName} / {this.props.deviceAddress} / {this.props.deviceId}</h4>
                 { layoutToggle }
                 { content }
 
