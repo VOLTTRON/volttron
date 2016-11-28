@@ -996,7 +996,7 @@ class VolttronCentralAgent(Agent):
             if 'jsonrpc' in result_or_error:
                 return result_or_error
 
-        if result_or_error is not None:
+        if result_or_error is not None and isinstance(result_or_error, dict):
             if 'error' in result_or_error:
                 error = result_or_error['error']
                 _log.debug("RPC RESPONSE ERROR: {}".format(error))
