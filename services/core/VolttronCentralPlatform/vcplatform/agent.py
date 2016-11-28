@@ -180,6 +180,8 @@ class VolttronCentralPlatform(Agent):
         # The state of registration of vcp with the vc instance.
         self.registration_state = RegistrationStates.NotRegistered
 
+        self._stats_publisher = None
+
     def configure_main(self, config_name, action, contents):
         """
         This is the main configuration point for the agent.
@@ -723,7 +725,6 @@ class VolttronCentralPlatform(Agent):
         gevent.sleep(0.1)
 
         return "PUBLISHING"
-
 
     @RPC.export
     def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
