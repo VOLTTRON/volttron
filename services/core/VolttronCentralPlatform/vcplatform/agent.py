@@ -936,12 +936,12 @@ class VolttronCentralPlatform(Agent):
                 else:
                     result = {'process_id': status[0],
                               'return_code': status[1]}
-        elif method in ('install'):
-
-            if not 'files' in params:
+        elif method in ('install_agent',):
+            _log.debug("Attempting install!")
+            if 'file' not in params:
                 result = jsonrpc.json_error(ident=id, code=INVALID_PARAMS)
             else:
-                result = self._install_agents(params['files'])
+                result = self._install_agent(params['file'])
 
         else:
 
@@ -1002,33 +1002,39 @@ class VolttronCentralPlatform(Agent):
             return
         return result
 
-    def _install_agents(self, agent_files):
+    def _install_agent(self, fileargs):
         tmpdir = tempfile.mkdtemp()
-        results = []
 
-        for f in agent_files:
-            try:
-                if 'local' in f.keys():
-                    path = f['file_name']
-                else:
-                    path = os.path.join(tmpdir, f['file_name'])
-                    with open(path, 'wb') as fout:
-                        fout.write(
-                            base64.decodestring(f['file'].split('base64,')[1]))
-
-                _log.debug('Calling control install agent.')
-                uuid = self.vip.rpc.call(CONTROL,  'install_agent_local',
-                                         path).get(timeout=30)
-
-            except Exception as e:
-                results.append({'error': str(e)})
-                _log.error("EXCEPTION: " + str(e))
+        try:
+            _log.debug('Installing agent FILEARGS: {}'.format(fileargs))
+            vip_identity = fileargs.get('vip_identity', None)
+            if 'local' in fileargs.keys():
+                path = fileargs['file_name']
             else:
-                results.append({'uuid': uuid})
+                path = os.path.join(tmpdir, fileargs['file_name'])
+
+                # The file should start with base64, which shows that it is
+                # a base64 encoded string.
+                with open(path, 'wb') as fout:
+                    expected_prefix = 'base64,'
+                    if fileargs['file'].startswith(expected_prefix):
+                        fout.write(
+                            base64.decodestring(fileargs['file'][len(expected_prefix):]))
+                    else:
+                        raise Exception("'file' parameter must begin with base64,")
+            _log.debug('Installing path: {}'.format(path))
+            _log.debug('Calling control install agent.')
+            uuid = self.vip.rpc.call(CONTROL,  'install_agent_local',
+                                     path, vip_identity=vip_identity
+                                     ).get(timeout=30)
+            result = dict(uuid=uuid)
+        except Exception as e:
+            err_str = "EXCEPTION: " + str(e)
+            result = dict(error=err_str)
 
         shutil.rmtree(tmpdir, ignore_errors=True)
-
-        return results
+        _log.debug('Results from install_agent are: '.format(result))
+        return result
 
     def _publish_stats(self):
         """

@@ -27,10 +27,10 @@ class APITester(object):
             'params': params,
             'id': '1'
         }
+
         if use_auth_token:
             data['authorization'] = self._auth_token
-        print('posting data')
-        print(data)
+
         return requests.post(self._url, json=data)
 
     @staticmethod
@@ -60,6 +60,10 @@ class APITester(object):
 
     def list_platforms(self):
         return self.do_rpc('list_platforms')
+
+    def install_agent(self, platform_uuid, fileargs):
+        rpc = 'platforms.uuid.{}.install_agent'.format(platform_uuid)
+        return self.do_rpc(rpc, file=fileargs)
 
     def list_agents(self, platform_uuid):
         print('Listing agents for platform: {}'.format(platform_uuid))

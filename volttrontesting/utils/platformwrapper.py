@@ -687,20 +687,7 @@ class PlatformWrapper:
 
         if agent_dir:
             assert not agent_wheel
-            if isinstance(config_file, dict):
-                from os.path import join, basename
-                temp_config = join(self.volttron_home,
-                                   basename(agent_dir) + "_config_file")
-                with open(temp_config, "w") as fp:
-                    fp.write(json.dumps(config_file))
-                config_file = temp_config
-            elif not config_file:
-                assert os.path.exists(os.path.join(agent_dir, "config"))
-                config_file = os.path.join(agent_dir, "config")
-            elif os.path.exists(config_file):
-                pass  # config_file already set!
-            else:
-                raise ValueError("Can't determine correct config file.")
+            config_file = self._get_config_file(agent_dir, config_file)
 
             self.logit('Building agent package')
             wheel_file = self.build_agentpackage(agent_dir, config_file)
@@ -713,6 +700,23 @@ class PlatformWrapper:
             assert self.is_agent_running(agent_uuid)
 
         return agent_uuid
+
+    def _get_config_file(self, agent_dir, config_file):
+        if isinstance(config_file, dict):
+            from os.path import join, basename
+            temp_config = join(self.volttron_home,
+                               basename(agent_dir) + "_config_file")
+            with open(temp_config, "w") as fp:
+                fp.write(json.dumps(config_file))
+            config_file = temp_config
+        elif not config_file:
+            assert os.path.exists(os.path.join(agent_dir, "config"))
+            config_file = os.path.join(agent_dir, "config")
+        elif os.path.exists(config_file):
+            pass  # config_file already set!
+        else:
+            raise ValueError("Can't determine correct config file.")
+        return config_file
 
     def start_agent(self, agent_uuid):
         self.logit('Starting agent {}'.format(agent_uuid))
@@ -800,14 +804,17 @@ class PlatformWrapper:
 
         return pid
 
-    def build_agentpackage(self, agent_dir, config_file):
+    def build_agentpackage(self, agent_dir, config_file={}):
         assert os.path.exists(agent_dir)
+        config_file = self._get_config_file(agent_dir, config_file)
         assert os.path.exists(config_file)
         wheel_path = packaging.create_package(agent_dir,
                                               self.packaged_dir)
         packaging.add_files_to_package(wheel_path, {
             'config_file': os.path.join('./', config_file)
         })
+
+        self.logit("Built agent package: {}".format(wheel_path))
 
         return wheel_path
 
@@ -911,6 +918,13 @@ class PlatformWrapper:
             self.logit('Removing {}'.format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)
 
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        data = []
+        data.append('volttron_home: {}'.format(self.volttron_home))
+        return '\n'.join(data)
 
 def mergetree(src, dst, symlinks=False, ignore=None):
     if not os.path.exists(dst):

@@ -1,4 +1,5 @@
 import json
+import os
 
 import gevent
 import pytest
@@ -217,6 +218,56 @@ def test_listagent(vc_vcp_platforms):
     agent_list = api.get_result(api.list_agents, platform_uuid=platform['uuid'])
     print('The agent list is: {}'.format(agent_list))
     assert len(agent_list) == 1
+
+
+@pytest.mark.vc
+def test_installagent(vc_vcp_platforms):
+    vc, vcp = vc_vcp_platforms
+
+    # To install the agent we need to simulate the browser's interface
+    # for passing files.  This means we have to have a base-64 representation
+    # of the wheel file to send across as well as the correct structure
+    # of parameters.
+
+    # params['files'] must exist as a list of files
+    # each file must have a file_name and file entry
+    # the file name is the name of the agent wheel file the file is the base64
+    # encoded wheel file.
+    #   f['file_name']
+    #   f['file
+
+    agent_wheel = vc.build_agentpackage('examples/ListenerAgent')
+    assert os.path.exists(agent_wheel)
+
+    import base64
+    import random
+
+    with open(agent_wheel, 'r+b') as f:
+        # From the web this is what is added to the file.
+        filestr = "base64,"+base64.b64encode(f.read())
+
+    file = dict(
+        file_name=os.path.basename(agent_wheel),
+        file=filestr,
+        vip_identity='bar.full.{}'.format(random.randint(1, 100000))
+    )
+
+    api = APITester(vc.jsonrpc_endpoint)
+
+    platform = api.get_result(api.list_platforms)[0]
+
+    agents = api.get_result(api.list_agents, platform['uuid'])
+    assert agents
+
+    agent = api.get_result(api.install_agent, platform['uuid'], file)
+
+    assert agent
+    assert agent.get('uuid')
+
+    agents_after = api.get_result(api.list_agents, platform['uuid'])
+    assert len(agents) + 1 == len(agents_after)
+
+
 
 
 
