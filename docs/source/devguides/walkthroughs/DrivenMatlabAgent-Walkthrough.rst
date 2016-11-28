@@ -31,11 +31,11 @@ Installation steps for system running Matlab:
 4. Start Matlab and set the python path.
    In the Matlab command window set the python path with `pyversion`:
 
-.. code-block:: console
+.. code-block::
 
-   >> pyversion path/to/python
+   >> pyversion python.exe
 
-4. To test that the python path has been set correctly type following in
+5. To test that the python path has been set correctly type following in
    the Matlab command window. Matlab shoud print the python path with version
    information.
 
@@ -43,7 +43,7 @@ Installation steps for system running Matlab:
 
    >> pyversion
 
-5. To test that the pyzmq library is installed correctly and is accessible
+6. To test that the pyzmq library is installed correctly and is accessible
    from python inside Matlab, type the following in Matlab command window
    and it should show pyzmq version installed.
 
@@ -51,7 +51,7 @@ Installation steps for system running Matlab:
 
    >> py.zmq.pyzmq_version()
 
-5. Copy `example.m` from `volttron/examples/ExampleMatlabApplication/matlab`
+7. Copy `example.m` from `volttron/examples/ExampleMatlabApplication/matlab`
    to your desired folder.
 
 Run and test Matlab VOLTTRON Integration:
