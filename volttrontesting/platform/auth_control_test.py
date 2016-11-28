@@ -167,3 +167,146 @@ def test_auth_remove(volttron_instance_encrypt):
     entries = auth_list_json(platform)
     assert len(entries) > 0
     assert_auth_entries_same(entries[-1], _auth_entry1.__dict__)
+
+
+@pytest.mark.control
+def test_group_cmds(volttron_instance_encrypt):
+    """Test add-group, list-groups, update-group, and remove-group"""
+    _run_group_or_role_cmds(volttron_instance_encrypt, _add_group, _list_groups,
+            _update_group, _remove_group)
+
+
+@pytest.mark.control
+def test_role_cmds(volttron_instance_encrypt):
+    """Test add-role, list-roles, update-role, and remove-role"""
+    _run_group_or_role_cmds(volttron_instance_encrypt, _add_role, _list_roles,
+            _update_role, _remove_role)
+
+
+def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
+    expected = []
+    key = '0'
+    values = ['0', '1']
+    expected.extend(values)
+
+    add_fn(platform, key, values)
+    keys = list_fn(platform)
+    assert set(keys[key]) == set(expected)
+
+    # Update add single value
+    values = ['2']
+    expected.extend(values)
+    update_fn(platform, key, values)
+    keys = list_fn(platform)
+    assert set(keys[key]) == set(expected)
+
+    # Update add multiple values
+    values = ['3', '4']
+    expected.extend(values)
+    update_fn(platform, key, values)
+    keys = list_fn(platform)
+    assert set(keys[key]) == set(expected)
+
+    # Update remove single value
+    value = '0'
+    expected.remove(value)
+    update_fn(platform, key, [value], remove=True)
+    keys = list_fn(platform)
+    assert set(keys[key]) == set(expected)
+
+    # Update remove single value
+    values = ['1', '2']
+    for value in values:
+        expected.remove(value)
+    update_fn(platform, key, values, remove=True)
+    keys = list_fn(platform)
+    assert set(keys[key]) == set(expected)
+
+    # Remove key
+    remove_fn(platform, key)
+    keys = list_fn(platform)
+    assert key not in keys
+
+
+def _add_group_or_role(platform, cmd, name, list_):
+    args = ['volttron-ctl', 'auth', cmd, name]
+    args.extend(list_)
+    env = get_env(platform)
+    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
+    p.communicate()
+    assert p.returncode == 0
+
+
+def _add_group(platform, group, roles):
+    _add_group_or_role(platform, 'add-group', group, roles)
+
+
+def _add_role(platform, role, capabilities):
+    _add_group_or_role(platform, 'add-role', role, capabilities)
+
+
+def _list_groups_or_roles(platform, cmd):
+    env = get_env(platform)
+    output = subprocess.check_output(['volttron-ctl', 'auth', cmd],
+                                    env=env)
+    output = output.decode("utf-8")
+    # For these tests don't use names that contain space, [, comma, or '
+    output = output.replace('[', '').replace("'", '').replace(']', '')
+    output = output.replace(',', '')
+    lines = output.split('\n')
+
+    dict_ = {}
+    for line in lines[2:]: # skip two header lines
+        list_ = ' '.join(line.split()).split() # combine multiple spaces
+        if len(list_) >= 2:
+            dict_[list_[0]] = list_[1:]
+    return dict_
+
+
+def _list_groups(platform):
+    return _list_groups_or_roles(platform, 'list-groups')
+
+
+def _list_roles(platform):
+    return _list_groups_or_roles(platform, 'list-roles')
+
+
+def _list_known_hosts(platform):
+    env = get_env(platform)
+    return subprocess.check_output(['volttron-ctl', 'auth',
+                                    'list-known-hosts'], env=env)
+
+
+def _update_group_or_role(platform, cmd, key, values, remove):
+    args = ['volttron-ctl', 'auth', cmd, key]
+    args.extend(values)
+    if remove:
+        args.append('--remove')
+    env = get_env(platform)
+    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
+    p.communicate()
+    assert p.returncode == 0
+
+
+def _update_group(platform, group, roles, remove=False):
+    _update_group_or_role(platform, 'update-group', group, roles, remove)
+
+
+def _update_role(platform, role, caps, remove=False):
+    _update_group_or_role(platform, 'update-role', role, caps, remove)
+
+
+def _remove_group_or_role(platform, cmd, key):
+    args = ['volttron-ctl', 'auth', cmd, key]
+    env = get_env(platform)
+    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
+    p.communicate()
+    assert p.returncode == 0
+
+
+def _remove_group(platform, group):
+    _remove_group_or_role(platform, 'remove-group', group)
+
+
+def _remove_role(platform, role):
+    _remove_group_or_role(platform, 'remove-role', role)
