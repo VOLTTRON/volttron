@@ -566,10 +566,13 @@ class VolttronCentralPlatform(Agent):
 
         if self._stats_publisher:
             self._stats_publisher.kill()
+
+        stats_publish_interval = self.current_config.get(
+            'stats-publish-interval', 30)
         # The stats publisher publishes both to the local bus and the vc
         # bus the platform specific topics.
         self._stats_publisher = self.core.periodic(
-            self._stats_publish_interval, self._publish_stats)
+            stats_publish_interval, self._publish_stats)
 
     @RPC.export
     def get_health(self):
