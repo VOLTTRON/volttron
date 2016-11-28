@@ -1620,7 +1620,7 @@ def main(argv=sys.argv):
     auth_remove_known_host = add_parser('remove-known-host',
             subparser=auth_subparsers,
             help='remove entry from known-hosts file')
-    auth_remove_known_host.add_argument('--host', required=True,
+    auth_remove_known_host.add_argument('host', metavar='HOST',
             help='hostname or IP address with optional port')
     auth_remove_known_host.set_defaults(func=remove_known_host)
 

@@ -345,8 +345,7 @@ def _list_known_hosts(platform):
 
 
 def _remove_known_host(platform, host):
-    args = ['volttron-ctl', 'auth', 'remove-known-host']
-    args.extend(['--host', host])
+    args = ['volttron-ctl', 'auth', 'remove-known-host', host]
     env = get_env(platform)
     p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
     p.communicate()
