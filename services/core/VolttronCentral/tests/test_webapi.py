@@ -65,49 +65,6 @@ def web_api_tester(request, vc_instance, pa_instance):
 
 
 @pytest.mark.vc
-def test_auto_register_platform(vc_instance):
-    vc, vcuuid, jsonrpc = vc_instance
-
-    adir = "services/core/VolttronCentralPlatform/"
-    pauuid = vc.install_agent(agent_dir=adir, config_file=adir+"config")
-    assert pauuid
-    print(pauuid)
-
-    tester = APITester(jsonrpc)
-
-    def redo_request():
-        response = tester.do_rpc("list_platforms")
-        print('Response is: {}'.format(response.json()))
-        jsonresp = response.json()
-        if len(jsonresp['result']) > 0:
-            p = jsonresp['result'][0]
-            assert p['uuid']
-            assert p['name'] == vc.vip_address
-            assert isinstance(p['health'], dict)
-            assert STATUS_GOOD == p['health']['status']
-
-            return True
-        return len(response.json()['result']) > 0
-
-    assert poll_gevent_sleep(6, redo_request)
-    response = tester.do_rpc("list_platforms")
-    assert len(response.json()['result']) > 0
-    jsondata = response.json()
-    # Specific platform not the same as vcp on the platform
-    platform_uuid = jsondata['result'][0]['uuid']
-    # Remove the agent.
-    vc.remove_agent(pauuid)
-    assert 1 == len(vc.list_agents())
-    newpauuid = vc.install_agent(agent_dir=adir, config_file=adir + "config")
-    assert newpauuid != pauuid
-    assert poll_gevent_sleep(6, redo_request)
-    response = tester.do_rpc("list_platforms")
-    jsondata = response.json()
-    # Specific platform not the same as vcp on the platform
-    assert platform_uuid in [result['uuid'] for result in jsondata['result']]
-
-
-@pytest.mark.vc
 def test_vc_settings_store(vc_instance):
     """ Test the reading and writing of data through the get_setting,
         set_setting and get_all_key json-rpc calls.
@@ -158,6 +115,7 @@ def test_vc_settings_store(vc_instance):
 
 
 @pytest.mark.vc
+@pytest.mark.skipif(True, reason="Need to figure out what unregister means.")
 def test_unregister_platform(web_api_tester):
     platforms = web_api_tester.list_platforms().json()['result']
     orig_platform_count = len(platforms)
