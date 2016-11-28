@@ -72,17 +72,14 @@ from volttrontesting.utils.utils import poll_gevent_sleep
 _test_config = {
     "test_max": {
         "threshold_max": 10,
-        "message": "{topic} > {threshold}"
     },
     "test_min": {
         "threshold_min": 10,
-        "message": "{topic} < {threshold}"
     },
     "devices/all": {
       "point": {
           "threshold_max": 10,
           "threshold_min": 0,
-          "message": "point out of range"
       }
     }
 }
@@ -188,7 +185,6 @@ def test_update_config(threshold_tester_agent):
         "updated_topic": {
             "threshold_max": 10,
             "threshold_min": 0,
-            "message": "{topic} out or range {threshold}"
         }
     }
 

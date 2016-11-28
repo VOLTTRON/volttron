@@ -98,11 +98,15 @@ class ThresholdDetectionAgent(Agent):
         {
             "datalogger/log/platfor/cpu_percent": {
                 "threshold_max": 99,
-                "message": "CPU ({topic}) exceeded {threshold} percent"
             },
             "some/temperature/topic": {
                 "threshold_min": 0,
-                "message": "Temperature is below {threshold}"
+            },
+            "devices/some/device/topic/all": {
+                "some_point": {
+                    "threshold_max": 42,
+                    "threshold_min": 0
+                }
             }
         }
 
@@ -131,7 +135,6 @@ class ThresholdDetectionAgent(Agent):
         for point, values in device_points.iteritems():
             threshold_max = values.get('threshold_max')
             threshold_min = values.get('threshold_min')
-            msg = values['message'].format(topic=topic, threshold=threshold_max)
 
             def callback(peer, sender, bus, topic, headers, message):
                 data = message[0].get(point)
@@ -142,21 +145,15 @@ class ThresholdDetectionAgent(Agent):
                     return
 
                 if threshold_max is not None and data > threshold_max:
-                    alert_message = '{} ({} published {})\n'.format(
-                        msg, topic, data)
-                    self.alert(alert_message, topic)
-
+                    self.alert(topic, threshold_max, data, point=point)
                 elif threshold_min is not None and data < threshold_min:
-                    alert_message = '{} ({} published {})\n'.format(
-                        msg, topic, data)
-                    self.alert(alert_message, topic)
+                    self.alert(topic, threshold_min, data, point=point)
 
             self.vip.pubsub.subscribe('pubsub', topic, callback)
 
     def create_standard_subscription(self, topic, values):
         threshold_max = values.get('threshold_max')
         threshold_min = values.get('threshold_min')
-        msg = values['message'].format(topic=topic, threshold=threshold_max)
 
         def callback(peer, sender, bus, topic, headers, data):
             try:
@@ -165,14 +162,9 @@ class ThresholdDetectionAgent(Agent):
                 return
 
             if threshold_max is not None and data > threshold_max:
-                alert_message = '{} ({} published {})\n'.format(
-                    msg, topic, data)
-                self.alert(alert_message, topic)
-
+                self.alert(topic, threshold_max, data)
             elif threshold_min is not None and data < threshold_min:
-                alert_message = '{} ({} published {})\n'.format(
-                    msg, topic, data)
-                self.alert(alert_message, topic)
+                self.alert(topic, threshold_min, data)
 
         self.vip.pubsub.subscribe('pubsub', topic, callback)
 
@@ -188,15 +180,39 @@ class ThresholdDetectionAgent(Agent):
         self.threshold_del(*args)
         self.threshold_add(*args)
 
-    def alert(self, message, topic):
+    def alert(self, topic, threshold, data, point=''):
         """
-        Raise alert for the given topic
+        Raise alert for the given topic.
 
-        :param message: Message to include in alert
-        :param topic: PUB/SUB topic that caused alert
-        :type message: str
+        :param topic: Topic that has published some threshold-exceeding value.
         :type topic: str
+
+        :param threshold: Value that has been exceeded. Used in alert message.
+        :type threshold: float
+
+        :param data: Value that is out of range. Used in alert message.
+        :type data: float
+
+        :param point: Optional point name. Used in alert message.
+        :type point: str
         """
+        if point:
+            point = '({})'.format(point)
+
+        if threshold < data:
+            custom = "above"
+        else:
+            custom = "below"
+
+        message = "{topic}{point} value ({data})" \
+                  "is {custom} acceptable limit ({threshold})"
+
+        message = message.format(topic=topic,
+                                 point=point,
+                                 data=data,
+                                 custom=custom,
+                                 threshold=threshold)
+
         status = Status.build(STATUS_BAD, message)
         self.vip.health.send_alert(topic, status)
 
@@ -204,6 +220,7 @@ class ThresholdDetectionAgent(Agent):
 def main(argv=sys.argv):
     '''Main method called by the platform.'''
     utils.vip_main(thresholddetection_agent, identity='platform.thresholddetection')
+
 
 if __name__ == '__main__':
     # Entry point for script
