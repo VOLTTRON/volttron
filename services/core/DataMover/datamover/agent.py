@@ -101,8 +101,8 @@ def historian(config_path, **kwargs):
 
 
 class DataMover(BaseHistorian):
-    '''This historian forwards data to another platform.
-    '''
+    """This historian forwards data to another platform.
+    """
 
     def __init__(self,
                  services_topic_list,
@@ -125,10 +125,10 @@ class DataMover(BaseHistorian):
 
     @Core.receiver("onstart")
     def starting_base(self, sender, **kwargs):
-        '''
+        """
         Subscribes to the platform message bus on the actuator, record,
         datalogger, and device topics to capture data.
-        '''
+        """
         _log.debug("Starting DataMover")
 
         for topic in self.services_topic_list + self.custom_topic_list:
