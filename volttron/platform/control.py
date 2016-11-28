@@ -823,9 +823,11 @@ def _print_two_columns(dict_, key_name, value_name):
             ' ' * (max_key_len - len(key_name)),
             '-' * len(value_name)))
         for key in sorted(dict_):
-             _stdout.write('{}{}{}\n'.format(key,
-                 ' ' * (max_key_len - len(key)),
-                 sorted(dict_[key])))
+            value = dict_[key]
+            if isinstance(value, list):
+                value = sorted(value)
+            _stdout.write('{}{}{}\n'.format(key,
+                          ' ' * (max_key_len - len(key)), value))
 
 
 def list_auth(opts, indices=None):
