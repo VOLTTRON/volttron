@@ -256,10 +256,9 @@ def _list_groups_or_roles(platform, cmd):
     lines = output.split('\n')
 
     dict_ = {}
-    for line in lines[2:]: # skip two header lines
+    for line in lines[2:-1]: # skip two header lines and last (empty) line
         list_ = ' '.join(line.split()).split() # combine multiple spaces
-        if len(list_) >= 2:
-            dict_[list_[0]] = list_[1:]
+        dict_[list_[0]] = list_[1:]
     return dict_
 
 
@@ -269,12 +268,6 @@ def _list_groups(platform):
 
 def _list_roles(platform):
     return _list_groups_or_roles(platform, 'list-roles')
-
-
-def _list_known_hosts(platform):
-    env = get_env(platform)
-    return subprocess.check_output(['volttron-ctl', 'auth',
-                                    'list-known-hosts'], env=env)
 
 
 def _update_group_or_role(platform, cmd, key, values, remove):
@@ -310,3 +303,51 @@ def _remove_group(platform, group):
 
 def _remove_role(platform, role):
     _remove_group_or_role(platform, 'remove-role', role)
+
+
+@pytest.mark.control
+def test_known_host_cmds(volttron_instance_encrypt):
+    platform = volttron_instance_encrypt
+    host = '1.2.3.4:5678'
+    key = 'w-mKufe5hiRSPKK2LnkK_Z9VwRPMohdafhS6IekxYE7'
+    _add_known_host(platform, host, key)
+
+    hosts = _list_known_hosts(platform)
+    assert hosts[host] == key
+
+    _remove_known_host(platform, host)
+    hosts = _list_known_hosts(platform)
+    assert host not in hosts
+
+
+def _add_known_host(platform, host, serverkey):
+    args = ['volttron-ctl', 'auth', 'add-known-host']
+    args.extend(['--host', host])
+    args.extend(['--serverkey', serverkey])
+    env = get_env(platform)
+    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
+    p.communicate()
+    assert p.returncode == 0
+
+
+def _list_known_hosts(platform):
+    env = get_env(platform)
+    output = subprocess.check_output(['volttron-ctl', 'auth',
+                                      'list-known-hosts'], env=env)
+
+    output = output.decode("utf-8")
+    lines = output.split('\n')
+    dict_ = {}
+    for line in lines[2:-1]: # skip two header lines and last (empty) line
+        host, pubkey = ' '.join(line.split()).split() # combine multiple spaces
+        dict_[host] = pubkey
+    return dict_
+
+
+def _remove_known_host(platform, host):
+    args = ['volttron-ctl', 'auth', 'remove-known-host']
+    args.extend(['--host', host])
+    env = get_env(platform)
+    p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE)
+    p.communicate()
+    assert p.returncode == 0
