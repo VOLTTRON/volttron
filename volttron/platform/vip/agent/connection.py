@@ -82,8 +82,10 @@ class Connection(object):
     """
     def __init__(self, address, peer=None, publickey=None,
                  secretkey=None, serverkey=None, volttron_home=None, **kwargs):
-        _log.debug("Connection: {}, {}, {}, {}, {}"
-                   .format(address, peer, publickey, secretkey, serverkey))
+        cnstring = "Connecting to address: {} using publickey credential: {} " \
+                   "serverkey: {}"
+
+        _log.debug(cnstring.format(address, publickey, serverkey))
         self._address = address
         self._peer = peer
         self._serverkey = None
@@ -100,7 +102,6 @@ class Connection(object):
             parsed = urlparse.urlparse(address)
             if parsed.scheme == 'tcp':
                 qs = urlparse.parse_qs(parsed.query)
-                _log.debug('QS IS: {}'.format(qs))
                 if 'serverkey' in qs:
                     self._serverkey = qs.get('serverkey')
                 else:
@@ -165,9 +166,12 @@ class Connection(object):
     def server(self):
         if self._greenlet is None:
             _log.debug('Spawning greenlet')
+
             event = gevent.event.Event()
             self._greenlet = gevent.spawn(self._server.core.run, event)
-            event.wait(timeout=DEFAULT_TIMEOUT)
+            if not event.wait(timeout=DEFAULT_TIMEOUT):
+                raise RuntimeError("Unable to connect to target platform")
+
             self._connected_since = get_aware_utc_now()
             if self.peer not in self._server.vip.peerlist().get(timeout=2):
                 _log.warn('Peer {} not found connected to router.'.format(
@@ -228,5 +232,8 @@ class Connection(object):
         raise ValueError("peer not specified on class or as method argument.")
 
     def kill(self, *args, **kwargs):
-        if self._greenlet is not None:
-            self._greenlet.kill(*args, **kwargs)
+        try:
+            if self._greenlet is not None:
+                self._greenlet.kill(*args, **kwargs)
+        finally:
+            self._greenlet = None

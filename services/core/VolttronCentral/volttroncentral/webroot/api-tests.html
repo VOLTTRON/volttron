@@ -10,6 +10,9 @@
 </head>
 <body>
 <h1>Webservice api exercise</h1>
+<div>
+    <a href="api-tests2.html">Tests Part 2</a>
+</div>
 <h3>Authorization</h3>
 <div>
     Username: <input id="username" type="text" /><br />
@@ -34,7 +37,7 @@
     <button id="get_setting">Get Value</button>
     <button id="get_setting_keys">Get Keys</button>
 </div>
-<h3>Platform Listings</h3>
+<h3>Platform Methods</h3>
 <div>
     <button id="list_platforms">List Platforms</button>
     <button id="list_deivces">List Devices</button>
@@ -125,7 +128,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     etc.
     
     */
-    function do_request_platform_method(method, callback=null) {
+    function do_request_platform_method(method, callback) {
         var platform_uuid = $('#agent_platform_uuid').val();
         var req_method = 'platform.uuid.'+platform_uuid+'.'+method;
         console.log("Method is: "+req_method);
@@ -144,7 +147,8 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             dataType: 'json',
             success: function(data){
                 $('#output_data').val(JSON.stringify(data));
-                if (callback !== null){
+
+                if (typeof callback == "function") {
                     callback(data)
                 }
             },
@@ -163,7 +167,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     etc.
     
     */
-    function do_request_agent_method(method, data={}, callback) {
+    function do_request_agent_method(method, data, callback) {
         var platform_uuid = $('#agent_platform_uuid').val();
         var agent_uuid = $('#agent_uuid').val()
         var req_method = 'platform.uuid.'+platform_uuid+'.agent.uuid.'+
@@ -187,7 +191,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             dataType: 'json',
             success: function(data){
                 $('#output_data').val(JSON.stringify(data));
-                if (callback !== null){
+                if (typeof callback == "function"){
                     callback(data)
                 }
             },
