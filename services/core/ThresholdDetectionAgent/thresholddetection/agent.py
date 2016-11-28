@@ -72,7 +72,7 @@ __version__ = '3.7'
 def thresholddetection_agent(config_path, **kwargs):
     """Load configuration for ThresholdDetectionAgent
 
-    :param config_path: Path to a configuration file. Ignored.
+    :param config_path: Path to a configuration file.
 
     :type config_path: str
     :returns: ThresholdDetectionAgent instance
