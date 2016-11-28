@@ -96,14 +96,14 @@ class ThresholdDetectionAgent(Agent):
     .. code-block:: python
 
         {
-          "datalogger/log/platfor/cpu_percent": {
-              "threshold_max": 99,
-              "message": "CPU ({topic}) exceeded {threshold} percent"
-          },
-          "some/temperature/topic": {
-              "threshold_min": 0,
-              "message": "Temperature is below {threshold}"
-          }
+            "datalogger/log/platfor/cpu_percent": {
+                "threshold_max": 99,
+                "message": "CPU ({topic}) exceeded {threshold} percent"
+            },
+            "some/temperature/topic": {
+                "threshold_min": 0,
+                "message": "Temperature is below {threshold}"
+            }
         }
 
     """
@@ -117,41 +117,64 @@ class ThresholdDetectionAgent(Agent):
         self.vip.config.subscribe(self.threshold_mod, actions="UPDATE", pattern="config")
 
     def threshold_add(self, config_name, action, contents):
-
-        def is_number(x):
-            try:
-                float(x)
-                return True
-            except ValueError:
-                return False
-
-        def generate_callback(message, threshold, comparator):
-            """Generate callback function for pubsub.subscribe"""
-            def callback(peer, sender, bus, topic, headers, data):
-                if is_number(data):
-                    if comparator(data, threshold):
-                        alert_message = '{} ({} published {})\n'.format(
-                            message, topic, data)
-                        self.alert(alert_message, topic)
-            return callback
-
         self.config_topics[config_name] = set()
         for topic, values in contents.iteritems():
             self.config_topics[config_name].add(topic)
             _log.info("Subscribing to {}".format(topic))
 
+            if topic.startswith("devices/") and topic.endswith("/all"):
+                self.create_device_subscription(topic, values)
+            else:
+                self.create_standard_subscription(topic, values)
+
+    def create_device_subscription(self, topic, device_points):
+        for point, values in device_points.iteritems():
             threshold_max = values.get('threshold_max')
-            if threshold_max is not None:
-                msg = values['message'].format(topic=topic, threshold=threshold_max)
-                callback = generate_callback(msg, threshold_max, lambda x, y: x > y)
-                self.vip.pubsub.subscribe('pubsub', topic, callback)
-
             threshold_min = values.get('threshold_min')
-            if threshold_min is not None:
-                msg = values['message'].format(topic=topic, threshold=threshold_min)
-                callback = generate_callback(msg, threshold_min, lambda x, y: x < y)
-                self.vip.pubsub.subscribe('pubsub', topic, callback)
+            msg = values['message'].format(topic=topic, threshold=threshold_max)
 
+            def callback(peer, sender, bus, topic, headers, message):
+                data = message[0].get(point)
+
+                try:
+                    float(data)
+                except ValueError:
+                    return
+
+                if threshold_max is not None and data > threshold_max:
+                    alert_message = '{} ({} published {})\n'.format(
+                        msg, topic, data)
+                    self.alert(alert_message, topic)
+
+                elif threshold_min is not None and data < threshold_min:
+                    alert_message = '{} ({} published {})\n'.format(
+                        msg, topic, data)
+                    self.alert(alert_message, topic)
+
+            self.vip.pubsub.subscribe('pubsub', topic, callback)
+
+    def create_standard_subscription(self, topic, values):
+        threshold_max = values.get('threshold_max')
+        threshold_min = values.get('threshold_min')
+        msg = values['message'].format(topic=topic, threshold=threshold_max)
+
+        def callback(peer, sender, bus, topic, headers, data):
+            try:
+                float(data)
+            except ValueError:
+                return
+
+            if threshold_max is not None and data > threshold_max:
+                alert_message = '{} ({} published {})\n'.format(
+                    msg, topic, data)
+                self.alert(alert_message, topic)
+
+            elif threshold_min is not None and data < threshold_min:
+                alert_message = '{} ({} published {})\n'.format(
+                    msg, topic, data)
+                self.alert(alert_message, topic)
+
+        self.vip.pubsub.subscribe('pubsub', topic, callback)
 
     def threshold_del(self, config_name, action, contents):
         topics = self.config_topics.pop(config_name)

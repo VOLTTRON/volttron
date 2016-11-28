@@ -70,13 +70,20 @@ from volttron.platform.vip.agent import Agent, PubSub
 from volttrontesting.utils.utils import poll_gevent_sleep
 
 _test_config = {
-    "test1": {
+    "test_max": {
         "threshold_max": 10,
         "message": "{topic} > {threshold}"
     },
-    "test3": {
+    "test_min": {
         "threshold_min": 10,
         "message": "{topic} < {threshold}"
+    },
+    "devices/all": {
+      "point": {
+          "threshold_max": 10,
+          "threshold_min": 0,
+          "message": "point out of range"
+      }
     }
 }
 
@@ -141,7 +148,7 @@ def publish(agent, config, operation, to_max=True):
 def test_above_max(threshold_tester_agent):
     """Should get alert because values exceed max"""
     publish(threshold_tester_agent, _test_config, lambda x: x+1)
-    check = lambda: threshold_tester_agent.seen_alert_keys == set(['test1'])
+    check = lambda: threshold_tester_agent.seen_alert_keys == set(['test_max'])
     assert poll_gevent_sleep(2, check)
 
 
@@ -162,7 +169,7 @@ def test_below_max(threshold_tester_agent):
 def test_below_min(threshold_tester_agent):
     """Should get alert because values below min"""
     publish(threshold_tester_agent, _test_config, lambda x: x-1, to_max=False)
-    check = lambda: threshold_tester_agent.seen_alert_keys == set(['test3'])
+    check = lambda: threshold_tester_agent.seen_alert_keys == set(['test_min'])
     assert poll_gevent_sleep(2, check)
 
 
@@ -195,4 +202,10 @@ def test_update_config(threshold_tester_agent):
     publish(threshold_tester_agent, _test_config, lambda x: x+1)
     publish(threshold_tester_agent, updated_config, lambda x: x+1)
     check = lambda: threshold_tester_agent.seen_alert_keys == set(['updated_topic'])
+    assert poll_gevent_sleep(2, check)
+
+def test_device_publish(threshold_tester_agent):
+    threshold_tester_agent.vip.pubsub.publish('pubsub', 'devices/all',
+                                              headers={}, message=[{'point': 11}]).get()
+    check = lambda: threshold_tester_agent.seen_alert_keys == set(['devices/all'])
     assert poll_gevent_sleep(2, check)
