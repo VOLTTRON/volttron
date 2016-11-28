@@ -66,6 +66,7 @@ import gevent
 from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import Agent, Core, compat, Unreachable
+from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.keystore import KnownHostsStore
@@ -76,7 +77,7 @@ from volttron.platform.messaging.health import (STATUS_BAD,
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.6'
+__version__ = '3.7'
 
 
 def historian(config_path, **kwargs):
@@ -274,24 +275,23 @@ def historian(config_path, **kwargs):
                                            status)
 
         def historian_setup(self):
-            _log.debug(
-                "Setting up to forward to {}".format(destination_vip))
-            event = gevent.event.Event()
-            agent = Agent(address=destination_vip,
-                          serverkey=destination_serverkey,
-                          publickey=self.core.publickey,
-                          secretkey=self.core.secretkey,
-                          enable_store=False)
+            _log.debug("Setting up to forward to {}".format(destination_vip))
+            try:
+                agent = build_agent(address=destination_vip,
+                                    serverkey=destination_serverkey,
+                                    publickey=self.core.publickey,
+                                    secretkey=self.core.secretkey,
+                                    enable_store=False)
 
-            gevent.spawn(agent.core.run, event)
-            if event.wait(timeout=10):
-                self._target_platform = agent
-            else:
+            except gevent.Timeout:
                 self.vip.health.set_status(
                     STATUS_BAD, "Timeout in setup of agent")
                 status = Status.from_json(self.vip.health.get_status())
                 self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                            status)
+            else:
+                self._target_platform = agent
+
 
     return ForwardHistorian(backup_storage_limit_gb=backup_storage_limit_gb,
                             **kwargs)
