@@ -31,7 +31,7 @@ Installation steps for system running Matlab:
 4. Start Matlab and set the python path.
    In the Matlab command window set the python path with `pyversion`:
 
-.. code-block::
+.. code-block:: console
 
    >> pyversion python.exe
 
