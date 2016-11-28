@@ -535,34 +535,17 @@ class VolttronCentralPlatform(Agent):
                       '"config" file to the config store.')
             return None
 
-            response = requests.get(
-                "{}/discovery/".format(self._volttron_central_http_address)
-            )
-
-            if response.ok:
-                jsonresp = response.json()
-                entry = AuthEntry(credentials="/.*/",
-                                  capabilities=['manager']
-                                  #,
-                                  #address=jsonresp['vip-address']
-                                  )
-                authfile = AuthFile(get_home() + "/auth.json")
-                authfile.add(entry, overwrite=True)
-                self._volttron_central_tcp_address = jsonresp['vip-address']
-                self._volttron_central_serverkey = jsonresp['serverkey']
-
-        # First see if we are able to connect via tcp with the serverkey.
-        if self._volttron_central_tcp_address is not None and \
-                self._volttron_central_serverkey is not None:
-            _log.debug('Connecting to volttron central using tcp.')
-
-            vc_conn = Connection(
-                address=self._volttron_central_tcp_address,
-                peer=VOLTTRON_CENTRAL,
-                serverkey=self._volttron_central_serverkey,
-                publickey=self.core.publickey,
-                secretkey=self.core.secretkey
-            )
+        c = self.current_config
+        address_hash = c.get('address_hash')
+        vcp_identity_on_vc += address_hash
+        self.vc_connection = build_connection(
+            identity=vcp_identity_on_vc,
+            peer=VOLTTRON_CENTRAL,
+            address=c.get('vc_connect_address'),
+            serverkey=c.get('vc_connect_serverkey'),
+            publickey=self.core.publickey,
+            secretkey=self.core.secretkey
+        )
 
         if not self.vc_connection.is_peer_connected():
             _log.error('Peer: {} is not connected to the external platform'
@@ -575,83 +558,7 @@ class VolttronCentralPlatform(Agent):
         if self.vc_connection.is_connected():
             enable_connection_heartbeat()
 
-            #TODO Only add a single time for this address.
-            if self._volttron_central_publickey:
-                # Add the vcpublickey to the auth file.
-                entry = AuthEntry(
-                    credentials= self._volttron_central_publickey,
-                    capabilities=['manager'])
-                authfile = AuthFile()
-                authfile.add(entry, overwrite=True)
-
-            self._volttron_central_connection = vc_conn
-
-            return self._volttron_central_connection
-
-        # Next see if we have a valid ipc address (Not Local though)
-        if self._volttron_central_ipc_address is not None:
-            self._volttron_central_connection = Connection(
-                address=self._volttron_central_ipc_address,
-                peer=VOLTTRON_CENTRAL
-            )
-
-            return self._volttron_central_connection
-
-    @Core.receiver('onstart')
-    def _started(self, sender, **kwargs):
-
-        # Created a link to the control agent on this platform.
-        self._control_connection = Connection(address=self.core.address,
-                                              peer='control')
-
-        _log.debug('Querying router for addresses and serverkey.')
-        q = Query(self.core)
-
-        self._external_addresses = q.query('addresses').get(timeout=2)
-        _log.debug('External addresses are: {}'.format(
-            self._external_addresses))
-
-        self._local_serverkey = q.query('serverkey').get(timeout=2)
-        _log.debug('serverkey is: {}'.format(self._local_serverkey))
-
-        vc_http_address = q.query('volttron-central-address').get(timeout=2)
-        _log.debug('vc address is {}'.format(vc_http_address))
-
-        self._local_instance_name = q.query('instance-name').get(timeout=2)
-        _log.debug('instance-name is {}'.format(self._local_instance_name))
-
-        if vc_http_address is not None:
-            parsed = urlparse.urlparse(vc_http_address)
-            if parsed.scheme in ('https', 'http'):
-                self._volttron_central_http_address = vc_http_address
-            elif parsed.scheme == 'ipc':
-                self._volttron_central_ipc_address = vc_http_address
-            elif parsed.scheme == 'tcp':
-                self._volttron_central_tcp_address = vc_http_address
-                vc_serverkey = q.query('volttron-central-serverkey').get(
-                    timeout=2
-                )
-                if vc_serverkey is None:
-                    raise ValueError(
-                        'volttron-central-serverkey is not set with tcp address'
-                    )
-                self._volttron_central_serverkey = vc_serverkey
-            else:
-                raise ValueError(
-                    'invalid scheme for volttron-central-address'
-                )
-
-        self._agent_started = True
-
-        _log.debug('Starting the period registration attempts.')
-        # Start the process of attempting registration with a VOLTTRON central.
-        self._periodic_attempt_registration()
-
-        try:
-            _log.debug('Starting stats publisher.')
-            self._start_stats_publisher()
-        except ValueError as e:
-            _log.error(e)
+        return self.vc_connection
 
     def _start_stats_publisher(self):
         if not self._agent_started:
