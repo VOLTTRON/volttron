@@ -82,7 +82,7 @@ class DevicesFound extends BaseComponent {
             </RegistryFilesForm>
         );
     }
-    _uploadRegistryFile(evt) {
+    _uploadRegistryFile(deviceId, deviceAddress, evt) {
         
         var csvFile = evt.target.files[0];
 
@@ -92,9 +92,6 @@ class DevicesFound extends BaseComponent {
         {
             return;
         }
-
-        var deviceId = evt.target.dataset.id;
-        var deviceAddress = evt.target.dataset.address;
 
         devicesActionCreators.focusOnDevice(deviceId, deviceAddress);
 
@@ -252,7 +249,7 @@ class DevicesFound extends BaseComponent {
                                         <input 
                                             className="uploadButton" 
                                             type="file"
-                                            onChange={this._uploadRegistryFile}
+                                            onChange={this._uploadRegistryFile.bind(this, deviceId, deviceAddress)}
                                             onFocus={this._focusOnDevice.bind(this, deviceId, deviceAddress)}
                                             onMouseEnter={this._showFileButtonTooltip.bind(this, true, rowIndex)}
                                             onMouseLeave={this._showFileButtonTooltip.bind(this, false, rowIndex)}/>

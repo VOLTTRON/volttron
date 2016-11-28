@@ -6,6 +6,8 @@ var devicesStore = require('../stores/devices-store');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
+var CsvParse = require('babyparse');
+
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
 var pointsWs, pointsWebsocket, devicesWs, devicesWebsocket;
@@ -125,6 +127,7 @@ var devicesActionCreators = {
                 if (bacnet)
                 {
                     result.device.type = "bacnet";
+                    result.device.agentDriver = "platform.driver";
                 }
 
                 if (!objectIsEmpty(result.device))
@@ -251,7 +254,7 @@ var devicesActionCreators = {
 
         var params = {
             platform_uuid: device.platformUuid, 
-            agent_identity: device.bacnetProxyIdentity
+            agent_identity: device.agentDriver
         };
 
         return new rpc.Exchange({
@@ -264,17 +267,13 @@ var devicesActionCreators = {
                 console.log("list_agent_configs");
                 console.log(result);
 
-                result = [
-                    { name: "file1" },
-                    { name: "file2" },
-                    { name: "file3" },
-                    { name: "file4" },
-                    { name: "file5" },
-                ];
-
                 dispatcher.dispatch({
                     type: ACTION_TYPES.LOAD_REGISTRY_FILES,
-                    registryFiles: result,
+                    registryFiles: result.filter(function (registryFile) {
+                        var index = registryFile.indexOf("devices/");
+
+                        return index !== 0;
+                    }),
                     deviceId: device.id,
                     deviceAddress: device.address
                 });
@@ -298,7 +297,7 @@ var devicesActionCreators = {
 
         var params = {
             platform_uuid: device.platformUuid, 
-            agent_identity: device.bacnetProxyIdentity,
+            agent_identity: device.agentDriver,
             config_name: registryFile
         }
 
@@ -309,17 +308,26 @@ var devicesActionCreators = {
         }).promise
             .then(function (result) {
 
+                devicesActionCreators.unloadRegistryFiles();
+
                 console.log("get_agent_config");
                 console.log(result);
 
-                devicesActionCreators.unloadRegistryFiles();
+                var csvData = parseCsvFile(result);
 
-                devicesActionCreators.loadRegistry(
-                    device.id, 
-                    device.address,
-                    result,
-                    registryFile 
-                );
+                if (csvData.warnings.length)
+                {
+                    console.log(csvData.warnings[0]);
+                }
+                else
+                {
+                    devicesActionCreators.loadRegistry(
+                        device.id, 
+                        device.address,
+                        csvData.data,
+                        registryFile 
+                    );
+                }
 
             })
             .catch(rpc.Error, function (error) {
@@ -396,7 +404,8 @@ var devicesActionCreators = {
         var authorization = authorizationStore.getAuthorization();
 
 
-        var config_name =  settings.campus + "/" + 
+        var config_name =  "devices/" +
+                settings.campus + "/" + 
                 settings.building + "/" + 
                 settings.unit + 
                 (settings.path ? + "/" + settings.path : "")
@@ -489,6 +498,86 @@ function checkDevice(device, platformUuid)
     }
 
     return result;
+}
+
+var parseCsvFile = (contents) => {
+
+    var results = CsvParse.parse(contents);
+
+    var registryValues = [];
+
+    var header = [];
+
+    var data = results.data;
+
+    results.warnings = [];
+
+    if (data.length)
+    {
+        header = data.slice(0, 1);
+    }
+
+    var template = [];
+
+    if (header[0].length)
+    {
+        header[0].forEach(function (column) {
+            template.push({ "key": column.replace(/ /g, "_"), "value": null, "label": column });
+        });
+
+        var templateLength = template.length;
+
+        if (data.length > 1)
+        {
+            var rows = data.slice(1);
+
+            var rowsCount = rows.length;
+
+            rows.forEach(function (r, num) {
+
+                if (r.length)
+                {   
+                    if (r.length !== templateLength) 
+                    {                           
+                        if ((num === (rowsCount - 1)) && (r.length === 0 || ((r.length === 1) && (r[0] === "") )))
+                        {
+                            // Suppress the warning message if the out-of-sync row is the last one and it has no elements
+                            // or all it has is an empty point name -- which can happen naturally when reading the csv file
+                        }
+                        else
+                        {
+                            results.warnings.push({ message: "Row " +  num + " was omitted for having the wrong number of columns."});
+                        }
+                    }
+                    else
+                    {
+                        if (r.length === templateLength) // Have to check again, to keep from adding the empty point name
+                        {                                // in the last row
+                            var newTemplate = JSON.parse(JSON.stringify(template));
+
+                            var newRow = [];
+
+                            r.forEach( function (value, i) {
+                                newTemplate[i].value = value;
+
+                                newRow.push(newTemplate[i]);
+                            });
+
+                            registryValues.push(newRow);
+                        }
+                    }
+                }
+            });
+        }
+        else
+        {
+            registryValues = template;
+        }
+    }
+
+    results.data = registryValues;
+
+    return results;
 }
 
 function objectIsEmpty(obj)

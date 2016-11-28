@@ -748,6 +748,14 @@ br + .form__control-help {
     text-align: center;
 }
 
+.flexContent {
+    display: flex;
+}
+
+.flexChild {
+    flex: 1;
+}
+
 .propsButton {
     cursor: pointer;
     text-align: center;
@@ -1893,4 +1901,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-027b9d86a416a5bb0121.css.map*/
+/*# sourceMappingURL=app-9dd1385bf9aaf762e799.css.map*/

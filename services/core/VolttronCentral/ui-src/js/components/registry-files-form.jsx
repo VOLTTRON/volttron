@@ -28,7 +28,7 @@ class RegistryFilesForm extends BaseComponent {
     }
     _loadRegistryFile (registryFile) {
         devicesActionCreators.loadRegistryFile(
-            registryFile.name, 
+            registryFile, 
             this.props.device
         );
 
@@ -49,14 +49,14 @@ class RegistryFilesForm extends BaseComponent {
             filesList = this.state.registryFiles.files.map(function (registryFile) {
 
                 return (
-                    <div key={registryFile.name + "-rf"}
+                    <div key={registryFile + "-rf"}
                         className="registry-file"
                         onClick={this._loadRegistryFile.bind(this, registryFile)}>           
                         <div>
                             <i className="fa fa-file"></i>
                         </div>
                         <div>
-                            {registryFile.name}
+                            {registryFile}
                         </div>
                     </div>
                 );

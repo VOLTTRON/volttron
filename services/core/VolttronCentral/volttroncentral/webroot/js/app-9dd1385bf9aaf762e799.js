@@ -54,7 +54,7 @@
 	
 	var _platformManager2 = _interopRequireDefault(_platformManager);
 	
-	var _configureDevices = __webpack_require__(312);
+	var _configureDevices = __webpack_require__(314);
 	
 	var _configureDevices2 = _interopRequireDefault(_configureDevices);
 	
@@ -86,7 +86,7 @@
 	var Platforms = __webpack_require__(515);
 	
 	var PlatformCharts = __webpack_require__(518);
-	var Navigation = __webpack_require__(308);
+	var Navigation = __webpack_require__(310);
 	var devicesActionCreators = __webpack_require__(294);
 	
 	var _afterLoginPath = '/dashboard';
@@ -10051,7 +10051,7 @@
 	
 	var _platformsPanel2 = _interopRequireDefault(_platformsPanel);
 	
-	var _columnMover = __webpack_require__(297);
+	var _columnMover = __webpack_require__(299);
 	
 	var _columnMover2 = _interopRequireDefault(_columnMover);
 	
@@ -10069,17 +10069,17 @@
 	var Router = __webpack_require__(1);
 	
 	var authorizationStore = __webpack_require__(105);
-	var Console = __webpack_require__(299);
-	var consoleActionCreators = __webpack_require__(301);
-	var consoleStore = __webpack_require__(302);
-	var Modal = __webpack_require__(305);
-	var modalActionCreators = __webpack_require__(306);
-	var modalStore = __webpack_require__(307);
-	var Navigation = __webpack_require__(308);
-	var platformManagerActionCreators = __webpack_require__(309);
-	var platformsPanelStore = __webpack_require__(296);
-	var StatusIndicator = __webpack_require__(310);
-	var statusIndicatorStore = __webpack_require__(311);
+	var Console = __webpack_require__(301);
+	var consoleActionCreators = __webpack_require__(303);
+	var consoleStore = __webpack_require__(304);
+	var Modal = __webpack_require__(307);
+	var modalActionCreators = __webpack_require__(308);
+	var modalStore = __webpack_require__(309);
+	var Navigation = __webpack_require__(310);
+	var platformManagerActionCreators = __webpack_require__(311);
+	var platformsPanelStore = __webpack_require__(298);
+	var StatusIndicator = __webpack_require__(312);
+	var statusIndicatorStore = __webpack_require__(313);
 	var platformsStore = __webpack_require__(256);
 	
 	var PlatformManager = function (_React$Component) {
@@ -10339,7 +10339,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var platformsPanelStore = __webpack_require__(296);
+	var platformsPanelStore = __webpack_require__(298);
 	var platformsPanelItemsStore = __webpack_require__(254);
 	var platformsPanelActionCreators = __webpack_require__(257);
 	
@@ -56699,6 +56699,8 @@
 	var dispatcher = __webpack_require__(106);
 	var rpc = __webpack_require__(259);
 	
+	var CsvParse = __webpack_require__(296);
+	
 	var statusIndicatorActionCreators = __webpack_require__(258);
 	
 	var pointsWs, pointsWebsocket, devicesWs, devicesWebsocket;
@@ -56799,6 +56801,7 @@
 	
 	                if (bacnet) {
 	                    result.device.type = "bacnet";
+	                    result.device.agentDriver = "platform.driver";
 	                }
 	
 	                if (!objectIsEmpty(result.device)) {
@@ -56916,7 +56919,7 @@
 	
 	        var params = {
 	            platform_uuid: device.platformUuid,
-	            agent_identity: device.bacnetProxyIdentity
+	            agent_identity: device.agentDriver
 	        };
 	
 	        return new rpc.Exchange({
@@ -56928,11 +56931,13 @@
 	            console.log("list_agent_configs");
 	            console.log(result);
 	
-	            result = [{ name: "file1" }, { name: "file2" }, { name: "file3" }, { name: "file4" }, { name: "file5" }];
-	
 	            dispatcher.dispatch({
 	                type: ACTION_TYPES.LOAD_REGISTRY_FILES,
-	                registryFiles: result,
+	                registryFiles: result.filter(function (registryFile) {
+	                    var index = registryFile.indexOf("devices/");
+	
+	                    return index !== 0;
+	                }),
 	                deviceId: device.id,
 	                deviceAddress: device.address
 	            });
@@ -56954,7 +56959,7 @@
 	
 	        var params = {
 	            platform_uuid: device.platformUuid,
-	            agent_identity: device.bacnetProxyIdentity,
+	            agent_identity: device.agentDriver,
 	            config_name: registryFile
 	        };
 	
@@ -56964,12 +56969,18 @@
 	            params: params
 	        }).promise.then(function (result) {
 	
+	            devicesActionCreators.unloadRegistryFiles();
+	
 	            console.log("get_agent_config");
 	            console.log(result);
 	
-	            devicesActionCreators.unloadRegistryFiles();
+	            var csvData = parseCsvFile(result);
 	
-	            devicesActionCreators.loadRegistry(device.id, device.address, result, registryFile);
+	            if (csvData.warnings.length) {
+	                console.log(csvData.warnings[0]);
+	            } else {
+	                devicesActionCreators.loadRegistry(device.id, device.address, csvData.data, registryFile);
+	            }
 	        }).catch(rpc.Error, function (error) {
 	
 	            error.message = "Unable to load selected registry file. " + error.message + ".";
@@ -57039,7 +57050,7 @@
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
-	        var config_name = settings.campus + "/" + settings.building + "/" + settings.unit + (settings.path ? +"/" + settings.path : "");
+	        var config_name = "devices/" + settings.campus + "/" + settings.building + "/" + settings.unit + (settings.path ? +"/" + settings.path : "");
 	
 	        var config = {};
 	
@@ -57116,6 +57127,75 @@
 	
 	    return result;
 	}
+	
+	var parseCsvFile = function parseCsvFile(contents) {
+	
+	    var results = CsvParse.parse(contents);
+	
+	    var registryValues = [];
+	
+	    var header = [];
+	
+	    var data = results.data;
+	
+	    results.warnings = [];
+	
+	    if (data.length) {
+	        header = data.slice(0, 1);
+	    }
+	
+	    var template = [];
+	
+	    if (header[0].length) {
+	        header[0].forEach(function (column) {
+	            template.push({ "key": column.replace(/ /g, "_"), "value": null, "label": column });
+	        });
+	
+	        var templateLength = template.length;
+	
+	        if (data.length > 1) {
+	            var rows = data.slice(1);
+	
+	            var rowsCount = rows.length;
+	
+	            rows.forEach(function (r, num) {
+	
+	                if (r.length) {
+	                    if (r.length !== templateLength) {
+	                        if (num === rowsCount - 1 && (r.length === 0 || r.length === 1 && r[0] === "")) {
+	                            // Suppress the warning message if the out-of-sync row is the last one and it has no elements
+	                            // or all it has is an empty point name -- which can happen naturally when reading the csv file
+	                        } else {
+	                            results.warnings.push({ message: "Row " + num + " was omitted for having the wrong number of columns." });
+	                        }
+	                    } else {
+	                        if (r.length === templateLength) // Have to check again, to keep from adding the empty point name
+	                            {
+	                                // in the last row
+	                                var newTemplate = JSON.parse(JSON.stringify(template));
+	
+	                                var newRow = [];
+	
+	                                r.forEach(function (value, i) {
+	                                    newTemplate[i].value = value;
+	
+	                                    newRow.push(newTemplate[i]);
+	                                });
+	
+	                                registryValues.push(newRow);
+	                            }
+	                    }
+	                }
+	            });
+	        } else {
+	            registryValues = template;
+	        }
+	    }
+	
+	    results.data = registryValues;
+	
+	    return results;
+	};
 	
 	function objectIsEmpty(obj) {
 	    return Object.keys(obj).length === 0;
@@ -58607,6 +58687,7 @@
 	            configuring: false,
 	            platformUuid: platformUuid,
 	            bacnetProxyIdentity: bacnetIdentity,
+	            agentDriver: device.agentDriver,
 	            registryConfig: [],
 	            keyProps: ["volttron_point_name", "units", "writable"],
 	            selectedPoints: [],
@@ -58623,6 +58704,901 @@
 
 /***/ },
 /* 296 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_RESULT__;/*
+		Baby Parse
+		v0.4.1
+		https://github.com/Rich-Harris/BabyParse
+	
+		Created by Rich Harris
+		Maintained by Matt Holt
+	
+		Based on Papa Parse v4.0.7 by Matt Holt
+		https://github.com/mholt/PapaParse
+	*/
+	(function(global)
+	{
+	
+		// A configuration object from which to draw default settings
+		var DEFAULTS = {
+			delimiter: "",	// empty: auto-detect
+			newline: "",	// empty: auto-detect
+			header: false,
+			dynamicTyping: false,
+			preview: 0,
+			step: undefined,
+			comments: false,
+			complete: undefined,
+			skipEmptyLines: false,
+			fastMode: false
+		};
+	
+		var Baby = {};
+		Baby.parse = CsvToJson;
+		Baby.parseFiles = ParseFiles;
+		Baby.unparse = JsonToCsv;
+		Baby.RECORD_SEP = String.fromCharCode(30);
+		Baby.UNIT_SEP = String.fromCharCode(31);
+		Baby.BYTE_ORDER_MARK = "\ufeff";
+		Baby.BAD_DELIMITERS = ["\r", "\n", "\"", Baby.BYTE_ORDER_MARK];
+		Baby.DefaultDelimiter = ",";		// Used if not specified and detection fails
+		Baby.Parser = Parser;				// For testing/dev only
+		Baby.ParserHandle = ParserHandle;	// For testing/dev only
+		
+		var fs = fs || __webpack_require__(297)
+		
+		function ParseFiles(_input, _config)
+		{
+			if (Array.isArray(_input)) {
+				var results = [];
+				_input.forEach(function(input) {
+					if(typeof input === 'object')
+						results.push(ParseFiles(input.file, input.config));
+					else
+						results.push(ParseFiles(input, _config));
+				});
+				return results;
+			} else {
+				var results = {
+					data: [],
+					errors: []
+				};
+				if ((/(\.csv|\.txt)$/).test(_input)) {
+					try {
+						var contents = fs.readFileSync(_input).toString();
+						return CsvToJson(contents, _config);
+					} catch (err) {
+						results.errors.push(err);
+						return results;
+					}
+				} else {
+					results.errors.push({
+						type: '',
+						code: '',
+						message: 'Unsupported file type.',
+						row: ''
+					});
+					return results;
+				}
+			}
+		}
+	
+		function CsvToJson(_input, _config)
+		{
+			var config = copyAndValidateConfig(_config);
+			var ph = new ParserHandle(config);
+			var results = ph.parse(_input);
+			if (isFunction(config.complete))
+				config.complete(results);
+			return results;
+		}
+	
+	
+	
+	
+		function JsonToCsv(_input, _config)
+		{
+			var _output = "";
+			var _fields = [];
+	
+			// Default configuration
+			var _quotes = false;	// whether to surround every datum with quotes
+			var _delimiter = ",";	// delimiting character
+			var _newline = "\r\n";	// newline character(s)
+	
+			unpackConfig();
+	
+			if (typeof _input === 'string')
+				_input = JSON.parse(_input);
+	
+			if (_input instanceof Array)
+			{
+				if (!_input.length || _input[0] instanceof Array)
+					return serialize(null, _input);
+				else if (typeof _input[0] === 'object')
+					return serialize(objectKeys(_input[0]), _input);
+			}
+			else if (typeof _input === 'object')
+			{
+				if (typeof _input.data === 'string')
+					_input.data = JSON.parse(_input.data);
+	
+				if (_input.data instanceof Array)
+				{
+					if (!_input.fields)
+						_input.fields = _input.data[0] instanceof Array
+										? _input.fields
+										: objectKeys(_input.data[0]);
+	
+					if (!(_input.data[0] instanceof Array) && typeof _input.data[0] !== 'object')
+						_input.data = [_input.data];	// handles input like [1,2,3] or ["asdf"]
+				}
+	
+				return serialize(_input.fields || [], _input.data || []);
+			}
+	
+			// Default (any valid paths should return before this)
+			throw "exception: Unable to serialize unrecognized input";
+	
+	
+			function unpackConfig()
+			{
+				if (typeof _config !== 'object')
+					return;
+	
+				if (typeof _config.delimiter === 'string'
+					&& _config.delimiter.length == 1
+					&& Baby.BAD_DELIMITERS.indexOf(_config.delimiter) == -1)
+				{
+					_delimiter = _config.delimiter;
+				}
+	
+				if (typeof _config.quotes === 'boolean'
+					|| _config.quotes instanceof Array)
+					_quotes = _config.quotes;
+	
+				if (typeof _config.newline === 'string')
+					_newline = _config.newline;
+			}
+	
+	
+			// Turns an object's keys into an array
+			function objectKeys(obj)
+			{
+				if (typeof obj !== 'object')
+					return [];
+				var keys = [];
+				for (var key in obj)
+					keys.push(key);
+				return keys;
+			}
+	
+			// The double for loop that iterates the data and writes out a CSV string including header row
+			function serialize(fields, data)
+			{
+				var csv = "";
+	
+				if (typeof fields === 'string')
+					fields = JSON.parse(fields);
+				if (typeof data === 'string')
+					data = JSON.parse(data);
+	
+				var hasHeader = fields instanceof Array && fields.length > 0;
+				var dataKeyedByField = !(data[0] instanceof Array);
+	
+				// If there a header row, write it first
+				if (hasHeader)
+				{
+					for (var i = 0; i < fields.length; i++)
+					{
+						if (i > 0)
+							csv += _delimiter;
+						csv += safe(fields[i], i);
+					}
+					if (data.length > 0)
+						csv += _newline;
+				}
+	
+				// Then write out the data
+				for (var row = 0; row < data.length; row++)
+				{
+					var maxCol = hasHeader ? fields.length : data[row].length;
+	
+					for (var col = 0; col < maxCol; col++)
+					{
+						if (col > 0)
+							csv += _delimiter;
+						var colIdx = hasHeader && dataKeyedByField ? fields[col] : col;
+						csv += safe(data[row][colIdx], col);
+					}
+	
+					if (row < data.length - 1)
+						csv += _newline;
+				}
+	
+				return csv;
+			}
+	
+			// Encloses a value around quotes if needed (makes a value safe for CSV insertion)
+			function safe(str, col)
+			{
+				if (typeof str === "undefined" || str === null)
+					return "";
+	
+				str = str.toString().replace(/"/g, '""');
+	
+				var needsQuotes = (typeof _quotes === 'boolean' && _quotes)
+								|| (_quotes instanceof Array && _quotes[col])
+								|| hasAny(str, Baby.BAD_DELIMITERS)
+								|| str.indexOf(_delimiter) > -1
+								|| str.charAt(0) == ' '
+								|| str.charAt(str.length - 1) == ' ';
+	
+				return needsQuotes ? '"' + str + '"' : str;
+			}
+	
+			function hasAny(str, substrings)
+			{
+				for (var i = 0; i < substrings.length; i++)
+					if (str.indexOf(substrings[i]) > -1)
+						return true;
+				return false;
+			}
+		}
+	
+	
+	
+	
+	
+	
+		// Use one ParserHandle per entire CSV file or string
+		function ParserHandle(_config)
+		{
+			// One goal is to minimize the use of regular expressions...
+			var FLOAT = /^\s*-?(\d*\.?\d+|\d+\.?\d*)(e[-+]?\d+)?\s*$/i;
+	
+			var self = this;
+			var _stepCounter = 0;	// Number of times step was called (number of rows parsed)
+			var _input;				// The input being parsed
+			var _parser;			// The core parser being used
+			var _paused = false;	// Whether we are paused or not
+			var _delimiterError;	// Temporary state between delimiter detection and processing results
+			var _fields = [];		// Fields are from the header row of the input, if there is one
+			var _results = {		// The last results returned from the parser
+				data: [],
+				errors: [],
+				meta: {}
+			};
+	
+			if (isFunction(_config.step))
+			{
+				var userStep = _config.step;
+				_config.step = function(results)
+				{
+					_results = results;
+	
+					if (needsHeaderRow())
+						processResults();
+					else	// only call user's step function after header row
+					{
+						processResults();
+	
+						// It's possbile that this line was empty and there's no row here after all
+						if (_results.data.length == 0)
+							return;
+	
+						_stepCounter += results.data.length;
+						if (_config.preview && _stepCounter > _config.preview)
+							_parser.abort();
+						else
+							userStep(_results, self);
+					}
+				};
+			}
+	
+			this.parse = function(input)
+			{
+				if (!_config.newline)
+					_config.newline = guessLineEndings(input);
+	
+				_delimiterError = false;
+				if (!_config.delimiter)
+				{
+					var delimGuess = guessDelimiter(input);
+					if (delimGuess.successful)
+						_config.delimiter = delimGuess.bestDelimiter;
+					else
+					{
+						_delimiterError = true;	// add error after parsing (otherwise it would be overwritten)
+						_config.delimiter = Baby.DefaultDelimiter;
+					}
+					_results.meta.delimiter = _config.delimiter;
+				}
+	
+				var parserConfig = copy(_config);
+				if (_config.preview && _config.header)
+					parserConfig.preview++;	// to compensate for header row
+	
+				_input = input;
+				_parser = new Parser(parserConfig);
+				_results = _parser.parse(_input);
+				processResults();
+				if (isFunction(_config.complete) && !_paused && (!self.streamer || self.streamer.finished()))
+					_config.complete(_results);
+				return _paused ? { meta: { paused: true } } : (_results || { meta: { paused: false } });
+			};
+	
+			this.pause = function()
+			{
+				_paused = true;
+				_parser.abort();
+				_input = _input.substr(_parser.getCharIndex());
+			};
+	
+			this.resume = function()
+			{
+				_paused = false;
+				_parser = new Parser(_config);
+				_parser.parse(_input);
+				if (!_paused)
+				{
+					if (self.streamer && !self.streamer.finished())
+						self.streamer.resume();		// more of the file yet to come
+					else if (isFunction(_config.complete))
+						_config.complete(_results);
+				}
+			};
+	
+			this.abort = function()
+			{
+				_parser.abort();
+				if (isFunction(_config.complete))
+					_config.complete(_results);
+				_input = "";
+			};
+	
+			function processResults()
+			{
+				if (_results && _delimiterError)
+				{
+					addError("Delimiter", "UndetectableDelimiter", "Unable to auto-detect delimiting character; defaulted to '"+Baby.DefaultDelimiter+"'");
+					_delimiterError = false;
+				}
+	
+				if (_config.skipEmptyLines)
+				{
+					for (var i = 0; i < _results.data.length; i++)
+						if (_results.data[i].length == 1 && _results.data[i][0] == "")
+							_results.data.splice(i--, 1);
+				}
+	
+				if (needsHeaderRow())
+					fillHeaderFields();
+	
+				return applyHeaderAndDynamicTyping();
+			}
+	
+			function needsHeaderRow()
+			{
+				return _config.header && _fields.length == 0;
+			}
+	
+			function fillHeaderFields()
+			{
+				if (!_results)
+					return;
+				for (var i = 0; needsHeaderRow() && i < _results.data.length; i++)
+					for (var j = 0; j < _results.data[i].length; j++)
+						_fields.push(_results.data[i][j]);
+				_results.data.splice(0, 1);
+			}
+	
+			function applyHeaderAndDynamicTyping()
+			{
+				if (!_results || (!_config.header && !_config.dynamicTyping))
+					return _results;
+	
+				for (var i = 0; i < _results.data.length; i++)
+				{
+					var row = {};
+	
+					for (var j = 0; j < _results.data[i].length; j++)
+					{
+						if (_config.dynamicTyping)
+						{
+							var value = _results.data[i][j];
+							if (value == "true" || value === "TRUE")
+								_results.data[i][j] = true;
+							else if (value == "false" || value === "FALSE")
+								_results.data[i][j] = false;
+							else
+								_results.data[i][j] = tryParseFloat(value);
+						}
+	
+						if (_config.header)
+						{
+							if (j >= _fields.length)
+							{
+								if (!row["__parsed_extra"])
+									row["__parsed_extra"] = [];
+								row["__parsed_extra"].push(_results.data[i][j]);
+							}
+							else
+								row[_fields[j]] = _results.data[i][j];
+						}
+					}
+	
+					if (_config.header)
+					{
+						_results.data[i] = row;
+						if (j > _fields.length)
+							addError("FieldMismatch", "TooManyFields", "Too many fields: expected " + _fields.length + " fields but parsed " + j, i);
+						else if (j < _fields.length)
+							addError("FieldMismatch", "TooFewFields", "Too few fields: expected " + _fields.length + " fields but parsed " + j, i);
+					}
+				}
+	
+				if (_config.header && _results.meta)
+					_results.meta.fields = _fields;
+				return _results;
+			}
+	
+			function guessDelimiter(input)
+			{
+				var delimChoices = [",", "\t", "|", ";", Baby.RECORD_SEP, Baby.UNIT_SEP];
+				var bestDelim, bestDelta, fieldCountPrevRow;
+	
+				for (var i = 0; i < delimChoices.length; i++)
+				{
+					var delim = delimChoices[i];
+					var delta = 0, avgFieldCount = 0;
+					fieldCountPrevRow = undefined;
+	
+					var preview = new Parser({
+						delimiter: delim,
+						preview: 10
+					}).parse(input);
+	
+					for (var j = 0; j < preview.data.length; j++)
+					{
+						var fieldCount = preview.data[j].length;
+						avgFieldCount += fieldCount;
+	
+						if (typeof fieldCountPrevRow === 'undefined')
+						{
+							fieldCountPrevRow = fieldCount;
+							continue;
+						}
+						else if (fieldCount > 1)
+						{
+							delta += Math.abs(fieldCount - fieldCountPrevRow);
+							fieldCountPrevRow = fieldCount;
+						}
+					}
+	
+					avgFieldCount /= preview.data.length;
+	
+					if ((typeof bestDelta === 'undefined' || delta < bestDelta)
+						&& avgFieldCount > 1.99)
+					{
+						bestDelta = delta;
+						bestDelim = delim;
+					}
+				}
+	
+				_config.delimiter = bestDelim;
+	
+				return {
+					successful: !!bestDelim,
+					bestDelimiter: bestDelim
+				}
+			}
+	
+			function guessLineEndings(input)
+			{
+				input = input.substr(0, 1024*1024);	// max length 1 MB
+	
+				var r = input.split('\r');
+	
+				if (r.length == 1)
+					return '\n';
+	
+				var numWithN = 0;
+				for (var i = 0; i < r.length; i++)
+				{
+					if (r[i][0] == '\n')
+						numWithN++;
+				}
+	
+				return numWithN >= r.length / 2 ? '\r\n' : '\r';
+			}
+	
+			function tryParseFloat(val)
+			{
+				var isNumber = FLOAT.test(val);
+				return isNumber ? parseFloat(val) : val;
+			}
+	
+			function addError(type, code, msg, row)
+			{
+				_results.errors.push({
+					type: type,
+					code: code,
+					message: msg,
+					row: row
+				});
+			}
+		}
+	
+	
+	
+	
+	
+	
+		// The core parser implements speedy and correct CSV parsing
+		function Parser(config)
+		{
+			// Unpack the config object
+			config = config || {};
+			var delim = config.delimiter;
+			var newline = config.newline;
+			var comments = config.comments;
+			var step = config.step;
+			var preview = config.preview;
+			var fastMode = config.fastMode;
+	
+			// Delimiter must be valid
+			if (typeof delim !== 'string'
+				|| delim.length != 1
+				|| Baby.BAD_DELIMITERS.indexOf(delim) > -1)
+				delim = ",";
+	
+			// Comment character must be valid
+			if (comments === delim)
+				throw "Comment character same as delimiter";
+			else if (comments === true)
+				comments = "#";
+			else if (typeof comments !== 'string'
+				|| Baby.BAD_DELIMITERS.indexOf(comments) > -1)
+				comments = false;
+	
+			// Newline must be valid: \r, \n, or \r\n
+			if (newline != '\n' && newline != '\r' && newline != '\r\n')
+				newline = '\n';
+	
+			// We're gonna need these at the Parser scope
+			var cursor = 0;
+			var aborted = false;
+	
+			this.parse = function(input)
+			{
+				// For some reason, in Chrome, this speeds things up (!?)
+				if (typeof input !== 'string')
+					throw "Input must be a string";
+	
+				// We don't need to compute some of these every time parse() is called,
+				// but having them in a more local scope seems to perform better
+				var inputLen = input.length,
+					delimLen = delim.length,
+					newlineLen = newline.length,
+					commentsLen = comments.length;
+				var stepIsFunction = typeof step === 'function';
+	
+				// Establish starting state
+				cursor = 0;
+				var data = [], errors = [], row = [];
+	
+				if (!input)
+					return returnable();
+	
+				if (fastMode)
+				{
+					// Fast mode assumes there are no quoted fields in the input
+					var rows = input.split(newline);
+					for (var i = 0; i < rows.length; i++)
+					{
+						if (comments && rows[i].substr(0, commentsLen) == comments)
+							continue;
+						if (stepIsFunction)
+						{
+							data = [ rows[i].split(delim) ];
+							doStep();
+							if (aborted)
+								return returnable();
+						}
+						else
+							data.push(rows[i].split(delim));
+						if (preview && i >= preview)
+						{
+							data = data.slice(0, preview);
+							return returnable(true);
+						}
+					}
+					return returnable();
+				}
+	
+				var nextDelim = input.indexOf(delim, cursor);
+				var nextNewline = input.indexOf(newline, cursor);
+	
+				// Parser loop
+				for (;;)
+				{
+					// Field has opening quote
+					if (input[cursor] == '"')
+					{
+						// Start our search for the closing quote where the cursor is
+						var quoteSearch = cursor;
+	
+						// Skip the opening quote
+						cursor++;
+	
+						for (;;)
+						{
+							// Find closing quote
+							var quoteSearch = input.indexOf('"', quoteSearch+1);
+	
+							if (quoteSearch === -1)
+							{
+								// No closing quote... what a pity
+								errors.push({
+									type: "Quotes",
+									code: "MissingQuotes",
+									message: "Quoted field unterminated",
+									row: data.length,	// row has yet to be inserted
+									index: cursor
+								});
+								return finish();
+							}
+	
+							if (quoteSearch === inputLen-1)
+							{
+								// Closing quote at EOF
+								row.push(input.substring(cursor, quoteSearch).replace(/""/g, '"'));
+								data.push(row);
+								if (stepIsFunction)
+									doStep();
+								return returnable();
+							}
+	
+							// If this quote is escaped, it's part of the data; skip it
+							if (input[quoteSearch+1] == '"')
+							{
+								quoteSearch++;
+								continue;
+							}
+	
+							if (input[quoteSearch+1] == delim)
+							{
+								// Closing quote followed by delimiter
+								row.push(input.substring(cursor, quoteSearch).replace(/""/g, '"'));
+								cursor = quoteSearch + 1 + delimLen;
+								nextDelim = input.indexOf(delim, cursor);
+								nextNewline = input.indexOf(newline, cursor);
+								break;
+							}
+	
+							if (input.substr(quoteSearch+1, newlineLen) === newline)
+							{
+								// Closing quote followed by newline
+								row.push(input.substring(cursor, quoteSearch).replace(/""/g, '"'));
+								saveRow(quoteSearch + 1 + newlineLen);
+								nextDelim = input.indexOf(delim, cursor);	// because we may have skipped the nextDelim in the quoted field
+	
+								if (stepIsFunction)
+								{
+									doStep();
+									if (aborted)
+										return returnable();
+								}
+								
+								if (preview && data.length >= preview)
+									return returnable(true);
+	
+								break;
+							}
+						}
+	
+						continue;
+					}
+	
+					// Comment found at start of new line
+					if (comments && row.length === 0 && input.substr(cursor, commentsLen) === comments)
+					{
+						if (nextNewline == -1)	// Comment ends at EOF
+							return returnable();
+						cursor = nextNewline + newlineLen;
+						nextNewline = input.indexOf(newline, cursor);
+						nextDelim = input.indexOf(delim, cursor);
+						continue;
+					}
+	
+					// Next delimiter comes before next newline, so we've reached end of field
+					if (nextDelim !== -1 && (nextDelim < nextNewline || nextNewline === -1))
+					{
+						row.push(input.substring(cursor, nextDelim));
+						cursor = nextDelim + delimLen;
+						nextDelim = input.indexOf(delim, cursor);
+						continue;
+					}
+	
+					// End of row
+					if (nextNewline !== -1)
+					{
+						row.push(input.substring(cursor, nextNewline));
+						saveRow(nextNewline + newlineLen);
+	
+						if (stepIsFunction)
+						{
+							doStep();
+							if (aborted)
+								return returnable();
+						}
+	
+						if (preview && data.length >= preview)
+							return returnable(true);
+	
+						continue;
+					}
+	
+					break;
+				}
+	
+	
+				return finish();
+	
+	
+				// Appends the remaining input from cursor to the end into
+				// row, saves the row, calls step, and returns the results.
+				function finish()
+				{
+					row.push(input.substr(cursor));
+					data.push(row);
+					cursor = inputLen;	// important in case parsing is paused
+					if (stepIsFunction)
+						doStep();
+					return returnable();
+				}
+	
+				// Appends the current row to the results. It sets the cursor
+				// to newCursor and finds the nextNewline. The caller should
+				// take care to execute user's step function and check for
+				// preview and end parsing if necessary.
+				function saveRow(newCursor)
+				{
+					data.push(row);
+					row = [];
+					cursor = newCursor;
+					nextNewline = input.indexOf(newline, cursor);
+				}
+	
+				// Returns an object with the results, errors, and meta.
+				function returnable(stopped)
+				{
+					return {
+						data: data,
+						errors: errors,
+						meta: {
+							delimiter: delim,
+							linebreak: newline,
+							aborted: aborted,
+							truncated: !!stopped
+						}
+					};
+				}
+	
+				// Executes the user's step function and resets data & errors.
+				function doStep()
+				{
+					step(returnable());
+					data = [], errors = [];
+				}
+			};
+	
+			// Sets the abort flag
+			this.abort = function()
+			{
+				aborted = true;
+			};
+	
+			// Gets the cursor position
+			this.getCharIndex = function()
+			{
+				return cursor;
+			};
+		}
+	
+	
+	
+	
+		// Replaces bad config values with good, default ones
+		function copyAndValidateConfig(origConfig)
+		{
+			if (typeof origConfig !== 'object')
+				origConfig = {};
+	
+			var config = copy(origConfig);
+	
+			if (typeof config.delimiter !== 'string'
+				|| config.delimiter.length != 1
+				|| Baby.BAD_DELIMITERS.indexOf(config.delimiter) > -1)
+				config.delimiter = DEFAULTS.delimiter;
+	
+			if (config.newline != '\n'
+				&& config.newline != '\r'
+				&& config.newline != '\r\n')
+				config.newline = DEFAULTS.newline;
+	
+			if (typeof config.header !== 'boolean')
+				config.header = DEFAULTS.header;
+	
+			if (typeof config.dynamicTyping !== 'boolean')
+				config.dynamicTyping = DEFAULTS.dynamicTyping;
+	
+			if (typeof config.preview !== 'number')
+				config.preview = DEFAULTS.preview;
+	
+			if (typeof config.step !== 'function')
+				config.step = DEFAULTS.step;
+	
+			if (typeof config.complete !== 'function')
+				config.complete = DEFAULTS.complete;
+	
+			if (typeof config.skipEmptyLines !== 'boolean')
+				config.skipEmptyLines = DEFAULTS.skipEmptyLines;
+	
+			if (typeof config.fastMode !== 'boolean')
+				config.fastMode = DEFAULTS.fastMode;
+	
+			return config;
+		}
+	
+		function copy(obj)
+		{
+			if (typeof obj !== 'object')
+				return obj;
+			var cpy = obj instanceof Array ? [] : {};
+			for (var key in obj)
+				cpy[key] = copy(obj[key]);
+			return cpy;
+		}
+	
+		function isFunction(func)
+		{
+			return typeof func === 'function';
+		}
+	
+	
+	
+	
+	
+	
+		// export to Node...
+		if ( typeof module !== 'undefined' && module.exports ) {
+			module.exports = Baby;
+		}
+	
+		// ...or as AMD module...
+		else if ( true ) {
+			!(__WEBPACK_AMD_DEFINE_RESULT__ = function () { return Baby; }.call(exports, __webpack_require__, exports, module), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+		}
+	
+		// ...or as browser global
+		else {
+			global.Baby = Baby;
+		}
+	
+	})(typeof window !== 'undefined' ? window : this);
+
+
+/***/ },
+/* 297 */
+/***/ function(module, exports) {
+
+
+
+/***/ },
+/* 298 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -58657,7 +59633,7 @@
 	module.exports = platformsPanelStore;
 
 /***/ },
-/* 297 */
+/* 299 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -58684,7 +59660,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var columnMoverStore = __webpack_require__(298);
+	var columnMoverStore = __webpack_require__(300);
 	
 	var ColumnMover = function (_BaseComponent) {
 	  _inherits(ColumnMover, _BaseComponent);
@@ -58738,7 +59714,7 @@
 	exports.default = ColumnMover;
 
 /***/ },
-/* 298 */
+/* 300 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -58787,15 +59763,15 @@
 	module.exports = columnMoverStore;
 
 /***/ },
-/* 299 */
+/* 301 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var Composer = __webpack_require__(300);
-	var Conversation = __webpack_require__(303);
+	var Composer = __webpack_require__(302);
+	var Conversation = __webpack_require__(305);
 	
 	var Console = React.createClass({
 	    displayName: 'Console',
@@ -58813,15 +59789,15 @@
 	module.exports = Console;
 
 /***/ },
-/* 300 */
+/* 302 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var consoleActionCreators = __webpack_require__(301);
-	var consoleStore = __webpack_require__(302);
+	var consoleActionCreators = __webpack_require__(303);
+	var consoleStore = __webpack_require__(304);
 	
 	var Composer = React.createClass({
 	    displayName: 'Composer',
@@ -58887,7 +59863,7 @@
 	module.exports = Composer;
 
 /***/ },
-/* 301 */
+/* 303 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -58916,7 +59892,7 @@
 	module.exports = consoleActionCreators;
 
 /***/ },
-/* 302 */
+/* 304 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59011,7 +59987,7 @@
 	module.exports = consoleStore;
 
 /***/ },
-/* 303 */
+/* 305 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59020,8 +59996,8 @@
 	var React = __webpack_require__(3);
 	var ReactDOM = __webpack_require__(114);
 	
-	var Exchange = __webpack_require__(304);
-	var consoleStore = __webpack_require__(302);
+	var Exchange = __webpack_require__(306);
+	var consoleStore = __webpack_require__(304);
 	
 	var Conversation = React.createClass({
 	    displayName: 'Conversation',
@@ -59065,7 +60041,7 @@
 	module.exports = Conversation;
 
 /***/ },
-/* 304 */
+/* 306 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59142,14 +60118,14 @@
 	module.exports = Exchange;
 
 /***/ },
-/* 305 */
+/* 307 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	
 	var Modal = React.createClass({
 		displayName: 'Modal',
@@ -59175,7 +60151,7 @@
 	module.exports = Modal;
 
 /***/ },
-/* 306 */
+/* 308 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59200,7 +60176,7 @@
 	module.exports = modalActionCreators;
 
 /***/ },
-/* 307 */
+/* 309 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59235,7 +60211,7 @@
 	module.exports = modalStore;
 
 /***/ },
-/* 308 */
+/* 310 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59243,7 +60219,7 @@
 	var React = __webpack_require__(3);
 	var Router = __webpack_require__(1);
 	
-	var platformManagerActionCreators = __webpack_require__(309);
+	var platformManagerActionCreators = __webpack_require__(311);
 	var authorizationStore = __webpack_require__(105);
 	var platformsPanelActionCreators = __webpack_require__(257);
 	
@@ -59340,7 +60316,7 @@
 	module.exports = Navigation;
 
 /***/ },
-/* 309 */
+/* 311 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59552,7 +60528,7 @@
 	module.exports = platformManagerActionCreators;
 
 /***/ },
-/* 310 */
+/* 312 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59560,7 +60536,7 @@
 	var React = __webpack_require__(3);
 	
 	var statusIndicatorCreators = __webpack_require__(258);
-	var statusIndicatorStore = __webpack_require__(311);
+	var statusIndicatorStore = __webpack_require__(313);
 	
 	var StatusIndicator = React.createClass({
 	    displayName: 'StatusIndicator',
@@ -59740,7 +60716,7 @@
 	module.exports = StatusIndicator;
 
 /***/ },
-/* 311 */
+/* 313 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59817,7 +60793,7 @@
 	module.exports = statusIndicatorStore;
 
 /***/ },
-/* 312 */
+/* 314 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59836,7 +60812,7 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _devicesFound = __webpack_require__(313);
+	var _devicesFound = __webpack_require__(315);
 	
 	var _devicesFound2 = _interopRequireDefault(_devicesFound);
 	
@@ -60451,7 +61427,7 @@
 	exports.default = ConfigureDevices;
 
 /***/ },
-/* 313 */
+/* 315 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60470,7 +61446,7 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _configureRegistry = __webpack_require__(314);
+	var _configureRegistry = __webpack_require__(316);
 	
 	var _configureRegistry2 = _interopRequireDefault(_configureRegistry);
 	
@@ -60486,14 +61462,14 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var ConfirmForm = __webpack_require__(325);
-	var RegistryFilesForm = __webpack_require__(326);
+	var ConfirmForm = __webpack_require__(327);
+	var RegistryFilesForm = __webpack_require__(328);
 	var devicesActionCreators = __webpack_require__(294);
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	var statusIndicatorActionCreators = __webpack_require__(258);
 	var devicesStore = __webpack_require__(295);
 	
-	var CsvParse = __webpack_require__(327);
+	var CsvParse = __webpack_require__(296);
 	
 	var DevicesFound = function (_BaseComponent) {
 	    _inherits(DevicesFound, _BaseComponent);
@@ -60578,7 +61554,7 @@
 	        }
 	    }, {
 	        key: '_uploadRegistryFile',
-	        value: function _uploadRegistryFile(evt) {
+	        value: function _uploadRegistryFile(deviceId, deviceAddress, evt) {
 	
 	            var csvFile = evt.target.files[0];
 	
@@ -60587,9 +61563,6 @@
 	            if (!csvFile) {
 	                return;
 	            }
-	
-	            var deviceId = evt.target.dataset.id;
-	            var deviceAddress = evt.target.dataset.address;
 	
 	            devicesActionCreators.focusOnDevice(deviceId, deviceAddress);
 	
@@ -60742,7 +61715,7 @@
 	                                    _react2.default.createElement('input', {
 	                                        className: 'uploadButton',
 	                                        type: 'file',
-	                                        onChange: this._uploadRegistryFile,
+	                                        onChange: this._uploadRegistryFile.bind(this, deviceId, deviceAddress),
 	                                        onFocus: this._focusOnDevice.bind(this, deviceId, deviceAddress),
 	                                        onMouseEnter: this._showFileButtonTooltip.bind(this, true, rowIndex),
 	                                        onMouseLeave: this._showFileButtonTooltip.bind(this, false, rowIndex) })
@@ -60905,7 +61878,7 @@
 	exports.default = DevicesFound;
 
 /***/ },
-/* 314 */
+/* 316 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60928,35 +61901,35 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _editPointForm = __webpack_require__(315);
+	var _editPointForm = __webpack_require__(317);
 	
 	var _editPointForm2 = _interopRequireDefault(_editPointForm);
 	
-	var _previewRegistryForm = __webpack_require__(316);
+	var _previewRegistryForm = __webpack_require__(318);
 	
 	var _previewRegistryForm2 = _interopRequireDefault(_previewRegistryForm);
 	
-	var _newColumnForm = __webpack_require__(317);
+	var _newColumnForm = __webpack_require__(319);
 	
 	var _newColumnForm2 = _interopRequireDefault(_newColumnForm);
 	
-	var _configDeviceForm = __webpack_require__(318);
+	var _configDeviceForm = __webpack_require__(320);
 	
 	var _configDeviceForm2 = _interopRequireDefault(_configDeviceForm);
 	
-	var _editSelectButton = __webpack_require__(319);
+	var _editSelectButton = __webpack_require__(321);
 	
 	var _editSelectButton2 = _interopRequireDefault(_editSelectButton);
 	
-	var _editColumnsButton = __webpack_require__(320);
+	var _editColumnsButton = __webpack_require__(322);
 	
 	var _editColumnsButton2 = _interopRequireDefault(_editColumnsButton);
 	
-	var _keyboardHelpButton = __webpack_require__(321);
+	var _keyboardHelpButton = __webpack_require__(323);
 	
 	var _keyboardHelpButton2 = _interopRequireDefault(_keyboardHelpButton);
 	
-	var _registryRow = __webpack_require__(322);
+	var _registryRow = __webpack_require__(324);
 	
 	var _registryRow2 = _interopRequireDefault(_registryRow);
 	
@@ -60964,7 +61937,7 @@
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
-	var _filterPointsButton = __webpack_require__(324);
+	var _filterPointsButton = __webpack_require__(326);
 	
 	var _filterPointsButton2 = _interopRequireDefault(_filterPointsButton);
 	
@@ -60986,8 +61959,8 @@
 	
 	var devicesActionCreators = __webpack_require__(294);
 	var devicesStore = __webpack_require__(295);
-	var ConfirmForm = __webpack_require__(325);
-	var modalActionCreators = __webpack_require__(306);
+	var ConfirmForm = __webpack_require__(327);
+	var modalActionCreators = __webpack_require__(308);
 	
 	var _defaultColumnWidth = "200px";
 	var _tableWidth;
@@ -62130,7 +63103,7 @@
 	exports.default = ConfigureRegistry;
 
 /***/ },
-/* 315 */
+/* 317 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -62161,7 +63134,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	var devicesActionCreators = __webpack_require__(294);
 	
 	var EditPointForm = function (_BaseComponent) {
@@ -62250,10 +63223,11 @@
 	                    ),
 	                    _react2.default.createElement(
 	                        'td',
-	                        { className: 'centerContent' },
+	                        { className: 'centerContent flexContent' },
 	                        _react2.default.createElement(_checkBox2.default, {
 	                            oncheck: this._toggleKeyProp.bind(this, item.key),
-	                            selected: item.keyProp })
+	                            selected: item.keyProp,
+	                            controlClass: 'flexChild' })
 	                    )
 	                );
 	
@@ -62330,7 +63304,7 @@
 	exports.default = EditPointForm;
 
 /***/ },
-/* 316 */
+/* 318 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -62357,7 +63331,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	var devicesActionCreators = __webpack_require__(294);
 	
 	var PreviewRegistryForm = function (_BaseComponent) {
@@ -62607,7 +63581,7 @@
 	exports.default = PreviewRegistryForm;
 
 /***/ },
-/* 317 */
+/* 319 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -62634,7 +63608,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	var devicesActionCreators = __webpack_require__(294);
 	
 	var NewColumnForm = function (_BaseComponent) {
@@ -62767,7 +63741,7 @@
 	exports.default = NewColumnForm;
 
 /***/ },
-/* 318 */
+/* 320 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -62775,6 +63749,8 @@
 	Object.defineProperty(exports, "__esModule", {
 	    value: true
 	});
+	
+	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 	
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 	
@@ -62798,7 +63774,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	var devicesActionCreators = __webpack_require__(294);
 	var devicesStore = __webpack_require__(295);
 	
@@ -62891,8 +63867,7 @@
 	        value: function render() {
 	
 	            var firstStyle = {
-	                width: "30%",
-	                textAlign: "right"
+	                width: "30%"
 	            };
 	
 	            var secondStyle = {
@@ -62902,57 +63877,59 @@
 	            var editableAttributes = [];
 	
 	            for (var key in this.state.settings) {
-	                var setting;
+	                if (_typeof(this.state.settings[key]) == "object" && this.state.settings[key].hasOwnProperty("value")) {
+	                    var setting;
 	
-	                if (this.state.settings[key].type === "bool") {
-	                    setting = _react2.default.createElement(
-	                        'tr',
-	                        { key: key },
-	                        _react2.default.createElement(
-	                            'td',
-	                            { style: firstStyle },
-	                            this.state.settings[key].label
-	                        ),
-	                        _react2.default.createElement(
-	                            'td',
-	                            { style: secondStyle,
-	                                className: 'plain' },
+	                    if (this.state.settings[key].type === "bool") {
+	                        setting = _react2.default.createElement(
+	                            'tr',
+	                            { key: key },
 	                            _react2.default.createElement(
-	                                'div',
-	                                { textAlign: 'center',
-	                                    width: '100%' },
-	                                _react2.default.createElement(_checkBox2.default, {
-	                                    dataItem: key,
-	                                    oncheck: this._checkItem,
-	                                    selected: this.state.settings[key].value })
+	                                'td',
+	                                { style: firstStyle },
+	                                this.state.settings[key].label
+	                            ),
+	                            _react2.default.createElement(
+	                                'td',
+	                                { style: secondStyle,
+	                                    className: 'plain' },
+	                                _react2.default.createElement(
+	                                    'div',
+	                                    { textAlign: 'center',
+	                                        width: '100%' },
+	                                    _react2.default.createElement(_checkBox2.default, {
+	                                        dataItem: key,
+	                                        oncheck: this._checkItem,
+	                                        selected: this.state.settings[key].value })
+	                                )
 	                            )
-	                        )
-	                    );
-	                } else {
-	                    setting = _react2.default.createElement(
-	                        'tr',
-	                        { key: key },
-	                        _react2.default.createElement(
-	                            'td',
-	                            { style: firstStyle },
-	                            this.state.settings[key].label
-	                        ),
-	                        _react2.default.createElement(
-	                            'td',
-	                            { style: secondStyle,
-	                                className: 'plain' },
-	                            _react2.default.createElement('input', {
-	                                className: 'form__control form__control--block',
-	                                type: this.state.settings[key].type,
-	                                'data-setting': key,
-	                                onChange: this._updateSetting,
-	                                value: this.state.settings[key].value
-	                            })
-	                        )
-	                    );
-	                }
+	                        );
+	                    } else {
+	                        setting = _react2.default.createElement(
+	                            'tr',
+	                            { key: key },
+	                            _react2.default.createElement(
+	                                'td',
+	                                { style: firstStyle },
+	                                this.state.settings[key].label
+	                            ),
+	                            _react2.default.createElement(
+	                                'td',
+	                                { style: secondStyle,
+	                                    className: 'plain' },
+	                                _react2.default.createElement('input', {
+	                                    className: 'form__control form__control--block',
+	                                    type: this.state.settings[key].type,
+	                                    'data-setting': key,
+	                                    onChange: this._updateSetting,
+	                                    value: this.state.settings[key].value
+	                                })
+	                            )
+	                        );
+	                    }
 	
-	                editableAttributes.push(setting);
+	                    editableAttributes.push(setting);
+	                }
 	            }
 	
 	            var configDeviceBox = {
@@ -63210,7 +64187,7 @@
 	exports.default = ConfigDeviceForm;
 
 /***/ },
-/* 319 */
+/* 321 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -63241,7 +64218,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var EditColumnButton = __webpack_require__(320);
+	var EditColumnButton = __webpack_require__(322);
 	var controlButtonActionCreators = __webpack_require__(112);
 	
 	var EditSelectButton = function (_BaseComponent) {
@@ -63367,7 +64344,7 @@
 	exports.default = EditSelectButton;
 
 /***/ },
-/* 320 */
+/* 322 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -63662,7 +64639,7 @@
 	exports.default = EditColumnButton;
 
 /***/ },
-/* 321 */
+/* 323 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64006,7 +64983,7 @@
 	exports.default = KeyboardHelpButton;
 
 /***/ },
-/* 322 */
+/* 324 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64025,7 +65002,7 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _editPointForm = __webpack_require__(315);
+	var _editPointForm = __webpack_require__(317);
 	
 	var _editPointForm2 = _interopRequireDefault(_editPointForm);
 	
@@ -64046,8 +65023,8 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var devicesActionCreators = __webpack_require__(294);
-	var modalActionCreators = __webpack_require__(306);
-	var columnMoverActionCreators = __webpack_require__(323);
+	var modalActionCreators = __webpack_require__(308);
+	var columnMoverActionCreators = __webpack_require__(325);
 	var statusIndicatorActionCreators = __webpack_require__(258);
 	var devicesStore = __webpack_require__(295);
 	
@@ -64315,7 +65292,7 @@
 	exports.default = RegistryRow;
 
 /***/ },
-/* 323 */
+/* 325 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64348,7 +65325,7 @@
 	module.exports = columnMoverActionCreators;
 
 /***/ },
-/* 324 */
+/* 326 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64510,14 +65487,14 @@
 	exports.default = FilterPointsButton;
 
 /***/ },
-/* 325 */
+/* 327 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	
 	var ConfirmForm = React.createClass({
 	    displayName: 'ConfirmForm',
@@ -64584,7 +65561,7 @@
 	module.exports = ConfirmForm;
 
 /***/ },
-/* 326 */
+/* 328 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64608,7 +65585,7 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var devicesActionCreators = __webpack_require__(294);
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	var devicesStore = __webpack_require__(295);
 	
 	var RegistryFilesForm = function (_BaseComponent) {
@@ -64645,7 +65622,7 @@
 	    }, {
 	        key: '_loadRegistryFile',
 	        value: function _loadRegistryFile(registryFile) {
-	            devicesActionCreators.loadRegistryFile(registryFile.name, this.props.device);
+	            devicesActionCreators.loadRegistryFile(registryFile, this.props.device);
 	
 	            modalActionCreators.closeModal();
 	        }
@@ -64667,7 +65644,7 @@
 	
 	                    return _react2.default.createElement(
 	                        'div',
-	                        { key: registryFile.name + "-rf",
+	                        { key: registryFile + "-rf",
 	                            className: 'registry-file',
 	                            onClick: this._loadRegistryFile.bind(this, registryFile) },
 	                        _react2.default.createElement(
@@ -64678,7 +65655,7 @@
 	                        _react2.default.createElement(
 	                            'div',
 	                            null,
-	                            registryFile.name
+	                            registryFile
 	                        )
 	                    );
 	                }, this);
@@ -64707,901 +65684,6 @@
 	;
 	
 	module.exports = RegistryFilesForm;
-
-/***/ },
-/* 327 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var __WEBPACK_AMD_DEFINE_RESULT__;/*
-		Baby Parse
-		v0.4.1
-		https://github.com/Rich-Harris/BabyParse
-	
-		Created by Rich Harris
-		Maintained by Matt Holt
-	
-		Based on Papa Parse v4.0.7 by Matt Holt
-		https://github.com/mholt/PapaParse
-	*/
-	(function(global)
-	{
-	
-		// A configuration object from which to draw default settings
-		var DEFAULTS = {
-			delimiter: "",	// empty: auto-detect
-			newline: "",	// empty: auto-detect
-			header: false,
-			dynamicTyping: false,
-			preview: 0,
-			step: undefined,
-			comments: false,
-			complete: undefined,
-			skipEmptyLines: false,
-			fastMode: false
-		};
-	
-		var Baby = {};
-		Baby.parse = CsvToJson;
-		Baby.parseFiles = ParseFiles;
-		Baby.unparse = JsonToCsv;
-		Baby.RECORD_SEP = String.fromCharCode(30);
-		Baby.UNIT_SEP = String.fromCharCode(31);
-		Baby.BYTE_ORDER_MARK = "\ufeff";
-		Baby.BAD_DELIMITERS = ["\r", "\n", "\"", Baby.BYTE_ORDER_MARK];
-		Baby.DefaultDelimiter = ",";		// Used if not specified and detection fails
-		Baby.Parser = Parser;				// For testing/dev only
-		Baby.ParserHandle = ParserHandle;	// For testing/dev only
-		
-		var fs = fs || __webpack_require__(328)
-		
-		function ParseFiles(_input, _config)
-		{
-			if (Array.isArray(_input)) {
-				var results = [];
-				_input.forEach(function(input) {
-					if(typeof input === 'object')
-						results.push(ParseFiles(input.file, input.config));
-					else
-						results.push(ParseFiles(input, _config));
-				});
-				return results;
-			} else {
-				var results = {
-					data: [],
-					errors: []
-				};
-				if ((/(\.csv|\.txt)$/).test(_input)) {
-					try {
-						var contents = fs.readFileSync(_input).toString();
-						return CsvToJson(contents, _config);
-					} catch (err) {
-						results.errors.push(err);
-						return results;
-					}
-				} else {
-					results.errors.push({
-						type: '',
-						code: '',
-						message: 'Unsupported file type.',
-						row: ''
-					});
-					return results;
-				}
-			}
-		}
-	
-		function CsvToJson(_input, _config)
-		{
-			var config = copyAndValidateConfig(_config);
-			var ph = new ParserHandle(config);
-			var results = ph.parse(_input);
-			if (isFunction(config.complete))
-				config.complete(results);
-			return results;
-		}
-	
-	
-	
-	
-		function JsonToCsv(_input, _config)
-		{
-			var _output = "";
-			var _fields = [];
-	
-			// Default configuration
-			var _quotes = false;	// whether to surround every datum with quotes
-			var _delimiter = ",";	// delimiting character
-			var _newline = "\r\n";	// newline character(s)
-	
-			unpackConfig();
-	
-			if (typeof _input === 'string')
-				_input = JSON.parse(_input);
-	
-			if (_input instanceof Array)
-			{
-				if (!_input.length || _input[0] instanceof Array)
-					return serialize(null, _input);
-				else if (typeof _input[0] === 'object')
-					return serialize(objectKeys(_input[0]), _input);
-			}
-			else if (typeof _input === 'object')
-			{
-				if (typeof _input.data === 'string')
-					_input.data = JSON.parse(_input.data);
-	
-				if (_input.data instanceof Array)
-				{
-					if (!_input.fields)
-						_input.fields = _input.data[0] instanceof Array
-										? _input.fields
-										: objectKeys(_input.data[0]);
-	
-					if (!(_input.data[0] instanceof Array) && typeof _input.data[0] !== 'object')
-						_input.data = [_input.data];	// handles input like [1,2,3] or ["asdf"]
-				}
-	
-				return serialize(_input.fields || [], _input.data || []);
-			}
-	
-			// Default (any valid paths should return before this)
-			throw "exception: Unable to serialize unrecognized input";
-	
-	
-			function unpackConfig()
-			{
-				if (typeof _config !== 'object')
-					return;
-	
-				if (typeof _config.delimiter === 'string'
-					&& _config.delimiter.length == 1
-					&& Baby.BAD_DELIMITERS.indexOf(_config.delimiter) == -1)
-				{
-					_delimiter = _config.delimiter;
-				}
-	
-				if (typeof _config.quotes === 'boolean'
-					|| _config.quotes instanceof Array)
-					_quotes = _config.quotes;
-	
-				if (typeof _config.newline === 'string')
-					_newline = _config.newline;
-			}
-	
-	
-			// Turns an object's keys into an array
-			function objectKeys(obj)
-			{
-				if (typeof obj !== 'object')
-					return [];
-				var keys = [];
-				for (var key in obj)
-					keys.push(key);
-				return keys;
-			}
-	
-			// The double for loop that iterates the data and writes out a CSV string including header row
-			function serialize(fields, data)
-			{
-				var csv = "";
-	
-				if (typeof fields === 'string')
-					fields = JSON.parse(fields);
-				if (typeof data === 'string')
-					data = JSON.parse(data);
-	
-				var hasHeader = fields instanceof Array && fields.length > 0;
-				var dataKeyedByField = !(data[0] instanceof Array);
-	
-				// If there a header row, write it first
-				if (hasHeader)
-				{
-					for (var i = 0; i < fields.length; i++)
-					{
-						if (i > 0)
-							csv += _delimiter;
-						csv += safe(fields[i], i);
-					}
-					if (data.length > 0)
-						csv += _newline;
-				}
-	
-				// Then write out the data
-				for (var row = 0; row < data.length; row++)
-				{
-					var maxCol = hasHeader ? fields.length : data[row].length;
-	
-					for (var col = 0; col < maxCol; col++)
-					{
-						if (col > 0)
-							csv += _delimiter;
-						var colIdx = hasHeader && dataKeyedByField ? fields[col] : col;
-						csv += safe(data[row][colIdx], col);
-					}
-	
-					if (row < data.length - 1)
-						csv += _newline;
-				}
-	
-				return csv;
-			}
-	
-			// Encloses a value around quotes if needed (makes a value safe for CSV insertion)
-			function safe(str, col)
-			{
-				if (typeof str === "undefined" || str === null)
-					return "";
-	
-				str = str.toString().replace(/"/g, '""');
-	
-				var needsQuotes = (typeof _quotes === 'boolean' && _quotes)
-								|| (_quotes instanceof Array && _quotes[col])
-								|| hasAny(str, Baby.BAD_DELIMITERS)
-								|| str.indexOf(_delimiter) > -1
-								|| str.charAt(0) == ' '
-								|| str.charAt(str.length - 1) == ' ';
-	
-				return needsQuotes ? '"' + str + '"' : str;
-			}
-	
-			function hasAny(str, substrings)
-			{
-				for (var i = 0; i < substrings.length; i++)
-					if (str.indexOf(substrings[i]) > -1)
-						return true;
-				return false;
-			}
-		}
-	
-	
-	
-	
-	
-	
-		// Use one ParserHandle per entire CSV file or string
-		function ParserHandle(_config)
-		{
-			// One goal is to minimize the use of regular expressions...
-			var FLOAT = /^\s*-?(\d*\.?\d+|\d+\.?\d*)(e[-+]?\d+)?\s*$/i;
-	
-			var self = this;
-			var _stepCounter = 0;	// Number of times step was called (number of rows parsed)
-			var _input;				// The input being parsed
-			var _parser;			// The core parser being used
-			var _paused = false;	// Whether we are paused or not
-			var _delimiterError;	// Temporary state between delimiter detection and processing results
-			var _fields = [];		// Fields are from the header row of the input, if there is one
-			var _results = {		// The last results returned from the parser
-				data: [],
-				errors: [],
-				meta: {}
-			};
-	
-			if (isFunction(_config.step))
-			{
-				var userStep = _config.step;
-				_config.step = function(results)
-				{
-					_results = results;
-	
-					if (needsHeaderRow())
-						processResults();
-					else	// only call user's step function after header row
-					{
-						processResults();
-	
-						// It's possbile that this line was empty and there's no row here after all
-						if (_results.data.length == 0)
-							return;
-	
-						_stepCounter += results.data.length;
-						if (_config.preview && _stepCounter > _config.preview)
-							_parser.abort();
-						else
-							userStep(_results, self);
-					}
-				};
-			}
-	
-			this.parse = function(input)
-			{
-				if (!_config.newline)
-					_config.newline = guessLineEndings(input);
-	
-				_delimiterError = false;
-				if (!_config.delimiter)
-				{
-					var delimGuess = guessDelimiter(input);
-					if (delimGuess.successful)
-						_config.delimiter = delimGuess.bestDelimiter;
-					else
-					{
-						_delimiterError = true;	// add error after parsing (otherwise it would be overwritten)
-						_config.delimiter = Baby.DefaultDelimiter;
-					}
-					_results.meta.delimiter = _config.delimiter;
-				}
-	
-				var parserConfig = copy(_config);
-				if (_config.preview && _config.header)
-					parserConfig.preview++;	// to compensate for header row
-	
-				_input = input;
-				_parser = new Parser(parserConfig);
-				_results = _parser.parse(_input);
-				processResults();
-				if (isFunction(_config.complete) && !_paused && (!self.streamer || self.streamer.finished()))
-					_config.complete(_results);
-				return _paused ? { meta: { paused: true } } : (_results || { meta: { paused: false } });
-			};
-	
-			this.pause = function()
-			{
-				_paused = true;
-				_parser.abort();
-				_input = _input.substr(_parser.getCharIndex());
-			};
-	
-			this.resume = function()
-			{
-				_paused = false;
-				_parser = new Parser(_config);
-				_parser.parse(_input);
-				if (!_paused)
-				{
-					if (self.streamer && !self.streamer.finished())
-						self.streamer.resume();		// more of the file yet to come
-					else if (isFunction(_config.complete))
-						_config.complete(_results);
-				}
-			};
-	
-			this.abort = function()
-			{
-				_parser.abort();
-				if (isFunction(_config.complete))
-					_config.complete(_results);
-				_input = "";
-			};
-	
-			function processResults()
-			{
-				if (_results && _delimiterError)
-				{
-					addError("Delimiter", "UndetectableDelimiter", "Unable to auto-detect delimiting character; defaulted to '"+Baby.DefaultDelimiter+"'");
-					_delimiterError = false;
-				}
-	
-				if (_config.skipEmptyLines)
-				{
-					for (var i = 0; i < _results.data.length; i++)
-						if (_results.data[i].length == 1 && _results.data[i][0] == "")
-							_results.data.splice(i--, 1);
-				}
-	
-				if (needsHeaderRow())
-					fillHeaderFields();
-	
-				return applyHeaderAndDynamicTyping();
-			}
-	
-			function needsHeaderRow()
-			{
-				return _config.header && _fields.length == 0;
-			}
-	
-			function fillHeaderFields()
-			{
-				if (!_results)
-					return;
-				for (var i = 0; needsHeaderRow() && i < _results.data.length; i++)
-					for (var j = 0; j < _results.data[i].length; j++)
-						_fields.push(_results.data[i][j]);
-				_results.data.splice(0, 1);
-			}
-	
-			function applyHeaderAndDynamicTyping()
-			{
-				if (!_results || (!_config.header && !_config.dynamicTyping))
-					return _results;
-	
-				for (var i = 0; i < _results.data.length; i++)
-				{
-					var row = {};
-	
-					for (var j = 0; j < _results.data[i].length; j++)
-					{
-						if (_config.dynamicTyping)
-						{
-							var value = _results.data[i][j];
-							if (value == "true" || value === "TRUE")
-								_results.data[i][j] = true;
-							else if (value == "false" || value === "FALSE")
-								_results.data[i][j] = false;
-							else
-								_results.data[i][j] = tryParseFloat(value);
-						}
-	
-						if (_config.header)
-						{
-							if (j >= _fields.length)
-							{
-								if (!row["__parsed_extra"])
-									row["__parsed_extra"] = [];
-								row["__parsed_extra"].push(_results.data[i][j]);
-							}
-							else
-								row[_fields[j]] = _results.data[i][j];
-						}
-					}
-	
-					if (_config.header)
-					{
-						_results.data[i] = row;
-						if (j > _fields.length)
-							addError("FieldMismatch", "TooManyFields", "Too many fields: expected " + _fields.length + " fields but parsed " + j, i);
-						else if (j < _fields.length)
-							addError("FieldMismatch", "TooFewFields", "Too few fields: expected " + _fields.length + " fields but parsed " + j, i);
-					}
-				}
-	
-				if (_config.header && _results.meta)
-					_results.meta.fields = _fields;
-				return _results;
-			}
-	
-			function guessDelimiter(input)
-			{
-				var delimChoices = [",", "\t", "|", ";", Baby.RECORD_SEP, Baby.UNIT_SEP];
-				var bestDelim, bestDelta, fieldCountPrevRow;
-	
-				for (var i = 0; i < delimChoices.length; i++)
-				{
-					var delim = delimChoices[i];
-					var delta = 0, avgFieldCount = 0;
-					fieldCountPrevRow = undefined;
-	
-					var preview = new Parser({
-						delimiter: delim,
-						preview: 10
-					}).parse(input);
-	
-					for (var j = 0; j < preview.data.length; j++)
-					{
-						var fieldCount = preview.data[j].length;
-						avgFieldCount += fieldCount;
-	
-						if (typeof fieldCountPrevRow === 'undefined')
-						{
-							fieldCountPrevRow = fieldCount;
-							continue;
-						}
-						else if (fieldCount > 1)
-						{
-							delta += Math.abs(fieldCount - fieldCountPrevRow);
-							fieldCountPrevRow = fieldCount;
-						}
-					}
-	
-					avgFieldCount /= preview.data.length;
-	
-					if ((typeof bestDelta === 'undefined' || delta < bestDelta)
-						&& avgFieldCount > 1.99)
-					{
-						bestDelta = delta;
-						bestDelim = delim;
-					}
-				}
-	
-				_config.delimiter = bestDelim;
-	
-				return {
-					successful: !!bestDelim,
-					bestDelimiter: bestDelim
-				}
-			}
-	
-			function guessLineEndings(input)
-			{
-				input = input.substr(0, 1024*1024);	// max length 1 MB
-	
-				var r = input.split('\r');
-	
-				if (r.length == 1)
-					return '\n';
-	
-				var numWithN = 0;
-				for (var i = 0; i < r.length; i++)
-				{
-					if (r[i][0] == '\n')
-						numWithN++;
-				}
-	
-				return numWithN >= r.length / 2 ? '\r\n' : '\r';
-			}
-	
-			function tryParseFloat(val)
-			{
-				var isNumber = FLOAT.test(val);
-				return isNumber ? parseFloat(val) : val;
-			}
-	
-			function addError(type, code, msg, row)
-			{
-				_results.errors.push({
-					type: type,
-					code: code,
-					message: msg,
-					row: row
-				});
-			}
-		}
-	
-	
-	
-	
-	
-	
-		// The core parser implements speedy and correct CSV parsing
-		function Parser(config)
-		{
-			// Unpack the config object
-			config = config || {};
-			var delim = config.delimiter;
-			var newline = config.newline;
-			var comments = config.comments;
-			var step = config.step;
-			var preview = config.preview;
-			var fastMode = config.fastMode;
-	
-			// Delimiter must be valid
-			if (typeof delim !== 'string'
-				|| delim.length != 1
-				|| Baby.BAD_DELIMITERS.indexOf(delim) > -1)
-				delim = ",";
-	
-			// Comment character must be valid
-			if (comments === delim)
-				throw "Comment character same as delimiter";
-			else if (comments === true)
-				comments = "#";
-			else if (typeof comments !== 'string'
-				|| Baby.BAD_DELIMITERS.indexOf(comments) > -1)
-				comments = false;
-	
-			// Newline must be valid: \r, \n, or \r\n
-			if (newline != '\n' && newline != '\r' && newline != '\r\n')
-				newline = '\n';
-	
-			// We're gonna need these at the Parser scope
-			var cursor = 0;
-			var aborted = false;
-	
-			this.parse = function(input)
-			{
-				// For some reason, in Chrome, this speeds things up (!?)
-				if (typeof input !== 'string')
-					throw "Input must be a string";
-	
-				// We don't need to compute some of these every time parse() is called,
-				// but having them in a more local scope seems to perform better
-				var inputLen = input.length,
-					delimLen = delim.length,
-					newlineLen = newline.length,
-					commentsLen = comments.length;
-				var stepIsFunction = typeof step === 'function';
-	
-				// Establish starting state
-				cursor = 0;
-				var data = [], errors = [], row = [];
-	
-				if (!input)
-					return returnable();
-	
-				if (fastMode)
-				{
-					// Fast mode assumes there are no quoted fields in the input
-					var rows = input.split(newline);
-					for (var i = 0; i < rows.length; i++)
-					{
-						if (comments && rows[i].substr(0, commentsLen) == comments)
-							continue;
-						if (stepIsFunction)
-						{
-							data = [ rows[i].split(delim) ];
-							doStep();
-							if (aborted)
-								return returnable();
-						}
-						else
-							data.push(rows[i].split(delim));
-						if (preview && i >= preview)
-						{
-							data = data.slice(0, preview);
-							return returnable(true);
-						}
-					}
-					return returnable();
-				}
-	
-				var nextDelim = input.indexOf(delim, cursor);
-				var nextNewline = input.indexOf(newline, cursor);
-	
-				// Parser loop
-				for (;;)
-				{
-					// Field has opening quote
-					if (input[cursor] == '"')
-					{
-						// Start our search for the closing quote where the cursor is
-						var quoteSearch = cursor;
-	
-						// Skip the opening quote
-						cursor++;
-	
-						for (;;)
-						{
-							// Find closing quote
-							var quoteSearch = input.indexOf('"', quoteSearch+1);
-	
-							if (quoteSearch === -1)
-							{
-								// No closing quote... what a pity
-								errors.push({
-									type: "Quotes",
-									code: "MissingQuotes",
-									message: "Quoted field unterminated",
-									row: data.length,	// row has yet to be inserted
-									index: cursor
-								});
-								return finish();
-							}
-	
-							if (quoteSearch === inputLen-1)
-							{
-								// Closing quote at EOF
-								row.push(input.substring(cursor, quoteSearch).replace(/""/g, '"'));
-								data.push(row);
-								if (stepIsFunction)
-									doStep();
-								return returnable();
-							}
-	
-							// If this quote is escaped, it's part of the data; skip it
-							if (input[quoteSearch+1] == '"')
-							{
-								quoteSearch++;
-								continue;
-							}
-	
-							if (input[quoteSearch+1] == delim)
-							{
-								// Closing quote followed by delimiter
-								row.push(input.substring(cursor, quoteSearch).replace(/""/g, '"'));
-								cursor = quoteSearch + 1 + delimLen;
-								nextDelim = input.indexOf(delim, cursor);
-								nextNewline = input.indexOf(newline, cursor);
-								break;
-							}
-	
-							if (input.substr(quoteSearch+1, newlineLen) === newline)
-							{
-								// Closing quote followed by newline
-								row.push(input.substring(cursor, quoteSearch).replace(/""/g, '"'));
-								saveRow(quoteSearch + 1 + newlineLen);
-								nextDelim = input.indexOf(delim, cursor);	// because we may have skipped the nextDelim in the quoted field
-	
-								if (stepIsFunction)
-								{
-									doStep();
-									if (aborted)
-										return returnable();
-								}
-								
-								if (preview && data.length >= preview)
-									return returnable(true);
-	
-								break;
-							}
-						}
-	
-						continue;
-					}
-	
-					// Comment found at start of new line
-					if (comments && row.length === 0 && input.substr(cursor, commentsLen) === comments)
-					{
-						if (nextNewline == -1)	// Comment ends at EOF
-							return returnable();
-						cursor = nextNewline + newlineLen;
-						nextNewline = input.indexOf(newline, cursor);
-						nextDelim = input.indexOf(delim, cursor);
-						continue;
-					}
-	
-					// Next delimiter comes before next newline, so we've reached end of field
-					if (nextDelim !== -1 && (nextDelim < nextNewline || nextNewline === -1))
-					{
-						row.push(input.substring(cursor, nextDelim));
-						cursor = nextDelim + delimLen;
-						nextDelim = input.indexOf(delim, cursor);
-						continue;
-					}
-	
-					// End of row
-					if (nextNewline !== -1)
-					{
-						row.push(input.substring(cursor, nextNewline));
-						saveRow(nextNewline + newlineLen);
-	
-						if (stepIsFunction)
-						{
-							doStep();
-							if (aborted)
-								return returnable();
-						}
-	
-						if (preview && data.length >= preview)
-							return returnable(true);
-	
-						continue;
-					}
-	
-					break;
-				}
-	
-	
-				return finish();
-	
-	
-				// Appends the remaining input from cursor to the end into
-				// row, saves the row, calls step, and returns the results.
-				function finish()
-				{
-					row.push(input.substr(cursor));
-					data.push(row);
-					cursor = inputLen;	// important in case parsing is paused
-					if (stepIsFunction)
-						doStep();
-					return returnable();
-				}
-	
-				// Appends the current row to the results. It sets the cursor
-				// to newCursor and finds the nextNewline. The caller should
-				// take care to execute user's step function and check for
-				// preview and end parsing if necessary.
-				function saveRow(newCursor)
-				{
-					data.push(row);
-					row = [];
-					cursor = newCursor;
-					nextNewline = input.indexOf(newline, cursor);
-				}
-	
-				// Returns an object with the results, errors, and meta.
-				function returnable(stopped)
-				{
-					return {
-						data: data,
-						errors: errors,
-						meta: {
-							delimiter: delim,
-							linebreak: newline,
-							aborted: aborted,
-							truncated: !!stopped
-						}
-					};
-				}
-	
-				// Executes the user's step function and resets data & errors.
-				function doStep()
-				{
-					step(returnable());
-					data = [], errors = [];
-				}
-			};
-	
-			// Sets the abort flag
-			this.abort = function()
-			{
-				aborted = true;
-			};
-	
-			// Gets the cursor position
-			this.getCharIndex = function()
-			{
-				return cursor;
-			};
-		}
-	
-	
-	
-	
-		// Replaces bad config values with good, default ones
-		function copyAndValidateConfig(origConfig)
-		{
-			if (typeof origConfig !== 'object')
-				origConfig = {};
-	
-			var config = copy(origConfig);
-	
-			if (typeof config.delimiter !== 'string'
-				|| config.delimiter.length != 1
-				|| Baby.BAD_DELIMITERS.indexOf(config.delimiter) > -1)
-				config.delimiter = DEFAULTS.delimiter;
-	
-			if (config.newline != '\n'
-				&& config.newline != '\r'
-				&& config.newline != '\r\n')
-				config.newline = DEFAULTS.newline;
-	
-			if (typeof config.header !== 'boolean')
-				config.header = DEFAULTS.header;
-	
-			if (typeof config.dynamicTyping !== 'boolean')
-				config.dynamicTyping = DEFAULTS.dynamicTyping;
-	
-			if (typeof config.preview !== 'number')
-				config.preview = DEFAULTS.preview;
-	
-			if (typeof config.step !== 'function')
-				config.step = DEFAULTS.step;
-	
-			if (typeof config.complete !== 'function')
-				config.complete = DEFAULTS.complete;
-	
-			if (typeof config.skipEmptyLines !== 'boolean')
-				config.skipEmptyLines = DEFAULTS.skipEmptyLines;
-	
-			if (typeof config.fastMode !== 'boolean')
-				config.fastMode = DEFAULTS.fastMode;
-	
-			return config;
-		}
-	
-		function copy(obj)
-		{
-			if (typeof obj !== 'object')
-				return obj;
-			var cpy = obj instanceof Array ? [] : {};
-			for (var key in obj)
-				cpy[key] = copy(obj[key]);
-			return cpy;
-		}
-	
-		function isFunction(func)
-		{
-			return typeof func === 'function';
-		}
-	
-	
-	
-	
-	
-	
-		// export to Node...
-		if ( typeof module !== 'undefined' && module.exports ) {
-			module.exports = Baby;
-		}
-	
-		// ...or as AMD module...
-		else if ( true ) {
-			!(__WEBPACK_AMD_DEFINE_RESULT__ = function () { return Baby; }.call(exports, __webpack_require__, exports, module), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-		}
-	
-		// ...or as browser global
-		else {
-			global.Baby = Baby;
-		}
-	
-	})(typeof window !== 'undefined' ? window : this);
-
-
-/***/ },
-/* 328 */
-/***/ function(module, exports) {
-
-
 
 /***/ },
 /* 329 */
@@ -74010,8 +74092,8 @@
 	var platformChartActionCreators = __webpack_require__(292);
 	var platformActionCreators = __webpack_require__(293);
 	var platformsPanelActionCreators = __webpack_require__(257);
-	var modalActionCreators = __webpack_require__(306);
-	var ConfirmForm = __webpack_require__(325);
+	var modalActionCreators = __webpack_require__(308);
+	var ConfirmForm = __webpack_require__(327);
 	
 	var PlatformChart = React.createClass({
 	    displayName: 'PlatformChart',
@@ -111427,7 +111509,7 @@
 	var React = __webpack_require__(3);
 	var Router = __webpack_require__(1);
 	__webpack_require__(503);
-	var platformManagerActionCreators = __webpack_require__(309);
+	var platformManagerActionCreators = __webpack_require__(311);
 	
 	var LoginForm = React.createClass({
 	    displayName: 'LoginForm',
@@ -111734,7 +111816,7 @@
 	var React = __webpack_require__(3);
 	
 	var platformActionCreators = __webpack_require__(293);
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	
 	var RemoveAgentForm = __webpack_require__(514);
 	
@@ -111846,7 +111928,7 @@
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	var platformActionCreators = __webpack_require__(293);
 	
 	var RemoveAgentForm = React.createClass({
@@ -111920,7 +112002,7 @@
 	var React = __webpack_require__(3);
 	var Router = __webpack_require__(1);
 	
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	var platformsStore = __webpack_require__(256);
 	var RegisterPlatformForm = __webpack_require__(516);
 	var DeregisterPlatformConfirmation = __webpack_require__(517);
@@ -112067,8 +112149,8 @@
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(306);
-	var platformManagerActionCreators = __webpack_require__(309);
+	var modalActionCreators = __webpack_require__(308);
+	var platformManagerActionCreators = __webpack_require__(311);
 	
 	var RegisterPlatformForm = React.createClass({
 	    displayName: 'RegisterPlatformForm',
@@ -112504,8 +112586,8 @@
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(306);
-	var platformManagerActionCreators = __webpack_require__(309);
+	var modalActionCreators = __webpack_require__(308);
+	var platformManagerActionCreators = __webpack_require__(311);
 	
 	var RegisterPlatformForm = React.createClass({
 	    displayName: 'RegisterPlatformForm',
@@ -112571,7 +112653,7 @@
 	
 	var React = __webpack_require__(3);
 	var PlatformChart = __webpack_require__(399);
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	var platformActionCreators = __webpack_require__(293);
 	var NewChartForm = __webpack_require__(519);
 	var chartStore = __webpack_require__(255);
@@ -112675,7 +112757,7 @@
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(306);
+	var modalActionCreators = __webpack_require__(308);
 	var platformActionCreators = __webpack_require__(293);
 	var platformChartActionCreators = __webpack_require__(292);
 	var platformsPanelActionCreators = __webpack_require__(257);
@@ -112937,4 +113019,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-027b9d86a416a5bb0121.js.map
+//# sourceMappingURL=app-9dd1385bf9aaf762e799.js.map

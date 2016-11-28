@@ -748,6 +748,14 @@ br + .form__control-help {
     text-align: center;
 }
 
+.flexContent {
+    display: flex;
+}
+
+.flexChild {
+    flex: 1;
+}
+
 .propsButton {
     cursor: pointer;
     text-align: center;

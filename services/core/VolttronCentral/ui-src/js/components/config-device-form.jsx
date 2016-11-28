@@ -73,8 +73,7 @@ class ConfigDeviceForm extends BaseComponent {
     render() {   
 
         var firstStyle = {
-            width: "30%",
-            textAlign: "right"
+            width: "30%"
         }
 
         var secondStyle = {
@@ -85,47 +84,51 @@ class ConfigDeviceForm extends BaseComponent {
 
         for (var key in this.state.settings)
         {
-            var setting;
-
-            if (this.state.settings[key].type === "bool")
+            if (typeof this.state.settings[key] == "object" && 
+                this.state.settings[key].hasOwnProperty("value"))
             {
-                setting = (
-                    <tr key={key}>
-                        <td style={firstStyle}>{this.state.settings[key].label}</td>
-                        <td style={secondStyle}
-                            className="plain">
-                            <div textAlign="center"
-                                width="100%">
-                                <CheckBox 
-                                    dataItem={key}
-                                    oncheck={this._checkItem}
-                                    selected={this.state.settings[key].value}>
-                                </CheckBox>
-                            </div>
-                        </td>
-                    </tr>
-                );
-            }
-            else
-            { 
-                setting = (
-                    <tr key={key}>
-                        <td style={firstStyle}>{this.state.settings[key].label}</td>
-                        <td style={secondStyle}
-                            className="plain">
-                            <input
-                                className="form__control form__control--block"
-                                type={this.state.settings[key].type}
-                                data-setting={key}
-                                onChange={this._updateSetting}
-                                value={this.state.settings[key].value}
-                            />
-                        </td>
-                    </tr>
-                );
-            }
+                var setting;
 
-            editableAttributes.push(setting);
+                if (this.state.settings[key].type === "bool")
+                {
+                    setting = (
+                        <tr key={key}>
+                            <td style={firstStyle}>{this.state.settings[key].label}</td>
+                            <td style={secondStyle}
+                                className="plain">
+                                <div textAlign="center"
+                                    width="100%">
+                                    <CheckBox 
+                                        dataItem={key}
+                                        oncheck={this._checkItem}
+                                        selected={this.state.settings[key].value}>
+                                    </CheckBox>
+                                </div>
+                            </td>
+                        </tr>
+                    );
+                }
+                else
+                { 
+                    setting = (
+                        <tr key={key}>
+                            <td style={firstStyle}>{this.state.settings[key].label}</td>
+                            <td style={secondStyle}
+                                className="plain">
+                                <input
+                                    className="form__control form__control--block"
+                                    type={this.state.settings[key].type}
+                                    data-setting={key}
+                                    onChange={this._updateSetting}
+                                    value={this.state.settings[key].value}
+                                />
+                            </td>
+                        </tr>
+                    );
+                }
+
+                editableAttributes.push(setting);
+            }
         }
 
         var configDeviceBox = {

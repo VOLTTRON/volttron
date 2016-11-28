@@ -1532,6 +1532,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             configuring: false,
             platformUuid: platformUuid,
             bacnetProxyIdentity: bacnetIdentity,
+            agentDriver: device.agentDriver,
             registryConfig: [],
             keyProps: ["volttron_point_name", "units", "writable"],
             selectedPoints: [],
