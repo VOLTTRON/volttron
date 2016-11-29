@@ -262,6 +262,8 @@ class DriverAgent(BasicAgent):
             results = self.interface.scrape_all()
         except Exception as ex:
             I = sys.exc_info()
+            for l in traceback.format_tb(I[-1]):
+                _log.error(l)
             _log.error(traceback.format_exception(*I))
             _log.error('Failed to scrape ' + self.device_name + ': ' + str(ex))
             return
@@ -370,4 +372,3 @@ class DriverAgent(BasicAgent):
     
     def revert_all(self, **kwargs):
         self.interface.revert_all(**kwargs)
-        
