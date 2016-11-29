@@ -52,7 +52,7 @@
 # under Contract DE-AC05-76RL01830
 
 #}}}
-
+import traceback
 import datetime
 from volttron.platform.vip.agent import BasicAgent, Core
 from volttron.platform.agent import utils
@@ -261,6 +261,8 @@ class DriverAgent(BasicAgent):
         try:
             results = self.interface.scrape_all()
         except Exception as ex:
+            I = sys.exc_info()
+            _log.error(traceback.format_exception(*I))
             _log.error('Failed to scrape ' + self.device_name + ': ' + str(ex))
             return
         
