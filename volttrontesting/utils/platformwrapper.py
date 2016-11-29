@@ -585,8 +585,6 @@ class PlatformWrapper:
         cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
         if vip_identity:
             cmd.extend(['--vip-identity', vip_identity])
-        if self.opts.get('developer_mode', False):
-            cmd.append('--developer-mode')
         res = subprocess.check_output(cmd, env=env)
         assert res, "failed to install wheel:{}".format(wheel_file)
         agent_uuid = res.split(' ')[-2]
@@ -690,8 +688,6 @@ class PlatformWrapper:
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
         cmd = ['volttron-ctl']
-        if self.opts.get('developer_mode', False):
-            cmd.append('--developer-mode')
         cmd.extend(['start', agent_uuid])
         p = Popen(cmd, env=self.env,
                   stdout=sys.stdout, stderr=sys.stderr)
@@ -699,8 +695,6 @@ class PlatformWrapper:
 
         # Confirm agent running
         cmd = ['volttron-ctl']
-        if self.opts.get('developer_mode', False):
-            cmd.append('--developer-mode')
         cmd.extend(['status', agent_uuid])
         res = subprocess.check_output(cmd, env=self.env)
         #776 TODO: Timing issue where check fails
@@ -719,8 +713,6 @@ class PlatformWrapper:
         _log.debug("STOPPING AGENT: {}".format(agent_uuid))
         try:
             cmd = ['volttron-ctl']
-            if self.opts.get('developer_mode', False):
-                cmd.append('--developer-mode')
             cmd.extend(['stop', agent_uuid])
             res = subprocess.check_output(cmd, env=self.env)
         except CalledProcessError as ex:
@@ -739,8 +731,6 @@ class PlatformWrapper:
         _log.debug("REMOVING AGENT: {}".format(agent_uuid))
         try:
             cmd = ['volttron-ctl']
-            if self.opts.get('developer_mode', False):
-                cmd.append('--developer-mode')
             cmd.extend(['remove', agent_uuid])
             res = subprocess.check_output(cmd, env=self.env)
         except CalledProcessError as ex:
@@ -754,8 +744,6 @@ class PlatformWrapper:
         _log.debug("AGENT_STATUS: {}".format(agent_uuid))
         # Confirm agent running
         cmd = ['volttron-ctl']
-        if self.opts.get('developer_mode', False):
-            cmd.append('--developer-mode')
         cmd.extend(['status', agent_uuid])
         pid = None
         try:

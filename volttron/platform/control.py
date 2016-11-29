@@ -1157,7 +1157,7 @@ def get_config(opts):
 
 
 class ControlConnection(object):
-    def __init__(self, address, peer='control', developer_mode=False,
+    def __init__(self, address, peer='control',
                  publickey=None, secretkey=None, serverkey=None):
         self.address = address
         self.peer = peer
@@ -1165,7 +1165,6 @@ class ControlConnection(object):
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
-                                 developer_mode=developer_mode,
                                  enable_channel=True)
         self._greenlet = None
 
@@ -1230,8 +1229,6 @@ def main(argv=sys.argv):
                              help='read configuration from FILE')
     global_args.add_argument('--debug', action='store_true',
                              help='show tracbacks for errors rather than a brief message')
-    global_args.add_argument('--developer-mode', action='store_true',
-                             help='run in insecure developer mode')
     global_args.add_argument('-t', '--timeout', type=float, metavar='SECS',
                              help='timeout in seconds for remote calls (default: %(default)g)')
     global_args.add_argument(
@@ -1582,7 +1579,6 @@ def main(argv=sys.argv):
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
     opts.connection = ControlConnection(opts.vip_address,
-                                        developer_mode=opts.developer_mode,
                                         **get_keys(opts))
 
     try:
