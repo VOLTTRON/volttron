@@ -917,11 +917,16 @@ class PlatformWrapper:
 
         if os.environ.get('PRINT_LOG'):
             logpath = os.path.join(self.volttron_home, 'volttron.log')
-            print("************************* Begin {}".format(logpath))
-            with open(logpath) as f:
-                for l in f.readlines():
-                    print(l)
-            print("************************* End {}".format(logpath))
+            if os.path.exists(logpath):
+                print("************************* Begin {}".format(logpath))
+                with open(logpath) as f:
+                    for l in f.readlines():
+                        print(l)
+                print("************************* End {}".format(logpath))
+            else:
+                print("######################### No Log Exists: {}".format(
+                    logpath
+                ))
         if not self.skip_cleanup:
             self.logit('Removing {}'.format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)
