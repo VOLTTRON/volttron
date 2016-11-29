@@ -4,7 +4,9 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var devicesStore = require('../stores/devices-store');
 var dispatcher = require('../dispatcher');
+var wspubsub = require('../lib/wspubsub');
 var rpc = require('../lib/rpc');
+
 
 var CsvParse = require('babyparse');
 
@@ -55,28 +57,18 @@ var devicesActionCreators = {
         }
 
         var setUpDevicesSocket = function(platformUuid, bacnetIdentity) {
-
-            var endpoint = (window.location.protocol === "https:" ? "wss://" : "ws://");
-            devicesWebsocket = endpoint + window.location.host + "/vc/ws/" + authorization + "/iam";
-
-            if (window.WebSocket) {
-                devicesWs = new WebSocket(devicesWebsocket);
-            }
-            else if (window.MozWebSocket) {
-                devicesWs = MozWebSocket(devicesWebsocket);
-            }
-
-            devicesWs.onmessage = function(evt)
-            {
-                devicesActionCreators.deviceMessageReceived(evt.data, platformUuid, bacnetIdentity);
-            };
-
-            devicesWs.onclose = function (evt) 
-            {
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.DEVICE_SCAN_FINISHED
-                });
-            };
+            var topic = "/vc/ws/" + authorization + "/iam";
+            wspubsub.WsPubSub.subscribe(topic, function(topic, message){
+                // Special CLOSING method happens when socket is closed.
+                if (message === "CLOSING") {
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.DEVICE_SCAN_FINISHED
+                    });
+                }
+                else{
+                    devicesActionCreators.deviceMessageReceived(message, platformUuid, bacnetIdentity);
+                }
+            });
         }   
 
         return new rpc.Exchange({
@@ -185,31 +177,22 @@ var devicesActionCreators = {
         }
 
         var setUpPointsSocket = function() {
-        
-            var endpoint = (window.location.protocol === "https:" ? "wss://" : "ws://");
-            pointsWebsocket = endpoint + window.location.host + "/vc/ws/" + authorization + "/configure";
 
-            if (window.WebSocket) {
-                pointsWs = new WebSocket(pointsWebsocket);
-            }
-            else if (window.MozWebSocket) {
-                pointsWs = MozWebSocket(pointsWebsocket);
-            }
+            var topic = "/vc/ws/" + authorization + "/configure";
+            wspubsub.WsPubSub.subscribe(topic, function(topic, message){
+                // Special CLOSING method happens when socket is closed.
+                if (message === "CLOSING") {
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.POINT_SCAN_FINISHED,
+                        device: this
+                    });
+                }
+                else{
+                    var platform = null;
+                    devicesActionCreators.pointReceived(message, platform);
+                }
+            }.bind(device));
 
-            pointsWs.onmessage = function(evt)
-            {
-                var platform = null;
-
-                devicesActionCreators.pointReceived(evt.data, platform);
-            };
-
-            pointsWs.onclose = function (evt)
-            {
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.POINT_SCAN_FINISHED,
-                    device: this
-                });
-            }.bind(device);
         }
 
         return new rpc.Exchange({
