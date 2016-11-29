@@ -366,8 +366,8 @@ class Interface(BasicRevert, BaseInterface):
                             
                 else:
                     _log.info("No default value supplied for point {}. Using default revert method.".format(point_path))
-
-         #Merge adjacent ranges for efficiency.
-         self.merge_register_ranges()
+        
+        #Merge adjacent ranges for efficiency.
+        self.merge_register_ranges()
                 
             
