@@ -169,8 +169,14 @@ class Connection(object):
 
             event = gevent.event.Event()
             self._greenlet = gevent.spawn(self._server.core.run, event)
-            if not event.wait(timeout=DEFAULT_TIMEOUT):
-                raise RuntimeError("Unable to connect to target platform")
+
+            try:
+                with gevent.Timeout(DEFAULT_TIMEOUT):
+                    event.wait()
+            except gevent.Timeout:
+                self.kill()
+                self._greenlet = None
+                raise
 
             self._connected_since = get_aware_utc_now()
             if self.peer not in self._server.vip.peerlist().get(timeout=2):
