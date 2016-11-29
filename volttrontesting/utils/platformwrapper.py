@@ -139,11 +139,8 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
 
     vc_http = get_rand_http_address() if with_http else None
     vc_tcp = get_rand_tcp_address() if with_tcp else None
-    if vc_tcp:
-        encrypt = True
-    else:
-        encrypt = False
-    wrapper.startup_platform(encrypt=encrypt, vip_address=vc_tcp,
+
+    wrapper.startup_platform(vip_address=vc_tcp,
                              bind_web_address=vc_http,
                              volttron_central_address=volttron_central_address)
     if with_http:
@@ -190,7 +187,6 @@ class PlatformWrapper:
         self.started_agent_pids = []
         self.local_vip_address = None
         self.vip_address = None
-        self.encrypt = False
         self.logit('Creating platform wrapper')
 
         # This was used when we are testing the SMAP historian.
@@ -229,8 +225,7 @@ class PlatformWrapper:
                          publickey=None, secretkey=None, serverkey=None,
                          **kwargs):
 
-        if self.encrypt:
-            self.allow_all_connections()
+        self.allow_all_connections()
 
         if address is None:
             address = self.vip_address
@@ -243,14 +238,10 @@ class PlatformWrapper:
             keys.generate()
             publickey = keys.public
             secretkey = keys.secret
-        if self.encrypt:
-            conn = Connection(address=address, peer=peer, publickey=publickey,
-                              secretkey=secretkey, serverkey=serverkey,
-                              volttron_home=self.volttron_home)
-        else:
-            conn = Connection(address=self.local_vip_address, peer=peer,
-                              volttron_home=self.volttron_home,
-                              developer_mode=True)
+        conn = Connection(address=address, peer=peer, publickey=publickey,
+                          secretkey=secretkey, serverkey=serverkey,
+                          volttron_home=self.volttron_home)
+
         return conn
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
@@ -273,24 +264,20 @@ class PlatformWrapper:
         self.logit("Building generic agent.")
 
         use_ipc = kwargs.pop('use_ipc', False)
-        if self.encrypt:
-            if serverkey is None:
-                serverkey=self.serverkey
-            if publickey is None:
-                self.logit('generating new public secret key pair')
-                keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
-                keys = KeyStore(keyfile)
-                keys.generate()
-                publickey=keys.public
-                secretkey=keys.secret
+
+        if serverkey is None:
+            serverkey=self.serverkey
+        if publickey is None:
+            self.logit('generating new public secret key pair')
+            keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
+            keys = KeyStore(keyfile)
+            keys.generate()
+            publickey=keys.public
+            secretkey=keys.secret
 
         if address is None:
-            if not self.encrypt:
-                self.logit('Using IPC vip-address')
-                address = "ipc://@"+self.volttron_home+"/run/vip.socket"
-            else:
-                self.logit('Using vip-address '+self.vip_address)
-                address = self.vip_address
+            self.logit('Using vip-address ' + self.vip_address)
+            address = self.vip_address
 
         if publickey and not serverkey:
             self.logit('using instance serverkey: {}'.format(self.publickey))
@@ -300,7 +287,6 @@ class PlatformWrapper:
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
                             volttron_home=self.volttron_home,
-                            developer_mode=(not self.encrypt),
                             **kwargs)
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
 
@@ -366,7 +352,7 @@ class PlatformWrapper:
                 fd.write(json.dumps(auth_dict))
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
-        mode=UNRESTRICTED, encrypt=False, bind_web_address=None,
+        mode=UNRESTRICTED, bind_web_address=None,
         volttron_central_address=None, volttron_central_serverkey=None):
 
         # if not isinstance(vip_address, list):
@@ -375,7 +361,6 @@ class PlatformWrapper:
         #     self.vip_address = vip_address
 
         self.vip_address = vip_address
-        self.encrypt = encrypt
         self.mode = mode
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
@@ -415,7 +400,6 @@ class PlatformWrapper:
                      'volttron_central_address': volttron_central_address,
                      'volttron_central_serverkey': volttron_central_serverkey,
                      'platform_name': None,
-                     'developer_mode': not encrypt,
                      'log': os.path.join(self.volttron_home, 'volttron.log'),
                      'log_config': None,
                      'monitor': True,
@@ -476,8 +460,6 @@ class PlatformWrapper:
         else:
             cmd = ['volttron', '-l{}'.format(log)]
 
-        if not encrypt:
-            cmd.append('--developer-mode')
         print('process environment: {}'.format(self.env))
         print('popen params: {}'.format(cmd))
         self.p_process = Popen(cmd, env=self.env, stdout=subprocess.PIPE,

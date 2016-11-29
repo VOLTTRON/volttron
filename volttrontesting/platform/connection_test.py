@@ -19,22 +19,19 @@ def setup_control_connection(request, get_volttron_instances):
     assert wrapper
     assert wrapper.is_running()
 
-    if get_volttron_instances.param == 'encrypted':
-        if wrapper.encrypt:
-            wrapper.allow_all_connections()
-        # Connect using keys
-        ks = KeyStore()
-        ks.generate()
+    wrapper.allow_all_connections()
 
-        control_connection = build_connection(identity="foo",
-                                              address=wrapper.vip_address,
-                                              peer=CONTROL,
-                                              serverkey=wrapper.serverkey,
-                                              publickey=ks.public,
-                                              secretkey=ks.secret)
-    else:
-        control_connection = Connection(address=wrapper.local_vip_address,
-                                        peer=CONTROL, developer_mode=True)
+    # Connect using keys
+    ks = KeyStore()
+    ks.generate()
+
+    control_connection = build_connection(identity="foo",
+                                          address=wrapper.vip_address,
+                                          peer=CONTROL,
+                                          serverkey=wrapper.serverkey,
+                                          publickey=ks.public,
+                                          secretkey=ks.secret)
+
     # Sleep a couple seconds to wait for things to startup
     gevent.sleep(2)
     return wrapper, control_connection
@@ -60,10 +57,8 @@ def test_can_get_peers(setup_control_connection):
 def test_can_get_serverkey(setup_control_connection):
     wrapper, connection = setup_control_connection
 
-    if wrapper.encrypt:
-        assert wrapper.serverkey == control_connection.serverkey
-    else:
-        assert control_connection.serverkey is None
+    assert wrapper.serverkey == control_connection.serverkey
+
 
 
 @pytest.mark.control
