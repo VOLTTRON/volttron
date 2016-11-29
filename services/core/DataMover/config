@@ -1,5 +1,6 @@
 {
     "destination-vip": "ipc://@/home/volttron/.volttron/run/vip.socket",
+    "destination-serverkey": null,
     "required_target_agents": [],
     "custom_topic_list": [],   
     "services_topic_list": [

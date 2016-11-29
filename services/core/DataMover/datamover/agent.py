@@ -67,6 +67,7 @@ from volttron.platform.vip.agent import Agent, Core, compat
 from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
+from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.messaging.health import STATUS_BAD, Status
 
@@ -91,10 +92,17 @@ def historian(config_path, **kwargs):
                                                 'platform.historian')
     backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
 
+    hosts = KnownHostsStore()
+    destination_serverkey = hosts.serverkey(destination_vip)
+    if destination_serverkey is None:
+        _log.info("Destination serverkey not found in known hosts file, using config")
+        destination_serverkey = config['destination-serverkey']
+
     return DataMover(services_topic_list,
                      custom_topic_list,
                      topic_replace_list,
                      destination_vip,
+                     destination_serverkey,
                      destination_historian_identity,
                      backup_storage_limit_gb=backup_storage_limit_gb,
                      **kwargs)
@@ -109,6 +117,7 @@ class DataMover(BaseHistorian):
                  custom_topic_list,
                  topic_replace_list,
                  destination_vip,
+                 destination_serverkey,
                  destination_historian_identity,
                  **kwargs):
 
@@ -116,6 +125,7 @@ class DataMover(BaseHistorian):
         self.custom_topic_list = custom_topic_list
         self.topic_replace_list = topic_replace_list
         self.destination_vip = destination_vip
+        self.destination_serverkey = destination_serverkey
         self.destination_historian_identity = destination_historian_identity
 
         # will be available in both threads.
@@ -230,8 +240,10 @@ class DataMover(BaseHistorian):
         _log.debug("Setting up to forward to {}".format(self.destination_vip))
         try:
             agent = build_agent(address=self.destination_vip,
+                                serverkey=self.destination_serverkey,
+                                publickey=self.core.publickey,
+                                secretkey=self.core.secretkey,
                                 enable_store=False)
-
         except gevent.Timeout:
             self.vip.health.set_status(
                 STATUS_BAD, "Timeout in setup of agent")
