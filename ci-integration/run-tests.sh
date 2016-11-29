@@ -2,7 +2,7 @@
 
 export CI=travis
 export FAST_FAIL=1
-
+export PRINT_LOG=1
 # The context should already have been activated at this point.
 
 #pip install pymongo pytest pytest-bdd pytest-cov
