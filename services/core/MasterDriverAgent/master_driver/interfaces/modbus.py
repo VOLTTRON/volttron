@@ -155,7 +155,10 @@ class ModbusByteRegister(ModbusRegisterBase):
         
         target_bytes = byte_stream[index:index+width]
         if len(target_bytes) < width:
-            raise ValueError('Not enough data to parse')
+            raise ValueError(
+                'Not enough data to parse: width %s, bytes %s address %s'%(
+                    width, target_bytes, self.address
+                ))
         
         return self.parse_struct.unpack(target_bytes)[0]
     
