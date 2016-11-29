@@ -27,11 +27,15 @@ class APITester(object):
             'params': params,
             'id': '1'
         }
+
         if use_auth_token:
             data['authorization'] = self._auth_token
-        print('posting data')
-        print(data)
+
         return requests.post(self._url, json=data)
+
+    @staticmethod
+    def get_result(cb, *args, **kwargs):
+        return cb(*args, **kwargs).json()['result']
 
     def get_auth_token(self):
         response = self.do_rpc(
@@ -57,7 +61,12 @@ class APITester(object):
     def list_platforms(self):
         return self.do_rpc('list_platforms')
 
+    def install_agent(self, platform_uuid, fileargs):
+        rpc = 'platforms.uuid.{}.install_agent'.format(platform_uuid)
+        return self.do_rpc(rpc, file=fileargs)
+
     def list_agents(self, platform_uuid):
+        print('Listing agents for platform: {}'.format(platform_uuid))
         return self.do_rpc('platforms.uuid.' + platform_uuid + '.list_agents')
 
     def unregister_platform(self, platform_uuid):
@@ -82,6 +91,7 @@ class APITester(object):
                       agent_identity=agent_identity, config_name=config_name,
                       raw=raw)
         return self.do_rpc("get_agent_config", **params)
+
 
 def do_rpc(method, params=None, auth_token=None, rpc_root=None):
     """ A utility method for calling json rpc based funnctions.

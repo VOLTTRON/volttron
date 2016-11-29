@@ -6,8 +6,10 @@ export FAST_FAIL=1
 # The context should already have been activated at this point.
 
 #pip install pymongo pytest pytest-bdd pytest-cov
-pip install mock
-pip install pytest pytest-timeout
+pip install mock --upgrade
+pip install pytest pytest-timeout --upgrade
+
+pip list
 
 exit_code=0
 

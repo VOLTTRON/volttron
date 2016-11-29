@@ -126,6 +126,7 @@ Platform = namedtuple('Platform', ['instance_name', 'serverkey', 'vip_address'])
 RequiredArgs = namedtuple('RequiredArgs', ['id', 'session_user',
                                            'platform_uuid'])
 
+
 class VolttronCentralAgent(Agent):
     """ Agent for managing many volttron instances from a central web ui.
 
@@ -982,8 +983,6 @@ class VolttronCentralAgent(Agent):
                 'NA', UNHANDLED_EXCEPTION, e
             )
 
-        _log.debug("RETURNING: {}".format(self._get_jsonrpc_response(
-            rpcdata.id, result_or_error)))
         return self._get_jsonrpc_response(rpcdata.id, result_or_error)
 
     def _get_jsonrpc_response(self, id, result_or_error):
@@ -993,7 +992,11 @@ class VolttronCentralAgent(Agent):
         :param result_or_error:
         :return:
         """
-        if result_or_error is not None:
+        if isinstance(result_or_error, dict):
+            if 'jsonrpc' in result_or_error:
+                return result_or_error
+
+        if result_or_error is not None and isinstance(result_or_error, dict):
             if 'error' in result_or_error:
                 error = result_or_error['error']
                 _log.debug("RPC RESPONSE ERROR: {}".format(error))
@@ -1396,7 +1399,7 @@ class VolttronCentralAgent(Agent):
                                       )
         _log.debug('Routing to {}'.format(VOLTTRON_CENTRAL_PLATFORM))
 
-        if platform_method == 'install':
+        if platform_method.startswith('install_agent'):
             if 'admin' not in session_user['groups']:
                 return jsonrpc.json_error(
                     id, UNAUTHORIZED,
@@ -1426,8 +1429,16 @@ class VolttronCentralAgent(Agent):
             return agents
         else:
             try:
-                _log.debug('Routing request {} {} {}'.format(id, platform_method, params))
-                return cn.call('route_request', id, platform_method, params)
+                resp = cn.call('route_request', id, platform_method, params)
+                _log.debug('RESPONSE FROM ROUT_REQUWST {}'.format(resp))
+                if isinstance(resp, dict):
+                    if 'result' not in resp and 'error' not in resp:
+                        _log.debug('BULIDNG JSONRPC OBJ')
+                        resp = jsonrpc.json_result(id, resp)
+                        _log.error('RESPONS RESP: {}'.format(resp))
+                else:
+                    resp = jsonrpc.json_result(id, resp)
+                return resp
             except (Unreachable, gevent.Timeout) as e:
                 del self._platform_connections[instance_uuid]
                 return err("Can't route to platform",

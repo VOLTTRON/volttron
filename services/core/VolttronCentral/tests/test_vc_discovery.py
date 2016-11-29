@@ -7,6 +7,7 @@ import requests
 from vctestutils import APITester
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL
 from volttron.platform.keystore import KeyStore
+from volttron.platform.messaging.health import STATUS_GOOD
 from volttrontesting.utils.core_service_installs import add_volttron_central, \
     add_volttron_central_platform
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
@@ -38,6 +39,7 @@ def vc_vcp_platforms(request):
     vcp.shutdown_platform()
 
 
+@pytest.mark.vc
 @pytest.fixture(params=[
     ('vc-first', 'local'),
     ('vc-first', 'http'),
@@ -68,26 +70,35 @@ def both_with_vc_vcp(request):
     p.shutdown_platform()
 
 
+@pytest.mark.vc
 def test_autoregister_external(vc_vcp_platforms):
     gevent.sleep(15)
     vc, vcp = vc_vcp_platforms
 
     api = APITester(vc.jsonrpc_endpoint)
 
-    platforms = api.list_platforms()
-    assert platforms.ok
-    results = platforms.json().get('result', None)
-    assert len(results) == 1
+    platforms = api.get_result(api.list_platforms)
+    assert len(platforms) == 1
+    p = platforms[0]
+    assert p['uuid']
+    assert p['name'] == vcp.vip_address
+    assert vcp.vip_address != vc.vip_address
+    assert isinstance(p['health'], dict)
+    assert STATUS_GOOD == p['health']['status']
 
 
+@pytest.mark.vc
 def test_autoregister_local(both_with_vc_vcp):
     gevent.sleep(15)
 
     api = APITester(both_with_vc_vcp.jsonrpc_endpoint)
 
-    platforms = api.list_platforms()
-    assert platforms.ok
-    results = platforms.json().get('result', None)
-    assert len(results) == 1
+    platforms = api.get_result(api.list_platforms)
+    assert len(platforms) == 1
+    p = platforms[0]
+    assert p['uuid']
+    assert p['name'] == both_with_vc_vcp.vip_address
+    assert isinstance(p['health'], dict)
+    assert STATUS_GOOD == p['health']['status']
 
 
