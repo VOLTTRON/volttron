@@ -319,15 +319,13 @@ var devicesActionCreators = {
                 {
                     console.log(csvData.warnings[0]);
                 }
-                else
-                {
-                    devicesActionCreators.loadRegistry(
-                        device.id, 
-                        device.address,
-                        csvData.data,
-                        registryFile 
-                    );
-                }
+                
+                devicesActionCreators.loadRegistry(
+                    device.id, 
+                    device.address,
+                    csvData.data,
+                    registryFile 
+                );
 
             })
             .catch(rpc.Error, function (error) {
@@ -403,12 +401,11 @@ var devicesActionCreators = {
 
         var authorization = authorizationStore.getAuthorization();
 
-
         var config_name =  "devices/" +
-                settings.campus + "/" + 
-                settings.building + "/" + 
-                settings.unit + 
-                (settings.path ? + "/" + settings.path : "")
+            settings.campus + "/" + 
+            settings.building + "/" + 
+            settings.unit + 
+            (settings.path ? "/" + settings.path : "")
 
         var config = {};
 

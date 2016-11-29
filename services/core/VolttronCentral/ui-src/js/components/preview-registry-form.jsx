@@ -12,7 +12,7 @@ class PreviewRegistryForm extends BaseComponent {
         this._bind("_toggleLayout", "_updateFileName", "_onSubmit");
 
         this.state = {};
-        this.state.csvlayout = true;
+        this.state.csvlayout = false;
         this.state.fileName = "";
     }
     _toggleLayout(itemKey) {
@@ -42,11 +42,12 @@ class PreviewRegistryForm extends BaseComponent {
             layoutToggle = (
 
                         <div className="displayBlock">
-                            <div className="inlineBlock">csv</div>&nbsp;/&nbsp;
                             <div className="form__link inlineBlock"
                                 onClick={this._toggleLayout}>
                                 <a>table</a>
                             </div>
+                            &nbsp;/&nbsp;
+                            <div className="inlineBlock">csv</div>
                         </div>);
 
             var attributes = [];
@@ -80,11 +81,12 @@ class PreviewRegistryForm extends BaseComponent {
         {
             layoutToggle = (
                         <div className="displayBlock">
+                            <div className="inlineBlock">table</div>
+                            &nbsp;/&nbsp;
                             <div className="form__link inlineBlock"
                                 onClick={this._toggleLayout}>
                                 <a>csv</a>
-                            </div>&nbsp;/&nbsp;
-                            <div className="inlineBlock">table</div>
+                            </div>
                         </div>);
 
             var headerRow = this.props.attributes[0].map(function (item, index) {
@@ -101,7 +103,12 @@ class PreviewRegistryForm extends BaseComponent {
 
                 var attributeCells = attributeRow.map(function (columnCell, columnIndex) {
 
-                    return (<td key={columnCell.key + "-cell-" + rowIndex + "-" + columnIndex}>
+                    var cellWidth = {
+                        minWidth: (columnCell.value.toString().length * 5) + "px"
+                    }
+
+                    return (<td key={columnCell.key + "-cell-" + rowIndex + "-" + columnIndex}
+                                style={cellWidth}>
                                 {columnCell.value}
                             </td>);
                 });

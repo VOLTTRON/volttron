@@ -6,7 +6,7 @@ import ConfigureRegistry from './configure-registry';
 import ControlButton from './control-button';
 
 var ConfirmForm = require('./confirm-form');
-var RegistryFilesForm = require('./registry-files-form');
+var RegistryFilesSelector = require('./registry-files-selector');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -76,10 +76,10 @@ class DevicesFound extends BaseComponent {
         devicesActionCreators.loadRegistryFiles(device)
 
         modalActionCreators.openModal(
-            <RegistryFilesForm
+            <RegistryFilesSelector
                 device={device}
                 bacnet={this.props.bacnet}>
-            </RegistryFilesForm>
+            </RegistryFilesSelector>
         );
     }
     _uploadRegistryFile(deviceId, deviceAddress, evt) {

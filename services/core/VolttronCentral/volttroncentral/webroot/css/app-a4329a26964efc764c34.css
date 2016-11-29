@@ -634,7 +634,7 @@ br + .form__control-help {
 
 .registryFilesList {
     height: 300px;
-    width: 400px;
+    width: 420px;
     overflow-y: auto;
 }
 
@@ -661,6 +661,7 @@ br + .form__control-help {
     cursor: pointer;
     box-sizing: border-box;
     border: 1px solid transparent;
+    position: relative;
 }
 
 .registry-file:hover {
@@ -670,6 +671,11 @@ br + .form__control-help {
 
 .registry-file:hover i {
     color: rgba(21, 81, 125, .8);
+}
+
+.registry-file-name {
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 
 .rotateConfigure{
@@ -1901,4 +1907,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-9dd1385bf9aaf762e799.css.map*/
+/*# sourceMappingURL=app-a4329a26964efc764c34.css.map*/

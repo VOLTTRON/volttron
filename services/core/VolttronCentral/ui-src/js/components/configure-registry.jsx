@@ -778,7 +778,17 @@ class ConfigureRegistry extends BaseComponent {
             var newRow = [];
 
             attributeRow.get("attributes").forEach(function (columnCell, columnIndex) {
-                newRow.push(columnCell.value);
+
+                var altValue = columnCell.value;
+
+                var index = altValue.indexOf(",");
+
+                if (index > -1)
+                {
+                    altValue = "\"" + altValue + "\"";
+                }
+
+                newRow.push(altValue);
             });
 
             csvData = csvData.concat(newRow.join() + "\n");
