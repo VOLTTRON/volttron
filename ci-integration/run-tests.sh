@@ -7,7 +7,7 @@ export FAST_FAIL=1
 
 #pip install pymongo pytest pytest-bdd pytest-cov
 pip install mock
-pip install pytest pytest-timeout
+pip install pytest pytest-timeout --upgrade
 
 exit_code=0
 
