@@ -42,7 +42,6 @@ Full options:
     optional arguments:
       -c FILE, --config FILE
                             read configuration from FILE
-      --developer-mode      run in insecure developer mode
       -l FILE, --log FILE   send log output to FILE instead of stderr
       -L FILE, --log-config FILE
                             read logging configuration from FILE

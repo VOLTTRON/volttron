@@ -15,7 +15,6 @@ All authentication sub-commands can be viewed by entering following command.
     -c FILE, --config FILE
                             read configuration from FILE
     --debug               	show tracbacks for errors rather than a brief message
-    --developer-mode      	run in insecure developer mode
     -t SECS, --timeout SECS
                             timeout in seconds for remote calls (default: 30)
     --vip-address ZMQADDR
