@@ -1,67 +1,67 @@
 import pytest
 from  datetime import datetime
 #building name replaced. replace before testing
-AHU1_temp = "Economizer_RCx/PNNL/Building1/AHU1/Temperature Sensor Dx/diagnostic message"
-AHU2_temp = "Economizer_RCx/PNNL/Building1/AHU2/Temperature Sensor Dx/diagnostic message"
-AHU3_temp = "Economizer_RCx/PNNL/Building1/AHU3/Temperature Sensor Dx/diagnostic message"
-AHU4_temp = "Economizer_RCx/PNNL/Building1/AHU4/Temperature Sensor Dx/diagnostic message"
-AHU2_eco = "Economizer_RCx/PNNL/Building1/AHU2/Not Economizing When Unit Should " \
+AHU1_temp = "Economizer_RCx/PNNL/BUILDING1/AHU1/Temperature Sensor Dx/diagnostic message"
+AHU2_temp = "Economizer_RCx/PNNL/BUILDING1/AHU2/Temperature Sensor Dx/diagnostic message"
+AHU3_temp = "Economizer_RCx/PNNL/BUILDING1/AHU3/Temperature Sensor Dx/diagnostic message"
+AHU4_temp = "Economizer_RCx/PNNL/BUILDING1/AHU4/Temperature Sensor Dx/diagnostic message"
+AHU2_eco = "Economizer_RCx/PNNL/BUILDING1/AHU2/Not Economizing When Unit Should " \
            "Dx/diagnostic message"
-AHU2_outdoor_air = "Economizer_RCx/PNNL/Building1/AHU2/Excess Outdoor-air Intake " \
+AHU2_outdoor_air = "Economizer_RCx/PNNL/BUILDING1/AHU2/Excess Outdoor-air Intake " \
                    "Dx/diagnostic message"
-AHU1_outdoor_air = "Economizer_RCx/PNNL/Building1/AHU1/Excess Outdoor-air Intake " \
+AHU1_outdoor_air = "Economizer_RCx/PNNL/BUILDING1/AHU1/Excess Outdoor-air Intake " \
                    "Dx/diagnostic message"
 
-AHU1_VAV129 = "PNNL/Building1/AHU1/VAV129/ZoneOutdoorAirFlow"
-AHU1_VAV127B = "PNNL/Building1/AHU1/VAV127B/ZoneOutdoorAirFlow"
-AHU1_VAV119 = "PNNL/Building1/AHU1/VAV119/ZoneOutdoorAirFlow"
-AHU1_VAV143 = "PNNL/Building1/AHU1/VAV143/ZoneOutdoorAirFlow"
-AHU1_VAV150 = "PNNL/Building1/AHU1/VAV150/ZoneOutdoorAirFlow"
-AHU1_VAV152 = "PNNL/Building1/AHU1/VAV152/ZoneOutdoorAirFlow"
+AHU1_VAV129 = "PNNL/BUILDING1/AHU1/VAV129/ZoneOutdoorAirFlow"
+AHU1_VAV127B = "PNNL/BUILDING1/AHU1/VAV127B/ZoneOutdoorAirFlow"
+AHU1_VAV119 = "PNNL/BUILDING1/AHU1/VAV119/ZoneOutdoorAirFlow"
+AHU1_VAV143 = "PNNL/BUILDING1/AHU1/VAV143/ZoneOutdoorAirFlow"
+AHU1_VAV150 = "PNNL/BUILDING1/AHU1/VAV150/ZoneOutdoorAirFlow"
+AHU1_VAV152 = "PNNL/BUILDING1/AHU1/VAV152/ZoneOutdoorAirFlow"
 
 
-AHU1_VAV127A_temp = "PNNL/Building1/AHU1/VAV127A/ZoneTemperature (East)"
-AHU1_VAV127B_temp = "PNNL/Building1/AHU1/VAV127B/ZoneTemperature (East)"
+AHU1_VAV127A_temp = "PNNL/BUILDING1/AHU1/VAV127A/ZoneTemperature (East)"
+AHU1_VAV127B_temp = "PNNL/BUILDING1/AHU1/VAV127B/ZoneTemperature (East)"
 
 multi_topic_list2 = \
-    ["Economizer_RCx/PNNL/Building1/AHU2/Temperature Sensor Dx/energy impact",
-    "Economizer_RCx/PNNL/Building1/AHU2/Not Economizing When Unit Should Dx/"
+    ["Economizer_RCx/PNNL/BUILDING1/AHU2/Temperature Sensor Dx/energy impact",
+    "Economizer_RCx/PNNL/BUILDING1/AHU2/Not Economizing When Unit Should Dx/"
     "energy impact",
-    "Economizer_RCx/PNNL/Building1/AHU2/Economizing When Unit Should Not Dx/"
+    "Economizer_RCx/PNNL/BUILDING1/AHU2/Economizing When Unit Should Not Dx/"
     "energy impact",
-    "Economizer_RCx/PNNL/Building1/AHU2/Excess Outdoor-air Intake Dx/energy impact",
-    "Economizer_RCx/PNNL/Building1/AHU2/Insufficient Outdoor-air Intake Dx/energy "
+    "Economizer_RCx/PNNL/BUILDING1/AHU2/Excess Outdoor-air Intake Dx/energy impact",
+    "Economizer_RCx/PNNL/BUILDING1/AHU2/Insufficient Outdoor-air Intake Dx/energy "
     "impact",
-    "Economizer_RCx/PNNL/Building1/AHU2/Economizing When Unit Should Not "
+    "Economizer_RCx/PNNL/BUILDING1/AHU2/Economizing When Unit Should Not "
     "Dx/diagnostic message",
-    "Economizer_RCx/PNNL/Building1/AHU2/Not Economizing When Unit Should "
+    "Economizer_RCx/PNNL/BUILDING1/AHU2/Not Economizing When Unit Should "
     "Dx/diagnostic message",
-    "Economizer_RCx/PNNL/Building1/AHU2/Temperature Sensor Dx/diagnostic message",
-    "Economizer_RCx/PNNL/Building1/AHU2/Excess Outdoor-air Intake Dx/diagnostic "
+    "Economizer_RCx/PNNL/BUILDING1/AHU2/Temperature Sensor Dx/diagnostic message",
+    "Economizer_RCx/PNNL/BUILDING1/AHU2/Excess Outdoor-air Intake Dx/diagnostic "
     "message",
-    "Economizer_RCx/PNNL/Building1/AHU2/Insufficient Outdoor-air Intake "
+    "Economizer_RCx/PNNL/BUILDING1/AHU2/Insufficient Outdoor-air Intake "
     "Dx/diagnostic message"]
 
 multi_topic_list1 = \
-    ["Economizer_RCx/PNNL/Building1/AHU1/Temperature Sensor Dx/energy impact",
-    "Economizer_RCx/PNNL/Building1/AHU1/Not Economizing When Unit Should Dx/"
+    ["Economizer_RCx/PNNL/BUILDING1/AHU1/Temperature Sensor Dx/energy impact",
+    "Economizer_RCx/PNNL/BUILDING1/AHU1/Not Economizing When Unit Should Dx/"
     "energy impact",
-    "Economizer_RCx/PNNL/Building1/AHU1/Economizing When Unit Should Not Dx/"
+    "Economizer_RCx/PNNL/BUILDING1/AHU1/Economizing When Unit Should Not Dx/"
     "energy impact",
-    "Economizer_RCx/PNNL/Building1/AHU1/Excess Outdoor-air Intake Dx/energy impact",
-    "Economizer_RCx/PNNL/Building1/AHU1/Insufficient Outdoor-air Intake Dx/energy "
+    "Economizer_RCx/PNNL/BUILDING1/AHU1/Excess Outdoor-air Intake Dx/energy impact",
+    "Economizer_RCx/PNNL/BUILDING1/AHU1/Insufficient Outdoor-air Intake Dx/energy "
     "impact",
-    "Economizer_RCx/PNNL/Building1/AHU1/Economizing When Unit Should Not "
+    "Economizer_RCx/PNNL/BUILDING1/AHU1/Economizing When Unit Should Not "
     "Dx/diagnostic message",
-    "Economizer_RCx/PNNL/Building1/AHU1/Not Economizing When Unit Should "
+    "Economizer_RCx/PNNL/BUILDING1/AHU1/Not Economizing When Unit Should "
     "Dx/diagnostic message",
-    "Economizer_RCx/PNNL/Building1/AHU1/Temperature Sensor Dx/diagnostic message",
-    "Economizer_RCx/PNNL/Building1/AHU1/Excess Outdoor-air Intake Dx/diagnostic "
+    "Economizer_RCx/PNNL/BUILDING1/AHU1/Temperature Sensor Dx/diagnostic message",
+    "Economizer_RCx/PNNL/BUILDING1/AHU1/Excess Outdoor-air Intake Dx/diagnostic "
     "message",
-    "Economizer_RCx/PNNL/Building1/AHU1/Insufficient Outdoor-air Intake "
+    "Economizer_RCx/PNNL/BUILDING1/AHU1/Insufficient Outdoor-air Intake "
     "Dx/diagnostic message"]
 
-#["Economizer_RCx/PNNL/Building1/AHU1/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/Building1/AHU2/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/Building1/AHU3/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/Building1/AHU4/Temperature Sensor Dx/diagnostic message"]
+#["Economizer_RCx/PNNL/BUILDING1/AHU1/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/BUILDING1/AHU2/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/BUILDING1/AHU3/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/BUILDING1/AHU4/Temperature Sensor Dx/diagnostic message"]
 try:
     import pymongo
 
@@ -141,7 +141,7 @@ def test_basic_function_week_data(volttron_instance, database_client):
     result = publish_agent.vip.rpc.call(
         'platform.historian',
         'query',
-        topic="Economizer_RCx/PNNL/Building1/AHU1/Temperature Sensor Dx/diagnostic message",
+        topic="Economizer_RCx/PNNL/BUILDING1/AHU1/Temperature Sensor Dx/diagnostic message",
         start='2016-04-01 00:00:00.000000Z',
         end='2016-04-08 00:00:00.000000Z',
         count=35000
@@ -153,7 +153,7 @@ def test_basic_function_week_data(volttron_instance, database_client):
     result = publish_agent.vip.rpc.call(
         'platform.historian',
         'query',
-        topic="Economizer_RCx/PNNL/Building1/AHU2/Temperature Sensor Dx/diagnostic "
+        topic="Economizer_RCx/PNNL/BUILDING1/AHU2/Temperature Sensor Dx/diagnostic "
               "message",
         start='2016-04-01 00:00:00.000000Z',
         end='2016-04-08 00:00:00.000000Z',
@@ -166,7 +166,7 @@ def test_basic_function_week_data(volttron_instance, database_client):
     result = publish_agent.vip.rpc.call(
         'platform.historian',
         'query',
-        topic="Economizer_RCx/PNNL/Building1/AHU3/Temperature Sensor Dx/diagnostic "
+        topic="Economizer_RCx/PNNL/BUILDING1/AHU3/Temperature Sensor Dx/diagnostic "
               "message",
         start='2016-04-01 00:00:00.000000Z',
         end='2016-04-08 00:00:00.000000Z',
@@ -179,7 +179,7 @@ def test_basic_function_week_data(volttron_instance, database_client):
     result = publish_agent.vip.rpc.call(
         'platform.historian',
         'query',
-        topic="Economizer_RCx/PNNL/Building1/AHU4/Temperature Sensor Dx/diagnostic "
+        topic="Economizer_RCx/PNNL/BUILDING1/AHU4/Temperature Sensor Dx/diagnostic "
               "message",
         start='2016-04-01 00:00:00.000000Z',
         end='2016-04-08 00:00:00.000000Z',
@@ -209,7 +209,7 @@ def test_basic_function_month_data(volttron_instance, database_client):
         'query',
         topic=AHU1_VAV129,
         start='2016-04-01 00:00:00.000000Z',
-        end='2016-04-30 00:00:00.000000Z',
+            end='2016-05-01 00:00:00.000000Z',
         count=35000
         ).get(timeout=100)
     print ("Time taken{}".format(datetime.now()-before))
@@ -221,7 +221,7 @@ def test_basic_function_month_data(volttron_instance, database_client):
         'query',
         topic=AHU1_VAV127B,
         start='2016-04-01 00:00:00.000000Z',
-        end='2016-04-30 00:00:00.000000Z',
+        end='2016-05-01 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
     print ("Time taken{}".format(datetime.now() - before))
@@ -233,7 +233,7 @@ def test_basic_function_month_data(volttron_instance, database_client):
         'query',
         topic=AHU1_VAV127A_temp,
         start='2016-04-01 00:00:00.000000Z',
-        end='2016-04-30 00:00:00.000000Z',
+        end='2016-05-01 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
     print ("Time taken{}".format(datetime.now() - before))
@@ -245,7 +245,7 @@ def test_basic_function_month_data(volttron_instance, database_client):
         'query',
         topic=AHU1_VAV127B_temp,
         start='2016-04-01 00:00:00.000000Z',
-        end='2016-04-30 00:00:00.000000Z',
+        end='2016-05-01 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
     print ("Time taken{}".format(datetime.now() - before))
@@ -257,7 +257,7 @@ def test_basic_function_month_data(volttron_instance, database_client):
         'query',
         topic=AHU1_VAV119,
         start='2016-04-01 00:00:00.000000Z',
-        end='2016-04-30 00:00:00.000000Z',
+        end='2016-05-01 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
     print ("Time taken{}".format(datetime.now() - before))
@@ -269,7 +269,7 @@ def test_basic_function_month_data(volttron_instance, database_client):
         'query',
         topic=AHU1_VAV143,
         start='2016-04-01 00:00:00.000000Z',
-        end='2016-04-30 00:00:00.000000Z',
+        end='2016-05-01 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
     print ("Time taken{}".format(datetime.now() - before))
@@ -281,7 +281,7 @@ def test_basic_function_month_data(volttron_instance, database_client):
         'query',
         topic=AHU1_VAV150,
         start='2016-04-01 00:00:00.000000Z',
-        end='2016-04-30 00:00:00.000000Z',
+        end='2016-05-01 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
     print ("Time taken{}".format(datetime.now() - before))
