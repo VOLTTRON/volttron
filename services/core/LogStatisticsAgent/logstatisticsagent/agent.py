@@ -68,7 +68,7 @@ from volttron.platform.agent.utils import get_aware_utc_now
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '4.0'
+__version__ = '1.0'
 
 
 def log_statistics(config_path, **kwargs):
