@@ -68,7 +68,7 @@ from volttron.platform.agent.utils import get_aware_utc_now
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.6'
+__version__ = '4.0'
 
 
 def log_statistics(config_path, **kwargs):
@@ -86,25 +86,21 @@ def log_statistics(config_path, **kwargs):
 
 
 class LogStatisticsAgent(Agent):
-    """LogStatisticsAgent reads volttron.log file size every hour,
+    """
+    LogStatisticsAgent reads volttron.log file size every hour,
     compute the size delta from previous hour and publish the difference
     with timestamp. It also publishes standard deviation every 24 hours.
-
-
     :param config: Configuration dict
     :type config: dict
 
     Example configuration:
-
     .. code-block:: python
-
     {
     "file_path" : "/home/volttron/volttron.log",
     "analysis_interval_sec" : 60,
     "publish_topic" : "platform/log_statistics",
     "historian_topic" : "analysis/log_statistics"
-}
-
+    }
     """
 
     def __init__(self, config, **kwargs):
@@ -124,7 +120,12 @@ class LogStatisticsAgent(Agent):
         self.publish_analysis()
 
     def publish_analysis(self):
-
+        """
+        Publishes file's size increment in previous time interval (60 minutes)
+        with timestamp.
+        Also publishes standard deviation of file's hourly size differences
+        every 24 hour.
+        """
         if self._scheduled_event is not None:
             self._scheduled_event.cancel()
 
