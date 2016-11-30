@@ -1137,7 +1137,7 @@ class ActuatorAgent(Agent):
             device_state = self._device_states[device]
             _log.debug(
                 "device_state: {agent_id}".format(
-                    agent_id=device.agent_id))
+                    agent_id=device_state.agent_id))
             return device_state.agent_id == requester
         return self.allow_no_lock_write
 
