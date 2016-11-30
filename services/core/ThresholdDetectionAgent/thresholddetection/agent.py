@@ -116,22 +116,37 @@ class ThresholdDetectionAgent(Agent):
         self.config_topics = {}
 
         self.vip.config.set_default("config", config)
-        self.vip.config.subscribe(self.threshold_add, actions="NEW", pattern="config")
-        self.vip.config.subscribe(self.threshold_del, actions="DELETE", pattern="config")
-        self.vip.config.subscribe(self.threshold_mod, actions="UPDATE", pattern="config")
+        self.vip.config.subscribe(self._config_add, actions="NEW", pattern="config")
+        self.vip.config.subscribe(self._config_del, actions="DELETE", pattern="config")
+        self.vip.config.subscribe(self._config_mod, actions="UPDATE", pattern="config")
 
-    def threshold_add(self, config_name, action, contents):
+    def _config_add(self, config_name, action, contents):
+        """
+        Configstore callback
+
+        Subscribes to configured topics with customized callbacks
+        """
         self.config_topics[config_name] = set()
         for topic, values in contents.iteritems():
             self.config_topics[config_name].add(topic)
             _log.info("Subscribing to {}".format(topic))
 
             if topic.startswith("devices/") and topic.endswith("/all"):
-                self.create_device_subscription(topic, values)
+                self._create_device_subscription(topic, values)
             else:
-                self.create_standard_subscription(topic, values)
+                self._create_standard_subscription(topic, values)
 
-    def create_device_subscription(self, topic, device_points):
+    def _create_device_subscription(self, topic, device_points):
+        """
+        Subscribe to points in a device's all publish and alert if
+        values are out of range
+
+        :param topic: All topic from a device scrape
+        :type topic: str
+
+        :param device_points: Dictionary of points to thresholds
+        :type device_points: dict
+        """
         for point, values in device_points.iteritems():
             threshold_max = values.get('threshold_max')
             threshold_min = values.get('threshold_min')
@@ -145,13 +160,22 @@ class ThresholdDetectionAgent(Agent):
                     return
 
                 if threshold_max is not None and data > threshold_max:
-                    self.alert(topic, threshold_max, data, point=point)
+                    self._alert(topic, threshold_max, data, point=point)
                 elif threshold_min is not None and data < threshold_min:
-                    self.alert(topic, threshold_min, data, point=point)
+                    self._alert(topic, threshold_min, data, point=point)
 
             self.vip.pubsub.subscribe('pubsub', topic, callback)
 
-    def create_standard_subscription(self, topic, values):
+    def _create_standard_subscription(self, topic, values):
+        """
+        Subscribe to a topic and alert if its message is out of range
+
+        :param topic: All topic from a device scrape
+        :type topic: str
+
+        :param device_points: Dictionary of points to thresholds
+        :type device_points: dict
+        """
         threshold_max = values.get('threshold_max')
         threshold_min = values.get('threshold_min')
 
@@ -162,13 +186,18 @@ class ThresholdDetectionAgent(Agent):
                 return
 
             if threshold_max is not None and data > threshold_max:
-                self.alert(topic, threshold_max, data)
+                self._alert(topic, threshold_max, data)
             elif threshold_min is not None and data < threshold_min:
-                self.alert(topic, threshold_min, data)
+                self._alert(topic, threshold_min, data)
 
         self.vip.pubsub.subscribe('pubsub', topic, callback)
 
-    def threshold_del(self, config_name, action, contents):
+    def _config_del(self, config_name, action, contents):
+        """
+        Configstore callback
+
+        Unsubscribes from topics in a deleted configuration.
+        """
         topics = self.config_topics.pop(config_name)
         for t in topics:
             _log.info("Unsubscribing from {}".format(t))
@@ -176,11 +205,16 @@ class ThresholdDetectionAgent(Agent):
                                         prefix=t,
                                         callback=None).get()
 
-    def threshold_mod(self, *args):
-        self.threshold_del(*args)
-        self.threshold_add(*args)
+    def _config_mod(self, *args):
+        """
+        Configstore callback
 
-    def alert(self, topic, threshold, data, point=''):
+        Unsubscribes and resubscribes to updated configuration.
+        """
+        self._config_del(*args)
+        self._config_add(*args)
+
+    def _alert(self, topic, threshold, data, point=''):
         """
         Raise alert for the given topic.
 
@@ -218,7 +252,7 @@ class ThresholdDetectionAgent(Agent):
 
 
 def main(argv=sys.argv):
-    '''Main method called by the platform.'''
+    """Main method called by the platform."""
     utils.vip_main(thresholddetection_agent, identity='platform.thresholddetection')
 
 

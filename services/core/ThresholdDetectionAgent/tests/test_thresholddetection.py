@@ -69,6 +69,12 @@ from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 from volttron.platform.vip.agent import Agent, PubSub
 from volttrontesting.utils.utils import poll_gevent_sleep
 
+_default_config = {
+    "test_max": {
+        "threshold_max": 10
+    }
+}
+
 _test_config = {
     "test_max": {
         "threshold_max": 10,
@@ -77,13 +83,12 @@ _test_config = {
         "threshold_min": 10,
     },
     "devices/all": {
-      "point": {
-          "threshold_max": 10,
-          "threshold_min": 0,
-      }
+        "point": {
+            "threshold_max": 10,
+            "threshold_min": 0,
+        }
     }
 }
-
 
 class AlertWatcher(Agent):
     """Keep track of seen alerts"""
@@ -107,7 +112,7 @@ def threshold_tester_agent(request, volttron_instance):
 
     threshold_detection_uuid = volttron_instance.install_agent(
         agent_dir='services/core/ThresholdDetectionAgent',
-        config_file={},
+        config_file=_default_config,
         start=True)
 
     agent = volttron_instance.build_agent(agent_class=AlertWatcher,
@@ -177,8 +182,11 @@ def test_remove_from_config_store(threshold_tester_agent):
                                         'config').get()
     publish(threshold_tester_agent, _test_config, lambda x: x+1)
     publish(threshold_tester_agent, _test_config, lambda x: x-1, to_max=False)
-    gevent.sleep(1)
-    assert len(threshold_tester_agent.seen_alert_keys) == 0
+    publish(threshold_tester_agent, _default_config, lambda x: x+1)
+    check = lambda: threshold_tester_agent.seen_alert_keys == set(['test_max'])
+    assert poll_gevent_sleep(2, check)
+    # gevent.sleep(1)
+    # assert len(threshold_tester_agent.seen_alert_keys) == 0
 
 def test_update_config(threshold_tester_agent):
     updated_config = {
