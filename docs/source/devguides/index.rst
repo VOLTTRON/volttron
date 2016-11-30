@@ -13,6 +13,8 @@ Developing VOLTTRON
     walkthroughs/index
     eclipse/index
     scalability/index
+    supporting/index
     roadmap/index
+    
 
     *
