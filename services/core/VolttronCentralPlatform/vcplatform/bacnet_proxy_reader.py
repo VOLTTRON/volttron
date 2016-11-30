@@ -188,6 +188,10 @@ class BACnetReader(object):
             present_values = self._filter_present_value_from_results(results)
             self._process_input(target_address, device_id, present_values)
 
+        self._response_function(dict(device_id=device_id,
+                                     address=target_address,
+                                     status="COMPLETE"), {})
+
     def _build_query_map_for_type(self, object_type, index):
         """ Build a map that can be sent to the _read_props function.
 
@@ -511,10 +515,6 @@ class BACnetReader(object):
                                           results)
             self._log.debug('Built bacnet Objects 2: {}'.format(objects))
             self._emit_responses(device_id, target_address, objects)
-
-        self._response_function(dict(device_id=device_id,
-                                     address=target_address,
-                                     status="COMPLETE"), {})
 
     def _filter_present_value_from_results(self, results):
         """ Filter the results so that only presentValue datatypes are kept.
