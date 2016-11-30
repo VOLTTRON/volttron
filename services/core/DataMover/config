@@ -1,6 +1,4 @@
 {
-
-    "agentid": "forwarder",
     "destination-vip": "ipc://@/home/volttron/.volttron/run/vip.socket",
     "destination-serverkey": null,
     "required_target_agents": [],

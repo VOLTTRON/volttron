@@ -247,7 +247,7 @@ import re
 from dateutil.parser import parse
 from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from volttron.platform.agent.utils import process_timestamp, \
-    fix_sqlite3_datetime, get_aware_utc_now
+    fix_sqlite3_datetime, get_aware_utc_now, parse_timestamp_string
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
@@ -318,6 +318,30 @@ class BaseHistorianAgent(Agent):
         self._process_thread = Thread(target=self._process_loop)
         self._process_thread.daemon = True  # Don't wait on thread to exit.
         self._process_thread.start()
+
+    @RPC.export
+    def insert(self, records):
+        """RPC method to allow remote inserts to the local cache
+
+        :param records: List of items to be added to the local event queue
+        :type records: list of dictionaries
+        """
+        for r in records:
+            topic = r['topic']
+            headers = r['headers']
+            message = r['message']
+
+            if topic.startswith(topics.DRIVER_TOPIC_BASE):
+                capture_func = self._capture_device_data
+            elif topic.startswith(topics.LOGGER_BASE):
+                capture_func = self._capture_log_data
+            elif topic.startswith(topics.ANALYSIS_TOPIC_BASE):
+                capture_func = self._capture_analysis_data
+            elif topic.startswith(topics.RECORD_BASE):
+                capture_func = self._capture_record_data
+
+            capture_func(peer=None, sender=None, bus=None,
+                         topic=topic, headers=headers, message=message)
 
     def _create_subscriptions(self):
 
@@ -433,7 +457,7 @@ class BaseHistorianAgent(Agent):
         # Anon the topic if necessary.
         topic = self._get_topic(topic)
         try:
-            # 2.0 agents compatability layer makes sender == pubsub.compat so 
+            # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
             if sender == 'pubsub.compat':
                 data = compat.unpack_legacy_message(headers, message)
@@ -449,13 +473,7 @@ class BaseHistorianAgent(Agent):
                 topic=topic))
             return
 
-        source = 'log'
-        # _log.debug(
-        #     "Queuing {topic} from {source} for publish".format(topic=topic,
-        #
-        # source=source))
         for point, item in data.iteritems():
-            #             ts_path = location + '/' + point
             if 'Readings' not in item or 'Units' not in item:
                 _log.error("logging request for {topic} missing Readings "
                            "or Units".format(topic=topic))
@@ -480,7 +498,7 @@ class BaseHistorianAgent(Agent):
                 elif my_tz:
                     meta['tz'] = my_tz
 
-            self._event_queue.put({'source': source,
+            self._event_queue.put({'source': 'log',
                                    'topic': topic + '/' + point,
                                    'readings': readings,
                                    'meta': meta})
@@ -528,7 +546,6 @@ class BaseHistorianAgent(Agent):
 
     def _capture_data(self, peer, sender, bus, topic, headers, message,
                       device):
-
         # Anon the topic if necessary.
         topic = self._get_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
@@ -539,7 +556,6 @@ class BaseHistorianAgent(Agent):
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
             if sender == 'pubsub.compat':
-                # message = jsonapi.loads(message[0])
                 message = compat.unpack_legacy_message(headers, message)
 
             if isinstance(message, dict):
@@ -831,7 +847,7 @@ class BackupDatabase:
             source = item['source']
             topic = item['topic']
             meta = item.get('meta', {})
-            values = item['readings']
+            readings = item['readings']
 
             topic_id = self._backup_cache.get(topic)
 
@@ -853,7 +869,7 @@ class BackupDatabase:
                               (source, topic_id, name, value))
                     meta_dict[name] = value
 
-            for timestamp, value in values:
+            for timestamp, value in readings:
                 if timestamp is None:
                     timestamp = get_aware_utc_now()
                 c.execute(
@@ -910,7 +926,6 @@ class BackupDatabase:
         c = self._connection.cursor()
         c.execute('select * from outstanding order by ts limit ?',
                   (size_limit,))
-
         results = []
         for row in c:
             _id = row[0]
@@ -997,6 +1012,22 @@ class BaseQueryHistorianAgent(Agent):
     """This is the base agent for historian Agents that support querying of
     their data stores.
     """
+
+    @RPC.export
+    def get_version(self):
+        """RPC call to get the version of the historian
+
+        :return: version number of the historian used
+        :rtype: string
+        """
+        return self.version()
+
+    @abstractmethod
+    def version(self):
+        """
+        Return the current version number of the historian
+        :return: version number
+        """
 
     @RPC.export
     def get_topic_list(self):
