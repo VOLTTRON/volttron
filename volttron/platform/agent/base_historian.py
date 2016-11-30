@@ -999,6 +999,22 @@ class BaseQueryHistorianAgent(Agent):
     """
 
     @RPC.export
+    def get_version(self):
+        """RPC call to get the version of the historian
+
+        :return: version number of the historian used
+        :rtype: string
+        """
+        return self.version()
+
+    @abstractmethod
+    def version(self):
+        """
+        Return the current version number of the historian
+        :return: version number
+        """
+
+    @RPC.export
     def get_topic_list(self):
         """RPC call to get a list of topics in data store
 
