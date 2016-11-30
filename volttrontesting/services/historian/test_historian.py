@@ -460,7 +460,7 @@ def historian(request, volttron_instance, query_agent):
 
 @pytest.fixture()
 def clean(request):
-    global connection_type, table_names
+    global db_connection, connection_type, table_names
     def delete_rows():
         cleanup_function = globals()["cleanup_" + connection_type]
         cleanup_function(db_connection, [table_names['data_table']])
@@ -975,7 +975,7 @@ def test_topic_name_case_change(request, historian, publish_agent,
     # skip if this test case need not repeated for this specific historian
     skip_custom_tables(historian)
 
-    global query_points, DEVICES_ALL_TOPIC, db_connection
+    global query_points, DEVICES_ALL_TOPIC, db_connection, table_names
     # print('HOME', volttron_instance.volttron_home)
     print("\n** test_topic_name_case_change for {}**".format(
         request.keywords.node.name))
@@ -1032,6 +1032,7 @@ def test_topic_name_case_change(request, historian, publish_agent,
         count=20,
         order="FIRST_TO_LAST").get(timeout=10)
     print('Query Result', result)
+
     assert (len(result['values']) == 2)
     (time1_date, time1_time) = time1.split(" ")
     time1_time = time1_time[:-1]
@@ -1058,10 +1059,10 @@ def test_invalid_query(request, historian, publish_agent, query_agent,
     # print('HOME', volttron_instance.volttron_home)
     print("\n** test_invalid_query for {}**".format(
         request.keywords.node.name))
-    
+
     # Create timestamp
     now = datetime.utcnow().isoformat(' ') + 'Z'
-    
+
     # Query without topic id
     try:
         query_agent.vip.rpc.call(identity,
@@ -1085,6 +1086,7 @@ def test_invalid_query(request, historian, publish_agent, query_agent,
     except Exception as error:
         print ("exception: {}".format(error))
         assert "No route to host: platform.historian1" in str(error)
+
 
 @pytest.mark.historian
 def test_invalid_time(request, historian, publish_agent, query_agent,
@@ -1307,6 +1309,7 @@ def test_log_topic(request, historian, publish_agent, query_agent, clean):
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.historian
 def test_log_topic_no_header(request, historian, publish_agent, query_agent,
                              clean):
@@ -1495,16 +1498,6 @@ def test_get_topic_metadata(request, historian, publish_agent,
     assert result['datalogger/Building/LAB/Device/temp2'] == \
         {'units': 'F', 'tz': 'UTC', 'type': 'float'}
 
-    try:
-        query_agent.vip.rpc.call(
-            identity,
-            'get_topics_metadata',
-            topics=123
-        ).get(timeout=10)
-
-    except RemoteError as e:
-        assert e.message == "Please provide a valid topic name string " \
-                            "or a list of topic names. Invalid input 123"
 
 @pytest.mark.historian
 def test_multi_topic_query(request, historian, publish_agent, query_agent,
@@ -1571,6 +1564,7 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
         assert (result["values"][query_points['oat_point']][i][1] ==
                 expected_result["values"][query_points['oat_point']][i][1])
 
+
 @pytest.mark.historian
 def test_get_topic_list(request, historian, publish_agent, query_agent,
                         clean, volttron_instance):
@@ -1597,10 +1591,10 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
     agent_uuid = None
     try:
         historian["tables_def"] = {
-            "table_prefix": "topic_list_test2",
-            "data_table":"data_table",
-            "topics_table": "topics_table",
-            "meta_table": "meta_table"}
+            "table_prefix": "topic_list_test1234",
+            "data_table":"data",
+            "topics_table": "topics",
+            "meta_table": "meta"}
 
         # 1: Install historian agent
         # Install and start historian agent
@@ -1648,8 +1642,9 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
     finally:
         if agent_uuid:
             cleanup_function = globals()["cleanup_" + connection_type]
-            cleanup_function(db_connection, [table_names['data_table'],
-                                             table_names['topics_table'] ])
+            cleanup_function(db_connection, ['topic_list_test1234_data',
+                                             'topic_list_test1234_topics',
+                                             'topic_list_test1234_meta'])
             volttron_instance.remove_agent(agent_uuid)
 
 
