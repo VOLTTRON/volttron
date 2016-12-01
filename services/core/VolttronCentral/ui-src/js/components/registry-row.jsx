@@ -20,8 +20,7 @@ class RegistryRow extends BaseComponent {
     }
     componentWillReceiveProps(nextProps)
     {
-        if ((this.props.attributesList !== nextProps.attributesList) || 
-            (this.props.allSelected !== nextProps.allSelected))
+        if (this.props.attributesList !== nextProps.attributesList)
         {
             var newState = this._resetState(nextProps);
             this.setState(newState);
@@ -86,8 +85,6 @@ class RegistryRow extends BaseComponent {
     }
     _clickCheckbox(checked) {
         devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
-        // this.setState({selectedCheckbox: checked});
-
         this.props.oncheckselect(this.state.attributesList.getIn(["attributes", 0]).value);
     }
     _handleRowClick(evt){

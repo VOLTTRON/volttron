@@ -411,13 +411,34 @@ class ConfigureRegistry extends BaseComponent {
 
         var promptText, confirmText, confirmAction, cancelText;
 
-        var selectedPoints = this.state.selectedPoints;
+        var selectedPointNames = [];
+        var selectedPointIndices = [];
 
-        if (this.state.selectedPoints.length > 0)
+        this.state.registryValues.forEach(function (attributeRow, rowIndex) {
+
+            if (attributeRow.get("selected"))
+            {
+                attributeRow.get("attributes").find(function (columnCell, columnIndex) {
+
+                    var match = (columnCell.key.toLowerCase() === "volttron_point_name");
+
+                    if (match)
+                    {
+                        selectedPointNames.push(columnCell.value);
+                    }
+
+                    return match;
+                });
+
+                selectedPointIndices.push(rowIndex);
+            }       
+        });
+
+        if (selectedPointNames.length > 0)
         {
-            promptText = "Are you sure you want to delete these points? " + this.state.selectedPoints.join(", ");
+            promptText = "Are you sure you want to delete these points? " + selectedPointNames.join(", ");
             confirmText = "Delete";
-            confirmAction = this._removePoints.bind(this, this.state.selectedPoints);
+            confirmAction = this._removePoints.bind(this, selectedPointIndices);
         }  
         else
         {
@@ -435,28 +456,12 @@ class ConfigureRegistry extends BaseComponent {
             ></ConfirmForm>
         );
     }
-    _removePoints(selectedPoints) {
+    _removePoints(pointIndices) {
         
-        selectedPoints.forEach(function (pointToDelete) {
-
-            var index = -1;
-
-            this.state.registryValues.find(function (row, i) {
-                var pointMatched = (row.get("index") === pointToDelete);
-
-                if (pointMatched)
-                {
-                    index = i;
-                }
-
-                return pointMatched;
-            })
-
-            if (index > -1)
-            {
-                this.state.registryValues.splice(index, 1);
-            }
-        }, this);
+        for (var i = pointIndices.length - 1; i > -1; i--)
+        {
+            this.state.registryValues.splice(pointIndices[i], 1);
+        }
 
         var newRegistryValues = this.state.registryValues.map(function (row, i) {
             row = row.set("virtualIndex", i);
@@ -465,7 +470,6 @@ class ConfigureRegistry extends BaseComponent {
         });
 
         this.setState({ registryValues: newRegistryValues });
-        this.setState({ selectedPoints: [] });
 
         modalActionCreators.closeModal();
     }
@@ -483,9 +487,16 @@ class ConfigureRegistry extends BaseComponent {
         });
 
         this.setState({ registryValues: newRegistryValues });  
+        this.setState({ allSelected: false });
 
     }
     _selectAll(checked) {
+        var newRegistryValues = this.state.registryValues.map(function (row) {
+            row = row.set("selected", checked);
+            return row;
+        });
+
+        this.setState({ registryValues: newRegistryValues });
         this.setState({ allSelected: checked });
     }
     _onAddColumn(index) {
@@ -890,7 +901,6 @@ class ConfigureRegistry extends BaseComponent {
                         key={"registryRow-" + attributesList.get("attributes").get(0).value + "-" + rowIndex}
                         attributesList={attributesList} 
                         immutableProps={immutableProps}
-                        allSelected={this.state.allSelected}
                         oncheckselect={this._onSelectForActions}
                         onresizecolumn={this._resizeColumn}
                         oninitializetable={this._initializeTable}
@@ -1045,7 +1055,8 @@ class ConfigureRegistry extends BaseComponent {
                             <div className="centerContent flexContent">
                                 <CheckBox 
                                     controlClass="flexChild"
-                                    oncheck={this._selectAll}>
+                                    oncheck={this._selectAll}
+                                    selected={this.state.allSelected}>
                                 </CheckBox>
                             </div>
                         </div>
