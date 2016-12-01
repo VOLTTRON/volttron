@@ -247,7 +247,7 @@ Figure 27. Running VOLTTRON Platform, Setting Up a Run Configuration (continued)
 
 3. Change the name (any name may be used but for this example the name VOLTTRON was chosen) and select the main module (``<project directory>/volttron/platform/main.py``).
 
-4. Select the Arguments tab and enter '-vv --developer-mode' in the Program arguments field (Figure 28) then select the Run button.
+4. Select the Arguments tab and enter '-vv' in the Program arguments field (Figure 28) then select the Run button.
 
 .. image:: files/28-running-volttron.jpg
 Figure 28. Running VOLTTRON Platform, Setting Up a Run Configuration (continued)
