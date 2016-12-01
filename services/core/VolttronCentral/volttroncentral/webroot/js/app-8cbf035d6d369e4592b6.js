@@ -36094,6 +36094,10 @@
 	    return _chartData.hasOwnProperty(chartKey) ? _chartData[chartKey].refreshInterval : null;
 	};
 	
+	chartStore.getDataLength = function (chartKey) {
+	    return _chartData.hasOwnProperty(chartKey) ? _chartData[chartKey].dataLength : null;
+	};
+	
 	chartStore.showCharts = function () {
 	
 	    var showCharts = _showCharts;
@@ -36177,6 +36181,7 @@
 	                if (action.panelItem.hasOwnProperty("data")) {
 	                    var chartObj = {
 	                        refreshInterval: action.panelItem.hasOwnProperty("refreshInterval") ? action.panelItem.refreshInterval : 15000,
+	                        dataLength: action.panelItem.hasOwnProperty("dataLength") ? action.panelItem.dataLength : 20,
 	                        pinned: action.panelItem.hasOwnProperty("pinned") ? action.panelItem.pinned : false,
 	                        type: action.panelItem.hasOwnProperty("chartType") ? action.panelItem.chartType : "line",
 	                        data: convertTimeToSeconds(action.panelItem.data),
@@ -36233,6 +36238,16 @@
 	
 	            if (_chartData[action.chartKey].hasOwnProperty("refreshInterval")) {
 	                _chartData[action.chartKey].refreshInterval = action.rate;
+	            }
+	
+	            chartStore.emitChange();
+	
+	            break;
+	
+	        case ACTION_TYPES.CHANGE_CHART_LENGTH:
+	
+	            if (_chartData[action.chartKey].hasOwnProperty("dataLength")) {
+	                _chartData[action.chartKey].dataLength = action.length;
 	            }
 	
 	            chartStore.emitChange();
@@ -56112,7 +56127,7 @@
 	            chartKey: chartKey
 	        });
 	    },
-	    refreshChart: function refreshChart(series) {
+	    refreshChart: function refreshChart(series, length) {
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
@@ -56121,7 +56136,7 @@
 	                method: 'historian.query',
 	                params: {
 	                    topic: item.topic,
-	                    count: 20,
+	                    count: length > 0 ? length : 20,
 	                    order: 'LAST_TO_FIRST'
 	                },
 	                authorization: authorization
@@ -74580,7 +74595,7 @@
 	        if (this.props.hasOwnProperty("chart")) {
 	            this.setState({ refreshing: true });
 	
-	            platformChartActionCreators.refreshChart(this.props.chart.series);
+	            platformChartActionCreators.refreshChart(this.props.chart.series, this.props.chart.dataLength);
 	
 	            if (this.state.refreshInterval) {
 	                this._refreshChartTimeout = setTimeout(this._refreshChart, this.state.refreshInterval);
@@ -74949,6 +74964,27 @@
 	                taptip: refreshChartTaptip,
 	                tooltip: refreshChartTooltip,
 	                icon: refreshChartIcon });
+	
+	            var lengthIcon = React.createElement('i', { className: 'fa fa-arrows-h' });
+	
+	            var dataLengthTaptip = {
+	                "title": "Data Length",
+	                "content": lengthChart,
+	                "x": taptipX,
+	                "y": taptipY
+	            };
+	
+	            var dataLengthTooltip = {
+	                "content": "Data Length",
+	                "x": tooltipX,
+	                "y": tooltipY
+	            };
+	
+	            var dataLengthButton = React.createElement(_controlButton2.default, {
+	                name: this.state.chartName + "_dataLengthButton",
+	                taptip: dataLengthTaptip,
+	                tooltip: dataLengthTooltip,
+	                icon: lengthIcon });
 	
 	            var chartMin = React.createElement(
 	                'div',
@@ -115033,6 +115069,7 @@
 	        var state = {};
 	
 	        state.refreshInterval = 15000;
+	        state.dataLength = 20;
 	
 	        state.topics = chartStore.getChartTopics();
 	        state.filteredTopics = state.topics;
@@ -115103,6 +115140,7 @@
 	            selectedTopic.topic = selectedTopic.value;
 	            selectedTopic.pinned = this.state.pin ? true : false;
 	            selectedTopic.refreshInterval = this.state.refreshInterval;
+	            selectedTopic.dataLength = this.state.dataLength;
 	            selectedTopic.chartType = this.state.chartType;
 	            selectedTopic.path = platformsPanelItemsStore.findTopicInTree(selectedTopic.topic);
 	            selectedTopic.max = this.state.max;
@@ -115184,6 +115222,30 @@
 	                    onChange: this._onPropChange,
 	                    value: this.state.refreshInterval,
 	                    min: '250',
+	                    step: '1',
+	                    placeholder: 'disabled'
+	                }),
+	                React.createElement(
+	                    'span',
+	                    { className: 'form__control-help' },
+	                    'Omit to disable'
+	                )
+	            ),
+	            React.createElement(
+	                'div',
+	                { className: 'form__control-group' },
+	                React.createElement(
+	                    'label',
+	                    { htmlFor: 'dataLength' },
+	                    'Data Length'
+	                ),
+	                React.createElement('input', {
+	                    className: 'form__control form__control--inline',
+	                    type: 'number',
+	                    id: 'dataLength',
+	                    onChange: this._onPropChange,
+	                    value: this.state.dataLength,
+	                    min: '1',
 	                    step: '1',
 	                    placeholder: 'disabled'
 	                }),
@@ -115281,4 +115343,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-f7ee694babf344b90a6a.js.map
+//# sourceMappingURL=app-8cbf035d6d369e4592b6.js.map

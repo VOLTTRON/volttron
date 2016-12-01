@@ -63,7 +63,8 @@ var PlatformChart = React.createClass({
             this.setState({refreshing: true});
 
             platformChartActionCreators.refreshChart(
-                this.props.chart.series
+                this.props.chart.series,
+                this.props.chart.dataLength
             );
 
             if (this.state.refreshInterval) {
@@ -431,6 +432,31 @@ var GraphLineChart = OutsideClick(React.createClass({
                 taptip={refreshChartTaptip}
                 tooltip={refreshChartTooltip}
                 icon={refreshChartIcon}></ControlButton>
+        );
+
+        var lengthIcon = (
+            <i className="fa fa-arrows-h"></i>
+        );
+
+        var dataLengthTaptip = { 
+            "title": "Data Length", 
+            "content": lengthChart,
+            "x": taptipX,
+            "y": taptipY
+        };
+
+        var dataLengthTooltip = { 
+            "content": "Data Length",
+            "x": tooltipX,
+            "y": tooltipY
+        };  
+
+        var dataLengthButton = ( 
+            <ControlButton
+              name={this.state.chartName + "_dataLengthButton"}
+              taptip={dataLengthTaptip}
+              tooltip={dataLengthTooltip}
+              icon={lengthIcon}></ControlButton>
         );
 
         var chartMin = (
