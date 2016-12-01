@@ -621,6 +621,7 @@ class VolttronCentralPlatform(Agent):
     def publish_bacnet_props(self, proxy_identity, publish_topic, address,
                              device_id, filter=[]):
         _log.debug('Publishing bacnet props to topic: {}'.format(publish_topic))
+
         def bacnet_response(context, results):
             _log.debug("Handling bacnet responses: RESULTS: {}".format(results))
             message = dict(results=results)
