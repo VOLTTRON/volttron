@@ -184,12 +184,14 @@ class DevicesFound extends BaseComponent {
 
                     var fileSelectTooltip = {
                         content: "Select Registry File CSV)",
+                        tooltipClass: "colorBlack",
                         "x": -20,
                         "y": -120
                     }
 
                     var fileUploadTooltip = {
                         content: "Import Registry File (CSV)",
+                        tooltipClass: "colorBlack",
                         "x": -20,
                         "y": -120
                     }

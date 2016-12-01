@@ -53,7 +53,7 @@ class RegistryFilesSelector extends BaseComponent {
 
         var filesList;
 
-        if (this.state.registryFiles)
+        if (this.state.registryFiles && this.state.registryFiles.files.length)
         {    
             filesList = this.state.registryFiles.files.map(function (registryFile, index) {
 
@@ -94,6 +94,10 @@ class RegistryFilesSelector extends BaseComponent {
                     </div>
                 );
             }, this);
+        }
+        else
+        {
+            filesList = <p className="empty-help">No registry files found.</p>
         }
 
         return (

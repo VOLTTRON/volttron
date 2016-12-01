@@ -1067,19 +1067,6 @@ devicesStore.getNewScan = function () {
     return _newScan;
 }
 
-devicesStore.getSelectedPoints = function (device) {
-
-    var device = devicesStore.getDeviceRef(device.id, device.address);
-    var selectedPoints = [];
-
-    if (device)
-    {
-        selectedPoints = device.selectedPoints;
-    }
-
-    return selectedPoints;
-}
-
 devicesStore.getKeyboard = function (deviceId) {
 
     var keyboard = ( deviceId === _keyboard.device ? JSON.parse(JSON.stringify(_keyboard)) : null);
@@ -1244,7 +1231,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             {
                 device.registryConfig = getPreppedData(action.data);
                 device.showPoints = true;
-                device.selectedPoints = [];
             }
 
             _registryFiles[action.deviceId] = action.file;             
@@ -1304,14 +1290,12 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
                 if (typeof attributes !== "undefined")
                 {                
-                    device.registryConfig[i] = action.attributes.toJS();                    
+                    device.registryConfig[i] = action.attributes.toJS();
                 }
                 else
                 {
                     device.registryConfig.push(action.attributes.toJS());
                 }
-
-                device.selectedPoints = action.selectedPoints;
             }
 
             devicesStore.emitChange();
@@ -1500,13 +1484,13 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                         {
                             console.log(pointData);
                             // can remove fauxStart if fix false COMPLETE message arriving first
-                            if (device.hasOwnProperty("fauxStart"))
-                            {
+                            // if (device.hasOwnProperty("fauxStart"))
+                            // {
                                 device.configuring = false;
                                 emitChange = true;
-                            }
+                            // }
 
-                            device.fauxStart = true;
+                            // device.fauxStart = true;
                         }
                     }
                 }
@@ -1518,6 +1502,8 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
     function loadDevice(device, platformUuid, bacnetIdentity) 
     {
+        console.log("device");
+        console.log(device);
         var deviceIdStr = device.device_id.toString();
 
         _devices.push({
@@ -1535,7 +1521,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             agentDriver: device.agentDriver,
             registryConfig: [],
             keyProps: ["volttron_point_name", "units", "writable"],
-            selectedPoints: [],
             items: [
                 { key: "address", label: "Address", value: device.address },  
                 { key: "deviceName", label: "Name", value: device.device_name },  

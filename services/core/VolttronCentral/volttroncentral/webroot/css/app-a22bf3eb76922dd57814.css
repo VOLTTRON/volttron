@@ -750,6 +750,10 @@ br + .form__control-help {
     font-weight: bold;
 }
 
+.colorBlack {
+    color: black;
+}
+
 .centerContent {
     text-align: center;
 }
@@ -873,10 +877,13 @@ br + .form__control-help {
     transform: translateY(0%);   
 }
 
-.file-button > .centeredDiv,
-.file-select-button > .centeredDiv,
 .configure-arrow > .centeredDiv {
     transform: translateY(-20%);   
+}
+
+.file-button > .centeredDiv,
+.file-select-button > .centeredDiv {
+    transform: translateY(-6px);
 }
 
 .status-good {
@@ -1427,7 +1434,7 @@ a.view__item:hover::before {
 }
 
 .configIcon {
-    color: darkblue;
+    color: #408DDE;
 }
 
 .unpinned-chart {
@@ -1498,7 +1505,7 @@ a.view__item:hover::before {
 }
 
 .vc-checkbox:hover > div > span::before {
-    border: 1px solid #A90DD4;
+    border: 1px solid #408DDE;
 }
 
 .vc-checkbox > div > span::before {
@@ -1522,7 +1529,7 @@ a.view__item:hover::before {
 .vc-checkbox > .selected > span::before {
     box-shadow: 0 0 0 0 #fff inset;
     border: 1px solid #595959;
-    background: rgba(128,128,255,0.5);
+    background: rgba(21, 81, 125, .3);
 } 
 
 .advanced-toggle {
@@ -1626,15 +1633,15 @@ a.view__item:hover::before {
 }
 
 .registryConfigTable > tbody > tr {
-    cursor: cell;
+    cursor: pointer;
 }
 
 .registryConfigTable > tbody > tr > td > label {
-    cursor: cell;
+    cursor: pointer;
 }
 
-.registryConfigTable > tbody > tr:not(.selectedRegistryPoint):hover {
-    background-color: rgba(21, 81, 125, .3);
+.registryConfigTable > tbody > tr:hover {
+    background-color: rgba(4, 47, 78, 0.2);
 }
 
 .registryConfigTable > tbody > tr > td > input {
@@ -1658,13 +1665,24 @@ a.view__item:hover::before {
     opacity: .4;
 }
 
-.selectedRegistryPoint {
-    background-color: rgba(21, 81, 125, .5) !important;
+.keyboard-selected {
+    background-color: rgba(192,206,216,.5);
 }
 
-.keyboard-selected {
-    background-color: rgba(21, 81, 125, .3);
+.already-used-point input[type="text"] {
+    font-style: italic;
+    color: #7F7F7F;
 }
+
+/*.already-used-point {
+    background-color: #DCEEFD
+}*/
+
+/*.already-used-point input[type="text"] {
+    font-style: italic;
+    background-color: rgba(136, 165, 191, 0.15)
+    color: #7F7F7F;
+}*/
 
 .th-inner {
     position: absolute;
@@ -1726,7 +1744,7 @@ border-top-left-radius: 5px;
 }
 
 .opListItem:hover { 
-     background-color: aquamarine; 
+     background-color: rgba(21, 81, 125, .3); 
 }
 
 .edit_button, 
@@ -1876,6 +1894,7 @@ td.buffer_row {
     height: 20px;
     width: 20px;
     text-align: center;
+    color: gray;
 }
 
 .fileSelectButton {
@@ -1888,7 +1907,7 @@ td.buffer_row {
 
 .fileButton > div {
     line-height: 16px;
-    transform: translateY(6px);
+    transform: translateY(7px);
 }
 
 .buttonWrapper {
@@ -1907,4 +1926,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-a4329a26964efc764c34.css.map*/
+/*# sourceMappingURL=app-a22bf3eb76922dd57814.css.map*/
