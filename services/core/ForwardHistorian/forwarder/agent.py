@@ -60,10 +60,10 @@ import datetime
 import logging
 import sys
 import time
+import traceback
 from urlparse import urlparse
 
 import gevent
-from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import Agent, Core, compat, Unreachable
 from volttron.platform.agent.base_historian import BaseHistorian
@@ -75,7 +75,7 @@ from volttron.platform.messaging.health import (STATUS_BAD,
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.6'
+__version__ = '3.6.1'
 
 
 def historian(config_path, **kwargs):
@@ -216,7 +216,16 @@ def historian(config_path, **kwargs):
                 try:
                     self._target_platform.vip.ping(vip_id).get()
                 except Unreachable:
-                    _log.warning("Skipping publish: Target platform not running required agent {}".format(vip_id))
+                    skip = "Skipping publish: Target platform not running " \
+                           "required agent {}".format(vip_id)
+                    _log.warn(skip)
+                    return
+                except Exception as e:
+                    err = "Unhandled error publishing to target platfom."
+                    _log.error(err)
+                    _log.error(traceback.format_exc())
+                    self.vip.health.set_status(
+                        STATUS_BAD, err)
                     return
 
             for x in to_publish_list:
@@ -276,7 +285,12 @@ def historian(config_path, **kwargs):
                         self.vip.health.set_status(
                             STATUS_BAD, "Timout occured")
                     except Exception as e:
-                        _log.error(e)
+                        err = "Unhandled error publishing to target platfom."
+                        _log.error(err)
+                        _log.error(traceback.format_exc())
+                        self.vip.health.set_status(
+                            STATUS_BAD, err)
+                        return
                     else:
                         handled_records.append(x)
 
@@ -289,6 +303,10 @@ def historian(config_path, **kwargs):
                 status = Status.from_json(self.vip.health.get_status())
                 self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                            status)
+            else:
+                self.vip.health.set_status(
+                    STATUS_GOOD,"published {} items".format(
+                        len(to_publish_list)))
 
         def historian_setup(self):
             try:
