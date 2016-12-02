@@ -66,7 +66,7 @@ from .rpc import RPC
 from .heartbeat import Heartbeat
 from .health import Health
 from .configstore import ConfigStore
-
+from .auth import Auth
 
 __all__ = ['PeerList', 'Ping', 'RPC', 'Hello', 'PubSub', 'Channel',
-           'Heartbeat', 'Health', 'ConfigStore']
+           'Heartbeat', 'Health', 'ConfigStore', 'Auth']

@@ -12,6 +12,7 @@ import pytest
 import re
 from dateutil.parser import parse
 from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 
 AGG_AGENT_VIP = 'aggregate_agent'
 
@@ -338,7 +339,7 @@ def test_get_supported_aggregations(aggregate_agent, query_agent):
     #      ]
     #      }
     # ]
-    query_agent.vip.rpc.call("config.store", "manage_store",
+    query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                              AGG_AGENT_VIP, "config",
                              aggregate_agent).get()
 
@@ -411,7 +412,7 @@ def test_single_topic_pattern(aggregate_agent, query_agent):
              ]
              }
         ]
-        query_agent.vip.rpc.call("config.store", "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
                                  aggregate_agent).get()
 
@@ -513,7 +514,7 @@ def test_single_topic(aggregate_agent, query_agent):
                 ]
             }
         ]
-        query_agent.vip.rpc.call("config.store", "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
                                  aggregate_agent).get()
         gevent.sleep(2.5 * 60)  # sleep till we see two rows in aggregate table
@@ -686,7 +687,7 @@ def test_multiple_topic_pattern(aggregate_agent, query_agent):
              }
         ]
 
-        query_agent.vip.rpc.call("config.store", "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
                                  aggregate_agent).get()
 
@@ -759,7 +760,7 @@ def test_multiple_topic_list(aggregate_agent, query_agent):
              }
         ]
 
-        query_agent.vip.rpc.call("config.store", "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
                                  aggregate_agent).get()
 
@@ -834,7 +835,7 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
              }
         ]
 
-        query_agent.vip.rpc.call("config.store", "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
                                  aggregate_agent).get()
 
@@ -878,7 +879,7 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
             ["device1/out_temp"]
         print("Before reinstall current time is {}".format(datetime.utcnow()))
 
-        query_agent.vip.rpc.call("config.store", "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
                                  aggregate_agent).get()
 

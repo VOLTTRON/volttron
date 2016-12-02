@@ -1,4 +1,6 @@
 .. _VOLTTRON-Central-Demo:
+
+=====================
 VOLTTRON Central Demo
 =====================
 
@@ -10,7 +12,9 @@ VOLTTRON with three historians and different agents on each host. The
 following entries will help to navigate around the VOLTTRON Central
 interface.
 
--  `Running the Demo <#running-the-demo>`__
+-  `Getting Started <#getting-started>`__
+-  `Remote Platform Configuration <#remote-platform-configuration>`__
+-  `Starting the Demo <#starting-the-demo>`__
 -  `Stopping the Demo <#stopping-the-demo>`__
 -  `Log In <#log-in>`__
 -  `Log Out <#log-out>`__
@@ -26,8 +30,8 @@ interface.
 -  `Dashboard Charts <#dashboard-charts>`__
 -  `Remove Charts <#remove-charts>`__
 
-Running the Demo
-~~~~~~~~~~~~~~~~
+Getting Started
+---------------
 
 After :ref:`building VOLTTRON <Building-VOLTTRON>`, open three shells
 with the current directory the root of the VOLTTRON repository. Then activate
@@ -61,27 +65,9 @@ the instance will be controlled by a VOLTTRON Central. If you kept the
 VOLTTRON Central defaults then no changes need to be made to the platform agent.
 There are no options for the historian.
 
-The next step is to configure the instances that will connect to VOLTTRON
-Central. In the second and third terminal windows run `volttron-cfg`. Like
-the VOLTTRON\_HOME variable these instances need to have unique addresses.
-
-Install a platform agent and a historian as before. Since we used the default
-options when configuring VOLTTRON Central we can use the default options when
-configuring these platform agents as well.
-
-|Platform Config|
-
-Start each Volttron instance after configuration. The "-l" option in the
-following command tells volttron to log to a file. The file name
-should be different for each instance.
-
-.. code-block:: console
-
-    $ volttron -l log1&
-
-VOLTTRON Central need to accept the connecting instances'
+VOLTTRON Central needs to accept the connecting instances'
 public keys. For this example we'll allow any CURVE credentials to be accepted.
-After starting, the command **volttron-ctl auth add** will prompt the user for
+After `starting <#starting-the-demo>`__, the command **volttron-ctl auth add** will prompt the user for
 information about how the credentials should be used. We can simply hit Enter
 to select defaults on all fields except **credentials**, where we will type
 `/.*/`
@@ -103,7 +89,32 @@ to select defaults on all fields except **credentials**, where we will type
 
 For more information on authorization see :ref:`authentication<VIP-Authentication>`.
 
-If you chose to not start your agents with their platforms they will need to
+Remote Platform Configuration
+-----------------------------
+
+The next step is to configure the instances that will connect to VOLTTRON
+Central. In the second and third terminal windows run `volttron-cfg`. Like
+the VOLTTRON\_HOME variable, these instances need to have unique addresses.
+
+Install a platform agent and a historian as before. Since we used the default
+options when configuring VOLTTRON Central, we can use the default options when
+configuring these platform agents as well.
+
+|Platform Config|
+
+
+Starting the Demo
+-----------------
+
+Start each Volttron instance after configuration. The "-l" option in the
+following command tells volttron to log to a file. The file name
+should be different for each instance.
+
+.. code-block:: console
+
+    $ volttron -l log1&
+
+If you choose to not start your agents with their platforms they will need to
 be started by hand. List the installed agents with
 
 .. code-block:: console

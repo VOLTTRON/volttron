@@ -94,7 +94,7 @@ from .control import ControlService
 from .web import MasterWebService
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB
+from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 
@@ -524,7 +524,7 @@ def start_volttron_process(opts):
             entry = AuthEntry(credentials=encode_key(publickey),
                         user_id='platform',
                         comments='Automatically added by platform on start')
-            AuthFile().add(entry)
+            AuthFile().add(entry, overwrite=True)
             # Add platform key to known-hosts file:
             known_hosts = KnownHostsStore()
             known_hosts.add(opts.vip_local_address, encode_key(publickey))
@@ -560,7 +560,7 @@ def start_volttron_process(opts):
     try:
 
         # Start the config store before auth so we may one day have auth use it.
-        config_store = ConfigStoreService( address=address, identity='config.store')
+        config_store = ConfigStoreService( address=address, identity=CONFIGURATION_STORE)
 
         event = gevent.event.Event()
         config_store_task = gevent.spawn(config_store.core.run, event)
@@ -570,7 +570,7 @@ def start_volttron_process(opts):
         # Ensure auth service is running before router
         auth_file = os.path.join(opts.volttron_home, 'auth.json')
         auth = AuthService(
-            auth_file, opts.aip, address=address, identity='auth',
+            auth_file, opts.aip, address=address, identity=AUTH,
             allow_any=opts.developer_mode, enable_store=False)
 
         event = gevent.event.Event()

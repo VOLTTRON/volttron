@@ -60,6 +60,7 @@ import logging
 import os
 import re
 import requests
+import sys
 from urlparse import urlparse, urljoin
 
 from gevent import pywsgi
@@ -69,7 +70,7 @@ from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from zmq.utils import jsonapi
 
-from .auth import AuthEntry, AuthFile
+from .auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
 from .vip.agent import Agent, Core, RPC
 from .vip.agent.subsystems import query
 from .jsonrpc import (
@@ -189,18 +190,6 @@ class MasterWebService(Agent):
         super(MasterWebService, self).__init__(identity, address, **kwargs)
 
         self.bind_web_address = bind_web_address
-        # if the web address is bound then we need to allow the web agent
-        # to be discoverable.  That means we need to allow connections to
-        # the message bus in some known addresses if they aren't already
-        # specified.
-        if self.bind_web_address:
-            authfile = AuthFile()
-            entries, _, _ = authfile.read()
-            if not entries:
-                _log.debug(
-                    'Adding default curve credentials for discoverability.')
-                authfile.add(AuthEntry(credentials="/.*/"))
-
         self.serverkey = serverkey
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
@@ -298,7 +287,11 @@ class MasterWebService(Agent):
         authfile = AuthFile()
         authentry = AuthEntry(credentials=vcpublickey)
 
-        authfile.add(authentry)
+        try:
+            authfile.add(authentry)
+        except AuthFileEntryAlreadyExists:
+            pass
+
         start_response('200 OK',
                        [('Content-Type', 'application/json')])
         return jsonapi.dumps(
@@ -430,7 +423,14 @@ class MasterWebService(Agent):
             with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
                 server = pywsgi.WSGIServer((hostname, port), self.app_routing,
                                        log=accesslog, error_log=errlog)
-                server.serve_forever()
+                try:
+                    server.serve_forever()
+                except Exception as e:
+                    message = 'bind-web-address {} is not available, stopping'
+                    message = message.format(self.bind_web_address)
+                    _log.error(message)
+                    print message
+                    sys.exit(1)
 
 
 def build_vip_address_string(vip_root, serverkey, publickey, secretkey):

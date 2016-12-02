@@ -477,6 +477,7 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.utils import normtopic
 from volttron.platform.vip.agent import Agent, Core, RPC, Unreachable, compat
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
 REVERT_POINT_RESPONSE_PREFIX = topics.ACTUATOR_REVERTED_POINT()
@@ -528,11 +529,15 @@ def actuator_agent(config_path, **kwargs):
     schedule_publish_interval = int(
         config.get('schedule_publish_interval', 60))
     preempt_grace_time = config.get('preempt_grace_time', 60)
-    driver_vip_identity = config.get('driver_vip_identity', 'platform.driver')
+    driver_vip_identity = config.get('driver_vip_identity', PLATFORM_DRIVER)
+
+    allow_no_lock_write = bool(config.get('allow_no_lock_write', True))
 
     return ActuatorAgent(heartbeat_interval, schedule_publish_interval,
                          preempt_grace_time,
-                         driver_vip_identity, **kwargs)
+                         driver_vip_identity,
+                         allow_no_lock_write,
+                         **kwargs)
 
 
 class ActuatorAgent(Agent):
@@ -562,7 +567,9 @@ class ActuatorAgent(Agent):
 
     def __init__(self, heartbeat_interval=60, schedule_publish_interval=60,
                  preempt_grace_time=60,
-                 driver_vip_identity='platform.driver', **kwargs):
+                 driver_vip_identity=PLATFORM_DRIVER,
+                 allow_no_lock_write=True,
+                 **kwargs):
 
         super(ActuatorAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
@@ -576,11 +583,14 @@ class ActuatorAgent(Agent):
         self._schedule_manager = None
         self.schedule_publish_interval = schedule_publish_interval
         self.subscriptions_setup = False
+        #Only turn this on once we have confirmation from the config store.
+        self.allow_no_lock_write = False
 
         self.default_config = {"heartbeat_interval": heartbeat_interval,
                               "schedule_publish_interval": schedule_publish_interval,
                               "preempt_grace_time": preempt_grace_time,
-                              "driver_vip_identity": driver_vip_identity}
+                              "driver_vip_identity": driver_vip_identity,
+                               "allow_no_lock_write": allow_no_lock_write}
 
 
         self.vip.config.set_default("config", self.default_config)
@@ -598,6 +608,7 @@ class ActuatorAgent(Agent):
 
             heartbeat_interval = float(config["heartbeat_interval"])
             preempt_grace_time = float(config["preempt_grace_time"])
+            allow_no_lock_write = bool(config["allow_no_lock_write"])
         except ValueError as e:
             _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
             #TODO: set a health status for the agent
@@ -605,6 +616,7 @@ class ActuatorAgent(Agent):
 
         self.driver_vip_identity = driver_vip_identity
         self.schedule_publish_interval = schedule_publish_interval
+        self.allow_no_lock_write = allow_no_lock_write
 
         _log.debug("MasterDriver VIP IDENTITY: {}".format(self.driver_vip_identity))
         _log.debug("Schedule publish interval: {}".format(self.schedule_publish_interval))
@@ -1124,7 +1136,7 @@ class ActuatorAgent(Agent):
         if device in self._device_states:
             device_state = self._device_states[device]
             return device_state.agent_id == requester
-        return False
+        return self.allow_no_lock_write
 
     def handle_schedule_request(self, peer, sender, bus, topic, headers,
                                 message):

@@ -19,6 +19,12 @@ CREATE TABLE meta(topic_id INTEGER NOT NULL,
                   metadata TEXT NOT NULL,
                   PRIMARY KEY(topic_id));
 
+CREATE TABLE volttron_table_definitions(
+    table_id varchar(512) PRIMARY KEY,
+    table_name varchar(512) NOT NULL,
+    table_prefix varchar(512));
+
+
 #Use the below syntax for creating user and grant access to the historian database
 
 CREATE USER 'username'@'localhost' IDENTIFIED BY 'password';
