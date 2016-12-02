@@ -221,10 +221,12 @@ def historian(config_path, **kwargs):
                     _log.warn(skip)
                     return
                 except Exception as e:
-                    err = "There was an error communicating with required " \
-                          "agent on external platform {}".format(vip_id)
+                    err = "Unhandled error publishing to target platfom."
                     _log.error(err)
                     _log.error(traceback.format_exc())
+                    self.vip.health.set_status(
+                        STATUS_BAD, err)
+                    return
 
             for x in to_publish_list:
                 topic = x['topic']
@@ -283,8 +285,8 @@ def historian(config_path, **kwargs):
                         self.vip.health.set_status(
                             STATUS_BAD, "Timout occured")
                     except Exception as e:
-                        _log.error(
-                            "Unhandled error publishing to target platfom.")
+                        err = "Unhandled error publishing to target platfom."
+                        _log.error(err)
                         _log.error(traceback.format_exc())
                         self.vip.health.set_status(
                             STATUS_BAD, err)
