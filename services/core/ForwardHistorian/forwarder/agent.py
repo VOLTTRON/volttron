@@ -286,6 +286,9 @@ def historian(config_path, **kwargs):
                         _log.error(
                             "Unhandled error publishing to target platfom.")
                         _log.error(traceback.format_exc())
+                        self.vip.health.set_status(
+                            STATUS_BAD, err)
+                        return
                     else:
                         handled_records.append(x)
 
