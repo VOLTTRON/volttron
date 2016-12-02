@@ -219,6 +219,8 @@ def historian(config_path, **kwargs):
                     skip = "Skipping publish: Target platform not running " \
                            "required agent {}".format(vip_id)
                     _log.warn(skip)
+                    self.vip.health.set_status(
+                        STATUS_BAD, skip)
                     return
                 except Exception as e:
                     err = "Unhandled error publishing to target platfom."
@@ -290,6 +292,9 @@ def historian(config_path, **kwargs):
                         _log.error(traceback.format_exc())
                         self.vip.health.set_status(
                             STATUS_BAD, err)
+                        # Before returning lets mark any that weren't errors
+                        # as sent.
+                        self.report_handled(handled_records)
                         return
                     else:
                         handled_records.append(x)
