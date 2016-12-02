@@ -116,7 +116,7 @@ def test_alert_agent(agent):
     assert not alert_messages
     gevent.sleep(6)
 
-    assert len(alert_messages) == 3
+    assert len(alert_messages) == 1
 
 
 def test_ignore_topic(agent):
@@ -127,7 +127,7 @@ def test_ignore_topic(agent):
     gevent.sleep(6)
 
     assert len(alert_messages) == 1
-    assert u'fakedevice not published within time limit' in alert_messages
+    assert u"Topic(s) not published within time limit: ['fakedevice']" in alert_messages
 
 
 def test_watch_topic(agent):
@@ -136,7 +136,7 @@ def test_watch_topic(agent):
     agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_topic', 'newtopic', 5).get()
     gevent.sleep(6)
 
-    assert u'newtopic not published within time limit' in alert_messages
+    assert u"Topic(s) not published within time limit: ['newtopic']" in alert_messages
 
 
 def test_watch_device(agent):
@@ -145,5 +145,4 @@ def test_watch_device(agent):
     agent.vip.rpc.call(PLATFORM_ALERTER, 'watch_device', 'newdevice', 5, ['point']).get()
     gevent.sleep(6)
 
-    assert u'newdevice not published within time limit' in alert_messages
-    assert u'newdevice(point) not published within time limit' in alert_messages
+    assert u"Topic(s) not published within time limit: ['newdevice', ('newdevice', 'point')]" in alert_messages

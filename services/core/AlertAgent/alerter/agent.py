@@ -188,15 +188,14 @@ class AlertAgent(Agent):
 
     @Core.periodic(1)
     def decrement_ttl(self):
+        unseen_topics = set()
         for topic in self.wait_time.iterkeys():
 
             # Send an alert if a topic hasn't been seen
             self.topic_ttl[topic] -= 1
             if self.topic_ttl[topic] <= 0:
-                self.send_alert(topic)
+                unseen_topics.add(topic)
                 self.topic_ttl[topic] = self.wait_time[topic]
-
-
 
             # Send an alert if a point hasn't been seen
             try:
@@ -204,18 +203,18 @@ class AlertAgent(Agent):
                 for p in points:
                     self.point_ttl[topic][p] -= 1
                     if self.point_ttl[topic][p] <= 0:
-                        self.send_alert(topic, p)
+                        unseen_topics.add((topic, p))
                         self.point_ttl[topic][p] = self.wait_time[topic]
             except KeyError:
                 pass
 
-    def send_alert(self, device, point=None):
-        if point is not None:
-            alert_key = "Timeout:{}({})".format(device, point)
-            context = "{}({}) not published within time limit".format(device, point)
-        else:
-            alert_key = "Timeout:{}".format(device)
-            context = "{} not published within time limit".format(device)
+        if unseen_topics:
+            self.send_alert(list(unseen_topics))
+
+    def send_alert(self, unseen_topics):
+        alert_key = "AlertAgent Timeout"
+        context = "Topic(s) not published within time limit: {}".format(
+            sorted(unseen_topics))
 
         status = Status.build(STATUS_BAD, context=context)
         self.vip.health.send_alert(alert_key, status)
