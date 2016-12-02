@@ -58,7 +58,10 @@
 import logging
 from datetime import datetime
 
+import gevent
+
 from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.agent import utils
 from volttron.platform.messaging.health import Status, STATUS_BAD
 from volttron.platform.agent.known_identities import PLATFORM_ALERTER
@@ -66,19 +69,49 @@ from volttron.platform.agent.known_identities import PLATFORM_ALERTER
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-__version__ = '0.3'
+__version__ = '0.4'
 
 
 class AlertAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(AlertAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
+        self.group_agent = {}
+
+    @Core.receiver('onstart')
+    def onstart(self, sender, **kwargs):
+        for group_name, config in self.config.items():
+            _log.error("================================================================================")
+            _log.error(self.core.address)
+            _log.error(self.core.serverkey)
+            _log.error(self.core.publickey)
+            _log.error(self.core.secretkey)
+            _log.error("================================================================================")
+            event = gevent.event.Event()
+            group = AlertGroup(group_name, config,
+                               identity=group_name,
+                               serverkey=self.core.serverkey,
+                               publickey=self.core.publickey,
+                               secretkey=self.core.secretkey,
+                               address=self.core.address,
+                               enable_store=False)
+            gevent.spawn(group.core.run, event)
+            event.wait()
+
+            self.group_agent[group_name] = group
+
+class AlertGroup(Agent):
+    def __init__(self, group_name, config, **kwargs):
+        super(AlertGroup, self).__init__(**kwargs)
+        self.group_name = group_name
+        self.config = config
         self.wait_time = {}
         self.topic_ttl = {}
         self.point_ttl = {}
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
+        _log.info("Listening for alert group {}".format(self.group_name))
         config = self.config
         for topic in config.iterkeys():
 
@@ -118,7 +151,7 @@ class AlertAgent(Agent):
     @RPC.export
     def watch_device(self, topic, timeout, points):
         """RPC method
-        
+
         Watch a device's ALL topic and expect points. This
         method calls the watch topic method so both methods
         don't need to be called.
@@ -212,7 +245,7 @@ class AlertAgent(Agent):
             self.send_alert(list(unseen_topics))
 
     def send_alert(self, unseen_topics):
-        alert_key = "AlertAgent Timeout"
+        alert_key = "AlertAgent Timeout for group {}".format(self.group_name)
         context = "Topic(s) not published within time limit: {}".format(
             sorted(unseen_topics))
 

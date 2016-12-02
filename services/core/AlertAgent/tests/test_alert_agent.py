@@ -62,10 +62,12 @@ import json
 from volttron.platform.agent.known_identities import PLATFORM_ALERTER
 
 ALERT_CONFIG = {
-    "fakedevice": 5,
-    "fakedevice2": {
-        "seconds": 5,
-        "points": ["point"]
+    "group1": {
+        "fakedevice": 5,
+        "fakedevice2": {
+            "seconds": 5,
+            "points": ["point"]
+        }
     }
 }
 
