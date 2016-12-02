@@ -1640,7 +1640,7 @@ a.view__item:hover::before {
     cursor: pointer;
 }
 
-.registryConfigTable > tbody > tr:hover {
+.registryConfigTable.hover-enabled > tbody > tr:hover {
     background-color: rgba(4, 47, 78, 0.2);
 }
 

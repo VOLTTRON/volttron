@@ -5,15 +5,19 @@ import BaseComponent from './base-component';
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
+var devicesStore = require('../stores/devices-store');
+var ConfirmForm = require('./confirm-form');
 
 class PreviewRegistryForm extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind("_toggleLayout", "_updateFileName", "_onSubmit");
+        this._bind("_toggleLayout", "_updateFileName", "_onSubmit", "_saveRegistryFile");
 
         this.state = {};
         this.state.csvlayout = false;
         this.state.fileName = "";
+
+        this.state.otherFileNames = getOtherRegistryFileNames();
     }
     _toggleLayout(itemKey) {
 
@@ -28,7 +32,30 @@ class PreviewRegistryForm extends BaseComponent {
     }
     _onSubmit(e) {
         e.preventDefault();
-        modalActionCreators.closeModal();
+
+        if (this.state.otherFileNames.indexOf(this.state.fileName) > -1)
+        {   
+            modalActionCreators.closeModal();
+
+            modalActionCreators.openModal(
+                <ConfirmForm
+                    promptTitle="Duplicate File Names"
+                    promptText={"Another registry file exists with the name \"" + 
+                        this.state.fileName + "\". Using this name will overwrite " + 
+                        "the other file and risk disrupting previously configured devices. " +
+                        "Proceed with save?"} 
+                    confirmText="Save"
+                    onConfirm={ this._saveRegistryFile }
+                    cancelText="Cancel"
+                ></ConfirmForm> 
+            );
+        }
+        else
+        {
+            this._saveRegistryFile();
+        }
+    }
+    _saveRegistryFile() {
         this.props.onsaveregistry(this.state.fileName);
     }
     render() {
@@ -80,14 +107,15 @@ class PreviewRegistryForm extends BaseComponent {
         else
         {
             layoutToggle = (
-                        <div className="displayBlock">
-                            <div className="inlineBlock">table</div>
-                            &nbsp;/&nbsp;
-                            <div className="form__link inlineBlock"
-                                onClick={this._toggleLayout}>
-                                <a>csv</a>
-                            </div>
-                        </div>);
+                <div className="displayBlock">
+                    <div className="inlineBlock">table</div>
+                    &nbsp;/&nbsp;
+                    <div className="form__link inlineBlock"
+                        onClick={this._toggleLayout}>
+                        <a>csv</a>
+                    </div>
+                </div>
+            );
 
             var headerRow = this.props.attributes[0].map(function (item, index) {
 
@@ -172,5 +200,11 @@ class PreviewRegistryForm extends BaseComponent {
         );
     }
 };
+
+function getOtherRegistryFileNames() {
+    var registryFiles = devicesStore.getSavedRegistryFiles();
+
+    return (registryFiles ? registryFiles.files : []);
+}
 
 export default PreviewRegistryForm;

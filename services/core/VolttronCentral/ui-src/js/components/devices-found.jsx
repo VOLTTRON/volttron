@@ -17,22 +17,13 @@ var CsvParse = require('babyparse');
 class DevicesFound extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind('_onStoresChange', '_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip',
+        this._bind('_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip',
                     '_loadSavedRegistryFiles');
 
         this.state = {
             triggerTooltip: -1,
             savedRegistryFiles: {}
         };       
-    }
-    componentDidMount() {
-        // devicesStore.addChangeListener(this._onStoresChange);        
-    }
-    componentWillUnmount() {
-        // devicesStore.removeChangeListener(this._onStoresChange);
-    }
-    _onStoresChange() {
-        // this.setState({ savedRegistryFiles: devicesStore.getSavedRegistryFiles()});
     }
     componentWillReceiveProps(nextProps) {
         if (nextProps.devices !== this.props.devices)
@@ -73,7 +64,7 @@ class DevicesFound extends BaseComponent {
     }
     _loadSavedRegistryFiles(device)
     {
-        devicesActionCreators.loadRegistryFiles(device)
+        devicesActionCreators.loadRegistryFiles(device);
 
         modalActionCreators.openModal(
             <RegistryFilesSelector

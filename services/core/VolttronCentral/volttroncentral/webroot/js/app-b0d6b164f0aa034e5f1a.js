@@ -61710,7 +61710,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var ConfirmForm = __webpack_require__(339);
+	var ConfirmForm = __webpack_require__(331);
 	var RegistryFilesSelector = __webpack_require__(340);
 	var devicesActionCreators = __webpack_require__(303);
 	var modalActionCreators = __webpack_require__(320);
@@ -61727,7 +61727,7 @@
 	
 	        var _this = _possibleConstructorReturn(this, (DevicesFound.__proto__ || Object.getPrototypeOf(DevicesFound)).call(this, props));
 	
-	        _this._bind('_onStoresChange', '_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip', '_loadSavedRegistryFiles');
+	        _this._bind('_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip', '_loadSavedRegistryFiles');
 	
 	        _this.state = {
 	            triggerTooltip: -1,
@@ -61737,21 +61737,6 @@
 	    }
 	
 	    _createClass(DevicesFound, [{
-	        key: 'componentDidMount',
-	        value: function componentDidMount() {
-	            // devicesStore.addChangeListener(this._onStoresChange);        
-	        }
-	    }, {
-	        key: 'componentWillUnmount',
-	        value: function componentWillUnmount() {
-	            // devicesStore.removeChangeListener(this._onStoresChange);
-	        }
-	    }, {
-	        key: '_onStoresChange',
-	        value: function _onStoresChange() {
-	            // this.setState({ savedRegistryFiles: devicesStore.getSavedRegistryFiles()});
-	        }
-	    }, {
 	        key: 'componentWillReceiveProps',
 	        value: function componentWillReceiveProps(nextProps) {
 	            if (nextProps.devices !== this.props.devices) {
@@ -62159,27 +62144,27 @@
 	
 	var _previewRegistryForm2 = _interopRequireDefault(_previewRegistryForm);
 	
-	var _newColumnForm = __webpack_require__(331);
+	var _newColumnForm = __webpack_require__(332);
 	
 	var _newColumnForm2 = _interopRequireDefault(_newColumnForm);
 	
-	var _configDeviceForm = __webpack_require__(332);
+	var _configDeviceForm = __webpack_require__(333);
 	
 	var _configDeviceForm2 = _interopRequireDefault(_configDeviceForm);
 	
-	var _editSelectButton = __webpack_require__(333);
+	var _editSelectButton = __webpack_require__(334);
 	
 	var _editSelectButton2 = _interopRequireDefault(_editSelectButton);
 	
-	var _editColumnsButton = __webpack_require__(334);
+	var _editColumnsButton = __webpack_require__(335);
 	
 	var _editColumnsButton2 = _interopRequireDefault(_editColumnsButton);
 	
-	var _keyboardHelpButton = __webpack_require__(335);
+	var _keyboardHelpButton = __webpack_require__(336);
 	
 	var _keyboardHelpButton2 = _interopRequireDefault(_keyboardHelpButton);
 	
-	var _registryRow = __webpack_require__(336);
+	var _registryRow = __webpack_require__(337);
 	
 	var _registryRow2 = _interopRequireDefault(_registryRow);
 	
@@ -62187,7 +62172,7 @@
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
-	var _filterPointsButton = __webpack_require__(338);
+	var _filterPointsButton = __webpack_require__(339);
 	
 	var _filterPointsButton2 = _interopRequireDefault(_filterPointsButton);
 	
@@ -62209,11 +62194,19 @@
 	
 	var devicesActionCreators = __webpack_require__(303);
 	var devicesStore = __webpack_require__(304);
-	var ConfirmForm = __webpack_require__(339);
+	var ConfirmForm = __webpack_require__(331);
 	var modalActionCreators = __webpack_require__(320);
 	
 	var _defaultColumnWidth = "200px";
 	var _tableWidth;
+	
+	var _esc = 27;
+	var _ctrl = 17;
+	var _enter = 13;
+	var _space = 32;
+	var _down = 40;
+	var _up = 38;
+	var _delete = 46;
 	
 	var ConfigureRegistry = function (_BaseComponent) {
 	    _inherits(ConfigureRegistry, _BaseComponent);
@@ -62223,7 +62216,7 @@
 	
 	        var _this = _possibleConstructorReturn(this, (ConfigureRegistry.__proto__ || Object.getPrototypeOf(ConfigureRegistry)).call(this, props));
 	
-	        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_getParentNode", "_cloneColumn", "_onStoresChange", "_selectPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForActions", "_resizeColumn", "_initializeTable", "_updateTable");
+	        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_getParentNode", "_cloneColumn", "_onStoresChange", "_selectPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForActions", "_resizeColumn", "_initializeTable", "_updateTable", "_handleMouseMove");
 	
 	        _this.state = _this._resetState(_this.props.device);
 	
@@ -62275,11 +62268,23 @@
 	    }, {
 	        key: 'componentWillReceiveProps',
 	        value: function componentWillReceiveProps(nextProps) {
-	            if (this.props.device !== nextProps.device) {
+	            if (this.props.device.registryConfig.length !== nextProps.device.registryConfig.length || this.props.device.configuring !== nextProps.device.configuring || this.props.device.showPoints !== nextProps.device.showPoints) {
 	                var newState = this._resetState(nextProps.device);
 	                newState.keyboardRange = this.state.keyboardRange;
 	
 	                this.setState(newState);
+	            }
+	        }
+	    }, {
+	        key: '_handleMouseMove',
+	        value: function _handleMouseMove(evt) {
+	            if (!this.state.hoverEnabled) {
+	                this.setState({ hoverEnabled: true });
+	
+	                if (this.state.keyboardStarted) {
+	                    this.setState({ keyboardStarted: false });
+	                    this.setState({ keyboardRange: [-1, -1] });
+	                }
 	            }
 	        }
 	    }, {
@@ -62289,29 +62294,26 @@
 	            if ((keydown.target.nodeName !== "INPUT" || keydown.target.className === "uploadButton" || keydown.target.className === "registryCheckbox") && devicesStore.deviceHasFocus(this.props.device.id, this.props.device.address)) {
 	                if (this.state.keyboardStarted) {
 	                    switch (keydown.which) {
-	                        case 17:
-	                            // Control key
+	                        case _ctrl:
 	
 	                            this.state.keyboardRange = this.state.keyboardRange[0] === -1 && this.state.keyboardRange[1] === -1 ? [0, 0] : this.state.keyboardRange;
 	
 	                            this.setState({ keyboardRange: this.state.keyboardRange });
 	                            break;
-	                        case 27:
-	                            // ESC
+	                        case _esc:
 	                            this.setState({ keyboardRange: [-1, -1] });
 	                            this.setState({ keyboardStarted: false });
+	                            this.setState({ hoverEnabled: true });
 	
 	                            break;
-	                        case 13:
-	                            // Enter
+	                        case _enter:
 	
 	                            this._selectPoints(this.state.keyboardRange);
 	
 	                            break;
 	                        // case 9:    //Tab
-	                        case 32: //Space
-	                        case 40:
-	                            //Down
+	                        case _space:
+	                        case _down:
 	                            keydown.preventDefault();
 	                            keydown.stopPropagation();
 	
@@ -62339,8 +62341,7 @@
 	                                }
 	
 	                            break;
-	                        case 38:
-	                            //Up
+	                        case _up:
 	                            keydown.preventDefault();
 	                            keydown.stopPropagation();
 	
@@ -62368,19 +62369,23 @@
 	                                }
 	
 	                            break;
-	                        case 46:
-	                            //Delete
+	                        case _delete:
 	                            this._onRemovePoints();
 	                            this.setState({ keyboardRange: [-1, -1] });
+	                            this.setState({ hoverEnabled: true });
 	                            break;
 	                    }
-	                } else if (keydown.which === 17) // Control key
-	                    {
-	                        this.setState({ keyboardRange: [0, 0] });
-	                        this.setState({ keyboardStarted: true });
-	                    }
+	                } else if (keydown.which === _ctrl) {
+	                    this.setState({ keyboardRange: [0, 0] });
+	                    this.setState({ keyboardStarted: true });
+	                    this.setState({ hoverEnabled: false });
+	                }
 	            } else {
-	                if (this.state.keyboardRange[0] !== -1 && this.state.keyboardRange[1] !== -1) {
+	                if (keydown.target.nodeName === "INPUT" && keydown.target.type === "text") {
+	                    if (keydown.which === _esc) {
+	                        keydown.target.blur();
+	                    }
+	                } else if (this.state.keyboardRange[0] !== -1 && this.state.keyboardRange[1] !== -1) {
 	                    this.setState({ keyboardRange: [-1, -1] });
 	                }
 	            }
@@ -62429,6 +62434,7 @@
 	            state.filteredList = [];
 	
 	            state.deviceHasFocus = true;
+	            state.hoverEnabled = true;
 	
 	            if (state.registryValues.length > 0) {
 	                state.columnNames = state.registryValues[0].get("attributes").map(function (column) {
@@ -62981,16 +62987,29 @@
 	    }, {
 	        key: '_onRegistrySave',
 	        value: function _onRegistrySave() {
-	            modalActionCreators.openModal(_react2.default.createElement(_previewRegistryForm2.default, {
-	                deviceId: this.props.device.id,
-	                deviceAddress: this.props.device.address,
-	                deviceName: this.props.device.name,
-	                attributes: this.state.registryValues.filter(function (row) {
-	                    return row.get("selected");
-	                }).map(function (row) {
-	                    return row.get("attributes");
-	                }),
-	                onsaveregistry: this._saveRegistry }));
+	
+	            var attributes = this.state.registryValues.filter(function (row) {
+	                return row.get("selected");
+	            }).map(function (row) {
+	                return row.get("attributes");
+	            });
+	
+	            if (attributes.length === 0) {
+	                modalActionCreators.openModal(_react2.default.createElement(ConfirmForm, {
+	                    promptTitle: 'Registry Config File',
+	                    promptText: 'Select points to include in the registry file.',
+	                    cancelText: 'OK'
+	                }));
+	            } else {
+	                devicesActionCreators.loadRegistryFiles(this.props.device);
+	
+	                modalActionCreators.openModal(_react2.default.createElement(_previewRegistryForm2.default, {
+	                    deviceId: this.props.device.id,
+	                    deviceAddress: this.props.device.address,
+	                    deviceName: this.props.device.name,
+	                    attributes: attributes,
+	                    onsaveregistry: this._saveRegistry }));
+	            }
 	        }
 	    }, {
 	        key: '_saveRegistry',
@@ -63036,6 +63055,7 @@
 	            devicesActionCreators.saveRegistry(this.props.device, fileName, csvData);
 	
 	            this.setState({ registryValues: newValues });
+	            this.setState({ allSelected: false });
 	
 	            modalActionCreators.openModal(_react2.default.createElement(_configDeviceForm2.default, { device: this.props.device, registryFile: fileName }));
 	        }
@@ -63321,6 +63341,12 @@
 	                }
 	            }
 	
+	            var tableClasses = ["registryConfigTable"];
+	
+	            if (this.state.hoverEnabled) {
+	                tableClasses.push("hover-enabled");
+	            }
+	
 	            return _react2.default.createElement(
 	                'div',
 	                { className: visibilityClass,
@@ -63338,7 +63364,8 @@
 	                            {
 	                                style: tableStyle,
 	                                ref: this.state.tableRef,
-	                                className: 'registryConfigTable' },
+	                                className: tableClasses.join(" "),
+	                                onMouseMove: this._handleMouseMove },
 	                            _react2.default.createElement(
 	                                'thead',
 	                                null,
@@ -63665,6 +63692,8 @@
 	
 	var modalActionCreators = __webpack_require__(320);
 	var devicesActionCreators = __webpack_require__(303);
+	var devicesStore = __webpack_require__(304);
+	var ConfirmForm = __webpack_require__(331);
 	
 	var PreviewRegistryForm = function (_BaseComponent) {
 	    _inherits(PreviewRegistryForm, _BaseComponent);
@@ -63674,11 +63703,13 @@
 	
 	        var _this = _possibleConstructorReturn(this, (PreviewRegistryForm.__proto__ || Object.getPrototypeOf(PreviewRegistryForm)).call(this, props));
 	
-	        _this._bind("_toggleLayout", "_updateFileName", "_onSubmit");
+	        _this._bind("_toggleLayout", "_updateFileName", "_onSubmit", "_saveRegistryFile");
 	
 	        _this.state = {};
 	        _this.state.csvlayout = false;
 	        _this.state.fileName = "";
+	
+	        _this.state.otherFileNames = getOtherRegistryFileNames();
 	        return _this;
 	    }
 	
@@ -63703,7 +63734,24 @@
 	        key: '_onSubmit',
 	        value: function _onSubmit(e) {
 	            e.preventDefault();
-	            modalActionCreators.closeModal();
+	
+	            if (this.state.otherFileNames.indexOf(this.state.fileName) > -1) {
+	                modalActionCreators.closeModal();
+	
+	                modalActionCreators.openModal(_react2.default.createElement(ConfirmForm, {
+	                    promptTitle: 'Duplicate File Names',
+	                    promptText: "Another registry file exists with the name \"" + this.state.fileName + "\". Using this name will overwrite " + "the other file and risk disrupting previously configured devices. " + "Proceed with save?",
+	                    confirmText: 'Save',
+	                    onConfirm: this._saveRegistryFile,
+	                    cancelText: 'Cancel'
+	                }));
+	            } else {
+	                this._saveRegistryFile();
+	            }
+	        }
+	    }, {
+	        key: '_saveRegistryFile',
+	        value: function _saveRegistryFile() {
 	            this.props.onsaveregistry(this.state.fileName);
 	        }
 	    }, {
@@ -63915,10 +63963,90 @@
 	
 	;
 	
+	function getOtherRegistryFileNames() {
+	    var registryFiles = devicesStore.getSavedRegistryFiles();
+	
+	    return registryFiles ? registryFiles.files : [];
+	}
+	
 	exports.default = PreviewRegistryForm;
 
 /***/ },
 /* 331 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var React = __webpack_require__(3);
+	
+	var modalActionCreators = __webpack_require__(320);
+	
+	var ConfirmForm = React.createClass({
+	    displayName: 'ConfirmForm',
+	
+	    _onCancelClick: modalActionCreators.closeModal,
+	    _onSubmit: function _onSubmit(e) {
+	        e.preventDefault();
+	        this.props.onConfirm();
+	    },
+	    render: function render() {
+	
+	        var promptText = this.props.promptText;
+	
+	        if (this.props.hasOwnProperty("preText") && this.props.hasOwnProperty("postText")) {
+	            promptText = React.createElement(
+	                'b',
+	                null,
+	                promptText
+	            );
+	        }
+	
+	        var confirmButton = this.props.confirmText ? React.createElement(
+	            'button',
+	            { className: 'button' },
+	            this.props.confirmText
+	        ) : "";
+	
+	        var cancelText = this.props.cancelText ? this.props.cancelText : "Cancel";
+	
+	        return React.createElement(
+	            'form',
+	            { className: 'confirmation-form', onSubmit: this._onSubmit },
+	            React.createElement(
+	                'h1',
+	                null,
+	                this.props.promptTitle
+	            ),
+	            React.createElement(
+	                'p',
+	                null,
+	                this.props.preText,
+	                promptText,
+	                this.props.postText
+	            ),
+	            React.createElement(
+	                'div',
+	                { className: 'form__actions' },
+	                React.createElement(
+	                    'button',
+	                    {
+	                        className: 'button button--secondary',
+	                        type: 'button',
+	                        onClick: this._onCancelClick,
+	                        autoFocus: true
+	                    },
+	                    cancelText
+	                ),
+	                confirmButton
+	            )
+	        );
+	    }
+	});
+	
+	module.exports = ConfirmForm;
+
+/***/ },
+/* 332 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64078,7 +64206,7 @@
 	exports.default = NewColumnForm;
 
 /***/ },
-/* 332 */
+/* 333 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64156,17 +64284,17 @@
 	    }, {
 	        key: '_updateCampus',
 	        value: function _updateCampus(evt) {
-	            this.setState({ campus: evt.target.value.replace(/ /g, "_") });
+	            this.setState({ campus: evt.target.value.replace(/ /g, "_").replace(/\//g, "") });
 	        }
 	    }, {
 	        key: '_updateBuilding',
 	        value: function _updateBuilding(evt) {
-	            this.setState({ building: evt.target.value.replace(/ /g, "_") });
+	            this.setState({ building: evt.target.value.replace(/ /g, "_").replace(/\//g, "") });
 	        }
 	    }, {
 	        key: '_updateUnit',
 	        value: function _updateUnit(evt) {
-	            this.setState({ unit: evt.target.value.replace(/ /g, "_") });
+	            this.setState({ unit: evt.target.value.replace(/ /g, "_").replace(/\//g, "") });
 	        }
 	    }, {
 	        key: '_updatePath',
@@ -64511,7 +64639,7 @@
 	exports.default = ConfigDeviceForm;
 
 /***/ },
-/* 333 */
+/* 334 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64542,7 +64670,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var EditColumnButton = __webpack_require__(334);
+	var EditColumnButton = __webpack_require__(335);
 	var controlButtonActionCreators = __webpack_require__(110);
 	
 	var EditSelectButton = function (_BaseComponent) {
@@ -64668,7 +64796,7 @@
 	exports.default = EditSelectButton;
 
 /***/ },
-/* 334 */
+/* 335 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64963,7 +65091,7 @@
 	exports.default = EditColumnButton;
 
 /***/ },
-/* 335 */
+/* 336 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -65307,7 +65435,7 @@
 	exports.default = KeyboardHelpButton;
 
 /***/ },
-/* 336 */
+/* 337 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -65348,7 +65476,7 @@
 	
 	var devicesActionCreators = __webpack_require__(303);
 	var modalActionCreators = __webpack_require__(320);
-	var columnMoverActionCreators = __webpack_require__(337);
+	var columnMoverActionCreators = __webpack_require__(338);
 	var statusIndicatorActionCreators = __webpack_require__(268);
 	var devicesStore = __webpack_require__(304);
 	
@@ -65621,7 +65749,7 @@
 	exports.default = RegistryRow;
 
 /***/ },
-/* 337 */
+/* 338 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -65654,7 +65782,7 @@
 	module.exports = columnMoverActionCreators;
 
 /***/ },
-/* 338 */
+/* 339 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -65814,80 +65942,6 @@
 	}
 	
 	exports.default = FilterPointsButton;
-
-/***/ },
-/* 339 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var React = __webpack_require__(3);
-	
-	var modalActionCreators = __webpack_require__(320);
-	
-	var ConfirmForm = React.createClass({
-	    displayName: 'ConfirmForm',
-	
-	    _onCancelClick: modalActionCreators.closeModal,
-	    _onSubmit: function _onSubmit(e) {
-	        e.preventDefault();
-	        this.props.onConfirm();
-	    },
-	    render: function render() {
-	
-	        var promptText = this.props.promptText;
-	
-	        if (this.props.hasOwnProperty("preText") && this.props.hasOwnProperty("postText")) {
-	            promptText = React.createElement(
-	                'b',
-	                null,
-	                promptText
-	            );
-	        }
-	
-	        var confirmButton = this.props.confirmText ? React.createElement(
-	            'button',
-	            { className: 'button' },
-	            this.props.confirmText
-	        ) : "";
-	
-	        var cancelText = this.props.cancelText ? this.props.cancelText : "Cancel";
-	
-	        return React.createElement(
-	            'form',
-	            { className: 'confirmation-form', onSubmit: this._onSubmit },
-	            React.createElement(
-	                'h1',
-	                null,
-	                this.props.promptTitle
-	            ),
-	            React.createElement(
-	                'p',
-	                null,
-	                this.props.preText,
-	                promptText,
-	                this.props.postText
-	            ),
-	            React.createElement(
-	                'div',
-	                { className: 'form__actions' },
-	                React.createElement(
-	                    'button',
-	                    {
-	                        className: 'button button--secondary',
-	                        type: 'button',
-	                        onClick: this._onCancelClick,
-	                        autoFocus: true
-	                    },
-	                    cancelText
-	                ),
-	                confirmButton
-	            )
-	        );
-	    }
-	});
-	
-	module.exports = ConfirmForm;
 
 /***/ },
 /* 340 */
@@ -74551,7 +74605,7 @@
 	var platformActionCreators = __webpack_require__(302);
 	var platformsPanelActionCreators = __webpack_require__(267);
 	var modalActionCreators = __webpack_require__(320);
-	var ConfirmForm = __webpack_require__(339);
+	var ConfirmForm = __webpack_require__(331);
 	
 	var PlatformChart = React.createClass({
 	    displayName: 'PlatformChart',
@@ -115343,4 +115397,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-8cbf035d6d369e4592b6.js.map
+//# sourceMappingURL=app-b0d6b164f0aa034e5f1a.js.map

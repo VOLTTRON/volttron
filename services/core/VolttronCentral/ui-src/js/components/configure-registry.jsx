@@ -25,6 +25,14 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 var _defaultColumnWidth = "200px";
 var _tableWidth;
 
+var _esc = 27;
+var _ctrl = 17;
+var _enter = 13;
+var _space = 32;
+var _down = 40;
+var _up = 38;
+var _delete = 46;
+
 class ConfigureRegistry extends BaseComponent {    
     constructor(props) {
         super(props);
@@ -33,7 +41,8 @@ class ConfigureRegistry extends BaseComponent {
             "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry",
             "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_getParentNode",
             "_cloneColumn", "_onStoresChange", "_selectPoints", "_onRegistrySave", "_focusOnDevice",
-            "_handleKeyDown", "_onSelectForActions", "_resizeColumn", "_initializeTable", "_updateTable" );
+            "_handleKeyDown", "_onSelectForActions", "_resizeColumn", "_initializeTable", "_updateTable",
+            "_handleMouseMove" );
 
         this.state = this._resetState(this.props.device);
 
@@ -79,12 +88,26 @@ class ConfigureRegistry extends BaseComponent {
         }
     }
     componentWillReceiveProps(nextProps) {
-        if (this.props.device !== nextProps.device)
+        if ((this.props.device.registryConfig.length !== nextProps.device.registryConfig.length) || 
+            (this.props.device.configuring !== nextProps.device.configuring) || 
+            (this.props.device.showPoints !== nextProps.device.showPoints))
         {
             var newState = this._resetState(nextProps.device);
             newState.keyboardRange = this.state.keyboardRange;
 
             this.setState(newState);
+        }
+    }
+    _handleMouseMove(evt) {
+        if (!this.state.hoverEnabled)
+        {
+            this.setState({ hoverEnabled: true });
+
+            if (this.state.keyboardStarted)
+            {
+                this.setState({ keyboardStarted: false });
+                this.setState({ keyboardRange: [-1, -1]});
+            }
         }
     }
     _handleKeyDown (keydown) {
@@ -97,26 +120,27 @@ class ConfigureRegistry extends BaseComponent {
             {
                 switch (keydown.which)
                 {
-                    case 17: // Control key
+                    case _ctrl: 
 
                         this.state.keyboardRange = (this.state.keyboardRange[0] === -1 && this.state.keyboardRange[1] === -1 ?
                                                         [0,0] : this.state.keyboardRange);
 
                         this.setState({ keyboardRange: this.state.keyboardRange});
                         break;
-                    case 27: // ESC
+                    case _esc:
                         this.setState({ keyboardRange: [-1, -1]});
                         this.setState({ keyboardStarted: false });
+                        this.setState({ hoverEnabled: true });
 
                         break;
-                    case 13: // Enter
+                    case _enter:
 
                         this._selectPoints(this.state.keyboardRange);
 
                         break;
                     // case 9:    //Tab
-                    case 32:    //Space
-                    case 40:    //Down
+                    case _space:   
+                    case _down:
                         keydown.preventDefault();
                         keydown.stopPropagation();
 
@@ -148,7 +172,7 @@ class ConfigureRegistry extends BaseComponent {
                         }
 
                         break;
-                    case 38:    //Up
+                    case _up:
                         keydown.preventDefault();
                         keydown.stopPropagation();
 
@@ -181,25 +205,36 @@ class ConfigureRegistry extends BaseComponent {
                         }
 
                         break;
-                    case 46:    //Delete
+                    case _delete:
                         this._onRemovePoints();
                         this.setState({ keyboardRange: [-1, -1] })
+                        this.setState({ hoverEnabled: true });
                         break;
                 }
             }
-            else if (keydown.which === 17) // Control key
+            else if (keydown.which === _ctrl)
             {
                 this.setState({ keyboardRange: [0, 0]});
                 this.setState({ keyboardStarted: true });
-            }      
+                this.setState({ hoverEnabled: false });
+            }     
         }
         else
         {
-            if (this.state.keyboardRange[0] !== -1 && this.state.keyboardRange[1] !== -1)
+            if ((keydown.target.nodeName === "INPUT") && 
+                (keydown.target.type === "text"))
+            {
+                if (keydown.which === _esc)
+                {
+                    keydown.target.blur();
+                }
+            }
+            else if (this.state.keyboardRange[0] !== -1 && this.state.keyboardRange[1] !== -1)
             {
                 this.setState({ keyboardRange: [-1, -1] });
             }
         }
+        
     }
     _resizeColumn(columnIndex, targetWidth, movement) {
 
@@ -239,6 +274,7 @@ class ConfigureRegistry extends BaseComponent {
         state.filteredList = [];
 
         state.deviceHasFocus = true;
+        state.hoverEnabled = true;
 
         if (state.registryValues.length > 0)
         {
@@ -800,20 +836,37 @@ class ConfigureRegistry extends BaseComponent {
         devicesActionCreators.cancelRegistry(this.props.device);
     }
     _onRegistrySave() {
-        modalActionCreators.openModal(
-            <PreviewRegistryForm 
-                deviceId={this.props.device.id}
-                deviceAddress={this.props.device.address} 
-                deviceName={this.props.device.name}
-                attributes={this.state.registryValues.filter(function (row) {
-                        return row.get("selected");
-                    })
-                    .map(function (row) {
-                        return row.get("attributes");
-                    })
-                }
-                onsaveregistry={this._saveRegistry}>
-            </PreviewRegistryForm>);
+
+        var attributes = this.state.registryValues.filter(function (row) {
+                                return row.get("selected");
+                            })
+                            .map(function (row) {
+                                return row.get("attributes");
+                            });
+
+        if (attributes.length === 0)
+        {
+            modalActionCreators.openModal(
+                <ConfirmForm
+                    promptTitle="Registry Config File"
+                    promptText="Select points to include in the registry file."
+                    cancelText="OK"
+                ></ConfirmForm>
+            );
+        }
+        else
+        {
+            devicesActionCreators.loadRegistryFiles(this.props.device);
+
+            modalActionCreators.openModal(
+                <PreviewRegistryForm 
+                    deviceId={this.props.device.id}
+                    deviceAddress={this.props.device.address} 
+                    deviceName={this.props.device.name}
+                    attributes={attributes}
+                    onsaveregistry={this._saveRegistry}>
+                </PreviewRegistryForm>);
+        }
     }
     _saveRegistry(fileName) {
 
@@ -860,6 +913,7 @@ class ConfigureRegistry extends BaseComponent {
         devicesActionCreators.saveRegistry(this.props.device, fileName, csvData);
 
         this.setState({ registryValues: newValues });
+        this.setState({ allSelected: false });
 
         modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device} registryFile={fileName}/>);
     }
@@ -1141,6 +1195,13 @@ class ConfigureRegistry extends BaseComponent {
             }
         }
 
+        var tableClasses = ["registryConfigTable"];
+
+        if (this.state.hoverEnabled)
+        {
+            tableClasses.push("hover-enabled");
+        }
+
         return (
             <div className={visibilityClass}
                 tabIndex={1}
@@ -1151,7 +1212,8 @@ class ConfigureRegistry extends BaseComponent {
                         <table
                             style={tableStyle}
                             ref={this.state.tableRef}
-                            className="registryConfigTable">
+                            className={tableClasses.join(" ")}
+                            onMouseMove={this._handleMouseMove}>
                             <thead>
                                 { registryHeader }                                
                             </thead>

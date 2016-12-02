@@ -1640,7 +1640,7 @@ a.view__item:hover::before {
     cursor: pointer;
 }
 
-.registryConfigTable > tbody > tr:hover {
+.registryConfigTable.hover-enabled > tbody > tr:hover {
     background-color: rgba(4, 47, 78, 0.2);
 }
 
@@ -1926,4 +1926,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-8cbf035d6d369e4592b6.css.map*/
+/*# sourceMappingURL=app-b0d6b164f0aa034e5f1a.css.map*/
