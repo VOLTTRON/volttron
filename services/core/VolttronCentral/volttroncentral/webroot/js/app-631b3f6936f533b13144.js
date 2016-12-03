@@ -58693,7 +58693,6 @@
 	
 	            var sortedRow = sortPointColumns(preppedRow);
 	
-	            // return Immutable.List(sortedRow);
 	            return sortedRow;
 	        });
 	
@@ -61786,6 +61785,37 @@
 	                bacnet: this.props.bacnet }));
 	        }
 	    }, {
+	        key: '_validateDataFile',
+	        value: function _validateDataFile(data, callback) {
+	
+	            var keyCells = ["Volttron Point Name", "BACnet Object Type", "Index"];
+	            var cellsNotFound = JSON.parse(JSON.stringify(keyCells));
+	
+	            keyCells.forEach(function (keyCell) {
+	
+	                data.forEach(function (cell) {
+	
+	                    if (keyCell === cell.label) {
+	                        var index = cellsNotFound.indexOf(keyCell);
+	                        cellsNotFound.splice(index, 1);
+	                    }
+	                });
+	            });
+	
+	            var valid = true;
+	            if (cellsNotFound.length) {
+	                valid = false;
+	
+	                var keyCellsString = cellsNotFound.map(function (cell) {
+	                    return "\"" + cell + "\"";
+	                }).join(", ");
+	
+	                callback(keyCellsString);
+	            }
+	
+	            return valid;
+	        }
+	    }, {
 	        key: '_uploadRegistryFile',
 	        value: function _uploadRegistryFile(deviceId, deviceAddress, evt) {
 	
@@ -61835,8 +61865,22 @@
 	                            }));
 	                        }
 	
-	                        if (!results.meta.aborted) {
-	                            devicesActionCreators.loadRegistry(device.id, device.address, results.data, fileName);
+	                        if (results.data.length === 0) {
+	                            modalActionCreators.openModal(_react2.default.createElement(ConfirmForm, {
+	                                promptTitle: 'File Upload Notes',
+	                                promptText: "There was a problem reading the file. Only one " + "row was found: either a heading row with no data, " + "a single data row with no header, or all rows merged into " + "one with no end-of-line markers.",
+	                                cancelText: 'OK'
+	                            }));
+	                        } else if (!results.meta.aborted) {
+	                            if (this._validateDataFile(results.data[0], function (cellsNotFound) {
+	                                modalActionCreators.openModal(_react2.default.createElement(ConfirmForm, {
+	                                    promptTitle: 'Registry Config File',
+	                                    promptText: "File upload aborted. The following data " + "columns must be included in the registry config " + "file: " + cellsNotFound + ".",
+	                                    cancelText: 'OK'
+	                                }));
+	                            })) {
+	                                devicesActionCreators.loadRegistry(device.id, device.address, results.data, fileName);
+	                            }
 	                        }
 	                    }
 	                }.bind(this);
@@ -61982,7 +62026,8 @@
 	                                _react2.default.createElement(
 	                                    'td',
 	                                    { colSpan: 7 },
-	                                    _react2.default.createElement(_configureRegistry2.default, { device: device })
+	                                    _react2.default.createElement(_configureRegistry2.default, { device: device,
+	                                        dataValidator: this._validateDataFile })
 	                                )
 	                            );
 	
@@ -62216,7 +62261,7 @@
 	
 	        var _this = _possibleConstructorReturn(this, (ConfigureRegistry.__proto__ || Object.getPrototypeOf(ConfigureRegistry)).call(this, props));
 	
-	        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_getParentNode", "_cloneColumn", "_onStoresChange", "_selectPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForActions", "_resizeColumn", "_initializeTable", "_updateTable", "_handleMouseMove");
+	        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_getParentNode", "_cloneColumn", "_onStoresChange", "_selectPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForActions", "_resizeColumn", "_initializeTable", "_updateTable", "_handleMouseMove", "_createBlankRow");
 	
 	        _this.state = _this._resetState(_this.props.device);
 	
@@ -62519,17 +62564,7 @@
 	        key: '_onAddPoint',
 	        value: function _onAddPoint() {
 	
-	            var pointValues = [];
-	
-	            this.state.registryValues[0].get("attributes").forEach(function (attribute) {
-	                pointValues.push({
-	                    "key": attribute.key,
-	                    "label": attribute.label,
-	                    "value": "",
-	                    "editable": true,
-	                    "keyProp": attribute.keyProp
-	                });
-	            }, this);
+	            var pointValues = this._createBlankRow(this.state.registryValues[0].get("attributes"));
 	
 	            modalActionCreators.openModal(_react2.default.createElement(_editPointForm2.default, {
 	                attributes: _immutable2.default.List(pointValues),
@@ -62597,6 +62632,23 @@
 	            this.setState({ registryValues: this.state.registryValues });
 	        }
 	    }, {
+	        key: '_createBlankRow',
+	        value: function _createBlankRow(attributes) {
+	            var pointValues = [];
+	
+	            attributes.forEach(function (attribute) {
+	                pointValues.push({
+	                    "key": attribute.key,
+	                    "label": attribute.label,
+	                    "value": "",
+	                    "editable": true,
+	                    "keyProp": attribute.keyProp
+	                });
+	            }, this);
+	
+	            return pointValues;
+	        }
+	    }, {
 	        key: '_onRemovePoints',
 	        value: function _onRemovePoints() {
 	
@@ -62644,15 +62696,29 @@
 	        key: '_removePoints',
 	        value: function _removePoints(pointIndices) {
 	
+	            var backupPoint = JSON.parse(JSON.stringify(this.state.registryValues[0].get("attributes")));
+	
 	            for (var i = pointIndices.length - 1; i > -1; i--) {
 	                this.state.registryValues.splice(pointIndices[i], 1);
 	            }
 	
-	            var newRegistryValues = this.state.registryValues.map(function (row, i) {
-	                row = row.set("virtualIndex", i);
+	            var newRegistryValues = [];
 	
-	                return row;
-	            });
+	            if (this.state.registryValues.length === 0) {
+	                var newBlankRow = this._createBlankRow(backupPoint);
+	
+	                newRegistryValues.push(initializeRow(newBlankRow, 1, this.state.keyPropsList));
+	            } else {
+	                newRegistryValues = this.state.registryValues.map(function (row, i) {
+	                    row = row.set("virtualIndex", i);
+	
+	                    return row;
+	                });
+	            }
+	
+	            if (this.state.allSelected) {
+	                this.setState({ allSelected: false });
+	            }
 	
 	            this.setState({ registryValues: newRegistryValues });
 	
@@ -62660,11 +62726,11 @@
 	        }
 	    }, {
 	        key: '_onSelectForActions',
-	        value: function _onSelectForActions(pointIndex) {
+	        value: function _onSelectForActions(rowIndex) {
 	
-	            var newRegistryValues = this.state.registryValues.map(function (row) {
+	            var newRegistryValues = this.state.registryValues.map(function (row, index) {
 	
-	                if (row.get("index") === pointIndex) {
+	                if (index === rowIndex) {
 	                    var selected = !row.get("selected");
 	                    row = row.set("selected", selected);
 	                }
@@ -63001,14 +63067,22 @@
 	                    cancelText: 'OK'
 	                }));
 	            } else {
-	                devicesActionCreators.loadRegistryFiles(this.props.device);
+	                if (this.props.dataValidator(attributes[0], function (cellsNotFound) {
+	                    modalActionCreators.openModal(_react2.default.createElement(ConfirmForm, {
+	                        promptTitle: 'Registry Config File',
+	                        promptText: "The following data columns must be included in the " + "registry config file: " + cellsNotFound + ".",
+	                        cancelText: 'OK'
+	                    }));
+	                })) {
+	                    devicesActionCreators.loadRegistryFiles(this.props.device);
 	
-	                modalActionCreators.openModal(_react2.default.createElement(_previewRegistryForm2.default, {
-	                    deviceId: this.props.device.id,
-	                    deviceAddress: this.props.device.address,
-	                    deviceName: this.props.device.name,
-	                    attributes: attributes,
-	                    onsaveregistry: this._saveRegistry }));
+	                    modalActionCreators.openModal(_react2.default.createElement(_previewRegistryForm2.default, {
+	                        deviceId: this.props.device.id,
+	                        deviceAddress: this.props.device.address,
+	                        deviceName: this.props.device.name,
+	                        attributes: attributes,
+	                        onsaveregistry: this._saveRegistry }));
+	                }
 	            }
 	        }
 	    }, {
@@ -65567,7 +65641,7 @@
 	        key: '_clickCheckbox',
 	        value: function _clickCheckbox(checked) {
 	            devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
-	            this.props.oncheckselect(this.state.attributesList.getIn(["attributes", 0]).value);
+	            this.props.oncheckselect(this.props.immutableProps.get("rowIndex"));
 	        }
 	    }, {
 	        key: '_handleRowClick',
@@ -115397,4 +115471,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-b0d6b164f0aa034e5f1a.js.map
+//# sourceMappingURL=app-631b3f6936f533b13144.js.map

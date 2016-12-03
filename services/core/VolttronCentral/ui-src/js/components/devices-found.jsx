@@ -73,6 +73,38 @@ class DevicesFound extends BaseComponent {
             </RegistryFilesSelector>
         );
     }
+    _validateDataFile(data, callback) {
+        
+        var keyCells = ["Volttron Point Name", "BACnet Object Type", "Index"];
+        var cellsNotFound = JSON.parse(JSON.stringify(keyCells));
+
+        keyCells.forEach(function(keyCell) {
+
+            data.forEach(function (cell) {
+
+                if (keyCell === cell.label)
+                {
+                    var index = cellsNotFound.indexOf(keyCell);
+                    cellsNotFound.splice(index, 1);
+                }
+            });
+
+        });
+
+        var valid = true;
+        if (cellsNotFound.length) 
+        {
+            valid = false;
+
+            var keyCellsString = cellsNotFound.map(function(cell) { 
+                return "\"" + cell + "\""; 
+            }).join(", ");
+
+            callback(keyCellsString);
+        }
+
+        return valid;
+    }
     _uploadRegistryFile(deviceId, deviceAddress, evt) {
         
         var csvFile = evt.target.files[0];
@@ -131,9 +163,35 @@ class DevicesFound extends BaseComponent {
                         );
                     }
 
-                    if (!results.meta.aborted)            
+                    if (results.data.length === 0)
                     {
-                        devicesActionCreators.loadRegistry(device.id, device.address, results.data, fileName);
+                        modalActionCreators.openModal(
+                            <ConfirmForm
+                                promptTitle="File Upload Notes"
+                                promptText={"There was a problem reading the file. Only one " +
+                                    "row was found: either a heading row with no data, " +
+                                    "a single data row with no header, or all rows merged into " +
+                                    "one with no end-of-line markers."}
+                                cancelText="OK"
+                            ></ConfirmForm>
+                        );
+                    }
+                    else if (!results.meta.aborted)            
+                    {
+                        if (this._validateDataFile(results.data[0], function (cellsNotFound) {
+                            modalActionCreators.openModal(
+                                <ConfirmForm
+                                    promptTitle="Registry Config File"
+                                    promptText={"File upload aborted. The following data " +
+                                        "columns must be included in the registry config " +
+                                        "file: " + cellsNotFound + "."}
+                                    cancelText="OK"
+                                ></ConfirmForm>
+                            );
+                        }))
+                        {
+                            devicesActionCreators.loadRegistry(device.id, device.address, results.data, fileName);
+                        }
                     }
                 }
 
@@ -271,7 +329,8 @@ class DevicesFound extends BaseComponent {
                         var configureRegistry = (
                             <tr key={"config-" + device.id + device.address}>
                                 <td colSpan={7}>
-                                    <ConfigureRegistry device={device}/>
+                                    <ConfigureRegistry device={device} 
+                                        dataValidator={this._validateDataFile}/>
                                 </td>
                             </tr>
                         );
@@ -317,6 +376,7 @@ class DevicesFound extends BaseComponent {
         );
     }
 };
+
 
 var parseCsvFile = (contents) => {
 

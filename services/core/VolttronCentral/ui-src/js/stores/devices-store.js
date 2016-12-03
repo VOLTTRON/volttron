@@ -1399,7 +1399,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             var sortedRow = sortPointColumns(preppedRow);
 
-            // return Immutable.List(sortedRow);
             return sortedRow;
         });
 

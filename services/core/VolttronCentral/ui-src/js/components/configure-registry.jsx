@@ -42,7 +42,7 @@ class ConfigureRegistry extends BaseComponent {
             "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_getParentNode",
             "_cloneColumn", "_onStoresChange", "_selectPoints", "_onRegistrySave", "_focusOnDevice",
             "_handleKeyDown", "_onSelectForActions", "_resizeColumn", "_initializeTable", "_updateTable",
-            "_handleMouseMove" );
+            "_handleMouseMove", "_createBlankRow" );
 
         this.state = this._resetState(this.props.device);
 
@@ -356,17 +356,7 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onAddPoint() {
 
-        var pointValues = [];
-
-        this.state.registryValues[0].get("attributes").forEach(function (attribute) {
-            pointValues.push({ 
-                "key" : attribute.key, 
-                "label": attribute.label,
-                "value": "", 
-                "editable": true, 
-                "keyProp": attribute.keyProp 
-            });
-        }, this);
+        var pointValues = this._createBlankRow(this.state.registryValues[0].get("attributes"));
 
         modalActionCreators.openModal(
             <EditPointForm 
@@ -443,6 +433,21 @@ class ConfigureRegistry extends BaseComponent {
         
         this.setState({registryValues: this.state.registryValues});
     }
+    _createBlankRow(attributes) {
+        var pointValues = [];
+
+        attributes.forEach(function (attribute) {
+            pointValues.push({ 
+                "key" : attribute.key, 
+                "label": attribute.label,
+                "value": "", 
+                "editable": true, 
+                "keyProp": attribute.keyProp 
+            });
+        }, this);
+
+        return pointValues;
+    }
     _onRemovePoints() {
 
         var promptText, confirmText, confirmAction, cancelText;
@@ -494,26 +499,51 @@ class ConfigureRegistry extends BaseComponent {
     }
     _removePoints(pointIndices) {
         
+        var backupPoint = JSON.parse(JSON.stringify(this.state.registryValues[0].get("attributes")));
+        
         for (var i = pointIndices.length - 1; i > -1; i--)
         {
             this.state.registryValues.splice(pointIndices[i], 1);
         }
 
-        var newRegistryValues = this.state.registryValues.map(function (row, i) {
-            row = row.set("virtualIndex", i);
 
-            return row;
-        });
+        var newRegistryValues = [];
+
+        if (this.state.registryValues.length === 0)
+        {
+            var newBlankRow = this._createBlankRow(backupPoint);
+
+            newRegistryValues.push(
+                initializeRow(
+                    newBlankRow, 
+                    1, 
+                    this.state.keyPropsList
+                )
+            );
+        }
+        else
+        {
+            newRegistryValues = this.state.registryValues.map(function (row, i) {
+                row = row.set("virtualIndex", i);
+
+                return row;
+            });
+        }
+
+        if (this.state.allSelected)
+        {
+            this.setState({ allSelected: false });
+        }
 
         this.setState({ registryValues: newRegistryValues });
 
         modalActionCreators.closeModal();
     }
-    _onSelectForActions(pointIndex) {
+    _onSelectForActions(rowIndex) {
         
-        var newRegistryValues = this.state.registryValues.map(function (row) {
+        var newRegistryValues = this.state.registryValues.map(function (row, index) {
             
-            if (row.get("index") === pointIndex)
+            if (index === rowIndex)
             {
                 var selected = !row.get("selected");
                 row = row.set("selected", selected);
@@ -856,16 +886,28 @@ class ConfigureRegistry extends BaseComponent {
         }
         else
         {
-            devicesActionCreators.loadRegistryFiles(this.props.device);
+            if (this.props.dataValidator(attributes[0], function (cellsNotFound) {
+                modalActionCreators.openModal(
+                    <ConfirmForm
+                        promptTitle="Registry Config File"
+                        promptText={"The following data columns must be included in the " +
+                            "registry config file: " + cellsNotFound + "."}
+                        cancelText="OK"
+                    ></ConfirmForm>
+                );
+            }))
+            {
+                devicesActionCreators.loadRegistryFiles(this.props.device);
 
-            modalActionCreators.openModal(
-                <PreviewRegistryForm 
-                    deviceId={this.props.device.id}
-                    deviceAddress={this.props.device.address} 
-                    deviceName={this.props.device.name}
-                    attributes={attributes}
-                    onsaveregistry={this._saveRegistry}>
-                </PreviewRegistryForm>);
+                modalActionCreators.openModal(
+                    <PreviewRegistryForm 
+                        deviceId={this.props.device.id}
+                        deviceAddress={this.props.device.address} 
+                        deviceName={this.props.device.name}
+                        attributes={attributes}
+                        onsaveregistry={this._saveRegistry}>
+                    </PreviewRegistryForm>);
+            }
         }
     }
     _saveRegistry(fileName) {
