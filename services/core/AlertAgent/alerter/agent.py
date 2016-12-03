@@ -81,24 +81,68 @@ class AlertAgent(Agent):
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
         for group_name, config in self.config.items():
-            _log.error("================================================================================")
-            _log.error(self.core.address)
-            _log.error(self.core.serverkey)
-            _log.error(self.core.publickey)
-            _log.error(self.core.secretkey)
-            _log.error("================================================================================")
             event = gevent.event.Event()
             group = AlertGroup(group_name, config,
-                               identity=group_name,
-                               serverkey=self.core.serverkey,
-                               publickey=self.core.publickey,
-                               secretkey=self.core.secretkey,
                                address=self.core.address,
+                               developer_mode=self.core.developer_mode,
                                enable_store=False)
             gevent.spawn(group.core.run, event)
             event.wait()
 
             self.group_agent[group_name] = group
+
+    @RPC.export
+    def watch_topic(self, group, topic, timeout):
+        """RPC method
+
+        Listen for a topic to be published within a given
+        number of seconds or send alerts.
+
+        :pararm group: Group that should watch the topic.
+        :type group: str
+        :param topic: Topic expected to be published.
+        :type topic: str
+        :param timeout: Seconds before an alert is sent.
+        :type timeout: int
+        """
+        group = self.group_agent[group]
+        group.watch_topic(topic, timeout)
+
+    @RPC.export
+    def watch_device(self, group, topic, timeout, points):
+        """RPC method
+
+        Watch a device's ALL topic and expect points. This
+        method calls the watch topic method so both methods
+        don't need to be called.
+
+        :pararm group: Group that should watch the device.
+        :type group: str
+        :param topic: Topic expected to be published.
+        :type topic: str
+        :param timeout: Seconds before an alert is sent.
+        :type timeout: int
+        :param points: Points to expect in the publish message.
+        :type points: [str]
+        """
+        group = self.group_agent[group]
+        group.watch_device(topic, timeout, points)
+
+    @RPC.export
+    def ignore_topic(self, group, topic):
+        """RPC method
+
+        Remove a topic from agent's watch list. Alerts will no
+        longer be sent if a topic stops being published.
+
+        :param group: Group that should ignore the topic.
+        :type group: str
+        :param topic: Topic to remove from the watch list.
+        :type topic: str
+        """
+        group = self.group_agent[group]
+        group.ignore_topic(topic)
+
 
 class AlertGroup(Agent):
     def __init__(self, group_name, config, **kwargs):
@@ -128,18 +172,7 @@ class AlertGroup(Agent):
                 timeout = config[topic]
                 self.watch_topic(topic, timeout)
 
-    @RPC.export
     def watch_topic(self, topic, timeout):
-        """RPC method
-
-        Listen for a topic to be published within a given
-        number of seconds or send alerts.
-
-        :param topic: Topic expected to be published.
-        :type topic: str
-        :param timeout: Seconds before an alert is sent.
-        :type timeout: int
-        """
         self.wait_time[topic] = timeout
         self.topic_ttl[topic] = timeout
         self.vip.pubsub.subscribe(peer='pubsub',
@@ -148,21 +181,7 @@ class AlertGroup(Agent):
         _log.info("Expecting {} every {} seconds"
                    .format(topic, timeout))
 
-    @RPC.export
     def watch_device(self, topic, timeout, points):
-        """RPC method
-
-        Watch a device's ALL topic and expect points. This
-        method calls the watch topic method so both methods
-        don't need to be called.
-
-        :param topic: Topic expected to be published.
-        :type topic: str
-        :param timeout: Seconds before an alert is sent.
-        :type timeout: int
-        :param points: Points to expect in the publish message.
-        :type points: [str]
-        """
         self.point_ttl[topic] = {}
 
         for p in points:
@@ -170,16 +189,7 @@ class AlertGroup(Agent):
 
         self.watch_topic(topic, timeout)
 
-    @RPC.export
     def ignore_topic(self, topic):
-        """RPC method
-
-        Remove a topic from agent's watch list. Alerts will no
-        longer be sent if a topic stops being published.
-
-        :param topic: Topic to remove from the watch list.
-        :type topic: str
-        """
         _log.info("Removing topic {} from watchlist".format(topic))
 
         self.vip.pubsub.unsubscribe(peer='pubsub',
