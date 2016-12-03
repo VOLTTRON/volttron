@@ -324,7 +324,7 @@ tags in the system are as follows
 
 '/campus1/building1/deviceB1/point1' tags:
 
-.. code-block:: javascript
+.. code-block:: json
 
         {
         'dis': "building1 device B - point1",
@@ -337,7 +337,7 @@ tags in the system are as follows
 
 '/campus1/building1/deviceB1' tags
 
-.. code-block:: javascript
+.. code-block:: json
 
         {
         'dis': "building1 device of type B",
