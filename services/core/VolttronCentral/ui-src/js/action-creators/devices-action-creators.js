@@ -134,19 +134,19 @@ var devicesActionCreators = {
             }
         }
     },
-    pointReceived: function (data, platform) {
+    pointReceived: function (data) {
         dispatcher.dispatch({
             type: ACTION_TYPES.POINT_RECEIVED,
-            platform: platform,
             data: data
         });
     },
     cancelDeviceScan: function () {
-        if (typeof devicesWs !== "undefined" && devicesWs !== null)
-        {
-            devicesWs.close();
-            devicesWs = null;
-        }
+        // if (typeof devicesWs !== "undefined" && devicesWs !== null)
+        // {
+        //     devicesWs.close();
+        //     devicesWs = null;
+        // }
+        // TODO: Replace this code with equivalent using wspubsub
     },
     handleKeyDown: function (keydown) {
         dispatcher.dispatch({
@@ -189,7 +189,7 @@ var devicesActionCreators = {
                 }
                 else{
                     var platform = null;
-                    devicesActionCreators.pointReceived(message, platform);
+                    devicesActionCreators.pointReceived(message);
                 }
             }.bind(device));
 

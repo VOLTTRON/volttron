@@ -56947,18 +56947,19 @@
 	            }
 	        }
 	    },
-	    pointReceived: function pointReceived(data, platform) {
+	    pointReceived: function pointReceived(data) {
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.POINT_RECEIVED,
-	            platform: platform,
 	            data: data
 	        });
 	    },
 	    cancelDeviceScan: function cancelDeviceScan() {
-	        if (typeof devicesWs !== "undefined" && devicesWs !== null) {
-	            devicesWs.close();
-	            devicesWs = null;
-	        }
+	        // if (typeof devicesWs !== "undefined" && devicesWs !== null)
+	        // {
+	        //     devicesWs.close();
+	        //     devicesWs = null;
+	        // }
+	        // TODO: Replace this code with equivalent using wspubsub
 	    },
 	    handleKeyDown: function handleKeyDown(keydown) {
 	        dispatcher.dispatch({
@@ -57000,7 +57001,7 @@
 	                    });
 	                } else {
 	                    var platform = null;
-	                    devicesActionCreators.pointReceived(message, platform);
+	                    devicesActionCreators.pointReceived(message);
 	                }
 	            }.bind(device));
 	        };
@@ -58464,9 +58465,9 @@
 	        case ACTION_TYPES.POINT_RECEIVED:
 	            _action = "point_received";
 	            _view = "Devices Found";
-	            if (loadPoint(action.data)) {
-	                devicesStore.emitChange();
-	            }
+	            loadPoint(action.data);
+	
+	            devicesStore.emitChange();
 	
 	            break;
 	
@@ -58709,8 +58710,6 @@
 	    }
 	
 	    function loadPoint(data) {
-	        var emitChange = false;
-	
 	        if (data) {
 	            // console.log(data);
 	            var pointData = JSON.parse(data);
@@ -58757,22 +58756,12 @@
 	                        }
 	                    } else {
 	                        if (pointData.status === "COMPLETE") {
-	                            console.log(pointData);
-	                            // can remove fauxStart if fix false COMPLETE message arriving first
-	                            // if (device.hasOwnProperty("fauxStart"))
-	                            // {
 	                            device.configuring = false;
-	                            emitChange = true;
-	                            // }
-	
-	                            // device.fauxStart = true;
 	                        }
 	                    }
 	                }
 	            }
 	        }
-	
-	        return emitChange;
 	    }
 	
 	    function loadDevice(device, platformUuid, bacnetIdentity) {
@@ -61872,15 +61861,12 @@
 	                                cancelText: 'OK'
 	                            }));
 	                        } else if (!results.meta.aborted) {
-	                            if (this._validateDataFile(results.data[0], function (cellsNotFound) {
-	                                modalActionCreators.openModal(_react2.default.createElement(ConfirmForm, {
-	                                    promptTitle: 'Registry Config File',
-	                                    promptText: "File upload aborted. The following data " + "columns must be included in the registry config " + "file: " + cellsNotFound + ".",
-	                                    cancelText: 'OK'
-	                                }));
-	                            })) {
-	                                devicesActionCreators.loadRegistry(device.id, device.address, results.data, fileName);
-	                            }
+	                            this._validateDataFile(results.data[0], function (cellsNotFound) {
+	                                var message = "The following column names were not found in " + "the data file: " + cellsNotFound + ". Make sure these " + "columns are present when you save the registry config " + "file, or the device will not be properly configured for Volttron.";
+	                                statusIndicatorActionCreators.openStatusIndicator("error", message, cellsNotFound);
+	                            });
+	
+	                            devicesActionCreators.loadRegistry(device.id, device.address, results.data, fileName);
 	                        }
 	                    }
 	                }.bind(this);
@@ -61894,7 +61880,7 @@
 	        key: 'render',
 	        value: function render() {
 	
-	            var devicesContainer, savedRegistryFiles;
+	            var devicesContainer;
 	
 	            if (this.props.devices.length) {
 	                var devices = this.props.devices.map(function (device, rowIndex) {
@@ -62020,12 +62006,35 @@
 	
 	                        if (device) {
 	
+	                            var pointsCounter;
+	
+	                            if (device.configuring && device.registryConfig.length) {
+	                                pointsCounter = _react2.default.createElement(
+	                                    'div',
+	                                    { key: "pr-" + i,
+	                                        className: 'points-received' },
+	                                    _react2.default.createElement(
+	                                        'span',
+	                                        null,
+	                                        'Points received: '
+	                                    ),
+	                                    _react2.default.createElement(
+	                                        'span',
+	                                        null,
+	                                        device.registryConfig.length
+	                                    )
+	                                );
+	                            } else {
+	                                pointsCounter = null;
+	                            }
+	
 	                            var configureRegistry = _react2.default.createElement(
 	                                'tr',
 	                                { key: "config-" + device.id + device.address },
 	                                _react2.default.createElement(
 	                                    'td',
-	                                    { colSpan: 7 },
+	                                    { key: "td-" + i, colSpan: 7 },
+	                                    pointsCounter,
 	                                    _react2.default.createElement(_configureRegistry2.default, { device: device,
 	                                        dataValidator: this._validateDataFile })
 	                                )
@@ -62074,7 +62083,6 @@
 	                _react2.default.createElement(
 	                    'div',
 	                    { className: 'devicesFoundBox' },
-	                    savedRegistryFiles,
 	                    devicesContainer
 	                )
 	            );
@@ -62313,7 +62321,8 @@
 	    }, {
 	        key: 'componentWillReceiveProps',
 	        value: function componentWillReceiveProps(nextProps) {
-	            if (this.props.device.registryConfig.length !== nextProps.device.registryConfig.length || this.props.device.configuring !== nextProps.device.configuring || this.props.device.showPoints !== nextProps.device.showPoints) {
+	            //if ((this.props.device.registryConfig.length !== nextProps.device.registryConfig.length) || 
+	            if (this.props.device.configuring !== nextProps.device.configuring || this.props.device.showPoints !== nextProps.device.showPoints) {
 	                var newState = this._resetState(nextProps.device);
 	                newState.keyboardRange = this.state.keyboardRange;
 	
@@ -63070,7 +63079,7 @@
 	                if (this.props.dataValidator(attributes[0], function (cellsNotFound) {
 	                    modalActionCreators.openModal(_react2.default.createElement(ConfirmForm, {
 	                        promptTitle: 'Registry Config File',
-	                        promptText: "The following data columns must be included in the " + "registry config file: " + cellsNotFound + ".",
+	                        promptText: "Unable to save this registry configuration. The " + "following data columns must be included in the registry " + "config file: " + cellsNotFound + ". Hint: Use the Edit Columns " + "options to add, duplicate, and remove columns.",
 	                        cancelText: 'OK'
 	                    }));
 	                })) {
@@ -115471,4 +115480,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-631b3f6936f533b13144.js.map
+//# sourceMappingURL=app-ee2cc96baf7f3a2b2f66.js.map

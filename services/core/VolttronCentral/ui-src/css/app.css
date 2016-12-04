@@ -1620,6 +1620,19 @@ a.view__item:hover::before {
     left: 0;
 }
 
+.points-received {
+    padding-left: 20px;
+    opacity: .6;
+}
+
+.points-received > span:first-child {
+    text-transform: uppercase;
+}
+
+.points-received > span:last-child {
+    font-weight: bold;
+}
+
 .registryConfigTable {
     background-color: white;
     width: 100%;

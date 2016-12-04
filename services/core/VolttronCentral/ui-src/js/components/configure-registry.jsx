@@ -88,8 +88,8 @@ class ConfigureRegistry extends BaseComponent {
         }
     }
     componentWillReceiveProps(nextProps) {
-        if ((this.props.device.registryConfig.length !== nextProps.device.registryConfig.length) || 
-            (this.props.device.configuring !== nextProps.device.configuring) || 
+        //if ((this.props.device.registryConfig.length !== nextProps.device.registryConfig.length) || 
+        if ((this.props.device.configuring !== nextProps.device.configuring) || 
             (this.props.device.showPoints !== nextProps.device.showPoints))
         {
             var newState = this._resetState(nextProps.device);
@@ -890,8 +890,10 @@ class ConfigureRegistry extends BaseComponent {
                 modalActionCreators.openModal(
                     <ConfirmForm
                         promptTitle="Registry Config File"
-                        promptText={"The following data columns must be included in the " +
-                            "registry config file: " + cellsNotFound + "."}
+                        promptText={"Unable to save this registry configuration. The " +
+                            "following data columns must be included in the registry " +
+                            "config file: " + cellsNotFound + ". Hint: Use the Edit Columns " +
+                            "options to add, duplicate, and remove columns."}
                         cancelText="OK"
                     ></ConfirmForm>
                 );

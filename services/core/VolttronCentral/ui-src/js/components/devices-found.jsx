@@ -178,20 +178,15 @@ class DevicesFound extends BaseComponent {
                     }
                     else if (!results.meta.aborted)            
                     {
-                        if (this._validateDataFile(results.data[0], function (cellsNotFound) {
-                            modalActionCreators.openModal(
-                                <ConfirmForm
-                                    promptTitle="Registry Config File"
-                                    promptText={"File upload aborted. The following data " +
-                                        "columns must be included in the registry config " +
-                                        "file: " + cellsNotFound + "."}
-                                    cancelText="OK"
-                                ></ConfirmForm>
-                            );
-                        }))
-                        {
-                            devicesActionCreators.loadRegistry(device.id, device.address, results.data, fileName);
-                        }
+                        this._validateDataFile(results.data[0], function (cellsNotFound) {
+                            var message = "The following column names were not found in " +
+                                "the data file: " + cellsNotFound + ". Make sure these " +
+                                "columns are present when you save the registry config " +
+                                "file, or the device will not be properly configured for Volttron.";
+                            statusIndicatorActionCreators.openStatusIndicator("error", message, cellsNotFound);
+                        });
+                        
+                        devicesActionCreators.loadRegistry(device.id, device.address, results.data, fileName);                        
                     }
                 }
 
@@ -206,7 +201,7 @@ class DevicesFound extends BaseComponent {
     }
     render() {        
         
-        var devicesContainer, savedRegistryFiles;
+        var devicesContainer;
 
         if (this.props.devices.length)
         {
@@ -325,10 +320,28 @@ class DevicesFound extends BaseComponent {
                     });
 
                     if (device) {
+
+                        var pointsCounter;
+
+                        if (device.configuring && device.registryConfig.length)
+                        {
+                            pointsCounter = (
+                                <div key={"pr-" + i} 
+                                    className="points-received">
+                                    <span>Points received: </span>
+                                    <span>{device.registryConfig.length}</span>
+                                </div>
+                            );
+                        } 
+                        else
+                        {
+                            pointsCounter = null;
+                        }
                         
                         var configureRegistry = (
                             <tr key={"config-" + device.id + device.address}>
-                                <td colSpan={7}>
+                                <td key={"td-" + i} colSpan={7}>
+                                    {pointsCounter}
                                     <ConfigureRegistry device={device} 
                                         dataValidator={this._validateDataFile}/>
                                 </td>
@@ -369,7 +382,6 @@ class DevicesFound extends BaseComponent {
         return (
             <div className="devicesFoundContainer">
                 <div className="devicesFoundBox">
-                    {savedRegistryFiles}
                     {devicesContainer}
                 </div>
             </div>

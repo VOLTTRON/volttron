@@ -1144,10 +1144,9 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.POINT_RECEIVED:
             _action = "point_received";
             _view = "Devices Found";
-            if (loadPoint(action.data))
-            {
-                devicesStore.emitChange();
-            }
+            loadPoint(action.data);
+            
+            devicesStore.emitChange();
 
             break;
             
@@ -1423,8 +1422,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
     function loadPoint(data) 
     {
-        var emitChange = false;
-
         if (data)
         {
             // console.log(data);
@@ -1481,22 +1478,12 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     {
                         if (pointData.status === "COMPLETE")
                         {
-                            console.log(pointData);
-                            // can remove fauxStart if fix false COMPLETE message arriving first
-                            // if (device.hasOwnProperty("fauxStart"))
-                            // {
-                                device.configuring = false;
-                                emitChange = true;
-                            // }
-
-                            // device.fauxStart = true;
+                            device.configuring = false;
                         }
                     }
                 }
             }
         }
-
-        return emitChange;
     }
 
     function loadDevice(device, platformUuid, bacnetIdentity) 
