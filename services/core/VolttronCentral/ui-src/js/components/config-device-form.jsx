@@ -37,16 +37,16 @@ class ConfigDeviceForm extends BaseComponent {
         this.setState({settings: this.state.settings});
     }
     _updateCampus(evt) {
-        this.setState({campus: evt.target.value});
+        this.setState({campus: evt.target.value.replace(/ /g, "_").replace(/\//g, "")});
     }
     _updateBuilding(evt) {
-        this.setState({building: evt.target.value});
+        this.setState({building: evt.target.value.replace(/ /g, "_").replace(/\//g, "")});
     }
     _updateUnit(evt) {
-        this.setState({unit: evt.target.value});
+        this.setState({unit: evt.target.value.replace(/ /g, "_").replace(/\//g, "")});
     }
     _updatePath(evt) {
-        this.setState({path: evt.target.value});
+        this.setState({path: evt.target.value.replace(/ /g, "_")});
     }
     _onCancelClick(e) {
         modalActionCreators.closeModal();
@@ -96,12 +96,13 @@ class ConfigDeviceForm extends BaseComponent {
                             <td style={firstStyle}>{this.state.settings[key].label}</td>
                             <td style={secondStyle}
                                 className="plain">
-                                <div textAlign="center"
+                                <div className="centerContent flexContent"
                                     width="100%">
                                     <CheckBox 
                                         dataItem={key}
                                         oncheck={this._checkItem}
-                                        selected={this.state.settings[key].value}>
+                                        selected={this.state.settings[key].value}
+                                        controlClass="flexChild">
                                     </CheckBox>
                                 </div>
                             </td>
@@ -300,21 +301,6 @@ var initializeSettings = (type, settingsTemplate) => {
 
             break;
     }
-
-
-    // return {
-    //     settings: [
-    //         { key: "campus", value: "", label: "Campus" },
-    //         { key: "building", value: "", label: "Building" },
-    //         { key: "unit", value: "", label: "Unit" },
-    //         { key: "path", value: "", label: "Path" },
-    //         { key: "interval", value: "", label: "Interval" },
-    //         { key: "timezone", value: "", label: "Timezone" },
-    //         { key: "heartbeat_point", value: "", label: "Heartbeat Point" },
-    //         { key: "minimum_priority", value: "", label: "Minimum Priority" },
-    //         { key: "max_objs_per_read", value: "", label: "Maximum Objects per Read" }
-    //     ]
-    // };
 
     return settings;
 }

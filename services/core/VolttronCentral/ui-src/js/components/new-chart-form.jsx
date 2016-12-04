@@ -17,6 +17,7 @@ var NewChartForm = React.createClass({
         var state = {};
 
         state.refreshInterval = 15000;
+        state.dataLength = 20;
 
         state.topics = chartStore.getChartTopics();
         state.filteredTopics = state.topics;
@@ -90,6 +91,7 @@ var NewChartForm = React.createClass({
             selectedTopic.topic = selectedTopic.value;
             selectedTopic.pinned = (this.state.pin ? true : false);
             selectedTopic.refreshInterval = this.state.refreshInterval;
+            selectedTopic.dataLength = this.state.dataLength;
             selectedTopic.chartType = this.state.chartType;
             selectedTopic.path = platformsPanelItemsStore.findTopicInTree(selectedTopic.topic);
             selectedTopic.max = this.state.max;
@@ -152,6 +154,22 @@ var NewChartForm = React.createClass({
                         onChange={this._onPropChange}
                         value={this.state.refreshInterval}
                         min="250"
+                        step="1"
+                        placeholder="disabled"
+                    />
+                    <span className="form__control-help">
+                        Omit to disable
+                    </span>
+                </div>
+                <div className="form__control-group">
+                    <label htmlFor="dataLength">Data Length</label>
+                    <input
+                        className="form__control form__control--inline"
+                        type="number"
+                        id="dataLength"
+                        onChange={this._onPropChange}
+                        value={this.state.dataLength}
+                        min="1"
                         step="1"
                         placeholder="disabled"
                     />

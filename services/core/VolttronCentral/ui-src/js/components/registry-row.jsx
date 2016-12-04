@@ -14,24 +14,22 @@ import Immutable from 'immutable';
 class RegistryRow extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind('_handleRowClick', '_selectForDelete');
+        this._bind('_handleRowClick', '_clickCheckbox');
 
         this.state = this._resetState(this.props);  
     }
     componentWillReceiveProps(nextProps)
     {
-        if ((!this.props.attributesList.equals(nextProps.attributesList)) || 
-            (this.props.allSelected !== nextProps.allSelected))
+        if (this.props.attributesList !== nextProps.attributesList)
         {
-            var newState = this._resetState(nextProps, (this.props.allSelected !== nextProps.allSelected));
+            var newState = this._resetState(nextProps);
             this.setState(newState);
         }
     }
     shouldComponentUpdate(nextProps, nextState) {
         var doUpdate = false;
 
-        if ((!this.state.attributesList.equals(nextState.attributesList)) || 
-            (this.state.selectedForDelete !== nextState.selectedForDelete))
+        if (this.state.attributesList !== nextState.attributesList)
         {
             doUpdate = true;
         }
@@ -42,7 +40,11 @@ class RegistryRow extends BaseComponent {
 
         return doUpdate;
     }
-    _resetState(props, updateAllSelected) {
+    componentDidUpdate(){
+        console.log("updated component");
+    }
+
+    _resetState(props) {
         var state = {};
 
         state.attributesList = props.attributesList;
@@ -52,15 +54,6 @@ class RegistryRow extends BaseComponent {
         state.rowIndex = this.props.immutableProps.get("rowIndex");
 
         state.devicePrefix = "dvc" + state.deviceId + "-" + state.deviceAddress + "-" + state.rowIndex + "-";
-
-        if (updateAllSelected)
-        {
-            state.selectedForDelete = props.allSelected;
-        }
-        else
-        {
-            state.selectedForDelete = false;
-        }
 
         return state;
     }
@@ -87,13 +80,12 @@ class RegistryRow extends BaseComponent {
             <EditPointForm 
                 deviceId={this.props.immutableProps.get("deviceId")} 
                 deviceAddress={this.props.immutableProps.get("deviceAddress")}
-                attributes={this.state.attributesList.get("attributes")}/>);
+                attributes={this.state.attributesList.get("attributes")}
+                onsubmit={this.props.onupdatetable}/>);
     }
-    _selectForDelete(checked) {
+    _clickCheckbox(checked) {
         devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
-        this.setState({selectedForDelete: checked});
-
-        this.props.oncheckselect(this.state.attributesList.getIn(["attributes", 0]).value);
+        this.props.oncheckselect(this.props.immutableProps.get("rowIndex"));
     }
     _handleRowClick(evt){
 
@@ -105,11 +97,13 @@ class RegistryRow extends BaseComponent {
 
             devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
 
-            if (!this.state.attributesList.get("selected"))
-            {
-                var attributesList = this.state.attributesList.set("selected", true);
-                this.setState({attributesList: attributesList});
-            }
+            // if (!this.state.attributesList.get("selected"))
+            // {
+            //     var attributesList = this.state.attributesList.set("selected", true);
+            //     this.setState({attributesList: attributesList});
+            // }
+            
+            this.props.oncheckselect(this.state.attributesList.getIn(["attributes", 0]).value);
         }
     }
     _grabResizeHandle(columnIndex, evt) {
@@ -224,18 +218,17 @@ class RegistryRow extends BaseComponent {
 
         var selectedRowClasses = [];
 
-        if (this.state.attributesList.get("selected"))
-        {
-            selectedRowClasses.push("selectedRegistryPoint");
-        }
-
         if (this.props.immutableProps.get("keyboardSelected"))
         {
             selectedRowClasses.push("keyboard-selected");
         }
 
-        var visibleStyle = (!this.props.immutableProps.get("filterOn") || this.state.attributesList.get("visible") ? {} : {display: "none"});
+        if (this.state.attributesList.get("alreadyUsed"))
+        {
+            selectedRowClasses.push("already-used-point");
+        }
 
+        var visibleStyle = (!this.props.immutableProps.get("filterOn") || this.state.attributesList.get("visible") ? {} : {display: "none"});
 
         return ( 
             <tr key={"registry-row-" + rowIndex}
@@ -244,11 +237,13 @@ class RegistryRow extends BaseComponent {
                 className={selectedRowClasses.join(" ")}
                 style={visibleStyle}>
                 <td key={"checkbox-" + rowIndex}>
-                    <CheckBox
-                        controlClass="registryCheckbox"
-                        oncheck={this._selectForDelete}
-                        selected={this.state.selectedForDelete}>
-                    </CheckBox>
+                    <div className="centerContent flexContent">
+                        <CheckBox
+                            controlClass="registryCheckbox flexChild"
+                            oncheck={this._clickCheckbox}
+                            selected={this.props.immutableProps.get("selectedRow")}>
+                        </CheckBox>
+                    </div>
                 </td>
                 { registryCells }                    
             </tr>

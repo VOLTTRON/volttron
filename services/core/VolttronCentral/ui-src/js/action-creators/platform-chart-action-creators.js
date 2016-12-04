@@ -46,7 +46,7 @@ var platformChartActionCreators = {
             chartKey: chartKey
         });
     },
-	refreshChart: function (series) {
+	refreshChart: function (series, length) {
 
 		var authorization = authorizationStore.getAuthorization();
 
@@ -55,7 +55,7 @@ var platformChartActionCreators = {
                 method: 'historian.query',
                 params: {
                     topic: item.topic,
-                    count: 20,
+                    count: (length > 0 ? length : 20),
                     order: 'LAST_TO_FIRST',
                 },
                 authorization: authorization,

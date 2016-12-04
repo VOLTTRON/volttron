@@ -247,9 +247,6 @@ var devicesActionCreators = {
         }).promise
             .then(function (result) {
 
-                console.log("list_agent_configs");
-                console.log(result);
-
                 dispatcher.dispatch({
                     type: ACTION_TYPES.LOAD_REGISTRY_FILES,
                     registryFiles: result.filter(function (registryFile) {
@@ -293,24 +290,19 @@ var devicesActionCreators = {
 
                 devicesActionCreators.unloadRegistryFiles();
 
-                console.log("get_agent_config");
-                console.log(result);
-
                 var csvData = parseCsvFile(result);
 
                 if (csvData.warnings.length)
                 {
                     console.log(csvData.warnings[0]);
                 }
-                else
-                {
-                    devicesActionCreators.loadRegistry(
-                        device.id, 
-                        device.address,
-                        csvData.data,
-                        registryFile 
-                    );
-                }
+                
+                devicesActionCreators.loadRegistry(
+                    device.id, 
+                    device.address,
+                    csvData.data,
+                    registryFile 
+                );
 
             })
             .catch(rpc.Error, function (error) {
@@ -337,12 +329,11 @@ var devicesActionCreators = {
             device: device
         });
     },
-    updateRegistry: function (deviceId, deviceAddress, selectedPoints, attributes) {
+    updateRegistry: function (deviceId, deviceAddress, attributes) {
         dispatcher.dispatch({
             type: ACTION_TYPES.UPDATE_REGISTRY,
             deviceId: deviceId,
             deviceAddress: deviceAddress,
-            selectedPoints: selectedPoints,
             attributes: attributes
         });
     },
@@ -365,13 +356,13 @@ var devicesActionCreators = {
         }).promise
             .then(function (result) {
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.SAVE_REGISTRY,
-                    fileName: fileName,
-                    deviceId: device.id,
-                    deviceAddress: device.address,
-                    data: values
-                });
+                // dispatcher.dispatch({
+                //     type: ACTION_TYPES.SAVE_REGISTRY,
+                //     fileName: fileName,
+                //     deviceId: device.id,
+                //     deviceAddress: device.address,
+                //     data: values
+                // });
 
             })
             .catch(rpc.Error, function (error) {
@@ -386,12 +377,11 @@ var devicesActionCreators = {
 
         var authorization = authorizationStore.getAuthorization();
 
-
         var config_name =  "devices/" +
-                settings.campus + "/" + 
-                settings.building + "/" + 
-                settings.unit + 
-                (settings.path ? + "/" + settings.path : "")
+            settings.campus + "/" + 
+            settings.building + "/" + 
+            settings.unit + 
+            (settings.path ? "/" + settings.path : "")
 
         var config = {};
 

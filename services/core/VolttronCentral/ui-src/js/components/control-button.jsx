@@ -182,19 +182,29 @@ class ControlButton extends BaseComponent {
 	            left: this.state.tooltipX + "px"
 	        };
 
-	        var toolTipClasses = (showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
+	        var toolTipClasses = ["tooltip_outer"];
+
+            if (showTooltip)
+            {
+                toolTipClasses.push("delayed-show-slow");
+            }
+
+            if (this.props.tooltip.tooltipClass)
+            {
+                toolTipClasses.push(this.props.tooltip.tooltipClass);
+            }
 
 	        tooltipShow = this._showTooltip;
 	        tooltipHide = this._hideTooltip;
 
-        	tooltip = (<div className={toolTipClasses}
-                        style={tooltipStyle}>
-                        <div className="tooltip_inner">
-                            <div className="opaque_inner">
-                                {this.props.tooltip.content}
+        	tooltip = (<div className={toolTipClasses.join(" ")}
+                            style={tooltipStyle}>
+                            <div className="tooltip_inner">
+                                <div className="opaque_inner">
+                                    {this.props.tooltip.content}
+                                </div>
                             </div>
-                        </div>
-                    </div>)
+                        </div>)
         }
         
 
