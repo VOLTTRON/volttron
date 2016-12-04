@@ -157,12 +157,12 @@ class VolttronCentralPlatform(Agent):
 
         # Start using config store.
         self.vip.config.set_default("default_config", self.default_config)
-        self.vip.config.subscribe(self.configure_main,
+        self.vip.config.subscribe(self._configure_main,
                                   actions=["NEW", "UPDATE", "DELETE"],
                                   pattern="default_config")
-        self.vip.config.subscribe(self.configure_main,
-                                  actions=["NEW", "UPDATE", "DELETE"],
-                                  pattern="config")
+        # self.vip.config.subscribe(self._configure_main,
+        #                           actions=["NEW", "UPDATE", "DELETE"],
+        #                           pattern="config")
         # self.vip.config.subscribe(self.configure_platform,
         #                           actions=["NEW", "UPDATE", "DELETE"],
         #                           pattern="platform")
@@ -182,7 +182,7 @@ class VolttronCentralPlatform(Agent):
 
         self._stats_publisher = None
 
-    def configure_main(self, config_name, action, contents):
+    def _configure_main(self, config_name, action, contents):
         """
         This is the main configuration point for the agent.
 
@@ -282,10 +282,12 @@ class VolttronCentralPlatform(Agent):
         # Note: if there isn't a true tcp address then external_address[0] is
         # going to be the ipc address
         address_hash = hashlib.md5(external_addresses[0]).hexdigest()
+        _log.debug('External hash is set using external_addresses[0] {}'.format(external_addresses[0]))
         self.current_config['address_hash'] = address_hash
 
         self.enable_registration = True
         self._periodic_attempt_registration()
+        self._start_stats_publisher()
 
     @RPC.export
     def get_public_keys(self):
@@ -561,8 +563,6 @@ class VolttronCentralPlatform(Agent):
         return self.vc_connection
 
     def _start_stats_publisher(self):
-        if not self._agent_started:
-            return
 
         if self._stats_publisher:
             self._stats_publisher.kill()
@@ -1049,11 +1049,12 @@ class VolttronCentralPlatform(Agent):
         vc_topic = None
         local_topic = LOGGER(subtopic="platform/status/cpu")
         _log.debug('Publishing platform cpu stats')
-        if self._local_instance_uuid is not None:
+        address_hash = self.current_config.get('address_hash')
+        if address_hash is not None:
 
             vc_topic = LOGGER(
                 subtopic="platforms/{}/status/cpu".format(
-                    self._local_instance_uuid))
+                    address_hash))
             _log.debug('Stats will be published to: {}'.format(
                 vc_topic.format()))
         else:
