@@ -309,6 +309,13 @@ class ConfigureRegistry extends BaseComponent {
         {
             this.setState({ deviceHasFocus: deviceHasFocus });
         }
+
+        var updatedRow = devicesStore.getUpdatedRow(this.props.device.id, this.props.device.address);
+
+        if (updatedRow)
+        {
+            this._updateTable(Immutable.List(updatedRow));
+        }
     }
     _selectPoints(keyboardRange) {
 
@@ -1002,8 +1009,7 @@ class ConfigureRegistry extends BaseComponent {
                         oncheckselect={this._onSelectForActions}
                         onresizecolumn={this._resizeColumn}
                         oninitializetable={this._initializeTable}
-                        ongetparentnode={this._getParentNode}
-                        onupdatetable={this._updateTable}/>
+                        ongetparentnode={this._getParentNode}/>
                 );
                 
             }, this);

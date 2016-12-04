@@ -57355,6 +57355,7 @@
 	var _data = {};
 	var _backupData = {};
 	var _registryFiles = {};
+	var _updatedRow = {};
 	var _backupFileName = {};
 	var _platform;
 	var _devices = [];
@@ -58404,6 +58405,22 @@
 	    return _scanningComplete;
 	};
 	
+	devicesStore.getUpdatedRow = function (deviceId, deviceAddress) {
+	
+	    var updatedRow = null;
+	
+	    if (_updatedRow.hasOwnProperty("attributes")) {
+	        if (_updatedRow.deviceId === deviceId && _updatedRow.deviceAddress === deviceAddress) {
+	            updatedRow = _updatedRow.attributes.toJS(); // then converting back to Immutable 
+	            // list in component ensures it's a new object,
+	            // not using the same reference
+	            _updatedRow = {};
+	        }
+	    }
+	
+	    return updatedRow;
+	};
+	
 	devicesStore.dispatchToken = dispatcher.register(function (action) {
 	    dispatcher.waitFor([authorizationStore.dispatchToken]);
 	
@@ -58577,33 +58594,45 @@
 	            var i = -1;
 	            var keyProps = [];
 	
-	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
+	            // var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 	
-	            if (device) {
-	                var attributes = device.registryConfig.find(function (attributes, index) {
-	                    var match = attributes[0].value === action.attributes.get(0).value;
+	            // if (device)
+	            // {
+	            //     var attributes = device.registryConfig.find(function (attributes, index) {
+	            //         var match = (attributes[0].value === action.attributes.get(0).value);
 	
-	                    if (match) {
-	                        i = index;
-	                    }
+	            //         if (match)
+	            //         {
+	            //             i = index;
+	            //         }
 	
-	                    return match;
-	                });
+	            //         return match;
+	            //     });
 	
-	                action.attributes.forEach(function (item) {
-	                    if (item.keyProp) {
-	                        keyProps.push(item.key);
-	                    }
-	                });
+	            //     action.attributes.forEach(function (item) {
+	            //         if (item.keyProp)
+	            //         {
+	            //             keyProps.push(item.key);
+	            //         }
+	            //     });
 	
-	                device.keyProps = keyProps;
+	            //     device.keyProps = keyProps;
 	
-	                if (typeof attributes !== "undefined") {
-	                    device.registryConfig[i] = action.attributes.toJS();
-	                } else {
-	                    device.registryConfig.push(action.attributes.toJS());
-	                }
-	            }
+	            //     if (typeof attributes !== "undefined")
+	            //     {                
+	            //         device.registryConfig[i] = action.attributes.toJS();
+	            //     }
+	            //     else
+	            //     {
+	            //         device.registryConfig.push(action.attributes.toJS());
+	            //     }
+	            // }
+	
+	            _updatedRow = {
+	                deviceId: action.deviceId,
+	                deviceAddress: action.deviceAddress,
+	                attributes: action.attributes
+	            };
 	
 	            devicesStore.emitChange();
 	            break;
@@ -62523,6 +62552,12 @@
 	            if (deviceHasFocus !== this.state.deviceHasFocus) {
 	                this.setState({ deviceHasFocus: deviceHasFocus });
 	            }
+	
+	            var updatedRow = devicesStore.getUpdatedRow(this.props.device.id, this.props.device.address);
+	
+	            if (updatedRow) {
+	                this._updateTable(_immutable2.default.List(updatedRow));
+	            }
 	        }
 	    }, {
 	        key: '_selectPoints',
@@ -63184,8 +63219,7 @@
 	                        oncheckselect: this._onSelectForActions,
 	                        onresizecolumn: this._resizeColumn,
 	                        oninitializetable: this._initializeTable,
-	                        ongetparentnode: this._getParentNode,
-	                        onupdatetable: this._updateTable });
+	                        ongetparentnode: this._getParentNode });
 	                }, this);
 	
 	                var headerColumns = [];
@@ -63626,12 +63660,7 @@
 	        key: '_onSubmit',
 	        value: function _onSubmit(e) {
 	            e.preventDefault();
-	            // devicesActionCreators.updateRegistry(
-	            //     this.props.deviceId, 
-	            //     this.props.deviceAddress,
-	            //     this.state.attributes
-	            // );
-	            this.props.onsubmit(this.state.attributes);
+	            devicesActionCreators.updateRegistry(this.props.deviceId, this.props.deviceAddress, this.state.attributes);
 	
 	            modalActionCreators.closeModal();
 	        }
@@ -65643,8 +65672,7 @@
 	            modalActionCreators.openModal(_react2.default.createElement(_editPointForm2.default, {
 	                deviceId: this.props.immutableProps.get("deviceId"),
 	                deviceAddress: this.props.immutableProps.get("deviceAddress"),
-	                attributes: this.state.attributesList.get("attributes"),
-	                onsubmit: this.props.onupdatetable }));
+	                attributes: this.state.attributesList.get("attributes") }));
 	        }
 	    }, {
 	        key: '_clickCheckbox',
@@ -115480,4 +115508,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-ee2cc96baf7f3a2b2f66.js.map
+//# sourceMappingURL=app-dccf3596b3b3d98c44b5.js.map

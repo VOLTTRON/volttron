@@ -47,13 +47,12 @@ class EditPointForm extends BaseComponent {
     }
     _onSubmit(e) {
         e.preventDefault();
-        // devicesActionCreators.updateRegistry(
-        //     this.props.deviceId, 
-        //     this.props.deviceAddress,
-        //     this.state.attributes
-        // );
-        this.props.onsubmit(this.state.attributes);
-        
+        devicesActionCreators.updateRegistry(
+            this.props.deviceId, 
+            this.props.deviceAddress,
+            this.state.attributes
+        );
+
         modalActionCreators.closeModal();
     }
     render() {

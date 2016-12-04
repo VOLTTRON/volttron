@@ -14,6 +14,7 @@ var _device = null;
 var _data = {};
 var _backupData = {};
 var _registryFiles = {};
+var _updatedRow = {};
 var _backupFileName = {};
 var _platform;
 var _devices = [];
@@ -1082,6 +1083,24 @@ devicesStore.getScanningComplete = function () {
     return (_scanningComplete);
 }
 
+devicesStore.getUpdatedRow = function (deviceId, deviceAddress) {
+
+    var updatedRow = null;
+
+    if (_updatedRow.hasOwnProperty("attributes"))
+    {
+        if (_updatedRow.deviceId === deviceId && _updatedRow.deviceAddress === deviceAddress)
+        {
+            updatedRow = _updatedRow.attributes.toJS(); // then converting back to Immutable 
+                                            // list in component ensures it's a new object,
+                                            // not using the same reference
+            _updatedRow = {};
+        }
+    }
+
+    return updatedRow;
+}
+
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
@@ -1263,39 +1282,45 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             var i = -1;
             var keyProps = [];
 
-            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
+            // var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 
-            if (device)
-            {
-                var attributes = device.registryConfig.find(function (attributes, index) {
-                    var match = (attributes[0].value === action.attributes.get(0).value);
+            // if (device)
+            // {
+            //     var attributes = device.registryConfig.find(function (attributes, index) {
+            //         var match = (attributes[0].value === action.attributes.get(0).value);
 
-                    if (match)
-                    {
-                        i = index;
-                    }
+            //         if (match)
+            //         {
+            //             i = index;
+            //         }
 
-                    return match;
-                });
+            //         return match;
+            //     });
 
-                action.attributes.forEach(function (item) {
-                    if (item.keyProp)
-                    {
-                        keyProps.push(item.key);
-                    }
-                });
+            //     action.attributes.forEach(function (item) {
+            //         if (item.keyProp)
+            //         {
+            //             keyProps.push(item.key);
+            //         }
+            //     });
 
-                device.keyProps = keyProps;
+            //     device.keyProps = keyProps;
 
-                if (typeof attributes !== "undefined")
-                {                
-                    device.registryConfig[i] = action.attributes.toJS();
-                }
-                else
-                {
-                    device.registryConfig.push(action.attributes.toJS());
-                }
-            }
+            //     if (typeof attributes !== "undefined")
+            //     {                
+            //         device.registryConfig[i] = action.attributes.toJS();
+            //     }
+            //     else
+            //     {
+            //         device.registryConfig.push(action.attributes.toJS());
+            //     }
+            // }
+
+            _updatedRow = { 
+                deviceId: action.deviceId,
+                deviceAddress: action.deviceAddress,
+                attributes: action.attributes
+            };
 
             devicesStore.emitChange();
             break;

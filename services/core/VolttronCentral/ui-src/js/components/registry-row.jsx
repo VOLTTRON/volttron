@@ -80,8 +80,7 @@ class RegistryRow extends BaseComponent {
             <EditPointForm 
                 deviceId={this.props.immutableProps.get("deviceId")} 
                 deviceAddress={this.props.immutableProps.get("deviceAddress")}
-                attributes={this.state.attributesList.get("attributes")}
-                onsubmit={this.props.onupdatetable}/>);
+                attributes={this.state.attributesList.get("attributes")}/>);
     }
     _clickCheckbox(checked) {
         devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
