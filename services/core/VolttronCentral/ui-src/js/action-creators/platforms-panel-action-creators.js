@@ -37,6 +37,7 @@ var platformsPanelActionCreators = {
                 .then(function (result) {
                     
                     var devicesList = [];
+                    var errorKeys = [];
 
                     for (var key in result)
                     {
@@ -63,10 +64,18 @@ var platformsPanelActionCreators = {
 
                             devicesList.push(device);
                         }
-                        else{
-                            // We need a way to display this as an error.
-                            console.error('INVALID DEVICE TOPIC '+key);
+                        else {
+                            errorKeys.push(key);
                         }
+                    }
+
+                    if (errorKeys.length)
+                    {
+                        var errorKeysStr = errorKeys.join(", ");
+                        var message = "The following device topics were invalid and " +
+                            "could not be added to the tree: " + errorKeysStr;
+
+                        statusIndicatorActionCreators.openStatusIndicator("error", message, errorKeysStr);
                     }
 
                     dispatcher.dispatch({
