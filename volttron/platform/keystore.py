@@ -129,11 +129,16 @@ class KeyStore(BaseJSONStore):
     def get_default_path():
         return os.path.join(get_home(), 'keystore')
 
-    def generate(self):
-        """Generate new key pair"""
+    @staticmethod
+    def generate_keypair_dict():
+        """Generate and return new keypair as dictionary"""
         public, secret = curve_keypair()
-        self.store({'public': encode_key(public),
-                    'secret': encode_key(secret)})
+        return {'public': encode_key(public),
+                'secret': encode_key(secret)}
+
+    def generate(self):
+        """Generate and store new key pair"""
+        self.store(self.generate_keypair_dict())
 
     def _get_key(self, keyname):
         """Get key and make sure it's type is str (not unicode)

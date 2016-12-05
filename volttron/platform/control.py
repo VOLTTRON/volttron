@@ -733,14 +733,8 @@ def send_agent(opts):
 
 
 def gen_keypair(opts):
-    if os.path.isfile(opts.keystore_file):
-        _stdout.write('{} already exists.\n'.format(opts.keystore_file))
-        if not _ask_yes_no('Overwrite?', default='no'):
-            return
-    keystore = KeyStore(opts.keystore_file)
-    keystore.generate()  # call generate to force new keys to be generated
-    _stdout.write('public key: {}\n'.format(keystore.public))
-    _stdout.write('keys written to {}\n'.format(opts.keystore_file))
+    keypair = KeyStore.generate_keypair_dict()
+    _stdout.write('{}\n'.format(json.dumps(keypair, indent=2)))
 
 
 def add_server_key(opts):
@@ -1564,10 +1558,7 @@ def main(argv=sys.argv):
 
     auth_keypair = add_parser('keypair', subparser=auth_subparsers,
             help='generate CurveMQ keys for encrypting VIP connections')
-    auth_keypair.add_argument('keystore_file', metavar='keystore-file',
-            help='path to save keystore file', nargs='?')
-    auth_keypair.set_defaults(func=gen_keypair,
-            keystore_file=KeyStore.get_default_path())
+    auth_keypair.set_defaults(func=gen_keypair)
 
     auth_list = add_parser('list', help='list authentication records',
             subparser=auth_subparsers)
