@@ -40,10 +40,33 @@ var platformsPanelActionCreators = {
 
                     for (var key in result)
                     {
-                        var device = JSON.parse(JSON.stringify(result[key]));
-                        device.path = key;
+                        // Handle if the topic doesn't have enough entities
+                        // Should be devices/campus/building/unit
+                        // or if devices is not the root we can handle
+                        // campus/building/unit
+                        // in each case we should be able to deal with sub
+                        // devices as well.
+                        var splitkey=key.split("/");
+                        // Protect against not having devices as the first element
+                        // in the array.
+                        if (splitkey.length > 0) {
+                            if (splitkey[0] != "devices") {
+                                splitkey.unshift("devices");
+                            }
+                        }
 
-                        devicesList.push(device);
+                        var path = splitkey.join("/");
+
+                        if (splitkey.length > 3) {
+                            var device = JSON.parse(JSON.stringify(result[key]));
+                            device.path = path;
+
+                            devicesList.push(device);
+                        }
+                        else{
+                            // We need a way to display this as an error.
+                            console.error('INVALID DEVICE TOPIC '+key);
+                        }
                     }
 
                     dispatcher.dispatch({
