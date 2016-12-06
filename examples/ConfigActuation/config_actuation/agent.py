@@ -72,7 +72,6 @@ class ConfigActuation(Agent):
     """
     This agent is used to demonstrate scheduling and acutation of devices
     when a configstore item is added or updated.
-
     """
 
     def __init__(self, config_path, **kwargs):
