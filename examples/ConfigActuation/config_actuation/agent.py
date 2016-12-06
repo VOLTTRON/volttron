@@ -61,67 +61,65 @@ import sys
 from volttron.platform.vip.agent import Agent
 from volttron.platform.agent import utils
 
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '0.1'
 
+REQUESTER_ID = 'requester_id'
+TASK_ID = 'task_id'
 
 class ConfigActuation(Agent):
     """
     This agent is used to demonstrate scheduling and acutation of devices
     when a configstore item is added or updated.
 
-    .. note::
-
-       An error is expected if the scheduled device does not exist.
-
     """
 
     def __init__(self, config_path, **kwargs):
         super(ConfigActuation, self).__init__(**kwargs)
-        config = utils.load_config(config_path)
 
-        self.vip.config.set_default("config", config)
-        self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"], pattern="config")
+        self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"])
 
     def configure(self, config_name, action, contents):
-        try:
-            device = contents['device']
-            point = contents['point']
-            value = contents['value']
-        except KeyError as e:
-            _log.error("Missing config parameter: {}".format(e.message))
-            return
-        
-        try:
-            start = str(datetime.datetime.now())
-            end = str(datetime.datetime.now() + datetime.timedelta(minutes=1))
-            msg = [[device, start, end]]
+        device = config_name
 
+        start = str(datetime.datetime.now())
+        end = str(datetime.datetime.now() + datetime.timedelta(minutes=1))
+        msg = [[device, start, end]]
+
+        try:
             result = self.vip.rpc.call('platform.actuator',
                                        'request_new_schedule',
-                                       'agent_id', # ignored by actuator
-                                       'some task',
+                                       REQUESTER_ID,
+                                       TASK_ID,
                                        'LOW',
                                        msg).get(timeout=10)
-            _log.info("schedule result {}".format(result))
         except Exception as e:
             _log.warning("Could not contact actuator. Is it running?")
             print(e)
             return
 
+        _log.info("schedule result {}".format(result))
+        if result['result'] != 'SUCCESS':
+            return
+
+        topics_values = []
+        for point, value in contents.iteritems():
+            full_topic = os.path.join(device, point)
+            topics_values.append((full_topic, value))
+
         try:
-            if result['result'] == 'SUCCESS':
-                result = self.vip.rpc.call('platform.actuator',
-                                           'set_point',
-                                           'agent_id', # ignored by actuator
-                                           os.path.join(device, point),
-                                           value).get(timeout=10)
-                _log.info("Set result {}".format(result))
+            result = self.vip.rpc.call('platform.actuator',
+                                       'set_multiple_points',
+                                       REQUESTER_ID,
+                                       topics_values).get(timeout=10)
         except Exception as e:
-            _log.warning("Expected to fail since there is no real device to set")
             print(e)
+
+        self.vip.rpc.call('platform.actuator',
+                          'request_cancel_schedule',
+                          REQUESTER_ID,
+                          TASK_ID).get()
 
 
 def main(argv=sys.argv):
