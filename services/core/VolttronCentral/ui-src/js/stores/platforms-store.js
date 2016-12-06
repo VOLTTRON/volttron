@@ -6,6 +6,7 @@ var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
 var _platforms = null;
+var _initialized = false;
 
 var platformsStore = new Store();
 
@@ -93,6 +94,39 @@ platformsStore.getVcHistorianRunning = function () {
     return historianRunning;
 };
 
+platformsStore.getRunningBacnetProxies = function (uuid)
+{
+    var bacnetProxies = [];
+
+    if (_platforms)
+    {
+        if (_platforms.length)
+        {
+            var foundPlatform = _platforms.find(function (platform) {
+                return platform.uuid === uuid;
+            });
+
+            if (foundPlatform)
+            {
+                if (foundPlatform.hasOwnProperty("agents"))
+                {
+                    bacnetProxies = foundPlatform.agents.filter(function (agent) {
+
+                        var runningProxy = ((agent.name.toLowerCase().indexOf("bacnet_proxy") > -1) &&
+                                            (agent.actionPending === false) && 
+                                            (agent.process_id !== null) &&
+                                            (agent.return_code === null));
+
+                        return runningProxy;
+                    });
+                }
+            }
+        }
+    }    
+
+    return bacnetProxies;
+};
+
 platformsStore.getForwarderRunning = function (platformUuid) {
 
     var platform = platformsStore.getPlatform(platformUuid);
@@ -101,12 +135,20 @@ platformsStore.getForwarderRunning = function (platformUuid) {
     return forwarderRunning;
 };
 
+platformsStore.getInitialized = function () {
+    return _initialized;
+};
+
 platformsStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
     switch (action.type) {
         case ACTION_TYPES.CLEAR_AUTHORIZATION:
             _platforms = null;
+            break;
+
+        case ACTION_TYPES.WILL_INITIALIZE_PLATFORMS:
+            _initialized = true;
             break;
 
         case ACTION_TYPES.RECEIVE_PLATFORMS:

@@ -105,7 +105,7 @@ var platformsPanelActionCreators = {
 
                             var pointsList = [];
 
-                            if (platformPerformance)
+                            if (platformPerformance && platformPerformance.performance.hasOwnProperty("points"))
                             {
                                 var points = platformPerformance.performance.points;
 

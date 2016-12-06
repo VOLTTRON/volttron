@@ -1,11 +1,14 @@
 'use strict';
 
 var React = require('react');
+var ReactDOM = require('react-dom');
 var Router = require('react-router');
 var d3 = require('d3');
 var nv = require('nvd3');
 var moment = require('moment');
+var OutsideClick = require('react-click-outside');
 
+import ControlButton from './control-button';
 
 var chartStore = require('../stores/platform-chart-store');
 var platformChartStore = require('../stores/platform-chart-store');
@@ -14,7 +17,6 @@ var platformActionCreators = require('../action-creators/platform-action-creator
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var ConfirmForm = require('./confirm-form');
-var ControlButton = require('./control-button');
 
 var PlatformChart = React.createClass({
     getInitialState: function () {
@@ -173,10 +175,7 @@ var PlatformChart = React.createClass({
 });
 
 
-var GraphLineChart = React.createClass({
-  mixins: [
-      require('react-onclickoutside')
-  ],
+var GraphLineChart = OutsideClick(React.createClass({
   getInitialState: function () {
       
       var pattern = /[!@#$%^&*()+\-=\[\]{};':"\\|, .<>\/?]/g
@@ -204,7 +203,7 @@ var GraphLineChart = React.createClass({
                                           this.state.min, this.state.max);
       this.setState({lineChart: lineChart});
 
-      this.chart = React.findDOMNode(this.refs[this.state.chartName]);
+      this.chart = ReactDOM.findDOMNode(this.refs[this.state.chartName]);
   },
   componentWillUnmount: function () {
       platformChartStore.removeChangeListener(this._onStoresChange);
@@ -662,7 +661,7 @@ var GraphLineChart = React.createClass({
       return lineDataArr;
     }
   
-});
+}));
 
 
 

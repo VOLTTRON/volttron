@@ -9,7 +9,6 @@ var statusIndicatorActionCreators = require('../action-creators/status-indicator
 var platformsStore = require('../stores/platforms-store');
 
 var Platform = React.createClass({
-    mixins: [Router.State],
     getInitialState: function () {
         return getStateFromStores(this);
     },
@@ -58,7 +57,7 @@ var Platform = React.createClass({
                     <h2>
                         <Router.Link to="platforms">Platforms</Router.Link>
                         &nbsp;/&nbsp;
-                        {this.getParams().uuid}
+                        {this.props.params.uuid}
                     </h2>
                     <p>Platform not found.</p>
                 </div>
@@ -81,6 +80,7 @@ var Platform = React.createClass({
                     <thead>
                         <tr>
                             <th>Name</th>
+                            <th>Identity</th>
                             <th>UUID</th>
                             <th>Status</th>
                             <th>Action</th>
@@ -132,7 +132,7 @@ var Platform = React.createClass({
 function getStateFromStores(component) {
 
     return {
-        platform: platformsStore.getPlatform(component.getParams().uuid)
+        platform: platformsStore.getPlatform(component.props.params.uuid)
     };
 }
 

@@ -422,7 +422,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             for (var key in _items.platforms)
             {
-                var match = platforms.find(function (platform) {
+                var match = platforms.find(function findPlatform(platform) {
                     return key === platform.uuid;
                 });
 
@@ -580,6 +580,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             agentsHealth = checkStatuses(agentsHealth, agentProps);
         });
 
+        platform.expanded = (platform.agents.children.length > 0);
+
         platform.agents.status = agentsHealth;
         platform.agents.statusLabel = getStatusLabel(agentsHealth);
     }
@@ -721,6 +723,11 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             buildingsHealth = checkStatuses(buildingsHealth, blg);            
         });
 
+        if (platform.buildings.children.length > 0)
+        {
+            platform.expanded = true;
+        }
+        
         platform.buildings.status = buildingsHealth;
         platform.buildings.statusLabel = getStatusLabel(buildingsHealth);
     }

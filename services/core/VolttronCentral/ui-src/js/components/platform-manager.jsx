@@ -1,7 +1,8 @@
 'use strict';
 
 var $ = require('jquery');
-var React = require('react');
+import React from 'react';
+var ReactDOM = require('react-dom');
 var Router = require('react-router');
 
 var authorizationStore = require('../stores/authorization-store');
@@ -13,38 +14,42 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 var modalStore = require('../stores/modal-store');
 var Navigation = require('./navigation');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-var PlatformsPanel = require('./platforms-panel');
 var platformsPanelStore = require('../stores/platforms-panel-store');
 var StatusIndicator = require('./status-indicator');
 var statusIndicatorStore = require('../stores/status-indicator-store');
+var platformsStore = require('../stores/platforms-store');
 
-var PlatformManager = React.createClass({
-    mixins: [Router.Navigation, Router.State],
-    getInitialState: function () {
-        var state = getStateFromStores();
+import PlatformsPanel from './platforms-panel';
+import ColumnMover from './column-mover';
 
-        this.uninitialized = true;
+class PlatformManager extends React.Component {
+    constructor(props) {
+        super(props);
+        this._doModalBindings = this._doModalBindings.bind(this);
+        this._onStoreChange = this._onStoreChange.bind(this);
 
-        return state;
-    },
-    componentWillMount: function () {
-        platformManagerActionCreators.initialize();
-    },
-    componentDidMount: function () {
+        this.state = getStateFromStores();
+    }
+    componentWillMount() {
+        if (!this.state.initialized)
+        {
+            platformManagerActionCreators.initialize();
+        }
+    }
+    componentDidMount() {
         authorizationStore.addChangeListener(this._onStoreChange);
         consoleStore.addChangeListener(this._onStoreChange);
         modalStore.addChangeListener(this._onStoreChange);
         platformsPanelStore.addChangeListener(this._onStoreChange);
+        platformsStore.addChangeListener(this._onStoreChange);
         statusIndicatorStore.addChangeListener(this._onStoreChange);
         this._doModalBindings();
-    },
-    componentDidUpdate: function () {
+    }
+    componentDidUpdate() {
         this._doModalBindings();
 
         if (this.state.expanded)
-        {               
-            this.uninitialized = false;
-
+        {    
             var handle = document.querySelector(".resize-handle");
 
             var onMouseDown = function (evt)
@@ -87,15 +92,15 @@ var PlatformManager = React.createClass({
                 target.addEventListener("mouseup", onMouseUp);
 
                 evt.preventDefault();
-            }
+            };
 
             handle.addEventListener("mousedown", onMouseDown);
         }
-    },
-    _doModalBindings: function () {
+    }
+    _doModalBindings() {
         if (this.state.modalContent) {
             window.addEventListener('keydown', this._closeModal);
-            this._focusDisabled = $('input,select,textarea,button,a', React.findDOMNode(this.refs.main)).attr('tabIndex', -1);
+            this._focusDisabled = $('input,select,textarea,button,a', ReactDOM.findDOMNode(this.refs.main)).attr('tabIndex', -1);
         } else {
             window.removeEventListener('keydown', this._closeModal);
             if (this._focusDisabled) {
@@ -103,26 +108,27 @@ var PlatformManager = React.createClass({
                 delete this._focusDisabled;
             }
         }
-    },
-    componentWillUnmount: function () {
+    }
+    componentWillUnmount() {
         authorizationStore.removeChangeListener(this._onStoreChange);
         consoleStore.removeChangeListener(this._onStoreChange);
         modalStore.removeChangeListener(this._onStoreChange);
+        platformsPanelStore.removeChangeListener(this._onStoreChange);
+        platformsStore.removeChangeListener(this._onStoreChange);
         statusIndicatorStore.removeChangeListener(this._onStoreChange);
-        this._modalCleanup();
-    },
-    _onStoreChange: function () {
+    }
+    _onStoreChange() {
         this.setState(getStateFromStores());
-    },
-    _onToggleClick: function () {
+    }
+    _onToggleClick() {
         consoleActionCreators.toggleConsole();
-    },
-    _closeModal: function (e) {
+    }
+    _closeModal(e) {
         if (e.keyCode === 27) {
             modalActionCreators.closeModal();
         }
-    },
-    render: function () {
+    }
+    render() {
         var classes = ['platform-manager'];
         var modal;
         var exteriorClasses = ["panel-exterior"];
@@ -145,14 +151,14 @@ var PlatformManager = React.createClass({
         var statusIndicator;
 
         if (this.state.consoleShown) {
-            classes.push('platform-manager--console-open');
+            classes.push('console-open');
         }
 
         classes.push(this.state.loggedIn ?
-            'platform-manager--logged-in' : 'platform-manager--not-logged-in');
+            'logged-in' : 'not-logged-in');
 
         if (this.state.modalContent) {
-            classes.push('platform-manager--modal-open');
+            classes.push('modal-open');
             modal = (
                 <Modal>{this.state.modalContent}</Modal>
             );
@@ -160,7 +166,7 @@ var PlatformManager = React.createClass({
 
         if (this.state.status) {
             statusIndicator = (
-                <StatusIndicator></StatusIndicator>
+                <StatusIndicator status={this.state.statusMessage}></StatusIndicator>
             );
         }
 
@@ -179,12 +185,13 @@ var PlatformManager = React.createClass({
             <div className={classes.join(' ')}>
                 {statusIndicator}
                 {modal}
+                <ColumnMover/>
                 <div ref="main" className="main">
                     <Navigation />                
                     <PlatformsPanel/>
                     <div className={exteriorClasses.join(' ')}>
                         {resizeHandle}
-                        <Router.RouteHandler />
+                        {this.props.children}
                     </div>
                 </div>
                 <input
@@ -196,8 +203,8 @@ var PlatformManager = React.createClass({
                 {this.state.consoleShown && <Console className="console" />}
             </div>
         );
-    },
-});
+    }
+}
 
 function getStateFromStores() {
     return {
@@ -205,8 +212,10 @@ function getStateFromStores() {
         loggedIn: !!authorizationStore.getAuthorization(),
         modalContent: modalStore.getModalContent(),
         expanded: platformsPanelStore.getExpanded(),
-        status: statusIndicatorStore.getStatus()
+        status: statusIndicatorStore.getStatus(),
+        statusMessage: statusIndicatorStore.getStatusMessage(),
+        initialized: platformsStore.getInitialized()
     };
 }
 
-module.exports = PlatformManager;
+export default PlatformManager;
