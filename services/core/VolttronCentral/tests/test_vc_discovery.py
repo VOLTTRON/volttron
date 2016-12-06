@@ -71,6 +71,7 @@ def both_with_vc_vcp(request):
 
 
 @pytest.mark.vc
+@pytest.mark.timeout(300)
 def test_autoregister_external(vc_vcp_platforms):
     gevent.sleep(15)
     vc, vcp = vc_vcp_platforms
@@ -88,6 +89,7 @@ def test_autoregister_external(vc_vcp_platforms):
 
 
 @pytest.mark.vc
+@pytest.mark.timeout(300)
 def test_autoregister_local(both_with_vc_vcp):
     gevent.sleep(15)
 
