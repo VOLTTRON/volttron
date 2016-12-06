@@ -172,12 +172,9 @@ def publish_agent(request, volttron_instance):
     """
     global actuator_uuid, publish_agent_v2
 
-    developer_mode = volttron_instance.opts.get('developer_mode', False);
 
     # Reset master driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
-    if developer_mode:
-        cmd.append('--developer-mode')
     process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -188,8 +185,6 @@ def publish_agent(request, volttron_instance):
     # Add master driver configuration files to config store.
     cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
            'fake.csv', 'fake_unit_testing.csv', '--csv']
-    if developer_mode:
-        cmd.append('--developer-mode')
     process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -201,8 +196,6 @@ def publish_agent(request, volttron_instance):
         config_name = "devices/fakedriver{}".format(i)
         cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
                config_name, 'fake_unit_testing.config', '--json']
-        if developer_mode:
-            cmd.append('--developer-mode')
         process = Popen(cmd, env=volttron_instance.env,
                         cwd='scripts/scalability-testing',
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)

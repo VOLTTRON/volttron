@@ -16,9 +16,6 @@ def setup_first(request, get_volttron_instances):
 
     request.addfinalizer(wrapper.shutdown_platform)
 
-    if get_volttron_instances.param != 'encrypted':
-        pytest.skip("Only encrypted available for this test")
-
     start_wrapper_platform(wrapper, with_http=True)
     if request.param == 'vc_first':
         vc_uuid = add_volttron_central(wrapper)
