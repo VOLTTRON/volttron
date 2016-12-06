@@ -20,6 +20,10 @@
     Auth Token: <input type="text" id="token"
                        placeholder="Enter auth token"/><br/>
 </div>
+<h3>Management Endpoint</h3>
+<div>
+    <button id="register_management_endpoint">Register Management Socket</button>
+</div>
 <h3>Bacnet Proxy Things</h3>
 <div>
     Platform Name: <select id="agent_platform_uuid"></select><br/>
@@ -301,6 +305,17 @@
             });
         });
 
+    });
+
+
+    $('#register_management_endpoint').click(function(){
+        var method = "register_management_endpoint";
+        do_request(method, null, function(response){
+            console.log(response);
+            open_socket(response.result, function(data){
+               writeMessage(data);
+            });
+        });
     });
 
     function writeMessage(msg) {
