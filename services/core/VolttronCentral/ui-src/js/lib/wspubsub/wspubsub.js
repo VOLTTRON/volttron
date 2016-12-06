@@ -47,7 +47,7 @@ class WsPubSub{
             }
 
             ws.onopen = function(evt) {
-                console.log("OPENING: " + evt.data);
+                console.log("OPENING");
             }
 
             ws.onmessage = function(evt)
@@ -70,20 +70,22 @@ class WsPubSub{
 
             ws.onclose = function (evt)
             {
+                var topic = this;
+
                 if(self.subscriptions.hasOwnProperty(topic)){
                     self.subscriptions[topic].forEach(function(cb){
-                        cb(topic, "CLOSING");
-                    });
+                        cb(this, "CLOSING");
+                    }, topic);
                 }
-                delete self.websockets[topic]
-            }
+                delete self.websockets[topic];
+            }.bind(topic)
         }
 
         if (!self.subscriptions.hasOwnProperty(topic)){
             self.subscriptions[topic] = new Set();
         }
 
-        self.subscriptions[topic].add(onmessage)
+        self.subscriptions[topic].add(onmessage);
 
     }
 
@@ -93,6 +95,10 @@ class WsPubSub{
                 message: "Topic not found in subscriptions."
             });
         }
+
+        let self = this;
+
+        self.websockets[topic].close();
     }
     //
     // publish(topic, message) {

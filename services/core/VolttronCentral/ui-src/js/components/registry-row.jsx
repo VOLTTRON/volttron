@@ -96,12 +96,6 @@ class RegistryRow extends BaseComponent {
 
             devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
 
-            // if (!this.state.attributesList.get("selected"))
-            // {
-            //     var attributesList = this.state.attributesList.set("selected", true);
-            //     this.setState({attributesList: attributesList});
-            // }
-            
             this.props.oncheckselect(this.state.attributesList.getIn(["attributes", 0]).value);
         }
     }
@@ -170,7 +164,7 @@ class RegistryRow extends BaseComponent {
 
             if (item.keyProp)
             {
-                var selectedCellStyle = (item.selected ? {backgroundColor: "#F5B49D", width: "100%"} : {width: "100%"});
+                var selectedCellStyle = (item.selected ? {backgroundColor: "rgba(187, 137, 102, 0.6)", width: "100%"} : {width: "100%"});
                 var focusedCell = (this.props.immutableProps.get("selectedCellColumn") === columnIndex && this.props.immutableProps.get("selectedCell") ? "focusedCell" : "");
 
                 var itemCell = (!item.editable ? 

@@ -54,7 +54,7 @@
 	
 	var _platformManager2 = _interopRequireDefault(_platformManager);
 	
-	var _configureDevices = __webpack_require__(326);
+	var _configureDevices = __webpack_require__(328);
 	
 	var _configureDevices2 = _interopRequireDefault(_configureDevices);
 	
@@ -66,10 +66,9 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	__webpack_require__(393);
-	__webpack_require__(397);
+	__webpack_require__(395);
 	__webpack_require__(399);
-	__webpack_require__(407);
+	__webpack_require__(401);
 	__webpack_require__(409);
 	
 	var React = __webpack_require__(3);
@@ -77,7 +76,7 @@
 	
 	var authorizationStore = __webpack_require__(103);
 	var platformsPanelItemsStore = __webpack_require__(264);
-	var devicesStore = __webpack_require__(304);
+	var devicesStore = __webpack_require__(308);
 	var Dashboard = __webpack_require__(411);
 	var LoginForm = __webpack_require__(527);
 	var PageNotFound = __webpack_require__(536);
@@ -86,7 +85,7 @@
 	var Platforms = __webpack_require__(540);
 	
 	var PlatformCharts = __webpack_require__(543);
-	var Navigation = __webpack_require__(322);
+	var Navigation = __webpack_require__(324);
 	var devicesActionCreators = __webpack_require__(303);
 	
 	var _afterLoginPath = '/dashboard';
@@ -9921,7 +9920,7 @@
 	
 	var _platformsPanel2 = _interopRequireDefault(_platformsPanel);
 	
-	var _columnMover = __webpack_require__(311);
+	var _columnMover = __webpack_require__(313);
 	
 	var _columnMover2 = _interopRequireDefault(_columnMover);
 	
@@ -9939,17 +9938,17 @@
 	var Router = __webpack_require__(1);
 	
 	var authorizationStore = __webpack_require__(103);
-	var Console = __webpack_require__(313);
-	var consoleActionCreators = __webpack_require__(315);
-	var consoleStore = __webpack_require__(316);
-	var Modal = __webpack_require__(319);
-	var modalActionCreators = __webpack_require__(320);
-	var modalStore = __webpack_require__(321);
-	var Navigation = __webpack_require__(322);
-	var platformManagerActionCreators = __webpack_require__(323);
-	var platformsPanelStore = __webpack_require__(310);
-	var StatusIndicator = __webpack_require__(324);
-	var statusIndicatorStore = __webpack_require__(325);
+	var Console = __webpack_require__(315);
+	var consoleActionCreators = __webpack_require__(317);
+	var consoleStore = __webpack_require__(318);
+	var Modal = __webpack_require__(321);
+	var modalActionCreators = __webpack_require__(322);
+	var modalStore = __webpack_require__(323);
+	var Navigation = __webpack_require__(324);
+	var platformManagerActionCreators = __webpack_require__(325);
+	var platformsPanelStore = __webpack_require__(312);
+	var StatusIndicator = __webpack_require__(326);
+	var statusIndicatorStore = __webpack_require__(327);
 	var platformsStore = __webpack_require__(266);
 	
 	var PlatformManager = function (_React$Component) {
@@ -10209,7 +10208,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var platformsPanelStore = __webpack_require__(310);
+	var platformsPanelStore = __webpack_require__(312);
 	var platformsPanelItemsStore = __webpack_require__(264);
 	var platformsPanelActionCreators = __webpack_require__(267);
 	
@@ -56861,18 +56860,16 @@
 
 	'use strict';
 	
+	var _csvparse = __webpack_require__(304);
+	
 	var ACTION_TYPES = __webpack_require__(101);
 	var authorizationStore = __webpack_require__(103);
-	var devicesStore = __webpack_require__(304);
+	var devicesStore = __webpack_require__(308);
 	var dispatcher = __webpack_require__(104);
-	var wspubsub = __webpack_require__(305);
+	var wspubsub = __webpack_require__(309);
 	var rpc = __webpack_require__(269);
 	
-	var CsvParse = __webpack_require__(308);
-	
 	var statusIndicatorActionCreators = __webpack_require__(268);
-	
-	var pointsWs, pointsWebsocket, devicesWs, devicesWebsocket;
 	
 	var devicesActionCreators = {
 	    configureDevices: function configureDevices(platform) {
@@ -56983,12 +56980,10 @@
 	        });
 	    },
 	    cancelDeviceScan: function cancelDeviceScan() {
-	        // if (typeof devicesWs !== "undefined" && devicesWs !== null)
-	        // {
-	        //     devicesWs.close();
-	        //     devicesWs = null;
-	        // }
-	        // TODO: Replace this code with equivalent using wspubsub
+	        var authorization = authorizationStore.getAuthorization();
+	        var topic = "/vc/ws/" + authorization + "/iam";
+	
+	        wspubsub.WsPubSub.unsubscribe(topic);
 	    },
 	    handleKeyDown: function handleKeyDown(keydown) {
 	        dispatcher.dispatch({
@@ -57028,6 +57023,8 @@
 	                        type: ACTION_TYPES.POINT_SCAN_FINISHED,
 	                        device: this
 	                    });
+	
+	                    console.log("closing points socket");
 	                } else {
 	                    var platform = null;
 	                    devicesActionCreators.pointReceived(message);
@@ -57122,7 +57119,7 @@
 	
 	            devicesActionCreators.unloadRegistryFiles();
 	
-	            var csvData = parseCsvFile(result);
+	            var csvData = _csvparse.CsvParse.parseCsvFile(result);
 	
 	            if (csvData.warnings.length) {
 	                console.log(csvData.warnings[0]);
@@ -57276,6 +57273,46 @@
 	    return result;
 	}
 	
+	function objectIsEmpty(obj) {
+	    return Object.keys(obj).length === 0;
+	}
+	
+	function handle401(error, message, highlight, orientation) {
+	    if (error.code && error.code === 401 || error.response && error.response.status === 401) {
+	        dispatcher.dispatch({
+	            type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
+	            error: error
+	        });
+	
+	        platformManagerActionCreators.clearAuthorization();
+	    } else if (message) {
+	        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
+	    }
+	}
+	
+	module.exports = devicesActionCreators;
+
+/***/ },
+/* 304 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var _CsvParse = __webpack_require__(305);
+	
+	exports.CsvParse = _CsvParse.default;
+
+/***/ },
+/* 305 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+	var CsvParse = __webpack_require__(306);
+	
 	var parseCsvFile = function parseCsvFile(contents) {
 	
 	    var results = CsvParse.parse(contents);
@@ -57345,27 +57382,903 @@
 	    return results;
 	};
 	
-	function objectIsEmpty(obj) {
-	    return Object.keys(obj).length === 0;
-	}
-	
-	function handle401(error, message, highlight, orientation) {
-	    if (error.code && error.code === 401 || error.response && error.response.status === 401) {
-	        dispatcher.dispatch({
-	            type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
-	            error: error
-	        });
-	
-	        platformManagerActionCreators.clearAuthorization();
-	    } else if (message) {
-	        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
-	    }
-	}
-	
-	module.exports = devicesActionCreators;
+	exports.default = { parseCsvFile: parseCsvFile };
 
 /***/ },
-/* 304 */
+/* 306 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var __WEBPACK_AMD_DEFINE_RESULT__;/*
+		Baby Parse
+		v0.4.1
+		https://github.com/Rich-Harris/BabyParse
+	
+		Created by Rich Harris
+		Maintained by Matt Holt
+	
+		Based on Papa Parse v4.0.7 by Matt Holt
+		https://github.com/mholt/PapaParse
+	*/
+	(function(global)
+	{
+	
+		// A configuration object from which to draw default settings
+		var DEFAULTS = {
+			delimiter: "",	// empty: auto-detect
+			newline: "",	// empty: auto-detect
+			header: false,
+			dynamicTyping: false,
+			preview: 0,
+			step: undefined,
+			comments: false,
+			complete: undefined,
+			skipEmptyLines: false,
+			fastMode: false
+		};
+	
+		var Baby = {};
+		Baby.parse = CsvToJson;
+		Baby.parseFiles = ParseFiles;
+		Baby.unparse = JsonToCsv;
+		Baby.RECORD_SEP = String.fromCharCode(30);
+		Baby.UNIT_SEP = String.fromCharCode(31);
+		Baby.BYTE_ORDER_MARK = "\ufeff";
+		Baby.BAD_DELIMITERS = ["\r", "\n", "\"", Baby.BYTE_ORDER_MARK];
+		Baby.DefaultDelimiter = ",";		// Used if not specified and detection fails
+		Baby.Parser = Parser;				// For testing/dev only
+		Baby.ParserHandle = ParserHandle;	// For testing/dev only
+		
+		var fs = fs || __webpack_require__(307)
+		
+		function ParseFiles(_input, _config)
+		{
+			if (Array.isArray(_input)) {
+				var results = [];
+				_input.forEach(function(input) {
+					if(typeof input === 'object')
+						results.push(ParseFiles(input.file, input.config));
+					else
+						results.push(ParseFiles(input, _config));
+				});
+				return results;
+			} else {
+				var results = {
+					data: [],
+					errors: []
+				};
+				if ((/(\.csv|\.txt)$/).test(_input)) {
+					try {
+						var contents = fs.readFileSync(_input).toString();
+						return CsvToJson(contents, _config);
+					} catch (err) {
+						results.errors.push(err);
+						return results;
+					}
+				} else {
+					results.errors.push({
+						type: '',
+						code: '',
+						message: 'Unsupported file type.',
+						row: ''
+					});
+					return results;
+				}
+			}
+		}
+	
+		function CsvToJson(_input, _config)
+		{
+			var config = copyAndValidateConfig(_config);
+			var ph = new ParserHandle(config);
+			var results = ph.parse(_input);
+			return results;
+		}
+	
+	
+	
+	
+		function JsonToCsv(_input, _config)
+		{
+			var _output = "";
+			var _fields = [];
+	
+			// Default configuration
+			var _quotes = false;	// whether to surround every datum with quotes
+			var _delimiter = ",";	// delimiting character
+			var _newline = "\r\n";	// newline character(s)
+	
+			unpackConfig();
+	
+			if (typeof _input === 'string')
+				_input = JSON.parse(_input);
+	
+			if (_input instanceof Array)
+			{
+				if (!_input.length || _input[0] instanceof Array)
+					return serialize(null, _input);
+				else if (typeof _input[0] === 'object')
+					return serialize(objectKeys(_input[0]), _input);
+			}
+			else if (typeof _input === 'object')
+			{
+				if (typeof _input.data === 'string')
+					_input.data = JSON.parse(_input.data);
+	
+				if (_input.data instanceof Array)
+				{
+					if (!_input.fields)
+						_input.fields = _input.data[0] instanceof Array
+										? _input.fields
+										: objectKeys(_input.data[0]);
+	
+					if (!(_input.data[0] instanceof Array) && typeof _input.data[0] !== 'object')
+						_input.data = [_input.data];	// handles input like [1,2,3] or ["asdf"]
+				}
+	
+				return serialize(_input.fields || [], _input.data || []);
+			}
+	
+			// Default (any valid paths should return before this)
+			throw "exception: Unable to serialize unrecognized input";
+	
+	
+			function unpackConfig()
+			{
+				if (typeof _config !== 'object')
+					return;
+	
+				if (typeof _config.delimiter === 'string'
+					&& _config.delimiter.length == 1
+					&& Baby.BAD_DELIMITERS.indexOf(_config.delimiter) == -1)
+				{
+					_delimiter = _config.delimiter;
+				}
+	
+				if (typeof _config.quotes === 'boolean'
+					|| _config.quotes instanceof Array)
+					_quotes = _config.quotes;
+	
+				if (typeof _config.newline === 'string')
+					_newline = _config.newline;
+			}
+	
+	
+			// Turns an object's keys into an array
+			function objectKeys(obj)
+			{
+				if (typeof obj !== 'object')
+					return [];
+				var keys = [];
+				for (var key in obj)
+					keys.push(key);
+				return keys;
+			}
+	
+			// The double for loop that iterates the data and writes out a CSV string including header row
+			function serialize(fields, data)
+			{
+				var csv = "";
+	
+				if (typeof fields === 'string')
+					fields = JSON.parse(fields);
+				if (typeof data === 'string')
+					data = JSON.parse(data);
+	
+				var hasHeader = fields instanceof Array && fields.length > 0;
+				var dataKeyedByField = !(data[0] instanceof Array);
+	
+				// If there a header row, write it first
+				if (hasHeader)
+				{
+					for (var i = 0; i < fields.length; i++)
+					{
+						if (i > 0)
+							csv += _delimiter;
+						csv += safe(fields[i], i);
+					}
+					if (data.length > 0)
+						csv += _newline;
+				}
+	
+				// Then write out the data
+				for (var row = 0; row < data.length; row++)
+				{
+					var maxCol = hasHeader ? fields.length : data[row].length;
+	
+					for (var col = 0; col < maxCol; col++)
+					{
+						if (col > 0)
+							csv += _delimiter;
+						var colIdx = hasHeader && dataKeyedByField ? fields[col] : col;
+						csv += safe(data[row][colIdx], col);
+					}
+	
+					if (row < data.length - 1)
+						csv += _newline;
+				}
+	
+				return csv;
+			}
+	
+			// Encloses a value around quotes if needed (makes a value safe for CSV insertion)
+			function safe(str, col)
+			{
+				if (typeof str === "undefined" || str === null)
+					return "";
+	
+				str = str.toString().replace(/"/g, '""');
+	
+				var needsQuotes = (typeof _quotes === 'boolean' && _quotes)
+								|| (_quotes instanceof Array && _quotes[col])
+								|| hasAny(str, Baby.BAD_DELIMITERS)
+								|| str.indexOf(_delimiter) > -1
+								|| str.charAt(0) == ' '
+								|| str.charAt(str.length - 1) == ' ';
+	
+				return needsQuotes ? '"' + str + '"' : str;
+			}
+	
+			function hasAny(str, substrings)
+			{
+				for (var i = 0; i < substrings.length; i++)
+					if (str.indexOf(substrings[i]) > -1)
+						return true;
+				return false;
+			}
+		}
+	
+	
+	
+	
+	
+	
+		// Use one ParserHandle per entire CSV file or string
+		function ParserHandle(_config)
+		{
+			// One goal is to minimize the use of regular expressions...
+			var FLOAT = /^\s*-?(\d*\.?\d+|\d+\.?\d*)(e[-+]?\d+)?\s*$/i;
+	
+			var self = this;
+			var _stepCounter = 0;	// Number of times step was called (number of rows parsed)
+			var _input;				// The input being parsed
+			var _parser;			// The core parser being used
+			var _paused = false;	// Whether we are paused or not
+			var _delimiterError;	// Temporary state between delimiter detection and processing results
+			var _fields = [];		// Fields are from the header row of the input, if there is one
+			var _results = {		// The last results returned from the parser
+				data: [],
+				errors: [],
+				meta: {}
+			};
+	
+			if (isFunction(_config.step))
+			{
+				var userStep = _config.step;
+				_config.step = function(results)
+				{
+					_results = results;
+	
+					if (needsHeaderRow())
+						processResults();
+					else	// only call user's step function after header row
+					{
+						processResults();
+	
+						// It's possbile that this line was empty and there's no row here after all
+						if (_results.data.length == 0)
+							return;
+	
+						_stepCounter += results.data.length;
+						if (_config.preview && _stepCounter > _config.preview)
+							_parser.abort();
+						else
+							userStep(_results, self);
+					}
+				};
+			}
+	
+			this.parse = function(input)
+			{
+				if (!_config.newline)
+					_config.newline = guessLineEndings(input);
+	
+				_delimiterError = false;
+				if (!_config.delimiter)
+				{
+					var delimGuess = guessDelimiter(input);
+					if (delimGuess.successful)
+						_config.delimiter = delimGuess.bestDelimiter;
+					else
+					{
+						_delimiterError = true;	// add error after parsing (otherwise it would be overwritten)
+						_config.delimiter = Baby.DefaultDelimiter;
+					}
+					_results.meta.delimiter = _config.delimiter;
+				}
+	
+				var parserConfig = copy(_config);
+				if (_config.preview && _config.header)
+					parserConfig.preview++;	// to compensate for header row
+	
+				_input = input;
+				_parser = new Parser(parserConfig);
+				_results = _parser.parse(_input);
+				processResults();
+				if (isFunction(_config.complete) && !_paused && (!self.streamer || self.streamer.finished()))
+					_config.complete(_results);
+				return _paused ? { meta: { paused: true } } : (_results || { meta: { paused: false } });
+			};
+	
+			this.pause = function()
+			{
+				_paused = true;
+				_parser.abort();
+				_input = _input.substr(_parser.getCharIndex());
+			};
+	
+			this.resume = function()
+			{
+				_paused = false;
+				_parser = new Parser(_config);
+				_parser.parse(_input);
+				if (!_paused)
+				{
+					if (self.streamer && !self.streamer.finished())
+						self.streamer.resume();		// more of the file yet to come
+					else if (isFunction(_config.complete))
+						_config.complete(_results);
+				}
+			};
+	
+			this.abort = function()
+			{
+				_parser.abort();
+				if (isFunction(_config.complete))
+					_config.complete(_results);
+				_input = "";
+			};
+	
+			function processResults()
+			{
+				if (_results && _delimiterError)
+				{
+					addError("Delimiter", "UndetectableDelimiter", "Unable to auto-detect delimiting character; defaulted to '"+Baby.DefaultDelimiter+"'");
+					_delimiterError = false;
+				}
+	
+				if (_config.skipEmptyLines)
+				{
+					for (var i = 0; i < _results.data.length; i++)
+						if (_results.data[i].length == 1 && _results.data[i][0] == "")
+							_results.data.splice(i--, 1);
+				}
+	
+				if (needsHeaderRow())
+					fillHeaderFields();
+	
+				return applyHeaderAndDynamicTyping();
+			}
+	
+			function needsHeaderRow()
+			{
+				return _config.header && _fields.length == 0;
+			}
+	
+			function fillHeaderFields()
+			{
+				if (!_results)
+					return;
+				for (var i = 0; needsHeaderRow() && i < _results.data.length; i++)
+					for (var j = 0; j < _results.data[i].length; j++)
+						_fields.push(_results.data[i][j]);
+				_results.data.splice(0, 1);
+			}
+	
+			function applyHeaderAndDynamicTyping()
+			{
+				if (!_results || (!_config.header && !_config.dynamicTyping))
+					return _results;
+	
+				for (var i = 0; i < _results.data.length; i++)
+				{
+					var row = {};
+	
+					for (var j = 0; j < _results.data[i].length; j++)
+					{
+						if (_config.dynamicTyping)
+						{
+							var value = _results.data[i][j];
+							if (value == "true" || value === "TRUE")
+								_results.data[i][j] = true;
+							else if (value == "false" || value === "FALSE")
+								_results.data[i][j] = false;
+							else
+								_results.data[i][j] = tryParseFloat(value);
+						}
+	
+						if (_config.header)
+						{
+							if (j >= _fields.length)
+							{
+								if (!row["__parsed_extra"])
+									row["__parsed_extra"] = [];
+								row["__parsed_extra"].push(_results.data[i][j]);
+							}
+							else
+								row[_fields[j]] = _results.data[i][j];
+						}
+					}
+	
+					if (_config.header)
+					{
+						_results.data[i] = row;
+						if (j > _fields.length)
+							addError("FieldMismatch", "TooManyFields", "Too many fields: expected " + _fields.length + " fields but parsed " + j, i);
+						else if (j < _fields.length)
+							addError("FieldMismatch", "TooFewFields", "Too few fields: expected " + _fields.length + " fields but parsed " + j, i);
+					}
+				}
+	
+				if (_config.header && _results.meta)
+					_results.meta.fields = _fields;
+				return _results;
+			}
+	
+			function guessDelimiter(input)
+			{
+				var delimChoices = [",", "\t", "|", ";", Baby.RECORD_SEP, Baby.UNIT_SEP];
+				var bestDelim, bestDelta, fieldCountPrevRow;
+	
+				for (var i = 0; i < delimChoices.length; i++)
+				{
+					var delim = delimChoices[i];
+					var delta = 0, avgFieldCount = 0;
+					fieldCountPrevRow = undefined;
+	
+					var preview = new Parser({
+						delimiter: delim,
+						preview: 10
+					}).parse(input);
+	
+					for (var j = 0; j < preview.data.length; j++)
+					{
+						var fieldCount = preview.data[j].length;
+						avgFieldCount += fieldCount;
+	
+						if (typeof fieldCountPrevRow === 'undefined')
+						{
+							fieldCountPrevRow = fieldCount;
+							continue;
+						}
+						else if (fieldCount > 1)
+						{
+							delta += Math.abs(fieldCount - fieldCountPrevRow);
+							fieldCountPrevRow = fieldCount;
+						}
+					}
+	
+					avgFieldCount /= preview.data.length;
+	
+					if ((typeof bestDelta === 'undefined' || delta < bestDelta)
+						&& avgFieldCount > 1.99)
+					{
+						bestDelta = delta;
+						bestDelim = delim;
+					}
+				}
+	
+				_config.delimiter = bestDelim;
+	
+				return {
+					successful: !!bestDelim,
+					bestDelimiter: bestDelim
+				}
+			}
+	
+			function guessLineEndings(input)
+			{
+				input = input.substr(0, 1024*1024);	// max length 1 MB
+	
+				var r = input.split('\r');
+	
+				if (r.length == 1)
+					return '\n';
+	
+				var numWithN = 0;
+				for (var i = 0; i < r.length; i++)
+				{
+					if (r[i][0] == '\n')
+						numWithN++;
+				}
+	
+				return numWithN >= r.length / 2 ? '\r\n' : '\r';
+			}
+	
+			function tryParseFloat(val)
+			{
+				var isNumber = FLOAT.test(val);
+				return isNumber ? parseFloat(val) : val;
+			}
+	
+			function addError(type, code, msg, row)
+			{
+				_results.errors.push({
+					type: type,
+					code: code,
+					message: msg,
+					row: row
+				});
+			}
+		}
+	
+	
+	
+	
+	
+	
+		// The core parser implements speedy and correct CSV parsing
+		function Parser(config)
+		{
+			// Unpack the config object
+			config = config || {};
+			var delim = config.delimiter;
+			var newline = config.newline;
+			var comments = config.comments;
+			var step = config.step;
+			var preview = config.preview;
+			var fastMode = config.fastMode;
+	
+			// Delimiter must be valid
+			if (typeof delim !== 'string'
+				|| delim.length != 1
+				|| Baby.BAD_DELIMITERS.indexOf(delim) > -1)
+				delim = ",";
+	
+			// Comment character must be valid
+			if (comments === delim)
+				throw "Comment character same as delimiter";
+			else if (comments === true)
+				comments = "#";
+			else if (typeof comments !== 'string'
+				|| Baby.BAD_DELIMITERS.indexOf(comments) > -1)
+				comments = false;
+	
+			// Newline must be valid: \r, \n, or \r\n
+			if (newline != '\n' && newline != '\r' && newline != '\r\n')
+				newline = '\n';
+	
+			// We're gonna need these at the Parser scope
+			var cursor = 0;
+			var aborted = false;
+	
+			this.parse = function(input)
+			{
+				// For some reason, in Chrome, this speeds things up (!?)
+				if (typeof input !== 'string')
+					throw "Input must be a string";
+	
+				// We don't need to compute some of these every time parse() is called,
+				// but having them in a more local scope seems to perform better
+				var inputLen = input.length,
+					delimLen = delim.length,
+					newlineLen = newline.length,
+					commentsLen = comments.length;
+				var stepIsFunction = typeof step === 'function';
+	
+				// Establish starting state
+				cursor = 0;
+				var data = [], errors = [], row = [];
+	
+				if (!input)
+					return returnable();
+	
+				if (fastMode)
+				{
+					// Fast mode assumes there are no quoted fields in the input
+					var rows = input.split(newline);
+					for (var i = 0; i < rows.length; i++)
+					{
+						if (comments && rows[i].substr(0, commentsLen) == comments)
+							continue;
+						if (stepIsFunction)
+						{
+							data = [ rows[i].split(delim) ];
+							doStep();
+							if (aborted)
+								return returnable();
+						}
+						else
+							data.push(rows[i].split(delim));
+						if (preview && i >= preview)
+						{
+							data = data.slice(0, preview);
+							return returnable(true);
+						}
+					}
+					return returnable();
+				}
+	
+				var nextDelim = input.indexOf(delim, cursor);
+				var nextNewline = input.indexOf(newline, cursor);
+	
+				// Parser loop
+				for (;;)
+				{
+					// Field has opening quote
+					if (input[cursor] == '"')
+					{
+						// Start our search for the closing quote where the cursor is
+						var quoteSearch = cursor;
+	
+						// Skip the opening quote
+						cursor++;
+	
+						for (;;)
+						{
+							// Find closing quote
+							var quoteSearch = input.indexOf('"', quoteSearch+1);
+	
+							if (quoteSearch === -1)
+							{
+								// No closing quote... what a pity
+								errors.push({
+									type: "Quotes",
+									code: "MissingQuotes",
+									message: "Quoted field unterminated",
+									row: data.length,	// row has yet to be inserted
+									index: cursor
+								});
+								return finish();
+							}
+	
+							if (quoteSearch === inputLen-1)
+							{
+								// Closing quote at EOF
+								row.push(input.substring(cursor, quoteSearch).replace(/""/g, '"'));
+								data.push(row);
+								if (stepIsFunction)
+									doStep();
+								return returnable();
+							}
+	
+							// If this quote is escaped, it's part of the data; skip it
+							if (input[quoteSearch+1] == '"')
+							{
+								quoteSearch++;
+								continue;
+							}
+	
+							if (input[quoteSearch+1] == delim)
+							{
+								// Closing quote followed by delimiter
+								row.push(input.substring(cursor, quoteSearch).replace(/""/g, '"'));
+								cursor = quoteSearch + 1 + delimLen;
+								nextDelim = input.indexOf(delim, cursor);
+								nextNewline = input.indexOf(newline, cursor);
+								break;
+							}
+	
+							if (input.substr(quoteSearch+1, newlineLen) === newline)
+							{
+								// Closing quote followed by newline
+								row.push(input.substring(cursor, quoteSearch).replace(/""/g, '"'));
+								saveRow(quoteSearch + 1 + newlineLen);
+								nextDelim = input.indexOf(delim, cursor);	// because we may have skipped the nextDelim in the quoted field
+	
+								if (stepIsFunction)
+								{
+									doStep();
+									if (aborted)
+										return returnable();
+								}
+								
+								if (preview && data.length >= preview)
+									return returnable(true);
+	
+								break;
+							}
+						}
+	
+						continue;
+					}
+	
+					// Comment found at start of new line
+					if (comments && row.length === 0 && input.substr(cursor, commentsLen) === comments)
+					{
+						if (nextNewline == -1)	// Comment ends at EOF
+							return returnable();
+						cursor = nextNewline + newlineLen;
+						nextNewline = input.indexOf(newline, cursor);
+						nextDelim = input.indexOf(delim, cursor);
+						continue;
+					}
+	
+					// Next delimiter comes before next newline, so we've reached end of field
+					if (nextDelim !== -1 && (nextDelim < nextNewline || nextNewline === -1))
+					{
+						row.push(input.substring(cursor, nextDelim));
+						cursor = nextDelim + delimLen;
+						nextDelim = input.indexOf(delim, cursor);
+						continue;
+					}
+	
+					// End of row
+					if (nextNewline !== -1)
+					{
+						row.push(input.substring(cursor, nextNewline));
+						saveRow(nextNewline + newlineLen);
+	
+						if (stepIsFunction)
+						{
+							doStep();
+							if (aborted)
+								return returnable();
+						}
+	
+						if (preview && data.length >= preview)
+							return returnable(true);
+	
+						continue;
+					}
+	
+					break;
+				}
+	
+	
+				return finish();
+	
+	
+				// Appends the remaining input from cursor to the end into
+				// row, saves the row, calls step, and returns the results.
+				function finish()
+				{
+					row.push(input.substr(cursor));
+					data.push(row);
+					cursor = inputLen;	// important in case parsing is paused
+					if (stepIsFunction)
+						doStep();
+					return returnable();
+				}
+	
+				// Appends the current row to the results. It sets the cursor
+				// to newCursor and finds the nextNewline. The caller should
+				// take care to execute user's step function and check for
+				// preview and end parsing if necessary.
+				function saveRow(newCursor)
+				{
+					data.push(row);
+					row = [];
+					cursor = newCursor;
+					nextNewline = input.indexOf(newline, cursor);
+				}
+	
+				// Returns an object with the results, errors, and meta.
+				function returnable(stopped)
+				{
+					return {
+						data: data,
+						errors: errors,
+						meta: {
+							delimiter: delim,
+							linebreak: newline,
+							aborted: aborted,
+							truncated: !!stopped
+						}
+					};
+				}
+	
+				// Executes the user's step function and resets data & errors.
+				function doStep()
+				{
+					step(returnable());
+					data = [], errors = [];
+				}
+			};
+	
+			// Sets the abort flag
+			this.abort = function()
+			{
+				aborted = true;
+			};
+	
+			// Gets the cursor position
+			this.getCharIndex = function()
+			{
+				return cursor;
+			};
+		}
+	
+	
+	
+	
+		// Replaces bad config values with good, default ones
+		function copyAndValidateConfig(origConfig)
+		{
+			if (typeof origConfig !== 'object')
+				origConfig = {};
+	
+			var config = copy(origConfig);
+	
+			if (typeof config.delimiter !== 'string'
+				|| config.delimiter.length != 1
+				|| Baby.BAD_DELIMITERS.indexOf(config.delimiter) > -1)
+				config.delimiter = DEFAULTS.delimiter;
+	
+			if (config.newline != '\n'
+				&& config.newline != '\r'
+				&& config.newline != '\r\n')
+				config.newline = DEFAULTS.newline;
+	
+			if (typeof config.header !== 'boolean')
+				config.header = DEFAULTS.header;
+	
+			if (typeof config.dynamicTyping !== 'boolean')
+				config.dynamicTyping = DEFAULTS.dynamicTyping;
+	
+			if (typeof config.preview !== 'number')
+				config.preview = DEFAULTS.preview;
+	
+			if (typeof config.step !== 'function')
+				config.step = DEFAULTS.step;
+	
+			if (typeof config.complete !== 'function')
+				config.complete = DEFAULTS.complete;
+	
+			if (typeof config.skipEmptyLines !== 'boolean')
+				config.skipEmptyLines = DEFAULTS.skipEmptyLines;
+	
+			if (typeof config.fastMode !== 'boolean')
+				config.fastMode = DEFAULTS.fastMode;
+	
+			return config;
+		}
+	
+		function copy(obj)
+		{
+			if (typeof obj !== 'object')
+				return obj;
+			var cpy = obj instanceof Array ? [] : {};
+			for (var key in obj)
+				cpy[key] = copy(obj[key]);
+			return cpy;
+		}
+	
+		function isFunction(func)
+		{
+			return typeof func === 'function';
+		}
+	
+	
+	
+	
+	
+	
+		// export to Node...
+		if ( typeof module !== 'undefined' && module.exports ) {
+			module.exports = Baby;
+		}
+	
+		// ...or as AMD module...
+		else if ( true ) {
+			!(__WEBPACK_AMD_DEFINE_RESULT__ = function () { return Baby; }.call(exports, __webpack_require__, exports, module), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+		}
+	
+		// ...or as browser global
+		else {
+			global.Baby = Baby;
+		}
+	
+	})(typeof window !== 'undefined' ? window : this);
+
+
+/***/ },
+/* 307 */
+/***/ function(module, exports) {
+
+
+
+/***/ },
+/* 308 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -58854,18 +59767,18 @@
 	module.exports = devicesStore;
 
 /***/ },
-/* 305 */
+/* 309 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	module.exports = {
-	    Error: __webpack_require__(306),
-	    WsPubSub: __webpack_require__(307).pubsub
+	    Error: __webpack_require__(310),
+	    WsPubSub: __webpack_require__(311).pubsub
 	};
 
 /***/ },
-/* 306 */
+/* 310 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -58880,7 +59793,7 @@
 	module.exports = WsPubSubError;
 
 /***/ },
-/* 307 */
+/* 311 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -58893,7 +59806,7 @@
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 	
-	var WsPubSubError = __webpack_require__(306);
+	var WsPubSubError = __webpack_require__(310);
 	
 	var WsPubSub = function () {
 	    function WsPubSub() {
@@ -58943,7 +59856,7 @@
 	                };
 	
 	                ws.onopen = function (evt) {
-	                    console.log("OPENING: " + evt.data);
+	                    console.log("OPENING");
 	                };
 	
 	                ws.onmessage = function (evt) {
@@ -58962,13 +59875,15 @@
 	                };
 	
 	                ws.onclose = function (evt) {
+	                    var topic = this;
+	
 	                    if (self.subscriptions.hasOwnProperty(topic)) {
 	                        self.subscriptions[topic].forEach(function (cb) {
-	                            cb(topic, "CLOSING");
-	                        });
+	                            cb(this, "CLOSING");
+	                        }, topic);
 	                    }
 	                    delete self.websockets[topic];
-	                };
+	                }.bind(topic);
 	            }
 	
 	            if (!self.subscriptions.hasOwnProperty(topic)) {
@@ -58985,6 +59900,10 @@
 	                    message: "Topic not found in subscriptions."
 	                });
 	            }
+	
+	            var self = this;
+	
+	            self.websockets[topic].close();
 	        }
 	        //
 	        // publish(topic, message) {
@@ -58999,900 +59918,7 @@
 	var pubsub = exports.pubsub = new WsPubSub(); //let pubsub =  new WsPubSub(ws_root);
 
 /***/ },
-/* 308 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var __WEBPACK_AMD_DEFINE_RESULT__;/*
-		Baby Parse
-		v0.4.1
-		https://github.com/Rich-Harris/BabyParse
-	
-		Created by Rich Harris
-		Maintained by Matt Holt
-	
-		Based on Papa Parse v4.0.7 by Matt Holt
-		https://github.com/mholt/PapaParse
-	*/
-	(function(global)
-	{
-	
-		// A configuration object from which to draw default settings
-		var DEFAULTS = {
-			delimiter: "",	// empty: auto-detect
-			newline: "",	// empty: auto-detect
-			header: false,
-			dynamicTyping: false,
-			preview: 0,
-			step: undefined,
-			comments: false,
-			complete: undefined,
-			skipEmptyLines: false,
-			fastMode: false
-		};
-	
-		var Baby = {};
-		Baby.parse = CsvToJson;
-		Baby.parseFiles = ParseFiles;
-		Baby.unparse = JsonToCsv;
-		Baby.RECORD_SEP = String.fromCharCode(30);
-		Baby.UNIT_SEP = String.fromCharCode(31);
-		Baby.BYTE_ORDER_MARK = "\ufeff";
-		Baby.BAD_DELIMITERS = ["\r", "\n", "\"", Baby.BYTE_ORDER_MARK];
-		Baby.DefaultDelimiter = ",";		// Used if not specified and detection fails
-		Baby.Parser = Parser;				// For testing/dev only
-		Baby.ParserHandle = ParserHandle;	// For testing/dev only
-		
-		var fs = fs || __webpack_require__(309)
-		
-		function ParseFiles(_input, _config)
-		{
-			if (Array.isArray(_input)) {
-				var results = [];
-				_input.forEach(function(input) {
-					if(typeof input === 'object')
-						results.push(ParseFiles(input.file, input.config));
-					else
-						results.push(ParseFiles(input, _config));
-				});
-				return results;
-			} else {
-				var results = {
-					data: [],
-					errors: []
-				};
-				if ((/(\.csv|\.txt)$/).test(_input)) {
-					try {
-						var contents = fs.readFileSync(_input).toString();
-						return CsvToJson(contents, _config);
-					} catch (err) {
-						results.errors.push(err);
-						return results;
-					}
-				} else {
-					results.errors.push({
-						type: '',
-						code: '',
-						message: 'Unsupported file type.',
-						row: ''
-					});
-					return results;
-				}
-			}
-		}
-	
-		function CsvToJson(_input, _config)
-		{
-			var config = copyAndValidateConfig(_config);
-			var ph = new ParserHandle(config);
-			var results = ph.parse(_input);
-			return results;
-		}
-	
-	
-	
-	
-		function JsonToCsv(_input, _config)
-		{
-			var _output = "";
-			var _fields = [];
-	
-			// Default configuration
-			var _quotes = false;	// whether to surround every datum with quotes
-			var _delimiter = ",";	// delimiting character
-			var _newline = "\r\n";	// newline character(s)
-	
-			unpackConfig();
-	
-			if (typeof _input === 'string')
-				_input = JSON.parse(_input);
-	
-			if (_input instanceof Array)
-			{
-				if (!_input.length || _input[0] instanceof Array)
-					return serialize(null, _input);
-				else if (typeof _input[0] === 'object')
-					return serialize(objectKeys(_input[0]), _input);
-			}
-			else if (typeof _input === 'object')
-			{
-				if (typeof _input.data === 'string')
-					_input.data = JSON.parse(_input.data);
-	
-				if (_input.data instanceof Array)
-				{
-					if (!_input.fields)
-						_input.fields = _input.data[0] instanceof Array
-										? _input.fields
-										: objectKeys(_input.data[0]);
-	
-					if (!(_input.data[0] instanceof Array) && typeof _input.data[0] !== 'object')
-						_input.data = [_input.data];	// handles input like [1,2,3] or ["asdf"]
-				}
-	
-				return serialize(_input.fields || [], _input.data || []);
-			}
-	
-			// Default (any valid paths should return before this)
-			throw "exception: Unable to serialize unrecognized input";
-	
-	
-			function unpackConfig()
-			{
-				if (typeof _config !== 'object')
-					return;
-	
-				if (typeof _config.delimiter === 'string'
-					&& _config.delimiter.length == 1
-					&& Baby.BAD_DELIMITERS.indexOf(_config.delimiter) == -1)
-				{
-					_delimiter = _config.delimiter;
-				}
-	
-				if (typeof _config.quotes === 'boolean'
-					|| _config.quotes instanceof Array)
-					_quotes = _config.quotes;
-	
-				if (typeof _config.newline === 'string')
-					_newline = _config.newline;
-			}
-	
-	
-			// Turns an object's keys into an array
-			function objectKeys(obj)
-			{
-				if (typeof obj !== 'object')
-					return [];
-				var keys = [];
-				for (var key in obj)
-					keys.push(key);
-				return keys;
-			}
-	
-			// The double for loop that iterates the data and writes out a CSV string including header row
-			function serialize(fields, data)
-			{
-				var csv = "";
-	
-				if (typeof fields === 'string')
-					fields = JSON.parse(fields);
-				if (typeof data === 'string')
-					data = JSON.parse(data);
-	
-				var hasHeader = fields instanceof Array && fields.length > 0;
-				var dataKeyedByField = !(data[0] instanceof Array);
-	
-				// If there a header row, write it first
-				if (hasHeader)
-				{
-					for (var i = 0; i < fields.length; i++)
-					{
-						if (i > 0)
-							csv += _delimiter;
-						csv += safe(fields[i], i);
-					}
-					if (data.length > 0)
-						csv += _newline;
-				}
-	
-				// Then write out the data
-				for (var row = 0; row < data.length; row++)
-				{
-					var maxCol = hasHeader ? fields.length : data[row].length;
-	
-					for (var col = 0; col < maxCol; col++)
-					{
-						if (col > 0)
-							csv += _delimiter;
-						var colIdx = hasHeader && dataKeyedByField ? fields[col] : col;
-						csv += safe(data[row][colIdx], col);
-					}
-	
-					if (row < data.length - 1)
-						csv += _newline;
-				}
-	
-				return csv;
-			}
-	
-			// Encloses a value around quotes if needed (makes a value safe for CSV insertion)
-			function safe(str, col)
-			{
-				if (typeof str === "undefined" || str === null)
-					return "";
-	
-				str = str.toString().replace(/"/g, '""');
-	
-				var needsQuotes = (typeof _quotes === 'boolean' && _quotes)
-								|| (_quotes instanceof Array && _quotes[col])
-								|| hasAny(str, Baby.BAD_DELIMITERS)
-								|| str.indexOf(_delimiter) > -1
-								|| str.charAt(0) == ' '
-								|| str.charAt(str.length - 1) == ' ';
-	
-				return needsQuotes ? '"' + str + '"' : str;
-			}
-	
-			function hasAny(str, substrings)
-			{
-				for (var i = 0; i < substrings.length; i++)
-					if (str.indexOf(substrings[i]) > -1)
-						return true;
-				return false;
-			}
-		}
-	
-	
-	
-	
-	
-	
-		// Use one ParserHandle per entire CSV file or string
-		function ParserHandle(_config)
-		{
-			// One goal is to minimize the use of regular expressions...
-			var FLOAT = /^\s*-?(\d*\.?\d+|\d+\.?\d*)(e[-+]?\d+)?\s*$/i;
-	
-			var self = this;
-			var _stepCounter = 0;	// Number of times step was called (number of rows parsed)
-			var _input;				// The input being parsed
-			var _parser;			// The core parser being used
-			var _paused = false;	// Whether we are paused or not
-			var _delimiterError;	// Temporary state between delimiter detection and processing results
-			var _fields = [];		// Fields are from the header row of the input, if there is one
-			var _results = {		// The last results returned from the parser
-				data: [],
-				errors: [],
-				meta: {}
-			};
-	
-			if (isFunction(_config.step))
-			{
-				var userStep = _config.step;
-				_config.step = function(results)
-				{
-					_results = results;
-	
-					if (needsHeaderRow())
-						processResults();
-					else	// only call user's step function after header row
-					{
-						processResults();
-	
-						// It's possbile that this line was empty and there's no row here after all
-						if (_results.data.length == 0)
-							return;
-	
-						_stepCounter += results.data.length;
-						if (_config.preview && _stepCounter > _config.preview)
-							_parser.abort();
-						else
-							userStep(_results, self);
-					}
-				};
-			}
-	
-			this.parse = function(input)
-			{
-				if (!_config.newline)
-					_config.newline = guessLineEndings(input);
-	
-				_delimiterError = false;
-				if (!_config.delimiter)
-				{
-					var delimGuess = guessDelimiter(input);
-					if (delimGuess.successful)
-						_config.delimiter = delimGuess.bestDelimiter;
-					else
-					{
-						_delimiterError = true;	// add error after parsing (otherwise it would be overwritten)
-						_config.delimiter = Baby.DefaultDelimiter;
-					}
-					_results.meta.delimiter = _config.delimiter;
-				}
-	
-				var parserConfig = copy(_config);
-				if (_config.preview && _config.header)
-					parserConfig.preview++;	// to compensate for header row
-	
-				_input = input;
-				_parser = new Parser(parserConfig);
-				_results = _parser.parse(_input);
-				processResults();
-				if (isFunction(_config.complete) && !_paused && (!self.streamer || self.streamer.finished()))
-					_config.complete(_results);
-				return _paused ? { meta: { paused: true } } : (_results || { meta: { paused: false } });
-			};
-	
-			this.pause = function()
-			{
-				_paused = true;
-				_parser.abort();
-				_input = _input.substr(_parser.getCharIndex());
-			};
-	
-			this.resume = function()
-			{
-				_paused = false;
-				_parser = new Parser(_config);
-				_parser.parse(_input);
-				if (!_paused)
-				{
-					if (self.streamer && !self.streamer.finished())
-						self.streamer.resume();		// more of the file yet to come
-					else if (isFunction(_config.complete))
-						_config.complete(_results);
-				}
-			};
-	
-			this.abort = function()
-			{
-				_parser.abort();
-				if (isFunction(_config.complete))
-					_config.complete(_results);
-				_input = "";
-			};
-	
-			function processResults()
-			{
-				if (_results && _delimiterError)
-				{
-					addError("Delimiter", "UndetectableDelimiter", "Unable to auto-detect delimiting character; defaulted to '"+Baby.DefaultDelimiter+"'");
-					_delimiterError = false;
-				}
-	
-				if (_config.skipEmptyLines)
-				{
-					for (var i = 0; i < _results.data.length; i++)
-						if (_results.data[i].length == 1 && _results.data[i][0] == "")
-							_results.data.splice(i--, 1);
-				}
-	
-				if (needsHeaderRow())
-					fillHeaderFields();
-	
-				return applyHeaderAndDynamicTyping();
-			}
-	
-			function needsHeaderRow()
-			{
-				return _config.header && _fields.length == 0;
-			}
-	
-			function fillHeaderFields()
-			{
-				if (!_results)
-					return;
-				for (var i = 0; needsHeaderRow() && i < _results.data.length; i++)
-					for (var j = 0; j < _results.data[i].length; j++)
-						_fields.push(_results.data[i][j]);
-				_results.data.splice(0, 1);
-			}
-	
-			function applyHeaderAndDynamicTyping()
-			{
-				if (!_results || (!_config.header && !_config.dynamicTyping))
-					return _results;
-	
-				for (var i = 0; i < _results.data.length; i++)
-				{
-					var row = {};
-	
-					for (var j = 0; j < _results.data[i].length; j++)
-					{
-						if (_config.dynamicTyping)
-						{
-							var value = _results.data[i][j];
-							if (value == "true" || value === "TRUE")
-								_results.data[i][j] = true;
-							else if (value == "false" || value === "FALSE")
-								_results.data[i][j] = false;
-							else
-								_results.data[i][j] = tryParseFloat(value);
-						}
-	
-						if (_config.header)
-						{
-							if (j >= _fields.length)
-							{
-								if (!row["__parsed_extra"])
-									row["__parsed_extra"] = [];
-								row["__parsed_extra"].push(_results.data[i][j]);
-							}
-							else
-								row[_fields[j]] = _results.data[i][j];
-						}
-					}
-	
-					if (_config.header)
-					{
-						_results.data[i] = row;
-						if (j > _fields.length)
-							addError("FieldMismatch", "TooManyFields", "Too many fields: expected " + _fields.length + " fields but parsed " + j, i);
-						else if (j < _fields.length)
-							addError("FieldMismatch", "TooFewFields", "Too few fields: expected " + _fields.length + " fields but parsed " + j, i);
-					}
-				}
-	
-				if (_config.header && _results.meta)
-					_results.meta.fields = _fields;
-				return _results;
-			}
-	
-			function guessDelimiter(input)
-			{
-				var delimChoices = [",", "\t", "|", ";", Baby.RECORD_SEP, Baby.UNIT_SEP];
-				var bestDelim, bestDelta, fieldCountPrevRow;
-	
-				for (var i = 0; i < delimChoices.length; i++)
-				{
-					var delim = delimChoices[i];
-					var delta = 0, avgFieldCount = 0;
-					fieldCountPrevRow = undefined;
-	
-					var preview = new Parser({
-						delimiter: delim,
-						preview: 10
-					}).parse(input);
-	
-					for (var j = 0; j < preview.data.length; j++)
-					{
-						var fieldCount = preview.data[j].length;
-						avgFieldCount += fieldCount;
-	
-						if (typeof fieldCountPrevRow === 'undefined')
-						{
-							fieldCountPrevRow = fieldCount;
-							continue;
-						}
-						else if (fieldCount > 1)
-						{
-							delta += Math.abs(fieldCount - fieldCountPrevRow);
-							fieldCountPrevRow = fieldCount;
-						}
-					}
-	
-					avgFieldCount /= preview.data.length;
-	
-					if ((typeof bestDelta === 'undefined' || delta < bestDelta)
-						&& avgFieldCount > 1.99)
-					{
-						bestDelta = delta;
-						bestDelim = delim;
-					}
-				}
-	
-				_config.delimiter = bestDelim;
-	
-				return {
-					successful: !!bestDelim,
-					bestDelimiter: bestDelim
-				}
-			}
-	
-			function guessLineEndings(input)
-			{
-				input = input.substr(0, 1024*1024);	// max length 1 MB
-	
-				var r = input.split('\r');
-	
-				if (r.length == 1)
-					return '\n';
-	
-				var numWithN = 0;
-				for (var i = 0; i < r.length; i++)
-				{
-					if (r[i][0] == '\n')
-						numWithN++;
-				}
-	
-				return numWithN >= r.length / 2 ? '\r\n' : '\r';
-			}
-	
-			function tryParseFloat(val)
-			{
-				var isNumber = FLOAT.test(val);
-				return isNumber ? parseFloat(val) : val;
-			}
-	
-			function addError(type, code, msg, row)
-			{
-				_results.errors.push({
-					type: type,
-					code: code,
-					message: msg,
-					row: row
-				});
-			}
-		}
-	
-	
-	
-	
-	
-	
-		// The core parser implements speedy and correct CSV parsing
-		function Parser(config)
-		{
-			// Unpack the config object
-			config = config || {};
-			var delim = config.delimiter;
-			var newline = config.newline;
-			var comments = config.comments;
-			var step = config.step;
-			var preview = config.preview;
-			var fastMode = config.fastMode;
-	
-			// Delimiter must be valid
-			if (typeof delim !== 'string'
-				|| delim.length != 1
-				|| Baby.BAD_DELIMITERS.indexOf(delim) > -1)
-				delim = ",";
-	
-			// Comment character must be valid
-			if (comments === delim)
-				throw "Comment character same as delimiter";
-			else if (comments === true)
-				comments = "#";
-			else if (typeof comments !== 'string'
-				|| Baby.BAD_DELIMITERS.indexOf(comments) > -1)
-				comments = false;
-	
-			// Newline must be valid: \r, \n, or \r\n
-			if (newline != '\n' && newline != '\r' && newline != '\r\n')
-				newline = '\n';
-	
-			// We're gonna need these at the Parser scope
-			var cursor = 0;
-			var aborted = false;
-	
-			this.parse = function(input)
-			{
-				// For some reason, in Chrome, this speeds things up (!?)
-				if (typeof input !== 'string')
-					throw "Input must be a string";
-	
-				// We don't need to compute some of these every time parse() is called,
-				// but having them in a more local scope seems to perform better
-				var inputLen = input.length,
-					delimLen = delim.length,
-					newlineLen = newline.length,
-					commentsLen = comments.length;
-				var stepIsFunction = typeof step === 'function';
-	
-				// Establish starting state
-				cursor = 0;
-				var data = [], errors = [], row = [];
-	
-				if (!input)
-					return returnable();
-	
-				if (fastMode)
-				{
-					// Fast mode assumes there are no quoted fields in the input
-					var rows = input.split(newline);
-					for (var i = 0; i < rows.length; i++)
-					{
-						if (comments && rows[i].substr(0, commentsLen) == comments)
-							continue;
-						if (stepIsFunction)
-						{
-							data = [ rows[i].split(delim) ];
-							doStep();
-							if (aborted)
-								return returnable();
-						}
-						else
-							data.push(rows[i].split(delim));
-						if (preview && i >= preview)
-						{
-							data = data.slice(0, preview);
-							return returnable(true);
-						}
-					}
-					return returnable();
-				}
-	
-				var nextDelim = input.indexOf(delim, cursor);
-				var nextNewline = input.indexOf(newline, cursor);
-	
-				// Parser loop
-				for (;;)
-				{
-					// Field has opening quote
-					if (input[cursor] == '"')
-					{
-						// Start our search for the closing quote where the cursor is
-						var quoteSearch = cursor;
-	
-						// Skip the opening quote
-						cursor++;
-	
-						for (;;)
-						{
-							// Find closing quote
-							var quoteSearch = input.indexOf('"', quoteSearch+1);
-	
-							if (quoteSearch === -1)
-							{
-								// No closing quote... what a pity
-								errors.push({
-									type: "Quotes",
-									code: "MissingQuotes",
-									message: "Quoted field unterminated",
-									row: data.length,	// row has yet to be inserted
-									index: cursor
-								});
-								return finish();
-							}
-	
-							if (quoteSearch === inputLen-1)
-							{
-								// Closing quote at EOF
-								row.push(input.substring(cursor, quoteSearch).replace(/""/g, '"'));
-								data.push(row);
-								if (stepIsFunction)
-									doStep();
-								return returnable();
-							}
-	
-							// If this quote is escaped, it's part of the data; skip it
-							if (input[quoteSearch+1] == '"')
-							{
-								quoteSearch++;
-								continue;
-							}
-	
-							if (input[quoteSearch+1] == delim)
-							{
-								// Closing quote followed by delimiter
-								row.push(input.substring(cursor, quoteSearch).replace(/""/g, '"'));
-								cursor = quoteSearch + 1 + delimLen;
-								nextDelim = input.indexOf(delim, cursor);
-								nextNewline = input.indexOf(newline, cursor);
-								break;
-							}
-	
-							if (input.substr(quoteSearch+1, newlineLen) === newline)
-							{
-								// Closing quote followed by newline
-								row.push(input.substring(cursor, quoteSearch).replace(/""/g, '"'));
-								saveRow(quoteSearch + 1 + newlineLen);
-								nextDelim = input.indexOf(delim, cursor);	// because we may have skipped the nextDelim in the quoted field
-	
-								if (stepIsFunction)
-								{
-									doStep();
-									if (aborted)
-										return returnable();
-								}
-								
-								if (preview && data.length >= preview)
-									return returnable(true);
-	
-								break;
-							}
-						}
-	
-						continue;
-					}
-	
-					// Comment found at start of new line
-					if (comments && row.length === 0 && input.substr(cursor, commentsLen) === comments)
-					{
-						if (nextNewline == -1)	// Comment ends at EOF
-							return returnable();
-						cursor = nextNewline + newlineLen;
-						nextNewline = input.indexOf(newline, cursor);
-						nextDelim = input.indexOf(delim, cursor);
-						continue;
-					}
-	
-					// Next delimiter comes before next newline, so we've reached end of field
-					if (nextDelim !== -1 && (nextDelim < nextNewline || nextNewline === -1))
-					{
-						row.push(input.substring(cursor, nextDelim));
-						cursor = nextDelim + delimLen;
-						nextDelim = input.indexOf(delim, cursor);
-						continue;
-					}
-	
-					// End of row
-					if (nextNewline !== -1)
-					{
-						row.push(input.substring(cursor, nextNewline));
-						saveRow(nextNewline + newlineLen);
-	
-						if (stepIsFunction)
-						{
-							doStep();
-							if (aborted)
-								return returnable();
-						}
-	
-						if (preview && data.length >= preview)
-							return returnable(true);
-	
-						continue;
-					}
-	
-					break;
-				}
-	
-	
-				return finish();
-	
-	
-				// Appends the remaining input from cursor to the end into
-				// row, saves the row, calls step, and returns the results.
-				function finish()
-				{
-					row.push(input.substr(cursor));
-					data.push(row);
-					cursor = inputLen;	// important in case parsing is paused
-					if (stepIsFunction)
-						doStep();
-					return returnable();
-				}
-	
-				// Appends the current row to the results. It sets the cursor
-				// to newCursor and finds the nextNewline. The caller should
-				// take care to execute user's step function and check for
-				// preview and end parsing if necessary.
-				function saveRow(newCursor)
-				{
-					data.push(row);
-					row = [];
-					cursor = newCursor;
-					nextNewline = input.indexOf(newline, cursor);
-				}
-	
-				// Returns an object with the results, errors, and meta.
-				function returnable(stopped)
-				{
-					return {
-						data: data,
-						errors: errors,
-						meta: {
-							delimiter: delim,
-							linebreak: newline,
-							aborted: aborted,
-							truncated: !!stopped
-						}
-					};
-				}
-	
-				// Executes the user's step function and resets data & errors.
-				function doStep()
-				{
-					step(returnable());
-					data = [], errors = [];
-				}
-			};
-	
-			// Sets the abort flag
-			this.abort = function()
-			{
-				aborted = true;
-			};
-	
-			// Gets the cursor position
-			this.getCharIndex = function()
-			{
-				return cursor;
-			};
-		}
-	
-	
-	
-	
-		// Replaces bad config values with good, default ones
-		function copyAndValidateConfig(origConfig)
-		{
-			if (typeof origConfig !== 'object')
-				origConfig = {};
-	
-			var config = copy(origConfig);
-	
-			if (typeof config.delimiter !== 'string'
-				|| config.delimiter.length != 1
-				|| Baby.BAD_DELIMITERS.indexOf(config.delimiter) > -1)
-				config.delimiter = DEFAULTS.delimiter;
-	
-			if (config.newline != '\n'
-				&& config.newline != '\r'
-				&& config.newline != '\r\n')
-				config.newline = DEFAULTS.newline;
-	
-			if (typeof config.header !== 'boolean')
-				config.header = DEFAULTS.header;
-	
-			if (typeof config.dynamicTyping !== 'boolean')
-				config.dynamicTyping = DEFAULTS.dynamicTyping;
-	
-			if (typeof config.preview !== 'number')
-				config.preview = DEFAULTS.preview;
-	
-			if (typeof config.step !== 'function')
-				config.step = DEFAULTS.step;
-	
-			if (typeof config.complete !== 'function')
-				config.complete = DEFAULTS.complete;
-	
-			if (typeof config.skipEmptyLines !== 'boolean')
-				config.skipEmptyLines = DEFAULTS.skipEmptyLines;
-	
-			if (typeof config.fastMode !== 'boolean')
-				config.fastMode = DEFAULTS.fastMode;
-	
-			return config;
-		}
-	
-		function copy(obj)
-		{
-			if (typeof obj !== 'object')
-				return obj;
-			var cpy = obj instanceof Array ? [] : {};
-			for (var key in obj)
-				cpy[key] = copy(obj[key]);
-			return cpy;
-		}
-	
-		function isFunction(func)
-		{
-			return typeof func === 'function';
-		}
-	
-	
-	
-	
-	
-	
-		// export to Node...
-		if ( typeof module !== 'undefined' && module.exports ) {
-			module.exports = Baby;
-		}
-	
-		// ...or as AMD module...
-		else if ( true ) {
-			!(__WEBPACK_AMD_DEFINE_RESULT__ = function () { return Baby; }.call(exports, __webpack_require__, exports, module), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-		}
-	
-		// ...or as browser global
-		else {
-			global.Baby = Baby;
-		}
-	
-	})(typeof window !== 'undefined' ? window : this);
-
-
-/***/ },
-/* 309 */
-/***/ function(module, exports) {
-
-
-
-/***/ },
-/* 310 */
+/* 312 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59927,7 +59953,7 @@
 	module.exports = platformsPanelStore;
 
 /***/ },
-/* 311 */
+/* 313 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59954,7 +59980,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var columnMoverStore = __webpack_require__(312);
+	var columnMoverStore = __webpack_require__(314);
 	
 	var ColumnMover = function (_BaseComponent) {
 	  _inherits(ColumnMover, _BaseComponent);
@@ -60008,7 +60034,7 @@
 	exports.default = ColumnMover;
 
 /***/ },
-/* 312 */
+/* 314 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60057,15 +60083,15 @@
 	module.exports = columnMoverStore;
 
 /***/ },
-/* 313 */
+/* 315 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var Composer = __webpack_require__(314);
-	var Conversation = __webpack_require__(317);
+	var Composer = __webpack_require__(316);
+	var Conversation = __webpack_require__(319);
 	
 	var Console = React.createClass({
 	    displayName: 'Console',
@@ -60083,15 +60109,15 @@
 	module.exports = Console;
 
 /***/ },
-/* 314 */
+/* 316 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var consoleActionCreators = __webpack_require__(315);
-	var consoleStore = __webpack_require__(316);
+	var consoleActionCreators = __webpack_require__(317);
+	var consoleStore = __webpack_require__(318);
 	
 	var Composer = React.createClass({
 	    displayName: 'Composer',
@@ -60157,7 +60183,7 @@
 	module.exports = Composer;
 
 /***/ },
-/* 315 */
+/* 317 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60186,7 +60212,7 @@
 	module.exports = consoleActionCreators;
 
 /***/ },
-/* 316 */
+/* 318 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60281,7 +60307,7 @@
 	module.exports = consoleStore;
 
 /***/ },
-/* 317 */
+/* 319 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60290,8 +60316,8 @@
 	var React = __webpack_require__(3);
 	var ReactDOM = __webpack_require__(112);
 	
-	var Exchange = __webpack_require__(318);
-	var consoleStore = __webpack_require__(316);
+	var Exchange = __webpack_require__(320);
+	var consoleStore = __webpack_require__(318);
 	
 	var Conversation = React.createClass({
 	    displayName: 'Conversation',
@@ -60335,7 +60361,7 @@
 	module.exports = Conversation;
 
 /***/ },
-/* 318 */
+/* 320 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60412,14 +60438,14 @@
 	module.exports = Exchange;
 
 /***/ },
-/* 319 */
+/* 321 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(320);
+	var modalActionCreators = __webpack_require__(322);
 	
 	var Modal = React.createClass({
 		displayName: 'Modal',
@@ -60445,7 +60471,7 @@
 	module.exports = Modal;
 
 /***/ },
-/* 320 */
+/* 322 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60470,7 +60496,7 @@
 	module.exports = modalActionCreators;
 
 /***/ },
-/* 321 */
+/* 323 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60505,7 +60531,7 @@
 	module.exports = modalStore;
 
 /***/ },
-/* 322 */
+/* 324 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60513,7 +60539,7 @@
 	var React = __webpack_require__(3);
 	var Router = __webpack_require__(1);
 	
-	var platformManagerActionCreators = __webpack_require__(323);
+	var platformManagerActionCreators = __webpack_require__(325);
 	var authorizationStore = __webpack_require__(103);
 	var platformsPanelActionCreators = __webpack_require__(267);
 	
@@ -60610,7 +60636,7 @@
 	module.exports = Navigation;
 
 /***/ },
-/* 323 */
+/* 325 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60822,7 +60848,7 @@
 	module.exports = platformManagerActionCreators;
 
 /***/ },
-/* 324 */
+/* 326 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60830,7 +60856,7 @@
 	var React = __webpack_require__(3);
 	
 	var statusIndicatorCreators = __webpack_require__(268);
-	var statusIndicatorStore = __webpack_require__(325);
+	var statusIndicatorStore = __webpack_require__(327);
 	
 	var StatusIndicator = React.createClass({
 	    displayName: 'StatusIndicator',
@@ -61010,7 +61036,7 @@
 	module.exports = StatusIndicator;
 
 /***/ },
-/* 325 */
+/* 327 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -61087,7 +61113,7 @@
 	module.exports = statusIndicatorStore;
 
 /***/ },
-/* 326 */
+/* 328 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -61106,11 +61132,11 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _devicesFound = __webpack_require__(327);
+	var _devicesFound = __webpack_require__(329);
 	
 	var _devicesFound2 = _interopRequireDefault(_devicesFound);
 	
-	var _reactSelectMe = __webpack_require__(341);
+	var _reactSelectMe = __webpack_require__(343);
 	
 	var _reactSelectMe2 = _interopRequireDefault(_reactSelectMe);
 	
@@ -61126,7 +61152,7 @@
 	
 	
 	var platformsStore = __webpack_require__(266);
-	var devicesStore = __webpack_require__(304);
+	var devicesStore = __webpack_require__(308);
 	var devicesActionCreators = __webpack_require__(303);
 	var statusIndicatorActionCreators = __webpack_require__(268);
 	
@@ -61721,7 +61747,7 @@
 	exports.default = ConfigureDevices;
 
 /***/ },
-/* 327 */
+/* 329 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -61740,13 +61766,15 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _configureRegistry = __webpack_require__(328);
+	var _configureRegistry = __webpack_require__(330);
 	
 	var _configureRegistry2 = _interopRequireDefault(_configureRegistry);
 	
 	var _controlButton = __webpack_require__(99);
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
+	var _csvparse = __webpack_require__(304);
 	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
@@ -61756,14 +61784,12 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var ConfirmForm = __webpack_require__(331);
-	var RegistryFilesSelector = __webpack_require__(340);
+	var ConfirmForm = __webpack_require__(333);
+	var RegistryFilesSelector = __webpack_require__(342);
 	var devicesActionCreators = __webpack_require__(303);
-	var modalActionCreators = __webpack_require__(320);
+	var modalActionCreators = __webpack_require__(322);
 	var statusIndicatorActionCreators = __webpack_require__(268);
-	var devicesStore = __webpack_require__(304);
-	
-	var CsvParse = __webpack_require__(308);
+	var devicesStore = __webpack_require__(308);
 	
 	var DevicesFound = function (_BaseComponent) {
 	    _inherits(DevicesFound, _BaseComponent);
@@ -61889,7 +61915,7 @@
 	
 	                    var contents = e.target.result;
 	
-	                    var results = parseCsvFile(contents);
+	                    var results = _csvparse.CsvParse.parseCsvFile(contents);
 	
 	                    if (results.errors.length) {
 	                        var errorMsg = "The file wasn't in a valid CSV format.";
@@ -62152,79 +62178,10 @@
 	
 	;
 	
-	var parseCsvFile = function parseCsvFile(contents) {
-	
-	    var results = CsvParse.parse(contents);
-	
-	    var registryValues = [];
-	
-	    var header = [];
-	
-	    var data = results.data;
-	
-	    results.warnings = [];
-	
-	    if (data.length) {
-	        header = data.slice(0, 1);
-	    }
-	
-	    var template = [];
-	
-	    if (header[0].length) {
-	        header[0].forEach(function (column) {
-	            template.push({ "key": column.replace(/ /g, "_"), "value": null, "label": column });
-	        });
-	
-	        var templateLength = template.length;
-	
-	        if (data.length > 1) {
-	            var rows = data.slice(1);
-	
-	            var rowsCount = rows.length;
-	
-	            rows.forEach(function (r, num) {
-	
-	                if (r.length) {
-	                    if (r.length !== templateLength) {
-	                        if (num === rowsCount - 1 && (r.length === 0 || r.length === 1 && r[0] === "")) {
-	                            // Suppress the warning message if the out-of-sync row is the last one and it has no elements
-	                            // or all it has is an empty point name -- which can happen naturally when reading the csv file
-	                        } else {
-	                            results.warnings.push({ message: "Row " + num + " was omitted for having the wrong number of columns." });
-	                        }
-	                    } else {
-	                        if (r.length === templateLength) // Have to check again, to keep from adding the empty point name
-	                            {
-	                                // in the last row
-	                                var newTemplate = JSON.parse(JSON.stringify(template));
-	
-	                                var newRow = [];
-	
-	                                r.forEach(function (value, i) {
-	                                    newTemplate[i].value = value;
-	
-	                                    newRow.push(newTemplate[i]);
-	                                });
-	
-	                                registryValues.push(newRow);
-	                            }
-	                    }
-	                }
-	            });
-	        } else {
-	            registryValues = template;
-	        }
-	    }
-	
-	    results.data = registryValues;
-	
-	    return results;
-	};
-	
 	exports.default = DevicesFound;
 
 /***/ },
-/* 328 */
+/* 330 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -62247,35 +62204,35 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _editPointForm = __webpack_require__(329);
+	var _editPointForm = __webpack_require__(331);
 	
 	var _editPointForm2 = _interopRequireDefault(_editPointForm);
 	
-	var _previewRegistryForm = __webpack_require__(330);
+	var _previewRegistryForm = __webpack_require__(332);
 	
 	var _previewRegistryForm2 = _interopRequireDefault(_previewRegistryForm);
 	
-	var _newColumnForm = __webpack_require__(332);
+	var _newColumnForm = __webpack_require__(334);
 	
 	var _newColumnForm2 = _interopRequireDefault(_newColumnForm);
 	
-	var _configDeviceForm = __webpack_require__(333);
+	var _configDeviceForm = __webpack_require__(335);
 	
 	var _configDeviceForm2 = _interopRequireDefault(_configDeviceForm);
 	
-	var _editSelectButton = __webpack_require__(334);
+	var _editSelectButton = __webpack_require__(336);
 	
 	var _editSelectButton2 = _interopRequireDefault(_editSelectButton);
 	
-	var _editColumnsButton = __webpack_require__(335);
+	var _editColumnsButton = __webpack_require__(337);
 	
 	var _editColumnsButton2 = _interopRequireDefault(_editColumnsButton);
 	
-	var _keyboardHelpButton = __webpack_require__(336);
+	var _keyboardHelpButton = __webpack_require__(338);
 	
 	var _keyboardHelpButton2 = _interopRequireDefault(_keyboardHelpButton);
 	
-	var _registryRow = __webpack_require__(337);
+	var _registryRow = __webpack_require__(339);
 	
 	var _registryRow2 = _interopRequireDefault(_registryRow);
 	
@@ -62283,7 +62240,7 @@
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
-	var _filterPointsButton = __webpack_require__(339);
+	var _filterPointsButton = __webpack_require__(341);
 	
 	var _filterPointsButton2 = _interopRequireDefault(_filterPointsButton);
 	
@@ -62304,9 +62261,9 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var devicesActionCreators = __webpack_require__(303);
-	var devicesStore = __webpack_require__(304);
-	var ConfirmForm = __webpack_require__(331);
-	var modalActionCreators = __webpack_require__(320);
+	var devicesStore = __webpack_require__(308);
+	var ConfirmForm = __webpack_require__(333);
+	var modalActionCreators = __webpack_require__(322);
 	
 	var _defaultColumnWidth = "200px";
 	var _tableWidth;
@@ -63602,7 +63559,7 @@
 	exports.default = ConfigureRegistry;
 
 /***/ },
-/* 329 */
+/* 331 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -63633,7 +63590,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var modalActionCreators = __webpack_require__(320);
+	var modalActionCreators = __webpack_require__(322);
 	var devicesActionCreators = __webpack_require__(303);
 	
 	var EditPointForm = function (_BaseComponent) {
@@ -63804,7 +63761,7 @@
 	exports.default = EditPointForm;
 
 /***/ },
-/* 330 */
+/* 332 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -63831,10 +63788,10 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var modalActionCreators = __webpack_require__(320);
+	var modalActionCreators = __webpack_require__(322);
 	var devicesActionCreators = __webpack_require__(303);
-	var devicesStore = __webpack_require__(304);
-	var ConfirmForm = __webpack_require__(331);
+	var devicesStore = __webpack_require__(308);
+	var ConfirmForm = __webpack_require__(333);
 	
 	var PreviewRegistryForm = function (_BaseComponent) {
 	    _inherits(PreviewRegistryForm, _BaseComponent);
@@ -64113,14 +64070,14 @@
 	exports.default = PreviewRegistryForm;
 
 /***/ },
-/* 331 */
+/* 333 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(320);
+	var modalActionCreators = __webpack_require__(322);
 	
 	var ConfirmForm = React.createClass({
 	    displayName: 'ConfirmForm',
@@ -64187,7 +64144,7 @@
 	module.exports = ConfirmForm;
 
 /***/ },
-/* 332 */
+/* 334 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64214,7 +64171,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var modalActionCreators = __webpack_require__(320);
+	var modalActionCreators = __webpack_require__(322);
 	var devicesActionCreators = __webpack_require__(303);
 	
 	var NewColumnForm = function (_BaseComponent) {
@@ -64347,7 +64304,7 @@
 	exports.default = NewColumnForm;
 
 /***/ },
-/* 333 */
+/* 335 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64380,9 +64337,9 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var modalActionCreators = __webpack_require__(320);
+	var modalActionCreators = __webpack_require__(322);
 	var devicesActionCreators = __webpack_require__(303);
-	var devicesStore = __webpack_require__(304);
+	var devicesStore = __webpack_require__(308);
 	
 	var ConfigDeviceForm = function (_BaseComponent) {
 	    _inherits(ConfigDeviceForm, _BaseComponent);
@@ -64780,7 +64737,7 @@
 	exports.default = ConfigDeviceForm;
 
 /***/ },
-/* 334 */
+/* 336 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64811,7 +64768,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var EditColumnButton = __webpack_require__(335);
+	var EditColumnButton = __webpack_require__(337);
 	var controlButtonActionCreators = __webpack_require__(110);
 	
 	var EditSelectButton = function (_BaseComponent) {
@@ -64937,7 +64894,7 @@
 	exports.default = EditSelectButton;
 
 /***/ },
-/* 335 */
+/* 337 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -65232,7 +65189,7 @@
 	exports.default = EditColumnButton;
 
 /***/ },
-/* 336 */
+/* 338 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -65576,7 +65533,7 @@
 	exports.default = KeyboardHelpButton;
 
 /***/ },
-/* 337 */
+/* 339 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -65595,7 +65552,7 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _editPointForm = __webpack_require__(329);
+	var _editPointForm = __webpack_require__(331);
 	
 	var _editPointForm2 = _interopRequireDefault(_editPointForm);
 	
@@ -65616,10 +65573,10 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var devicesActionCreators = __webpack_require__(303);
-	var modalActionCreators = __webpack_require__(320);
-	var columnMoverActionCreators = __webpack_require__(338);
+	var modalActionCreators = __webpack_require__(322);
+	var columnMoverActionCreators = __webpack_require__(340);
 	var statusIndicatorActionCreators = __webpack_require__(268);
-	var devicesStore = __webpack_require__(304);
+	var devicesStore = __webpack_require__(308);
 	
 	var RegistryRow = function (_BaseComponent) {
 	    _inherits(RegistryRow, _BaseComponent);
@@ -65717,12 +65674,6 @@
 	
 	                devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
 	
-	                // if (!this.state.attributesList.get("selected"))
-	                // {
-	                //     var attributesList = this.state.attributesList.set("selected", true);
-	                //     this.setState({attributesList: attributesList});
-	                // }
-	
 	                this.props.oncheckselect(this.state.attributesList.getIn(["attributes", 0]).value);
 	            }
 	        }
@@ -65790,7 +65741,7 @@
 	            this.state.attributesList.get("attributes").forEach(function (item, columnIndex) {
 	
 	                if (item.keyProp) {
-	                    var selectedCellStyle = item.selected ? { backgroundColor: "#F5B49D", width: "100%" } : { width: "100%" };
+	                    var selectedCellStyle = item.selected ? { backgroundColor: "rgba(187, 137, 102, 0.6)", width: "100%" } : { width: "100%" };
 	                    var focusedCell = this.props.immutableProps.get("selectedCellColumn") === columnIndex && this.props.immutableProps.get("selectedCell") ? "focusedCell" : "";
 	
 	                    var itemCell = !item.editable ? _react2.default.createElement(
@@ -65889,7 +65840,7 @@
 	exports.default = RegistryRow;
 
 /***/ },
-/* 338 */
+/* 340 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -65922,7 +65873,7 @@
 	module.exports = columnMoverActionCreators;
 
 /***/ },
-/* 339 */
+/* 341 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -66084,7 +66035,7 @@
 	exports.default = FilterPointsButton;
 
 /***/ },
-/* 340 */
+/* 342 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -66108,8 +66059,8 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var devicesActionCreators = __webpack_require__(303);
-	var modalActionCreators = __webpack_require__(320);
-	var devicesStore = __webpack_require__(304);
+	var modalActionCreators = __webpack_require__(322);
+	var devicesStore = __webpack_require__(308);
 	
 	var RegistryFilesSelector = function (_BaseComponent) {
 	    _inherits(RegistryFilesSelector, _BaseComponent);
@@ -66265,7 +66216,7 @@
 	module.exports = RegistryFilesSelector;
 
 /***/ },
-/* 341 */
+/* 343 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -66282,15 +66233,15 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _reactVirtualized = __webpack_require__(345);
+	var _reactVirtualized = __webpack_require__(347);
 	
 	var _immutable = __webpack_require__(263);
 	
-	var _classnames = __webpack_require__(357);
+	var _classnames = __webpack_require__(359);
 	
 	var _classnames2 = _interopRequireDefault(_classnames);
 	
@@ -67284,13 +67235,13 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 342 */
+/* 344 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__(343);
+	module.exports = __webpack_require__(345);
 
 /***/ },
-/* 343 */
+/* 345 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/**
@@ -67305,7 +67256,7 @@
 	
 	'use strict';
 	
-	var shallowEqual = __webpack_require__(344);
+	var shallowEqual = __webpack_require__(346);
 	
 	/**
 	 * Does a shallow comparison for props and state.
@@ -67319,7 +67270,7 @@
 	module.exports = shallowCompare;
 
 /***/ },
-/* 344 */
+/* 346 */
 /***/ function(module, exports) {
 
 	/**
@@ -67391,7 +67342,7 @@
 	module.exports = shallowEqual;
 
 /***/ },
-/* 345 */
+/* 347 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -67400,7 +67351,7 @@
 	  value: true
 	});
 	
-	var _ArrowKeyStepper = __webpack_require__(346);
+	var _ArrowKeyStepper = __webpack_require__(348);
 	
 	Object.defineProperty(exports, 'ArrowKeyStepper', {
 	  enumerable: true,
@@ -67409,7 +67360,7 @@
 	  }
 	});
 	
-	var _AutoSizer = __webpack_require__(348);
+	var _AutoSizer = __webpack_require__(350);
 	
 	Object.defineProperty(exports, 'AutoSizer', {
 	  enumerable: true,
@@ -67418,7 +67369,7 @@
 	  }
 	});
 	
-	var _CellMeasurer = __webpack_require__(351);
+	var _CellMeasurer = __webpack_require__(353);
 	
 	Object.defineProperty(exports, 'CellMeasurer', {
 	  enumerable: true,
@@ -67439,7 +67390,7 @@
 	  }
 	});
 	
-	var _Collection = __webpack_require__(354);
+	var _Collection = __webpack_require__(356);
 	
 	Object.defineProperty(exports, 'Collection', {
 	  enumerable: true,
@@ -67448,7 +67399,7 @@
 	  }
 	});
 	
-	var _ColumnSizer = __webpack_require__(365);
+	var _ColumnSizer = __webpack_require__(367);
 	
 	Object.defineProperty(exports, 'ColumnSizer', {
 	  enumerable: true,
@@ -67457,7 +67408,7 @@
 	  }
 	});
 	
-	var _Table = __webpack_require__(375);
+	var _Table = __webpack_require__(377);
 	
 	Object.defineProperty(exports, 'defaultTableCellDataGetter', {
 	  enumerable: true,
@@ -67508,7 +67459,7 @@
 	  }
 	});
 	
-	var _Grid = __webpack_require__(367);
+	var _Grid = __webpack_require__(369);
 	
 	Object.defineProperty(exports, 'defaultCellRangeRenderer', {
 	  enumerable: true,
@@ -67523,7 +67474,7 @@
 	  }
 	});
 	
-	var _InfiniteLoader = __webpack_require__(384);
+	var _InfiniteLoader = __webpack_require__(386);
 	
 	Object.defineProperty(exports, 'InfiniteLoader', {
 	  enumerable: true,
@@ -67532,7 +67483,7 @@
 	  }
 	});
 	
-	var _ScrollSync = __webpack_require__(386);
+	var _ScrollSync = __webpack_require__(388);
 	
 	Object.defineProperty(exports, 'ScrollSync', {
 	  enumerable: true,
@@ -67541,7 +67492,7 @@
 	  }
 	});
 	
-	var _List = __webpack_require__(388);
+	var _List = __webpack_require__(390);
 	
 	Object.defineProperty(exports, 'List', {
 	  enumerable: true,
@@ -67550,7 +67501,7 @@
 	  }
 	});
 	
-	var _WindowScroller = __webpack_require__(390);
+	var _WindowScroller = __webpack_require__(392);
 	
 	Object.defineProperty(exports, 'WindowScroller', {
 	  enumerable: true,
@@ -67560,7 +67511,7 @@
 	});
 
 /***/ },
-/* 346 */
+/* 348 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -67570,7 +67521,7 @@
 	});
 	exports.ArrowKeyStepper = exports.default = undefined;
 	
-	var _ArrowKeyStepper2 = __webpack_require__(347);
+	var _ArrowKeyStepper2 = __webpack_require__(349);
 	
 	var _ArrowKeyStepper3 = _interopRequireDefault(_ArrowKeyStepper2);
 	
@@ -67580,7 +67531,7 @@
 	exports.ArrowKeyStepper = _ArrowKeyStepper3.default;
 
 /***/ },
-/* 347 */
+/* 349 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -67595,7 +67546,7 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
@@ -67760,7 +67711,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 348 */
+/* 350 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -67770,7 +67721,7 @@
 	});
 	exports.AutoSizer = exports.default = undefined;
 	
-	var _AutoSizer2 = __webpack_require__(349);
+	var _AutoSizer2 = __webpack_require__(351);
 	
 	var _AutoSizer3 = _interopRequireDefault(_AutoSizer2);
 	
@@ -67780,7 +67731,7 @@
 	exports.AutoSizer = _AutoSizer3.default;
 
 /***/ },
-/* 349 */
+/* 351 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -67795,11 +67746,11 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _detectElementResize = __webpack_require__(350);
+	var _detectElementResize = __webpack_require__(352);
 	
 	var _detectElementResize2 = _interopRequireDefault(_detectElementResize);
 	
@@ -67955,7 +67906,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 350 */
+/* 352 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -68144,7 +68095,7 @@
 	}
 
 /***/ },
-/* 351 */
+/* 353 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -68154,11 +68105,11 @@
 	});
 	exports.defaultCellSizeCache = exports.CellMeasurer = exports.default = undefined;
 	
-	var _CellMeasurer2 = __webpack_require__(352);
+	var _CellMeasurer2 = __webpack_require__(354);
 	
 	var _CellMeasurer3 = _interopRequireDefault(_CellMeasurer2);
 	
-	var _defaultCellSizeCache2 = __webpack_require__(353);
+	var _defaultCellSizeCache2 = __webpack_require__(355);
 	
 	var _defaultCellSizeCache3 = _interopRequireDefault(_defaultCellSizeCache2);
 	
@@ -68169,7 +68120,7 @@
 	exports.defaultCellSizeCache = _defaultCellSizeCache3.default;
 
 /***/ },
-/* 352 */
+/* 354 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -68184,7 +68135,7 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
@@ -68192,7 +68143,7 @@
 	
 	var _reactDom2 = _interopRequireDefault(_reactDom);
 	
-	var _defaultCellSizeCache = __webpack_require__(353);
+	var _defaultCellSizeCache = __webpack_require__(355);
 	
 	var _defaultCellSizeCache2 = _interopRequireDefault(_defaultCellSizeCache);
 	
@@ -68488,7 +68439,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 353 */
+/* 355 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -68590,7 +68541,7 @@
 	exports.default = CellSizeCache;
 
 /***/ },
-/* 354 */
+/* 356 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -68600,7 +68551,7 @@
 	});
 	exports.Collection = exports.default = undefined;
 	
-	var _Collection2 = __webpack_require__(355);
+	var _Collection2 = __webpack_require__(357);
 	
 	var _Collection3 = _interopRequireDefault(_Collection2);
 	
@@ -68610,7 +68561,7 @@
 	exports.Collection = _Collection3.default;
 
 /***/ },
-/* 355 */
+/* 357 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -68627,19 +68578,19 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _CollectionView = __webpack_require__(356);
+	var _CollectionView = __webpack_require__(358);
 	
 	var _CollectionView2 = _interopRequireDefault(_CollectionView);
 	
-	var _calculateSizeAndPositionData2 = __webpack_require__(361);
+	var _calculateSizeAndPositionData2 = __webpack_require__(363);
 	
 	var _calculateSizeAndPositionData3 = _interopRequireDefault(_calculateSizeAndPositionData2);
 	
-	var _getUpdatedOffsetForIndex = __webpack_require__(364);
+	var _getUpdatedOffsetForIndex = __webpack_require__(366);
 	
 	var _getUpdatedOffsetForIndex2 = _interopRequireDefault(_getUpdatedOffsetForIndex);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
@@ -68923,7 +68874,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 356 */
+/* 358 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -68940,19 +68891,19 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _classnames = __webpack_require__(357);
+	var _classnames = __webpack_require__(359);
 	
 	var _classnames2 = _interopRequireDefault(_classnames);
 	
-	var _createCallbackMemoizer = __webpack_require__(358);
+	var _createCallbackMemoizer = __webpack_require__(360);
 	
 	var _createCallbackMemoizer2 = _interopRequireDefault(_createCallbackMemoizer);
 	
-	var _scrollbarSize = __webpack_require__(359);
+	var _scrollbarSize = __webpack_require__(361);
 	
 	var _scrollbarSize2 = _interopRequireDefault(_scrollbarSize);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
@@ -69585,7 +69536,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 357 */
+/* 359 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -69639,7 +69590,7 @@
 
 
 /***/ },
-/* 358 */
+/* 360 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -69681,12 +69632,12 @@
 	}
 
 /***/ },
-/* 359 */
+/* 361 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
-	var canUseDOM = __webpack_require__(360);
+	var canUseDOM = __webpack_require__(362);
 	
 	var size;
 	
@@ -69711,14 +69662,14 @@
 	};
 
 /***/ },
-/* 360 */
+/* 362 */
 /***/ function(module, exports) {
 
 	'use strict';
 	module.exports = !!(typeof window !== 'undefined' && window.document && window.document.createElement);
 
 /***/ },
-/* 361 */
+/* 363 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -69728,7 +69679,7 @@
 	});
 	exports.default = calculateSizeAndPositionData;
 	
-	var _SectionManager = __webpack_require__(362);
+	var _SectionManager = __webpack_require__(364);
 	
 	var _SectionManager2 = _interopRequireDefault(_SectionManager);
 	
@@ -69770,7 +69721,7 @@
 	}
 
 /***/ },
-/* 362 */
+/* 364 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -69786,7 +69737,7 @@
 	                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
 	
 	
-	var _Section = __webpack_require__(363);
+	var _Section = __webpack_require__(365);
 	
 	var _Section2 = _interopRequireDefault(_Section);
 	
@@ -69930,7 +69881,7 @@
 	exports.default = SectionManager;
 
 /***/ },
-/* 363 */
+/* 365 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -70005,7 +69956,7 @@
 	exports.default = Section;
 
 /***/ },
-/* 364 */
+/* 366 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -70050,7 +70001,7 @@
 	}
 
 /***/ },
-/* 365 */
+/* 367 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -70060,7 +70011,7 @@
 	});
 	exports.ColumnSizer = exports.default = undefined;
 	
-	var _ColumnSizer2 = __webpack_require__(366);
+	var _ColumnSizer2 = __webpack_require__(368);
 	
 	var _ColumnSizer3 = _interopRequireDefault(_ColumnSizer2);
 	
@@ -70070,7 +70021,7 @@
 	exports.ColumnSizer = _ColumnSizer3.default;
 
 /***/ },
-/* 366 */
+/* 368 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -70083,11 +70034,11 @@
 	
 	var _react = __webpack_require__(3);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _Grid = __webpack_require__(367);
+	var _Grid = __webpack_require__(369);
 	
 	var _Grid2 = _interopRequireDefault(_Grid);
 	
@@ -70211,7 +70162,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 367 */
+/* 369 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -70221,11 +70172,11 @@
 	});
 	exports.defaultCellRangeRenderer = exports.Grid = exports.default = undefined;
 	
-	var _Grid2 = __webpack_require__(368);
+	var _Grid2 = __webpack_require__(370);
 	
 	var _Grid3 = _interopRequireDefault(_Grid2);
 	
-	var _defaultCellRangeRenderer2 = __webpack_require__(374);
+	var _defaultCellRangeRenderer2 = __webpack_require__(376);
 	
 	var _defaultCellRangeRenderer3 = _interopRequireDefault(_defaultCellRangeRenderer2);
 	
@@ -70236,7 +70187,7 @@
 	exports.defaultCellRangeRenderer = _defaultCellRangeRenderer3.default;
 
 /***/ },
-/* 368 */
+/* 370 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -70254,39 +70205,39 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _classnames = __webpack_require__(357);
+	var _classnames = __webpack_require__(359);
 	
 	var _classnames2 = _interopRequireDefault(_classnames);
 	
-	var _calculateSizeAndPositionDataAndUpdateScrollOffset = __webpack_require__(369);
+	var _calculateSizeAndPositionDataAndUpdateScrollOffset = __webpack_require__(371);
 	
 	var _calculateSizeAndPositionDataAndUpdateScrollOffset2 = _interopRequireDefault(_calculateSizeAndPositionDataAndUpdateScrollOffset);
 	
-	var _ScalingCellSizeAndPositionManager = __webpack_require__(370);
+	var _ScalingCellSizeAndPositionManager = __webpack_require__(372);
 	
 	var _ScalingCellSizeAndPositionManager2 = _interopRequireDefault(_ScalingCellSizeAndPositionManager);
 	
-	var _createCallbackMemoizer = __webpack_require__(358);
+	var _createCallbackMemoizer = __webpack_require__(360);
 	
 	var _createCallbackMemoizer2 = _interopRequireDefault(_createCallbackMemoizer);
 	
-	var _getOverscanIndices = __webpack_require__(372);
+	var _getOverscanIndices = __webpack_require__(374);
 	
 	var _getOverscanIndices2 = _interopRequireDefault(_getOverscanIndices);
 	
-	var _scrollbarSize = __webpack_require__(359);
+	var _scrollbarSize = __webpack_require__(361);
 	
 	var _scrollbarSize2 = _interopRequireDefault(_scrollbarSize);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _updateScrollIndexHelper = __webpack_require__(373);
+	var _updateScrollIndexHelper = __webpack_require__(375);
 	
 	var _updateScrollIndexHelper2 = _interopRequireDefault(_updateScrollIndexHelper);
 	
-	var _defaultCellRangeRenderer = __webpack_require__(374);
+	var _defaultCellRangeRenderer = __webpack_require__(376);
 	
 	var _defaultCellRangeRenderer2 = _interopRequireDefault(_defaultCellRangeRenderer);
 	
@@ -71240,7 +71191,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 369 */
+/* 371 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -71287,7 +71238,7 @@
 	}
 
 /***/ },
-/* 370 */
+/* 372 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -71299,7 +71250,7 @@
 	
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 	
-	var _CellSizeAndPositionManager = __webpack_require__(371);
+	var _CellSizeAndPositionManager = __webpack_require__(373);
 	
 	var _CellSizeAndPositionManager2 = _interopRequireDefault(_CellSizeAndPositionManager);
 	
@@ -71508,7 +71459,7 @@
 	exports.default = ScalingCellSizeAndPositionManager;
 
 /***/ },
-/* 371 */
+/* 373 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -71814,7 +71765,7 @@
 	exports.default = CellSizeAndPositionManager;
 
 /***/ },
-/* 372 */
+/* 374 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -71864,7 +71815,7 @@
 	}
 
 /***/ },
-/* 373 */
+/* 375 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -71925,7 +71876,7 @@
 	}
 
 /***/ },
-/* 374 */
+/* 376 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -72014,7 +71965,7 @@
 	}
 
 /***/ },
-/* 375 */
+/* 377 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -72024,35 +71975,35 @@
 	});
 	exports.SortIndicator = exports.SortDirection = exports.Column = exports.Table = exports.defaultRowRenderer = exports.defaultHeaderRenderer = exports.defaultCellRenderer = exports.defaultCellDataGetter = exports.default = undefined;
 	
-	var _Table2 = __webpack_require__(376);
+	var _Table2 = __webpack_require__(378);
 	
 	var _Table3 = _interopRequireDefault(_Table2);
 	
-	var _defaultCellDataGetter2 = __webpack_require__(382);
+	var _defaultCellDataGetter2 = __webpack_require__(384);
 	
 	var _defaultCellDataGetter3 = _interopRequireDefault(_defaultCellDataGetter2);
 	
-	var _defaultCellRenderer2 = __webpack_require__(381);
+	var _defaultCellRenderer2 = __webpack_require__(383);
 	
 	var _defaultCellRenderer3 = _interopRequireDefault(_defaultCellRenderer2);
 	
-	var _defaultHeaderRenderer2 = __webpack_require__(378);
+	var _defaultHeaderRenderer2 = __webpack_require__(380);
 	
 	var _defaultHeaderRenderer3 = _interopRequireDefault(_defaultHeaderRenderer2);
 	
-	var _defaultRowRenderer2 = __webpack_require__(383);
+	var _defaultRowRenderer2 = __webpack_require__(385);
 	
 	var _defaultRowRenderer3 = _interopRequireDefault(_defaultRowRenderer2);
 	
-	var _Column2 = __webpack_require__(377);
+	var _Column2 = __webpack_require__(379);
 	
 	var _Column3 = _interopRequireDefault(_Column2);
 	
-	var _SortDirection2 = __webpack_require__(380);
+	var _SortDirection2 = __webpack_require__(382);
 	
 	var _SortDirection3 = _interopRequireDefault(_SortDirection2);
 	
-	var _SortIndicator2 = __webpack_require__(379);
+	var _SortIndicator2 = __webpack_require__(381);
 	
 	var _SortIndicator3 = _interopRequireDefault(_SortIndicator2);
 	
@@ -72069,7 +72020,7 @@
 	exports.SortIndicator = _SortIndicator3.default;
 
 /***/ },
-/* 376 */
+/* 378 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -72082,11 +72033,11 @@
 	
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 	
-	var _classnames = __webpack_require__(357);
+	var _classnames = __webpack_require__(359);
 	
 	var _classnames2 = _interopRequireDefault(_classnames);
 	
-	var _Column = __webpack_require__(377);
+	var _Column = __webpack_require__(379);
 	
 	var _Column2 = _interopRequireDefault(_Column);
 	
@@ -72096,19 +72047,19 @@
 	
 	var _reactDom = __webpack_require__(112);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _Grid = __webpack_require__(367);
+	var _Grid = __webpack_require__(369);
 	
 	var _Grid2 = _interopRequireDefault(_Grid);
 	
-	var _defaultRowRenderer = __webpack_require__(383);
+	var _defaultRowRenderer = __webpack_require__(385);
 	
 	var _defaultRowRenderer2 = _interopRequireDefault(_defaultRowRenderer);
 	
-	var _SortDirection = __webpack_require__(380);
+	var _SortDirection = __webpack_require__(382);
 	
 	var _SortDirection2 = _interopRequireDefault(_SortDirection);
 	
@@ -72727,7 +72678,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 377 */
+/* 379 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -72738,15 +72689,15 @@
 	
 	var _react = __webpack_require__(3);
 	
-	var _defaultHeaderRenderer = __webpack_require__(378);
+	var _defaultHeaderRenderer = __webpack_require__(380);
 	
 	var _defaultHeaderRenderer2 = _interopRequireDefault(_defaultHeaderRenderer);
 	
-	var _defaultCellRenderer = __webpack_require__(381);
+	var _defaultCellRenderer = __webpack_require__(383);
 	
 	var _defaultCellRenderer2 = _interopRequireDefault(_defaultCellRenderer);
 	
-	var _defaultCellDataGetter = __webpack_require__(382);
+	var _defaultCellDataGetter = __webpack_require__(384);
 	
 	var _defaultCellDataGetter2 = _interopRequireDefault(_defaultCellDataGetter);
 	
@@ -72843,7 +72794,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 378 */
+/* 380 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -72857,7 +72808,7 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _SortIndicator = __webpack_require__(379);
+	var _SortIndicator = __webpack_require__(381);
 	
 	var _SortIndicator2 = _interopRequireDefault(_SortIndicator);
 	
@@ -72896,7 +72847,7 @@
 	}
 
 /***/ },
-/* 379 */
+/* 381 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -72910,11 +72861,11 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _classnames = __webpack_require__(357);
+	var _classnames = __webpack_require__(359);
 	
 	var _classnames2 = _interopRequireDefault(_classnames);
 	
-	var _SortDirection = __webpack_require__(380);
+	var _SortDirection = __webpack_require__(382);
 	
 	var _SortDirection2 = _interopRequireDefault(_SortDirection);
 	
@@ -72950,7 +72901,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 380 */
+/* 382 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -72975,7 +72926,7 @@
 	exports.default = SortDirection;
 
 /***/ },
-/* 381 */
+/* 383 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -73005,7 +72956,7 @@
 	}
 
 /***/ },
-/* 382 */
+/* 384 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -73034,7 +72985,7 @@
 	}
 
 /***/ },
-/* 383 */
+/* 385 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -73110,7 +73061,7 @@
 	}
 
 /***/ },
-/* 384 */
+/* 386 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -73120,7 +73071,7 @@
 	});
 	exports.InfiniteLoader = exports.default = undefined;
 	
-	var _InfiniteLoader2 = __webpack_require__(385);
+	var _InfiniteLoader2 = __webpack_require__(387);
 	
 	var _InfiniteLoader3 = _interopRequireDefault(_InfiniteLoader2);
 	
@@ -73130,7 +73081,7 @@
 	exports.InfiniteLoader = _InfiniteLoader3.default;
 
 /***/ },
-/* 385 */
+/* 387 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -73147,11 +73098,11 @@
 	
 	var _react = __webpack_require__(3);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _createCallbackMemoizer = __webpack_require__(358);
+	var _createCallbackMemoizer = __webpack_require__(360);
 	
 	var _createCallbackMemoizer2 = _interopRequireDefault(_createCallbackMemoizer);
 	
@@ -73422,7 +73373,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 386 */
+/* 388 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -73432,7 +73383,7 @@
 	});
 	exports.ScrollSync = exports.default = undefined;
 	
-	var _ScrollSync2 = __webpack_require__(387);
+	var _ScrollSync2 = __webpack_require__(389);
 	
 	var _ScrollSync3 = _interopRequireDefault(_ScrollSync2);
 	
@@ -73442,7 +73393,7 @@
 	exports.ScrollSync = _ScrollSync3.default;
 
 /***/ },
-/* 387 */
+/* 389 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -73455,7 +73406,7 @@
 	
 	var _react = __webpack_require__(3);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
@@ -73548,7 +73499,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 388 */
+/* 390 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -73558,7 +73509,7 @@
 	});
 	exports.List = exports.default = undefined;
 	
-	var _List2 = __webpack_require__(389);
+	var _List2 = __webpack_require__(391);
 	
 	var _List3 = _interopRequireDefault(_List2);
 	
@@ -73568,7 +73519,7 @@
 	exports.List = _List3.default;
 
 /***/ },
-/* 389 */
+/* 391 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -73581,7 +73532,7 @@
 	
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 	
-	var _Grid = __webpack_require__(367);
+	var _Grid = __webpack_require__(369);
 	
 	var _Grid2 = _interopRequireDefault(_Grid);
 	
@@ -73589,11 +73540,11 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _classnames = __webpack_require__(357);
+	var _classnames = __webpack_require__(359);
 	
 	var _classnames2 = _interopRequireDefault(_classnames);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
@@ -73834,7 +73785,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 390 */
+/* 392 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -73844,7 +73795,7 @@
 	});
 	exports.IS_SCROLLING_TIMEOUT = exports.WindowScroller = exports.default = undefined;
 	
-	var _onScroll = __webpack_require__(391);
+	var _onScroll = __webpack_require__(393);
 	
 	Object.defineProperty(exports, 'IS_SCROLLING_TIMEOUT', {
 	  enumerable: true,
@@ -73853,7 +73804,7 @@
 	  }
 	});
 	
-	var _WindowScroller2 = __webpack_require__(392);
+	var _WindowScroller2 = __webpack_require__(394);
 	
 	var _WindowScroller3 = _interopRequireDefault(_WindowScroller2);
 	
@@ -73863,7 +73814,7 @@
 	exports.WindowScroller = _WindowScroller3.default;
 
 /***/ },
-/* 391 */
+/* 393 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -73942,7 +73893,7 @@
 	}
 
 /***/ },
-/* 392 */
+/* 394 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -73959,11 +73910,11 @@
 	
 	var _reactDom2 = _interopRequireDefault(_reactDom);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(342);
+	var _reactAddonsShallowCompare = __webpack_require__(344);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _onScroll = __webpack_require__(391);
+	var _onScroll = __webpack_require__(393);
 	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
@@ -74106,16 +74057,16 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 393 */
+/* 395 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// style-loader: Adds some css to the DOM by adding a <style> tag
 	
 	// load the styles
-	var content = __webpack_require__(394);
+	var content = __webpack_require__(396);
 	if(typeof content === 'string') content = [[module.id, content, '']];
 	// add the styles to the DOM
-	var update = __webpack_require__(396)(content, {});
+	var update = __webpack_require__(398)(content, {});
 	if(content.locals) module.exports = content.locals;
 	// Hot Module Replacement
 	if(false) {
@@ -74132,10 +74083,10 @@
 	}
 
 /***/ },
-/* 394 */
+/* 396 */
 /***/ function(module, exports, __webpack_require__) {
 
-	exports = module.exports = __webpack_require__(395)();
+	exports = module.exports = __webpack_require__(397)();
 	// imports
 	
 	
@@ -74146,7 +74097,7 @@
 
 
 /***/ },
-/* 395 */
+/* 397 */
 /***/ function(module, exports) {
 
 	/*
@@ -74202,7 +74153,7 @@
 
 
 /***/ },
-/* 396 */
+/* 398 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/*
@@ -74454,16 +74405,16 @@
 
 
 /***/ },
-/* 397 */
+/* 399 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// style-loader: Adds some css to the DOM by adding a <style> tag
 	
 	// load the styles
-	var content = __webpack_require__(398);
+	var content = __webpack_require__(400);
 	if(typeof content === 'string') content = [[module.id, content, '']];
 	// add the styles to the DOM
-	var update = __webpack_require__(396)(content, {});
+	var update = __webpack_require__(398)(content, {});
 	if(content.locals) module.exports = content.locals;
 	// Hot Module Replacement
 	if(false) {
@@ -74480,10 +74431,10 @@
 	}
 
 /***/ },
-/* 398 */
+/* 400 */
 /***/ function(module, exports, __webpack_require__) {
 
-	exports = module.exports = __webpack_require__(395)();
+	exports = module.exports = __webpack_require__(397)();
 	// imports
 	
 	
@@ -74494,16 +74445,16 @@
 
 
 /***/ },
-/* 399 */
+/* 401 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// style-loader: Adds some css to the DOM by adding a <style> tag
 	
 	// load the styles
-	var content = __webpack_require__(400);
+	var content = __webpack_require__(402);
 	if(typeof content === 'string') content = [[module.id, content, '']];
 	// add the styles to the DOM
-	var update = __webpack_require__(396)(content, {});
+	var update = __webpack_require__(398)(content, {});
 	if(content.locals) module.exports = content.locals;
 	// Hot Module Replacement
 	if(false) {
@@ -74520,94 +74471,54 @@
 	}
 
 /***/ },
-/* 400 */
+/* 402 */
 /***/ function(module, exports, __webpack_require__) {
 
-	exports = module.exports = __webpack_require__(395)();
+	exports = module.exports = __webpack_require__(397)();
 	// imports
 	
 	
 	// module
-	exports.push([module.id, "/*!\n *  Font Awesome 4.7.0 by @davegandy - http://fontawesome.io - @fontawesome\n *  License - http://fontawesome.io/license (Font: SIL OFL 1.1, CSS: MIT License)\n */\n/* FONT PATH\n * -------------------------- */\n@font-face {\n  font-family: 'FontAwesome';\n  src: url(" + __webpack_require__(401) + ");\n  src: url(" + __webpack_require__(402) + "?#iefix&v=4.7.0) format('embedded-opentype'), url(" + __webpack_require__(403) + ") format('woff2'), url(" + __webpack_require__(404) + ") format('woff'), url(" + __webpack_require__(405) + ") format('truetype'), url(" + __webpack_require__(406) + "#fontawesomeregular) format('svg');\n  font-weight: normal;\n  font-style: normal;\n}\n.fa {\n  display: inline-block;\n  font: normal normal normal 14px/1 FontAwesome;\n  font-size: inherit;\n  text-rendering: auto;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n}\n/* makes the font 33% larger relative to the icon container */\n.fa-lg {\n  font-size: 1.33333333em;\n  line-height: 0.75em;\n  vertical-align: -15%;\n}\n.fa-2x {\n  font-size: 2em;\n}\n.fa-3x {\n  font-size: 3em;\n}\n.fa-4x {\n  font-size: 4em;\n}\n.fa-5x {\n  font-size: 5em;\n}\n.fa-fw {\n  width: 1.28571429em;\n  text-align: center;\n}\n.fa-ul {\n  padding-left: 0;\n  margin-left: 2.14285714em;\n  list-style-type: none;\n}\n.fa-ul > li {\n  position: relative;\n}\n.fa-li {\n  position: absolute;\n  left: -2.14285714em;\n  width: 2.14285714em;\n  top: 0.14285714em;\n  text-align: center;\n}\n.fa-li.fa-lg {\n  left: -1.85714286em;\n}\n.fa-border {\n  padding: .2em .25em .15em;\n  border: solid 0.08em #eeeeee;\n  border-radius: .1em;\n}\n.fa-pull-left {\n  float: left;\n}\n.fa-pull-right {\n  float: right;\n}\n.fa.fa-pull-left {\n  margin-right: .3em;\n}\n.fa.fa-pull-right {\n  margin-left: .3em;\n}\n/* Deprecated as of 4.4.0 */\n.pull-right {\n  float: right;\n}\n.pull-left {\n  float: left;\n}\n.fa.pull-left {\n  margin-right: .3em;\n}\n.fa.pull-right {\n  margin-left: .3em;\n}\n.fa-spin {\n  -webkit-animation: fa-spin 2s infinite linear;\n  animation: fa-spin 2s infinite linear;\n}\n.fa-pulse {\n  -webkit-animation: fa-spin 1s infinite steps(8);\n  animation: fa-spin 1s infinite steps(8);\n}\n@-webkit-keyframes fa-spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n    transform: rotate(0deg);\n  }\n  100% {\n    -webkit-transform: rotate(359deg);\n    transform: rotate(359deg);\n  }\n}\n@keyframes fa-spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n    transform: rotate(0deg);\n  }\n  100% {\n    -webkit-transform: rotate(359deg);\n    transform: rotate(359deg);\n  }\n}\n.fa-rotate-90 {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=1)\";\n  -webkit-transform: rotate(90deg);\n  -ms-transform: rotate(90deg);\n  transform: rotate(90deg);\n}\n.fa-rotate-180 {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=2)\";\n  -webkit-transform: rotate(180deg);\n  -ms-transform: rotate(180deg);\n  transform: rotate(180deg);\n}\n.fa-rotate-270 {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=3)\";\n  -webkit-transform: rotate(270deg);\n  -ms-transform: rotate(270deg);\n  transform: rotate(270deg);\n}\n.fa-flip-horizontal {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=0, mirror=1)\";\n  -webkit-transform: scale(-1, 1);\n  -ms-transform: scale(-1, 1);\n  transform: scale(-1, 1);\n}\n.fa-flip-vertical {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=2, mirror=1)\";\n  -webkit-transform: scale(1, -1);\n  -ms-transform: scale(1, -1);\n  transform: scale(1, -1);\n}\n:root .fa-rotate-90,\n:root .fa-rotate-180,\n:root .fa-rotate-270,\n:root .fa-flip-horizontal,\n:root .fa-flip-vertical {\n  filter: none;\n}\n.fa-stack {\n  position: relative;\n  display: inline-block;\n  width: 2em;\n  height: 2em;\n  line-height: 2em;\n  vertical-align: middle;\n}\n.fa-stack-1x,\n.fa-stack-2x {\n  position: absolute;\n  left: 0;\n  width: 100%;\n  text-align: center;\n}\n.fa-stack-1x {\n  line-height: inherit;\n}\n.fa-stack-2x {\n  font-size: 2em;\n}\n.fa-inverse {\n  color: #ffffff;\n}\n/* Font Awesome uses the Unicode Private Use Area (PUA) to ensure screen\n   readers do not read off random characters that represent icons */\n.fa-glass:before {\n  content: \"\\F000\";\n}\n.fa-music:before {\n  content: \"\\F001\";\n}\n.fa-search:before {\n  content: \"\\F002\";\n}\n.fa-envelope-o:before {\n  content: \"\\F003\";\n}\n.fa-heart:before {\n  content: \"\\F004\";\n}\n.fa-star:before {\n  content: \"\\F005\";\n}\n.fa-star-o:before {\n  content: \"\\F006\";\n}\n.fa-user:before {\n  content: \"\\F007\";\n}\n.fa-film:before {\n  content: \"\\F008\";\n}\n.fa-th-large:before {\n  content: \"\\F009\";\n}\n.fa-th:before {\n  content: \"\\F00A\";\n}\n.fa-th-list:before {\n  content: \"\\F00B\";\n}\n.fa-check:before {\n  content: \"\\F00C\";\n}\n.fa-remove:before,\n.fa-close:before,\n.fa-times:before {\n  content: \"\\F00D\";\n}\n.fa-search-plus:before {\n  content: \"\\F00E\";\n}\n.fa-search-minus:before {\n  content: \"\\F010\";\n}\n.fa-power-off:before {\n  content: \"\\F011\";\n}\n.fa-signal:before {\n  content: \"\\F012\";\n}\n.fa-gear:before,\n.fa-cog:before {\n  content: \"\\F013\";\n}\n.fa-trash-o:before {\n  content: \"\\F014\";\n}\n.fa-home:before {\n  content: \"\\F015\";\n}\n.fa-file-o:before {\n  content: \"\\F016\";\n}\n.fa-clock-o:before {\n  content: \"\\F017\";\n}\n.fa-road:before {\n  content: \"\\F018\";\n}\n.fa-download:before {\n  content: \"\\F019\";\n}\n.fa-arrow-circle-o-down:before {\n  content: \"\\F01A\";\n}\n.fa-arrow-circle-o-up:before {\n  content: \"\\F01B\";\n}\n.fa-inbox:before {\n  content: \"\\F01C\";\n}\n.fa-play-circle-o:before {\n  content: \"\\F01D\";\n}\n.fa-rotate-right:before,\n.fa-repeat:before {\n  content: \"\\F01E\";\n}\n.fa-refresh:before {\n  content: \"\\F021\";\n}\n.fa-list-alt:before {\n  content: \"\\F022\";\n}\n.fa-lock:before {\n  content: \"\\F023\";\n}\n.fa-flag:before {\n  content: \"\\F024\";\n}\n.fa-headphones:before {\n  content: \"\\F025\";\n}\n.fa-volume-off:before {\n  content: \"\\F026\";\n}\n.fa-volume-down:before {\n  content: \"\\F027\";\n}\n.fa-volume-up:before {\n  content: \"\\F028\";\n}\n.fa-qrcode:before {\n  content: \"\\F029\";\n}\n.fa-barcode:before {\n  content: \"\\F02A\";\n}\n.fa-tag:before {\n  content: \"\\F02B\";\n}\n.fa-tags:before {\n  content: \"\\F02C\";\n}\n.fa-book:before {\n  content: \"\\F02D\";\n}\n.fa-bookmark:before {\n  content: \"\\F02E\";\n}\n.fa-print:before {\n  content: \"\\F02F\";\n}\n.fa-camera:before {\n  content: \"\\F030\";\n}\n.fa-font:before {\n  content: \"\\F031\";\n}\n.fa-bold:before {\n  content: \"\\F032\";\n}\n.fa-italic:before {\n  content: \"\\F033\";\n}\n.fa-text-height:before {\n  content: \"\\F034\";\n}\n.fa-text-width:before {\n  content: \"\\F035\";\n}\n.fa-align-left:before {\n  content: \"\\F036\";\n}\n.fa-align-center:before {\n  content: \"\\F037\";\n}\n.fa-align-right:before {\n  content: \"\\F038\";\n}\n.fa-align-justify:before {\n  content: \"\\F039\";\n}\n.fa-list:before {\n  content: \"\\F03A\";\n}\n.fa-dedent:before,\n.fa-outdent:before {\n  content: \"\\F03B\";\n}\n.fa-indent:before {\n  content: \"\\F03C\";\n}\n.fa-video-camera:before {\n  content: \"\\F03D\";\n}\n.fa-photo:before,\n.fa-image:before,\n.fa-picture-o:before {\n  content: \"\\F03E\";\n}\n.fa-pencil:before {\n  content: \"\\F040\";\n}\n.fa-map-marker:before {\n  content: \"\\F041\";\n}\n.fa-adjust:before {\n  content: \"\\F042\";\n}\n.fa-tint:before {\n  content: \"\\F043\";\n}\n.fa-edit:before,\n.fa-pencil-square-o:before {\n  content: \"\\F044\";\n}\n.fa-share-square-o:before {\n  content: \"\\F045\";\n}\n.fa-check-square-o:before {\n  content: \"\\F046\";\n}\n.fa-arrows:before {\n  content: \"\\F047\";\n}\n.fa-step-backward:before {\n  content: \"\\F048\";\n}\n.fa-fast-backward:before {\n  content: \"\\F049\";\n}\n.fa-backward:before {\n  content: \"\\F04A\";\n}\n.fa-play:before {\n  content: \"\\F04B\";\n}\n.fa-pause:before {\n  content: \"\\F04C\";\n}\n.fa-stop:before {\n  content: \"\\F04D\";\n}\n.fa-forward:before {\n  content: \"\\F04E\";\n}\n.fa-fast-forward:before {\n  content: \"\\F050\";\n}\n.fa-step-forward:before {\n  content: \"\\F051\";\n}\n.fa-eject:before {\n  content: \"\\F052\";\n}\n.fa-chevron-left:before {\n  content: \"\\F053\";\n}\n.fa-chevron-right:before {\n  content: \"\\F054\";\n}\n.fa-plus-circle:before {\n  content: \"\\F055\";\n}\n.fa-minus-circle:before {\n  content: \"\\F056\";\n}\n.fa-times-circle:before {\n  content: \"\\F057\";\n}\n.fa-check-circle:before {\n  content: \"\\F058\";\n}\n.fa-question-circle:before {\n  content: \"\\F059\";\n}\n.fa-info-circle:before {\n  content: \"\\F05A\";\n}\n.fa-crosshairs:before {\n  content: \"\\F05B\";\n}\n.fa-times-circle-o:before {\n  content: \"\\F05C\";\n}\n.fa-check-circle-o:before {\n  content: \"\\F05D\";\n}\n.fa-ban:before {\n  content: \"\\F05E\";\n}\n.fa-arrow-left:before {\n  content: \"\\F060\";\n}\n.fa-arrow-right:before {\n  content: \"\\F061\";\n}\n.fa-arrow-up:before {\n  content: \"\\F062\";\n}\n.fa-arrow-down:before {\n  content: \"\\F063\";\n}\n.fa-mail-forward:before,\n.fa-share:before {\n  content: \"\\F064\";\n}\n.fa-expand:before {\n  content: \"\\F065\";\n}\n.fa-compress:before {\n  content: \"\\F066\";\n}\n.fa-plus:before {\n  content: \"\\F067\";\n}\n.fa-minus:before {\n  content: \"\\F068\";\n}\n.fa-asterisk:before {\n  content: \"\\F069\";\n}\n.fa-exclamation-circle:before {\n  content: \"\\F06A\";\n}\n.fa-gift:before {\n  content: \"\\F06B\";\n}\n.fa-leaf:before {\n  content: \"\\F06C\";\n}\n.fa-fire:before {\n  content: \"\\F06D\";\n}\n.fa-eye:before {\n  content: \"\\F06E\";\n}\n.fa-eye-slash:before {\n  content: \"\\F070\";\n}\n.fa-warning:before,\n.fa-exclamation-triangle:before {\n  content: \"\\F071\";\n}\n.fa-plane:before {\n  content: \"\\F072\";\n}\n.fa-calendar:before {\n  content: \"\\F073\";\n}\n.fa-random:before {\n  content: \"\\F074\";\n}\n.fa-comment:before {\n  content: \"\\F075\";\n}\n.fa-magnet:before {\n  content: \"\\F076\";\n}\n.fa-chevron-up:before {\n  content: \"\\F077\";\n}\n.fa-chevron-down:before {\n  content: \"\\F078\";\n}\n.fa-retweet:before {\n  content: \"\\F079\";\n}\n.fa-shopping-cart:before {\n  content: \"\\F07A\";\n}\n.fa-folder:before {\n  content: \"\\F07B\";\n}\n.fa-folder-open:before {\n  content: \"\\F07C\";\n}\n.fa-arrows-v:before {\n  content: \"\\F07D\";\n}\n.fa-arrows-h:before {\n  content: \"\\F07E\";\n}\n.fa-bar-chart-o:before,\n.fa-bar-chart:before {\n  content: \"\\F080\";\n}\n.fa-twitter-square:before {\n  content: \"\\F081\";\n}\n.fa-facebook-square:before {\n  content: \"\\F082\";\n}\n.fa-camera-retro:before {\n  content: \"\\F083\";\n}\n.fa-key:before {\n  content: \"\\F084\";\n}\n.fa-gears:before,\n.fa-cogs:before {\n  content: \"\\F085\";\n}\n.fa-comments:before {\n  content: \"\\F086\";\n}\n.fa-thumbs-o-up:before {\n  content: \"\\F087\";\n}\n.fa-thumbs-o-down:before {\n  content: \"\\F088\";\n}\n.fa-star-half:before {\n  content: \"\\F089\";\n}\n.fa-heart-o:before {\n  content: \"\\F08A\";\n}\n.fa-sign-out:before {\n  content: \"\\F08B\";\n}\n.fa-linkedin-square:before {\n  content: \"\\F08C\";\n}\n.fa-thumb-tack:before {\n  content: \"\\F08D\";\n}\n.fa-external-link:before {\n  content: \"\\F08E\";\n}\n.fa-sign-in:before {\n  content: \"\\F090\";\n}\n.fa-trophy:before {\n  content: \"\\F091\";\n}\n.fa-github-square:before {\n  content: \"\\F092\";\n}\n.fa-upload:before {\n  content: \"\\F093\";\n}\n.fa-lemon-o:before {\n  content: \"\\F094\";\n}\n.fa-phone:before {\n  content: \"\\F095\";\n}\n.fa-square-o:before {\n  content: \"\\F096\";\n}\n.fa-bookmark-o:before {\n  content: \"\\F097\";\n}\n.fa-phone-square:before {\n  content: \"\\F098\";\n}\n.fa-twitter:before {\n  content: \"\\F099\";\n}\n.fa-facebook-f:before,\n.fa-facebook:before {\n  content: \"\\F09A\";\n}\n.fa-github:before {\n  content: \"\\F09B\";\n}\n.fa-unlock:before {\n  content: \"\\F09C\";\n}\n.fa-credit-card:before {\n  content: \"\\F09D\";\n}\n.fa-feed:before,\n.fa-rss:before {\n  content: \"\\F09E\";\n}\n.fa-hdd-o:before {\n  content: \"\\F0A0\";\n}\n.fa-bullhorn:before {\n  content: \"\\F0A1\";\n}\n.fa-bell:before {\n  content: \"\\F0F3\";\n}\n.fa-certificate:before {\n  content: \"\\F0A3\";\n}\n.fa-hand-o-right:before {\n  content: \"\\F0A4\";\n}\n.fa-hand-o-left:before {\n  content: \"\\F0A5\";\n}\n.fa-hand-o-up:before {\n  content: \"\\F0A6\";\n}\n.fa-hand-o-down:before {\n  content: \"\\F0A7\";\n}\n.fa-arrow-circle-left:before {\n  content: \"\\F0A8\";\n}\n.fa-arrow-circle-right:before {\n  content: \"\\F0A9\";\n}\n.fa-arrow-circle-up:before {\n  content: \"\\F0AA\";\n}\n.fa-arrow-circle-down:before {\n  content: \"\\F0AB\";\n}\n.fa-globe:before {\n  content: \"\\F0AC\";\n}\n.fa-wrench:before {\n  content: \"\\F0AD\";\n}\n.fa-tasks:before {\n  content: \"\\F0AE\";\n}\n.fa-filter:before {\n  content: \"\\F0B0\";\n}\n.fa-briefcase:before {\n  content: \"\\F0B1\";\n}\n.fa-arrows-alt:before {\n  content: \"\\F0B2\";\n}\n.fa-group:before,\n.fa-users:before {\n  content: \"\\F0C0\";\n}\n.fa-chain:before,\n.fa-link:before {\n  content: \"\\F0C1\";\n}\n.fa-cloud:before {\n  content: \"\\F0C2\";\n}\n.fa-flask:before {\n  content: \"\\F0C3\";\n}\n.fa-cut:before,\n.fa-scissors:before {\n  content: \"\\F0C4\";\n}\n.fa-copy:before,\n.fa-files-o:before {\n  content: \"\\F0C5\";\n}\n.fa-paperclip:before {\n  content: \"\\F0C6\";\n}\n.fa-save:before,\n.fa-floppy-o:before {\n  content: \"\\F0C7\";\n}\n.fa-square:before {\n  content: \"\\F0C8\";\n}\n.fa-navicon:before,\n.fa-reorder:before,\n.fa-bars:before {\n  content: \"\\F0C9\";\n}\n.fa-list-ul:before {\n  content: \"\\F0CA\";\n}\n.fa-list-ol:before {\n  content: \"\\F0CB\";\n}\n.fa-strikethrough:before {\n  content: \"\\F0CC\";\n}\n.fa-underline:before {\n  content: \"\\F0CD\";\n}\n.fa-table:before {\n  content: \"\\F0CE\";\n}\n.fa-magic:before {\n  content: \"\\F0D0\";\n}\n.fa-truck:before {\n  content: \"\\F0D1\";\n}\n.fa-pinterest:before {\n  content: \"\\F0D2\";\n}\n.fa-pinterest-square:before {\n  content: \"\\F0D3\";\n}\n.fa-google-plus-square:before {\n  content: \"\\F0D4\";\n}\n.fa-google-plus:before {\n  content: \"\\F0D5\";\n}\n.fa-money:before {\n  content: \"\\F0D6\";\n}\n.fa-caret-down:before {\n  content: \"\\F0D7\";\n}\n.fa-caret-up:before {\n  content: \"\\F0D8\";\n}\n.fa-caret-left:before {\n  content: \"\\F0D9\";\n}\n.fa-caret-right:before {\n  content: \"\\F0DA\";\n}\n.fa-columns:before {\n  content: \"\\F0DB\";\n}\n.fa-unsorted:before,\n.fa-sort:before {\n  content: \"\\F0DC\";\n}\n.fa-sort-down:before,\n.fa-sort-desc:before {\n  content: \"\\F0DD\";\n}\n.fa-sort-up:before,\n.fa-sort-asc:before {\n  content: \"\\F0DE\";\n}\n.fa-envelope:before {\n  content: \"\\F0E0\";\n}\n.fa-linkedin:before {\n  content: \"\\F0E1\";\n}\n.fa-rotate-left:before,\n.fa-undo:before {\n  content: \"\\F0E2\";\n}\n.fa-legal:before,\n.fa-gavel:before {\n  content: \"\\F0E3\";\n}\n.fa-dashboard:before,\n.fa-tachometer:before {\n  content: \"\\F0E4\";\n}\n.fa-comment-o:before {\n  content: \"\\F0E5\";\n}\n.fa-comments-o:before {\n  content: \"\\F0E6\";\n}\n.fa-flash:before,\n.fa-bolt:before {\n  content: \"\\F0E7\";\n}\n.fa-sitemap:before {\n  content: \"\\F0E8\";\n}\n.fa-umbrella:before {\n  content: \"\\F0E9\";\n}\n.fa-paste:before,\n.fa-clipboard:before {\n  content: \"\\F0EA\";\n}\n.fa-lightbulb-o:before {\n  content: \"\\F0EB\";\n}\n.fa-exchange:before {\n  content: \"\\F0EC\";\n}\n.fa-cloud-download:before {\n  content: \"\\F0ED\";\n}\n.fa-cloud-upload:before {\n  content: \"\\F0EE\";\n}\n.fa-user-md:before {\n  content: \"\\F0F0\";\n}\n.fa-stethoscope:before {\n  content: \"\\F0F1\";\n}\n.fa-suitcase:before {\n  content: \"\\F0F2\";\n}\n.fa-bell-o:before {\n  content: \"\\F0A2\";\n}\n.fa-coffee:before {\n  content: \"\\F0F4\";\n}\n.fa-cutlery:before {\n  content: \"\\F0F5\";\n}\n.fa-file-text-o:before {\n  content: \"\\F0F6\";\n}\n.fa-building-o:before {\n  content: \"\\F0F7\";\n}\n.fa-hospital-o:before {\n  content: \"\\F0F8\";\n}\n.fa-ambulance:before {\n  content: \"\\F0F9\";\n}\n.fa-medkit:before {\n  content: \"\\F0FA\";\n}\n.fa-fighter-jet:before {\n  content: \"\\F0FB\";\n}\n.fa-beer:before {\n  content: \"\\F0FC\";\n}\n.fa-h-square:before {\n  content: \"\\F0FD\";\n}\n.fa-plus-square:before {\n  content: \"\\F0FE\";\n}\n.fa-angle-double-left:before {\n  content: \"\\F100\";\n}\n.fa-angle-double-right:before {\n  content: \"\\F101\";\n}\n.fa-angle-double-up:before {\n  content: \"\\F102\";\n}\n.fa-angle-double-down:before {\n  content: \"\\F103\";\n}\n.fa-angle-left:before {\n  content: \"\\F104\";\n}\n.fa-angle-right:before {\n  content: \"\\F105\";\n}\n.fa-angle-up:before {\n  content: \"\\F106\";\n}\n.fa-angle-down:before {\n  content: \"\\F107\";\n}\n.fa-desktop:before {\n  content: \"\\F108\";\n}\n.fa-laptop:before {\n  content: \"\\F109\";\n}\n.fa-tablet:before {\n  content: \"\\F10A\";\n}\n.fa-mobile-phone:before,\n.fa-mobile:before {\n  content: \"\\F10B\";\n}\n.fa-circle-o:before {\n  content: \"\\F10C\";\n}\n.fa-quote-left:before {\n  content: \"\\F10D\";\n}\n.fa-quote-right:before {\n  content: \"\\F10E\";\n}\n.fa-spinner:before {\n  content: \"\\F110\";\n}\n.fa-circle:before {\n  content: \"\\F111\";\n}\n.fa-mail-reply:before,\n.fa-reply:before {\n  content: \"\\F112\";\n}\n.fa-github-alt:before {\n  content: \"\\F113\";\n}\n.fa-folder-o:before {\n  content: \"\\F114\";\n}\n.fa-folder-open-o:before {\n  content: \"\\F115\";\n}\n.fa-smile-o:before {\n  content: \"\\F118\";\n}\n.fa-frown-o:before {\n  content: \"\\F119\";\n}\n.fa-meh-o:before {\n  content: \"\\F11A\";\n}\n.fa-gamepad:before {\n  content: \"\\F11B\";\n}\n.fa-keyboard-o:before {\n  content: \"\\F11C\";\n}\n.fa-flag-o:before {\n  content: \"\\F11D\";\n}\n.fa-flag-checkered:before {\n  content: \"\\F11E\";\n}\n.fa-terminal:before {\n  content: \"\\F120\";\n}\n.fa-code:before {\n  content: \"\\F121\";\n}\n.fa-mail-reply-all:before,\n.fa-reply-all:before {\n  content: \"\\F122\";\n}\n.fa-star-half-empty:before,\n.fa-star-half-full:before,\n.fa-star-half-o:before {\n  content: \"\\F123\";\n}\n.fa-location-arrow:before {\n  content: \"\\F124\";\n}\n.fa-crop:before {\n  content: \"\\F125\";\n}\n.fa-code-fork:before {\n  content: \"\\F126\";\n}\n.fa-unlink:before,\n.fa-chain-broken:before {\n  content: \"\\F127\";\n}\n.fa-question:before {\n  content: \"\\F128\";\n}\n.fa-info:before {\n  content: \"\\F129\";\n}\n.fa-exclamation:before {\n  content: \"\\F12A\";\n}\n.fa-superscript:before {\n  content: \"\\F12B\";\n}\n.fa-subscript:before {\n  content: \"\\F12C\";\n}\n.fa-eraser:before {\n  content: \"\\F12D\";\n}\n.fa-puzzle-piece:before {\n  content: \"\\F12E\";\n}\n.fa-microphone:before {\n  content: \"\\F130\";\n}\n.fa-microphone-slash:before {\n  content: \"\\F131\";\n}\n.fa-shield:before {\n  content: \"\\F132\";\n}\n.fa-calendar-o:before {\n  content: \"\\F133\";\n}\n.fa-fire-extinguisher:before {\n  content: \"\\F134\";\n}\n.fa-rocket:before {\n  content: \"\\F135\";\n}\n.fa-maxcdn:before {\n  content: \"\\F136\";\n}\n.fa-chevron-circle-left:before {\n  content: \"\\F137\";\n}\n.fa-chevron-circle-right:before {\n  content: \"\\F138\";\n}\n.fa-chevron-circle-up:before {\n  content: \"\\F139\";\n}\n.fa-chevron-circle-down:before {\n  content: \"\\F13A\";\n}\n.fa-html5:before {\n  content: \"\\F13B\";\n}\n.fa-css3:before {\n  content: \"\\F13C\";\n}\n.fa-anchor:before {\n  content: \"\\F13D\";\n}\n.fa-unlock-alt:before {\n  content: \"\\F13E\";\n}\n.fa-bullseye:before {\n  content: \"\\F140\";\n}\n.fa-ellipsis-h:before {\n  content: \"\\F141\";\n}\n.fa-ellipsis-v:before {\n  content: \"\\F142\";\n}\n.fa-rss-square:before {\n  content: \"\\F143\";\n}\n.fa-play-circle:before {\n  content: \"\\F144\";\n}\n.fa-ticket:before {\n  content: \"\\F145\";\n}\n.fa-minus-square:before {\n  content: \"\\F146\";\n}\n.fa-minus-square-o:before {\n  content: \"\\F147\";\n}\n.fa-level-up:before {\n  content: \"\\F148\";\n}\n.fa-level-down:before {\n  content: \"\\F149\";\n}\n.fa-check-square:before {\n  content: \"\\F14A\";\n}\n.fa-pencil-square:before {\n  content: \"\\F14B\";\n}\n.fa-external-link-square:before {\n  content: \"\\F14C\";\n}\n.fa-share-square:before {\n  content: \"\\F14D\";\n}\n.fa-compass:before {\n  content: \"\\F14E\";\n}\n.fa-toggle-down:before,\n.fa-caret-square-o-down:before {\n  content: \"\\F150\";\n}\n.fa-toggle-up:before,\n.fa-caret-square-o-up:before {\n  content: \"\\F151\";\n}\n.fa-toggle-right:before,\n.fa-caret-square-o-right:before {\n  content: \"\\F152\";\n}\n.fa-euro:before,\n.fa-eur:before {\n  content: \"\\F153\";\n}\n.fa-gbp:before {\n  content: \"\\F154\";\n}\n.fa-dollar:before,\n.fa-usd:before {\n  content: \"\\F155\";\n}\n.fa-rupee:before,\n.fa-inr:before {\n  content: \"\\F156\";\n}\n.fa-cny:before,\n.fa-rmb:before,\n.fa-yen:before,\n.fa-jpy:before {\n  content: \"\\F157\";\n}\n.fa-ruble:before,\n.fa-rouble:before,\n.fa-rub:before {\n  content: \"\\F158\";\n}\n.fa-won:before,\n.fa-krw:before {\n  content: \"\\F159\";\n}\n.fa-bitcoin:before,\n.fa-btc:before {\n  content: \"\\F15A\";\n}\n.fa-file:before {\n  content: \"\\F15B\";\n}\n.fa-file-text:before {\n  content: \"\\F15C\";\n}\n.fa-sort-alpha-asc:before {\n  content: \"\\F15D\";\n}\n.fa-sort-alpha-desc:before {\n  content: \"\\F15E\";\n}\n.fa-sort-amount-asc:before {\n  content: \"\\F160\";\n}\n.fa-sort-amount-desc:before {\n  content: \"\\F161\";\n}\n.fa-sort-numeric-asc:before {\n  content: \"\\F162\";\n}\n.fa-sort-numeric-desc:before {\n  content: \"\\F163\";\n}\n.fa-thumbs-up:before {\n  content: \"\\F164\";\n}\n.fa-thumbs-down:before {\n  content: \"\\F165\";\n}\n.fa-youtube-square:before {\n  content: \"\\F166\";\n}\n.fa-youtube:before {\n  content: \"\\F167\";\n}\n.fa-xing:before {\n  content: \"\\F168\";\n}\n.fa-xing-square:before {\n  content: \"\\F169\";\n}\n.fa-youtube-play:before {\n  content: \"\\F16A\";\n}\n.fa-dropbox:before {\n  content: \"\\F16B\";\n}\n.fa-stack-overflow:before {\n  content: \"\\F16C\";\n}\n.fa-instagram:before {\n  content: \"\\F16D\";\n}\n.fa-flickr:before {\n  content: \"\\F16E\";\n}\n.fa-adn:before {\n  content: \"\\F170\";\n}\n.fa-bitbucket:before {\n  content: \"\\F171\";\n}\n.fa-bitbucket-square:before {\n  content: \"\\F172\";\n}\n.fa-tumblr:before {\n  content: \"\\F173\";\n}\n.fa-tumblr-square:before {\n  content: \"\\F174\";\n}\n.fa-long-arrow-down:before {\n  content: \"\\F175\";\n}\n.fa-long-arrow-up:before {\n  content: \"\\F176\";\n}\n.fa-long-arrow-left:before {\n  content: \"\\F177\";\n}\n.fa-long-arrow-right:before {\n  content: \"\\F178\";\n}\n.fa-apple:before {\n  content: \"\\F179\";\n}\n.fa-windows:before {\n  content: \"\\F17A\";\n}\n.fa-android:before {\n  content: \"\\F17B\";\n}\n.fa-linux:before {\n  content: \"\\F17C\";\n}\n.fa-dribbble:before {\n  content: \"\\F17D\";\n}\n.fa-skype:before {\n  content: \"\\F17E\";\n}\n.fa-foursquare:before {\n  content: \"\\F180\";\n}\n.fa-trello:before {\n  content: \"\\F181\";\n}\n.fa-female:before {\n  content: \"\\F182\";\n}\n.fa-male:before {\n  content: \"\\F183\";\n}\n.fa-gittip:before,\n.fa-gratipay:before {\n  content: \"\\F184\";\n}\n.fa-sun-o:before {\n  content: \"\\F185\";\n}\n.fa-moon-o:before {\n  content: \"\\F186\";\n}\n.fa-archive:before {\n  content: \"\\F187\";\n}\n.fa-bug:before {\n  content: \"\\F188\";\n}\n.fa-vk:before {\n  content: \"\\F189\";\n}\n.fa-weibo:before {\n  content: \"\\F18A\";\n}\n.fa-renren:before {\n  content: \"\\F18B\";\n}\n.fa-pagelines:before {\n  content: \"\\F18C\";\n}\n.fa-stack-exchange:before {\n  content: \"\\F18D\";\n}\n.fa-arrow-circle-o-right:before {\n  content: \"\\F18E\";\n}\n.fa-arrow-circle-o-left:before {\n  content: \"\\F190\";\n}\n.fa-toggle-left:before,\n.fa-caret-square-o-left:before {\n  content: \"\\F191\";\n}\n.fa-dot-circle-o:before {\n  content: \"\\F192\";\n}\n.fa-wheelchair:before {\n  content: \"\\F193\";\n}\n.fa-vimeo-square:before {\n  content: \"\\F194\";\n}\n.fa-turkish-lira:before,\n.fa-try:before {\n  content: \"\\F195\";\n}\n.fa-plus-square-o:before {\n  content: \"\\F196\";\n}\n.fa-space-shuttle:before {\n  content: \"\\F197\";\n}\n.fa-slack:before {\n  content: \"\\F198\";\n}\n.fa-envelope-square:before {\n  content: \"\\F199\";\n}\n.fa-wordpress:before {\n  content: \"\\F19A\";\n}\n.fa-openid:before {\n  content: \"\\F19B\";\n}\n.fa-institution:before,\n.fa-bank:before,\n.fa-university:before {\n  content: \"\\F19C\";\n}\n.fa-mortar-board:before,\n.fa-graduation-cap:before {\n  content: \"\\F19D\";\n}\n.fa-yahoo:before {\n  content: \"\\F19E\";\n}\n.fa-google:before {\n  content: \"\\F1A0\";\n}\n.fa-reddit:before {\n  content: \"\\F1A1\";\n}\n.fa-reddit-square:before {\n  content: \"\\F1A2\";\n}\n.fa-stumbleupon-circle:before {\n  content: \"\\F1A3\";\n}\n.fa-stumbleupon:before {\n  content: \"\\F1A4\";\n}\n.fa-delicious:before {\n  content: \"\\F1A5\";\n}\n.fa-digg:before {\n  content: \"\\F1A6\";\n}\n.fa-pied-piper-pp:before {\n  content: \"\\F1A7\";\n}\n.fa-pied-piper-alt:before {\n  content: \"\\F1A8\";\n}\n.fa-drupal:before {\n  content: \"\\F1A9\";\n}\n.fa-joomla:before {\n  content: \"\\F1AA\";\n}\n.fa-language:before {\n  content: \"\\F1AB\";\n}\n.fa-fax:before {\n  content: \"\\F1AC\";\n}\n.fa-building:before {\n  content: \"\\F1AD\";\n}\n.fa-child:before {\n  content: \"\\F1AE\";\n}\n.fa-paw:before {\n  content: \"\\F1B0\";\n}\n.fa-spoon:before {\n  content: \"\\F1B1\";\n}\n.fa-cube:before {\n  content: \"\\F1B2\";\n}\n.fa-cubes:before {\n  content: \"\\F1B3\";\n}\n.fa-behance:before {\n  content: \"\\F1B4\";\n}\n.fa-behance-square:before {\n  content: \"\\F1B5\";\n}\n.fa-steam:before {\n  content: \"\\F1B6\";\n}\n.fa-steam-square:before {\n  content: \"\\F1B7\";\n}\n.fa-recycle:before {\n  content: \"\\F1B8\";\n}\n.fa-automobile:before,\n.fa-car:before {\n  content: \"\\F1B9\";\n}\n.fa-cab:before,\n.fa-taxi:before {\n  content: \"\\F1BA\";\n}\n.fa-tree:before {\n  content: \"\\F1BB\";\n}\n.fa-spotify:before {\n  content: \"\\F1BC\";\n}\n.fa-deviantart:before {\n  content: \"\\F1BD\";\n}\n.fa-soundcloud:before {\n  content: \"\\F1BE\";\n}\n.fa-database:before {\n  content: \"\\F1C0\";\n}\n.fa-file-pdf-o:before {\n  content: \"\\F1C1\";\n}\n.fa-file-word-o:before {\n  content: \"\\F1C2\";\n}\n.fa-file-excel-o:before {\n  content: \"\\F1C3\";\n}\n.fa-file-powerpoint-o:before {\n  content: \"\\F1C4\";\n}\n.fa-file-photo-o:before,\n.fa-file-picture-o:before,\n.fa-file-image-o:before {\n  content: \"\\F1C5\";\n}\n.fa-file-zip-o:before,\n.fa-file-archive-o:before {\n  content: \"\\F1C6\";\n}\n.fa-file-sound-o:before,\n.fa-file-audio-o:before {\n  content: \"\\F1C7\";\n}\n.fa-file-movie-o:before,\n.fa-file-video-o:before {\n  content: \"\\F1C8\";\n}\n.fa-file-code-o:before {\n  content: \"\\F1C9\";\n}\n.fa-vine:before {\n  content: \"\\F1CA\";\n}\n.fa-codepen:before {\n  content: \"\\F1CB\";\n}\n.fa-jsfiddle:before {\n  content: \"\\F1CC\";\n}\n.fa-life-bouy:before,\n.fa-life-buoy:before,\n.fa-life-saver:before,\n.fa-support:before,\n.fa-life-ring:before {\n  content: \"\\F1CD\";\n}\n.fa-circle-o-notch:before {\n  content: \"\\F1CE\";\n}\n.fa-ra:before,\n.fa-resistance:before,\n.fa-rebel:before {\n  content: \"\\F1D0\";\n}\n.fa-ge:before,\n.fa-empire:before {\n  content: \"\\F1D1\";\n}\n.fa-git-square:before {\n  content: \"\\F1D2\";\n}\n.fa-git:before {\n  content: \"\\F1D3\";\n}\n.fa-y-combinator-square:before,\n.fa-yc-square:before,\n.fa-hacker-news:before {\n  content: \"\\F1D4\";\n}\n.fa-tencent-weibo:before {\n  content: \"\\F1D5\";\n}\n.fa-qq:before {\n  content: \"\\F1D6\";\n}\n.fa-wechat:before,\n.fa-weixin:before {\n  content: \"\\F1D7\";\n}\n.fa-send:before,\n.fa-paper-plane:before {\n  content: \"\\F1D8\";\n}\n.fa-send-o:before,\n.fa-paper-plane-o:before {\n  content: \"\\F1D9\";\n}\n.fa-history:before {\n  content: \"\\F1DA\";\n}\n.fa-circle-thin:before {\n  content: \"\\F1DB\";\n}\n.fa-header:before {\n  content: \"\\F1DC\";\n}\n.fa-paragraph:before {\n  content: \"\\F1DD\";\n}\n.fa-sliders:before {\n  content: \"\\F1DE\";\n}\n.fa-share-alt:before {\n  content: \"\\F1E0\";\n}\n.fa-share-alt-square:before {\n  content: \"\\F1E1\";\n}\n.fa-bomb:before {\n  content: \"\\F1E2\";\n}\n.fa-soccer-ball-o:before,\n.fa-futbol-o:before {\n  content: \"\\F1E3\";\n}\n.fa-tty:before {\n  content: \"\\F1E4\";\n}\n.fa-binoculars:before {\n  content: \"\\F1E5\";\n}\n.fa-plug:before {\n  content: \"\\F1E6\";\n}\n.fa-slideshare:before {\n  content: \"\\F1E7\";\n}\n.fa-twitch:before {\n  content: \"\\F1E8\";\n}\n.fa-yelp:before {\n  content: \"\\F1E9\";\n}\n.fa-newspaper-o:before {\n  content: \"\\F1EA\";\n}\n.fa-wifi:before {\n  content: \"\\F1EB\";\n}\n.fa-calculator:before {\n  content: \"\\F1EC\";\n}\n.fa-paypal:before {\n  content: \"\\F1ED\";\n}\n.fa-google-wallet:before {\n  content: \"\\F1EE\";\n}\n.fa-cc-visa:before {\n  content: \"\\F1F0\";\n}\n.fa-cc-mastercard:before {\n  content: \"\\F1F1\";\n}\n.fa-cc-discover:before {\n  content: \"\\F1F2\";\n}\n.fa-cc-amex:before {\n  content: \"\\F1F3\";\n}\n.fa-cc-paypal:before {\n  content: \"\\F1F4\";\n}\n.fa-cc-stripe:before {\n  content: \"\\F1F5\";\n}\n.fa-bell-slash:before {\n  content: \"\\F1F6\";\n}\n.fa-bell-slash-o:before {\n  content: \"\\F1F7\";\n}\n.fa-trash:before {\n  content: \"\\F1F8\";\n}\n.fa-copyright:before {\n  content: \"\\F1F9\";\n}\n.fa-at:before {\n  content: \"\\F1FA\";\n}\n.fa-eyedropper:before {\n  content: \"\\F1FB\";\n}\n.fa-paint-brush:before {\n  content: \"\\F1FC\";\n}\n.fa-birthday-cake:before {\n  content: \"\\F1FD\";\n}\n.fa-area-chart:before {\n  content: \"\\F1FE\";\n}\n.fa-pie-chart:before {\n  content: \"\\F200\";\n}\n.fa-line-chart:before {\n  content: \"\\F201\";\n}\n.fa-lastfm:before {\n  content: \"\\F202\";\n}\n.fa-lastfm-square:before {\n  content: \"\\F203\";\n}\n.fa-toggle-off:before {\n  content: \"\\F204\";\n}\n.fa-toggle-on:before {\n  content: \"\\F205\";\n}\n.fa-bicycle:before {\n  content: \"\\F206\";\n}\n.fa-bus:before {\n  content: \"\\F207\";\n}\n.fa-ioxhost:before {\n  content: \"\\F208\";\n}\n.fa-angellist:before {\n  content: \"\\F209\";\n}\n.fa-cc:before {\n  content: \"\\F20A\";\n}\n.fa-shekel:before,\n.fa-sheqel:before,\n.fa-ils:before {\n  content: \"\\F20B\";\n}\n.fa-meanpath:before {\n  content: \"\\F20C\";\n}\n.fa-buysellads:before {\n  content: \"\\F20D\";\n}\n.fa-connectdevelop:before {\n  content: \"\\F20E\";\n}\n.fa-dashcube:before {\n  content: \"\\F210\";\n}\n.fa-forumbee:before {\n  content: \"\\F211\";\n}\n.fa-leanpub:before {\n  content: \"\\F212\";\n}\n.fa-sellsy:before {\n  content: \"\\F213\";\n}\n.fa-shirtsinbulk:before {\n  content: \"\\F214\";\n}\n.fa-simplybuilt:before {\n  content: \"\\F215\";\n}\n.fa-skyatlas:before {\n  content: \"\\F216\";\n}\n.fa-cart-plus:before {\n  content: \"\\F217\";\n}\n.fa-cart-arrow-down:before {\n  content: \"\\F218\";\n}\n.fa-diamond:before {\n  content: \"\\F219\";\n}\n.fa-ship:before {\n  content: \"\\F21A\";\n}\n.fa-user-secret:before {\n  content: \"\\F21B\";\n}\n.fa-motorcycle:before {\n  content: \"\\F21C\";\n}\n.fa-street-view:before {\n  content: \"\\F21D\";\n}\n.fa-heartbeat:before {\n  content: \"\\F21E\";\n}\n.fa-venus:before {\n  content: \"\\F221\";\n}\n.fa-mars:before {\n  content: \"\\F222\";\n}\n.fa-mercury:before {\n  content: \"\\F223\";\n}\n.fa-intersex:before,\n.fa-transgender:before {\n  content: \"\\F224\";\n}\n.fa-transgender-alt:before {\n  content: \"\\F225\";\n}\n.fa-venus-double:before {\n  content: \"\\F226\";\n}\n.fa-mars-double:before {\n  content: \"\\F227\";\n}\n.fa-venus-mars:before {\n  content: \"\\F228\";\n}\n.fa-mars-stroke:before {\n  content: \"\\F229\";\n}\n.fa-mars-stroke-v:before {\n  content: \"\\F22A\";\n}\n.fa-mars-stroke-h:before {\n  content: \"\\F22B\";\n}\n.fa-neuter:before {\n  content: \"\\F22C\";\n}\n.fa-genderless:before {\n  content: \"\\F22D\";\n}\n.fa-facebook-official:before {\n  content: \"\\F230\";\n}\n.fa-pinterest-p:before {\n  content: \"\\F231\";\n}\n.fa-whatsapp:before {\n  content: \"\\F232\";\n}\n.fa-server:before {\n  content: \"\\F233\";\n}\n.fa-user-plus:before {\n  content: \"\\F234\";\n}\n.fa-user-times:before {\n  content: \"\\F235\";\n}\n.fa-hotel:before,\n.fa-bed:before {\n  content: \"\\F236\";\n}\n.fa-viacoin:before {\n  content: \"\\F237\";\n}\n.fa-train:before {\n  content: \"\\F238\";\n}\n.fa-subway:before {\n  content: \"\\F239\";\n}\n.fa-medium:before {\n  content: \"\\F23A\";\n}\n.fa-yc:before,\n.fa-y-combinator:before {\n  content: \"\\F23B\";\n}\n.fa-optin-monster:before {\n  content: \"\\F23C\";\n}\n.fa-opencart:before {\n  content: \"\\F23D\";\n}\n.fa-expeditedssl:before {\n  content: \"\\F23E\";\n}\n.fa-battery-4:before,\n.fa-battery:before,\n.fa-battery-full:before {\n  content: \"\\F240\";\n}\n.fa-battery-3:before,\n.fa-battery-three-quarters:before {\n  content: \"\\F241\";\n}\n.fa-battery-2:before,\n.fa-battery-half:before {\n  content: \"\\F242\";\n}\n.fa-battery-1:before,\n.fa-battery-quarter:before {\n  content: \"\\F243\";\n}\n.fa-battery-0:before,\n.fa-battery-empty:before {\n  content: \"\\F244\";\n}\n.fa-mouse-pointer:before {\n  content: \"\\F245\";\n}\n.fa-i-cursor:before {\n  content: \"\\F246\";\n}\n.fa-object-group:before {\n  content: \"\\F247\";\n}\n.fa-object-ungroup:before {\n  content: \"\\F248\";\n}\n.fa-sticky-note:before {\n  content: \"\\F249\";\n}\n.fa-sticky-note-o:before {\n  content: \"\\F24A\";\n}\n.fa-cc-jcb:before {\n  content: \"\\F24B\";\n}\n.fa-cc-diners-club:before {\n  content: \"\\F24C\";\n}\n.fa-clone:before {\n  content: \"\\F24D\";\n}\n.fa-balance-scale:before {\n  content: \"\\F24E\";\n}\n.fa-hourglass-o:before {\n  content: \"\\F250\";\n}\n.fa-hourglass-1:before,\n.fa-hourglass-start:before {\n  content: \"\\F251\";\n}\n.fa-hourglass-2:before,\n.fa-hourglass-half:before {\n  content: \"\\F252\";\n}\n.fa-hourglass-3:before,\n.fa-hourglass-end:before {\n  content: \"\\F253\";\n}\n.fa-hourglass:before {\n  content: \"\\F254\";\n}\n.fa-hand-grab-o:before,\n.fa-hand-rock-o:before {\n  content: \"\\F255\";\n}\n.fa-hand-stop-o:before,\n.fa-hand-paper-o:before {\n  content: \"\\F256\";\n}\n.fa-hand-scissors-o:before {\n  content: \"\\F257\";\n}\n.fa-hand-lizard-o:before {\n  content: \"\\F258\";\n}\n.fa-hand-spock-o:before {\n  content: \"\\F259\";\n}\n.fa-hand-pointer-o:before {\n  content: \"\\F25A\";\n}\n.fa-hand-peace-o:before {\n  content: \"\\F25B\";\n}\n.fa-trademark:before {\n  content: \"\\F25C\";\n}\n.fa-registered:before {\n  content: \"\\F25D\";\n}\n.fa-creative-commons:before {\n  content: \"\\F25E\";\n}\n.fa-gg:before {\n  content: \"\\F260\";\n}\n.fa-gg-circle:before {\n  content: \"\\F261\";\n}\n.fa-tripadvisor:before {\n  content: \"\\F262\";\n}\n.fa-odnoklassniki:before {\n  content: \"\\F263\";\n}\n.fa-odnoklassniki-square:before {\n  content: \"\\F264\";\n}\n.fa-get-pocket:before {\n  content: \"\\F265\";\n}\n.fa-wikipedia-w:before {\n  content: \"\\F266\";\n}\n.fa-safari:before {\n  content: \"\\F267\";\n}\n.fa-chrome:before {\n  content: \"\\F268\";\n}\n.fa-firefox:before {\n  content: \"\\F269\";\n}\n.fa-opera:before {\n  content: \"\\F26A\";\n}\n.fa-internet-explorer:before {\n  content: \"\\F26B\";\n}\n.fa-tv:before,\n.fa-television:before {\n  content: \"\\F26C\";\n}\n.fa-contao:before {\n  content: \"\\F26D\";\n}\n.fa-500px:before {\n  content: \"\\F26E\";\n}\n.fa-amazon:before {\n  content: \"\\F270\";\n}\n.fa-calendar-plus-o:before {\n  content: \"\\F271\";\n}\n.fa-calendar-minus-o:before {\n  content: \"\\F272\";\n}\n.fa-calendar-times-o:before {\n  content: \"\\F273\";\n}\n.fa-calendar-check-o:before {\n  content: \"\\F274\";\n}\n.fa-industry:before {\n  content: \"\\F275\";\n}\n.fa-map-pin:before {\n  content: \"\\F276\";\n}\n.fa-map-signs:before {\n  content: \"\\F277\";\n}\n.fa-map-o:before {\n  content: \"\\F278\";\n}\n.fa-map:before {\n  content: \"\\F279\";\n}\n.fa-commenting:before {\n  content: \"\\F27A\";\n}\n.fa-commenting-o:before {\n  content: \"\\F27B\";\n}\n.fa-houzz:before {\n  content: \"\\F27C\";\n}\n.fa-vimeo:before {\n  content: \"\\F27D\";\n}\n.fa-black-tie:before {\n  content: \"\\F27E\";\n}\n.fa-fonticons:before {\n  content: \"\\F280\";\n}\n.fa-reddit-alien:before {\n  content: \"\\F281\";\n}\n.fa-edge:before {\n  content: \"\\F282\";\n}\n.fa-credit-card-alt:before {\n  content: \"\\F283\";\n}\n.fa-codiepie:before {\n  content: \"\\F284\";\n}\n.fa-modx:before {\n  content: \"\\F285\";\n}\n.fa-fort-awesome:before {\n  content: \"\\F286\";\n}\n.fa-usb:before {\n  content: \"\\F287\";\n}\n.fa-product-hunt:before {\n  content: \"\\F288\";\n}\n.fa-mixcloud:before {\n  content: \"\\F289\";\n}\n.fa-scribd:before {\n  content: \"\\F28A\";\n}\n.fa-pause-circle:before {\n  content: \"\\F28B\";\n}\n.fa-pause-circle-o:before {\n  content: \"\\F28C\";\n}\n.fa-stop-circle:before {\n  content: \"\\F28D\";\n}\n.fa-stop-circle-o:before {\n  content: \"\\F28E\";\n}\n.fa-shopping-bag:before {\n  content: \"\\F290\";\n}\n.fa-shopping-basket:before {\n  content: \"\\F291\";\n}\n.fa-hashtag:before {\n  content: \"\\F292\";\n}\n.fa-bluetooth:before {\n  content: \"\\F293\";\n}\n.fa-bluetooth-b:before {\n  content: \"\\F294\";\n}\n.fa-percent:before {\n  content: \"\\F295\";\n}\n.fa-gitlab:before {\n  content: \"\\F296\";\n}\n.fa-wpbeginner:before {\n  content: \"\\F297\";\n}\n.fa-wpforms:before {\n  content: \"\\F298\";\n}\n.fa-envira:before {\n  content: \"\\F299\";\n}\n.fa-universal-access:before {\n  content: \"\\F29A\";\n}\n.fa-wheelchair-alt:before {\n  content: \"\\F29B\";\n}\n.fa-question-circle-o:before {\n  content: \"\\F29C\";\n}\n.fa-blind:before {\n  content: \"\\F29D\";\n}\n.fa-audio-description:before {\n  content: \"\\F29E\";\n}\n.fa-volume-control-phone:before {\n  content: \"\\F2A0\";\n}\n.fa-braille:before {\n  content: \"\\F2A1\";\n}\n.fa-assistive-listening-systems:before {\n  content: \"\\F2A2\";\n}\n.fa-asl-interpreting:before,\n.fa-american-sign-language-interpreting:before {\n  content: \"\\F2A3\";\n}\n.fa-deafness:before,\n.fa-hard-of-hearing:before,\n.fa-deaf:before {\n  content: \"\\F2A4\";\n}\n.fa-glide:before {\n  content: \"\\F2A5\";\n}\n.fa-glide-g:before {\n  content: \"\\F2A6\";\n}\n.fa-signing:before,\n.fa-sign-language:before {\n  content: \"\\F2A7\";\n}\n.fa-low-vision:before {\n  content: \"\\F2A8\";\n}\n.fa-viadeo:before {\n  content: \"\\F2A9\";\n}\n.fa-viadeo-square:before {\n  content: \"\\F2AA\";\n}\n.fa-snapchat:before {\n  content: \"\\F2AB\";\n}\n.fa-snapchat-ghost:before {\n  content: \"\\F2AC\";\n}\n.fa-snapchat-square:before {\n  content: \"\\F2AD\";\n}\n.fa-pied-piper:before {\n  content: \"\\F2AE\";\n}\n.fa-first-order:before {\n  content: \"\\F2B0\";\n}\n.fa-yoast:before {\n  content: \"\\F2B1\";\n}\n.fa-themeisle:before {\n  content: \"\\F2B2\";\n}\n.fa-google-plus-circle:before,\n.fa-google-plus-official:before {\n  content: \"\\F2B3\";\n}\n.fa-fa:before,\n.fa-font-awesome:before {\n  content: \"\\F2B4\";\n}\n.fa-handshake-o:before {\n  content: \"\\F2B5\";\n}\n.fa-envelope-open:before {\n  content: \"\\F2B6\";\n}\n.fa-envelope-open-o:before {\n  content: \"\\F2B7\";\n}\n.fa-linode:before {\n  content: \"\\F2B8\";\n}\n.fa-address-book:before {\n  content: \"\\F2B9\";\n}\n.fa-address-book-o:before {\n  content: \"\\F2BA\";\n}\n.fa-vcard:before,\n.fa-address-card:before {\n  content: \"\\F2BB\";\n}\n.fa-vcard-o:before,\n.fa-address-card-o:before {\n  content: \"\\F2BC\";\n}\n.fa-user-circle:before {\n  content: \"\\F2BD\";\n}\n.fa-user-circle-o:before {\n  content: \"\\F2BE\";\n}\n.fa-user-o:before {\n  content: \"\\F2C0\";\n}\n.fa-id-badge:before {\n  content: \"\\F2C1\";\n}\n.fa-drivers-license:before,\n.fa-id-card:before {\n  content: \"\\F2C2\";\n}\n.fa-drivers-license-o:before,\n.fa-id-card-o:before {\n  content: \"\\F2C3\";\n}\n.fa-quora:before {\n  content: \"\\F2C4\";\n}\n.fa-free-code-camp:before {\n  content: \"\\F2C5\";\n}\n.fa-telegram:before {\n  content: \"\\F2C6\";\n}\n.fa-thermometer-4:before,\n.fa-thermometer:before,\n.fa-thermometer-full:before {\n  content: \"\\F2C7\";\n}\n.fa-thermometer-3:before,\n.fa-thermometer-three-quarters:before {\n  content: \"\\F2C8\";\n}\n.fa-thermometer-2:before,\n.fa-thermometer-half:before {\n  content: \"\\F2C9\";\n}\n.fa-thermometer-1:before,\n.fa-thermometer-quarter:before {\n  content: \"\\F2CA\";\n}\n.fa-thermometer-0:before,\n.fa-thermometer-empty:before {\n  content: \"\\F2CB\";\n}\n.fa-shower:before {\n  content: \"\\F2CC\";\n}\n.fa-bathtub:before,\n.fa-s15:before,\n.fa-bath:before {\n  content: \"\\F2CD\";\n}\n.fa-podcast:before {\n  content: \"\\F2CE\";\n}\n.fa-window-maximize:before {\n  content: \"\\F2D0\";\n}\n.fa-window-minimize:before {\n  content: \"\\F2D1\";\n}\n.fa-window-restore:before {\n  content: \"\\F2D2\";\n}\n.fa-times-rectangle:before,\n.fa-window-close:before {\n  content: \"\\F2D3\";\n}\n.fa-times-rectangle-o:before,\n.fa-window-close-o:before {\n  content: \"\\F2D4\";\n}\n.fa-bandcamp:before {\n  content: \"\\F2D5\";\n}\n.fa-grav:before {\n  content: \"\\F2D6\";\n}\n.fa-etsy:before {\n  content: \"\\F2D7\";\n}\n.fa-imdb:before {\n  content: \"\\F2D8\";\n}\n.fa-ravelry:before {\n  content: \"\\F2D9\";\n}\n.fa-eercast:before {\n  content: \"\\F2DA\";\n}\n.fa-microchip:before {\n  content: \"\\F2DB\";\n}\n.fa-snowflake-o:before {\n  content: \"\\F2DC\";\n}\n.fa-superpowers:before {\n  content: \"\\F2DD\";\n}\n.fa-wpexplorer:before {\n  content: \"\\F2DE\";\n}\n.fa-meetup:before {\n  content: \"\\F2E0\";\n}\n.sr-only {\n  position: absolute;\n  width: 1px;\n  height: 1px;\n  padding: 0;\n  margin: -1px;\n  overflow: hidden;\n  clip: rect(0, 0, 0, 0);\n  border: 0;\n}\n.sr-only-focusable:active,\n.sr-only-focusable:focus {\n  position: static;\n  width: auto;\n  height: auto;\n  margin: 0;\n  overflow: visible;\n  clip: auto;\n}\n", ""]);
+	exports.push([module.id, "/*!\n *  Font Awesome 4.7.0 by @davegandy - http://fontawesome.io - @fontawesome\n *  License - http://fontawesome.io/license (Font: SIL OFL 1.1, CSS: MIT License)\n */\n/* FONT PATH\n * -------------------------- */\n@font-face {\n  font-family: 'FontAwesome';\n  src: url(" + __webpack_require__(403) + ");\n  src: url(" + __webpack_require__(404) + "?#iefix&v=4.7.0) format('embedded-opentype'), url(" + __webpack_require__(405) + ") format('woff2'), url(" + __webpack_require__(406) + ") format('woff'), url(" + __webpack_require__(407) + ") format('truetype'), url(" + __webpack_require__(408) + "#fontawesomeregular) format('svg');\n  font-weight: normal;\n  font-style: normal;\n}\n.fa {\n  display: inline-block;\n  font: normal normal normal 14px/1 FontAwesome;\n  font-size: inherit;\n  text-rendering: auto;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n}\n/* makes the font 33% larger relative to the icon container */\n.fa-lg {\n  font-size: 1.33333333em;\n  line-height: 0.75em;\n  vertical-align: -15%;\n}\n.fa-2x {\n  font-size: 2em;\n}\n.fa-3x {\n  font-size: 3em;\n}\n.fa-4x {\n  font-size: 4em;\n}\n.fa-5x {\n  font-size: 5em;\n}\n.fa-fw {\n  width: 1.28571429em;\n  text-align: center;\n}\n.fa-ul {\n  padding-left: 0;\n  margin-left: 2.14285714em;\n  list-style-type: none;\n}\n.fa-ul > li {\n  position: relative;\n}\n.fa-li {\n  position: absolute;\n  left: -2.14285714em;\n  width: 2.14285714em;\n  top: 0.14285714em;\n  text-align: center;\n}\n.fa-li.fa-lg {\n  left: -1.85714286em;\n}\n.fa-border {\n  padding: .2em .25em .15em;\n  border: solid 0.08em #eeeeee;\n  border-radius: .1em;\n}\n.fa-pull-left {\n  float: left;\n}\n.fa-pull-right {\n  float: right;\n}\n.fa.fa-pull-left {\n  margin-right: .3em;\n}\n.fa.fa-pull-right {\n  margin-left: .3em;\n}\n/* Deprecated as of 4.4.0 */\n.pull-right {\n  float: right;\n}\n.pull-left {\n  float: left;\n}\n.fa.pull-left {\n  margin-right: .3em;\n}\n.fa.pull-right {\n  margin-left: .3em;\n}\n.fa-spin {\n  -webkit-animation: fa-spin 2s infinite linear;\n  animation: fa-spin 2s infinite linear;\n}\n.fa-pulse {\n  -webkit-animation: fa-spin 1s infinite steps(8);\n  animation: fa-spin 1s infinite steps(8);\n}\n@-webkit-keyframes fa-spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n    transform: rotate(0deg);\n  }\n  100% {\n    -webkit-transform: rotate(359deg);\n    transform: rotate(359deg);\n  }\n}\n@keyframes fa-spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n    transform: rotate(0deg);\n  }\n  100% {\n    -webkit-transform: rotate(359deg);\n    transform: rotate(359deg);\n  }\n}\n.fa-rotate-90 {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=1)\";\n  -webkit-transform: rotate(90deg);\n  -ms-transform: rotate(90deg);\n  transform: rotate(90deg);\n}\n.fa-rotate-180 {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=2)\";\n  -webkit-transform: rotate(180deg);\n  -ms-transform: rotate(180deg);\n  transform: rotate(180deg);\n}\n.fa-rotate-270 {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=3)\";\n  -webkit-transform: rotate(270deg);\n  -ms-transform: rotate(270deg);\n  transform: rotate(270deg);\n}\n.fa-flip-horizontal {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=0, mirror=1)\";\n  -webkit-transform: scale(-1, 1);\n  -ms-transform: scale(-1, 1);\n  transform: scale(-1, 1);\n}\n.fa-flip-vertical {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=2, mirror=1)\";\n  -webkit-transform: scale(1, -1);\n  -ms-transform: scale(1, -1);\n  transform: scale(1, -1);\n}\n:root .fa-rotate-90,\n:root .fa-rotate-180,\n:root .fa-rotate-270,\n:root .fa-flip-horizontal,\n:root .fa-flip-vertical {\n  filter: none;\n}\n.fa-stack {\n  position: relative;\n  display: inline-block;\n  width: 2em;\n  height: 2em;\n  line-height: 2em;\n  vertical-align: middle;\n}\n.fa-stack-1x,\n.fa-stack-2x {\n  position: absolute;\n  left: 0;\n  width: 100%;\n  text-align: center;\n}\n.fa-stack-1x {\n  line-height: inherit;\n}\n.fa-stack-2x {\n  font-size: 2em;\n}\n.fa-inverse {\n  color: #ffffff;\n}\n/* Font Awesome uses the Unicode Private Use Area (PUA) to ensure screen\n   readers do not read off random characters that represent icons */\n.fa-glass:before {\n  content: \"\\F000\";\n}\n.fa-music:before {\n  content: \"\\F001\";\n}\n.fa-search:before {\n  content: \"\\F002\";\n}\n.fa-envelope-o:before {\n  content: \"\\F003\";\n}\n.fa-heart:before {\n  content: \"\\F004\";\n}\n.fa-star:before {\n  content: \"\\F005\";\n}\n.fa-star-o:before {\n  content: \"\\F006\";\n}\n.fa-user:before {\n  content: \"\\F007\";\n}\n.fa-film:before {\n  content: \"\\F008\";\n}\n.fa-th-large:before {\n  content: \"\\F009\";\n}\n.fa-th:before {\n  content: \"\\F00A\";\n}\n.fa-th-list:before {\n  content: \"\\F00B\";\n}\n.fa-check:before {\n  content: \"\\F00C\";\n}\n.fa-remove:before,\n.fa-close:before,\n.fa-times:before {\n  content: \"\\F00D\";\n}\n.fa-search-plus:before {\n  content: \"\\F00E\";\n}\n.fa-search-minus:before {\n  content: \"\\F010\";\n}\n.fa-power-off:before {\n  content: \"\\F011\";\n}\n.fa-signal:before {\n  content: \"\\F012\";\n}\n.fa-gear:before,\n.fa-cog:before {\n  content: \"\\F013\";\n}\n.fa-trash-o:before {\n  content: \"\\F014\";\n}\n.fa-home:before {\n  content: \"\\F015\";\n}\n.fa-file-o:before {\n  content: \"\\F016\";\n}\n.fa-clock-o:before {\n  content: \"\\F017\";\n}\n.fa-road:before {\n  content: \"\\F018\";\n}\n.fa-download:before {\n  content: \"\\F019\";\n}\n.fa-arrow-circle-o-down:before {\n  content: \"\\F01A\";\n}\n.fa-arrow-circle-o-up:before {\n  content: \"\\F01B\";\n}\n.fa-inbox:before {\n  content: \"\\F01C\";\n}\n.fa-play-circle-o:before {\n  content: \"\\F01D\";\n}\n.fa-rotate-right:before,\n.fa-repeat:before {\n  content: \"\\F01E\";\n}\n.fa-refresh:before {\n  content: \"\\F021\";\n}\n.fa-list-alt:before {\n  content: \"\\F022\";\n}\n.fa-lock:before {\n  content: \"\\F023\";\n}\n.fa-flag:before {\n  content: \"\\F024\";\n}\n.fa-headphones:before {\n  content: \"\\F025\";\n}\n.fa-volume-off:before {\n  content: \"\\F026\";\n}\n.fa-volume-down:before {\n  content: \"\\F027\";\n}\n.fa-volume-up:before {\n  content: \"\\F028\";\n}\n.fa-qrcode:before {\n  content: \"\\F029\";\n}\n.fa-barcode:before {\n  content: \"\\F02A\";\n}\n.fa-tag:before {\n  content: \"\\F02B\";\n}\n.fa-tags:before {\n  content: \"\\F02C\";\n}\n.fa-book:before {\n  content: \"\\F02D\";\n}\n.fa-bookmark:before {\n  content: \"\\F02E\";\n}\n.fa-print:before {\n  content: \"\\F02F\";\n}\n.fa-camera:before {\n  content: \"\\F030\";\n}\n.fa-font:before {\n  content: \"\\F031\";\n}\n.fa-bold:before {\n  content: \"\\F032\";\n}\n.fa-italic:before {\n  content: \"\\F033\";\n}\n.fa-text-height:before {\n  content: \"\\F034\";\n}\n.fa-text-width:before {\n  content: \"\\F035\";\n}\n.fa-align-left:before {\n  content: \"\\F036\";\n}\n.fa-align-center:before {\n  content: \"\\F037\";\n}\n.fa-align-right:before {\n  content: \"\\F038\";\n}\n.fa-align-justify:before {\n  content: \"\\F039\";\n}\n.fa-list:before {\n  content: \"\\F03A\";\n}\n.fa-dedent:before,\n.fa-outdent:before {\n  content: \"\\F03B\";\n}\n.fa-indent:before {\n  content: \"\\F03C\";\n}\n.fa-video-camera:before {\n  content: \"\\F03D\";\n}\n.fa-photo:before,\n.fa-image:before,\n.fa-picture-o:before {\n  content: \"\\F03E\";\n}\n.fa-pencil:before {\n  content: \"\\F040\";\n}\n.fa-map-marker:before {\n  content: \"\\F041\";\n}\n.fa-adjust:before {\n  content: \"\\F042\";\n}\n.fa-tint:before {\n  content: \"\\F043\";\n}\n.fa-edit:before,\n.fa-pencil-square-o:before {\n  content: \"\\F044\";\n}\n.fa-share-square-o:before {\n  content: \"\\F045\";\n}\n.fa-check-square-o:before {\n  content: \"\\F046\";\n}\n.fa-arrows:before {\n  content: \"\\F047\";\n}\n.fa-step-backward:before {\n  content: \"\\F048\";\n}\n.fa-fast-backward:before {\n  content: \"\\F049\";\n}\n.fa-backward:before {\n  content: \"\\F04A\";\n}\n.fa-play:before {\n  content: \"\\F04B\";\n}\n.fa-pause:before {\n  content: \"\\F04C\";\n}\n.fa-stop:before {\n  content: \"\\F04D\";\n}\n.fa-forward:before {\n  content: \"\\F04E\";\n}\n.fa-fast-forward:before {\n  content: \"\\F050\";\n}\n.fa-step-forward:before {\n  content: \"\\F051\";\n}\n.fa-eject:before {\n  content: \"\\F052\";\n}\n.fa-chevron-left:before {\n  content: \"\\F053\";\n}\n.fa-chevron-right:before {\n  content: \"\\F054\";\n}\n.fa-plus-circle:before {\n  content: \"\\F055\";\n}\n.fa-minus-circle:before {\n  content: \"\\F056\";\n}\n.fa-times-circle:before {\n  content: \"\\F057\";\n}\n.fa-check-circle:before {\n  content: \"\\F058\";\n}\n.fa-question-circle:before {\n  content: \"\\F059\";\n}\n.fa-info-circle:before {\n  content: \"\\F05A\";\n}\n.fa-crosshairs:before {\n  content: \"\\F05B\";\n}\n.fa-times-circle-o:before {\n  content: \"\\F05C\";\n}\n.fa-check-circle-o:before {\n  content: \"\\F05D\";\n}\n.fa-ban:before {\n  content: \"\\F05E\";\n}\n.fa-arrow-left:before {\n  content: \"\\F060\";\n}\n.fa-arrow-right:before {\n  content: \"\\F061\";\n}\n.fa-arrow-up:before {\n  content: \"\\F062\";\n}\n.fa-arrow-down:before {\n  content: \"\\F063\";\n}\n.fa-mail-forward:before,\n.fa-share:before {\n  content: \"\\F064\";\n}\n.fa-expand:before {\n  content: \"\\F065\";\n}\n.fa-compress:before {\n  content: \"\\F066\";\n}\n.fa-plus:before {\n  content: \"\\F067\";\n}\n.fa-minus:before {\n  content: \"\\F068\";\n}\n.fa-asterisk:before {\n  content: \"\\F069\";\n}\n.fa-exclamation-circle:before {\n  content: \"\\F06A\";\n}\n.fa-gift:before {\n  content: \"\\F06B\";\n}\n.fa-leaf:before {\n  content: \"\\F06C\";\n}\n.fa-fire:before {\n  content: \"\\F06D\";\n}\n.fa-eye:before {\n  content: \"\\F06E\";\n}\n.fa-eye-slash:before {\n  content: \"\\F070\";\n}\n.fa-warning:before,\n.fa-exclamation-triangle:before {\n  content: \"\\F071\";\n}\n.fa-plane:before {\n  content: \"\\F072\";\n}\n.fa-calendar:before {\n  content: \"\\F073\";\n}\n.fa-random:before {\n  content: \"\\F074\";\n}\n.fa-comment:before {\n  content: \"\\F075\";\n}\n.fa-magnet:before {\n  content: \"\\F076\";\n}\n.fa-chevron-up:before {\n  content: \"\\F077\";\n}\n.fa-chevron-down:before {\n  content: \"\\F078\";\n}\n.fa-retweet:before {\n  content: \"\\F079\";\n}\n.fa-shopping-cart:before {\n  content: \"\\F07A\";\n}\n.fa-folder:before {\n  content: \"\\F07B\";\n}\n.fa-folder-open:before {\n  content: \"\\F07C\";\n}\n.fa-arrows-v:before {\n  content: \"\\F07D\";\n}\n.fa-arrows-h:before {\n  content: \"\\F07E\";\n}\n.fa-bar-chart-o:before,\n.fa-bar-chart:before {\n  content: \"\\F080\";\n}\n.fa-twitter-square:before {\n  content: \"\\F081\";\n}\n.fa-facebook-square:before {\n  content: \"\\F082\";\n}\n.fa-camera-retro:before {\n  content: \"\\F083\";\n}\n.fa-key:before {\n  content: \"\\F084\";\n}\n.fa-gears:before,\n.fa-cogs:before {\n  content: \"\\F085\";\n}\n.fa-comments:before {\n  content: \"\\F086\";\n}\n.fa-thumbs-o-up:before {\n  content: \"\\F087\";\n}\n.fa-thumbs-o-down:before {\n  content: \"\\F088\";\n}\n.fa-star-half:before {\n  content: \"\\F089\";\n}\n.fa-heart-o:before {\n  content: \"\\F08A\";\n}\n.fa-sign-out:before {\n  content: \"\\F08B\";\n}\n.fa-linkedin-square:before {\n  content: \"\\F08C\";\n}\n.fa-thumb-tack:before {\n  content: \"\\F08D\";\n}\n.fa-external-link:before {\n  content: \"\\F08E\";\n}\n.fa-sign-in:before {\n  content: \"\\F090\";\n}\n.fa-trophy:before {\n  content: \"\\F091\";\n}\n.fa-github-square:before {\n  content: \"\\F092\";\n}\n.fa-upload:before {\n  content: \"\\F093\";\n}\n.fa-lemon-o:before {\n  content: \"\\F094\";\n}\n.fa-phone:before {\n  content: \"\\F095\";\n}\n.fa-square-o:before {\n  content: \"\\F096\";\n}\n.fa-bookmark-o:before {\n  content: \"\\F097\";\n}\n.fa-phone-square:before {\n  content: \"\\F098\";\n}\n.fa-twitter:before {\n  content: \"\\F099\";\n}\n.fa-facebook-f:before,\n.fa-facebook:before {\n  content: \"\\F09A\";\n}\n.fa-github:before {\n  content: \"\\F09B\";\n}\n.fa-unlock:before {\n  content: \"\\F09C\";\n}\n.fa-credit-card:before {\n  content: \"\\F09D\";\n}\n.fa-feed:before,\n.fa-rss:before {\n  content: \"\\F09E\";\n}\n.fa-hdd-o:before {\n  content: \"\\F0A0\";\n}\n.fa-bullhorn:before {\n  content: \"\\F0A1\";\n}\n.fa-bell:before {\n  content: \"\\F0F3\";\n}\n.fa-certificate:before {\n  content: \"\\F0A3\";\n}\n.fa-hand-o-right:before {\n  content: \"\\F0A4\";\n}\n.fa-hand-o-left:before {\n  content: \"\\F0A5\";\n}\n.fa-hand-o-up:before {\n  content: \"\\F0A6\";\n}\n.fa-hand-o-down:before {\n  content: \"\\F0A7\";\n}\n.fa-arrow-circle-left:before {\n  content: \"\\F0A8\";\n}\n.fa-arrow-circle-right:before {\n  content: \"\\F0A9\";\n}\n.fa-arrow-circle-up:before {\n  content: \"\\F0AA\";\n}\n.fa-arrow-circle-down:before {\n  content: \"\\F0AB\";\n}\n.fa-globe:before {\n  content: \"\\F0AC\";\n}\n.fa-wrench:before {\n  content: \"\\F0AD\";\n}\n.fa-tasks:before {\n  content: \"\\F0AE\";\n}\n.fa-filter:before {\n  content: \"\\F0B0\";\n}\n.fa-briefcase:before {\n  content: \"\\F0B1\";\n}\n.fa-arrows-alt:before {\n  content: \"\\F0B2\";\n}\n.fa-group:before,\n.fa-users:before {\n  content: \"\\F0C0\";\n}\n.fa-chain:before,\n.fa-link:before {\n  content: \"\\F0C1\";\n}\n.fa-cloud:before {\n  content: \"\\F0C2\";\n}\n.fa-flask:before {\n  content: \"\\F0C3\";\n}\n.fa-cut:before,\n.fa-scissors:before {\n  content: \"\\F0C4\";\n}\n.fa-copy:before,\n.fa-files-o:before {\n  content: \"\\F0C5\";\n}\n.fa-paperclip:before {\n  content: \"\\F0C6\";\n}\n.fa-save:before,\n.fa-floppy-o:before {\n  content: \"\\F0C7\";\n}\n.fa-square:before {\n  content: \"\\F0C8\";\n}\n.fa-navicon:before,\n.fa-reorder:before,\n.fa-bars:before {\n  content: \"\\F0C9\";\n}\n.fa-list-ul:before {\n  content: \"\\F0CA\";\n}\n.fa-list-ol:before {\n  content: \"\\F0CB\";\n}\n.fa-strikethrough:before {\n  content: \"\\F0CC\";\n}\n.fa-underline:before {\n  content: \"\\F0CD\";\n}\n.fa-table:before {\n  content: \"\\F0CE\";\n}\n.fa-magic:before {\n  content: \"\\F0D0\";\n}\n.fa-truck:before {\n  content: \"\\F0D1\";\n}\n.fa-pinterest:before {\n  content: \"\\F0D2\";\n}\n.fa-pinterest-square:before {\n  content: \"\\F0D3\";\n}\n.fa-google-plus-square:before {\n  content: \"\\F0D4\";\n}\n.fa-google-plus:before {\n  content: \"\\F0D5\";\n}\n.fa-money:before {\n  content: \"\\F0D6\";\n}\n.fa-caret-down:before {\n  content: \"\\F0D7\";\n}\n.fa-caret-up:before {\n  content: \"\\F0D8\";\n}\n.fa-caret-left:before {\n  content: \"\\F0D9\";\n}\n.fa-caret-right:before {\n  content: \"\\F0DA\";\n}\n.fa-columns:before {\n  content: \"\\F0DB\";\n}\n.fa-unsorted:before,\n.fa-sort:before {\n  content: \"\\F0DC\";\n}\n.fa-sort-down:before,\n.fa-sort-desc:before {\n  content: \"\\F0DD\";\n}\n.fa-sort-up:before,\n.fa-sort-asc:before {\n  content: \"\\F0DE\";\n}\n.fa-envelope:before {\n  content: \"\\F0E0\";\n}\n.fa-linkedin:before {\n  content: \"\\F0E1\";\n}\n.fa-rotate-left:before,\n.fa-undo:before {\n  content: \"\\F0E2\";\n}\n.fa-legal:before,\n.fa-gavel:before {\n  content: \"\\F0E3\";\n}\n.fa-dashboard:before,\n.fa-tachometer:before {\n  content: \"\\F0E4\";\n}\n.fa-comment-o:before {\n  content: \"\\F0E5\";\n}\n.fa-comments-o:before {\n  content: \"\\F0E6\";\n}\n.fa-flash:before,\n.fa-bolt:before {\n  content: \"\\F0E7\";\n}\n.fa-sitemap:before {\n  content: \"\\F0E8\";\n}\n.fa-umbrella:before {\n  content: \"\\F0E9\";\n}\n.fa-paste:before,\n.fa-clipboard:before {\n  content: \"\\F0EA\";\n}\n.fa-lightbulb-o:before {\n  content: \"\\F0EB\";\n}\n.fa-exchange:before {\n  content: \"\\F0EC\";\n}\n.fa-cloud-download:before {\n  content: \"\\F0ED\";\n}\n.fa-cloud-upload:before {\n  content: \"\\F0EE\";\n}\n.fa-user-md:before {\n  content: \"\\F0F0\";\n}\n.fa-stethoscope:before {\n  content: \"\\F0F1\";\n}\n.fa-suitcase:before {\n  content: \"\\F0F2\";\n}\n.fa-bell-o:before {\n  content: \"\\F0A2\";\n}\n.fa-coffee:before {\n  content: \"\\F0F4\";\n}\n.fa-cutlery:before {\n  content: \"\\F0F5\";\n}\n.fa-file-text-o:before {\n  content: \"\\F0F6\";\n}\n.fa-building-o:before {\n  content: \"\\F0F7\";\n}\n.fa-hospital-o:before {\n  content: \"\\F0F8\";\n}\n.fa-ambulance:before {\n  content: \"\\F0F9\";\n}\n.fa-medkit:before {\n  content: \"\\F0FA\";\n}\n.fa-fighter-jet:before {\n  content: \"\\F0FB\";\n}\n.fa-beer:before {\n  content: \"\\F0FC\";\n}\n.fa-h-square:before {\n  content: \"\\F0FD\";\n}\n.fa-plus-square:before {\n  content: \"\\F0FE\";\n}\n.fa-angle-double-left:before {\n  content: \"\\F100\";\n}\n.fa-angle-double-right:before {\n  content: \"\\F101\";\n}\n.fa-angle-double-up:before {\n  content: \"\\F102\";\n}\n.fa-angle-double-down:before {\n  content: \"\\F103\";\n}\n.fa-angle-left:before {\n  content: \"\\F104\";\n}\n.fa-angle-right:before {\n  content: \"\\F105\";\n}\n.fa-angle-up:before {\n  content: \"\\F106\";\n}\n.fa-angle-down:before {\n  content: \"\\F107\";\n}\n.fa-desktop:before {\n  content: \"\\F108\";\n}\n.fa-laptop:before {\n  content: \"\\F109\";\n}\n.fa-tablet:before {\n  content: \"\\F10A\";\n}\n.fa-mobile-phone:before,\n.fa-mobile:before {\n  content: \"\\F10B\";\n}\n.fa-circle-o:before {\n  content: \"\\F10C\";\n}\n.fa-quote-left:before {\n  content: \"\\F10D\";\n}\n.fa-quote-right:before {\n  content: \"\\F10E\";\n}\n.fa-spinner:before {\n  content: \"\\F110\";\n}\n.fa-circle:before {\n  content: \"\\F111\";\n}\n.fa-mail-reply:before,\n.fa-reply:before {\n  content: \"\\F112\";\n}\n.fa-github-alt:before {\n  content: \"\\F113\";\n}\n.fa-folder-o:before {\n  content: \"\\F114\";\n}\n.fa-folder-open-o:before {\n  content: \"\\F115\";\n}\n.fa-smile-o:before {\n  content: \"\\F118\";\n}\n.fa-frown-o:before {\n  content: \"\\F119\";\n}\n.fa-meh-o:before {\n  content: \"\\F11A\";\n}\n.fa-gamepad:before {\n  content: \"\\F11B\";\n}\n.fa-keyboard-o:before {\n  content: \"\\F11C\";\n}\n.fa-flag-o:before {\n  content: \"\\F11D\";\n}\n.fa-flag-checkered:before {\n  content: \"\\F11E\";\n}\n.fa-terminal:before {\n  content: \"\\F120\";\n}\n.fa-code:before {\n  content: \"\\F121\";\n}\n.fa-mail-reply-all:before,\n.fa-reply-all:before {\n  content: \"\\F122\";\n}\n.fa-star-half-empty:before,\n.fa-star-half-full:before,\n.fa-star-half-o:before {\n  content: \"\\F123\";\n}\n.fa-location-arrow:before {\n  content: \"\\F124\";\n}\n.fa-crop:before {\n  content: \"\\F125\";\n}\n.fa-code-fork:before {\n  content: \"\\F126\";\n}\n.fa-unlink:before,\n.fa-chain-broken:before {\n  content: \"\\F127\";\n}\n.fa-question:before {\n  content: \"\\F128\";\n}\n.fa-info:before {\n  content: \"\\F129\";\n}\n.fa-exclamation:before {\n  content: \"\\F12A\";\n}\n.fa-superscript:before {\n  content: \"\\F12B\";\n}\n.fa-subscript:before {\n  content: \"\\F12C\";\n}\n.fa-eraser:before {\n  content: \"\\F12D\";\n}\n.fa-puzzle-piece:before {\n  content: \"\\F12E\";\n}\n.fa-microphone:before {\n  content: \"\\F130\";\n}\n.fa-microphone-slash:before {\n  content: \"\\F131\";\n}\n.fa-shield:before {\n  content: \"\\F132\";\n}\n.fa-calendar-o:before {\n  content: \"\\F133\";\n}\n.fa-fire-extinguisher:before {\n  content: \"\\F134\";\n}\n.fa-rocket:before {\n  content: \"\\F135\";\n}\n.fa-maxcdn:before {\n  content: \"\\F136\";\n}\n.fa-chevron-circle-left:before {\n  content: \"\\F137\";\n}\n.fa-chevron-circle-right:before {\n  content: \"\\F138\";\n}\n.fa-chevron-circle-up:before {\n  content: \"\\F139\";\n}\n.fa-chevron-circle-down:before {\n  content: \"\\F13A\";\n}\n.fa-html5:before {\n  content: \"\\F13B\";\n}\n.fa-css3:before {\n  content: \"\\F13C\";\n}\n.fa-anchor:before {\n  content: \"\\F13D\";\n}\n.fa-unlock-alt:before {\n  content: \"\\F13E\";\n}\n.fa-bullseye:before {\n  content: \"\\F140\";\n}\n.fa-ellipsis-h:before {\n  content: \"\\F141\";\n}\n.fa-ellipsis-v:before {\n  content: \"\\F142\";\n}\n.fa-rss-square:before {\n  content: \"\\F143\";\n}\n.fa-play-circle:before {\n  content: \"\\F144\";\n}\n.fa-ticket:before {\n  content: \"\\F145\";\n}\n.fa-minus-square:before {\n  content: \"\\F146\";\n}\n.fa-minus-square-o:before {\n  content: \"\\F147\";\n}\n.fa-level-up:before {\n  content: \"\\F148\";\n}\n.fa-level-down:before {\n  content: \"\\F149\";\n}\n.fa-check-square:before {\n  content: \"\\F14A\";\n}\n.fa-pencil-square:before {\n  content: \"\\F14B\";\n}\n.fa-external-link-square:before {\n  content: \"\\F14C\";\n}\n.fa-share-square:before {\n  content: \"\\F14D\";\n}\n.fa-compass:before {\n  content: \"\\F14E\";\n}\n.fa-toggle-down:before,\n.fa-caret-square-o-down:before {\n  content: \"\\F150\";\n}\n.fa-toggle-up:before,\n.fa-caret-square-o-up:before {\n  content: \"\\F151\";\n}\n.fa-toggle-right:before,\n.fa-caret-square-o-right:before {\n  content: \"\\F152\";\n}\n.fa-euro:before,\n.fa-eur:before {\n  content: \"\\F153\";\n}\n.fa-gbp:before {\n  content: \"\\F154\";\n}\n.fa-dollar:before,\n.fa-usd:before {\n  content: \"\\F155\";\n}\n.fa-rupee:before,\n.fa-inr:before {\n  content: \"\\F156\";\n}\n.fa-cny:before,\n.fa-rmb:before,\n.fa-yen:before,\n.fa-jpy:before {\n  content: \"\\F157\";\n}\n.fa-ruble:before,\n.fa-rouble:before,\n.fa-rub:before {\n  content: \"\\F158\";\n}\n.fa-won:before,\n.fa-krw:before {\n  content: \"\\F159\";\n}\n.fa-bitcoin:before,\n.fa-btc:before {\n  content: \"\\F15A\";\n}\n.fa-file:before {\n  content: \"\\F15B\";\n}\n.fa-file-text:before {\n  content: \"\\F15C\";\n}\n.fa-sort-alpha-asc:before {\n  content: \"\\F15D\";\n}\n.fa-sort-alpha-desc:before {\n  content: \"\\F15E\";\n}\n.fa-sort-amount-asc:before {\n  content: \"\\F160\";\n}\n.fa-sort-amount-desc:before {\n  content: \"\\F161\";\n}\n.fa-sort-numeric-asc:before {\n  content: \"\\F162\";\n}\n.fa-sort-numeric-desc:before {\n  content: \"\\F163\";\n}\n.fa-thumbs-up:before {\n  content: \"\\F164\";\n}\n.fa-thumbs-down:before {\n  content: \"\\F165\";\n}\n.fa-youtube-square:before {\n  content: \"\\F166\";\n}\n.fa-youtube:before {\n  content: \"\\F167\";\n}\n.fa-xing:before {\n  content: \"\\F168\";\n}\n.fa-xing-square:before {\n  content: \"\\F169\";\n}\n.fa-youtube-play:before {\n  content: \"\\F16A\";\n}\n.fa-dropbox:before {\n  content: \"\\F16B\";\n}\n.fa-stack-overflow:before {\n  content: \"\\F16C\";\n}\n.fa-instagram:before {\n  content: \"\\F16D\";\n}\n.fa-flickr:before {\n  content: \"\\F16E\";\n}\n.fa-adn:before {\n  content: \"\\F170\";\n}\n.fa-bitbucket:before {\n  content: \"\\F171\";\n}\n.fa-bitbucket-square:before {\n  content: \"\\F172\";\n}\n.fa-tumblr:before {\n  content: \"\\F173\";\n}\n.fa-tumblr-square:before {\n  content: \"\\F174\";\n}\n.fa-long-arrow-down:before {\n  content: \"\\F175\";\n}\n.fa-long-arrow-up:before {\n  content: \"\\F176\";\n}\n.fa-long-arrow-left:before {\n  content: \"\\F177\";\n}\n.fa-long-arrow-right:before {\n  content: \"\\F178\";\n}\n.fa-apple:before {\n  content: \"\\F179\";\n}\n.fa-windows:before {\n  content: \"\\F17A\";\n}\n.fa-android:before {\n  content: \"\\F17B\";\n}\n.fa-linux:before {\n  content: \"\\F17C\";\n}\n.fa-dribbble:before {\n  content: \"\\F17D\";\n}\n.fa-skype:before {\n  content: \"\\F17E\";\n}\n.fa-foursquare:before {\n  content: \"\\F180\";\n}\n.fa-trello:before {\n  content: \"\\F181\";\n}\n.fa-female:before {\n  content: \"\\F182\";\n}\n.fa-male:before {\n  content: \"\\F183\";\n}\n.fa-gittip:before,\n.fa-gratipay:before {\n  content: \"\\F184\";\n}\n.fa-sun-o:before {\n  content: \"\\F185\";\n}\n.fa-moon-o:before {\n  content: \"\\F186\";\n}\n.fa-archive:before {\n  content: \"\\F187\";\n}\n.fa-bug:before {\n  content: \"\\F188\";\n}\n.fa-vk:before {\n  content: \"\\F189\";\n}\n.fa-weibo:before {\n  content: \"\\F18A\";\n}\n.fa-renren:before {\n  content: \"\\F18B\";\n}\n.fa-pagelines:before {\n  content: \"\\F18C\";\n}\n.fa-stack-exchange:before {\n  content: \"\\F18D\";\n}\n.fa-arrow-circle-o-right:before {\n  content: \"\\F18E\";\n}\n.fa-arrow-circle-o-left:before {\n  content: \"\\F190\";\n}\n.fa-toggle-left:before,\n.fa-caret-square-o-left:before {\n  content: \"\\F191\";\n}\n.fa-dot-circle-o:before {\n  content: \"\\F192\";\n}\n.fa-wheelchair:before {\n  content: \"\\F193\";\n}\n.fa-vimeo-square:before {\n  content: \"\\F194\";\n}\n.fa-turkish-lira:before,\n.fa-try:before {\n  content: \"\\F195\";\n}\n.fa-plus-square-o:before {\n  content: \"\\F196\";\n}\n.fa-space-shuttle:before {\n  content: \"\\F197\";\n}\n.fa-slack:before {\n  content: \"\\F198\";\n}\n.fa-envelope-square:before {\n  content: \"\\F199\";\n}\n.fa-wordpress:before {\n  content: \"\\F19A\";\n}\n.fa-openid:before {\n  content: \"\\F19B\";\n}\n.fa-institution:before,\n.fa-bank:before,\n.fa-university:before {\n  content: \"\\F19C\";\n}\n.fa-mortar-board:before,\n.fa-graduation-cap:before {\n  content: \"\\F19D\";\n}\n.fa-yahoo:before {\n  content: \"\\F19E\";\n}\n.fa-google:before {\n  content: \"\\F1A0\";\n}\n.fa-reddit:before {\n  content: \"\\F1A1\";\n}\n.fa-reddit-square:before {\n  content: \"\\F1A2\";\n}\n.fa-stumbleupon-circle:before {\n  content: \"\\F1A3\";\n}\n.fa-stumbleupon:before {\n  content: \"\\F1A4\";\n}\n.fa-delicious:before {\n  content: \"\\F1A5\";\n}\n.fa-digg:before {\n  content: \"\\F1A6\";\n}\n.fa-pied-piper-pp:before {\n  content: \"\\F1A7\";\n}\n.fa-pied-piper-alt:before {\n  content: \"\\F1A8\";\n}\n.fa-drupal:before {\n  content: \"\\F1A9\";\n}\n.fa-joomla:before {\n  content: \"\\F1AA\";\n}\n.fa-language:before {\n  content: \"\\F1AB\";\n}\n.fa-fax:before {\n  content: \"\\F1AC\";\n}\n.fa-building:before {\n  content: \"\\F1AD\";\n}\n.fa-child:before {\n  content: \"\\F1AE\";\n}\n.fa-paw:before {\n  content: \"\\F1B0\";\n}\n.fa-spoon:before {\n  content: \"\\F1B1\";\n}\n.fa-cube:before {\n  content: \"\\F1B2\";\n}\n.fa-cubes:before {\n  content: \"\\F1B3\";\n}\n.fa-behance:before {\n  content: \"\\F1B4\";\n}\n.fa-behance-square:before {\n  content: \"\\F1B5\";\n}\n.fa-steam:before {\n  content: \"\\F1B6\";\n}\n.fa-steam-square:before {\n  content: \"\\F1B7\";\n}\n.fa-recycle:before {\n  content: \"\\F1B8\";\n}\n.fa-automobile:before,\n.fa-car:before {\n  content: \"\\F1B9\";\n}\n.fa-cab:before,\n.fa-taxi:before {\n  content: \"\\F1BA\";\n}\n.fa-tree:before {\n  content: \"\\F1BB\";\n}\n.fa-spotify:before {\n  content: \"\\F1BC\";\n}\n.fa-deviantart:before {\n  content: \"\\F1BD\";\n}\n.fa-soundcloud:before {\n  content: \"\\F1BE\";\n}\n.fa-database:before {\n  content: \"\\F1C0\";\n}\n.fa-file-pdf-o:before {\n  content: \"\\F1C1\";\n}\n.fa-file-word-o:before {\n  content: \"\\F1C2\";\n}\n.fa-file-excel-o:before {\n  content: \"\\F1C3\";\n}\n.fa-file-powerpoint-o:before {\n  content: \"\\F1C4\";\n}\n.fa-file-photo-o:before,\n.fa-file-picture-o:before,\n.fa-file-image-o:before {\n  content: \"\\F1C5\";\n}\n.fa-file-zip-o:before,\n.fa-file-archive-o:before {\n  content: \"\\F1C6\";\n}\n.fa-file-sound-o:before,\n.fa-file-audio-o:before {\n  content: \"\\F1C7\";\n}\n.fa-file-movie-o:before,\n.fa-file-video-o:before {\n  content: \"\\F1C8\";\n}\n.fa-file-code-o:before {\n  content: \"\\F1C9\";\n}\n.fa-vine:before {\n  content: \"\\F1CA\";\n}\n.fa-codepen:before {\n  content: \"\\F1CB\";\n}\n.fa-jsfiddle:before {\n  content: \"\\F1CC\";\n}\n.fa-life-bouy:before,\n.fa-life-buoy:before,\n.fa-life-saver:before,\n.fa-support:before,\n.fa-life-ring:before {\n  content: \"\\F1CD\";\n}\n.fa-circle-o-notch:before {\n  content: \"\\F1CE\";\n}\n.fa-ra:before,\n.fa-resistance:before,\n.fa-rebel:before {\n  content: \"\\F1D0\";\n}\n.fa-ge:before,\n.fa-empire:before {\n  content: \"\\F1D1\";\n}\n.fa-git-square:before {\n  content: \"\\F1D2\";\n}\n.fa-git:before {\n  content: \"\\F1D3\";\n}\n.fa-y-combinator-square:before,\n.fa-yc-square:before,\n.fa-hacker-news:before {\n  content: \"\\F1D4\";\n}\n.fa-tencent-weibo:before {\n  content: \"\\F1D5\";\n}\n.fa-qq:before {\n  content: \"\\F1D6\";\n}\n.fa-wechat:before,\n.fa-weixin:before {\n  content: \"\\F1D7\";\n}\n.fa-send:before,\n.fa-paper-plane:before {\n  content: \"\\F1D8\";\n}\n.fa-send-o:before,\n.fa-paper-plane-o:before {\n  content: \"\\F1D9\";\n}\n.fa-history:before {\n  content: \"\\F1DA\";\n}\n.fa-circle-thin:before {\n  content: \"\\F1DB\";\n}\n.fa-header:before {\n  content: \"\\F1DC\";\n}\n.fa-paragraph:before {\n  content: \"\\F1DD\";\n}\n.fa-sliders:before {\n  content: \"\\F1DE\";\n}\n.fa-share-alt:before {\n  content: \"\\F1E0\";\n}\n.fa-share-alt-square:before {\n  content: \"\\F1E1\";\n}\n.fa-bomb:before {\n  content: \"\\F1E2\";\n}\n.fa-soccer-ball-o:before,\n.fa-futbol-o:before {\n  content: \"\\F1E3\";\n}\n.fa-tty:before {\n  content: \"\\F1E4\";\n}\n.fa-binoculars:before {\n  content: \"\\F1E5\";\n}\n.fa-plug:before {\n  content: \"\\F1E6\";\n}\n.fa-slideshare:before {\n  content: \"\\F1E7\";\n}\n.fa-twitch:before {\n  content: \"\\F1E8\";\n}\n.fa-yelp:before {\n  content: \"\\F1E9\";\n}\n.fa-newspaper-o:before {\n  content: \"\\F1EA\";\n}\n.fa-wifi:before {\n  content: \"\\F1EB\";\n}\n.fa-calculator:before {\n  content: \"\\F1EC\";\n}\n.fa-paypal:before {\n  content: \"\\F1ED\";\n}\n.fa-google-wallet:before {\n  content: \"\\F1EE\";\n}\n.fa-cc-visa:before {\n  content: \"\\F1F0\";\n}\n.fa-cc-mastercard:before {\n  content: \"\\F1F1\";\n}\n.fa-cc-discover:before {\n  content: \"\\F1F2\";\n}\n.fa-cc-amex:before {\n  content: \"\\F1F3\";\n}\n.fa-cc-paypal:before {\n  content: \"\\F1F4\";\n}\n.fa-cc-stripe:before {\n  content: \"\\F1F5\";\n}\n.fa-bell-slash:before {\n  content: \"\\F1F6\";\n}\n.fa-bell-slash-o:before {\n  content: \"\\F1F7\";\n}\n.fa-trash:before {\n  content: \"\\F1F8\";\n}\n.fa-copyright:before {\n  content: \"\\F1F9\";\n}\n.fa-at:before {\n  content: \"\\F1FA\";\n}\n.fa-eyedropper:before {\n  content: \"\\F1FB\";\n}\n.fa-paint-brush:before {\n  content: \"\\F1FC\";\n}\n.fa-birthday-cake:before {\n  content: \"\\F1FD\";\n}\n.fa-area-chart:before {\n  content: \"\\F1FE\";\n}\n.fa-pie-chart:before {\n  content: \"\\F200\";\n}\n.fa-line-chart:before {\n  content: \"\\F201\";\n}\n.fa-lastfm:before {\n  content: \"\\F202\";\n}\n.fa-lastfm-square:before {\n  content: \"\\F203\";\n}\n.fa-toggle-off:before {\n  content: \"\\F204\";\n}\n.fa-toggle-on:before {\n  content: \"\\F205\";\n}\n.fa-bicycle:before {\n  content: \"\\F206\";\n}\n.fa-bus:before {\n  content: \"\\F207\";\n}\n.fa-ioxhost:before {\n  content: \"\\F208\";\n}\n.fa-angellist:before {\n  content: \"\\F209\";\n}\n.fa-cc:before {\n  content: \"\\F20A\";\n}\n.fa-shekel:before,\n.fa-sheqel:before,\n.fa-ils:before {\n  content: \"\\F20B\";\n}\n.fa-meanpath:before {\n  content: \"\\F20C\";\n}\n.fa-buysellads:before {\n  content: \"\\F20D\";\n}\n.fa-connectdevelop:before {\n  content: \"\\F20E\";\n}\n.fa-dashcube:before {\n  content: \"\\F210\";\n}\n.fa-forumbee:before {\n  content: \"\\F211\";\n}\n.fa-leanpub:before {\n  content: \"\\F212\";\n}\n.fa-sellsy:before {\n  content: \"\\F213\";\n}\n.fa-shirtsinbulk:before {\n  content: \"\\F214\";\n}\n.fa-simplybuilt:before {\n  content: \"\\F215\";\n}\n.fa-skyatlas:before {\n  content: \"\\F216\";\n}\n.fa-cart-plus:before {\n  content: \"\\F217\";\n}\n.fa-cart-arrow-down:before {\n  content: \"\\F218\";\n}\n.fa-diamond:before {\n  content: \"\\F219\";\n}\n.fa-ship:before {\n  content: \"\\F21A\";\n}\n.fa-user-secret:before {\n  content: \"\\F21B\";\n}\n.fa-motorcycle:before {\n  content: \"\\F21C\";\n}\n.fa-street-view:before {\n  content: \"\\F21D\";\n}\n.fa-heartbeat:before {\n  content: \"\\F21E\";\n}\n.fa-venus:before {\n  content: \"\\F221\";\n}\n.fa-mars:before {\n  content: \"\\F222\";\n}\n.fa-mercury:before {\n  content: \"\\F223\";\n}\n.fa-intersex:before,\n.fa-transgender:before {\n  content: \"\\F224\";\n}\n.fa-transgender-alt:before {\n  content: \"\\F225\";\n}\n.fa-venus-double:before {\n  content: \"\\F226\";\n}\n.fa-mars-double:before {\n  content: \"\\F227\";\n}\n.fa-venus-mars:before {\n  content: \"\\F228\";\n}\n.fa-mars-stroke:before {\n  content: \"\\F229\";\n}\n.fa-mars-stroke-v:before {\n  content: \"\\F22A\";\n}\n.fa-mars-stroke-h:before {\n  content: \"\\F22B\";\n}\n.fa-neuter:before {\n  content: \"\\F22C\";\n}\n.fa-genderless:before {\n  content: \"\\F22D\";\n}\n.fa-facebook-official:before {\n  content: \"\\F230\";\n}\n.fa-pinterest-p:before {\n  content: \"\\F231\";\n}\n.fa-whatsapp:before {\n  content: \"\\F232\";\n}\n.fa-server:before {\n  content: \"\\F233\";\n}\n.fa-user-plus:before {\n  content: \"\\F234\";\n}\n.fa-user-times:before {\n  content: \"\\F235\";\n}\n.fa-hotel:before,\n.fa-bed:before {\n  content: \"\\F236\";\n}\n.fa-viacoin:before {\n  content: \"\\F237\";\n}\n.fa-train:before {\n  content: \"\\F238\";\n}\n.fa-subway:before {\n  content: \"\\F239\";\n}\n.fa-medium:before {\n  content: \"\\F23A\";\n}\n.fa-yc:before,\n.fa-y-combinator:before {\n  content: \"\\F23B\";\n}\n.fa-optin-monster:before {\n  content: \"\\F23C\";\n}\n.fa-opencart:before {\n  content: \"\\F23D\";\n}\n.fa-expeditedssl:before {\n  content: \"\\F23E\";\n}\n.fa-battery-4:before,\n.fa-battery:before,\n.fa-battery-full:before {\n  content: \"\\F240\";\n}\n.fa-battery-3:before,\n.fa-battery-three-quarters:before {\n  content: \"\\F241\";\n}\n.fa-battery-2:before,\n.fa-battery-half:before {\n  content: \"\\F242\";\n}\n.fa-battery-1:before,\n.fa-battery-quarter:before {\n  content: \"\\F243\";\n}\n.fa-battery-0:before,\n.fa-battery-empty:before {\n  content: \"\\F244\";\n}\n.fa-mouse-pointer:before {\n  content: \"\\F245\";\n}\n.fa-i-cursor:before {\n  content: \"\\F246\";\n}\n.fa-object-group:before {\n  content: \"\\F247\";\n}\n.fa-object-ungroup:before {\n  content: \"\\F248\";\n}\n.fa-sticky-note:before {\n  content: \"\\F249\";\n}\n.fa-sticky-note-o:before {\n  content: \"\\F24A\";\n}\n.fa-cc-jcb:before {\n  content: \"\\F24B\";\n}\n.fa-cc-diners-club:before {\n  content: \"\\F24C\";\n}\n.fa-clone:before {\n  content: \"\\F24D\";\n}\n.fa-balance-scale:before {\n  content: \"\\F24E\";\n}\n.fa-hourglass-o:before {\n  content: \"\\F250\";\n}\n.fa-hourglass-1:before,\n.fa-hourglass-start:before {\n  content: \"\\F251\";\n}\n.fa-hourglass-2:before,\n.fa-hourglass-half:before {\n  content: \"\\F252\";\n}\n.fa-hourglass-3:before,\n.fa-hourglass-end:before {\n  content: \"\\F253\";\n}\n.fa-hourglass:before {\n  content: \"\\F254\";\n}\n.fa-hand-grab-o:before,\n.fa-hand-rock-o:before {\n  content: \"\\F255\";\n}\n.fa-hand-stop-o:before,\n.fa-hand-paper-o:before {\n  content: \"\\F256\";\n}\n.fa-hand-scissors-o:before {\n  content: \"\\F257\";\n}\n.fa-hand-lizard-o:before {\n  content: \"\\F258\";\n}\n.fa-hand-spock-o:before {\n  content: \"\\F259\";\n}\n.fa-hand-pointer-o:before {\n  content: \"\\F25A\";\n}\n.fa-hand-peace-o:before {\n  content: \"\\F25B\";\n}\n.fa-trademark:before {\n  content: \"\\F25C\";\n}\n.fa-registered:before {\n  content: \"\\F25D\";\n}\n.fa-creative-commons:before {\n  content: \"\\F25E\";\n}\n.fa-gg:before {\n  content: \"\\F260\";\n}\n.fa-gg-circle:before {\n  content: \"\\F261\";\n}\n.fa-tripadvisor:before {\n  content: \"\\F262\";\n}\n.fa-odnoklassniki:before {\n  content: \"\\F263\";\n}\n.fa-odnoklassniki-square:before {\n  content: \"\\F264\";\n}\n.fa-get-pocket:before {\n  content: \"\\F265\";\n}\n.fa-wikipedia-w:before {\n  content: \"\\F266\";\n}\n.fa-safari:before {\n  content: \"\\F267\";\n}\n.fa-chrome:before {\n  content: \"\\F268\";\n}\n.fa-firefox:before {\n  content: \"\\F269\";\n}\n.fa-opera:before {\n  content: \"\\F26A\";\n}\n.fa-internet-explorer:before {\n  content: \"\\F26B\";\n}\n.fa-tv:before,\n.fa-television:before {\n  content: \"\\F26C\";\n}\n.fa-contao:before {\n  content: \"\\F26D\";\n}\n.fa-500px:before {\n  content: \"\\F26E\";\n}\n.fa-amazon:before {\n  content: \"\\F270\";\n}\n.fa-calendar-plus-o:before {\n  content: \"\\F271\";\n}\n.fa-calendar-minus-o:before {\n  content: \"\\F272\";\n}\n.fa-calendar-times-o:before {\n  content: \"\\F273\";\n}\n.fa-calendar-check-o:before {\n  content: \"\\F274\";\n}\n.fa-industry:before {\n  content: \"\\F275\";\n}\n.fa-map-pin:before {\n  content: \"\\F276\";\n}\n.fa-map-signs:before {\n  content: \"\\F277\";\n}\n.fa-map-o:before {\n  content: \"\\F278\";\n}\n.fa-map:before {\n  content: \"\\F279\";\n}\n.fa-commenting:before {\n  content: \"\\F27A\";\n}\n.fa-commenting-o:before {\n  content: \"\\F27B\";\n}\n.fa-houzz:before {\n  content: \"\\F27C\";\n}\n.fa-vimeo:before {\n  content: \"\\F27D\";\n}\n.fa-black-tie:before {\n  content: \"\\F27E\";\n}\n.fa-fonticons:before {\n  content: \"\\F280\";\n}\n.fa-reddit-alien:before {\n  content: \"\\F281\";\n}\n.fa-edge:before {\n  content: \"\\F282\";\n}\n.fa-credit-card-alt:before {\n  content: \"\\F283\";\n}\n.fa-codiepie:before {\n  content: \"\\F284\";\n}\n.fa-modx:before {\n  content: \"\\F285\";\n}\n.fa-fort-awesome:before {\n  content: \"\\F286\";\n}\n.fa-usb:before {\n  content: \"\\F287\";\n}\n.fa-product-hunt:before {\n  content: \"\\F288\";\n}\n.fa-mixcloud:before {\n  content: \"\\F289\";\n}\n.fa-scribd:before {\n  content: \"\\F28A\";\n}\n.fa-pause-circle:before {\n  content: \"\\F28B\";\n}\n.fa-pause-circle-o:before {\n  content: \"\\F28C\";\n}\n.fa-stop-circle:before {\n  content: \"\\F28D\";\n}\n.fa-stop-circle-o:before {\n  content: \"\\F28E\";\n}\n.fa-shopping-bag:before {\n  content: \"\\F290\";\n}\n.fa-shopping-basket:before {\n  content: \"\\F291\";\n}\n.fa-hashtag:before {\n  content: \"\\F292\";\n}\n.fa-bluetooth:before {\n  content: \"\\F293\";\n}\n.fa-bluetooth-b:before {\n  content: \"\\F294\";\n}\n.fa-percent:before {\n  content: \"\\F295\";\n}\n.fa-gitlab:before {\n  content: \"\\F296\";\n}\n.fa-wpbeginner:before {\n  content: \"\\F297\";\n}\n.fa-wpforms:before {\n  content: \"\\F298\";\n}\n.fa-envira:before {\n  content: \"\\F299\";\n}\n.fa-universal-access:before {\n  content: \"\\F29A\";\n}\n.fa-wheelchair-alt:before {\n  content: \"\\F29B\";\n}\n.fa-question-circle-o:before {\n  content: \"\\F29C\";\n}\n.fa-blind:before {\n  content: \"\\F29D\";\n}\n.fa-audio-description:before {\n  content: \"\\F29E\";\n}\n.fa-volume-control-phone:before {\n  content: \"\\F2A0\";\n}\n.fa-braille:before {\n  content: \"\\F2A1\";\n}\n.fa-assistive-listening-systems:before {\n  content: \"\\F2A2\";\n}\n.fa-asl-interpreting:before,\n.fa-american-sign-language-interpreting:before {\n  content: \"\\F2A3\";\n}\n.fa-deafness:before,\n.fa-hard-of-hearing:before,\n.fa-deaf:before {\n  content: \"\\F2A4\";\n}\n.fa-glide:before {\n  content: \"\\F2A5\";\n}\n.fa-glide-g:before {\n  content: \"\\F2A6\";\n}\n.fa-signing:before,\n.fa-sign-language:before {\n  content: \"\\F2A7\";\n}\n.fa-low-vision:before {\n  content: \"\\F2A8\";\n}\n.fa-viadeo:before {\n  content: \"\\F2A9\";\n}\n.fa-viadeo-square:before {\n  content: \"\\F2AA\";\n}\n.fa-snapchat:before {\n  content: \"\\F2AB\";\n}\n.fa-snapchat-ghost:before {\n  content: \"\\F2AC\";\n}\n.fa-snapchat-square:before {\n  content: \"\\F2AD\";\n}\n.fa-pied-piper:before {\n  content: \"\\F2AE\";\n}\n.fa-first-order:before {\n  content: \"\\F2B0\";\n}\n.fa-yoast:before {\n  content: \"\\F2B1\";\n}\n.fa-themeisle:before {\n  content: \"\\F2B2\";\n}\n.fa-google-plus-circle:before,\n.fa-google-plus-official:before {\n  content: \"\\F2B3\";\n}\n.fa-fa:before,\n.fa-font-awesome:before {\n  content: \"\\F2B4\";\n}\n.fa-handshake-o:before {\n  content: \"\\F2B5\";\n}\n.fa-envelope-open:before {\n  content: \"\\F2B6\";\n}\n.fa-envelope-open-o:before {\n  content: \"\\F2B7\";\n}\n.fa-linode:before {\n  content: \"\\F2B8\";\n}\n.fa-address-book:before {\n  content: \"\\F2B9\";\n}\n.fa-address-book-o:before {\n  content: \"\\F2BA\";\n}\n.fa-vcard:before,\n.fa-address-card:before {\n  content: \"\\F2BB\";\n}\n.fa-vcard-o:before,\n.fa-address-card-o:before {\n  content: \"\\F2BC\";\n}\n.fa-user-circle:before {\n  content: \"\\F2BD\";\n}\n.fa-user-circle-o:before {\n  content: \"\\F2BE\";\n}\n.fa-user-o:before {\n  content: \"\\F2C0\";\n}\n.fa-id-badge:before {\n  content: \"\\F2C1\";\n}\n.fa-drivers-license:before,\n.fa-id-card:before {\n  content: \"\\F2C2\";\n}\n.fa-drivers-license-o:before,\n.fa-id-card-o:before {\n  content: \"\\F2C3\";\n}\n.fa-quora:before {\n  content: \"\\F2C4\";\n}\n.fa-free-code-camp:before {\n  content: \"\\F2C5\";\n}\n.fa-telegram:before {\n  content: \"\\F2C6\";\n}\n.fa-thermometer-4:before,\n.fa-thermometer:before,\n.fa-thermometer-full:before {\n  content: \"\\F2C7\";\n}\n.fa-thermometer-3:before,\n.fa-thermometer-three-quarters:before {\n  content: \"\\F2C8\";\n}\n.fa-thermometer-2:before,\n.fa-thermometer-half:before {\n  content: \"\\F2C9\";\n}\n.fa-thermometer-1:before,\n.fa-thermometer-quarter:before {\n  content: \"\\F2CA\";\n}\n.fa-thermometer-0:before,\n.fa-thermometer-empty:before {\n  content: \"\\F2CB\";\n}\n.fa-shower:before {\n  content: \"\\F2CC\";\n}\n.fa-bathtub:before,\n.fa-s15:before,\n.fa-bath:before {\n  content: \"\\F2CD\";\n}\n.fa-podcast:before {\n  content: \"\\F2CE\";\n}\n.fa-window-maximize:before {\n  content: \"\\F2D0\";\n}\n.fa-window-minimize:before {\n  content: \"\\F2D1\";\n}\n.fa-window-restore:before {\n  content: \"\\F2D2\";\n}\n.fa-times-rectangle:before,\n.fa-window-close:before {\n  content: \"\\F2D3\";\n}\n.fa-times-rectangle-o:before,\n.fa-window-close-o:before {\n  content: \"\\F2D4\";\n}\n.fa-bandcamp:before {\n  content: \"\\F2D5\";\n}\n.fa-grav:before {\n  content: \"\\F2D6\";\n}\n.fa-etsy:before {\n  content: \"\\F2D7\";\n}\n.fa-imdb:before {\n  content: \"\\F2D8\";\n}\n.fa-ravelry:before {\n  content: \"\\F2D9\";\n}\n.fa-eercast:before {\n  content: \"\\F2DA\";\n}\n.fa-microchip:before {\n  content: \"\\F2DB\";\n}\n.fa-snowflake-o:before {\n  content: \"\\F2DC\";\n}\n.fa-superpowers:before {\n  content: \"\\F2DD\";\n}\n.fa-wpexplorer:before {\n  content: \"\\F2DE\";\n}\n.fa-meetup:before {\n  content: \"\\F2E0\";\n}\n.sr-only {\n  position: absolute;\n  width: 1px;\n  height: 1px;\n  padding: 0;\n  margin: -1px;\n  overflow: hidden;\n  clip: rect(0, 0, 0, 0);\n  border: 0;\n}\n.sr-only-focusable:active,\n.sr-only-focusable:focus {\n  position: static;\n  width: auto;\n  height: auto;\n  margin: 0;\n  overflow: visible;\n  clip: auto;\n}\n", ""]);
 	
 	// exports
 
-
-/***/ },
-/* 401 */
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-eot";
-
-/***/ },
-/* 402 */
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-eot";
 
 /***/ },
 /* 403 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-woff2";
+	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-eot";
 
 /***/ },
 /* 404 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-woff";
+	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-eot";
 
 /***/ },
 /* 405 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-ttf";
+	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-woff2";
 
 /***/ },
 /* 406 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-svg";
+	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-woff";
 
 /***/ },
 /* 407 */
 /***/ function(module, exports, __webpack_require__) {
 
-	// style-loader: Adds some css to the DOM by adding a <style> tag
-	
-	// load the styles
-	var content = __webpack_require__(408);
-	if(typeof content === 'string') content = [[module.id, content, '']];
-	// add the styles to the DOM
-	var update = __webpack_require__(396)(content, {});
-	if(content.locals) module.exports = content.locals;
-	// Hot Module Replacement
-	if(false) {
-		// When the styles change, update the <style> tags
-		if(!content.locals) {
-			module.hot.accept("!!./../css-loader/index.js?importLoaders=1!./styles.css", function() {
-				var newContent = require("!!./../css-loader/index.js?importLoaders=1!./styles.css");
-				if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
-				update(newContent);
-			});
-		}
-		// When the module is disposed, remove the <style> tags
-		module.hot.dispose(function() { update(); });
-	}
+	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-ttf";
 
 /***/ },
 /* 408 */
 /***/ function(module, exports, __webpack_require__) {
 
-	exports = module.exports = __webpack_require__(395)();
-	// imports
-	
-	
-	// module
-	exports.push([module.id, "/* Collection default theme */\n\n.ReactVirtualized__Collection {\n}\n\n.ReactVirtualized__Collection__innerScrollContainer {\n}\n\n/* Grid default theme */\n\n.ReactVirtualized__Grid {\n}\n\n.ReactVirtualized__Grid__innerScrollContainer {\n}\n\n/* Table default theme */\n\n.ReactVirtualized__Table {\n}\n\n.ReactVirtualized__Table__Grid {\n}\n\n.ReactVirtualized__Table__headerRow {\n  font-weight: 700;\n  text-transform: uppercase;\n  display: -webkit-box;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-box-orient: horizontal;\n  -webkit-box-direction: normal;\n      -ms-flex-direction: row;\n          flex-direction: row;\n  -webkit-box-align: center;\n      -ms-flex-align: center;\n          align-items: center;\n}\n.ReactVirtualized__Table__row {\n  display: -webkit-box;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-box-orient: horizontal;\n  -webkit-box-direction: normal;\n      -ms-flex-direction: row;\n          flex-direction: row;\n  -webkit-box-align: center;\n      -ms-flex-align: center;\n          align-items: center;\n}\n\n.ReactVirtualized__Table__headerTruncatedText {\n  display: inline-block;\n  max-width: 100%;\n  white-space: nowrap;\n  text-overflow: ellipsis;\n  overflow: hidden;\n}\n\n.ReactVirtualized__Table__headerColumn,\n.ReactVirtualized__Table__rowColumn {\n  margin-right: 10px;\n  min-width: 0px;\n}\n.ReactVirtualized__Table__rowColumn {\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n\n.ReactVirtualized__Table__headerColumn:first-of-type,\n.ReactVirtualized__Table__rowColumn:first-of-type {\n  margin-left: 10px;\n}\n.ReactVirtualized__Table__sortableHeaderColumn {\n  cursor: pointer;\n}\n\n.ReactVirtualized__Table__sortableHeaderIconContainer {\n  display: -webkit-box;\n  display: -ms-flexbox;\n  display: flex;\n  -webkit-box-align: center;\n      -ms-flex-align: center;\n          align-items: center;\n}\n.ReactVirtualized__Table__sortableHeaderIcon {\n  -webkit-box-flex: 0;\n      -ms-flex: 0 0 24px;\n          flex: 0 0 24px;\n  height: 1em;\n  width: 1em;\n  fill: currentColor;\n}\n\n/* List default theme */\n\n.ReactVirtualized__List {\n}\n", ""]);
-	
-	// exports
-
+	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-svg";
 
 /***/ },
 /* 409 */
@@ -74619,7 +74530,7 @@
 	var content = __webpack_require__(410);
 	if(typeof content === 'string') content = [[module.id, content, '']];
 	// add the styles to the DOM
-	var update = __webpack_require__(396)(content, {});
+	var update = __webpack_require__(398)(content, {});
 	if(content.locals) module.exports = content.locals;
 	// Hot Module Replacement
 	if(false) {
@@ -74639,7 +74550,7 @@
 /* 410 */
 /***/ function(module, exports, __webpack_require__) {
 
-	exports = module.exports = __webpack_require__(395)();
+	exports = module.exports = __webpack_require__(397)();
 	// imports
 	
 	
@@ -74744,8 +74655,8 @@
 	var platformChartActionCreators = __webpack_require__(301);
 	var platformActionCreators = __webpack_require__(302);
 	var platformsPanelActionCreators = __webpack_require__(267);
-	var modalActionCreators = __webpack_require__(320);
-	var ConfirmForm = __webpack_require__(331);
+	var modalActionCreators = __webpack_require__(322);
+	var ConfirmForm = __webpack_require__(333);
 	
 	var PlatformChart = React.createClass({
 	    displayName: 'PlatformChart',
@@ -114001,7 +113912,7 @@
 	var React = __webpack_require__(3);
 	var Router = __webpack_require__(1);
 	__webpack_require__(528);
-	var platformManagerActionCreators = __webpack_require__(323);
+	var platformManagerActionCreators = __webpack_require__(325);
 	
 	var LoginForm = React.createClass({
 	    displayName: 'LoginForm',
@@ -114308,7 +114219,7 @@
 	var React = __webpack_require__(3);
 	
 	var platformActionCreators = __webpack_require__(302);
-	var modalActionCreators = __webpack_require__(320);
+	var modalActionCreators = __webpack_require__(322);
 	
 	var RemoveAgentForm = __webpack_require__(539);
 	
@@ -114420,7 +114331,7 @@
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(320);
+	var modalActionCreators = __webpack_require__(322);
 	var platformActionCreators = __webpack_require__(302);
 	
 	var RemoveAgentForm = React.createClass({
@@ -114494,7 +114405,7 @@
 	var React = __webpack_require__(3);
 	var Router = __webpack_require__(1);
 	
-	var modalActionCreators = __webpack_require__(320);
+	var modalActionCreators = __webpack_require__(322);
 	var platformsStore = __webpack_require__(266);
 	var RegisterPlatformForm = __webpack_require__(541);
 	var DeregisterPlatformConfirmation = __webpack_require__(542);
@@ -114641,8 +114552,8 @@
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(320);
-	var platformManagerActionCreators = __webpack_require__(323);
+	var modalActionCreators = __webpack_require__(322);
+	var platformManagerActionCreators = __webpack_require__(325);
 	
 	var RegisterPlatformForm = React.createClass({
 	    displayName: 'RegisterPlatformForm',
@@ -115078,8 +114989,8 @@
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(320);
-	var platformManagerActionCreators = __webpack_require__(323);
+	var modalActionCreators = __webpack_require__(322);
+	var platformManagerActionCreators = __webpack_require__(325);
 	
 	var RegisterPlatformForm = React.createClass({
 	    displayName: 'RegisterPlatformForm',
@@ -115145,7 +115056,7 @@
 	
 	var React = __webpack_require__(3);
 	var PlatformChart = __webpack_require__(412);
-	var modalActionCreators = __webpack_require__(320);
+	var modalActionCreators = __webpack_require__(322);
 	var platformActionCreators = __webpack_require__(302);
 	var NewChartForm = __webpack_require__(544);
 	var chartStore = __webpack_require__(265);
@@ -115237,7 +115148,7 @@
 
 	'use strict';
 	
-	var _reactSelectMe = __webpack_require__(341);
+	var _reactSelectMe = __webpack_require__(343);
 	
 	var _reactSelectMe2 = _interopRequireDefault(_reactSelectMe);
 	
@@ -115249,7 +115160,7 @@
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(320);
+	var modalActionCreators = __webpack_require__(322);
 	var platformActionCreators = __webpack_require__(302);
 	var platformChartActionCreators = __webpack_require__(301);
 	var platformsPanelActionCreators = __webpack_require__(267);
@@ -115537,4 +115448,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-9600d5eb3f96f013a9d4.js.map
+//# sourceMappingURL=app-c8321e40bd5d87e6c99f.js.map

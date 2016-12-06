@@ -8,11 +8,9 @@ var wspubsub = require('../lib/wspubsub');
 var rpc = require('../lib/rpc');
 
 
-var CsvParse = require('babyparse');
+import {CsvParse} from '../lib/csvparse';
 
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
-
-var pointsWs, pointsWebsocket, devicesWs, devicesWebsocket;
 
 var devicesActionCreators = {
     configureDevices: function (platform) {
@@ -141,12 +139,10 @@ var devicesActionCreators = {
         });
     },
     cancelDeviceScan: function () {
-        // if (typeof devicesWs !== "undefined" && devicesWs !== null)
-        // {
-        //     devicesWs.close();
-        //     devicesWs = null;
-        // }
-        // TODO: Replace this code with equivalent using wspubsub
+        var authorization = authorizationStore.getAuthorization();
+        var topic = "/vc/ws/" + authorization + "/iam";
+
+        wspubsub.WsPubSub.unsubscribe(topic);
     },
     handleKeyDown: function (keydown) {
         dispatcher.dispatch({
@@ -186,6 +182,8 @@ var devicesActionCreators = {
                         type: ACTION_TYPES.POINT_SCAN_FINISHED,
                         device: this
                     });
+
+                    console.log("closing points socket");
                 }
                 else{
                     var platform = null;
@@ -290,7 +288,7 @@ var devicesActionCreators = {
 
                 devicesActionCreators.unloadRegistryFiles();
 
-                var csvData = parseCsvFile(result);
+                var csvData = CsvParse.parseCsvFile(result);
 
                 if (csvData.warnings.length)
                 {
@@ -471,86 +469,6 @@ function checkDevice(device, platformUuid)
     }
 
     return result;
-}
-
-var parseCsvFile = (contents) => {
-
-    var results = CsvParse.parse(contents);
-
-    var registryValues = [];
-
-    var header = [];
-
-    var data = results.data;
-
-    results.warnings = [];
-
-    if (data.length)
-    {
-        header = data.slice(0, 1);
-    }
-
-    var template = [];
-
-    if (header[0].length)
-    {
-        header[0].forEach(function (column) {
-            template.push({ "key": column.replace(/ /g, "_"), "value": null, "label": column });
-        });
-
-        var templateLength = template.length;
-
-        if (data.length > 1)
-        {
-            var rows = data.slice(1);
-
-            var rowsCount = rows.length;
-
-            rows.forEach(function (r, num) {
-
-                if (r.length)
-                {   
-                    if (r.length !== templateLength) 
-                    {                           
-                        if ((num === (rowsCount - 1)) && (r.length === 0 || ((r.length === 1) && (r[0] === "") )))
-                        {
-                            // Suppress the warning message if the out-of-sync row is the last one and it has no elements
-                            // or all it has is an empty point name -- which can happen naturally when reading the csv file
-                        }
-                        else
-                        {
-                            results.warnings.push({ message: "Row " +  num + " was omitted for having the wrong number of columns."});
-                        }
-                    }
-                    else
-                    {
-                        if (r.length === templateLength) // Have to check again, to keep from adding the empty point name
-                        {                                // in the last row
-                            var newTemplate = JSON.parse(JSON.stringify(template));
-
-                            var newRow = [];
-
-                            r.forEach( function (value, i) {
-                                newTemplate[i].value = value;
-
-                                newRow.push(newTemplate[i]);
-                            });
-
-                            registryValues.push(newRow);
-                        }
-                    }
-                }
-            });
-        }
-        else
-        {
-            registryValues = template;
-        }
-    }
-
-    results.data = registryValues;
-
-    return results;
 }
 
 function objectIsEmpty(obj)
