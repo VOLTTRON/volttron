@@ -136,6 +136,7 @@ class VolttronCentralAgent(Agent):
     """
     __name__ = 'VolttronCentralAgent'
 
+
     def __init__(self, config_path, **kwargs):
         """ Creates a `VolttronCentralAgent` object to manage instances.
 
@@ -203,6 +204,10 @@ class VolttronCentralAgent(Agent):
 
         # Used to hold scheduled reconnection event for vcp agents.
         self._vcp_reconnect_event = None
+
+        # the registered socket endpoints so we can send out management
+        # events to all the registered session.
+        self._websocket_endpoints = set()
 
     def configure_main(self, config_name, action, contents):
         """
@@ -305,11 +310,16 @@ class VolttronCentralAgent(Agent):
             return False
 
         _log.debug('Websocket allowed.')
+        self._websocket_endpoints.add(endpoint)
 
         return True
 
     def _ws_closed(self, endpoint):
         _log.debug("CLOSED endpoint: {}".format(endpoint))
+        try:
+            self._websocket_endpoints.remove(endpoint)
+        except KeyError:
+            pass # This should never happen but protect against it anyways.
 
     def _ws_received(self, endpoint, message):
         _log.debug("RECEIVED endpoint: {} message: {}".format(endpoint,
@@ -470,6 +480,17 @@ class VolttronCentralAgent(Agent):
             data['devices_health'] = devices_health
 
             self.vip.config.set(config_name, data)
+
+            # Hook into management socket here and send all of the data
+            # for newly registered platforms.
+            management_sockets = [s for s in self._websocket_endpoints
+                                  if s.endswith("management")]
+            payload = dict(
+                type="platform_registered",
+                data=data
+            )
+            for s in management_sockets:
+                self.vip.web.send(s, payload)
 
             def ondevicemessage(peer, sender, bus, topic, headers, message):
                 if not topic.endswith('/all'):
@@ -1239,6 +1260,9 @@ class VolttronCentralAgent(Agent):
                                       "\n".join(errors))
         vcp_conn = self._get_connection(req_args.platform_uuid)
         vcp_conn.call("store_agent_config", **params)
+        config_name = params.get("config_name")
+        if config_name.startswith("devices"):
+            self._send_management_message("new_device", params)
 
     def _handle_get_agent_config(self, req_args, params):
         vcp_conn = self._get_connection(req_args.platform_uuid)
@@ -1247,6 +1271,33 @@ class VolttronCentralAgent(Agent):
     def _handle_list_agent_configs(self, req_args, params):
         vcp_conn = self._get_connection(req_args.platform_uuid)
         return vcp_conn.call("list_agent_configs", **params)
+
+    def _handle_management_endpoint(self, session_user, params):
+        ws_topic = "/vc/ws/{}/management".format(session_user.get('token'))
+        self.vip.web.register_websocket(ws_topic,
+                                        self.open_authenticate_ws_endpoint,
+                                        self._ws_closed, self._ws_received)
+        return ws_topic
+
+    def _send_management_message(self, type, data={}):
+        management_sockets = [s for s in self._websocket_endpoints
+                              if s.endswith("management")]
+
+        # Nothing to send if we don't have any management sockets open.
+        if len(management_sockets) <= 0:
+            return
+
+        if data is None:
+            data={}
+
+        payload = dict(
+            type=type,
+            data=data
+        )
+
+        payload = jsonapi.dumps(payload)
+        for s in management_sockets:
+            self.vip.web.send(s, payload)
 
     def _route_request(self, session_user, id, method, params):
         """ Handle the methods volttron central can or pass off to platforms.
@@ -1265,6 +1316,11 @@ class VolttronCentralAgent(Agent):
         def err(message, code=METHOD_NOT_FOUND):
             return {'error': {'code': code, 'message': message}}
 
+        self._send_management_message(method)
+
+        # These functions will be sent to a platform.agent on either this
+        # instance or another.  All of these functions have the same interface
+        # and can be collected into a dictionary rather than an if tree.
         platform_methods = dict(
             start_bacnet_scan=self._handle_bacnet_scan,
             publish_bacnet_props=self._handle_bacnet_props,
@@ -1298,22 +1354,12 @@ class VolttronCentralAgent(Agent):
 
             return platform_methods[method](req_args, params)
 
-        if method == 'open_websockets':
-            token = session_user['token']
+        vc_methods = dict(
+            register_management_endpoint=self._handle_management_endpoint
+        )
 
-            websockets = [
-                ('/vc/ws/{}/configure', self._configure)
-                #\('/vc/ws/{}/iam', self._w)
-                # ('/vc/ws/{}/platforms', self._platform_update) #,
-                # ('/vc/ws/{}/iam', self._i)
-            ]
-
-            routes = [x[0] for x in websockets]
-
-            for x in websockets:
-                self.vip.web.register_websocket(x[0], x[1])
-
-            return jsonrpc.json_result(id, routes)
+        if method in vc_methods:
+            return vc_methods[method](session_user, params)
 
         if method.endswith('get_devices'):
             _, _, platform_uuid, _ = method.split('.')
