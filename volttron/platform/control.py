@@ -576,34 +576,11 @@ def _calc_min_uuid_length(agents):
 
 
 def list_agents(opts):
-    agents = _list_agents(opts.aip)
-    if opts.pattern:
-        filtered = set()
-        for pattern, match in filter_agents(agents, opts.pattern, opts):
-            if not match:
-                _stderr.write(
-                    '{}: error: agent not found: {}\n'.format(opts.command,
-                                                              pattern))
-            filtered |= match
-        agents = list(filtered)
-    if not agents:
-        return
-    if not opts.min_uuid_len:
-        n = None
-    else:
-        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
-    agents.sort()
-    name_width = max(5, max(len(agent.name) for agent in agents))
-    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:{}} {:>3}\n'
-    _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width, 'TAG', tag_width, 'PRI'))
-    for agent in agents:
-        priority = opts.aip.agent_priority(agent.uuid) or ''
-        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                 agent.vip_identity, identity_width,
-                                 agent.tag or '', tag_width, priority))
+
+    def get_priority(agent):
+        return opts.aip.agent_priority(agent.uuid) or ''
+
+    _show_filtered_agents(opts, 'PRI', get_priority)
 
 
 def status_agents(opts):
@@ -616,39 +593,20 @@ def status_agents(opts):
             agents[uuid] = agent = Agent(name, None, uuid)
         status[uuid] = stat
     agents = agents.values()
-    if opts.pattern:
-        filtered = set()
-        for pattern, match in filter_agents(agents, opts.pattern, opts):
-            if not match:
-                _stderr.write(
-                    '{}: error: agent not found: {}\n'.format(opts.command,
-                                                              pattern))
-            filtered |= match
-        agents = list(filtered)
-    if not agents:
-        return
-    agents.sort()
-    if not opts.min_uuid_len:
-        n = 36
-    else:
-        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
-    name_width = max(5, max(len(agent.name) for agent in agents))
-    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
-    _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width, 'TAG', tag_width, 'STATUS'))
-    for agent in agents:
+
+    def get_status(agent):
         try:
             pid, stat = status[agent.uuid]
         except KeyError:
             pid = stat = None
-        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                 agent.vip_identity, identity_width,
-                                 agent.tag or '', tag_width,
-                                 ('running [{}]'.format(pid)
-                                  if stat is None else str(
-                                     stat)) if pid else ''))
+
+        if stat is not None:
+            return str(stat)
+        if pid:
+            return 'running [{}]'.format(pid)
+        return ''
+
+    _show_filtered_agents(opts, 'STATUS', get_status, agents)
 
 
 def clear_status(opts):
@@ -775,20 +733,30 @@ def send_agent(opts):
 
 
 def gen_keypair(opts):
-    if os.path.isfile(opts.keystore_file):
-        _stdout.write('{} already exists.\n'.format(opts.keystore_file))
-        if not _ask_yes_no('Overwrite?', default='no'):
-            return
-    keystore = KeyStore(opts.keystore_file)
-    keystore.generate()  # call generate to force new keys to be generated
-    _stdout.write('public key: {}\n'.format(keystore.public))
-    _stdout.write('keys written to {}\n'.format(opts.keystore_file))
+    keypair = KeyStore.generate_keypair_dict()
+    _stdout.write('{}\n'.format(json.dumps(keypair, indent=2)))
 
 
 def add_server_key(opts):
     store = KnownHostsStore()
     store.add(opts.host, opts.serverkey)
     _stdout.write('server key written to {}\n'.format(store.filename))
+
+
+def list_known_hosts(opts):
+    store = KnownHostsStore()
+    entries = store.load()
+    if entries:
+        _print_two_columns(entries, 'HOST', 'CURVE KEY')
+    else:
+        _stdout.write('No entries in {}\n'.format(store.filename))
+
+
+def remove_known_host(opts):
+    store = KnownHostsStore()
+    store.remove(opts.host)
+    _stdout.write('host "{}" removed from {}\n'.format(opts.host,
+            store.filename))
 
 
 def do_stats(opts):
@@ -810,7 +778,7 @@ def do_stats(opts):
 
 
 def show_serverkey(opts):
-    """ 
+    """
     write serverkey to standard out.
 
     return 0 if success, 1 if false
@@ -828,6 +796,23 @@ def show_serverkey(opts):
 def _get_auth_file(volttron_home):
     path = os.path.join(volttron_home, 'auth.json')
     return AuthFile(path)
+
+
+def _print_two_columns(dict_, key_name, value_name):
+        padding = 2
+        key_lengths = [len(key) for key in dict_] + [len(key_name)]
+        max_key_len = max(key_lengths) + padding
+        _stdout.write('{}{}{}\n'.format(key_name,
+            ' ' * (max_key_len - len(key_name)), value_name))
+        _stdout.write('{}{}{}\n'.format('-' * len(key_name),
+            ' ' * (max_key_len - len(key_name)),
+            '-' * len(value_name)))
+        for key in sorted(dict_):
+            value = dict_[key]
+            if isinstance(value, list):
+                value = sorted(value)
+            _stdout.write('{}{}{}\n'.format(key,
+                          ' ' * (max_key_len - len(key)), value))
 
 
 def list_auth(opts, indices=None):
@@ -886,14 +871,6 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                 self._fields[name]['response'] = callback(response)
             return {k: self._fields[k]['response'] for k in self._fields}
 
-    def comma_split(response):
-        if not isinstance(response, basestring):
-            return response
-        response = response.strip()
-        if not response:
-            return []
-        return [word.strip() for word in response.split(',')]
-
     def to_true_or_false(response):
         if isinstance(response, basestring):
             return {'true': True, 'false': False}[response.lower()]
@@ -925,11 +902,11 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
     asker.add('address', address)
     asker.add('user_id', user_id)
     asker.add('capabilities', capabilities,
-              'delimit multiple entries with comma', comma_split)
+              'delimit multiple entries with comma', _comma_split)
     asker.add('roles', roles, 'delimit multiple entries with comma',
-              comma_split)
+              _comma_split)
     asker.add('groups', groups, 'delimit multiple entries with comma',
-              comma_split)
+              _comma_split)
     asker.add('mechanism', mechanism, validate=valid_mech)
     asker.add('credentials', credentials, validate=valid_creds)
     asker.add('comments', comments)
@@ -939,9 +916,53 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
     return asker.ask()
 
 
+def _comma_split(line):
+    if not isinstance(line, basestring):
+        return line
+    line = line.strip()
+    if not line:
+        return []
+    return [word.strip() for word in line.split(',')]
+
+
 def add_auth(opts):
-    responses = _ask_for_auth_fields()
-    entry = AuthEntry(**responses)
+    """Add authorization entry.
+
+    If all options are None, then use interactive 'wizard.'
+    """
+    fields = {
+        "domain": opts.domain,
+        "address": opts.address,
+        "mechanism": opts.mechanism,
+        "credentials": opts.credentials,
+        "user_id": opts.user_id,
+        "groups": _comma_split(opts.groups),
+        "roles": _comma_split(opts.roles),
+        "capabilities": _comma_split(opts.capabilities),
+        "comments": opts.comments,
+    }
+
+    if any(fields.values()):
+        # Remove unspecified options so the default parameters are used
+        fields = {k: v for k, v in fields.items() if v}
+        fields['enabled'] = not opts.disabled
+        entry = AuthEntry(**fields)
+    else:
+        # No options were specified, use interactive wizard
+        responses = _ask_for_auth_fields()
+        entry = AuthEntry(**responses)
+
+    if opts.add_known_host:
+        if entry.address is None:
+            raise ValueError('host (--address) is required when '
+                             '--add-known-host is specified')
+        if entry.credentials is None:
+            raise ValueError('serverkey (--credentials) is required when '
+                             '--add-known-host is specified')
+        opts.host = entry.address
+        opts.serverkey = entry.credentials
+        add_server_key(opts)
+
     auth_file = _get_auth_file(opts.volttron_home)
     try:
         auth_file.add(entry, overwrite=False)
@@ -1012,6 +1033,92 @@ def update_auth(opts):
         _stderr.write('ERROR: invalid index %s\n' % opts.index)
     except AuthException as err:
         _stderr.write('ERROR: %s\n' % err.message)
+
+
+def add_role(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    roles = auth_file.read()[2]
+    if opts.role in roles:
+        _stderr.write('role "{}" already exists\n'.format(opts.role))
+        return
+    roles[opts.role] = list(set(opts.capabilities))
+    auth_file.set_roles(roles)
+    _stdout.write('added role "{}"\n'.format(opts.role))
+
+
+def list_roles(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    roles = auth_file.read()[2]
+    _print_two_columns(roles, 'ROLE', 'CAPABILITIES')
+
+
+def update_role(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    roles = auth_file.read()[2]
+    if opts.role not in roles:
+        _stderr.write('role "{}" does not exist\n'.format(opts.role))
+        return
+    caps = roles[opts.role]
+    if opts.remove:
+        roles[opts.role] = list(set(caps) - set(opts.capabilities))
+    else:
+        roles[opts.role] = list(set(caps) | set(opts.capabilities))
+    auth_file.set_roles(roles)
+    _stdout.write('updated role "{}"\n'.format(opts.role))
+
+
+def remove_role(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    roles = auth_file.read()[2]
+    if opts.role not in roles:
+        _stderr.write('role "{}" does not exist\n'.format(opts.role))
+        return
+    del roles[opts.role]
+    auth_file.set_roles(roles)
+    _stdout.write('removed role "{}"\n'.format(opts.role))
+
+
+def add_group(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    groups = auth_file.read()[1]
+    if opts.group in groups:
+        _stderr.write('group "{}" already exists\n'.format(opts.group))
+        return
+    groups[opts.group] = list(set(opts.roles))
+    auth_file.set_groups(groups)
+    _stdout.write('added group "{}"\n'.format(opts.group))
+
+
+def list_groups(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    groups = auth_file.read()[1]
+    _print_two_columns(groups, 'GROUPS', 'ROLES')
+
+
+def update_group(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    groups = auth_file.read()[1]
+    if opts.group not in groups:
+        _stderr.write('group "{}" does not exist\n'.format(opts.group))
+        return
+    roles = groups[opts.group]
+    if opts.remove:
+        groups[opts.group] = list(set(roles) - set(opts.roles))
+    else:
+        groups[opts.group] = list(set(roles) | set(opts.roles))
+    auth_file.set_groups(groups)
+    _stdout.write('updated group "{}"\n'.format(opts.group))
+
+
+def remove_group(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    groups = auth_file.read()[1]
+    if opts.group not in groups:
+        _stderr.write('group "{}" does not exist\n'.format(opts.group))
+        return
+    del groups[opts.group]
+    auth_file.set_groups(groups)
+    _stdout.write('removed group "{}"\n'.format(opts.group))
 
 
 def _show_filtered_agents(opts, field_name, field_callback, agents=None):
@@ -1148,7 +1255,7 @@ def get_config(opts):
 
 
 class ControlConnection(object):
-    def __init__(self, address, peer='control', developer_mode=False,
+    def __init__(self, address, peer='control',
                  publickey=None, secretkey=None, serverkey=None):
         self.address = address
         self.peer = peer
@@ -1156,7 +1263,6 @@ class ControlConnection(object):
                                  secretkey=secretkey, serverkey=serverkey,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
-                                 developer_mode=developer_mode,
                                  enable_channel=True)
         self._greenlet = None
 
@@ -1221,8 +1327,6 @@ def main(argv=sys.argv):
                              help='read configuration from FILE')
     global_args.add_argument('--debug', action='store_true',
                              help='show tracbacks for errors rather than a brief message')
-    global_args.add_argument('--developer-mode', action='store_true',
-                             help='run in insecure developer mode')
     global_args.add_argument('-t', '--timeout', type=float, metavar='SECS',
                              help='timeout in seconds for remote calls (default: %(default)g)')
     global_args.add_argument(
@@ -1405,27 +1509,72 @@ def main(argv=sys.argv):
     auth_subparsers = auth_cmds.add_subparsers(title='subcommands',
             metavar='', dest='store_commands')
 
-    auth_add = add_parser('add', help='add new authentication record',
+    auth_add = add_parser('add',
+            help='add new authentication record',
             subparser=auth_subparsers)
+    auth_add.add_argument('--domain', default=None)
+    auth_add.add_argument('--address', default=None)
+    auth_add.add_argument('--mechanism', default=None)
+    auth_add.add_argument('--credentials', default=None)
+    auth_add.add_argument('--user_id', default=None)
+    auth_add.add_argument('--groups', default=None,
+            help='delimit multiple entries with comma')
+    auth_add.add_argument('--roles', default=None,
+            help='delimit multiple entries with comma')
+    auth_add.add_argument('--capabilities', default=None,
+            help='delimit multiple entries with comma')
+    auth_add.add_argument('--comments', default=None)
+    auth_add.add_argument('--disabled', action='store_true')
+    auth_add.add_argument('--add-known-host', action='store_true',
+            help='adds entry in known host')
     auth_add.set_defaults(func=add_auth)
 
-    auth_add_known_host = add_parser('add-known-host', subparser=auth_subparsers,
+    auth_add_group = add_parser('add-group',
+            subparser=auth_subparsers,
+            help='associate a group name with a set of roles')
+    auth_add_group.add_argument('group', metavar='GROUP', help='name of group')
+    auth_add_group.add_argument('roles', metavar='ROLE',
+            nargs='*', help='roles to associate with the group')
+    auth_add_group.set_defaults(func=add_group)
+
+    auth_add_known_host = add_parser('add-known-host',
+            subparser=auth_subparsers,
             help='add server public key to known-hosts file')
     auth_add_known_host.add_argument('--host', required=True,
             help='hostname or IP address with optional port')
     auth_add_known_host.add_argument('--serverkey', required=True)
     auth_add_known_host.set_defaults(func=add_server_key)
 
+    auth_add_role = add_parser('add-role',
+            subparser=auth_subparsers,
+            help='associate a role name with a set of capabilities')
+    auth_add_role.add_argument('role', metavar='ROLE', help='name of role')
+    auth_add_role.add_argument('capabilities', metavar='CAPABILITY',
+            nargs='*', help='capabilities to associate with the role')
+    auth_add_role.set_defaults(func=add_role)
+
     auth_keypair = add_parser('keypair', subparser=auth_subparsers,
             help='generate CurveMQ keys for encrypting VIP connections')
-    auth_keypair.add_argument('keystore_file', metavar='keystore-file',
-            help='path to save keystore file', nargs='?')
-    auth_keypair.set_defaults(func=gen_keypair,
-            keystore_file=KeyStore.get_default_path())
+    auth_keypair.set_defaults(func=gen_keypair)
 
     auth_list = add_parser('list', help='list authentication records',
             subparser=auth_subparsers)
     auth_list.set_defaults(func=list_auth)
+
+    auth_list_groups = add_parser('list-groups',
+            subparser=auth_subparsers,
+            help='show list of group names and their sets of roles')
+    auth_list_groups.set_defaults(func=list_groups)
+
+    auth_list_known_host = add_parser('list-known-hosts',
+            subparser=auth_subparsers,
+            help='list entries from known-hosts file')
+    auth_list_known_host.set_defaults(func=list_known_hosts)
+
+    auth_list_roles = add_parser('list-roles',
+            subparser=auth_subparsers,
+            help='show list of role names and their sets of capabilities')
+    auth_list_roles.set_defaults(func=list_roles)
 
     auth_publickey = add_parser('publickey', parents=[filterable],
             subparser=auth_subparsers, help='show public key for each agent')
@@ -1441,6 +1590,25 @@ def main(argv=sys.argv):
             help='index or indices of record(s) to remove')
     auth_remove.set_defaults(func=remove_auth)
 
+    auth_remove_group = add_parser('remove-group',
+            subparser=auth_subparsers,
+            help='disassociate a group name from a set of roles')
+    auth_remove_group.add_argument('group', help='name of group')
+    auth_remove_group.set_defaults(func=remove_group)
+
+    auth_remove_known_host = add_parser('remove-known-host',
+            subparser=auth_subparsers,
+            help='remove entry from known-hosts file')
+    auth_remove_known_host.add_argument('host', metavar='HOST',
+            help='hostname or IP address with optional port')
+    auth_remove_known_host.set_defaults(func=remove_known_host)
+
+    auth_remove_role = add_parser('remove-role',
+            subparser=auth_subparsers,
+            help='disassociate a role name from a set of capabilities')
+    auth_remove_role.add_argument('role', help='name of role')
+    auth_remove_role.set_defaults(func=remove_role)
+
     auth_serverkey = add_parser('serverkey', subparser=auth_subparsers,
             help="show the serverkey for the instance")
     auth_serverkey.set_defaults(func=show_serverkey)
@@ -1451,6 +1619,27 @@ def main(argv=sys.argv):
             help='index of record to update')
     auth_update.set_defaults(func=update_auth)
 
+    auth_update_group = add_parser('update-group',
+            subparser=auth_subparsers,
+            help='update group to include (or remove) given roles')
+    auth_update_group.add_argument('group', metavar='GROUP', help='name of group')
+    auth_update_group.add_argument('roles', nargs='*',
+            metavar='ROLE',
+            help='roles to append to (or remove from) the group')
+    auth_update_group.add_argument('--remove', action='store_true',
+            help='remove (rather than append) given roles')
+    auth_update_group.set_defaults(func=update_group)
+
+    auth_update_role = add_parser('update-role',
+            subparser=auth_subparsers,
+            help='update role to include (or remove) given capabilities')
+    auth_update_role.add_argument('role', metavar='ROLE', help='name of role')
+    auth_update_role.add_argument('capabilities', nargs='*',
+            metavar='CAPABILITY',
+            help='capabilities to append to (or remove from) the role')
+    auth_update_role.add_argument('--remove', action='store_true',
+            help='remove (rather than append) given capabilities')
+    auth_update_role.set_defaults(func=update_role)
 
     config_store = add_parser("config",
                               help="manage the platform configuration store")
@@ -1573,7 +1762,6 @@ def main(argv=sys.argv):
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
     opts.connection = ControlConnection(opts.vip_address,
-                                        developer_mode=opts.developer_mode,
                                         **get_keys(opts))
 
     try:

@@ -191,13 +191,12 @@ def forwarder(request, volttron_instances):
 
     forwarder_config["destination-vip"] = volttron_instance2.vip_address
 
-    if volttron_instance1.encrypt:
-        known_hosts_file = os.path.join(volttron_instance1.volttron_home, 'known_hosts')
-        known_hosts = KnownHostsStore(known_hosts_file)
-        known_hosts.add(volttron_instance2.vip_address, volttron_instance2.serverkey)
+    known_hosts_file = os.path.join(volttron_instance1.volttron_home, 'known_hosts')
+    known_hosts = KnownHostsStore(known_hosts_file)
+    known_hosts.add(volttron_instance2.vip_address, volttron_instance2.serverkey)
 
-        # setup destination address to include keys
-        forwarder_config["destination-serverkey"] = volttron_instance2.serverkey
+    # setup destination address to include keys
+    forwarder_config["destination-serverkey"] = volttron_instance2.serverkey
 
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2

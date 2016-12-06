@@ -1,5 +1,8 @@
+.. _definitions:
+
+===================
 Definition of Terms
--------------------
+===================
 
 -  JsonRPC: JSON-encoded remote procedure call
 -  JSON: JavaScript object notation is a text-based, human-readable,

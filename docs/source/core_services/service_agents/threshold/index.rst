@@ -1,5 +1,5 @@
 ==============
-Example Agents
+Actuator Agent
 ==============
 
 .. toctree::
