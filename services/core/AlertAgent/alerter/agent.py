@@ -84,7 +84,6 @@ class AlertAgent(Agent):
             event = gevent.event.Event()
             group = AlertGroup(group_name, config,
                                address=self.core.address,
-                               developer_mode=self.core.developer_mode,
                                enable_store=False)
             gevent.spawn(group.core.run, event)
             event.wait()
