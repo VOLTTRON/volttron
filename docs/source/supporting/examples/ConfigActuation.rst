@@ -1,7 +1,7 @@
 .. _ConfigActuation:
 
 =========================
-Config Acutuation Example
+Config Actuation Example
 =========================
 
 The ConfigActuation example attempts to set points on a device when files
