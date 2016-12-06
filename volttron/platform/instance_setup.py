@@ -186,7 +186,8 @@ volttron-cfg needs to be run from the volttron top level source directory.
 
 
 def _start_platform():
-    cmd = ['volttron', '-vv']
+    cmd = ['volttron', '-vv',
+           '-l', os.path.join(get_home(), 'volttron.cfg.log')]
     if verbose:
         print('Starting platform...')
     pid = Popen(cmd, env=os.environ.copy(), stdout=subprocess.PIPE,
