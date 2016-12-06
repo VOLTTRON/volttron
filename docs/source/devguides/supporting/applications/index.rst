@@ -1,5 +1,5 @@
 ==========================
-Sample Applications/Agents
+Applications
 ==========================
 These resources summarize the use of the sample applications that are pre-packaged with VOLTTRON. For detailed
 information on these applications, refer to the report Transactional Network Platform: Applications available

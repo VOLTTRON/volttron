@@ -1,3 +1,5 @@
+.. _WeatherAgentTopics:
+
 Weather Agent Topics
 --------------------
 

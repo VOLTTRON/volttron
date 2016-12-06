@@ -1693,3 +1693,126 @@ def test_set_multiple_captures_errors(publish_agent, cancel_schedules):
         pytest.fail('read only point did not raise an exception')
 
     assert True
+
+@pytest.mark.actuator
+def test_set_value_no_lock(publish_agent, volttron_instance1):
+    """ Tests the (now default) setting to allow writing without a
+    lock as long as nothing else has the device locked.
+
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param volttron_instance: Volttron instance on which test is run
+    """
+
+    alternate_actuator_vip_id = "my_actuator"
+    #Use actuator that allows write with no lock.
+    my_actuator_uuid = volttron_instance1.install_agent(
+        agent_dir="services/core/ActuatorAgent",
+        config_file="services/core/ActuatorAgent/tests/actuator-no-lock.config",
+        start=True, vip_identity=alternate_actuator_vip_id)
+    try:
+        agentid = TEST_AGENT
+
+        result = publish_agent.vip.rpc.call(
+            alternate_actuator_vip_id,  # Target agent
+            'set_point',  # Method
+            agentid,  # Requestor
+            'fakedriver0/SampleWritableFloat1',  # Point to set
+            6.5  # New value
+        ).get(timeout=10)
+        assert result == 6.5
+
+    finally:
+        publish_agent.vip.rpc.call(
+            alternate_actuator_vip_id,  # Target agent
+            'revert_device',  # Method
+            agentid,  # Requestor
+            'fakedriver0'  # Point to revert
+        ).get(timeout=10)
+
+        volttron_instance1.stop_agent(my_actuator_uuid)
+        volttron_instance1.remove_agent(my_actuator_uuid)
+
+@pytest.mark.actuator
+def test_set_value_no_lock_failure(publish_agent, volttron_instance1):
+    """ Tests the (now default) setting to allow writing without a
+    lock as long as nothing else has the device locked.
+
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param volttron_instance: Volttron instance on which test is run
+    """
+
+    alternate_actuator_vip_id = "my_actuator"
+    #Use actuator that allows write with no lock.
+    my_actuator_uuid = volttron_instance1.install_agent(
+        agent_dir="services/core/ActuatorAgent",
+        config_file="services/core/ActuatorAgent/tests/actuator-no-lock.config",
+        start=True, vip_identity=alternate_actuator_vip_id)
+    try:
+        agentid2 = "test-agent2"
+        taskid = "test-task"
+        publish_agent2 = volttron_instance1.build_agent(identity=agentid2)
+
+        start = str(datetime.now())
+        end = str(datetime.now() + timedelta(seconds=60))
+        msg = [
+            ['fakedriver0', start, end]
+        ]
+        result = publish_agent2.vip.rpc.call(
+            alternate_actuator_vip_id,
+            REQUEST_NEW_SCHEDULE,
+            agentid2,
+            taskid,
+            PRIORITY_LOW,
+            msg).get(timeout=10)
+        # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
+        print result
+        assert result['result'] == SUCCESS
+
+        agentid = TEST_AGENT
+
+        with pytest.raises(RemoteError, message="Expecting remote error."):
+            result = publish_agent.vip.rpc.call(
+                alternate_actuator_vip_id,  # Target agent
+                'set_point',  # Method
+                agentid,  # Requestor
+                'fakedriver0/SampleWritableFloat1',  # Point to set
+                7.5  # New value
+            ).get(timeout=10)
+
+    finally:
+        publish_agent2.vip.rpc.call(
+            alternate_actuator_vip_id,  # Target agent
+            'revert_device',  # Method
+            agentid,  # Requestor
+            'fakedriver0'  # Point to revert
+        ).get(timeout=10)
+
+        publish_agent2.core.stop()
+        volttron_instance1.stop_agent(my_actuator_uuid)
+        volttron_instance1.remove_agent(my_actuator_uuid)
+
+@pytest.mark.actuator
+def test_set_value_float_failure(publish_agent):
+    """
+    Test setting a float value of a point through rpc
+    Expected result = value of the actuation point
+
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
+    """
+    print ("\n**** test_set_float_value ****")
+    taskid = 'task_set_float_value'
+    agentid = TEST_AGENT
+
+    with pytest.raises(RemoteError, message="Expecting remote error."):
+        publish_agent.vip.rpc.call(
+            PLATFORM_ACTUATOR,  # Target agent
+            'set_point',  # Method
+            agentid,  # Requestor
+            'fakedriver0/SampleWritableFloat1',  # Point to set
+            2.5  # New value
+        ).get(timeout=10)
