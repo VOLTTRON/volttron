@@ -5,14 +5,21 @@ Chargepoint Driver README
 
 Version 1.0
 
-Miscellaneous
--------------
+Write Points
+------------
 
 For any write of an attribute, it will return a read value of the attribute. This can produce some weird results.
 For example, clear alarms can only be written to, not read, so a set_value call will return None. Because any write to
 an attribute must go first to the Chargepoint Cloud, then propagate to the Chargepoint station, any calls to set or
 clear load sheds will also take time to resolve. A write to these attributes will most likely return the previous value
 before the call was accepted.
+
+This is further explained in sections regarding the specific drivers. However, each write point is very particular in
+its use cases. To set a load shed, the points allowedLoad or percentShed must be written to. These may or may not have a
+port associated with them. To clear a load shed however, a value of 0 must be written to the shedLoad attribute. While
+shedLoad should be associated with a port, due to API limitations, only an entire station may be cleared at a time. So if
+a user wishes to only clear one port of a chargepoint station, they must subsequently reapply the loadShed to the other
+point on the Chargepoint station as it will be cleared as well as the desired port.
 
 
 Driver Config

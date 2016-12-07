@@ -442,6 +442,68 @@ Any additional columns will be ignored. It is common practice to include a **Poi
 A sample BACnet registry file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/bacnet.csv>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/bacnet.csv``
 
+
+
+
+.. _Chargepoint-config:
+Chargepoint Driver Configuration
+--------------------------------
+
+driver_config
+*************
+
+There are three arguments for the **driver_config** section of the device configuration file:
+
+    - **stationID** - Chargepoint ID of the station. This format is ususally '1:00001'
+    - **username** - Login credentials for the Chargepoint API
+    - **password** - Login credentials for the Chargepoint API
+
+Here is an example device configuration file:
+
+.. code-block:: json
+
+    {
+        "driver_config": {"stationID": "3:12345",
+                          "username": "4b90fc0ae5fe8b6628e50af1215d4fcf5743a6f3c63ee1464012875",
+                          "password": "ebaf1a3cdfb80baf5b274bdf831e2648"},
+        "driver_type": "chargepoint",
+        "registry_config":"config://chargepoint.csv",
+        "interval": 60,
+        "timezone": "UTC",
+        "heart_beat_point": "heartbeat"
+    }
+
+A sample Chargepoint configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/chargepoint1.config``
+
+
+.. _Chargepoint-Driver:
+Chargepoint Registry Configuration File
+***************************************
+
+The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device.
+
+The following columns are required for each row:
+
+    - **Volttron Point Name** - The name by which the platform and agents running on the platform will refer to this point.
+    - **Attribute Name** - Chargepoint defined name of point. This ensures correct API calls.
+    - **Port #** - If the point describes a specific port on the Chargestation, it is defined here. (Note 0 and an empty value are equivalent.)
+    - **Type** - Python type of the point value.
+    - **Units** - Used for meta data when creating point information on the historian.
+    - **Writable** - Either "TRUE" or "FALSE". Determines if the point can be written to. Only points labeled TRUE can be written.
+    - **Notes** - Miscellaneous notes field.
+    - **Register Name** - A string representing how to interpret the data register. Acceptable values are:
+        * StationRegister
+        * StationStatusRegister
+        * LoadRegister
+        * AlarmRegister
+        * StationRightsRegister
+    - **Starting Value** - Default value for writeable points. Read-only points should not have a value in this column.
+
+Information about a Chargepoint CSV registry file can be found here: ``services/core/MasterDriverAgent/master_driver/interfaces/chargepoint/README.rst``
+
+A sample Chargepoint registry file can be found in the VOLTTRON repository in ``examples/configurations/drivers/chargepoint.csv``
+
+
 Fake Device Driver Configuration
 --------------------------------
 This driver does not connect to any actual device and instead produces random and or pre-configured values. 

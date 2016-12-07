@@ -167,7 +167,7 @@ class ChargepointRegister(BaseRegister):
             raise IOError("Trying to write to a point configured read only: {0}".format(self.attribute_name))
         return True
 
-    def get_register(self, result, port_flag=True):
+    def get_register(self, result, method, port_flag=True):
         """Gets correct register from API response.
 
         :param result: API result from which to grab register value.
@@ -184,6 +184,7 @@ class ChargepointRegister(BaseRegister):
             return self.sanitize_output(self.data_type, value)
         except cps.CPAPIException as exception:
             if exception._responseCode not in ['153']:
+                _log.error('{0} did not execute.'.format(method))
                 _log.error(str(exception))
             return None
 
@@ -223,7 +224,7 @@ class StationRegister(ChargepointRegister):
         global service
         result = async.CPRequest.request(service.getStations, stationID=self.station_id)
         result.wait()
-        return self.get_register(result.value)
+        return self.get_register(result.value, service.getStations)
 
     @value.setter
     def value(self, x):
@@ -263,7 +264,7 @@ class LoadRegister(ChargepointRegister):
         global service
         result = async.CPRequest.request(service.getLoad, stationID=self.station_id)
         result.wait()
-        return self.get_register(result.value)
+        return self.get_register(result.value, service.getLoad)
 
     @value.setter
     def value(self, x):
@@ -346,7 +347,7 @@ class AlarmRegister(ChargepointRegister):
 
         result = async.CPRequest.request(service.getAlarms, **kwargs)
         result.wait()
-        return self.get_register(result.value, False)
+        return self.get_register(result.value, service.getAlarms, False)
 
     @value.setter
     def value(self, x):
@@ -410,7 +411,7 @@ class ChargingSessionRegister(ChargepointRegister):
         result.wait()
 
         # Of Note, due to API limitations, port number is ignored for these calls
-        return self.get_register(result.value, False)
+        return self.get_register(result.value, service.getChargingSessionData, False)
 
     @value.setter
     def value(self, x):
@@ -442,7 +443,7 @@ class StationStatusRegister(ChargepointRegister):
         global service
         result = async.CPRequest.request(service.getStationStatus, self.station_id)
         result.wait()
-        return self.get_register(result.value)
+        return self.get_register(result.value, service.getStationStatus)
 
     @value.setter
     def value(self, x):

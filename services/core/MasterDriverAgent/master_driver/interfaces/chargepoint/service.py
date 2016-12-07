@@ -416,7 +416,7 @@ class CPAPIResponse(object):
 
     @staticmethod
     def is_not_found(name):
-        logger.info("{0} not found in result set.".format(name))
+        logger.warning("{0} not found in result set.".format(name))
         return None
 
     @staticmethod
@@ -457,7 +457,7 @@ class CPAPIResponse(object):
             else:
                 return parent_dict[attribute]
         else:
-            logger.info("{0} not found in Port result set.".format(attribute))
+            logger.warning("{0} not found in Port result set.".format(attribute))
             return None
 
     @staticmethod
