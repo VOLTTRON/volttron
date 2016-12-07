@@ -1288,11 +1288,11 @@ class VolttronCentralAgent(Agent):
             return
 
         if data is None:
-            data={}
+            data = {}
 
         payload = dict(
             type=type,
-            data=data
+            data=str(data)
         )
 
         payload = jsonapi.dumps(payload)

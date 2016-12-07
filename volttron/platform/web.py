@@ -267,8 +267,11 @@ class WebApplicationWrapper(object):
         if endpoint not in self.endpoint_clients:
             self.endpoint_clients[endpoint] = set()
 
-        self.endpoint_clients[endpoint].add((identity, client))
-
+        if (identity, client) in  self.endpoint_clients[endpoint]:
+            self._log.debug("identity: {} already in endpoint set".format(identity))
+        else:
+            self._log.debug("identity: {} added to endpoint set".format(identity))
+            self.endpoint_clients[endpoint].add((identity, client))
 
     def client_received(self, endpoint, message):
         clients = self.endpoint_clients.get(endpoint, [])
