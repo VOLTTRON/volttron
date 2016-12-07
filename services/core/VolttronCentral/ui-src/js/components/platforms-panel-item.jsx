@@ -8,10 +8,12 @@ import CheckBox from './check-box';
 import Immutable from 'immutable';
 
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
+var platformsStore = require('../stores/platforms-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
 var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
 
 class PlatformsPanelItem extends BaseComponent {
@@ -188,7 +190,18 @@ class PlatformsPanelItem extends BaseComponent {
         this.setState({tooltipY: evt.clientY - 70});
     }
     _onAddDevices (evt) {
-        devicesActionCreators.configureDevices(this.state.panelItem.toJS());
+
+        var bacnetProxies = platformsStore.getRunningBacnetProxies(this.state.panelItem.get("uuid"));
+
+        if (bacnetProxies.length)
+        {
+            devicesActionCreators.configureDevices(this.state.panelItem.toJS());
+        }
+        else
+        {
+            statusIndicatorActionCreators.openStatusIndicator("error", 
+                "To scan for devices, a BACNet proxy agent for the platform must be installed and running.", null, "left");
+        }
     }
     _onDeviceMethodChange (evt) {
 

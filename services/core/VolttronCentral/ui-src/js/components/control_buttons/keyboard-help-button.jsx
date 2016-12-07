@@ -144,10 +144,6 @@ class KeyboardHelpButton extends BaseComponent {
                             <td><b>Enter</b></td>
                             <td className="plain">Lock in keyboard selections.</td>
                         </tr>
-                        <tr>
-                            <td><b>Delete</b></td>
-                            <td className="plain">Remove selected rows.</td>
-                        </tr>
                     </tbody>
                 </table>
             </div> 

@@ -40,10 +40,6 @@ class RegistryRow extends BaseComponent {
 
         return doUpdate;
     }
-    componentDidUpdate(){
-        console.log("updated component");
-    }
-
     _resetState(props) {
         var state = {};
 
@@ -96,7 +92,7 @@ class RegistryRow extends BaseComponent {
 
             devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
 
-            this.props.oncheckselect(this.state.attributesList.getIn(["attributes", 0]).value);
+            this.props.oncheckselect(this.props.immutableProps.get("rowIndex"));
         }
     }
     _grabResizeHandle(columnIndex, evt) {

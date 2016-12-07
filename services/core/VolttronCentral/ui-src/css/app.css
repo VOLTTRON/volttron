@@ -1474,7 +1474,6 @@ a.view__item:hover::before {
     position: absolute;
     top: 40px;
     right: -30px;
-    cursor: pointer;
 }
 
 .keyboard_help_button > div:last-child {
@@ -1492,6 +1491,10 @@ a.view__item:hover::before {
 
 .keyboard_help_button .centeredDiv {
     line-height: 20px;
+}
+
+.keyboard-help {
+    cursor: pointer;
 }
 
 .opaque_inner {
@@ -1822,7 +1825,7 @@ td.plain {
 }
 
 .configDeviceContainer table td:first-child {
-    background-color: rgba(160, 221, 243, 0.59);
+    background-color: rgba(21, 81, 125, .15);
 } 
 
 .detectDevicesBox {    
@@ -1894,11 +1897,13 @@ td.buffer_row {
     position: absolute;
     opacity: 0;
     -moz-opactiy: 0;
-    top: 0;
+    top: -4px;
     right: 0;
     z-index: 99;
     cursor: pointer;
     width: 20px;
+    height: 20px;
+    font-size: 0;
 }
 
 .fileButton, .fileSelectButton {

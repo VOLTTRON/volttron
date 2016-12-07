@@ -10616,10 +10616,12 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var platformsPanelItemsStore = __webpack_require__(264);
+	var platformsStore = __webpack_require__(266);
 	var platformsPanelActionCreators = __webpack_require__(267);
 	var platformChartActionCreators = __webpack_require__(301);
 	var controlButtonActionCreators = __webpack_require__(110);
 	var devicesActionCreators = __webpack_require__(303);
+	var statusIndicatorActionCreators = __webpack_require__(268);
 	
 	var PlatformsPanelItem = function (_BaseComponent) {
 	    _inherits(PlatformsPanelItem, _BaseComponent);
@@ -10786,7 +10788,14 @@
 	    }, {
 	        key: '_onAddDevices',
 	        value: function _onAddDevices(evt) {
-	            devicesActionCreators.configureDevices(this.state.panelItem.toJS());
+	
+	            var bacnetProxies = platformsStore.getRunningBacnetProxies(this.state.panelItem.get("uuid"));
+	
+	            if (bacnetProxies.length) {
+	                devicesActionCreators.configureDevices(this.state.panelItem.toJS());
+	            } else {
+	                statusIndicatorActionCreators.openStatusIndicator("error", "To scan for devices, a BACNet proxy agent for the platform must be installed and running.", null, "left");
+	            }
 	        }
 	    }, {
 	        key: '_onDeviceMethodChange',
@@ -56997,8 +57006,6 @@
 	            deviceId: deviceId,
 	            address: address
 	        });
-	
-	        console.log("focused on device");
 	    },
 	    configureDevice: function configureDevice(device, bacnetIdentity) {
 	
@@ -58295,10 +58302,7 @@
 	var _view = "Detect Devices";
 	var _device = null;
 	var _data = {};
-	var _backupData = {};
-	var _registryFiles = {};
 	var _updatedRow = {};
-	var _backupFileName = {};
 	var _platform;
 	var _devices = [];
 	var _settingsTemplate = {};
@@ -59282,11 +59286,6 @@
 	    return _data.hasOwnProperty(device.deviceId) && _data.hasOwnProperty(device.deviceId) ? _data[device.deviceId].length : false;
 	};
 	
-	devicesStore.getRegistryFile = function (device) {
-	
-	    return _registryFiles.hasOwnProperty(device.deviceId) && _data.hasOwnProperty(device.deviceId) && _data[device.deviceId].length ? _registryFiles[device.deviceId] : "";
-	};
-	
 	devicesStore.getSavedRegistryFiles = function () {
 	    return ObjectIsEmpty(_savedRegistryFiles) ? null : _savedRegistryFiles;
 	};
@@ -59459,6 +59458,7 @@
 	                device.bacnetProxy = action.bacnet;
 	
 	                if (device.configuring) {
+	                    device.registryCount = device.registryCount + 1;
 	                    device.registryConfig = [];
 	                }
 	            }
@@ -59501,11 +59501,11 @@
 	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 	
 	            if (device) {
+	                device.registryCount = device.registryCount + 1;
 	                device.registryConfig = getPreppedData(action.data);
 	                device.showPoints = true;
 	            }
 	
-	            _registryFiles[action.deviceId] = action.file;
 	            devicesStore.emitChange();
 	            break;
 	
@@ -59536,40 +59536,6 @@
 	            var i = -1;
 	            var keyProps = [];
 	
-	            // var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
-	
-	            // if (device)
-	            // {
-	            //     var attributes = device.registryConfig.find(function (attributes, index) {
-	            //         var match = (attributes[0].value === action.attributes.get(0).value);
-	
-	            //         if (match)
-	            //         {
-	            //             i = index;
-	            //         }
-	
-	            //         return match;
-	            //     });
-	
-	            //     action.attributes.forEach(function (item) {
-	            //         if (item.keyProp)
-	            //         {
-	            //             keyProps.push(item.key);
-	            //         }
-	            //     });
-	
-	            //     device.keyProps = keyProps;
-	
-	            //     if (typeof attributes !== "undefined")
-	            //     {                
-	            //         device.registryConfig[i] = action.attributes.toJS();
-	            //     }
-	            //     else
-	            //     {
-	            //         device.registryConfig.push(action.attributes.toJS());
-	            //     }
-	            // }
-	
 	            _updatedRow = {
 	                deviceId: action.deviceId,
 	                deviceAddress: action.deviceAddress,
@@ -59582,8 +59548,6 @@
 	            _action = "configure_registry";
 	            _view = "Registry Configuration";
 	            _device = action.device;
-	            _backupData[_device.deviceId] = _data.hasOwnProperty(_device.deviceId) ? JSON.parse(JSON.stringify(_data[_device.deviceId])) : [];
-	            _backupFileName[_device.deviceId] = _registryFiles.hasOwnProperty(_device.deviceId) ? _registryFiles[_device.deviceId] : "";
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.SAVE_REGISTRY:
@@ -59753,6 +59717,7 @@
 	            platformUuid: platformUuid,
 	            bacnetProxyIdentity: bacnetIdentity,
 	            agentDriver: device.agentDriver,
+	            registryCount: 0,
 	            registryConfig: [],
 	            keyProps: ["volttron_point_name", "units", "writable"],
 	            items: [{ key: "address", label: "Address", value: device.address }, { key: "deviceName", label: "Name", value: device.device_name }, { key: "deviceDescription", label: "Description", value: device.device_description }, { key: "deviceId", label: "Device ID", value: deviceIdStr }, { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] }, { key: "type", label: "Type", value: device.type }]
@@ -61221,7 +61186,7 @@
 	            if (this.state.bacnetProxies.length) {
 	                this.setState({ deviceMethod: deviceMethod });
 	            } else {
-	                statusIndicatorActionCreators.openStatusIndicator("error", "Can't scan for devices: A BACNet proxy agent for the platform must be installed and running.", null, "left");
+	                statusIndicatorActionCreators.openStatusIndicator("error", "To scan for devices, a BACNet proxy agent for the platform must be installed and running.", null, "left");
 	            }
 	        }
 	    }, {
@@ -61346,7 +61311,7 @@
 	
 	                var platform = this.state.platform;
 	
-	                var methodOptions = [{ value: "scanForDevices", label: "Scan for Devices" }, { value: "addDevicesManually", label: "Add Manually" }];
+	                var methodOptions = [{ value: "scanForDevices", label: "Scan for Devices" }];
 	
 	                var methodSelect = _react2.default.createElement(_reactSelectMe2.default, {
 	                    name: 'method-select',
@@ -62274,7 +62239,6 @@
 	var _space = 32;
 	var _down = 40;
 	var _up = 38;
-	var _delete = 46;
 	
 	var ConfigureRegistry = function (_BaseComponent) {
 	    _inherits(ConfigureRegistry, _BaseComponent);
@@ -62336,8 +62300,9 @@
 	    }, {
 	        key: 'componentWillReceiveProps',
 	        value: function componentWillReceiveProps(nextProps) {
+	
 	            //if ((this.props.device.registryConfig.length !== nextProps.device.registryConfig.length) || 
-	            if (this.props.device.configuring !== nextProps.device.configuring || this.props.device.showPoints !== nextProps.device.showPoints) {
+	            if (this.props.device.configuring !== nextProps.device.configuring || this.props.device.showPoints !== nextProps.device.showPoints || this.props.device.registryCount !== nextProps.device.registryCount) {
 	                var newState = this._resetState(nextProps.device);
 	                newState.keyboardRange = this.state.keyboardRange;
 	
@@ -62391,8 +62356,6 @@
 	                                    var newIndex = this.state.keyboardRange[1] + 1;
 	
 	                                    if (newIndex < this.state.registryValues.length) {
-	                                        // this.setState({ keyboardIndex: newIndex });
-	
 	                                        if (newIndex > this.state.keyboardRange[1]) {
 	                                            this.state.keyboardRange[1] = newIndex;
 	
@@ -62404,7 +62367,6 @@
 	                                    var newIndex = this.state.keyboardRange[1] + 1;
 	
 	                                    if (newIndex < this.state.registryValues.length) {
-	                                        // this.setState({ keyboardIndex: newIndex });
 	                                        this.setState({ keyboardRange: [newIndex, newIndex] });
 	                                    }
 	                                }
@@ -62419,8 +62381,6 @@
 	                                    var newIndex = this.state.keyboardRange[0] - 1;
 	
 	                                    if (newIndex > -1) {
-	                                        // this.setState({ keyboardIndex: newIndex });
-	
 	                                        if (newIndex < this.state.keyboardRange[0]) {
 	                                            this.state.keyboardRange[0] = newIndex;
 	
@@ -62432,16 +62392,10 @@
 	                                    var newIndex = this.state.keyboardRange[0] - 1;
 	
 	                                    if (newIndex > -1) {
-	                                        // this.setState({ keyboardIndex: newIndex });
 	                                        this.setState({ keyboardRange: [newIndex, newIndex] });
 	                                    }
 	                                }
 	
-	                            break;
-	                        case _delete:
-	                            this._onRemovePoints();
-	                            this.setState({ keyboardRange: [-1, -1] });
-	                            this.setState({ hoverEnabled: true });
 	                            break;
 	                    }
 	                } else if (keydown.which === _ctrl) {
@@ -62511,7 +62465,6 @@
 	                });
 	            }
 	
-	            state.selectedPoints = [];
 	            state.allSelected = false;
 	
 	            state.selectedCells = [];
@@ -62574,7 +62527,6 @@
 	        key: '_focusOnDevice',
 	        value: function _focusOnDevice() {
 	            devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
-	            console.log("focused on device");
 	        }
 	    }, {
 	        key: '_onFilterBoxChange',
@@ -62598,10 +62550,8 @@
 	
 	            modalActionCreators.openModal(_react2.default.createElement(_editPointForm2.default, {
 	                attributes: _immutable2.default.List(pointValues),
-	                selectedPoints: this.state.selectedPoints,
 	                deviceId: this.props.device.id,
-	                deviceAddress: this.props.device.address,
-	                onsubmit: this._updateTable }));
+	                deviceAddress: this.props.device.address }));
 	        }
 	    }, {
 	        key: '_updateTable',
@@ -62799,7 +62749,7 @@
 	        value: function _addColumn(newColumnLabel, index) {
 	
 	            var newColumn = newColumnLabel.toLowerCase().replace(/ /g, "_");
-	            this.state.columnNames.splice(index + 1, 0, newColumn);
+	            this.state.columnNames = this.state.columnNames.splice(index + 1, 0, newColumn);
 	            this.state.keyPropsList.push(newColumn);
 	
 	            this.setState({ columnNames: this.state.columnNames });
@@ -62840,7 +62790,7 @@
 	        value: function _cloneColumn(newColumnLabel, index) {
 	
 	            var newColumn = newColumnLabel.toLowerCase().replace(/ /g, "_");
-	            this.state.columnNames.splice(index + 1, 0, newColumn);
+	            this.state.columnNames = this.state.columnNames.splice(index + 1, 0, newColumn);
 	            this.state.keyPropsList.push(newColumn);
 	
 	            this.setState({ columnNames: this.state.columnNames });
@@ -62890,7 +62840,7 @@
 	
 	            var columnName = this.state.columnNames[index];
 	
-	            this.state.columnNames.splice(index, 1);
+	            this.state.columnNames = this.state.columnNames.splice(index, 1);
 	
 	            var newValues = this.state.registryValues.map(function (row) {
 	                return row.updateIn(["attributes"], function (columnCells) {
@@ -63236,7 +63186,7 @@
 	                        var headerCell;
 	
 	                        var columnWidth = {
-	                            width: item.columnWidth
+	                            width: item.columnWidth ? item.columnWidth : _defaultColumnWidth
 	                        };
 	
 	                        if (tableIndex === 0) {
@@ -65478,24 +65428,6 @@
 	                                { className: 'plain' },
 	                                'Lock in keyboard selections.'
 	                            )
-	                        ),
-	                        _react2.default.createElement(
-	                            'tr',
-	                            null,
-	                            _react2.default.createElement(
-	                                'td',
-	                                null,
-	                                _react2.default.createElement(
-	                                    'b',
-	                                    null,
-	                                    'Delete'
-	                                )
-	                            ),
-	                            _react2.default.createElement(
-	                                'td',
-	                                { className: 'plain' },
-	                                'Remove selected rows.'
-	                            )
 	                        )
 	                    )
 	                )
@@ -65614,11 +65546,6 @@
 	            return doUpdate;
 	        }
 	    }, {
-	        key: 'componentDidUpdate',
-	        value: function componentDidUpdate() {
-	            console.log("updated component");
-	        }
-	    }, {
 	        key: '_resetState',
 	        value: function _resetState(props) {
 	            var state = {};
@@ -65674,7 +65601,7 @@
 	
 	                devicesActionCreators.focusOnDevice(this.props.immutableProps.get("deviceId"), this.props.immutableProps.get("deviceAddress"));
 	
-	                this.props.oncheckselect(this.state.attributesList.getIn(["attributes", 0]).value);
+	                this.props.oncheckselect(this.props.immutableProps.get("rowIndex"));
 	            }
 	        }
 	    }, {
@@ -115448,4 +115375,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-c8321e40bd5d87e6c99f.js.map
+//# sourceMappingURL=app-62fca10d6a5071c720c2.js.map
