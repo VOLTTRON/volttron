@@ -63,14 +63,19 @@ from volttron.platform.agent import math_utils
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from driver import DriverAgent
 import resource
-from datetime import datetime
+from datetime import datetime, timedelta
 import bisect
+import fnmatch
 
 from driver_locks import configure_socket_lock, configure_publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '2.0'
+
+class OverrideError(StandardError):
+    """Error raised when the user tries to set/revert point when global override is set."""
+    pass
 
 def master_driver_agent(config_path, **kwargs):
 
@@ -164,7 +169,9 @@ class MasterDriverAgent(Agent):
         self.publish_breadth_first_all = publish_breadth_first_all
         self.publish_depth_first = publish_depth_first
         self.publish_breadth_first = publish_breadth_first
-
+        self._override_devices = set()
+        self._override_patterns = set()
+        self._override_interval_events = {}
 
         if scalability_test:
             self.waiting_to_finish = set()
@@ -386,11 +393,19 @@ class MasterDriverAgent(Agent):
 
     @RPC.export
     def set_point(self, path, point_name, value, **kwargs):
-        return self.instances[path].set_point(point_name, value, **kwargs)
+        if path in self._override_devices:
+            raise OverrideError(
+                "Cannot set point on device {} since global override is set".format(path))
+        else:
+            return self.instances[path].set_point(point_name, value, **kwargs)
 
     @RPC.export
     def set_multiple_points(self, path, point_names_values, **kwargs):
-        return self.instances[path].set_multiple_points(point_names_values, **kwargs)
+        if path in self._override_devices:
+            raise OverrideError(
+                "Cannot set point on device {} since global override is set".format(path))
+        else:
+            return self.instances[path].set_multiple_points(point_names_values, **kwargs)
     
     @RPC.export
     def heart_beat(self):
@@ -400,12 +415,117 @@ class MasterDriverAgent(Agent):
             
     @RPC.export
     def revert_point(self, path, point_name, **kwargs):
-        self.instances[path].revert_point(point_name, **kwargs)
-    
+        if path in self._override_devices:
+            raise OverrideError(
+                "Cannot revert point on device {} since global override is set".format(path))
+        else:
+            self.instances[path].revert_point(point_name, **kwargs)
+
     @RPC.export
     def revert_device(self, path, **kwargs):
-        self.instances[path].revert_all(**kwargs)
+        if path in self._override_devices:
+            raise OverrideError(
+                "Cannot revert device {} since global override is set".format(path))
+        else:
+            self.instances[path].revert_all(**kwargs)
 
+    # Turn on override condition on all the devices matching the pattern.
+    @RPC.export
+    def set_override_on(self, pattern, duration=1.0, failsafe_revert=True, staggered_revert=False):
+        self._set_override_on(pattern, duration, failsafe_revert, staggered_revert)
+
+    def _set_override_on(self, pattern, duration=1.0, failsafe_revert=True, staggered_revert=False):
+        revert_greenlets = []
+        stagger_interval = 0.05 #sec
+        pattern = pattern.lower()
+
+        #Add to patterns set
+        self._override_patterns.add(pattern)
+        device_topic_actual = self.instances.keys()
+        i = 0
+
+        for name in device_topic_actual:
+            name = name.lower()
+            i += 1
+            if fnmatch.fnmatch(name, pattern):
+                #If revert to default state is needed
+                if failsafe_revert:
+                    if staggered_revert:
+                        revert_greenlets.append(gevent.spawn_later(i*stagger_interval, self.instances[name].revert_all()))
+                    else:
+                        revert_greenlets.append(gevent.spawn(self.instances[name].revert_all()))
+                # Set override
+                self._override_devices.add(name)
+        # Set timer for interval of override condition
+        self._update_override_interval(duration, pattern)
+
+    # Turn off override condition on all the entities matching the pattern.
+    @RPC.export
+    def set_override_off(self, pattern):
+        return self._set_override_off(pattern)
+
+    # Get a list of all the devices with override condition.
+    @RPC.export
+    def get_override_devices(self):
+        devices = []
+        devices.extend(self._override_devices)
+        return devices
+
+    # Clear all overrides
+    @RPC.export
+    def clear_overrides(self):
+        # Cancel all pending override timer events
+        for evt in self._override_interval_events.items():
+            if evt is not None:
+                evt.cancel()
+        self._override_interval_events.clear()
+        self._override_devices.clear()
+        self._override_patterns.clear()
+
+    # Get a list of all the devices with override condition.
+    @RPC.export
+    def get_override_patterns(self):
+        patterns = []
+        patterns.extend(self._override_patterns)
+        return patterns
+
+    def _set_override_off(self, pattern):
+        pattern = pattern.lower()
+        # If pattern exactly matches
+        if pattern in self._override_patterns:
+            self._override_patterns.discard(pattern)
+        else:
+            _log.debug("Pattern did not match!")
+
+        self._override_devices.clear()
+        #Cancel any pending override events
+        self._cancel_override_events(pattern)
+        #Build override devices list again
+        for pat in self._override_patterns:
+            for device in self.instances.keys():
+                device = device.lower()
+                if fnmatch.fnmatch(device, pat):
+                    self._override_devices.add(device)
+
+    def _update_override_interval(self, interval, topic):
+        override_start = utils.get_aware_utc_now()
+        override_end = override_start + timedelta(seconds=interval)
+        try:
+            self._override_interval_events[topic].cancel()
+        except KeyError:
+            _log.debug("MASTER DRIVER override interval event key error {}".format(topic))
+            pass
+        self._override_interval_events[topic] = self.core.schedule(override_end, self._cancel_override, topic)
+
+    def _cancel_override_events(self, pattern):
+        if pattern in self._override_interval_events:
+            # Cancel the override cancellation timer event
+            evt = self._override_interval_events.pop(pattern, None)
+            if evt is not None:
+                evt.cancel()
+
+    def _cancel_override(self, topic):
+        self._set_override_off(topic)
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
