@@ -32,6 +32,13 @@ var platformChartActionCreators = {
             chartKey: chartKey
         });
     },
+    changeDataLength: function (length, chartKey) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHANGE_CHART_LENGTH,
+        length: length,
+            chartKey: chartKey
+        });
+    },
     setMin: function (min, chartKey) {
         dispatcher.dispatch({
             type: ACTION_TYPES.CHANGE_CHART_MIN,

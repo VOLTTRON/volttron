@@ -227,7 +227,7 @@ class DevicesFound extends BaseComponent {
                     }
 
                     var fileSelectTooltip = {
-                        content: "Select Registry File CSV)",
+                        content: "Select Registry File (CSV)",
                         tooltipClass: "colorBlack",
                         "x": -20,
                         "y": -120

@@ -11578,6 +11578,7 @@
 	    CHANGE_CHART_MIN: null,
 	    CHANGE_CHART_MAX: null,
 	    CHANGE_CHART_REFRESH: null,
+	    CHANGE_CHART_LENGTH: null,
 	    REFRESH_CHART: null,
 	    REMOVE_CHART: null,
 	    LOAD_CHARTS: null,
@@ -56598,6 +56599,13 @@
 	            chartKey: chartKey
 	        });
 	    },
+	    changeDataLength: function changeDataLength(length, chartKey) {
+	        dispatcher.dispatch({
+	            type: ACTION_TYPES.CHANGE_CHART_LENGTH,
+	            length: length,
+	            chartKey: chartKey
+	        });
+	    },
 	    setMin: function setMin(min, chartKey) {
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.CHANGE_CHART_MIN,
@@ -62403,7 +62411,7 @@
 	                    };
 	
 	                    var fileSelectTooltip = {
-	                        content: "Select Registry File CSV)",
+	                        content: "Select Registry File (CSV)",
 	                        tooltipClass: "colorBlack",
 	                        "x": -20,
 	                        "y": -120
@@ -74750,6 +74758,7 @@
 	                                name: this.props.chartKey,
 	                                hideControls: this.props.hideControls,
 	                                refreshInterval: this.props.chart.refreshInterval,
+	                                dataLength: this.props.chart.dataLength,
 	                                max: chartData.max,
 	                                min: chartData.min,
 	                                pinned: this.props.chart.pinned,
@@ -74861,6 +74870,13 @@
 	    },
 	    _onRefreshChange: function _onRefreshChange(e) {
 	        platformChartActionCreators.changeRefreshRate(e.target.value, this.props.name);
+	
+	        if (this.state.pinned) {
+	            platformActionCreators.saveCharts();
+	        }
+	    },
+	    _onLengthChange: function _onLengthChange(e) {
+	        platformChartActionCreators.changeDataLength(e.target.value, this.props.name);
 	
 	        if (this.state.pinned) {
 	            platformActionCreators.saveCharts();
@@ -75022,23 +75038,36 @@
 	                tooltip: refreshChartTooltip,
 	                icon: refreshChartIcon });
 	
+	            var dataLength = React.createElement(
+	                'div',
+	                null,
+	                React.createElement('input', {
+	                    type: 'number',
+	                    onChange: this._onLengthChange,
+	                    value: this.props.dataLength,
+	                    min: '1',
+	                    step: '1'
+	                }),
+	                React.createElement('br', null)
+	            );
+	
 	            var lengthIcon = React.createElement('i', { className: 'fa fa-arrows-h' });
 	
 	            var dataLengthTaptip = {
 	                "title": "Data Length",
-	                "content": lengthChart,
+	                "content": dataLength,
 	                "x": taptipX,
 	                "y": taptipY
 	            };
 	
 	            var dataLengthTooltip = {
 	                "content": "Data Length",
-	                "x": tooltipX,
+	                "x": tooltipX - 10,
 	                "y": tooltipY
 	            };
 	
-	            var dataLengthButton = React.createElement(_controlButton2.default, {
-	                name: this.state.chartName + "_dataLengthButton",
+	            var dataLengthControlButton = React.createElement(_controlButton2.default, {
+	                name: this.state.chartName + "_dataLengthControlButton",
 	                taptip: dataLengthTaptip,
 	                tooltip: dataLengthTooltip,
 	                icon: lengthIcon });
@@ -75137,6 +75166,7 @@
 	                pinChartControlButton,
 	                chartTypeControlButton,
 	                refreshChartControlButton,
+	                dataLengthControlButton,
 	                chartMinControlButton,
 	                chartMaxControlButton,
 	                React.createElement('div', { className: 'inlineBlock',
@@ -115400,4 +115430,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-b938c3d1f46e2fe55f83.js.map
+//# sourceMappingURL=app-2ab4587235a21122e133.js.map
