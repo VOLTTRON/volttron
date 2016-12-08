@@ -156,8 +156,6 @@ var devicesActionCreators = {
             deviceId: deviceId,
             address: address
         });
-
-        console.log("focused on device");
     },
     configureDevice: function (device, bacnetIdentity) {
         

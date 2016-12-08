@@ -20,6 +20,8 @@ var devicesActionCreators = require('../action-creators/devices-action-creators'
 var devicesStore = require('../stores/devices-store');
 var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
+var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
+
 
 
 var _defaultColumnWidth = "200px";
@@ -31,7 +33,6 @@ var _enter = 13;
 var _space = 32;
 var _down = 40;
 var _up = 38;
-var _delete = 46;
 
 class ConfigureRegistry extends BaseComponent {    
     constructor(props) {
@@ -88,9 +89,9 @@ class ConfigureRegistry extends BaseComponent {
         }
     }
     componentWillReceiveProps(nextProps) {
-        //if ((this.props.device.registryConfig.length !== nextProps.device.registryConfig.length) || 
         if ((this.props.device.configuring !== nextProps.device.configuring) || 
-            (this.props.device.showPoints !== nextProps.device.showPoints))
+            (this.props.device.showPoints !== nextProps.device.showPoints) ||
+            (this.props.device.registryCount !== nextProps.device.registryCount))
         {
             var newState = this._resetState(nextProps.device);
             newState.keyboardRange = this.state.keyboardRange;
@@ -150,8 +151,6 @@ class ConfigureRegistry extends BaseComponent {
 
                             if (newIndex < this.state.registryValues.length)
                             {
-                                // this.setState({ keyboardIndex: newIndex });
-
                                 if (newIndex > this.state.keyboardRange[1])
                                 {
                                     this.state.keyboardRange[1] = newIndex;
@@ -166,7 +165,6 @@ class ConfigureRegistry extends BaseComponent {
 
                             if (newIndex < this.state.registryValues.length)
                             {
-                                // this.setState({ keyboardIndex: newIndex });
                                 this.setState({ keyboardRange: [newIndex, newIndex]});
                             }
                         }
@@ -182,8 +180,6 @@ class ConfigureRegistry extends BaseComponent {
 
                             if (newIndex > -1)
                             {
-                                // this.setState({ keyboardIndex: newIndex });
-
                                 if (newIndex < this.state.keyboardRange[0])
                                 {
                                     this.state.keyboardRange[0] = newIndex;
@@ -199,16 +195,10 @@ class ConfigureRegistry extends BaseComponent {
 
                             if (newIndex > -1)
                             {
-                                // this.setState({ keyboardIndex: newIndex });
                                 this.setState({ keyboardRange: [newIndex, newIndex]});
                             }
                         }
 
-                        break;
-                    case _delete:
-                        this._onRemovePoints();
-                        this.setState({ keyboardRange: [-1, -1] })
-                        this.setState({ hoverEnabled: true });
                         break;
                 }
             }
@@ -283,7 +273,6 @@ class ConfigureRegistry extends BaseComponent {
             });
         }
 
-        state.selectedPoints = [];
         state.allSelected = false;
 
         state.selectedCells = [];
@@ -345,7 +334,6 @@ class ConfigureRegistry extends BaseComponent {
     }
     _focusOnDevice() {
         devicesActionCreators.focusOnDevice(this.props.device.id, this.props.device.address);
-        console.log("focused on device");
     } 
     _onFilterBoxChange(filterValue, column) {
         this.setState({ filterOn: true });
@@ -368,10 +356,8 @@ class ConfigureRegistry extends BaseComponent {
         modalActionCreators.openModal(
             <EditPointForm 
                 attributes={Immutable.List(pointValues)}
-                selectedPoints={this.state.selectedPoints}
                 deviceId={this.props.device.id} 
-                deviceAddress={this.props.device.address}
-                onsubmit={this._updateTable}>
+                deviceAddress={this.props.device.address}>
             </EditPointForm>);        
     }
     _updateTable(updatedRow) {
@@ -587,7 +573,7 @@ class ConfigureRegistry extends BaseComponent {
     _addColumn(newColumnLabel, index) {
 
         var newColumn = newColumnLabel.toLowerCase().replace(/ /g, "_");
-        this.state.columnNames.splice(index + 1, 0, newColumn);
+        this.state.columnNames = this.state.columnNames.splice(index + 1, 0, newColumn);
         this.state.keyPropsList.push(newColumn);
 
         this.setState({ columnNames: this.state.columnNames });
@@ -626,7 +612,7 @@ class ConfigureRegistry extends BaseComponent {
     _cloneColumn(newColumnLabel, index) {
 
         var newColumn = newColumnLabel.toLowerCase().replace(/ /g, "_");
-        this.state.columnNames.splice(index + 1, 0, newColumn);
+        this.state.columnNames = this.state.columnNames.splice(index + 1, 0, newColumn);
         this.state.keyPropsList.push(newColumn);
 
         this.setState({ columnNames: this.state.columnNames });
@@ -676,7 +662,7 @@ class ConfigureRegistry extends BaseComponent {
 
         var columnName = this.state.columnNames[index];
 
-        this.state.columnNames.splice(index, 1);
+        this.state.columnNames = this.state.columnNames.splice(index, 1);
 
         var newValues = this.state.registryValues.map(function (row) {
             return row.updateIn(["attributes"], function (columnCells) {
@@ -1022,12 +1008,48 @@ class ConfigureRegistry extends BaseComponent {
             
                 if (item.keyProp)
                 {
+                    var editColumnButtonName = 
+                        "editColumn-" + this.props.device.id + "-" + item.key + "-controlButton";
+
+                    var editItems = [
+                        { 
+                            label: "Find and Replace",
+                            position: "top",
+                            action: controlButtonActionCreators.toggleTaptip.bind(this, editColumnButtonName)
+                        },
+                        { 
+                            label: "Duplicate",
+                            action: this._onCloneColumn.bind(this, index)
+                        },
+                        { 
+                            label: "Add",
+                            action: this._onAddColumn.bind(this, index)
+                        },
+                        { 
+                            label: "Remove",
+                            position: "bottom",
+                            action: this._onRemoveColumn.bind(this, index)
+                        }
+                    ];
+
+                    var editColumnTooltip = {
+                        content: "Edit Column",
+                        tooltipX: 80,
+                        tooltipY: -60
+                    }
+
+                    var editColumnTaptip = {                        
+                        taptipX: 80,
+                        taptipY: -80,
+                    }
+
                     var editSelectButton = (<EditSelectButton 
-                                                onremove={this._onRemoveColumn}
-                                                onadd={this._onAddColumn}
-                                                onclone={this._onCloneColumn}
-                                                column={index}
-                                                name={this.props.device.id + "-" + item.key}/>);
+                                                tooltip={editColumnTooltip}
+                                                taptip={editColumnTaptip}
+                                                iconName="pencil"
+                                                buttonClass="edit_column_select"
+                                                name={this.props.device.id + "-" + item.key}
+                                                listItems={editItems}/>);
 
                     var editColumnButton = (<EditColumnButton 
                                                 column={index} 
@@ -1039,12 +1061,12 @@ class ConfigureRegistry extends BaseComponent {
                                                 replaceEnabled={this.state.selectedCells.length > 0}
                                                 onclear={this._onClearFind}
                                                 onhide={this._removeFocus}
-                                                name={this.props.device.id + "-" + item.key}/>);
+                                                name={editColumnButtonName}/>);
 
                     var headerCell;
 
                     var columnWidth = {
-                        width: item.columnWidth
+                        width: (item.columnWidth ? item.columnWidth : _defaultColumnWidth)
                     }
 
                     if (tableIndex === 0)

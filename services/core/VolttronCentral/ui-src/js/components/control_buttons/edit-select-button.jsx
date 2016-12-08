@@ -10,31 +10,20 @@ var controlButtonActionCreators = require('../../action-creators/control-button-
 class EditSelectButton extends BaseComponent {
     constructor(props) {
         super(props);
-        this._bind("_onCloneColumn", "_onAddColumn", "_onRemoveColumn", "_onEditColumn");
+        this._bind("_handleAction");
 
-        this.state = {};
+        this.state = {
+            buttonName: "editSelect-" + this.props.name + "-controlButton"
+        };
+    }
+    _handleAction(callback) {
+        
+        if (typeof callback === "function")
+        {
+            callback(this);    
+        }
 
-        this.state.buttonName = "editSelect-" + this.props.name + "-controlButton";
-        this.state.editColumnButton = "editColumn-" + this.props.name + "-controlButton";
-    }
-    _onClose() {
-
-    }
-    _onCloneColumn() {
-        this.props.onclone(this.props.column);
         controlButtonActionCreators.hideTaptip(this.state.buttonName);
-    }
-    _onAddColumn() {
-        this.props.onadd(this.props.column);
-        controlButtonActionCreators.hideTaptip(this.state.buttonName);
-    }
-    _onRemoveColumn() {
-        this.props.onremove(this.props.column);
-        controlButtonActionCreators.hideTaptip(this.state.buttonName);
-    }
-    _onEditColumn() {
-        controlButtonActionCreators.hideTaptip(this.state.buttonName);
-        controlButtonActionCreators.toggleTaptip(this.state.editColumnButton);
     }
     render() {
 
@@ -42,49 +31,84 @@ class EditSelectButton extends BaseComponent {
             position: "relative"
         };
 
+        var listItems = this.props.listItems.map(function (listItem, index) {
+            return (
+                <li key={"li-" + listItem.label + "-" + index}
+                    className={"opListItem " + listItem.position}
+                    onClick={this._handleAction.bind(this, listItem.action)}>{listItem.label}</li>
+            )
+        }, this);
+
         var editBox = (
             <div style={editBoxContainer}>
                 <ul
                     className="opList">
-                    <li 
-                        className="opListItem edit"
-                        onClick={this._onEditColumn}>Find and Replace</li>
-                    <li 
-                        className="opListItem clone"
-                        onClick={this._onCloneColumn}>Duplicate</li>
-                    <li 
-                        className="opListItem add"
-                        onClick={this._onAddColumn}>Add</li>
-                    <li 
-                        className="opListItem remove"
-                        onClick={this._onRemoveColumn}>Remove</li>
+                    {listItems}
                 </ul>
             </div> 
         );
 
         var editSelectTaptip = { 
             "content": editBox,
-            "x": 80,
-            "y": -80,
             "styles": [{"key": "width", "value": "120px"}],
             "break": "",
             "padding": "0px"
         };
 
-        var editSelectTooltip = {
-            content: "Edit Column",
-            "x": 80,
-            "y": -60
+        if (this.props.taptip.hasOwnProperty("taptipX"))
+        {
+            editSelectTaptip.x = this.props.taptip.taptipX;
         }
+        else if (this.props.taptip.hasOwnProperty("xOffset"))
+        {
+            editSelectTaptip.xOffset = this.props.taptip.xOffset;
+        } 
+
+        if (this.props.taptip.hasOwnProperty("taptipY"))
+        {
+            editSelectTaptip.y = this.props.taptip.taptipY;
+        }
+        else if (this.props.taptip.hasOwnProperty("yOffset"))
+        {
+            editSelectTaptip.yOffset = this.props.taptip.yOffset;
+        } 
+
+        var editSelectTooltip;
+
+        if (this.props.hasOwnProperty("tooltip"))
+        {
+            editSelectTooltip = {
+                content: this.props.tooltip.content
+            }
+
+            if (this.props.tooltip.hasOwnProperty("tooltipX"))
+            {
+                editSelectTooltip.x = this.props.tooltip.tooltipX;
+            }
+            else if (this.props.tooltip.hasOwnProperty("xOffset"))
+            {
+                editSelectTooltip.xOffset = this.props.tooltip.xOffset;
+            } 
+
+            if (this.props.tooltip.hasOwnProperty("tooltipY"))
+            {
+                editSelectTooltip.y = this.props.tooltip.tooltipY;
+            }
+            else if (this.props.tooltip.hasOwnProperty("yOffset"))
+            {
+                editSelectTooltip.yOffset = this.props.tooltip.yOffset;
+            }   
+        } 
 
         return (
             <ControlButton
                 name={this.state.buttonName}
                 taptip={editSelectTaptip}
                 tooltip={editSelectTooltip}
-                controlclass="edit_button"
-                fontAwesomeIcon="pencil"
-                closeAction={this._onClose}/>
+                controlclass={this.props.buttonClass}
+                nocentering={this.props.hasOwnProperty("nocentering") ? this.props.nocentering : false}
+                floatleft={this.props.hasOwnProperty("floatleft") ? this.props.floatleft : false}
+                fontAwesomeIcon={this.props.iconName}/>
         );
     }
 };

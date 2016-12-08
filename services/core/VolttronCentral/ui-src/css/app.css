@@ -1474,7 +1474,6 @@ a.view__item:hover::before {
     position: absolute;
     top: 40px;
     right: -30px;
-    cursor: pointer;
 }
 
 .keyboard_help_button > div:last-child {
@@ -1492,6 +1491,10 @@ a.view__item:hover::before {
 
 .keyboard_help_button .centeredDiv {
     line-height: 20px;
+}
+
+.keyboard-help {
+    cursor: pointer;
 }
 
 .opaque_inner {
@@ -1741,18 +1744,18 @@ a.view__item:hover::before {
     cursor: pointer; 
 }
 
-.opListItem.remove {
+.opListItem.bottom {
     border-bottom: none;
     border-bottom-right-radius: 5px;
     border-bottom-left-radius: 5px;
 }
 
-.opListItem.edit { 
+.opListItem.top { 
     border-top-right-radius: 5px;
-border-top-left-radius: 5px;
+    border-top-left-radius: 5px;
 }
 
-.opListItem.add, .clone, .edit {
+.opListItem:not(.bottom) {
     border-bottom: 1px black solid;
 }
 
@@ -1760,7 +1763,7 @@ border-top-left-radius: 5px;
      background-color: rgba(21, 81, 125, .3); 
 }
 
-.edit_button, 
+.edit_column_select, 
 .filter_button, 
 .add_point_button, 
 .remove_point_button {
@@ -1779,7 +1782,7 @@ border-top-left-radius: 5px;
     padding: 2px 0px;
 }
 
-.edit_button {
+.edit_column_select {
     margin: 0px;
     width: 15px;
     padding: 2px 2px;
@@ -1822,7 +1825,7 @@ td.plain {
 }
 
 .configDeviceContainer table td:first-child {
-    background-color: rgba(160, 221, 243, 0.59);
+    background-color: rgba(21, 81, 125, .15);
 } 
 
 .detectDevicesBox {    
@@ -1894,11 +1897,13 @@ td.buffer_row {
     position: absolute;
     opacity: 0;
     -moz-opactiy: 0;
-    top: 0;
+    top: -4px;
     right: 0;
     z-index: 99;
     cursor: pointer;
     width: 20px;
+    height: 20px;
+    font-size: 0;
 }
 
 .fileButton, .fileSelectButton {

@@ -73,7 +73,7 @@ class ConfigureDevices extends BaseComponent {
         else
         {
             statusIndicatorActionCreators.openStatusIndicator("error", 
-                "Can't scan for devices: A BACNet proxy agent for the platform must be installed and running.", null, "left");
+                "To scan for devices, a BACNet proxy agent for the platform must be installed and running.", null, "left");
         }
     }
     _onProxySelect(selection) {
@@ -185,8 +185,7 @@ class ConfigureDevices extends BaseComponent {
             var platform = this.state.platform;
 
             var methodOptions = [
-                { value: "scanForDevices", label: "Scan for Devices"},
-                { value: "addDevicesManually", label: "Add Manually"}
+                { value: "scanForDevices", label: "Scan for Devices"}
             ];
 
             var methodSelect = (

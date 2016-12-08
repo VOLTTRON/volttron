@@ -12,10 +12,7 @@ var _action = "get_scan_settings";
 var _view = "Detect Devices";
 var _device = null;
 var _data = {};
-var _backupData = {};
-var _registryFiles = {};
 var _updatedRow = {};
-var _backupFileName = {};
 var _platform;
 var _devices = [];
 var _settingsTemplate = {};
@@ -1014,14 +1011,6 @@ devicesStore.getDataLoaded = function (device) {
                 (_data.hasOwnProperty(device.deviceId))) ? _data[device.deviceId].length : false);
 };
 
-devicesStore.getRegistryFile = function (device) {
-
-    return (_registryFiles.hasOwnProperty(device.deviceId) &&
-                _data.hasOwnProperty(device.deviceId) &&
-                _data[device.deviceId].length ? _registryFiles[device.deviceId] : "");
-    
-};
-
 devicesStore.getSavedRegistryFiles = function () {
     return (ObjectIsEmpty(_savedRegistryFiles) ? null : _savedRegistryFiles);
 };
@@ -1202,6 +1191,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
                 if (device.configuring)
                 {
+                    device.registryCount = device.registryCount + 1;
                     device.registryConfig = [];
                 }
             }
@@ -1247,11 +1237,11 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             if (device)
             {
+                device.registryCount = device.registryCount + 1;
                 device.registryConfig = getPreppedData(action.data);
                 device.showPoints = true;
             }
-
-            _registryFiles[action.deviceId] = action.file;             
+             
             devicesStore.emitChange();
             break;
 
@@ -1282,40 +1272,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             var i = -1;
             var keyProps = [];
 
-            // var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
-
-            // if (device)
-            // {
-            //     var attributes = device.registryConfig.find(function (attributes, index) {
-            //         var match = (attributes[0].value === action.attributes.get(0).value);
-
-            //         if (match)
-            //         {
-            //             i = index;
-            //         }
-
-            //         return match;
-            //     });
-
-            //     action.attributes.forEach(function (item) {
-            //         if (item.keyProp)
-            //         {
-            //             keyProps.push(item.key);
-            //         }
-            //     });
-
-            //     device.keyProps = keyProps;
-
-            //     if (typeof attributes !== "undefined")
-            //     {                
-            //         device.registryConfig[i] = action.attributes.toJS();
-            //     }
-            //     else
-            //     {
-            //         device.registryConfig.push(action.attributes.toJS());
-            //     }
-            // }
-
             _updatedRow = { 
                 deviceId: action.deviceId,
                 deviceAddress: action.deviceAddress,
@@ -1328,8 +1284,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _action = "configure_registry";
             _view = "Registry Configuration";
             _device = action.device;  
-            _backupData[_device.deviceId] = (_data.hasOwnProperty(_device.deviceId) ? JSON.parse(JSON.stringify(_data[_device.deviceId])) : []);                      
-            _backupFileName[_device.deviceId] = (_registryFiles.hasOwnProperty(_device.deviceId) ? _registryFiles[_device.deviceId] : "");
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.SAVE_REGISTRY:
@@ -1530,6 +1484,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             platformUuid: platformUuid,
             bacnetProxyIdentity: bacnetIdentity,
             agentDriver: device.agentDriver,
+            registryCount: 0,
             registryConfig: [],
             keyProps: ["volttron_point_name", "units", "writable"],
             items: [
