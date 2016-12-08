@@ -572,7 +572,7 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
     # msg for task_low_priority
     gevent.sleep(6)
     print ('call args list:', publish_agent.callback.call_args_list)
-    assert publish_agent.callback.call_count == 2
+    assert publish_agent.callback.call_count == 1
 
     # Grab the args of callback and verify
     call_args1 = publish_agent.callback.call_args_list[0][0]
