@@ -402,13 +402,21 @@ class VolttronCentralPlatform(Agent):
                 _log.debug('vc agent publickey is {}'.format(
                     vc_agent_publickey))
                 assert vc_agent_publickey and len(vc_agent_publickey) == 43
-                _log.debug('Adding vc publickey to auth')
-                entry = AuthEntry(credentials=vc_agent_publickey,
-                                  capabilities=['manager'],
-                                  comments="Added by VCP",
-                                  user_id="vc")
                 authfile = AuthFile()
-                authfile.add(entry)
+                entry = authfile.find_by_credentials(vc_agent_publickey)
+                if entry is not None:
+                    if "manage" not in entry.capabilities:
+                        _log.debug("Updating vc capability.")
+                        entry.add_capabilities("manager")
+                        authfile.add(entry, overwrite=True)
+                else:
+                    _log.debug('Adding vc publickey to auth')
+                    entry = AuthEntry(credentials=vc_agent_publickey,
+                                      capabilities=['manager'],
+                                      comments="Added by VCP",
+                                      user_id="vc")
+                    authfile = AuthFile()
+                    authfile.add(entry)
 
                 local_address = self.current_config.get(
                     'local_external_addresses')[0]
