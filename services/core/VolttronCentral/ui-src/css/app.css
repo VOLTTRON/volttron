@@ -1744,18 +1744,18 @@ a.view__item:hover::before {
     cursor: pointer; 
 }
 
-.opListItem.remove {
+.opListItem.bottom {
     border-bottom: none;
     border-bottom-right-radius: 5px;
     border-bottom-left-radius: 5px;
 }
 
-.opListItem.edit { 
+.opListItem.top { 
     border-top-right-radius: 5px;
-border-top-left-radius: 5px;
+    border-top-left-radius: 5px;
 }
 
-.opListItem.add, .clone, .edit {
+.opListItem:not(.bottom) {
     border-bottom: 1px black solid;
 }
 
@@ -1763,7 +1763,7 @@ border-top-left-radius: 5px;
      background-color: rgba(21, 81, 125, .3); 
 }
 
-.edit_button, 
+.edit_column_select, 
 .filter_button, 
 .add_point_button, 
 .remove_point_button {
@@ -1782,7 +1782,7 @@ border-top-left-radius: 5px;
     padding: 2px 0px;
 }
 
-.edit_button {
+.edit_column_select {
     margin: 0px;
     width: 15px;
     padding: 2px 2px;

@@ -12,7 +12,10 @@ class EditColumnButton extends BaseComponent {
         this._bind("_onFindBoxChange", "_onReplaceBoxChange", "_findNext", "_onClearEdit", "_replace", "_replaceAll",
                     "_onKeyDown");
 
-        this.state = getStateFromStores(this.props.name);
+        this.state = {
+            findValue: "",
+            replaceValue: ""
+        };
     }
     _onFindBoxChange(e) {
         var findValue = e.target.value;
@@ -49,7 +52,7 @@ class EditColumnButton extends BaseComponent {
         this.props.onclear(this.props.column);
         this.setState({ findValue: "" });
         this.setState({ replaceValue: "" });
-        controlButtonActionCreators.hideTaptip(this.state.buttonName);
+        controlButtonActionCreators.hideTaptip(this.props.name);
 
     }
     _replace() {    
@@ -201,7 +204,7 @@ class EditColumnButton extends BaseComponent {
 
         return (
             <ControlButton
-                name={this.state.buttonName}
+                name={this.props.name}
                 taptip={editTaptip}
                 tooltip={editTooltip}
                 fontAwesomeIcon="pencil"                
@@ -210,13 +213,5 @@ class EditColumnButton extends BaseComponent {
         );
     }
 };
-
-var getStateFromStores = (buttonName) => {
-    return {
-        findValue: "",
-        replaceValue: "",
-        buttonName: "editColumn-" + buttonName + "-controlButton"
-    };
-}
 
 export default EditColumnButton;

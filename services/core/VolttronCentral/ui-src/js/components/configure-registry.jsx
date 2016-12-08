@@ -20,6 +20,8 @@ var devicesActionCreators = require('../action-creators/devices-action-creators'
 var devicesStore = require('../stores/devices-store');
 var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
+var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
+
 
 
 var _defaultColumnWidth = "200px";
@@ -87,8 +89,6 @@ class ConfigureRegistry extends BaseComponent {
         }
     }
     componentWillReceiveProps(nextProps) {
-
-        //if ((this.props.device.registryConfig.length !== nextProps.device.registryConfig.length) || 
         if ((this.props.device.configuring !== nextProps.device.configuring) || 
             (this.props.device.showPoints !== nextProps.device.showPoints) ||
             (this.props.device.registryCount !== nextProps.device.registryCount))
@@ -1008,12 +1008,48 @@ class ConfigureRegistry extends BaseComponent {
             
                 if (item.keyProp)
                 {
+                    var editColumnButtonName = 
+                        "editColumn-" + this.props.device.id + "-" + item.key + "-controlButton";
+
+                    var editItems = [
+                        { 
+                            label: "Find and Replace",
+                            position: "top",
+                            action: controlButtonActionCreators.toggleTaptip.bind(this, editColumnButtonName)
+                        },
+                        { 
+                            label: "Duplicate",
+                            action: this._onCloneColumn.bind(this, index)
+                        },
+                        { 
+                            label: "Add",
+                            action: this._onAddColumn.bind(this, index)
+                        },
+                        { 
+                            label: "Remove",
+                            position: "bottom",
+                            action: this._onRemoveColumn.bind(this, index)
+                        }
+                    ];
+
+                    var editColumnTooltip = {
+                        content: "Edit Column",
+                        tooltipX: 80,
+                        tooltipY: -60
+                    }
+
+                    var editColumnTaptip = {                        
+                        taptipX: 80,
+                        taptipY: -80,
+                    }
+
                     var editSelectButton = (<EditSelectButton 
-                                                onremove={this._onRemoveColumn}
-                                                onadd={this._onAddColumn}
-                                                onclone={this._onCloneColumn}
-                                                column={index}
-                                                name={this.props.device.id + "-" + item.key}/>);
+                                                tooltip={editColumnTooltip}
+                                                taptip={editColumnTaptip}
+                                                iconName="pencil"
+                                                buttonClass="edit_column_select"
+                                                name={this.props.device.id + "-" + item.key}
+                                                listItems={editItems}/>);
 
                     var editColumnButton = (<EditColumnButton 
                                                 column={index} 
@@ -1025,7 +1061,7 @@ class ConfigureRegistry extends BaseComponent {
                                                 replaceEnabled={this.state.selectedCells.length > 0}
                                                 onclear={this._onClearFind}
                                                 onhide={this._removeFocus}
-                                                name={this.props.device.id + "-" + item.key}/>);
+                                                name={editColumnButtonName}/>);
 
                     var headerCell;
 

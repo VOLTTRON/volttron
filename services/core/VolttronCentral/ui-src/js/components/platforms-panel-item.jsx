@@ -4,6 +4,7 @@ import React from 'react';
 import Router from 'react-router';
 import BaseComponent from './base-component';
 import ControlButton from './control-button';
+import EditSelectButton from './control_buttons/edit-select-button';
 import CheckBox from './check-box';
 import Immutable from 'immutable';
 
@@ -21,7 +22,7 @@ class PlatformsPanelItem extends BaseComponent {
         super(props);
         this._bind('_onStoresChange', '_expandAll', '_handleArrowClick', '_showCancel', 
             '_resumeLoad', '_checkItem', '_showTooltip', '_hideTooltip', '_moveTooltip',
-            '_onAddDevices', '_onDeviceMethodChange');
+            '_onAddDevices', '_onDeviceMethodChange', '_onDeviceConfig');
 
         this.state = {};
         
@@ -215,6 +216,9 @@ class PlatformsPanelItem extends BaseComponent {
             controlButtonActionCreators.hideTaptip("addDevicesButton");
         }
     }
+    _onDeviceConfig (config_option) {
+        console.log("TODO: " + config_option);
+    }
     render () {
 
         var panelItem = this.state.panelItem;
@@ -252,34 +256,11 @@ class PlatformsPanelItem extends BaseComponent {
 
         var DevicesButton;
 
-        if (["platform"].indexOf(panelItem.get("type")) > -1)
+        if (panelItem.get("type") === "platform")
         {
-            var taptipX = 20;
-            var taptipY = 100;
-
             var tooltipX = 20;
             var tooltipY = 70;
 
-            var devicesSelect = (
-                <select
-                    onChange={this._onDeviceMethodChange}
-                    value={this.state.deviceMethod}
-                    autoFocus
-                    required
-                >
-                    <option value="">-- Select method --</option>
-                    <option value="scanForDevices">Scan for Devices</option>
-                    <option value="addDevicesManually">Add Manually</option>
-                </select>
-            );
-
-            var devicesTaptip = { 
-                "title": "Add Devices", 
-                "content": devicesSelect,
-                "xOffset": taptipX,
-                "yOffset": taptipY
-            };
-            
             var devicesTooltip = {
                 "content": "Add Devices",
                 "xOffset": tooltipX,
@@ -296,6 +277,48 @@ class PlatformsPanelItem extends BaseComponent {
                     fontAwesomeIcon="cogs"
                     clickAction={this._onAddDevices}></ControlButton>
             );
+        }
+
+        var ConfigureButton;
+
+        if (panelItem.get("type") === "device")
+        {
+            var editItems = [
+                { 
+                    label: "Registry Config",
+                    position: "top",
+                    action: this._onDeviceConfig.bind(this, "registry_config", panelItem)
+                },
+                { 
+                    label: "Device Config",
+                    position: "bottom",
+                    action: this._onDeviceConfig.bind(this, "device_config", panelItem)
+                }
+            ];            
+
+            var configureTooltip = {
+                content: "Reconfigure Device",
+                xOffset: 40,
+                yOffset: 65
+            }
+
+            var configureTaptip = {
+                content: "Reconfigure Device",
+                xOffset: 40,
+                yOffset: 55
+            };
+
+            ConfigureButton = (
+                <EditSelectButton 
+                    tooltip={configureTooltip}
+                    taptip={configureTaptip}
+                    iconName="wrench"
+                    buttonClass="panelItemButton"
+                    nocentering={true}
+                    floatleft={true}
+                    name={panelItem.get("uuid")}
+                    listItems={editItems}/>
+                );
         }
         
         var ChartCheckbox;
@@ -456,7 +479,8 @@ class PlatformsPanelItem extends BaseComponent {
                         onMouseLeave={this._resumeLoad}>
                         {arrowContent}
                     </div>
-                    {DevicesButton}  
+                    {DevicesButton} 
+                    {ConfigureButton}  
                     {ChartCheckbox}                  
                     <div className={toolTipClasses}
                         style={tooltipStyle}>

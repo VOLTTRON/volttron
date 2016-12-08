@@ -54,7 +54,7 @@
 	
 	var _platformManager2 = _interopRequireDefault(_platformManager);
 	
-	var _configureDevices = __webpack_require__(328);
+	var _configureDevices = __webpack_require__(330);
 	
 	var _configureDevices2 = _interopRequireDefault(_configureDevices);
 	
@@ -75,8 +75,8 @@
 	var ReactDOM = __webpack_require__(112);
 	
 	var authorizationStore = __webpack_require__(103);
-	var platformsPanelItemsStore = __webpack_require__(264);
-	var devicesStore = __webpack_require__(308);
+	var platformsPanelItemsStore = __webpack_require__(266);
+	var devicesStore = __webpack_require__(310);
 	var Dashboard = __webpack_require__(411);
 	var LoginForm = __webpack_require__(527);
 	var PageNotFound = __webpack_require__(536);
@@ -85,8 +85,8 @@
 	var Platforms = __webpack_require__(540);
 	
 	var PlatformCharts = __webpack_require__(543);
-	var Navigation = __webpack_require__(324);
-	var devicesActionCreators = __webpack_require__(303);
+	var Navigation = __webpack_require__(326);
+	var devicesActionCreators = __webpack_require__(305);
 	
 	var _afterLoginPath = '/dashboard';
 	
@@ -9920,7 +9920,7 @@
 	
 	var _platformsPanel2 = _interopRequireDefault(_platformsPanel);
 	
-	var _columnMover = __webpack_require__(313);
+	var _columnMover = __webpack_require__(315);
 	
 	var _columnMover2 = _interopRequireDefault(_columnMover);
 	
@@ -9932,24 +9932,24 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var $ = __webpack_require__(297);
+	var $ = __webpack_require__(299);
 	
 	var ReactDOM = __webpack_require__(112);
 	var Router = __webpack_require__(1);
 	
 	var authorizationStore = __webpack_require__(103);
-	var Console = __webpack_require__(315);
-	var consoleActionCreators = __webpack_require__(317);
-	var consoleStore = __webpack_require__(318);
-	var Modal = __webpack_require__(321);
-	var modalActionCreators = __webpack_require__(322);
-	var modalStore = __webpack_require__(323);
-	var Navigation = __webpack_require__(324);
-	var platformManagerActionCreators = __webpack_require__(325);
-	var platformsPanelStore = __webpack_require__(312);
-	var StatusIndicator = __webpack_require__(326);
-	var statusIndicatorStore = __webpack_require__(327);
-	var platformsStore = __webpack_require__(266);
+	var Console = __webpack_require__(317);
+	var consoleActionCreators = __webpack_require__(319);
+	var consoleStore = __webpack_require__(320);
+	var Modal = __webpack_require__(323);
+	var modalActionCreators = __webpack_require__(324);
+	var modalStore = __webpack_require__(325);
+	var Navigation = __webpack_require__(326);
+	var platformManagerActionCreators = __webpack_require__(327);
+	var platformsPanelStore = __webpack_require__(314);
+	var StatusIndicator = __webpack_require__(328);
+	var statusIndicatorStore = __webpack_require__(329);
+	var platformsStore = __webpack_require__(268);
 	
 	var PlatformManager = function (_React$Component) {
 	    _inherits(PlatformManager, _React$Component);
@@ -10196,7 +10196,7 @@
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
-	var _immutable = __webpack_require__(263);
+	var _immutable = __webpack_require__(265);
 	
 	var _immutable2 = _interopRequireDefault(_immutable);
 	
@@ -10208,9 +10208,9 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var platformsPanelStore = __webpack_require__(312);
-	var platformsPanelItemsStore = __webpack_require__(264);
-	var platformsPanelActionCreators = __webpack_require__(267);
+	var platformsPanelStore = __webpack_require__(314);
+	var platformsPanelItemsStore = __webpack_require__(266);
+	var platformsPanelActionCreators = __webpack_require__(269);
 	
 	var PlatformsPanel = function (_BaseComponent) {
 	    _inherits(PlatformsPanel, _BaseComponent);
@@ -10599,11 +10599,15 @@
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
-	var _checkBox = __webpack_require__(262);
+	var _editSelectButton = __webpack_require__(262);
+	
+	var _editSelectButton2 = _interopRequireDefault(_editSelectButton);
+	
+	var _checkBox = __webpack_require__(264);
 	
 	var _checkBox2 = _interopRequireDefault(_checkBox);
 	
-	var _immutable = __webpack_require__(263);
+	var _immutable = __webpack_require__(265);
 	
 	var _immutable2 = _interopRequireDefault(_immutable);
 	
@@ -10615,13 +10619,13 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var platformsPanelItemsStore = __webpack_require__(264);
-	var platformsStore = __webpack_require__(266);
-	var platformsPanelActionCreators = __webpack_require__(267);
-	var platformChartActionCreators = __webpack_require__(301);
+	var platformsPanelItemsStore = __webpack_require__(266);
+	var platformsStore = __webpack_require__(268);
+	var platformsPanelActionCreators = __webpack_require__(269);
+	var platformChartActionCreators = __webpack_require__(303);
 	var controlButtonActionCreators = __webpack_require__(110);
-	var devicesActionCreators = __webpack_require__(303);
-	var statusIndicatorActionCreators = __webpack_require__(268);
+	var devicesActionCreators = __webpack_require__(305);
+	var statusIndicatorActionCreators = __webpack_require__(270);
 	
 	var PlatformsPanelItem = function (_BaseComponent) {
 	    _inherits(PlatformsPanelItem, _BaseComponent);
@@ -10631,7 +10635,7 @@
 	
 	        var _this = _possibleConstructorReturn(this, (PlatformsPanelItem.__proto__ || Object.getPrototypeOf(PlatformsPanelItem)).call(this, props));
 	
-	        _this._bind('_onStoresChange', '_expandAll', '_handleArrowClick', '_showCancel', '_resumeLoad', '_checkItem', '_showTooltip', '_hideTooltip', '_moveTooltip', '_onAddDevices', '_onDeviceMethodChange');
+	        _this._bind('_onStoresChange', '_expandAll', '_handleArrowClick', '_showCancel', '_resumeLoad', '_checkItem', '_showTooltip', '_hideTooltip', '_moveTooltip', '_onAddDevices', '_onDeviceMethodChange', '_onDeviceConfig');
 	
 	        _this.state = {};
 	
@@ -10811,6 +10815,11 @@
 	            }
 	        }
 	    }, {
+	        key: '_onDeviceConfig',
+	        value: function _onDeviceConfig(config_option) {
+	            console.log("TODO: " + config_option);
+	        }
+	    }, {
 	        key: 'render',
 	        value: function render() {
 	
@@ -10844,44 +10853,9 @@
 	
 	            var DevicesButton;
 	
-	            if (["platform"].indexOf(panelItem.get("type")) > -1) {
-	                var taptipX = 20;
-	                var taptipY = 100;
-	
+	            if (panelItem.get("type") === "platform") {
 	                var tooltipX = 20;
 	                var tooltipY = 70;
-	
-	                var devicesSelect = _react2.default.createElement(
-	                    'select',
-	                    {
-	                        onChange: this._onDeviceMethodChange,
-	                        value: this.state.deviceMethod,
-	                        autoFocus: true,
-	                        required: true
-	                    },
-	                    _react2.default.createElement(
-	                        'option',
-	                        { value: '' },
-	                        '-- Select method --'
-	                    ),
-	                    _react2.default.createElement(
-	                        'option',
-	                        { value: 'scanForDevices' },
-	                        'Scan for Devices'
-	                    ),
-	                    _react2.default.createElement(
-	                        'option',
-	                        { value: 'addDevicesManually' },
-	                        'Add Manually'
-	                    )
-	                );
-	
-	                var devicesTaptip = {
-	                    "title": "Add Devices",
-	                    "content": devicesSelect,
-	                    "xOffset": taptipX,
-	                    "yOffset": taptipY
-	                };
 	
 	                var devicesTooltip = {
 	                    "content": "Add Devices",
@@ -10897,6 +10871,42 @@
 	                    floatleft: true,
 	                    fontAwesomeIcon: 'cogs',
 	                    clickAction: this._onAddDevices });
+	            }
+	
+	            var ConfigureButton;
+	
+	            if (panelItem.get("type") === "device") {
+	                var editItems = [{
+	                    label: "Registry Config",
+	                    position: "top",
+	                    action: this._onDeviceConfig.bind(this, "registry_config", panelItem)
+	                }, {
+	                    label: "Device Config",
+	                    position: "bottom",
+	                    action: this._onDeviceConfig.bind(this, "device_config", panelItem)
+	                }];
+	
+	                var configureTooltip = {
+	                    content: "Reconfigure Device",
+	                    xOffset: 40,
+	                    yOffset: 65
+	                };
+	
+	                var configureTaptip = {
+	                    content: "Reconfigure Device",
+	                    xOffset: 40,
+	                    yOffset: 55
+	                };
+	
+	                ConfigureButton = _react2.default.createElement(_editSelectButton2.default, {
+	                    tooltip: configureTooltip,
+	                    taptip: configureTaptip,
+	                    iconName: 'wrench',
+	                    buttonClass: 'panelItemButton',
+	                    nocentering: true,
+	                    floatleft: true,
+	                    name: panelItem.get("uuid"),
+	                    listItems: editItems });
 	            }
 	
 	            var ChartCheckbox;
@@ -11072,6 +11082,7 @@
 	                        arrowContent
 	                    ),
 	                    DevicesButton,
+	                    ConfigureButton,
 	                    ChartCheckbox,
 	                    _react2.default.createElement(
 	                        'div',
@@ -30026,6 +30037,443 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
+	var _controlButton = __webpack_require__(99);
+	
+	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+	
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+	
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+	
+	var EditColumnButton = __webpack_require__(263);
+	var controlButtonActionCreators = __webpack_require__(110);
+	
+	var EditSelectButton = function (_BaseComponent) {
+	    _inherits(EditSelectButton, _BaseComponent);
+	
+	    function EditSelectButton(props) {
+	        _classCallCheck(this, EditSelectButton);
+	
+	        var _this = _possibleConstructorReturn(this, (EditSelectButton.__proto__ || Object.getPrototypeOf(EditSelectButton)).call(this, props));
+	
+	        _this._bind("_handleAction");
+	
+	        _this.state = {
+	            buttonName: "editSelect-" + _this.props.name + "-controlButton"
+	        };
+	        return _this;
+	    }
+	
+	    _createClass(EditSelectButton, [{
+	        key: '_handleAction',
+	        value: function _handleAction(callback) {
+	
+	            if (typeof callback === "function") {
+	                callback(this);
+	            }
+	
+	            controlButtonActionCreators.hideTaptip(this.state.buttonName);
+	        }
+	    }, {
+	        key: 'render',
+	        value: function render() {
+	
+	            var editBoxContainer = {
+	                position: "relative"
+	            };
+	
+	            var listItems = this.props.listItems.map(function (listItem, index) {
+	                return _react2.default.createElement(
+	                    'li',
+	                    { key: "li-" + listItem.label + "-" + index,
+	                        className: "opListItem " + listItem.position,
+	                        onClick: this._handleAction.bind(this, listItem.action) },
+	                    listItem.label
+	                );
+	            }, this);
+	
+	            var editBox = _react2.default.createElement(
+	                'div',
+	                { style: editBoxContainer },
+	                _react2.default.createElement(
+	                    'ul',
+	                    {
+	                        className: 'opList' },
+	                    listItems
+	                )
+	            );
+	
+	            var editSelectTaptip = {
+	                "content": editBox,
+	                "styles": [{ "key": "width", "value": "120px" }],
+	                "break": "",
+	                "padding": "0px"
+	            };
+	
+	            if (this.props.taptip.hasOwnProperty("taptipX")) {
+	                editSelectTaptip.x = this.props.taptip.taptipX;
+	            } else if (this.props.taptip.hasOwnProperty("xOffset")) {
+	                editSelectTaptip.xOffset = this.props.taptip.xOffset;
+	            }
+	
+	            if (this.props.taptip.hasOwnProperty("taptipY")) {
+	                editSelectTaptip.y = this.props.taptip.taptipY;
+	            } else if (this.props.taptip.hasOwnProperty("yOffset")) {
+	                editSelectTaptip.yOffset = this.props.taptip.yOffset;
+	            }
+	
+	            var editSelectTooltip;
+	
+	            if (this.props.hasOwnProperty("tooltip")) {
+	                editSelectTooltip = {
+	                    content: this.props.tooltip.content
+	                };
+	
+	                if (this.props.tooltip.hasOwnProperty("tooltipX")) {
+	                    editSelectTooltip.x = this.props.tooltip.tooltipX;
+	                } else if (this.props.tooltip.hasOwnProperty("xOffset")) {
+	                    editSelectTooltip.xOffset = this.props.tooltip.xOffset;
+	                }
+	
+	                if (this.props.tooltip.hasOwnProperty("tooltipY")) {
+	                    editSelectTooltip.y = this.props.tooltip.tooltipY;
+	                } else if (this.props.tooltip.hasOwnProperty("yOffset")) {
+	                    editSelectTooltip.yOffset = this.props.tooltip.yOffset;
+	                }
+	            }
+	
+	            return _react2.default.createElement(_controlButton2.default, {
+	                name: this.state.buttonName,
+	                taptip: editSelectTaptip,
+	                tooltip: editSelectTooltip,
+	                controlclass: this.props.buttonClass,
+	                nocentering: this.props.hasOwnProperty("nocentering") ? this.props.nocentering : false,
+	                floatleft: this.props.hasOwnProperty("floatleft") ? this.props.floatleft : false,
+	                fontAwesomeIcon: this.props.iconName });
+	        }
+	    }]);
+	
+	    return EditSelectButton;
+	}(_baseComponent2.default);
+	
+	;
+	
+	exports.default = EditSelectButton;
+
+/***/ },
+/* 263 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+	
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	
+	var _react = __webpack_require__(3);
+	
+	var _react2 = _interopRequireDefault(_react);
+	
+	var _baseComponent = __webpack_require__(97);
+	
+	var _baseComponent2 = _interopRequireDefault(_baseComponent);
+	
+	var _controlButton = __webpack_require__(99);
+	
+	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+	
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+	
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+	
+	var controlButtonActionCreators = __webpack_require__(110);
+	
+	var EditColumnButton = function (_BaseComponent) {
+	    _inherits(EditColumnButton, _BaseComponent);
+	
+	    function EditColumnButton(props) {
+	        _classCallCheck(this, EditColumnButton);
+	
+	        var _this = _possibleConstructorReturn(this, (EditColumnButton.__proto__ || Object.getPrototypeOf(EditColumnButton)).call(this, props));
+	
+	        _this._bind("_onFindBoxChange", "_onReplaceBoxChange", "_findNext", "_onClearEdit", "_replace", "_replaceAll", "_onKeyDown");
+	
+	        _this.state = {
+	            findValue: "",
+	            replaceValue: ""
+	        };
+	        return _this;
+	    }
+	
+	    _createClass(EditColumnButton, [{
+	        key: '_onFindBoxChange',
+	        value: function _onFindBoxChange(e) {
+	            var findValue = e.target.value;
+	
+	            this.setState({ findValue: findValue });
+	
+	            this.props.onclear(this.props.column);
+	        }
+	    }, {
+	        key: '_onKeyDown',
+	        value: function _onKeyDown(callback, e) {
+	
+	            if (e.keyCode === 13) //Enter
+	                {
+	                    callback();
+	                }
+	        }
+	    }, {
+	        key: '_onReplaceBoxChange',
+	        value: function _onReplaceBoxChange(e) {
+	            var replaceValue = e.target.value;
+	
+	            this.setState({ replaceValue: replaceValue });
+	        }
+	    }, {
+	        key: '_findNext',
+	        value: function _findNext() {
+	
+	            if (this.state.findValue === "") {
+	                this.props.onclear(this.props.column);
+	            } else {
+	                this.props.findnext(this.state.findValue, this.props.column);
+	            }
+	        }
+	    }, {
+	        key: '_onClearEdit',
+	        value: function _onClearEdit(e) {
+	
+	            this.props.onclear(this.props.column);
+	            this.setState({ findValue: "" });
+	            this.setState({ replaceValue: "" });
+	            controlButtonActionCreators.hideTaptip(this.props.name);
+	        }
+	    }, {
+	        key: '_replace',
+	        value: function _replace() {
+	            if (this.props.replaceEnabled) {
+	                this.props.replace(this.state.findValue, this.state.replaceValue, this.props.column);
+	            }
+	        }
+	    }, {
+	        key: '_replaceAll',
+	        value: function _replaceAll() {
+	            if (this.props.replaceEnabled) {
+	                this.props.replaceall(this.state.findValue, this.state.replaceValue, this.props.column);
+	            }
+	        }
+	    }, {
+	        key: 'render',
+	        value: function render() {
+	
+	            var editBoxContainer = {
+	                position: "relative"
+	            };
+	
+	            var inputStyle = {
+	                width: "100%",
+	                marginLeft: "10px",
+	                fontWeight: "normal"
+	            };
+	
+	            var divWidth = {
+	                width: "85%"
+	            };
+	
+	            var clearTooltip = {
+	                content: "Clear Search",
+	                x: 50,
+	                y: 0
+	            };
+	
+	            var findTooltip = {
+	                content: "Find Next",
+	                x: 100,
+	                y: 0
+	            };
+	
+	            var replaceTooltip = {
+	                content: "Replace",
+	                x: 100,
+	                y: 80
+	            };
+	
+	            var replaceAllTooltip = {
+	                content: "Replace All",
+	                x: 100,
+	                y: 80
+	            };
+	
+	            var buttonsStyle = {
+	                marginTop: "8px"
+	            };
+	
+	            var replaceEnabled = !this.props.replaceEnabled ? "disableReplace plain" : "plain";
+	
+	            var editBox = _react2.default.createElement(
+	                'div',
+	                { style: editBoxContainer },
+	                _react2.default.createElement(_controlButton2.default, {
+	                    fontAwesomeIcon: 'ban',
+	                    tooltip: clearTooltip,
+	                    clickAction: this._onClearEdit }),
+	                _react2.default.createElement(
+	                    'div',
+	                    null,
+	                    _react2.default.createElement(
+	                        'table',
+	                        null,
+	                        _react2.default.createElement(
+	                            'tbody',
+	                            null,
+	                            _react2.default.createElement(
+	                                'tr',
+	                                null,
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { colSpan: '2' },
+	                                    'Find in Column'
+	                                )
+	                            ),
+	                            _react2.default.createElement(
+	                                'tr',
+	                                null,
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { width: '70%' },
+	                                    _react2.default.createElement('input', {
+	                                        type: 'text',
+	                                        style: inputStyle,
+	                                        onChange: this._onFindBoxChange,
+	                                        onKeyDown: this._onKeyDown.bind(this, this._findNext),
+	                                        value: this.state.findValue
+	                                    })
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain' },
+	                                    _react2.default.createElement(
+	                                        'div',
+	                                        { style: buttonsStyle },
+	                                        _react2.default.createElement(_controlButton2.default, {
+	                                            fontAwesomeIcon: 'step-forward',
+	                                            tooltip: findTooltip,
+	                                            clickAction: this._findNext })
+	                                    )
+	                                )
+	                            ),
+	                            _react2.default.createElement(
+	                                'tr',
+	                                null,
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: replaceEnabled,
+	                                        colSpan: '2' },
+	                                    'Replace With'
+	                                )
+	                            ),
+	                            _react2.default.createElement(
+	                                'tr',
+	                                null,
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: replaceEnabled },
+	                                    _react2.default.createElement('input', {
+	                                        type: 'text',
+	                                        style: inputStyle,
+	                                        onChange: this._onReplaceBoxChange,
+	                                        onKeyDown: this._onKeyDown.bind(this, this._replace),
+	                                        value: this.state.replaceValue,
+	                                        disabled: !this.props.replaceEnabled
+	                                    })
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: replaceEnabled },
+	                                    _react2.default.createElement(
+	                                        'div',
+	                                        { className: 'inlineBlock',
+	                                            style: buttonsStyle },
+	                                        _react2.default.createElement(_controlButton2.default, {
+	                                            fontAwesomeIcon: 'step-forward',
+	                                            tooltip: replaceTooltip,
+	                                            clickAction: this._replace }),
+	                                        _react2.default.createElement(_controlButton2.default, {
+	                                            fontAwesomeIcon: 'fast-forward',
+	                                            tooltip: replaceAllTooltip,
+	                                            clickAction: this._replaceAll })
+	                                    )
+	                                )
+	                            )
+	                        )
+	                    )
+	                )
+	            );
+	
+	            var editTaptip = {
+	                "title": "Search Column",
+	                "content": editBox,
+	                "x": 80,
+	                "y": -150,
+	                "styles": [{ "key": "width", "value": "250px" }]
+	            };
+	
+	            var editTooltip = {
+	                "content": this.props.tooltipMsg,
+	                "x": 160,
+	                "y": 0
+	            };
+	
+	            var columnIndex = this.props.column;
+	
+	            return _react2.default.createElement(_controlButton2.default, {
+	                name: this.props.name,
+	                taptip: editTaptip,
+	                tooltip: editTooltip,
+	                fontAwesomeIcon: 'pencil',
+	                controlclass: 'edit_column_button',
+	                closeAction: this.props.onhide });
+	        }
+	    }]);
+	
+	    return EditColumnButton;
+	}(_baseComponent2.default);
+	
+	;
+	
+	exports.default = EditColumnButton;
+
+/***/ },
+/* 264 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+	
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	
+	var _react = __webpack_require__(3);
+	
+	var _react2 = _interopRequireDefault(_react);
+	
+	var _baseComponent = __webpack_require__(97);
+	
+	var _baseComponent2 = _interopRequireDefault(_baseComponent);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -30112,7 +30560,7 @@
 	exports.default = CheckBox;
 
 /***/ },
-/* 263 */
+/* 265 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/**
@@ -35096,7 +35544,7 @@
 	}));
 
 /***/ },
-/* 264 */
+/* 266 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -35104,7 +35552,7 @@
 	var ACTION_TYPES = __webpack_require__(101);
 	var dispatcher = __webpack_require__(104);
 	var Store = __webpack_require__(108);
-	var chartStore = __webpack_require__(265);
+	var chartStore = __webpack_require__(267);
 	
 	var _pointsOrder = 0;
 	var _devicesOrder = 1;
@@ -36021,7 +36469,7 @@
 	module.exports = platformsPanelItemsStore;
 
 /***/ },
-/* 265 */
+/* 267 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -36030,7 +36478,7 @@
 	var authorizationStore = __webpack_require__(103);
 	var dispatcher = __webpack_require__(104);
 	var Store = __webpack_require__(108);
-	var platformsStore = __webpack_require__(266);
+	var platformsStore = __webpack_require__(268);
 	
 	var _chartData = {};
 	var _showCharts = false;
@@ -36444,7 +36892,7 @@
 	module.exports = chartStore;
 
 /***/ },
-/* 266 */
+/* 268 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -36597,17 +37045,17 @@
 	module.exports = platformsStore;
 
 /***/ },
-/* 267 */
+/* 269 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var ACTION_TYPES = __webpack_require__(101);
 	var authorizationStore = __webpack_require__(103);
-	var platformsPanelItemsStore = __webpack_require__(264);
-	var statusIndicatorActionCreators = __webpack_require__(268);
+	var platformsPanelItemsStore = __webpack_require__(266);
+	var statusIndicatorActionCreators = __webpack_require__(270);
 	var dispatcher = __webpack_require__(104);
-	var rpc = __webpack_require__(269);
+	var rpc = __webpack_require__(271);
 	
 	var platformsPanelActionCreators = {
 	    togglePanel: function togglePanel() {
@@ -36822,7 +37270,7 @@
 	module.exports = platformsPanelActionCreators;
 
 /***/ },
-/* 268 */
+/* 270 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -36851,18 +37299,18 @@
 	module.exports = actionStatusCreators;
 
 /***/ },
-/* 269 */
+/* 271 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	module.exports = {
-	    Error: __webpack_require__(270),
-	    Exchange: __webpack_require__(271)
+	    Error: __webpack_require__(272),
+	    Exchange: __webpack_require__(273)
 	};
 
 /***/ },
-/* 270 */
+/* 272 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -36880,17 +37328,17 @@
 	module.exports = RpcError;
 
 /***/ },
-/* 271 */
+/* 273 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
-	var uuid = __webpack_require__(272);
+	var uuid = __webpack_require__(274);
 	
 	var ACTION_TYPES = __webpack_require__(101);
 	var dispatcher = __webpack_require__(104);
-	var RpcError = __webpack_require__(270);
-	var xhr = __webpack_require__(295);
+	var RpcError = __webpack_require__(272);
+	var xhr = __webpack_require__(297);
 	
 	function RpcExchange(request, redactedParams) {
 	    if (!(this instanceof RpcExchange)) {
@@ -36967,7 +37415,7 @@
 	module.exports = RpcExchange;
 
 /***/ },
-/* 272 */
+/* 274 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_RESULT__;/* WEBPACK VAR INJECTION */(function(Buffer) {//     uuid.js
@@ -37028,7 +37476,7 @@
 	    // Moderately fast, high quality
 	    if (true) {
 	      try {
-	        var _rb = __webpack_require__(277).randomBytes;
+	        var _rb = __webpack_require__(279).randomBytes;
 	        _nodeRNG = _rng = _rb && function() {return _rb(16);};
 	        _rng();
 	      } catch(e) {}
@@ -37243,10 +37691,10 @@
 	  }
 	})('undefined' !== typeof window ? window : null);
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(273).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
 
 /***/ },
-/* 273 */
+/* 275 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(Buffer, global) {/*!
@@ -37259,9 +37707,9 @@
 	
 	'use strict'
 	
-	var base64 = __webpack_require__(274)
-	var ieee754 = __webpack_require__(275)
-	var isArray = __webpack_require__(276)
+	var base64 = __webpack_require__(276)
+	var ieee754 = __webpack_require__(277)
+	var isArray = __webpack_require__(278)
 	
 	exports.Buffer = Buffer
 	exports.SlowBuffer = SlowBuffer
@@ -39039,10 +39487,10 @@
 	  return val !== val // eslint-disable-line no-self-compare
 	}
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(273).Buffer, (function() { return this; }())))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer, (function() { return this; }())))
 
 /***/ },
-/* 274 */
+/* 276 */
 /***/ function(module, exports) {
 
 	'use strict'
@@ -39162,7 +39610,7 @@
 
 
 /***/ },
-/* 275 */
+/* 277 */
 /***/ function(module, exports) {
 
 	exports.read = function (buffer, offset, isLE, mLen, nBytes) {
@@ -39252,7 +39700,7 @@
 
 
 /***/ },
-/* 276 */
+/* 278 */
 /***/ function(module, exports) {
 
 	var toString = {}.toString;
@@ -39263,10 +39711,10 @@
 
 
 /***/ },
-/* 277 */
+/* 279 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(Buffer) {var rng = __webpack_require__(278)
+	/* WEBPACK VAR INJECTION */(function(Buffer) {var rng = __webpack_require__(280)
 	
 	function error () {
 	  var m = [].slice.call(arguments).join(' ')
@@ -39277,9 +39725,9 @@
 	    ].join('\n'))
 	}
 	
-	exports.createHash = __webpack_require__(280)
+	exports.createHash = __webpack_require__(282)
 	
-	exports.createHmac = __webpack_require__(292)
+	exports.createHmac = __webpack_require__(294)
 	
 	exports.randomBytes = function(size, callback) {
 	  if (callback && callback.call) {
@@ -39300,7 +39748,7 @@
 	  return ['sha1', 'sha256', 'sha512', 'md5', 'rmd160']
 	}
 	
-	var p = __webpack_require__(293)(exports)
+	var p = __webpack_require__(295)(exports)
 	exports.pbkdf2 = p.pbkdf2
 	exports.pbkdf2Sync = p.pbkdf2Sync
 	
@@ -39320,16 +39768,16 @@
 	  }
 	})
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(273).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
 
 /***/ },
-/* 278 */
+/* 280 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(global, Buffer) {(function() {
 	  var g = ('undefined' === typeof window ? global : window) || {}
 	  _crypto = (
-	    g.crypto || g.msCrypto || __webpack_require__(279)
+	    g.crypto || g.msCrypto || __webpack_require__(281)
 	  )
 	  module.exports = function(size) {
 	    // Modern Browsers
@@ -39353,22 +39801,22 @@
 	  }
 	}())
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(273).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(275).Buffer))
 
 /***/ },
-/* 279 */
+/* 281 */
 /***/ function(module, exports) {
 
 	/* (ignored) */
 
 /***/ },
-/* 280 */
+/* 282 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(Buffer) {var createHash = __webpack_require__(281)
+	/* WEBPACK VAR INJECTION */(function(Buffer) {var createHash = __webpack_require__(283)
 	
-	var md5 = toConstructor(__webpack_require__(289))
-	var rmd160 = toConstructor(__webpack_require__(291))
+	var md5 = toConstructor(__webpack_require__(291))
+	var rmd160 = toConstructor(__webpack_require__(293))
 	
 	function toConstructor (fn) {
 	  return function () {
@@ -39396,10 +39844,10 @@
 	  return createHash(alg)
 	}
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(273).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
 
 /***/ },
-/* 281 */
+/* 283 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var exports = module.exports = function (alg) {
@@ -39408,16 +39856,16 @@
 	  return new Alg()
 	}
 	
-	var Buffer = __webpack_require__(273).Buffer
-	var Hash   = __webpack_require__(282)(Buffer)
+	var Buffer = __webpack_require__(275).Buffer
+	var Hash   = __webpack_require__(284)(Buffer)
 	
-	exports.sha1 = __webpack_require__(283)(Buffer, Hash)
-	exports.sha256 = __webpack_require__(287)(Buffer, Hash)
-	exports.sha512 = __webpack_require__(288)(Buffer, Hash)
+	exports.sha1 = __webpack_require__(285)(Buffer, Hash)
+	exports.sha256 = __webpack_require__(289)(Buffer, Hash)
+	exports.sha512 = __webpack_require__(290)(Buffer, Hash)
 
 
 /***/ },
-/* 282 */
+/* 284 */
 /***/ function(module, exports) {
 
 	module.exports = function (Buffer) {
@@ -39500,7 +39948,7 @@
 
 
 /***/ },
-/* 283 */
+/* 285 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/*
@@ -39512,7 +39960,7 @@
 	 * See http://pajhome.org.uk/crypt/md5 for details.
 	 */
 	
-	var inherits = __webpack_require__(284).inherits
+	var inherits = __webpack_require__(286).inherits
 	
 	module.exports = function (Buffer, Hash) {
 	
@@ -39644,7 +40092,7 @@
 
 
 /***/ },
-/* 284 */
+/* 286 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(global, process) {// Copyright Joyent, Inc. and other Node contributors.
@@ -40172,7 +40620,7 @@
 	}
 	exports.isPrimitive = isPrimitive;
 	
-	exports.isBuffer = __webpack_require__(285);
+	exports.isBuffer = __webpack_require__(287);
 	
 	function objectToString(o) {
 	  return Object.prototype.toString.call(o);
@@ -40216,7 +40664,7 @@
 	 *     prototype.
 	 * @param {function} superCtor Constructor function to inherit prototype from.
 	 */
-	exports.inherits = __webpack_require__(286);
+	exports.inherits = __webpack_require__(288);
 	
 	exports._extend = function(origin, add) {
 	  // Don't do anything if add isn't an object
@@ -40237,7 +40685,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(5)))
 
 /***/ },
-/* 285 */
+/* 287 */
 /***/ function(module, exports) {
 
 	module.exports = function isBuffer(arg) {
@@ -40248,7 +40696,7 @@
 	}
 
 /***/ },
-/* 286 */
+/* 288 */
 /***/ function(module, exports) {
 
 	if (typeof Object.create === 'function') {
@@ -40277,7 +40725,7 @@
 
 
 /***/ },
-/* 287 */
+/* 289 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
@@ -40289,7 +40737,7 @@
 	 *
 	 */
 	
-	var inherits = __webpack_require__(284).inherits
+	var inherits = __webpack_require__(286).inherits
 	
 	module.exports = function (Buffer, Hash) {
 	
@@ -40430,10 +40878,10 @@
 
 
 /***/ },
-/* 288 */
+/* 290 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var inherits = __webpack_require__(284).inherits
+	var inherits = __webpack_require__(286).inherits
 	
 	module.exports = function (Buffer, Hash) {
 	  var K = [
@@ -40680,7 +41128,7 @@
 
 
 /***/ },
-/* 289 */
+/* 291 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/*
@@ -40692,7 +41140,7 @@
 	 * See http://pajhome.org.uk/crypt/md5 for more info.
 	 */
 	
-	var helpers = __webpack_require__(290);
+	var helpers = __webpack_require__(292);
 	
 	/*
 	 * Calculate the MD5 of an array of little-endian words, and a bit length
@@ -40841,7 +41289,7 @@
 
 
 /***/ },
-/* 290 */
+/* 292 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(Buffer) {var intSize = 4;
@@ -40879,10 +41327,10 @@
 	
 	module.exports = { hash: hash };
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(273).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
 
 /***/ },
-/* 291 */
+/* 293 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(Buffer) {
@@ -41091,13 +41539,13 @@
 	
 	
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(273).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
 
 /***/ },
-/* 292 */
+/* 294 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(Buffer) {var createHash = __webpack_require__(280)
+	/* WEBPACK VAR INJECTION */(function(Buffer) {var createHash = __webpack_require__(282)
 	
 	var zeroBuffer = new Buffer(128)
 	zeroBuffer.fill(0)
@@ -41141,13 +41589,13 @@
 	}
 	
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(273).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
 
 /***/ },
-/* 293 */
+/* 295 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var pbkdf2Export = __webpack_require__(294)
+	var pbkdf2Export = __webpack_require__(296)
 	
 	module.exports = function (crypto, exports) {
 	  exports = exports || {}
@@ -41162,7 +41610,7 @@
 
 
 /***/ },
-/* 294 */
+/* 296 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(Buffer) {module.exports = function(crypto) {
@@ -41250,29 +41698,29 @@
 	  }
 	}
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(273).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
 
 /***/ },
-/* 295 */
+/* 297 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	module.exports = {
-	    Request: __webpack_require__(296),
-	    Error: __webpack_require__(300)
+	    Request: __webpack_require__(298),
+	    Error: __webpack_require__(302)
 	};
 
 /***/ },
-/* 296 */
+/* 298 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
-	var jQuery = __webpack_require__(297);
-	var Promise = __webpack_require__(298);
+	var jQuery = __webpack_require__(299);
+	var Promise = __webpack_require__(300);
 	
-	var XhrError = __webpack_require__(300);
+	var XhrError = __webpack_require__(302);
 	
 	function XhrRequest(opts) {
 	    return new Promise(function (resolve, reject) {
@@ -41297,7 +41745,7 @@
 	module.exports = XhrRequest;
 
 /***/ },
-/* 297 */
+/* 299 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -51117,7 +51565,7 @@
 
 
 /***/ },
-/* 298 */
+/* 300 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process, global, setImmediate) {/* @preserve
@@ -56012,10 +56460,10 @@
 	
 	},{"./es5.js":14}]},{},[4])(4)
 	});                    ;if (typeof window !== 'undefined' && window !== null) {                               window.P = window.Promise;                                                     } else if (typeof self !== 'undefined' && self !== null) {                             self.P = self.Promise;                                                         }
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5), (function() { return this; }()), __webpack_require__(299).setImmediate))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5), (function() { return this; }()), __webpack_require__(301).setImmediate))
 
 /***/ },
-/* 299 */
+/* 301 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(setImmediate, clearImmediate) {var nextTick = __webpack_require__(5).nextTick;
@@ -56094,10 +56542,10 @@
 	exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate : function(id) {
 	  delete immediateIds[id];
 	};
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(299).setImmediate, __webpack_require__(299).clearImmediate))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(301).setImmediate, __webpack_require__(301).clearImmediate))
 
 /***/ },
-/* 300 */
+/* 302 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -56113,7 +56561,7 @@
 	module.exports = XhrError;
 
 /***/ },
-/* 301 */
+/* 303 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -56121,13 +56569,13 @@
 	var ACTION_TYPES = __webpack_require__(101);
 	var dispatcher = __webpack_require__(104);
 	var authorizationStore = __webpack_require__(103);
-	var platformChartStore = __webpack_require__(265);
-	var platformsStore = __webpack_require__(266);
-	var platformsPanelItemsStore = __webpack_require__(264);
-	var statusIndicatorActionCreators = __webpack_require__(268);
-	var platformsPanelActionCreators = __webpack_require__(267);
-	var platformActionCreators = __webpack_require__(302);
-	var rpc = __webpack_require__(269);
+	var platformChartStore = __webpack_require__(267);
+	var platformsStore = __webpack_require__(268);
+	var platformsPanelItemsStore = __webpack_require__(266);
+	var statusIndicatorActionCreators = __webpack_require__(270);
+	var platformsPanelActionCreators = __webpack_require__(269);
+	var platformActionCreators = __webpack_require__(304);
+	var rpc = __webpack_require__(271);
 	
 	var platformChartActionCreators = {
 	    pinChart: function pinChart(chartKey) {
@@ -56415,19 +56863,19 @@
 	module.exports = platformChartActionCreators;
 
 /***/ },
-/* 302 */
+/* 304 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var ACTION_TYPES = __webpack_require__(101);
 	var authorizationStore = __webpack_require__(103);
-	var platformsStore = __webpack_require__(266);
-	var platformChartStore = __webpack_require__(265);
-	var platformsPanelItemsStore = __webpack_require__(264);
+	var platformsStore = __webpack_require__(268);
+	var platformChartStore = __webpack_require__(267);
+	var platformsPanelItemsStore = __webpack_require__(266);
 	var dispatcher = __webpack_require__(104);
-	var rpc = __webpack_require__(269);
-	var statusIndicatorActionCreators = __webpack_require__(268);
+	var rpc = __webpack_require__(271);
+	var statusIndicatorActionCreators = __webpack_require__(270);
 	
 	var platformActionCreators = {
 	    loadPlatform: function loadPlatform(platform) {
@@ -56864,21 +57312,21 @@
 	module.exports = platformActionCreators;
 
 /***/ },
-/* 303 */
+/* 305 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
-	var _csvparse = __webpack_require__(304);
+	var _csvparse = __webpack_require__(306);
 	
 	var ACTION_TYPES = __webpack_require__(101);
 	var authorizationStore = __webpack_require__(103);
-	var devicesStore = __webpack_require__(308);
+	var devicesStore = __webpack_require__(310);
 	var dispatcher = __webpack_require__(104);
-	var wspubsub = __webpack_require__(309);
-	var rpc = __webpack_require__(269);
+	var wspubsub = __webpack_require__(311);
+	var rpc = __webpack_require__(271);
 	
-	var statusIndicatorActionCreators = __webpack_require__(268);
+	var statusIndicatorActionCreators = __webpack_require__(270);
 	
 	var devicesActionCreators = {
 	    configureDevices: function configureDevices(platform) {
@@ -57300,17 +57748,17 @@
 	module.exports = devicesActionCreators;
 
 /***/ },
-/* 304 */
+/* 306 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
-	var _CsvParse = __webpack_require__(305);
+	var _CsvParse = __webpack_require__(307);
 	
 	exports.CsvParse = _CsvParse.default;
 
 /***/ },
-/* 305 */
+/* 307 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -57318,7 +57766,7 @@
 	Object.defineProperty(exports, "__esModule", {
 	    value: true
 	});
-	var CsvParse = __webpack_require__(306);
+	var CsvParse = __webpack_require__(308);
 	
 	var parseCsvFile = function parseCsvFile(contents) {
 	
@@ -57392,7 +57840,7 @@
 	exports.default = { parseCsvFile: parseCsvFile };
 
 /***/ },
-/* 306 */
+/* 308 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_RESULT__;/*
@@ -57435,7 +57883,7 @@
 		Baby.Parser = Parser;				// For testing/dev only
 		Baby.ParserHandle = ParserHandle;	// For testing/dev only
 		
-		var fs = fs || __webpack_require__(307)
+		var fs = fs || __webpack_require__(309)
 		
 		function ParseFiles(_input, _config)
 		{
@@ -58279,13 +58727,13 @@
 
 
 /***/ },
-/* 307 */
+/* 309 */
 /***/ function(module, exports) {
 
 
 
 /***/ },
-/* 308 */
+/* 310 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -58294,7 +58742,7 @@
 	var authorizationStore = __webpack_require__(103);
 	var dispatcher = __webpack_require__(104);
 	var Store = __webpack_require__(108);
-	var Immutable = __webpack_require__(263);
+	var Immutable = __webpack_require__(265);
 	
 	var devicesStore = new Store();
 	
@@ -59732,18 +60180,18 @@
 	module.exports = devicesStore;
 
 /***/ },
-/* 309 */
+/* 311 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	module.exports = {
-	    Error: __webpack_require__(310),
-	    WsPubSub: __webpack_require__(311).pubsub
+	    Error: __webpack_require__(312),
+	    WsPubSub: __webpack_require__(313).pubsub
 	};
 
 /***/ },
-/* 310 */
+/* 312 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -59758,7 +60206,7 @@
 	module.exports = WsPubSubError;
 
 /***/ },
-/* 311 */
+/* 313 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -59771,7 +60219,7 @@
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 	
-	var WsPubSubError = __webpack_require__(310);
+	var WsPubSubError = __webpack_require__(312);
 	
 	var WsPubSub = function () {
 	    function WsPubSub() {
@@ -59883,7 +60331,7 @@
 	var pubsub = exports.pubsub = new WsPubSub(); //let pubsub =  new WsPubSub(ws_root);
 
 /***/ },
-/* 312 */
+/* 314 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59918,7 +60366,7 @@
 	module.exports = platformsPanelStore;
 
 /***/ },
-/* 313 */
+/* 315 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -59945,7 +60393,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var columnMoverStore = __webpack_require__(314);
+	var columnMoverStore = __webpack_require__(316);
 	
 	var ColumnMover = function (_BaseComponent) {
 	  _inherits(ColumnMover, _BaseComponent);
@@ -59999,7 +60447,7 @@
 	exports.default = ColumnMover;
 
 /***/ },
-/* 314 */
+/* 316 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60048,15 +60496,15 @@
 	module.exports = columnMoverStore;
 
 /***/ },
-/* 315 */
+/* 317 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var Composer = __webpack_require__(316);
-	var Conversation = __webpack_require__(319);
+	var Composer = __webpack_require__(318);
+	var Conversation = __webpack_require__(321);
 	
 	var Console = React.createClass({
 	    displayName: 'Console',
@@ -60074,15 +60522,15 @@
 	module.exports = Console;
 
 /***/ },
-/* 316 */
+/* 318 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var consoleActionCreators = __webpack_require__(317);
-	var consoleStore = __webpack_require__(318);
+	var consoleActionCreators = __webpack_require__(319);
+	var consoleStore = __webpack_require__(320);
 	
 	var Composer = React.createClass({
 	    displayName: 'Composer',
@@ -60148,14 +60596,14 @@
 	module.exports = Composer;
 
 /***/ },
-/* 317 */
+/* 319 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var ACTION_TYPES = __webpack_require__(101);
 	var dispatcher = __webpack_require__(104);
-	var RpcExchange = __webpack_require__(271);
+	var RpcExchange = __webpack_require__(273);
 	
 	var consoleActionCreators = {
 	    toggleConsole: function toggleConsole() {
@@ -60177,7 +60625,7 @@
 	module.exports = consoleActionCreators;
 
 /***/ },
-/* 318 */
+/* 320 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60272,17 +60720,17 @@
 	module.exports = consoleStore;
 
 /***/ },
-/* 319 */
+/* 321 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
-	var $ = __webpack_require__(297);
+	var $ = __webpack_require__(299);
 	var React = __webpack_require__(3);
 	var ReactDOM = __webpack_require__(112);
 	
-	var Exchange = __webpack_require__(320);
-	var consoleStore = __webpack_require__(318);
+	var Exchange = __webpack_require__(322);
+	var consoleStore = __webpack_require__(320);
 	
 	var Conversation = React.createClass({
 	    displayName: 'Conversation',
@@ -60326,7 +60774,7 @@
 	module.exports = Conversation;
 
 /***/ },
-/* 320 */
+/* 322 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60403,14 +60851,14 @@
 	module.exports = Exchange;
 
 /***/ },
-/* 321 */
+/* 323 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(322);
+	var modalActionCreators = __webpack_require__(324);
 	
 	var Modal = React.createClass({
 		displayName: 'Modal',
@@ -60436,7 +60884,7 @@
 	module.exports = Modal;
 
 /***/ },
-/* 322 */
+/* 324 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60461,7 +60909,7 @@
 	module.exports = modalActionCreators;
 
 /***/ },
-/* 323 */
+/* 325 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60496,7 +60944,7 @@
 	module.exports = modalStore;
 
 /***/ },
-/* 324 */
+/* 326 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60504,9 +60952,9 @@
 	var React = __webpack_require__(3);
 	var Router = __webpack_require__(1);
 	
-	var platformManagerActionCreators = __webpack_require__(325);
+	var platformManagerActionCreators = __webpack_require__(327);
 	var authorizationStore = __webpack_require__(103);
-	var platformsPanelActionCreators = __webpack_require__(267);
+	var platformsPanelActionCreators = __webpack_require__(269);
 	
 	var Navigation = React.createClass({
 	    displayName: 'Navigation',
@@ -60601,7 +61049,7 @@
 	module.exports = Navigation;
 
 /***/ },
-/* 325 */
+/* 327 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -60611,9 +61059,9 @@
 	var ACTION_TYPES = __webpack_require__(101);
 	var authorizationStore = __webpack_require__(103);
 	var dispatcher = __webpack_require__(104);
-	var platformActionCreators = __webpack_require__(302);
-	var statusIndicatorActionCreators = __webpack_require__(268);
-	var rpc = __webpack_require__(269);
+	var platformActionCreators = __webpack_require__(304);
+	var statusIndicatorActionCreators = __webpack_require__(270);
+	var rpc = __webpack_require__(271);
 	
 	var initializing = false;
 	
@@ -60813,15 +61261,15 @@
 	module.exports = platformManagerActionCreators;
 
 /***/ },
-/* 326 */
+/* 328 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var statusIndicatorCreators = __webpack_require__(268);
-	var statusIndicatorStore = __webpack_require__(327);
+	var statusIndicatorCreators = __webpack_require__(270);
+	var statusIndicatorStore = __webpack_require__(329);
 	
 	var StatusIndicator = React.createClass({
 	    displayName: 'StatusIndicator',
@@ -61001,7 +61449,7 @@
 	module.exports = StatusIndicator;
 
 /***/ },
-/* 327 */
+/* 329 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -61078,7 +61526,7 @@
 	module.exports = statusIndicatorStore;
 
 /***/ },
-/* 328 */
+/* 330 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -61097,7 +61545,7 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _devicesFound = __webpack_require__(329);
+	var _devicesFound = __webpack_require__(331);
 	
 	var _devicesFound2 = _interopRequireDefault(_devicesFound);
 	
@@ -61113,13 +61561,13 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var $ = __webpack_require__(297);
+	var $ = __webpack_require__(299);
 	
 	
-	var platformsStore = __webpack_require__(266);
-	var devicesStore = __webpack_require__(308);
-	var devicesActionCreators = __webpack_require__(303);
-	var statusIndicatorActionCreators = __webpack_require__(268);
+	var platformsStore = __webpack_require__(268);
+	var devicesStore = __webpack_require__(310);
+	var devicesActionCreators = __webpack_require__(305);
+	var statusIndicatorActionCreators = __webpack_require__(270);
 	
 	var scanDuration = 10000; // 10 seconds
 	
@@ -61712,7 +62160,7 @@
 	exports.default = ConfigureDevices;
 
 /***/ },
-/* 329 */
+/* 331 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -61731,7 +62179,7 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _configureRegistry = __webpack_require__(330);
+	var _configureRegistry = __webpack_require__(332);
 	
 	var _configureRegistry2 = _interopRequireDefault(_configureRegistry);
 	
@@ -61739,7 +62187,7 @@
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
-	var _csvparse = __webpack_require__(304);
+	var _csvparse = __webpack_require__(306);
 	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
@@ -61749,12 +62197,12 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var ConfirmForm = __webpack_require__(333);
+	var ConfirmForm = __webpack_require__(335);
 	var RegistryFilesSelector = __webpack_require__(342);
-	var devicesActionCreators = __webpack_require__(303);
-	var modalActionCreators = __webpack_require__(322);
-	var statusIndicatorActionCreators = __webpack_require__(268);
-	var devicesStore = __webpack_require__(308);
+	var devicesActionCreators = __webpack_require__(305);
+	var modalActionCreators = __webpack_require__(324);
+	var statusIndicatorActionCreators = __webpack_require__(270);
+	var devicesStore = __webpack_require__(310);
 	
 	var DevicesFound = function (_BaseComponent) {
 	    _inherits(DevicesFound, _BaseComponent);
@@ -62146,7 +62594,7 @@
 	exports.default = DevicesFound;
 
 /***/ },
-/* 330 */
+/* 332 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -62169,27 +62617,27 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _editPointForm = __webpack_require__(331);
+	var _editPointForm = __webpack_require__(333);
 	
 	var _editPointForm2 = _interopRequireDefault(_editPointForm);
 	
-	var _previewRegistryForm = __webpack_require__(332);
+	var _previewRegistryForm = __webpack_require__(334);
 	
 	var _previewRegistryForm2 = _interopRequireDefault(_previewRegistryForm);
 	
-	var _newColumnForm = __webpack_require__(334);
+	var _newColumnForm = __webpack_require__(336);
 	
 	var _newColumnForm2 = _interopRequireDefault(_newColumnForm);
 	
-	var _configDeviceForm = __webpack_require__(335);
+	var _configDeviceForm = __webpack_require__(337);
 	
 	var _configDeviceForm2 = _interopRequireDefault(_configDeviceForm);
 	
-	var _editSelectButton = __webpack_require__(336);
+	var _editSelectButton = __webpack_require__(262);
 	
 	var _editSelectButton2 = _interopRequireDefault(_editSelectButton);
 	
-	var _editColumnsButton = __webpack_require__(337);
+	var _editColumnsButton = __webpack_require__(263);
 	
 	var _editColumnsButton2 = _interopRequireDefault(_editColumnsButton);
 	
@@ -62209,11 +62657,11 @@
 	
 	var _filterPointsButton2 = _interopRequireDefault(_filterPointsButton);
 	
-	var _checkBox = __webpack_require__(262);
+	var _checkBox = __webpack_require__(264);
 	
 	var _checkBox2 = _interopRequireDefault(_checkBox);
 	
-	var _immutable = __webpack_require__(263);
+	var _immutable = __webpack_require__(265);
 	
 	var _immutable2 = _interopRequireDefault(_immutable);
 	
@@ -62225,10 +62673,11 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var devicesActionCreators = __webpack_require__(303);
-	var devicesStore = __webpack_require__(308);
-	var ConfirmForm = __webpack_require__(333);
-	var modalActionCreators = __webpack_require__(322);
+	var devicesActionCreators = __webpack_require__(305);
+	var devicesStore = __webpack_require__(310);
+	var ConfirmForm = __webpack_require__(335);
+	var modalActionCreators = __webpack_require__(324);
+	var controlButtonActionCreators = __webpack_require__(110);
 	
 	var _defaultColumnWidth = "200px";
 	var _tableWidth;
@@ -62300,8 +62749,6 @@
 	    }, {
 	        key: 'componentWillReceiveProps',
 	        value: function componentWillReceiveProps(nextProps) {
-	
-	            //if ((this.props.device.registryConfig.length !== nextProps.device.registryConfig.length) || 
 	            if (this.props.device.configuring !== nextProps.device.configuring || this.props.device.showPoints !== nextProps.device.showPoints || this.props.device.registryCount !== nextProps.device.registryCount) {
 	                var newState = this._resetState(nextProps.device);
 	                newState.keyboardRange = this.state.keyboardRange;
@@ -63164,12 +63611,42 @@
 	                this.state.registryValues[0].get("attributes").forEach(function (item, index) {
 	
 	                    if (item.keyProp) {
+	                        var editColumnButtonName = "editColumn-" + this.props.device.id + "-" + item.key + "-controlButton";
+	
+	                        var editItems = [{
+	                            label: "Find and Replace",
+	                            position: "top",
+	                            action: controlButtonActionCreators.toggleTaptip.bind(this, editColumnButtonName)
+	                        }, {
+	                            label: "Duplicate",
+	                            action: this._onCloneColumn.bind(this, index)
+	                        }, {
+	                            label: "Add",
+	                            action: this._onAddColumn.bind(this, index)
+	                        }, {
+	                            label: "Remove",
+	                            position: "bottom",
+	                            action: this._onRemoveColumn.bind(this, index)
+	                        }];
+	
+	                        var editColumnTooltip = {
+	                            content: "Edit Column",
+	                            tooltipX: 80,
+	                            tooltipY: -60
+	                        };
+	
+	                        var editColumnTaptip = {
+	                            taptipX: 80,
+	                            taptipY: -80
+	                        };
+	
 	                        var editSelectButton = _react2.default.createElement(_editSelectButton2.default, {
-	                            onremove: this._onRemoveColumn,
-	                            onadd: this._onAddColumn,
-	                            onclone: this._onCloneColumn,
-	                            column: index,
-	                            name: this.props.device.id + "-" + item.key });
+	                            tooltip: editColumnTooltip,
+	                            taptip: editColumnTaptip,
+	                            iconName: 'pencil',
+	                            buttonClass: 'edit_column_select',
+	                            name: this.props.device.id + "-" + item.key,
+	                            listItems: editItems });
 	
 	                        var editColumnButton = _react2.default.createElement(_editColumnsButton2.default, {
 	                            column: index,
@@ -63181,7 +63658,7 @@
 	                            replaceEnabled: this.state.selectedCells.length > 0,
 	                            onclear: this._onClearFind,
 	                            onhide: this._removeFocus,
-	                            name: this.props.device.id + "-" + item.key });
+	                            name: editColumnButtonName });
 	
 	                        var headerCell;
 	
@@ -63509,7 +63986,7 @@
 	exports.default = ConfigureRegistry;
 
 /***/ },
-/* 331 */
+/* 333 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -63528,7 +64005,7 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _checkBox = __webpack_require__(262);
+	var _checkBox = __webpack_require__(264);
 	
 	var _checkBox2 = _interopRequireDefault(_checkBox);
 	
@@ -63540,8 +64017,8 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var modalActionCreators = __webpack_require__(322);
-	var devicesActionCreators = __webpack_require__(303);
+	var modalActionCreators = __webpack_require__(324);
+	var devicesActionCreators = __webpack_require__(305);
 	
 	var EditPointForm = function (_BaseComponent) {
 	    _inherits(EditPointForm, _BaseComponent);
@@ -63711,7 +64188,7 @@
 	exports.default = EditPointForm;
 
 /***/ },
-/* 332 */
+/* 334 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -63738,10 +64215,10 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var modalActionCreators = __webpack_require__(322);
-	var devicesActionCreators = __webpack_require__(303);
-	var devicesStore = __webpack_require__(308);
-	var ConfirmForm = __webpack_require__(333);
+	var modalActionCreators = __webpack_require__(324);
+	var devicesActionCreators = __webpack_require__(305);
+	var devicesStore = __webpack_require__(310);
+	var ConfirmForm = __webpack_require__(335);
 	
 	var PreviewRegistryForm = function (_BaseComponent) {
 	    _inherits(PreviewRegistryForm, _BaseComponent);
@@ -64020,14 +64497,14 @@
 	exports.default = PreviewRegistryForm;
 
 /***/ },
-/* 333 */
+/* 335 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(322);
+	var modalActionCreators = __webpack_require__(324);
 	
 	var ConfirmForm = React.createClass({
 	    displayName: 'ConfirmForm',
@@ -64094,7 +64571,7 @@
 	module.exports = ConfirmForm;
 
 /***/ },
-/* 334 */
+/* 336 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64121,8 +64598,8 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var modalActionCreators = __webpack_require__(322);
-	var devicesActionCreators = __webpack_require__(303);
+	var modalActionCreators = __webpack_require__(324);
+	var devicesActionCreators = __webpack_require__(305);
 	
 	var NewColumnForm = function (_BaseComponent) {
 	    _inherits(NewColumnForm, _BaseComponent);
@@ -64254,7 +64731,7 @@
 	exports.default = NewColumnForm;
 
 /***/ },
-/* 335 */
+/* 337 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64275,7 +64752,7 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _checkBox = __webpack_require__(262);
+	var _checkBox = __webpack_require__(264);
 	
 	var _checkBox2 = _interopRequireDefault(_checkBox);
 	
@@ -64287,9 +64764,9 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var modalActionCreators = __webpack_require__(322);
-	var devicesActionCreators = __webpack_require__(303);
-	var devicesStore = __webpack_require__(308);
+	var modalActionCreators = __webpack_require__(324);
+	var devicesActionCreators = __webpack_require__(305);
+	var devicesStore = __webpack_require__(310);
 	
 	var ConfigDeviceForm = function (_BaseComponent) {
 	    _inherits(ConfigDeviceForm, _BaseComponent);
@@ -64687,458 +65164,6 @@
 	exports.default = ConfigDeviceForm;
 
 /***/ },
-/* 336 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	Object.defineProperty(exports, "__esModule", {
-	    value: true
-	});
-	
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-	
-	var _react = __webpack_require__(3);
-	
-	var _react2 = _interopRequireDefault(_react);
-	
-	var _baseComponent = __webpack_require__(97);
-	
-	var _baseComponent2 = _interopRequireDefault(_baseComponent);
-	
-	var _controlButton = __webpack_require__(99);
-	
-	var _controlButton2 = _interopRequireDefault(_controlButton);
-	
-	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-	
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-	
-	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-	
-	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-	
-	var EditColumnButton = __webpack_require__(337);
-	var controlButtonActionCreators = __webpack_require__(110);
-	
-	var EditSelectButton = function (_BaseComponent) {
-	    _inherits(EditSelectButton, _BaseComponent);
-	
-	    function EditSelectButton(props) {
-	        _classCallCheck(this, EditSelectButton);
-	
-	        var _this = _possibleConstructorReturn(this, (EditSelectButton.__proto__ || Object.getPrototypeOf(EditSelectButton)).call(this, props));
-	
-	        _this._bind("_onCloneColumn", "_onAddColumn", "_onRemoveColumn", "_onEditColumn");
-	
-	        _this.state = {};
-	
-	        _this.state.buttonName = "editSelect-" + _this.props.name + "-controlButton";
-	        _this.state.editColumnButton = "editColumn-" + _this.props.name + "-controlButton";
-	        return _this;
-	    }
-	
-	    _createClass(EditSelectButton, [{
-	        key: '_onClose',
-	        value: function _onClose() {}
-	    }, {
-	        key: '_onCloneColumn',
-	        value: function _onCloneColumn() {
-	            this.props.onclone(this.props.column);
-	            controlButtonActionCreators.hideTaptip(this.state.buttonName);
-	        }
-	    }, {
-	        key: '_onAddColumn',
-	        value: function _onAddColumn() {
-	            this.props.onadd(this.props.column);
-	            controlButtonActionCreators.hideTaptip(this.state.buttonName);
-	        }
-	    }, {
-	        key: '_onRemoveColumn',
-	        value: function _onRemoveColumn() {
-	            this.props.onremove(this.props.column);
-	            controlButtonActionCreators.hideTaptip(this.state.buttonName);
-	        }
-	    }, {
-	        key: '_onEditColumn',
-	        value: function _onEditColumn() {
-	            controlButtonActionCreators.hideTaptip(this.state.buttonName);
-	            controlButtonActionCreators.toggleTaptip(this.state.editColumnButton);
-	        }
-	    }, {
-	        key: 'render',
-	        value: function render() {
-	
-	            var editBoxContainer = {
-	                position: "relative"
-	            };
-	
-	            var editBox = _react2.default.createElement(
-	                'div',
-	                { style: editBoxContainer },
-	                _react2.default.createElement(
-	                    'ul',
-	                    {
-	                        className: 'opList' },
-	                    _react2.default.createElement(
-	                        'li',
-	                        {
-	                            className: 'opListItem edit',
-	                            onClick: this._onEditColumn },
-	                        'Find and Replace'
-	                    ),
-	                    _react2.default.createElement(
-	                        'li',
-	                        {
-	                            className: 'opListItem clone',
-	                            onClick: this._onCloneColumn },
-	                        'Duplicate'
-	                    ),
-	                    _react2.default.createElement(
-	                        'li',
-	                        {
-	                            className: 'opListItem add',
-	                            onClick: this._onAddColumn },
-	                        'Add'
-	                    ),
-	                    _react2.default.createElement(
-	                        'li',
-	                        {
-	                            className: 'opListItem remove',
-	                            onClick: this._onRemoveColumn },
-	                        'Remove'
-	                    )
-	                )
-	            );
-	
-	            var editSelectTaptip = {
-	                "content": editBox,
-	                "x": 80,
-	                "y": -80,
-	                "styles": [{ "key": "width", "value": "120px" }],
-	                "break": "",
-	                "padding": "0px"
-	            };
-	
-	            var editSelectTooltip = {
-	                content: "Edit Column",
-	                "x": 80,
-	                "y": -60
-	            };
-	
-	            return _react2.default.createElement(_controlButton2.default, {
-	                name: this.state.buttonName,
-	                taptip: editSelectTaptip,
-	                tooltip: editSelectTooltip,
-	                controlclass: 'edit_button',
-	                fontAwesomeIcon: 'pencil',
-	                closeAction: this._onClose });
-	        }
-	    }]);
-	
-	    return EditSelectButton;
-	}(_baseComponent2.default);
-	
-	;
-	
-	exports.default = EditSelectButton;
-
-/***/ },
-/* 337 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	Object.defineProperty(exports, "__esModule", {
-	    value: true
-	});
-	
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-	
-	var _react = __webpack_require__(3);
-	
-	var _react2 = _interopRequireDefault(_react);
-	
-	var _baseComponent = __webpack_require__(97);
-	
-	var _baseComponent2 = _interopRequireDefault(_baseComponent);
-	
-	var _controlButton = __webpack_require__(99);
-	
-	var _controlButton2 = _interopRequireDefault(_controlButton);
-	
-	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-	
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-	
-	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-	
-	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-	
-	var controlButtonActionCreators = __webpack_require__(110);
-	
-	var EditColumnButton = function (_BaseComponent) {
-	    _inherits(EditColumnButton, _BaseComponent);
-	
-	    function EditColumnButton(props) {
-	        _classCallCheck(this, EditColumnButton);
-	
-	        var _this = _possibleConstructorReturn(this, (EditColumnButton.__proto__ || Object.getPrototypeOf(EditColumnButton)).call(this, props));
-	
-	        _this._bind("_onFindBoxChange", "_onReplaceBoxChange", "_findNext", "_onClearEdit", "_replace", "_replaceAll", "_onKeyDown");
-	
-	        _this.state = getStateFromStores(_this.props.name);
-	        return _this;
-	    }
-	
-	    _createClass(EditColumnButton, [{
-	        key: '_onFindBoxChange',
-	        value: function _onFindBoxChange(e) {
-	            var findValue = e.target.value;
-	
-	            this.setState({ findValue: findValue });
-	
-	            this.props.onclear(this.props.column);
-	        }
-	    }, {
-	        key: '_onKeyDown',
-	        value: function _onKeyDown(callback, e) {
-	
-	            if (e.keyCode === 13) //Enter
-	                {
-	                    callback();
-	                }
-	        }
-	    }, {
-	        key: '_onReplaceBoxChange',
-	        value: function _onReplaceBoxChange(e) {
-	            var replaceValue = e.target.value;
-	
-	            this.setState({ replaceValue: replaceValue });
-	        }
-	    }, {
-	        key: '_findNext',
-	        value: function _findNext() {
-	
-	            if (this.state.findValue === "") {
-	                this.props.onclear(this.props.column);
-	            } else {
-	                this.props.findnext(this.state.findValue, this.props.column);
-	            }
-	        }
-	    }, {
-	        key: '_onClearEdit',
-	        value: function _onClearEdit(e) {
-	
-	            this.props.onclear(this.props.column);
-	            this.setState({ findValue: "" });
-	            this.setState({ replaceValue: "" });
-	            controlButtonActionCreators.hideTaptip(this.state.buttonName);
-	        }
-	    }, {
-	        key: '_replace',
-	        value: function _replace() {
-	            if (this.props.replaceEnabled) {
-	                this.props.replace(this.state.findValue, this.state.replaceValue, this.props.column);
-	            }
-	        }
-	    }, {
-	        key: '_replaceAll',
-	        value: function _replaceAll() {
-	            if (this.props.replaceEnabled) {
-	                this.props.replaceall(this.state.findValue, this.state.replaceValue, this.props.column);
-	            }
-	        }
-	    }, {
-	        key: 'render',
-	        value: function render() {
-	
-	            var editBoxContainer = {
-	                position: "relative"
-	            };
-	
-	            var inputStyle = {
-	                width: "100%",
-	                marginLeft: "10px",
-	                fontWeight: "normal"
-	            };
-	
-	            var divWidth = {
-	                width: "85%"
-	            };
-	
-	            var clearTooltip = {
-	                content: "Clear Search",
-	                x: 50,
-	                y: 0
-	            };
-	
-	            var findTooltip = {
-	                content: "Find Next",
-	                x: 100,
-	                y: 0
-	            };
-	
-	            var replaceTooltip = {
-	                content: "Replace",
-	                x: 100,
-	                y: 80
-	            };
-	
-	            var replaceAllTooltip = {
-	                content: "Replace All",
-	                x: 100,
-	                y: 80
-	            };
-	
-	            var buttonsStyle = {
-	                marginTop: "8px"
-	            };
-	
-	            var replaceEnabled = !this.props.replaceEnabled ? "disableReplace plain" : "plain";
-	
-	            var editBox = _react2.default.createElement(
-	                'div',
-	                { style: editBoxContainer },
-	                _react2.default.createElement(_controlButton2.default, {
-	                    fontAwesomeIcon: 'ban',
-	                    tooltip: clearTooltip,
-	                    clickAction: this._onClearEdit }),
-	                _react2.default.createElement(
-	                    'div',
-	                    null,
-	                    _react2.default.createElement(
-	                        'table',
-	                        null,
-	                        _react2.default.createElement(
-	                            'tbody',
-	                            null,
-	                            _react2.default.createElement(
-	                                'tr',
-	                                null,
-	                                _react2.default.createElement(
-	                                    'td',
-	                                    { colSpan: '2' },
-	                                    'Find in Column'
-	                                )
-	                            ),
-	                            _react2.default.createElement(
-	                                'tr',
-	                                null,
-	                                _react2.default.createElement(
-	                                    'td',
-	                                    { width: '70%' },
-	                                    _react2.default.createElement('input', {
-	                                        type: 'text',
-	                                        style: inputStyle,
-	                                        onChange: this._onFindBoxChange,
-	                                        onKeyDown: this._onKeyDown.bind(this, this._findNext),
-	                                        value: this.state.findValue
-	                                    })
-	                                ),
-	                                _react2.default.createElement(
-	                                    'td',
-	                                    { className: 'plain' },
-	                                    _react2.default.createElement(
-	                                        'div',
-	                                        { style: buttonsStyle },
-	                                        _react2.default.createElement(_controlButton2.default, {
-	                                            fontAwesomeIcon: 'step-forward',
-	                                            tooltip: findTooltip,
-	                                            clickAction: this._findNext })
-	                                    )
-	                                )
-	                            ),
-	                            _react2.default.createElement(
-	                                'tr',
-	                                null,
-	                                _react2.default.createElement(
-	                                    'td',
-	                                    { className: replaceEnabled,
-	                                        colSpan: '2' },
-	                                    'Replace With'
-	                                )
-	                            ),
-	                            _react2.default.createElement(
-	                                'tr',
-	                                null,
-	                                _react2.default.createElement(
-	                                    'td',
-	                                    { className: replaceEnabled },
-	                                    _react2.default.createElement('input', {
-	                                        type: 'text',
-	                                        style: inputStyle,
-	                                        onChange: this._onReplaceBoxChange,
-	                                        onKeyDown: this._onKeyDown.bind(this, this._replace),
-	                                        value: this.state.replaceValue,
-	                                        disabled: !this.props.replaceEnabled
-	                                    })
-	                                ),
-	                                _react2.default.createElement(
-	                                    'td',
-	                                    { className: replaceEnabled },
-	                                    _react2.default.createElement(
-	                                        'div',
-	                                        { className: 'inlineBlock',
-	                                            style: buttonsStyle },
-	                                        _react2.default.createElement(_controlButton2.default, {
-	                                            fontAwesomeIcon: 'step-forward',
-	                                            tooltip: replaceTooltip,
-	                                            clickAction: this._replace }),
-	                                        _react2.default.createElement(_controlButton2.default, {
-	                                            fontAwesomeIcon: 'fast-forward',
-	                                            tooltip: replaceAllTooltip,
-	                                            clickAction: this._replaceAll })
-	                                    )
-	                                )
-	                            )
-	                        )
-	                    )
-	                )
-	            );
-	
-	            var editTaptip = {
-	                "title": "Search Column",
-	                "content": editBox,
-	                "x": 80,
-	                "y": -150,
-	                "styles": [{ "key": "width", "value": "250px" }]
-	            };
-	
-	            var editTooltip = {
-	                "content": this.props.tooltipMsg,
-	                "x": 160,
-	                "y": 0
-	            };
-	
-	            var columnIndex = this.props.column;
-	
-	            return _react2.default.createElement(_controlButton2.default, {
-	                name: this.state.buttonName,
-	                taptip: editTaptip,
-	                tooltip: editTooltip,
-	                fontAwesomeIcon: 'pencil',
-	                controlclass: 'edit_column_button',
-	                closeAction: this.props.onhide });
-	        }
-	    }]);
-	
-	    return EditColumnButton;
-	}(_baseComponent2.default);
-	
-	;
-	
-	var getStateFromStores = function getStateFromStores(buttonName) {
-	    return {
-	        findValue: "",
-	        replaceValue: "",
-	        buttonName: "editColumn-" + buttonName + "-controlButton"
-	    };
-	};
-	
-	exports.default = EditColumnButton;
-
-/***/ },
 /* 338 */
 /***/ function(module, exports, __webpack_require__) {
 
@@ -65484,15 +65509,15 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
-	var _editPointForm = __webpack_require__(331);
+	var _editPointForm = __webpack_require__(333);
 	
 	var _editPointForm2 = _interopRequireDefault(_editPointForm);
 	
-	var _checkBox = __webpack_require__(262);
+	var _checkBox = __webpack_require__(264);
 	
 	var _checkBox2 = _interopRequireDefault(_checkBox);
 	
-	var _immutable = __webpack_require__(263);
+	var _immutable = __webpack_require__(265);
 	
 	var _immutable2 = _interopRequireDefault(_immutable);
 	
@@ -65504,11 +65529,11 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var devicesActionCreators = __webpack_require__(303);
-	var modalActionCreators = __webpack_require__(322);
+	var devicesActionCreators = __webpack_require__(305);
+	var modalActionCreators = __webpack_require__(324);
 	var columnMoverActionCreators = __webpack_require__(340);
-	var statusIndicatorActionCreators = __webpack_require__(268);
-	var devicesStore = __webpack_require__(308);
+	var statusIndicatorActionCreators = __webpack_require__(270);
+	var devicesStore = __webpack_require__(310);
 	
 	var RegistryRow = function (_BaseComponent) {
 	    _inherits(RegistryRow, _BaseComponent);
@@ -65985,9 +66010,9 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var devicesActionCreators = __webpack_require__(303);
-	var modalActionCreators = __webpack_require__(322);
-	var devicesStore = __webpack_require__(308);
+	var devicesActionCreators = __webpack_require__(305);
+	var modalActionCreators = __webpack_require__(324);
+	var devicesStore = __webpack_require__(310);
 	
 	var RegistryFilesSelector = function (_BaseComponent) {
 	    _inherits(RegistryFilesSelector, _BaseComponent);
@@ -66166,7 +66191,7 @@
 	
 	var _reactVirtualized = __webpack_require__(347);
 	
-	var _immutable = __webpack_require__(263);
+	var _immutable = __webpack_require__(265);
 	
 	var _classnames = __webpack_require__(359);
 	
@@ -74495,7 +74520,7 @@
 	
 	var React = __webpack_require__(3);
 	var Router = __webpack_require__(1);
-	var platformChartStore = __webpack_require__(265);
+	var platformChartStore = __webpack_require__(267);
 	
 	var PlatformChart = __webpack_require__(412);
 	
@@ -74577,13 +74602,13 @@
 	var moment = __webpack_require__(415);
 	var OutsideClick = __webpack_require__(111);
 	
-	var chartStore = __webpack_require__(265);
-	var platformChartStore = __webpack_require__(265);
-	var platformChartActionCreators = __webpack_require__(301);
-	var platformActionCreators = __webpack_require__(302);
-	var platformsPanelActionCreators = __webpack_require__(267);
-	var modalActionCreators = __webpack_require__(322);
-	var ConfirmForm = __webpack_require__(333);
+	var chartStore = __webpack_require__(267);
+	var platformChartStore = __webpack_require__(267);
+	var platformChartActionCreators = __webpack_require__(303);
+	var platformActionCreators = __webpack_require__(304);
+	var platformsPanelActionCreators = __webpack_require__(269);
+	var modalActionCreators = __webpack_require__(324);
+	var ConfirmForm = __webpack_require__(335);
 	
 	var PlatformChart = React.createClass({
 	    displayName: 'PlatformChart',
@@ -113839,7 +113864,7 @@
 	var React = __webpack_require__(3);
 	var Router = __webpack_require__(1);
 	__webpack_require__(528);
-	var platformManagerActionCreators = __webpack_require__(325);
+	var platformManagerActionCreators = __webpack_require__(327);
 	
 	var LoginForm = React.createClass({
 	    displayName: 'LoginForm',
@@ -113943,9 +113968,9 @@
 	var Router = __webpack_require__(1);
 	
 	var AgentRow = __webpack_require__(538);
-	var platformActionCreators = __webpack_require__(302);
-	var statusIndicatorActionCreators = __webpack_require__(268);
-	var platformsStore = __webpack_require__(266);
+	var platformActionCreators = __webpack_require__(304);
+	var statusIndicatorActionCreators = __webpack_require__(270);
+	var platformsStore = __webpack_require__(268);
 	
 	var Platform = React.createClass({
 	    displayName: 'Platform',
@@ -114145,8 +114170,8 @@
 	
 	var React = __webpack_require__(3);
 	
-	var platformActionCreators = __webpack_require__(302);
-	var modalActionCreators = __webpack_require__(322);
+	var platformActionCreators = __webpack_require__(304);
+	var modalActionCreators = __webpack_require__(324);
 	
 	var RemoveAgentForm = __webpack_require__(539);
 	
@@ -114258,8 +114283,8 @@
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(322);
-	var platformActionCreators = __webpack_require__(302);
+	var modalActionCreators = __webpack_require__(324);
+	var platformActionCreators = __webpack_require__(304);
 	
 	var RemoveAgentForm = React.createClass({
 	    displayName: 'RemoveAgentForm',
@@ -114332,8 +114357,8 @@
 	var React = __webpack_require__(3);
 	var Router = __webpack_require__(1);
 	
-	var modalActionCreators = __webpack_require__(322);
-	var platformsStore = __webpack_require__(266);
+	var modalActionCreators = __webpack_require__(324);
+	var platformsStore = __webpack_require__(268);
 	var RegisterPlatformForm = __webpack_require__(541);
 	var DeregisterPlatformConfirmation = __webpack_require__(542);
 	
@@ -114479,8 +114504,8 @@
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(322);
-	var platformManagerActionCreators = __webpack_require__(325);
+	var modalActionCreators = __webpack_require__(324);
+	var platformManagerActionCreators = __webpack_require__(327);
 	
 	var RegisterPlatformForm = React.createClass({
 	    displayName: 'RegisterPlatformForm',
@@ -114916,8 +114941,8 @@
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(322);
-	var platformManagerActionCreators = __webpack_require__(325);
+	var modalActionCreators = __webpack_require__(324);
+	var platformManagerActionCreators = __webpack_require__(327);
 	
 	var RegisterPlatformForm = React.createClass({
 	    displayName: 'RegisterPlatformForm',
@@ -114983,10 +115008,10 @@
 	
 	var React = __webpack_require__(3);
 	var PlatformChart = __webpack_require__(412);
-	var modalActionCreators = __webpack_require__(322);
-	var platformActionCreators = __webpack_require__(302);
+	var modalActionCreators = __webpack_require__(324);
+	var platformActionCreators = __webpack_require__(304);
 	var NewChartForm = __webpack_require__(544);
-	var chartStore = __webpack_require__(265);
+	var chartStore = __webpack_require__(267);
 	
 	var PlatformCharts = React.createClass({
 	    displayName: 'PlatformCharts',
@@ -115079,7 +115104,7 @@
 	
 	var _reactSelectMe2 = _interopRequireDefault(_reactSelectMe);
 	
-	var _checkBox = __webpack_require__(262);
+	var _checkBox = __webpack_require__(264);
 	
 	var _checkBox2 = _interopRequireDefault(_checkBox);
 	
@@ -115087,12 +115112,12 @@
 	
 	var React = __webpack_require__(3);
 	
-	var modalActionCreators = __webpack_require__(322);
-	var platformActionCreators = __webpack_require__(302);
-	var platformChartActionCreators = __webpack_require__(301);
-	var platformsPanelActionCreators = __webpack_require__(267);
-	var platformsPanelItemsStore = __webpack_require__(264);
-	var chartStore = __webpack_require__(265);
+	var modalActionCreators = __webpack_require__(324);
+	var platformActionCreators = __webpack_require__(304);
+	var platformChartActionCreators = __webpack_require__(303);
+	var platformsPanelActionCreators = __webpack_require__(269);
+	var platformsPanelItemsStore = __webpack_require__(266);
+	var chartStore = __webpack_require__(267);
 	
 	var NewChartForm = React.createClass({
 	    displayName: 'NewChartForm',
@@ -115375,4 +115400,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-62fca10d6a5071c720c2.js.map
+//# sourceMappingURL=app-b938c3d1f46e2fe55f83.js.map
