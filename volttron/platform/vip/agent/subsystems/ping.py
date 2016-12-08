@@ -82,6 +82,8 @@ class Ping(SubsystemBase):
         result = next(self._results)
         args = list(args)
         args.insert(0, b'ping')
+        if peer == b'pubsub':
+            peer = b''
         socket.send_vip(peer, b'ping', args, result.ident)
         return result
 

@@ -97,6 +97,7 @@ from .agent import utils
 from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
+from .vip.pubsubservice import PubSubService
 
 try:
     import volttron.restricted
@@ -260,7 +261,8 @@ class Router(BaseRouter):
                  context=None, secretkey=None, publickey=None,
                  default_user_id=None, monitor=False, tracker=None,
                  volttron_central_address=None, instance_name=None,
-                 bind_web_address=None, volttron_central_serverkey=None):
+                 bind_web_address=None, volttron_central_serverkey=None,
+                 protected_topics_file=None):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
@@ -284,6 +286,8 @@ class Router(BaseRouter):
         self._volttron_central_serverkey = volttron_central_serverkey
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address
+        self._protected_topics_file = protected_topics_file
+        self._pubsub = None
 
     def setup(self):
         sock = self.socket
@@ -316,6 +320,7 @@ class Router(BaseRouter):
                 address.domain = 'vip'
             address.bind(sock)
             _log.debug('Additional VIP router bound to %s' % address)
+        self._pubsub = PubSubService(self._protected_topics_file, self.socket)
 
     def issue(self, topic, frames, extra=None):
         log = self.logger.debug
@@ -337,6 +342,14 @@ class Router(BaseRouter):
             sender = bytes(frames[0])
             if sender == b'control' and user_id == self.default_user_id:
                 raise KeyboardInterrupt()
+        elif subsystem == b'agentstop':
+            try:
+                drop = frames[6].bytes
+                self._drop_peer(drop)
+                _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
+            except IndexError:
+                pass
+            return False
         elif subsystem == b'query':
             try:
                 name = bytes(frames[6])
@@ -368,44 +381,54 @@ class Router(BaseRouter):
             frames[6:] = [b'', jsonapi.dumps(value)]
             frames[3] = b''
             return frames
+        elif subsystem == b'pubsub':
+            if self._pubsub is not None:
+                result = self._pubsub.handle_subsystem(frames, user_id)
+                return result
+            return False
 
+    def drop_pubsub_peers(self, peer):
+        self._pubsub.peer_drop(peer)
 
-class PubSubService(Agent):
-    def __init__(self, protected_topics_file, *args, **kwargs):
-        super(PubSubService, self).__init__(*args, **kwargs)
-        self._protected_topics_file = os.path.abspath(protected_topics_file)
+    def add_pubsub_peers(self, peer):
+        self._pubsub.peer_add(peer)
 
-    @Core.receiver('onstart')
-    def setup_agent(self, sender, **kwargs):
-        self._read_protected_topics_file()
-        self.core.spawn(utils.watch_file, self._protected_topics_file,
-                        self._read_protected_topics_file)
-        self.vip.pubsub.add_bus('')
-
-    def _read_protected_topics_file(self):
-        _log.info('loading protected-topics file %s',
-                  self._protected_topics_file)
-        try:
-            utils.create_file_if_missing(self._protected_topics_file)
-            with open(self._protected_topics_file) as fil:
-                # Use gevent FileObject to avoid blocking the thread
-                data = FileObject(fil, close=False).read()
-                topics_data = jsonapi.loads(data) if data else {}
-        except Exception:
-            _log.exception('error loading %s', self._protected_topics_file)
-        else:
-            write_protect = topics_data.get('write-protect', [])
-            topics = ProtectedPubSubTopics()
-            try:
-                for entry in write_protect:
-                    topics.add(entry['topic'], entry['capabilities'])
-            except KeyError:
-                _log.exception('invalid format for protected topics '
-                               'file {}'.format(self._protected_topics_file))
-            else:
-                self.vip.pubsub.protected_topics = topics
-                _log.info('protected-topics file %s loaded',
-                          self._protected_topics_file)
+# class PubSubService(Agent):
+#     def __init__(self, protected_topics_file, *args, **kwargs):
+#         super(PubSubService, self).__init__(*args, **kwargs)
+#         self._protected_topics_file = os.path.abspath(protected_topics_file)
+#
+#     @Core.receiver('onstart')
+#     def setup_agent(self, sender, **kwargs):
+#         self._read_protected_topics_file()
+#         self.core.spawn(utils.watch_file, self._protected_topics_file,
+#                         self._read_protected_topics_file)
+#         self.vip.pubsub.add_bus('')
+#
+#     def _read_protected_topics_file(self):
+#         _log.info('loading protected-topics file %s',
+#                   self._protected_topics_file)
+#         try:
+#             utils.create_file_if_missing(self._protected_topics_file)
+#             with open(self._protected_topics_file) as fil:
+#                 # Use gevent FileObject to avoid blocking the thread
+#                 data = FileObject(fil, close=False).read()
+#                 topics_data = jsonapi.loads(data) if data else {}
+#         except Exception:
+#             _log.exception('error loading %s', self._protected_topics_file)
+#         else:
+#             write_protect = topics_data.get('write-protect', [])
+#             topics = ProtectedPubSubTopics()
+#             try:
+#                 for entry in write_protect:
+#                     topics.add(entry['topic'], entry['capabilities'])
+#             except KeyError:
+#                 _log.exception('invalid format for protected topics '
+#                                'file {}'.format(self._protected_topics_file))
+#             else:
+#                 self.vip.pubsub.protected_topics = topics
+#                 _log.info('protected-topics file %s loaded',
+#                           self._protected_topics_file)
 
 
 def start_volttron_process(opts):
@@ -530,6 +553,8 @@ def start_volttron_process(opts):
     zmq.Context.instance()   # DO NOT REMOVE LINE!!
 
     tracker = Tracker()
+    protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
+    _log.debug('protected topics file %s', protected_topics_file)
     # Main loops
     def router(stop):
         try:
@@ -540,7 +565,8 @@ def start_volttron_process(opts):
                    volttron_central_address=opts.volttron_central_address,
                    volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
-                   bind_web_address=opts.bind_web_address).run()
+                   bind_web_address=opts.bind_web_address,
+                   protected_topics_file=protected_topics_file).run()
 
         except Exception:
             _log.exception('Unhandled exception in router loop')
@@ -588,9 +614,9 @@ def start_volttron_process(opts):
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=True),
-            PubSubService(protected_topics_file, address=address,
-                          identity='pubsub', heartbeat_autostart=True,
-                          enable_store=False),
+            # PubSubService(protected_topics_file, address=address,
+            #               identity='pubsub', heartbeat_autostart=True,
+            #               enable_store=False),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),

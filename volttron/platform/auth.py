@@ -143,8 +143,20 @@ class AuthService(Agent):
     def _send_update(self):
         user_to_caps = self.get_user_to_capabilities()
         peers = self.vip.peerlist().get(timeout=5)
+        _log.debug("AUTH new capabilities update: {}".format(user_to_caps))
         for peer in peers:
             self.vip.rpc.call(peer, 'auth.update', user_to_caps)
+        self._send_update_to_pubsub()
+
+    def _send_update_to_pubsub(self):
+        user_to_caps = self.get_user_to_capabilities()
+        #Send auth update message to router
+        json_msg = jsonapi.dumps(
+            dict(capabilities=user_to_caps)
+        )
+        frames = [zmq.Frame(b'auth_update'), zmq.Frame(str(json_msg))]
+        # <recipient, subsystem, args, msg_id, flags>
+        self.core.socket.send_vip(b'', 'pubsub', frames, copy=False)
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):
@@ -165,6 +177,7 @@ class AuthService(Agent):
         blocked = {}
         wait_list = []
         timeout = None
+        self._send_update_to_pubsub()
         while True:
             events = sock.poll(timeout)
             now = time()
