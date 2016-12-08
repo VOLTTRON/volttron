@@ -72,7 +72,6 @@ def both_with_vc_vcp(request):
 
 @pytest.mark.vc
 @pytest.mark.timeout(300)
-@pytest.mark.skip('These work locally but not on travis perhaps a firewall issue?')
 def test_autoregister_external(vc_vcp_platforms):
     gevent.sleep(15)
     vc, vcp = vc_vcp_platforms

@@ -405,7 +405,7 @@ class VolttronCentralPlatform(Agent):
                 authfile = AuthFile()
                 # find_by_credentials returns a list.
                 entries = authfile.find_by_credentials(vc_agent_publickey)
-                if entries is not None:
+                if entries is not None and len(entries) > 0:
                     entry = entries[0]
                     if "manage" not in entry.capabilities:
                         _log.debug("Updating vc capability.")
