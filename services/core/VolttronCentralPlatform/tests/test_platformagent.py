@@ -1,3 +1,4 @@
+import hashlib
 import os
 import tempfile
 import uuid
@@ -11,6 +12,10 @@ from volttron.platform.keystore import KeyStore
 from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.web import DiscoveryInfo
+from volttrontesting.utils.core_service_installs import \
+    add_volttron_central_platform
+from volttrontesting.utils.platformwrapper import PlatformWrapper, \
+    start_wrapper_platform
 from zmq.utils import jsonapi
 
 
@@ -84,6 +89,37 @@ def contains_keys(keylist, lookup):
     return False
 
 
+@pytest.fixture(scope="module", params=['volttron.central', 'simulated.vc'])
+def vcp_simulated_vc(request):
+    """
+    This method yields a platform wrapper with a vcp installed and an agent
+    connected to it with manager capabilities.
+
+    The parameters are for each of the different identities we want to test
+    with.
+    """
+    p = PlatformWrapper()
+
+    start_wrapper_platform(p, with_tcp=True)
+    vcp_uuid = add_volttron_central_platform(p)
+
+    vc_simulated_agent = p.build_connection("platform.agent",
+                                            identity=request.param)
+    p.add_capabilities(vc_simulated_agent.server.core.publickey, "manager")
+
+    yield p, vc_simulated_agent
+
+    vc_simulated_agent.kill()
+    p.shutdown_platform()
+
+
+def test_pa_uses_correct_address_hash(vcp_simulated_vc):
+    p, vc = vcp_simulated_vc
+
+    address_hash_should_be = hashlib.md5(p.vip_address).hexdigest()
+    assert address_hash_should_be == vc.call("get_instance_uuid")
+
+
 @pytest.mark.pa
 def test_listagents(pa_instance):
     try:
@@ -107,8 +143,6 @@ def test_listagents(pa_instance):
             assert values_not_none(not_none_key_set, a)
     finally:
         os.environ.pop('VOLTTRON_HOME')
-
-
 
 @pytest.mark.pa
 @pytest.mark.xfail(reason="Need to upgrade")

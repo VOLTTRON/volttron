@@ -22,6 +22,14 @@ from vctestutils import (APITester, FailedToGetAuthorization,
 
 @pytest.fixture(scope="module")
 def vc_vcp_platforms():
+    """
+    This method returns two distinct platforms one vc and one vcp.  When they
+    are returned they should be registered together.
+
+    This method will yield the two platforms as a tuple and then after the
+    module is finished executing the cleanup of both will happen.
+
+    """
     vc = PlatformWrapper()
     vcp = PlatformWrapper()
 
@@ -62,7 +70,6 @@ def web_api_tester(request, vc_instance, pa_instance):
 
     request.addfinalizer(cleanup)
     return tester
-
 
 @pytest.mark.vc
 def test_vc_settings_store(vc_instance):

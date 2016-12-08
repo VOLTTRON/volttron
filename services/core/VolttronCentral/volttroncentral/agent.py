@@ -1365,7 +1365,6 @@ class VolttronCentralAgent(Agent):
             _, _, platform_uuid, _ = method.split('.')
             return self._handle_get_devices(platform_uuid)
 
-
         method_dict = {
             'list_platforms': self._handle_list_platforms,
             'list_performance': self._handle_list_performance
