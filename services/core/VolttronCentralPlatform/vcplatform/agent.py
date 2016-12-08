@@ -403,8 +403,10 @@ class VolttronCentralPlatform(Agent):
                     vc_agent_publickey))
                 assert vc_agent_publickey and len(vc_agent_publickey) == 43
                 authfile = AuthFile()
-                entry = authfile.find_by_credentials(vc_agent_publickey)
-                if entry is not None:
+                # find_by_credentials returns a list.
+                entries = authfile.find_by_credentials(vc_agent_publickey)
+                if entries is not None:
+                    entry = entries[0]
                     if "manage" not in entry.capabilities:
                         _log.debug("Updating vc capability.")
                         entry.add_capabilities("manager")
