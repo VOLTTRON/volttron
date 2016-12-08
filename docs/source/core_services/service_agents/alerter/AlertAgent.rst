@@ -1,6 +1,5 @@
 .. _AlertAgent:
 
-===========
 Alert Agent
 ===========
 
