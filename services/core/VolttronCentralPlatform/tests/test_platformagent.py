@@ -113,11 +113,36 @@ def vcp_simulated_vc(request):
     p.shutdown_platform()
 
 
+@pytest.mark.pa
 def test_pa_uses_correct_address_hash(vcp_simulated_vc):
     p, vc = vcp_simulated_vc
 
     address_hash_should_be = hashlib.md5(p.vip_address).hexdigest()
     assert address_hash_should_be == vc.call("get_instance_uuid")
+
+
+@pytest.mark.pa
+def test_get_health(vcp_simulated_vc):
+    p, vc = vcp_simulated_vc
+
+    health_from_vcp = vc.call("get_health")
+    health = vc.call("health.get_status")
+
+    check = ('status', 'context', 'last_updated')
+
+    for x in check:
+        assert health[x] == health_from_vcp[x]
+
+    vc.call('health.set_status', STATUS_GOOD, 'Let the good-times role')
+
+    health_from_vcp = vc.call("get_health")
+    health = vc.call("health.get_status")
+
+    for x in check:
+        assert health[x] == health_from_vcp[x]
+
+    assert health['status'] == STATUS_GOOD
+    assert health['context'] == 'Let the good-times role'
 
 
 @pytest.mark.pa
