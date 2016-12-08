@@ -236,7 +236,7 @@ class PubSubService(object):
     def _peer_publish(self, frames, user_id):
         # for f in frames:
         #     self._logger.debug("PUBSUBSERIVE: publish frames {}".format(bytes(f)))
-        #self._logger.debug("PUBSUBSERVICE PUBLISH peer subscriptions {}".format(self._peer_subscriptions))
+        self._logger.debug("PUBSUBSERVICE PUBLISH peer subscriptions {}".format(self._peer_subscriptions))
         if len(frames) > 7:
             topic = frames[7].bytes
             data = frames[8].bytes
