@@ -1,5 +1,5 @@
 ============================
-Example Agents and Uitlities
+Examples/Samples
 ============================
 
 .. toctree::
@@ -8,4 +8,5 @@ Example Agents and Uitlities
 
     examples/index
     utilities/index
+    applications/index
     *

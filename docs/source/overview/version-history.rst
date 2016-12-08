@@ -1,4 +1,7 @@
-VOLTTRON Version History
+.. _version-history:
+
+========================
+Version History
 ========================
 
 VOLTTRON 1.0 – 1.2

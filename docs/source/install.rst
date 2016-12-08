@@ -1,8 +1,8 @@
-.. install:
+.. _install:
 
-============
-Installation
-============
+=================
+Installing Volttron
+=================
 
 VOLTTRON requires the following dependencies in order to bootstrap the
 development environment.

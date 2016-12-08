@@ -209,4 +209,4 @@ Now if agent ``A`` can successfully connect to platform ``B``, and platform
 
     2016-10-19 14:26:16,446 () volttron.platform.auth INFO: authentication success: domain='vip', address='127.0.0.1', mechanism='CURVE', credentials=['HOVXfTspZWcpHQcYT_xGcqypBHzQHTgqEzVb4iXrcDg'], user_id='Agent-A'
 
-For a more details see the :ref:`authentication walkthrough<_AgentAuthentication>`.
+For a more details see the :ref:`authentication walkthrough<AgentAuthentication>`.
