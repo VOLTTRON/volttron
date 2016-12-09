@@ -508,6 +508,7 @@ class VolttronCentralAgent(Agent):
                 status = Status.build(GOOD_STATUS,
                                       context="Last publish {}".format(
                                           last_publish_utc))
+                _log.debug("DEVICES MESSAGE: {}".format(message))
                 try:
                     data = self.vip.config.get(config_name)
                 except KeyError:
@@ -520,8 +521,10 @@ class VolttronCentralAgent(Agent):
                     device_health = cp['devices_health'][no_devices_prefix]
                 except KeyError:
                     _log.warn('No device health for: {}'.format(no_devices_prefix))
-                    device_health=dict(
-                        points=cp['devices'][topic_no_all]['points'])
+                    device_health=cp['devices']
+                    device_health=cp['devices'][topic_no_all]={'points':{}}
+                    # device_health=dict(
+                    #     points=cp['devices'][topic_no_all]['points'])
 
                 # Build a dictionary to easily update the status of our device
                 # health.
@@ -1161,9 +1164,10 @@ class VolttronCentralAgent(Agent):
         performances = []
         for x in config_list:
             platform = self.vip.config.get(x)
+            instance_uuid = x.split("/")[1]
             performances.append(
                 {
-                    'platform.uuid': platform['instance_uuid'],
+                    'platform.uuid': platform.get('instance_uuid', instance_uuid),
                     'performance': platform.get('stats_point_list', {})
                 }
             )
