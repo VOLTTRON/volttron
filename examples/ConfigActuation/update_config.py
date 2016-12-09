@@ -57,9 +57,23 @@
 # }}}
 
 import argparse
-import subprocess
-import tempfile
 import json
+
+from volttron.platform import get_address
+from volttron.platform.agent.known_identities import CONFIGURATION_STORE
+from volttron.platform.keystore import KeyStore, KnownHostsStore
+from volttron.platform.vip.agent.utils import build_agent
+
+def get_keys():
+    """Gets keys from keystore and known-hosts store"""
+    hosts = KnownHostsStore()
+    serverkey = hosts.serverkey(get_address())
+    key_store = KeyStore()
+    publickey = key_store.public
+    secretkey = key_store.secret
+    return {'publickey': publickey,
+            'secretkey': secretkey,
+            'serverkey': serverkey}
 
 def main():
     parser = argparse.ArgumentParser()
@@ -78,23 +92,29 @@ def main():
     except ValueError:
         value = args.value
 
-    files = subprocess.check_output(['volttron-ctl', 'config', 'list', vip_id])
-    files = files.split('\n')
+
+    agent = build_agent(**get_keys())
+
+    files = agent.vip.rpc.call(CONFIGURATION_STORE,
+                       'manage_list_configs',
+                       vip_id).get(timeout=10)
 
     if filename not in files:
         config = {key: value}
     else:
-        config = subprocess.check_output(['volttron-ctl', 'config',
-                                          'get', vip_id, filename])
+        config = agent.vip.rpc.call(CONFIGURATION_STORE,
+                                    'manage_get',
+                                    vip_id,
+                                    filename).get(timeout=10)
         config = json.loads(config)
         config[key] = value
 
-    tmp = tempfile.NamedTemporaryFile()
-    with open(tmp.name, 'w') as f:
-        json.dump(config, f)
-
-    subprocess.check_output(['volttron-ctl', 'config', 'store',
-                             vip_id, filename, tmp.name])
+    agent.vip.rpc.call(CONFIGURATION_STORE,
+                       'manage_store',
+                       vip_id,
+                       filename,
+                       json.dumps(config),
+                       'json').get(timeout=10)
 
 
 if __name__ == '__main__':
