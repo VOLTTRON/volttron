@@ -618,9 +618,10 @@ br + .form__control-help {
     vertical-align: middle;
 }
 
-.file-select-button {
+.file-select-button,
+.refresh-points-button {
     cursor: pointer;
-    height: 12px;
+    height: 16px;
 }
 
 .fileSelectContainer {
@@ -882,7 +883,8 @@ br + .form__control-help {
 }
 
 .file-button > .centeredDiv,
-.file-select-button > .centeredDiv {
+.file-select-button > .centeredDiv,
+.refresh-points-button > .centeredDiv {
     transform: translateY(-6px);
 }
 
@@ -1906,7 +1908,9 @@ td.buffer_row {
     font-size: 0;
 }
 
-.fileButton, .fileSelectButton {
+.fileButton, 
+.fileSelectButton,
+.refreshPointsButton {
     position: relative;
     display: inline-block;
     height: 20px;
@@ -1915,7 +1919,7 @@ td.buffer_row {
     color: gray;
 }
 
-.fileSelectButton {
+.fileSelectButton, .refreshPointsButton {
     line-height: 16px;
 }
 
@@ -1944,4 +1948,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-2ab4587235a21122e133.css.map*/
+/*# sourceMappingURL=app-ab5f8abd3aa0318809d1.css.map*/

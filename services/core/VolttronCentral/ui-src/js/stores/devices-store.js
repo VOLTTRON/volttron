@@ -28,6 +28,8 @@ var _keyboard = {
 };
 var _focusedDevice = {id: null, address: null};
 
+var _backupPoints = [];
+
 var _placeHolders = Immutable.List([ [
     {"key": "Point_Name", "value": ""},
     {"key": "Volttron_Point_Name", "value": ""},
@@ -1090,6 +1092,22 @@ devicesStore.getUpdatedRow = function (deviceId, deviceAddress) {
     return updatedRow;
 }
 
+devicesStore.getBackupPoints = function (deviceId, deviceAddress) {
+    var backup = _backupPoints.find(function (backups) {
+        return backups.id === deviceId && backups.address === deviceAddress;
+    });
+
+    return (typeof backup === "undefined" ? [] : backup.points);
+}
+
+devicesStore.enableBackupPoints = function (deviceId, deviceAddress) {
+    var backup = _backupPoints.find(function (backups) {
+        return backups.id === deviceId && backups.address === deviceAddress;
+    });
+
+    return (typeof backup !== "undefined");
+}
+
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
@@ -1147,20 +1165,22 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             device.configuring = false;
 
+            setBackupPoints(device);
+
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.POINT_RECEIVED:
             _action = "point_received";
             _view = "Devices Found";
             loadPoint(action.data);
-            
+
             devicesStore.emitChange();
 
             break;
             
         case ACTION_TYPES.FOCUS_ON_DEVICE:
             
-            var focusedDevice = devicesStore.getDeviceRef(action.deviceId, action.address);
+            var focusedDevice = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 
             if (focusedDevice)
             {
@@ -1169,6 +1189,27 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                     _focusedDevice.id = focusedDevice.id;
                     _focusedDevice.address = focusedDevice.address;
 
+                    devicesStore.emitChange();
+                }
+            }
+
+            break;
+
+        case ACTION_TYPES.REFRESH_DEVICE_POINTS:
+
+            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);            
+
+            if (device)
+            {
+                var backupPoints = _backupPoints.find(function (backups) {
+                    return backups.id === device.id && 
+                        backups.address === device.address;
+                });
+
+                if (typeof backupPoints !== "undefined")
+                {
+                    device.registryConfig = JSON.parse(JSON.stringify(backupPoints.points));
+                    device.registryCount = device.registryCount + 1;
                     devicesStore.emitChange();
                 }
             }
@@ -1311,6 +1352,37 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             break;
     }
 
+    function setBackupPoints(device)
+    {
+        var backup = { 
+            id: device.id, 
+            address: device.address, 
+            points: JSON.parse(JSON.stringify(device.registryConfig))
+        };
+
+        var index = -1;
+        _backupPoints.find(function (backups, i) {
+            var match = (backups.id === device.id && 
+                backups.address === device.address);
+
+            if (match)
+            {
+                index = i;
+            }
+
+            return match;
+        });
+
+        if (index < 0)
+        {
+            _backupPoints.push(backup);    
+        }
+        else
+        {
+            _backupPoints[index] = backup;
+        }
+    }
+
     function sortPointColumns(row)
     {
         var sortedPoint = [];
@@ -1403,7 +1475,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
     {
         if (data)
         {
-            // console.log(data);
             var pointData = JSON.parse(data); 
 
             // can remove && !pointData.hasProp(device_name) if fix websocket endpoint collision
@@ -1458,11 +1529,16 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                         if (pointData.status === "COMPLETE")
                         {
                             device.configuring = false;
+                            console.log("points complete");
+
+                            setBackupPoints(device);
                         }
                     }
                 }
             }
         }
+
+        return device.configuring;
     }
 
     function loadDevice(device, platformUuid, bacnetIdentity) 

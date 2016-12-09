@@ -65,6 +65,7 @@ module.exports = keyMirror({
     POINT_RECEIVED: null,
     CANCEL_SCANNING: null,
     CONFIGURE_DEVICE: null,
+    REFRESH_DEVICE_POINTS: null,
     TOGGLE_SHOW_POINTS: null,
     EDIT_REGISTRY: null,
     UPDATE_REGISTRY: null,

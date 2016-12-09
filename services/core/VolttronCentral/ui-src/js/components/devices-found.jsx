@@ -18,18 +18,41 @@ class DevicesFound extends BaseComponent {
     constructor(props) {
         super(props);
         this._bind('_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip',
-                    '_loadSavedRegistryFiles');
+                    '_loadSavedRegistryFiles', '_enableRefreshPoints', '_refreshDevicePoints');
 
         this.state = {
             triggerTooltip: -1,
-            savedRegistryFiles: {}
+            savedRegistryFiles: {},
+            enableRefreshPoints: []
         };       
     }
     componentWillReceiveProps(nextProps) {
         if (nextProps.devices !== this.props.devices)
         {
             this.props.devicesloaded(nextProps.devices.length > 0);
+
+            this._enableRefreshPoints(nextProps.devices);
         }
+    }
+    _enableRefreshPoints(devices) {
+
+        var refreshPointsList = [];
+
+        devices.forEach(function (device) {
+            var enableRefreshPoints = devicesStore.enableBackupPoints(
+                device.id, device.address
+            );
+
+            if (enableRefreshPoints)
+            {
+                refreshPointsList.push({
+                    id: device.id,
+                    address: device.address
+                });
+            }
+        });
+
+        this.setState({ enableRefreshPoints: refreshPointsList });
     }
     _configureDevice(device) {
         
@@ -193,11 +216,21 @@ class DevicesFound extends BaseComponent {
             }.bind(this)
 
             reader.readAsText(csvFile); 
-        }
-        else
-        {
-            alert("Couldn't find device by ID " + deviceId + " and address " + deviceAddress);
-        }               
+        }             
+    }
+    _refreshDevicePoints(device) {
+
+        var confirmAction = devicesActionCreators.refreshDevicePoints.bind(this, device.id, device.address);
+        
+        modalActionCreators.openModal(
+            <ConfirmForm
+                promptTitle="Reload Device Points"
+                promptText="Reload the device's original points?"
+                confirmText="Reload"
+                cancelText="Cancel"
+                onConfirm={ confirmAction }
+            ></ConfirmForm>
+        );
     }
     render() {        
         
@@ -267,6 +300,33 @@ class DevicesFound extends BaseComponent {
                             );
                     }
 
+                    var refreshPointsButton;
+
+                    var enableRefresh = this.state.enableRefreshPoints.find(function(enable) {
+                        return enable.id === deviceId && enable.address === deviceAddress;
+                    });
+
+                    if (typeof enableRefresh !== "undefined")
+                    {
+                        var refreshPointsTooltip = {
+                            content: "Reload Points From Device",
+                            tooltipClass: "colorBlack",
+                            "x": -20,
+                            "y": -120
+                        }
+
+                        refreshPointsButton = (
+                            <div className="refreshPointsButton">
+                                <ControlButton
+                                    name={"refresh-points-" + deviceId + "-" + rowIndex}
+                                    tooltip={refreshPointsTooltip}
+                                    controlclass="refresh-points-button"
+                                    fontAwesomeIcon="undo"
+                                    clickAction={this._refreshDevicePoints.bind(this, device)}/>
+                            </div>
+                        );
+                    }
+
                     return (
                         <tr key={deviceId + deviceAddress}>
                             <td key={"config-arrow-" + deviceId + deviceAddress} className="plain">
@@ -300,6 +360,7 @@ class DevicesFound extends BaseComponent {
                                             onMouseEnter={this._showFileButtonTooltip.bind(this, true, rowIndex)}
                                             onMouseLeave={this._showFileButtonTooltip.bind(this, false, rowIndex)}/>
                                     </div>
+                                    {refreshPointsButton}
                                 </div>
                             </td>
                         </tr>

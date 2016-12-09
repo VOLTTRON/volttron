@@ -258,7 +258,7 @@ var initializeSettings = (type, settingsTemplate) => {
                     },
                     interval: {
                         value: "", 
-                        label: "Interval",
+                        label: "Interval (seconds)",
                         type: "number"
                     },
                     timezone: {
