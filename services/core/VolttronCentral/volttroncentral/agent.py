@@ -714,7 +714,10 @@ class VolttronCentralAgent(Agent):
             'last_published_utc': format_timestamp(get_aware_utc_now())
         }
 
-        platform = self.vip.config.get(config_name)
+        try:
+            platform = self.vip.config.get(config_name)
+        except KeyError:
+            platform = {}
         platform['stats_point_list'] = stats
         self.vip.config.set(config_name, platform)
 
