@@ -1,3 +1,4 @@
+.. _Eclipse:
 Agent Development in Eclipse
 ============================
 
