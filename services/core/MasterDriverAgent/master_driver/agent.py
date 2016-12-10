@@ -66,14 +66,15 @@ import resource
 from datetime import datetime, timedelta
 import bisect
 import fnmatch
-
+from zmq.utils import jsonapi
+from interfaces import DriverInterfaceError
 from driver_locks import configure_socket_lock, configure_publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '2.0'
 
-class OverrideError(StandardError):
+class OverrideError(DriverInterfaceError):
     """Error raised when the user tries to set/revert point when global override is set."""
     pass
 
@@ -170,7 +171,7 @@ class MasterDriverAgent(Agent):
         self.publish_depth_first = publish_depth_first
         self.publish_breadth_first = publish_breadth_first
         self._override_devices = set()
-        self._override_patterns = set()
+        self._override_patterns = None
         self._override_interval_events = {}
 
         if scalability_test:
@@ -260,6 +261,17 @@ class MasterDriverAgent(Agent):
             except ValueError:
                 pass
 
+        #update override patterns
+        if self._override_patterns is None:
+            try:
+                values = self.vip.config.get("override_patterns")
+                if isinstance(values, dict):
+                    self._override_patterns = set(values.keys())
+            except KeyError:
+                self._override_patterns = set()
+            except ValueError:
+                _log.error("Override patterns is not set correctly in config store")
+                self._override_patterns = set()
         try:
             driver_scrape_interval = float(config["driver_scrape_interval"])
         except ValueError as e:
@@ -335,13 +347,13 @@ class MasterDriverAgent(Agent):
         gevent.spawn(driver.core.run)
         self.instances[topic] = driver
         self._name_map[topic.lower()] = topic
-
+        self._update_override_state(topic, 'add')
 
     def remove_driver(self, config_name, action, contents):
         topic = self.derive_device_topic(config_name)
         self.stop_driver(topic)
-               
-    
+        self._update_override_state(topic, 'remove')
+
     # def device_startup_callback(self, topic, driver):
     #     _log.debug("Driver hooked up for "+topic)
     #     topic = topic.strip('/')
@@ -431,10 +443,10 @@ class MasterDriverAgent(Agent):
 
     # Turn on override condition on all the devices matching the pattern.
     @RPC.export
-    def set_override_on(self, pattern, duration=1.0, failsafe_revert=True, staggered_revert=False):
-        self._set_override_on(pattern, duration, failsafe_revert, staggered_revert)
+    def set_override_on(self, pattern, duration=1.0, indefinite_duration=False, failsafe_revert=True, staggered_revert=False):
+        self._set_override_on(pattern, duration, indefinite_duration, failsafe_revert, staggered_revert)
 
-    def _set_override_on(self, pattern, duration=1.0, failsafe_revert=True, staggered_revert=False):
+    def _set_override_on(self, pattern, duration=1.0, indefinite_duration=False, failsafe_revert=True, staggered_revert=False):
         revert_greenlets = []
         stagger_interval = 0.05 #sec
         pattern = pattern.lower()
@@ -456,8 +468,19 @@ class MasterDriverAgent(Agent):
                         revert_greenlets.append(gevent.spawn(self.instances[name].revert_all()))
                 # Set override
                 self._override_devices.add(name)
+        config_update = False
         # Set timer for interval of override condition
-        self._update_override_interval(duration, pattern)
+        config_update = self._update_override_interval(duration, pattern, indefinite_duration)
+        if config_update == True:
+            #Update config store
+            patterns = dict()
+            for pat in self._override_patterns:
+                if self._override_interval_events[pat] is None:
+                    patterns[pat] = 'Indefinite'
+                else:
+                    evt, end_time = self._override_interval_events[pat]
+                    patterns[pat] = end_time.isoformat()
+            self.vip.config.set("override_patterns", jsonapi.dumps(patterns))
 
     # Turn off override condition on all the entities matching the pattern.
     @RPC.export
@@ -467,65 +490,103 @@ class MasterDriverAgent(Agent):
     # Get a list of all the devices with override condition.
     @RPC.export
     def get_override_devices(self):
-        devices = []
-        devices.extend(self._override_devices)
-        return devices
+        return list(self._override_devices)
 
     # Clear all overrides
     @RPC.export
     def clear_overrides(self):
         # Cancel all pending override timer events
-        for evt in self._override_interval_events.items():
+        for pattern, evt in self._override_interval_events.items():
             if evt is not None:
-                evt.cancel()
+                evt[0].cancel()
         self._override_interval_events.clear()
         self._override_devices.clear()
         self._override_patterns.clear()
+        self.vip.config.set("override_patterns", {})
 
     # Get a list of all the devices with override condition.
     @RPC.export
     def get_override_patterns(self):
-        patterns = []
-        patterns.extend(self._override_patterns)
-        return patterns
+        return list(self._override_patterns)
 
     def _set_override_off(self, pattern):
         pattern = pattern.lower()
+        config_update = False
+
         # If pattern exactly matches
         if pattern in self._override_patterns:
             self._override_patterns.discard(pattern)
+            # Cancel any pending override events
+            self._cancel_override_events(pattern)
+            config_update = True
         else:
             _log.debug("Pattern did not match!")
 
         self._override_devices.clear()
-        #Cancel any pending override events
-        self._cancel_override_events(pattern)
+        patterns = dict()
         #Build override devices list again
         for pat in self._override_patterns:
             for device in self.instances.keys():
                 device = device.lower()
                 if fnmatch.fnmatch(device, pat):
                     self._override_devices.add(device)
+            if config_update:
+                if self._override_interval_events[pat] is None:
+                    patterns[pat] = None
+                else:
+                    evt, end_time = self._override_interval_events[pat]
+                    patterns[pat] = end_time.isoformat()
+        if config_update:
+            self.vip.config.set("override_patterns", jsonapi.dumps(patterns))
 
-    def _update_override_interval(self, interval, topic):
-        override_start = utils.get_aware_utc_now()
-        override_end = override_start + timedelta(seconds=interval)
-        try:
-            self._override_interval_events[topic].cancel()
-        except KeyError:
-            _log.debug("MASTER DRIVER override interval event key error {}".format(topic))
-            pass
-        self._override_interval_events[topic] = self.core.schedule(override_end, self._cancel_override, topic)
+    def _update_override_interval(self, interval, pattern, indefinite_duration=False):
+        if indefinite_duration:
+            if pattern in self._override_interval_events.keys():
+                #If set as indifinite, do nothing
+                if self._override_interval_events[pattern] == None:
+                    return False
+                else:
+                    #Cancel the event
+                    evt = self._override_interval_events.pop(pattern)
+                    evt[0].cancel()
+            self._override_interval_events[pattern] = None
+            return True
+        else:
+            override_start = utils.get_aware_utc_now()
+            override_end = override_start + timedelta(seconds=interval)
+            if pattern in self._override_interval_events.keys():
+                evt = self._override_interval_events[pattern]
+                #If event is indefinite or greater than new end time, do nothing
+                if evt is None or override_end < evt[1]:
+                    return False
+                else:
+                    evt = self._override_interval_events.pop(pattern)
+                    evt[0].cancel()
+            event = self.core.schedule(override_end, self._cancel_override, pattern)
+            self._override_interval_events[pattern] = (event, override_end)
+            return True
 
     def _cancel_override_events(self, pattern):
         if pattern in self._override_interval_events:
             # Cancel the override cancellation timer event
             evt = self._override_interval_events.pop(pattern, None)
             if evt is not None:
-                evt.cancel()
+                evt[0].cancel()
 
     def _cancel_override(self, topic):
         self._set_override_off(topic)
+
+    def _update_override_state(self, device, state):
+        device = device.lower()
+
+        for pattern in self._override_patterns:
+            if fnmatch.fnmatch(device, pattern):
+                if state == 'add':
+                    self._override_devices.add(device)
+                else:
+                    #If an exact match exists, clear all references to override
+                    self._override_devices.remove(device)
+                return
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
