@@ -287,7 +287,7 @@ class VolttronCentralPlatform(Agent):
 
         self.enable_registration = True
         self._periodic_attempt_registration()
-        self._start_stats_publisher()
+        #self._start_stats_publisher()
 
     @RPC.export
     def get_public_keys(self):

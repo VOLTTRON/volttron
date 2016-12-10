@@ -138,8 +138,15 @@ class PlatformHandler(object):
     This class is a wrapper around the communication between VC and a
     corresponding VCP on either this instance or another instance.
     """
+
     @staticmethod
     def address_hasher(address):
+        """
+        Hashes the passed address.
+
+        :param address:
+        :return:
+        """
         return hashlib.md5(address).hexdigest()
 
     def __init__(self, platforms, address, address_type, serverkey=None,
@@ -159,8 +166,9 @@ class PlatformHandler(object):
         self._address_hash = PlatformHandler.address_hasher(address)
         self._connection = None
         self._log = logging.getLogger(self.__class__.__name__)
-        self._connect()
+        self._is_managed = False
         self._recheck_connection_event = None
+        self._connect()
         self._recheck_connection()
 
     @property
@@ -169,13 +177,52 @@ class PlatformHandler(object):
 
     @property
     def platforms(self):
+        """
+        Returns a link to the object that created this handler.
+
+        :return:
+        """
         return self._platforms
 
     @property
     def external_vip_identity(self):
+        """
+        Returns the identity this object will use on the remote instance.
+
+        :return:
+        """
         return 'platform.{}'.format(self._address_hash)
 
+    def _manage(self):
+        """
+        Attempt to call the manage function on the external instance's VCP
+        agent.
+
+        This will only happen if we have a connection and the platform.agent
+        is connected.
+        """
+        try:
+            if self._connection is not None and \
+                    self._connection.is_peer_connected():
+                public_address = self._vc.runtime_config['local_external_address']
+                my_address = self._vc.runtime_config['local_external_address']
+                self._log.debug('Calling manage with vc address: {}'.format(
+                    public_address
+                ))
+                pk = self._connection.call('manage', my_address)
+
+        except gevent.Timeout:
+            self._log.error(
+                'RPC call to manage did not return in a timely manner.')
+            if self._connection is not None:
+                self._connection.kill()
+            raise
+
     def _connect(self):
+        """
+        Connects to the remote instance.  If unsuccessful raises a
+        gevent.Timeout error.
+        """
 
         publickey = self._vc.core.publickey
         secretkey = self._vc.core.secretkey
@@ -198,19 +245,7 @@ class PlatformHandler(object):
                 self._connection.kill()
             raise
 
-        try:
-            public_address = self._vc.runtime_config['local_external_address']
-            my_address = self._vc.runtime_config['local_external_address']
-            self._log.debug('Calling manage with vc address: {}'.format(
-                public_address
-            ))
-            pk = self._connection.call('manage', my_address)
-        except gevent.Timeout:
-            self._log.error(
-                'RPC call to manage did not return in a timely manner.')
-            if self._connection is not None:
-                self._connection.kill()
-            raise
+
 
         # try:
         #     if address_type == 'tcp':
@@ -331,14 +366,22 @@ class PlatformHandler(object):
         #                                            ondevicemessage)
 
     def _recheck_connection(self):
+        """
+        The recheck_connection function is scheduled to run and monitors whether
+        we have a valid connection to the external instance and if the
+        platform.agent is connected at the present time.
+        """
         self._log.debug("Rechecking connection state.")
         if self._recheck_connection_event:
             self._recheck_connection_event.kill()
 
         try:
             if self._connection.is_peer_connected():
+                if not self._is_managed:
+                    self._manage()
                 self._log.debug('platform.agent is connected to remote instance')
             else:
+                self._is_managed = False
                 self._log.debug(
                     'platform.agent is not connected to remote instance.')
 
