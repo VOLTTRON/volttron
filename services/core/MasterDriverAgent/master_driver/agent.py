@@ -406,7 +406,6 @@ class MasterDriverAgent(Agent):
     def revert_device(self, path, **kwargs):
         self.instances[path].revert_all(**kwargs)
 
-
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
     utils.vip_main(master_driver_agent, identity=PLATFORM_DRIVER)

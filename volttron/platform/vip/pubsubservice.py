@@ -146,7 +146,6 @@ class PubSubService(object):
 
     def peer_add(self, peer, **kwargs):
         self._logger.debug("PUBSUBSERVICE: PEER ADD {}".format(peer))
-        #gevent.spawn(self._sync(peer, {}))
 
     def peer_drop(self, peer, **kwargs):
         self._logger.debug("PUBSUBSERVICE: PEER DROP {}".format(peer))
@@ -199,13 +198,11 @@ class PubSubService(object):
             prefix = msg['prefix']
             bus = msg['bus']
         #self._logger.debug("Subscription: peer: {0}, prefix: {1}, bus: {2}".format(peer, prefix, bus))
-        #peer = bytes(self.vip.rpc.context.vip_message.peer)
         for prefix in prefix if isinstance(prefix, list) else [prefix]:
             self._add_peer_subscription(peer, bus, prefix)
         self._logger.debug("Peer subscriptions after subscribe: {}".format(self._peer_subscriptions))
 
     def _peer_unsubscribe(self, frames):
-#        peer = bytes(self.rpc().context.vip_message.peer)
         if len(frames) > 7:
             data = frames[7].bytes
             json0 = data.find('{')
@@ -265,7 +262,6 @@ class PubSubService(object):
             reverse = msg['reverse']
             #self._logger.debug("List request: peer: {0}, prefix: {1}, bus: {2}".format(peer, prefix, bus))
 
-            #peer = bytes(self.rpc().context.vip_message.peer)
             if bus is None:
                 buses = self._peer_subscriptions.iteritems()
             else:
@@ -364,9 +360,7 @@ class PubSubService(object):
 
     def handle_subsystem(self, frames, user_id):
         response = []
-
         sender, recipient, proto, usr_id, msg_id, subsystem = frames[:6]
-        #subsystem = bytes(frames[5])
 
         if subsystem.bytes == b'pubsub':
             try:
@@ -426,7 +420,6 @@ class PubSubService(object):
                 msg = ('to publish to topic "{}" requires capabilities {},'
                        ' but capability list {} was'
                        ' provided').format(topic, required_caps, caps)
-                #raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
         return msg
 
 class ProtectedPubSubTopics(object):

@@ -382,54 +382,14 @@ class Router(BaseRouter):
             frames[3] = b''
             return frames
         elif subsystem == b'pubsub':
-            if self._pubsub is not None:
-                result = self._pubsub.handle_subsystem(frames, user_id)
-                return result
-            return False
+            result = self._pubsub.handle_subsystem(frames, user_id)
+            return result
 
     def drop_pubsub_peers(self, peer):
         self._pubsub.peer_drop(peer)
 
     def add_pubsub_peers(self, peer):
         self._pubsub.peer_add(peer)
-
-# class PubSubService(Agent):
-#     def __init__(self, protected_topics_file, *args, **kwargs):
-#         super(PubSubService, self).__init__(*args, **kwargs)
-#         self._protected_topics_file = os.path.abspath(protected_topics_file)
-#
-#     @Core.receiver('onstart')
-#     def setup_agent(self, sender, **kwargs):
-#         self._read_protected_topics_file()
-#         self.core.spawn(utils.watch_file, self._protected_topics_file,
-#                         self._read_protected_topics_file)
-#         self.vip.pubsub.add_bus('')
-#
-#     def _read_protected_topics_file(self):
-#         _log.info('loading protected-topics file %s',
-#                   self._protected_topics_file)
-#         try:
-#             utils.create_file_if_missing(self._protected_topics_file)
-#             with open(self._protected_topics_file) as fil:
-#                 # Use gevent FileObject to avoid blocking the thread
-#                 data = FileObject(fil, close=False).read()
-#                 topics_data = jsonapi.loads(data) if data else {}
-#         except Exception:
-#             _log.exception('error loading %s', self._protected_topics_file)
-#         else:
-#             write_protect = topics_data.get('write-protect', [])
-#             topics = ProtectedPubSubTopics()
-#             try:
-#                 for entry in write_protect:
-#                     topics.add(entry['topic'], entry['capabilities'])
-#             except KeyError:
-#                 _log.exception('invalid format for protected topics '
-#                                'file {}'.format(self._protected_topics_file))
-#             else:
-#                 self.vip.pubsub.protected_topics = topics
-#                 _log.info('protected-topics file %s loaded',
-#                           self._protected_topics_file)
-
 
 def start_volttron_process(opts):
     '''Start the main volttron process.
@@ -614,9 +574,6 @@ def start_volttron_process(opts):
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=True),
-            # PubSubService(protected_topics_file, address=address,
-            #               identity='pubsub', heartbeat_autostart=True,
-            #               enable_store=False),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
