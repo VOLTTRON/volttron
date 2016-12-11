@@ -1,6 +1,5 @@
 .. _ThresholdAgent:
 
-=========================
 Threshold Detection Agent
 =========================
 

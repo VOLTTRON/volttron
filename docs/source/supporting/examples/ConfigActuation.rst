@@ -1,6 +1,5 @@
 .. _ConfigActuation:
 
-=========================
 Config Actuation Example
 =========================
 
