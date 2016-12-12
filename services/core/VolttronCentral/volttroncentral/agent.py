@@ -92,6 +92,7 @@ from volttron.platform.auth import AuthFile, AuthEntry
 from zmq.utils import jsonapi
 
 from authenticate import Authenticate
+from platforms import Platforms
 from sessions import SessionHandler
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
@@ -209,6 +210,8 @@ class VolttronCentralAgent(Agent):
         # events to all the registered session.
         self._websocket_endpoints = set()
 
+        self._platforms = Platforms(self)
+
     def configure_main(self, config_name, action, contents):
         """
         The main configuration for volttron central.  This is where validation
@@ -277,8 +280,31 @@ class VolttronCentralAgent(Agent):
             auth_file.add(entry, True)
             gevent.sleep(0.1)
 
-        # Keep connections in sync if necessary.
-        self._periodic_reconnect_to_platforms()
+        # We know that peers are going to be connected to this platform with the
+        # identity of platform.address_hash so we collect all of the peers that
+        # have that signature.  Then if there is a config store entry for that
+        # platform then register it.
+        platforms = [p for p in self.vip.peerlist().get(timeout=2)
+                     if p.startswith('platform')]
+        for p in platforms:
+            try:
+                config_name="platforms/{}".format(p.split(".")[1])
+                platform_config = self.vip.config.get(config_name)
+            except KeyError:
+                _log.warn(
+                    "Couldn't reconnect to platform, missing data for "
+                    "already connected platform.")
+            else:
+                _log.warn("Re-registering platform: {} {}".format(
+                    platform_config['display_name'],
+                    platform_config['address']
+                ))
+                self._platforms.register_platform(
+                    platform_config['address'],
+                    platform_config['address_type'],
+                    platform_config['serverkey'],
+                    platform_config['display_name']
+                )
 
     def configure_platforms(self, config_name, action, contents):
         _log.debug('Platform configuration updated.')
@@ -385,160 +411,36 @@ class VolttronCentralAgent(Agent):
             raise ValueError('Unknown scheme specified {} valid schemes are {}'
                              .format(parsed.scheme, valid_schemes))
 
-        if parsed.scheme in ('http', 'https'):
-            self._register_instance(address, parsed.scheme,
-                                    display_name=display_name)
-        elif parsed.scheme == 'tcp':
-            if not vcpserverkey or len(vcpserverkey) != 43:  # valid publickey length
-                raise ValueError(
-                    "tcp addresses must have valid vcpserverkey provided")
-            self.register_platform(address, parsed.scheme,  vcpserverkey,
-                                   display_name)
-        elif parsed.scheme == 'ipc':
-            self.register_platform(address, parsed.scheme,
-                                   display_name=display_name)
-
-    def register_platform(self, address, address_type, serverkey=None,
-                          display_name=None):
-        """ Allows an volttron central platform (vcp) to register with vc
-
-        @param address:
-            An address or resolvable domain name with port.
-        @param address_type:
-            A string consisting of ipc or tcp.
-        @param: serverkey: str:
-            The router publickey for the vcp attempting to register.
-        @param: display_name: str:
-            The name to be shown in volttron central.
-        """
-        _log.info('Attempting registration of vcp at address: '
-                  '{} display_name: {}, serverkey: {}'.format(address,
-                                                              display_name,
-                                                              serverkey))
-        assert address_type in ('ipc', 'tcp') and address[:3] in ('ipc', 'tcp'), \
-            "Invalid address_type and/or address specified."
-
         try:
-            connection = self._build_connection(address, serverkey)
+            if parsed.scheme in ('http', 'https'):
+                address_hash, platform = self._register_instance(
+                    address, parsed.scheme, display_name=display_name)
+            elif parsed.scheme == 'tcp':
+                if not vcpserverkey or len(vcpserverkey) != 43:  # valid publickey length
+                    raise ValueError(
+                        "tcp addresses must have valid vcpserverkey provided")
+                address_hash, platform = self._platforms.register_platform(
+                    address, parsed.scheme, vcpserverkey, display_name)
+            else: # ipc
+                address_hash, platform = self._platforms.register_platform(
+                    address, parsed.scheme, display_name=display_name)
         except gevent.Timeout:
-            _log.error("Initial building of connection not found")
-            raise
-
-        try:
-            if address_type == 'tcp':
-                _log.debug(
-                    'TCP calling manage. my publickey: {}'.format(
-                        self.core.publickey))
-                my_address = self.runtime_config['local_external_address']
-                pk = connection.call('manage', my_address)
-            else:
-                pk = connection.call('manage', self.core.address)
-        except gevent.Timeout:
-            _log.error(
-                'RPC call to manage did not return in a timely manner.')
-            raise
-
-        # If we were successful in calling manage then we can add it to
-        # our list of managed platforms.
-        if pk is not None and len(pk) == 43:
-
-            md5 = hashlib.md5(address)
-            address_hash = md5.hexdigest()
+            return dict(status="FAILED",
+                        context="Unable to register platform instance.")
+        else:
             config_name = "platforms/{}".format(address_hash)
-            platform = None
-            if config_name in self.vip.config.list():
-                platform = self.vip.config.get(config_name)
-
-            if platform:
-                data = platform.copy()
-                data['serverkey'] = serverkey
-                data['display_name'] = display_name
-
-            else:
-                time_now = format_timestamp(get_aware_utc_now())
-                data = dict(
-                        address=address, serverkey=serverkey,
-                        display_name=display_name,
-                        registered_time_utc=time_now,
-                        instance_uuid=address_hash
-                    )
-
-            data['health'] = connection.call('health.get_status')
-            devices = connection.call('get_devices')
-            data['devices'] = devices
-
-            status = Status.build(UNKNOWN_STATUS,
-                                  context="Not published since update")
-            devices_health = {}
-            for device, item in devices.items():
-                device_no_prefix = device[len('devices/'):]
-                devices_health[device_no_prefix] = dict(
-                    last_publish_utc=None,
-                    health=status.as_dict(),
-                    points=item.get('points', [])
-                )
-            data['devices_health'] = devices_health
-
-            self.vip.config.set(config_name, data)
-
-            # Hook into management socket here and send all of the data
-            # for newly registered platforms.
-            management_sockets = [s for s in self._websocket_endpoints
-                                  if s.endswith("management")]
-            payload = dict(
-                type="platform_registered",
-                data=data
+            try:
+                current_config = self.vip.config.get(config_name)
+            except KeyError:
+                current_config = {}
+            config_store_data = dict(
+                address_type=parsed.scheme, display_name=platform.display_name,
+                address=platform.address, serverkey=platform.serverkey,
+                unregistered=False
             )
-            for s in management_sockets:
-                self.vip.web.send(s, payload)
-
-            def ondevicemessage(peer, sender, bus, topic, headers, message):
-                if not topic.endswith('/all'):
-                    return
-
-                # used in the devices structure.
-                topic_no_all = topic[:-len('/all')]
-
-                # Used in the devices_health structure.
-                no_devices_prefix = topic_no_all[len('devices/'):]
-
-                now_time_utc = get_aware_utc_now()
-                last_publish_utc = format_timestamp(now_time_utc)
-
-                status = Status.build(GOOD_STATUS,
-                                      context="Last publish {}".format(
-                                          last_publish_utc))
-                _log.debug("DEVICES MESSAGE: {}".format(message))
-                try:
-                    data = self.vip.config.get(config_name)
-                except KeyError:
-                    _log.error('Invalid configuration name: {}'.format(
-                        config_name))
-                    return
-
-                cp = deepcopy(data)
-                try:
-                    device_health = cp['devices_health'][no_devices_prefix]
-                except KeyError:
-                    _log.warn('No device health for: {}'.format(no_devices_prefix))
-                    device_health=cp['devices']
-                    device_health=cp['devices'][topic_no_all]={'points':{}}
-                    # device_health=dict(
-                    #     points=cp['devices'][topic_no_all]['points'])
-
-                # Build a dictionary to easily update the status of our device
-                # health.
-                update = dict(last_publish_utc=last_publish_utc,
-                              health=status.as_dict())
-                device_health.update(update)
-                # Might need to provide protection around these three lines
-                data = self.vip.config.get(config_name)
-                data.update(cp)
-                self.vip.config.set(config_name, cp)
-
-            # Subscribe to the vcp instance for device publishes.
-            connection.server.vip.pubsub.subscribe('pubsub', 'devices',
-                                                   ondevicemessage)
+            current_config.update(config_store_data)
+            self.vip.config.set(config_name, current_config)
+            return dict(status="SUCCESS", context=address_hash)
 
     def _periodic_reconnect_to_platforms(self):
         _log.debug('Reconnecting to external platforms.')
@@ -860,7 +762,7 @@ class VolttronCentralAgent(Agent):
 
         return cn
 
-    def _handle_list_platforms(self):
+    def _handle_list_platforms(self, session_user, params):
 
         platform_configs = [x for x in self.vip.config.list()
                             if x.startswith('platforms/')]
@@ -923,15 +825,25 @@ class VolttronCentralAgent(Agent):
         assert pa_instance_serverkey
         assert pa_vip_address
 
-        self.register_platform(pa_vip_address, pa_instance_serverkey)
+        try:
+            status = 'SUCCESS'
+            context = 'Registered instance {}'.format(display_name)
 
-        if pa_vip_address not in self._address_to_uuid.keys():
-            return {'status': 'FAILURE',
-                    'context': "Couldn't register address: {}".format(
-                        pa_vip_address)}
+            address_hash, platform = self._platforms.register_platform(
+                address=pa_instance_serverkey,
+                serverkey=pa_instance_serverkey,
+                address_type=pa_vip_address[:3],
+                display_name=display_name)
+            platform.add_event_listener(self._send_management_message)
+        except gevent.Timeout:
+            _log.error("Failed to register instance.")
+            self._platforms.remove_platform(address_hash)
+            status = 'FAILURE'
+            context = "Couldn't register address: {}".format(
+                pa_vip_address)
+            raise
 
-        return {'status': 'SUCCESS',
-                'context': 'Registered instance {}'.format(display_name)}
+        return address_hash, platform
 
     def _store_registry(self):
         self._store('registry', self._registry.package())
@@ -1154,7 +1066,7 @@ class VolttronCentralAgent(Agent):
     #     finally:
     #         self._flag_updating_deviceregistry = False
 
-    def _handle_list_performance(self):
+    def _handle_list_performance(self, session_user, params):
         _log.debug('Listing performance topics from vc')
 
         config_list = [x for x in self.vip.config.list()
@@ -1181,6 +1093,9 @@ class VolttronCentralAgent(Agent):
             return platform['devices_health'].copy()
         except KeyError:
             _log.warn('Unknown platform platform_uuid specified! {}'.format(platform_uuid))
+
+    def _handle_list_agent_configs(self, req_args, params):
+        pass
 
     def _handle_bacnet_props(self, req_args, params):
         _log.debug('Handling bacnet_props platform: {}'.format(
@@ -1275,9 +1190,9 @@ class VolttronCentralAgent(Agent):
         vcp_conn = self._get_connection(req_args.platform_uuid)
         return vcp_conn.call("get_agent_config", **params)
 
-    def _handle_list_agent_configs(self, req_args, params):
-        vcp_conn = self._get_connection(req_args.platform_uuid)
-        return vcp_conn.call("list_agent_configs", **params)
+    # def _handle_list_agent_configs(self, req_args, params):
+    #     vcp_conn = self._get_connection(req_args.platform_uuid)
+    #     return vcp_conn.call("list_agent_configs", **params)
 
     def _handle_management_endpoint(self, session_user, params):
         ws_topic = "/vc/ws/{}/management".format(session_user.get('token'))
@@ -1287,6 +1202,7 @@ class VolttronCentralAgent(Agent):
         return ws_topic
 
     def _send_management_message(self, type, data={}):
+        _log.debug("Sending to websockets management items.")
         management_sockets = [s for s in self._websocket_endpoints
                               if s.endswith("management")]
 
@@ -1362,7 +1278,9 @@ class VolttronCentralAgent(Agent):
             return platform_methods[method](req_args, params)
 
         vc_methods = dict(
-            register_management_endpoint=self._handle_management_endpoint
+            register_management_endpoint=self._handle_management_endpoint,
+            list_platforms=self._platforms.get_platform_list,
+            list_performance=self._handle_list_performance
         )
 
         if method in vc_methods:
