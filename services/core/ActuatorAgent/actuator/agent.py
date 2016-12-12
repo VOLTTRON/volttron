@@ -498,7 +498,7 @@ ACTUATOR_COLLECTION = 'actuators'
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-__version__ = "0.5"
+__version__ = "1.0"
 
 
 class LockError(StandardError):
@@ -727,7 +727,7 @@ class ActuatorAgent(Agent):
             now)
         _log.debug("schedule_next_event_time is {}".format(
             schedule_next_event_time))
-        new_update_event_time = self._get_ajusted_next_event_time(
+        new_update_event_time = self._get_adjusted_next_event_time(
             now,
             schedule_next_event_time,
             self._update_event_time)
@@ -760,7 +760,7 @@ class ActuatorAgent(Agent):
                                                 self._update_schedule_state,
                                                 new_update_event_time)
 
-    def _get_ajusted_next_event_time(self, now, next_event_time, previously_scheduled_time):
+    def _get_adjusted_next_event_time(self, now, next_event_time, previously_scheduled_time):
         _log.debug("_get_adjusted_next_event_time")
         latest_next = now + datetime.timedelta(
             seconds=self.schedule_publish_interval)
