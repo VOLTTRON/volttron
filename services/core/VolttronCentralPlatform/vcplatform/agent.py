@@ -287,7 +287,7 @@ class VolttronCentralPlatform(Agent):
 
         self.enable_registration = True
         self._periodic_attempt_registration()
-        #self._start_stats_publisher()
+        self._start_stats_publisher()
 
     @RPC.export
     def get_public_keys(self):
@@ -577,6 +577,7 @@ class VolttronCentralPlatform(Agent):
         if self._stats_publisher:
             self._stats_publisher.kill()
 
+        _log.debug("Starting stats publisher.")
         stats_publish_interval = self.current_config.get(
             'stats-publish-interval', 30)
         # The stats publisher publishes both to the local bus and the vc
@@ -1078,17 +1079,23 @@ class VolttronCentralPlatform(Agent):
         points['percent'] = {'Readings': psutil.cpu_percent(),
                              'Units': 'double'}
         try:
-            vc = self.get_vc_connection()
-            if vc is not None and vc.is_connected() and vc_topic is not None:
-                vc.publish(vc_topic.format(), message=points)
+            _log.debug("PUBLISHING DATA")
+            self.vip.pubsub.publish('pubsub', local_topic.format(), message=points)
+            # vc = self.get_vc_connection()
+            # if vc is not None and vc.is_connected() and vc_topic is not None:
+            #     vc.publish(vc_topic.format(), message=points)
         except Exception as e:
             _log.info("status not written to volttron central.")
-        self.vip.pubsub.publish(peer='pubsub', topic=local_topic.format(),
-                                message=points)
+        # self.vip.pubsub.publish(peer='pubsub', topic=local_topic.format(),
+        #                         message=points)
 
     @Core.receiver('onstop')
     def onstop(self, sender, **kwargs):
         if self.vc_connection is not None:
+            _log.debug("Shutting down agent.")
+            self.vc_connection.publish("platform/{}/stopping".format(
+                self.get_instance_uuid()))
+            gevent.sleep(1)
             try:
                 self.vc_connection.kill()
             except:

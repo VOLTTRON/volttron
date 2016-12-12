@@ -231,6 +231,18 @@ class PlatformHandler(object):
         return self._serverkey
 
     @property
+    def config_store_name(self):
+        """
+        Each platform has a specific entry for its data.  In order to get that
+        entry the config store needs a config name.  This property returns the
+        config store name for this platform.
+
+        :return: config store name
+        :rtype: str
+        """
+        return "platforms/{}".format(self.address_hash)
+
+    @property
     def platforms(self):
         """
         Returns a link to the object that created this handler.
@@ -320,12 +332,35 @@ class PlatformHandler(object):
         else:
             self._is_managed = True
 
+    def _on_heartbeat(self, peer, sender, bus, topic, headers, message):
+        self._log.debug("HEARTBEAT MESSAGE: {}".format(message))
 
     def _on_device_message(self, peer, sender, bus, topic, headers, message):
         self._log.debug("DEVICE MESSAGE: {}".format(message))
 
     def _on_platform_message(self, peer, sender, bus, topic, headers, message):
-        self._log.debug('Platform message {}'.format(message))
+
+        point_list = []
+
+        for point, item in message.iteritems():
+            point_list.append(point)
+
+        stats = {
+            'topic': topic,
+            'points': point_list,
+            'last_published_utc': format_timestamp(get_aware_utc_now())
+        }
+
+        config = deepcopy(self._vc.vip.config.get(self.config_store_name))
+        config['stats_point_list'] = stats
+        self._vc.vip.config.set(self.config_store_name, config)
+
+        self._log.debug('PLATFORM MESSAGE: {}'.format(peer))
+        self._log.debug('PLATFORM MESSAGE: {}'.format(topic))
+        self._log.debug('PLATFORM MESSAGE: {}'.format(message))
+
+    def _on_stats_published(self, peer, sender, bus, topic, headers, message):
+        self._log.debug('STATS PUBLISHERD: {}'.format(message))
 
     def _connect(self):
         """
@@ -348,16 +383,20 @@ class PlatformHandler(object):
                 serverkey=self._serverkey,
                 publickey=publickey,
                 secretkey=secretkey)
-            self._raise_event("CONECTED", data=dict(
-                address=self._address,
-                address_hash=self._address_hash))
-            self._connection.subscribe('devices', self._on_device_message)
         except gevent.Timeout:
             self._log.error("Unable to connect to instance.")
             if self._connection is not None:
                 self._connection.kill()
                 self._connection = None
             raise
+        else:
+            self._raise_event("CONECTED", data=dict(
+                address=self._address,
+                address_hash=self._address_hash))
+            self._connection.subscribe('devices', self._on_device_message)
+            self._connection.subscribe('', self._on_platform_message)
+
+
 
         # If we were successful in calling manage then we can add it to
         # our list of managed platforms.
@@ -477,6 +516,7 @@ class PlatformHandler(object):
             if self._connection.is_peer_connected():
                 if not self._is_managed:
                     self._manage()
+
                 if self._last_time_verified_connection:
                     self._health.update_status(GOOD_STATUS,
                                                "Connected to platform.")

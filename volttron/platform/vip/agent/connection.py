@@ -196,6 +196,7 @@ class Connection(object):
         #     return False
 
     def is_peer_connected(self, timeout=DEFAULT_TIMEOUT):
+        _log.debug('Checking for peer {}'.format(self.peer))
         return self.peer in self.peers()
 
     def publish(self, topic, headers=None, message=None, timeout=DEFAULT_TIMEOUT):
@@ -207,6 +208,9 @@ class Connection(object):
         self.server.vip.pubsub.publish(
             'pubsub', topic=topic, headers=headers, message=message
         ).get(timeout=timeout)
+
+    def subscribe(self, prefix, callback):
+        self.server.vip.pubsub.subscribe('pubsub', prefix, callback)
 
     def call(self, method, *args, **kwargs):
         timeout = kwargs.pop('timeout', DEFAULT_TIMEOUT)

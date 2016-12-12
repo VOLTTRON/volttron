@@ -834,6 +834,7 @@ class VolttronCentralAgent(Agent):
                 serverkey=pa_instance_serverkey,
                 address_type=pa_vip_address[:3],
                 display_name=display_name)
+            platform.add_event_listener(self._send_management_message)
         except gevent.Timeout:
             _log.error("Failed to register instance.")
             self._platforms.remove_platform(address_hash)
@@ -1093,6 +1094,9 @@ class VolttronCentralAgent(Agent):
         except KeyError:
             _log.warn('Unknown platform platform_uuid specified! {}'.format(platform_uuid))
 
+    def _handle_list_agent_configs(self, req_args, params):
+        pass
+
     def _handle_bacnet_props(self, req_args, params):
         _log.debug('Handling bacnet_props platform: {}'.format(
             req_args.platform_uuid))
@@ -1186,9 +1190,9 @@ class VolttronCentralAgent(Agent):
         vcp_conn = self._get_connection(req_args.platform_uuid)
         return vcp_conn.call("get_agent_config", **params)
 
-    def _handle_list_agent_configs(self, req_args, params):
-        vcp_conn = self._get_connection(req_args.platform_uuid)
-        return vcp_conn.call("list_agent_configs", **params)
+    # def _handle_list_agent_configs(self, req_args, params):
+    #     vcp_conn = self._get_connection(req_args.platform_uuid)
+    #     return vcp_conn.call("list_agent_configs", **params)
 
     def _handle_management_endpoint(self, session_user, params):
         ws_topic = "/vc/ws/{}/management".format(session_user.get('token'))
@@ -1198,6 +1202,7 @@ class VolttronCentralAgent(Agent):
         return ws_topic
 
     def _send_management_message(self, type, data={}):
+        _log.debug("Sending to websockets management items.")
         management_sockets = [s for s in self._websocket_endpoints
                               if s.endswith("management")]
 
@@ -1273,7 +1278,9 @@ class VolttronCentralAgent(Agent):
             return platform_methods[method](req_args, params)
 
         vc_methods = dict(
-            register_management_endpoint=self._handle_management_endpoint
+            register_management_endpoint=self._handle_management_endpoint,
+            list_platforms=self._platforms.get_platform_list,
+            list_performance=self._handle_list_performance
         )
 
         if method in vc_methods:
