@@ -172,6 +172,14 @@ class AlertGroup(Agent):
                 self.watch_topic(topic, timeout)
 
     def watch_topic(self, topic, timeout):
+        """Listen for a topic to be published within a given
+        number of seconds or send alerts.
+
+        :param topic: Topic expected to be published.
+        :type topic: str
+        :param timeout: Seconds before an alert is sent.
+        :type timeout: int
+        """
         self.wait_time[topic] = timeout
         self.topic_ttl[topic] = timeout
         self.vip.pubsub.subscribe(peer='pubsub',
@@ -181,6 +189,17 @@ class AlertGroup(Agent):
                    .format(topic, timeout))
 
     def watch_device(self, topic, timeout, points):
+        """Watch a device's ALL topic and expect points. This
+        method calls the watch topic method so both methods
+        don't need to be called.
+
+        :param topic: Topic expected to be published.
+        :type topic: str
+        :param timeout: Seconds before an alert is sent.
+        :type timeout: int
+        :param points: Points to expect in the publish message.
+        :type points: [str]
+        """
         self.point_ttl[topic] = {}
 
         for p in points:
@@ -189,6 +208,11 @@ class AlertGroup(Agent):
         self.watch_topic(topic, timeout)
 
     def ignore_topic(self, topic):
+        """Remove a topic from the group watchlist
+
+        :param topic: Topic to remove from the watch list.
+        :type topic: str
+        """
         _log.info("Removing topic {} from watchlist".format(topic))
 
         self.vip.pubsub.unsubscribe(peer='pubsub',
@@ -199,6 +223,10 @@ class AlertGroup(Agent):
         self.wait_time.pop(topic, None)
 
     def reset_time(self, peer, sender, bus, topic, headers, message):
+        """Callback for topic subscriptions
+
+        Resets the timeout for topics and devices when publishes are received.
+        """
         if topic not in self.wait_time:
             found = False
             # if topic isn't in wait time we need to figure out the
@@ -230,6 +258,11 @@ class AlertGroup(Agent):
 
     @Core.periodic(1)
     def decrement_ttl(self):
+        """Periodic call
+
+        Used to maintain the time since each topic's last publish.
+        Sends an alert if any topics are missing.
+        """
         unseen_topics = set()
         for topic in self.wait_time.iterkeys():
 
@@ -254,6 +287,11 @@ class AlertGroup(Agent):
             self.send_alert(list(unseen_topics))
 
     def send_alert(self, unseen_topics):
+        """Send an alert for the group, summarizing missing topics.
+
+        :param unseen_topics: List of topics that were expected but not received
+        :type unseen_topics: list
+        """
         alert_key = "AlertAgent Timeout for group {}".format(self.group_name)
         context = "Topic(s) not published within time limit: {}".format(
             sorted(unseen_topics))
