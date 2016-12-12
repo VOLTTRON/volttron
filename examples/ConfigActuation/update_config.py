@@ -56,6 +56,12 @@
 
 # }}}
 
+"""Script for adding or updating a JSON file in an agent's
+:ref:`configuration store <VOLTTRON-Configuration-Store>`.
+
+If the file does not exist it will be created.
+"""
+
 import argparse
 import json
 
@@ -65,7 +71,11 @@ from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent.utils import build_agent
 
 def get_keys():
-    """Gets keys from keystore and known-hosts store"""
+    """Gets keys from keystore and known-hosts store
+
+    :returns: Keys for connecting to the platform
+    :rtype: dict
+    """
     hosts = KnownHostsStore()
     serverkey = hosts.serverkey(get_address())
     key_store = KeyStore()
@@ -77,13 +87,17 @@ def get_keys():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('vip_id')
-    parser.add_argument('filename')
-    parser.add_argument('key')
-    parser.add_argument('value')
+    parser.add_argument('vip_identity',
+                        help='VIP Identity whose configstore we want to access')
+    parser.add_argument('filename',
+                        help='Name of the configstore file to edit')
+    parser.add_argument('key',
+                        help='Key to add or edit in the config')
+    parser.add_argument('value',
+                        help='Value that the key will assume')
     args = parser.parse_args()
 
-    vip_id = args.vip_id
+    vip_id = args.vip_identity
     filename = args.filename
     key = args.key
 
