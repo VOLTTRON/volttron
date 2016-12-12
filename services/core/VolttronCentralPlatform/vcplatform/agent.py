@@ -1054,22 +1054,11 @@ class VolttronCentralPlatform(Agent):
 
     def _publish_stats(self):
         """
-        Publish the platform statistics to the local bus as well as to the
-        connected volttron central.
+        Publish the platform statistics to the bus.
         """
-        vc_topic = None
-        local_topic = LOGGER(subtopic="platform/status/cpu")
-        _log.debug('Publishing platform cpu stats')
-        address_hash = self.current_config.get('address_hash')
-        if address_hash is not None:
 
-            vc_topic = LOGGER(
-                subtopic="platforms/{}/status/cpu".format(
-                    address_hash))
-            _log.debug('Stats will be published to: {}'.format(
-                vc_topic.format()))
-        else:
-            _log.debug('Platform uuid is not valid')
+        topic = LOGGER(subtopic="platform/status/cpu")
+
         points = {}
 
         for k, v in psutil.cpu_times_percent().__dict__.items():
@@ -1079,15 +1068,10 @@ class VolttronCentralPlatform(Agent):
         points['percent'] = {'Readings': psutil.cpu_percent(),
                              'Units': 'double'}
         try:
-            _log.debug("PUBLISHING DATA")
-            self.vip.pubsub.publish('pubsub', local_topic.format(), message=points)
-            # vc = self.get_vc_connection()
-            # if vc is not None and vc.is_connected() and vc_topic is not None:
-            #     vc.publish(vc_topic.format(), message=points)
+            self.vip.pubsub.publish('pubsub', topic.format(), message=points)
+
         except Exception as e:
-            _log.info("status not written to volttron central.")
-        # self.vip.pubsub.publish(peer='pubsub', topic=local_topic.format(),
-        #                         message=points)
+            _log.warn("Failed to publish to topic {}".format(topic.format()))
 
     @Core.receiver('onstop')
     def onstop(self, sender, **kwargs):

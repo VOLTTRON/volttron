@@ -91,6 +91,21 @@ class Platforms(object):
     def vc(self):
         return self._vc
 
+    def is_registered(self, address_hash):
+        """
+        Returns true if the platform is currently registered and has a
+        current connection to vc.
+
+        :return: True if platform registered and connected to.
+        """
+        # Make sure that the platform has been registered.
+        if address_hash in self._platforms:
+            # Managed means that it is currently managed and has a connection
+            # to the platform.
+            if self._platforms[address_hash].is_managed:
+                return True
+        return False
+
     def get_platform_list(self, session_user, params):
         """
         Retrieve the platform list and respond in a manner that can
@@ -114,6 +129,17 @@ class Platforms(object):
             )
 
         return results
+
+    def get_performance_list(self, session_user, params):
+        performances = []
+        for p in self._platforms.values():
+            performances.append(
+                {
+                    "platform.uuid": p.address_hash,
+                    "performance": p.get_stats("status/cpu")
+                }
+            )
+        return performances
 
     def get_platform_hashes(self):
         """
@@ -231,6 +257,10 @@ class PlatformHandler(object):
         return self._serverkey
 
     @property
+    def is_managed(self):
+        return self._is_managed
+
+    @property
     def config_store_name(self):
         """
         Each platform has a specific entry for its data.  In order to get that
@@ -293,6 +323,19 @@ class PlatformHandler(object):
                 ))
         return ""
 
+    def get_stats(self, stat_type):
+        # TODO Change so stat_type is available.
+        if stat_type != 'status/cpu':
+            self._log.warn('The only stats available are cpu stats currently')
+
+        try:
+            config = self._vc.vip.config.get(self.config_store_name)
+            return config['stats']['status/cpu']
+        except KeyError:
+            self._log.warn('Performance status for {} not found'.format(
+                self.config_store_name))
+            return {}
+
     def add_event_listener(self, callback):
         self._event_listeners.add(callback)
 
@@ -337,6 +380,34 @@ class PlatformHandler(object):
 
     def _on_device_message(self, peer, sender, bus, topic, headers, message):
         self._log.debug("DEVICE MESSAGE: {}".format(message))
+
+    def _on_platform_stats(self, peer, sender, bus, topic, headers, message):
+
+        prefix = "datalogger/platform/"
+        which_stats = topic[len(prefix):]
+        point_list = []
+
+        for point, item in message.iteritems():
+            point_list.append(point)
+
+        stat_dict = {
+            'topic': topic,
+            'points': point_list,
+            'last_published_utc': format_timestamp(get_aware_utc_now())
+        }
+
+        config = deepcopy(self._vc.vip.config.get(self.config_store_name))
+        stats = config.get('stats')
+        if not stats:
+            stats = config['stats'] = {}
+
+        stats[which_stats] = stat_dict
+
+        self._vc.vip.config.set(self.config_store_name, config)
+
+        self._log.debug('PLATFORM MESSAGE: {}'.format(peer))
+        self._log.debug('PLATFORM MESSAGE: {}'.format(topic))
+        self._log.debug('PLATFORM MESSAGE: {}'.format(message))
 
     def _on_platform_message(self, peer, sender, bus, topic, headers, message):
 
@@ -394,7 +465,8 @@ class PlatformHandler(object):
                 address=self._address,
                 address_hash=self._address_hash))
             self._connection.subscribe('devices', self._on_device_message)
-            self._connection.subscribe('', self._on_platform_message)
+            self._connection.subscribe('datalogger/platform',
+                                       self._on_platform_stats)
 
 
 
