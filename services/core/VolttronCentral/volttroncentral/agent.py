@@ -280,8 +280,31 @@ class VolttronCentralAgent(Agent):
             auth_file.add(entry, True)
             gevent.sleep(0.1)
 
-        # Keep connections in sync if necessary.
-        #self._periodic_reconnect_to_platforms()
+        # We know that peers are going to be connected to this platform with the
+        # identity of platform.address_hash so we collect all of the peers that
+        # have that signature.  Then if there is a config store entry for that
+        # platform then register it.
+        platforms = [p for p in self.vip.peerlist().get(timeout=2)
+                     if p.startswith('platform')]
+        for p in platforms:
+            try:
+                config_name="platforms/{}".format(p.split(".")[1])
+                platform_config = self.vip.config.get(config_name)
+            except KeyError:
+                _log.warn(
+                    "Couldn't reconnect to platform, missing data for "
+                    "already connected platform.")
+            else:
+                _log.warn("Re-registering platform: {} {}".format(
+                    platform_config['display_name'],
+                    platform_config['address']
+                ))
+                self._platforms.register_platform(
+                    platform_config['address'],
+                    platform_config['address_type'],
+                    platform_config['serverkey'],
+                    platform_config['display_name']
+                )
 
     def configure_platforms(self, config_name, action, contents):
         _log.debug('Platform configuration updated.')
@@ -388,20 +411,36 @@ class VolttronCentralAgent(Agent):
             raise ValueError('Unknown scheme specified {} valid schemes are {}'
                              .format(parsed.scheme, valid_schemes))
 
-        if parsed.scheme in ('http', 'https'):
-            self._register_instance(address, parsed.scheme,
-                                    display_name=display_name)
-        elif parsed.scheme == 'tcp':
-            if not vcpserverkey or len(vcpserverkey) != 43:  # valid publickey length
-                raise ValueError(
-                    "tcp addresses must have valid vcpserverkey provided")
-            self._platforms.register_platform(address, parsed.scheme,
-                                              vcpserverkey, display_name)
-        elif parsed.scheme == 'ipc':
-            self._platforms.register_platform(address, parsed.scheme,
-                                              display_name=display_name)
-
-
+        try:
+            if parsed.scheme in ('http', 'https'):
+                address_hash, platform = self._register_instance(
+                    address, parsed.scheme, display_name=display_name)
+            elif parsed.scheme == 'tcp':
+                if not vcpserverkey or len(vcpserverkey) != 43:  # valid publickey length
+                    raise ValueError(
+                        "tcp addresses must have valid vcpserverkey provided")
+                address_hash, platform = self._platforms.register_platform(
+                    address, parsed.scheme, vcpserverkey, display_name)
+            else: # ipc
+                address_hash, platform = self._platforms.register_platform(
+                    address, parsed.scheme, display_name=display_name)
+        except gevent.Timeout:
+            return dict(status="FAILED",
+                        context="Unable to register platform instance.")
+        else:
+            config_name = "platforms/{}".format(address_hash)
+            try:
+                current_config = self.vip.config.get(config_name)
+            except KeyError:
+                current_config = {}
+            config_store_data = dict(
+                address_type=parsed.scheme, display_name=platform.display_name,
+                address=platform.address, serverkey=platform.serverkey,
+                unregistered=False
+            )
+            current_config.update(config_store_data)
+            self.vip.config.set(config_name, current_config)
+            return dict(status="SUCCESS", context=address_hash)
 
     def _periodic_reconnect_to_platforms(self):
         _log.debug('Reconnecting to external platforms.')
@@ -723,7 +762,7 @@ class VolttronCentralAgent(Agent):
 
         return cn
 
-    def _handle_list_platforms(self):
+    def _handle_list_platforms(self, session_user, params):
 
         platform_configs = [x for x in self.vip.config.list()
                             if x.startswith('platforms/')]
@@ -801,8 +840,9 @@ class VolttronCentralAgent(Agent):
             status = 'FAILURE'
             context = "Couldn't register address: {}".format(
                 pa_vip_address)
+            raise
 
-        return dict(status=status, context=context)
+        return address_hash, platform
 
     def _store_registry(self):
         self._store('registry', self._registry.package())
@@ -1025,7 +1065,7 @@ class VolttronCentralAgent(Agent):
     #     finally:
     #         self._flag_updating_deviceregistry = False
 
-    def _handle_list_performance(self):
+    def _handle_list_performance(self, session_user, params):
         _log.debug('Listing performance topics from vc')
 
         config_list = [x for x in self.vip.config.list()

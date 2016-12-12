@@ -63,9 +63,10 @@ import gevent
 from copy import deepcopy
 
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
-from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now
+from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now, \
+    get_utc_seconds_from_epoch
 from volttron.platform.messaging.health import Status, UNKNOWN_STATUS, \
-    GOOD_STATUS
+    GOOD_STATUS, BAD_STATUS
 from volttron.platform.vip.agent.utils import build_connection
 
 
@@ -90,10 +91,49 @@ class Platforms(object):
     def vc(self):
         return self._vc
 
+    def get_platform_list(self, session_user, params):
+        """
+        Retrieve the platform list and respond in a manner that can
+        be sent back to the web service.
+
+        The response will be formatted as follows:
+
+        [
+        ]
+
+        :param session_user:
+        :param params:
+        :return: A list of dictionaries each representing a platform.
+        """
+        results = []
+        for x in self._platforms.values():
+            results.append(
+                dict(uuid=x.address_hash,
+                     name=x.display_name,
+                     health=x.health)
+            )
+
+        return results
+
     def get_platform_hashes(self):
+        """
+        Returns a list of all the address hashes that are currently registered
+        with VC.
+
+        :return: list of str
+        """
         return self._platforms.keys()
 
     def get_platform(self, address_hash, default=None):
+        """
+        Get a specific :ref:`PlatformHandler` associated with the passed
+        address_hash.  If the hash is not available then the default parameter
+        is returned.
+
+        :param address_hash: string associated with a specific platform
+        :param default: a default to be returned if not in the collection.
+        :return: a :ref:`PlatformHandler` or default
+        """
         return self._platforms.get(address_hash, default)
 
     def register_platform(self, address, address_type, serverkey=None,
@@ -129,7 +169,7 @@ class Platforms(object):
             self._log.debug(
                 'Address {} is in platform list returning reference.'.format(address))
             platform = self._platforms[hashed_address]
-
+        self._platforms[platform.address_hash] = platform
         return platform.address_hash, platform
 
 
@@ -167,6 +207,9 @@ class PlatformHandler(object):
         self._connection = None
         self._log = logging.getLogger(self.__class__.__name__)
         self._is_managed = False
+        self._last_time_verified_connection = None
+        self._event_listeners = set()
+        self._health = Status.build(UNKNOWN_STATUS, "Initial Status")
         self._recheck_connection_event = None
         self._connect()
         self._recheck_connection()
@@ -174,6 +217,18 @@ class PlatformHandler(object):
     @property
     def address_hash(self):
         return self._address_hash
+
+    @property
+    def display_name(self):
+        return self._display_name
+
+    @property
+    def address(self):
+        return self._address
+
+    @property
+    def serverkey(self):
+        return self._serverkey
 
     @property
     def platforms(self):
@@ -185,6 +240,23 @@ class PlatformHandler(object):
         return self._platforms
 
     @property
+    def health(self):
+        """
+        Returns a Status object as a dictionary.  This will be populated
+        by the heartbeat from the external instance that this object is
+        monitoring, unless it has been over 10 seconds since the instance
+        has been reached.  In that case the health will be BAD.
+
+        :return:
+        """
+        now = get_utc_seconds_from_epoch()
+        if now > self._last_time_verified_connection + 10:
+            self._health = Status.build(
+                BAD_STATUS,
+                "Platform hasn't been reached in over 10 seconds.")
+        return self._health.as_dict()
+
+    @property
     def external_vip_identity(self):
         """
         Returns the identity this object will use on the remote instance.
@@ -192,6 +264,33 @@ class PlatformHandler(object):
         :return:
         """
         return 'platform.{}'.format(self._address_hash)
+
+    def get_agent_config_list(self, agent_identity):
+        if self._is_managed:
+            return self._connection.call('list_agent_configs', agent_identity)
+        return []
+
+    def get_agent_config(self, agent_identity, config_name, raw=True):
+        if self._is_managed:
+            try:
+                return self._connection.call('get_agent_config', agent_identity,
+                                             config_name, raw)
+            except KeyError:
+                self._log.error('Invalid configuration name: {}'.format(
+                    config_name
+                ))
+        return ""
+
+    def add_event_listener(self, callback):
+        self._event_listeners.add(callback)
+
+    def handle_sending_bacnet_properties(self):
+        pass
+
+    def _raise_event(self, type, data={}):
+        self._log.debug('RAISING EVENT: {} {}'.format(type, data))
+        for listener in self._event_listeners:
+            listener(type, data)
 
     def _manage(self):
         """
@@ -210,13 +309,20 @@ class PlatformHandler(object):
                     public_address
                 ))
                 pk = self._connection.call('manage', my_address)
+                self._raise_event("MANAGED", data=dict(
+                    address=self._address,
+                    address_hash=self._address_hash))
 
         except gevent.Timeout:
             self._log.error(
                 'RPC call to manage did not return in a timely manner.')
-            if self._connection is not None:
-                self._connection.kill()
             raise
+
+    def _on_device_message(self, peer, sender, bus, topic, headers, message):
+        self._log.debug("DEVICE MESSAGE: {}".format(message))
+
+    def _on_platform_message(self, peer, sender, bus, topic, headers, message):
+        self._log.debug('Platform message {}'.format(message))
 
     def _connect(self):
         """
@@ -239,27 +345,16 @@ class PlatformHandler(object):
                 serverkey=self._serverkey,
                 publickey=publickey,
                 secretkey=secretkey)
+            self._raise_event("CONECTED", data=dict(
+                address=self._address,
+                address_hash=self._address_hash))
+            self._connection.subscribe('devices', self._on_device_message)
         except gevent.Timeout:
             self._log.error("Unable to connect to instance.")
             if self._connection is not None:
                 self._connection.kill()
+                self._connection = None
             raise
-
-
-
-        # try:
-        #     if address_type == 'tcp':
-        #         self._log.debug(
-        #             'TCP calling manage. my publickey: {}'.format(
-        #                 self.core.publickey))
-        #         my_address = self.runtime_config['local_external_address']
-        #         pk = connection.call('manage', my_address)
-        #     else:
-        #         pk = connection.call('manage', self.core.address)
-        # except gevent.Timeout:
-        #     self._log.error(
-        #         'RPC call to manage did not return in a timely manner.')
-        #     raise
 
         # If we were successful in calling manage then we can add it to
         # our list of managed platforms.
@@ -379,9 +474,16 @@ class PlatformHandler(object):
             if self._connection.is_peer_connected():
                 if not self._is_managed:
                     self._manage()
+                if self._last_time_verified_connection:
+                    self._health.update_status(GOOD_STATUS,
+                                               "Connected to platform.")
+                self._last_time_verified_connection = get_utc_seconds_from_epoch()
                 self._log.debug('platform.agent is connected to remote instance')
             else:
                 self._is_managed = False
+                self._raise_event("UNMANAGED", data=dict(
+                    address=self._address,
+                    address_hash=self._address_hash))
                 self._log.debug(
                     'platform.agent is not connected to remote instance.')
 
@@ -389,7 +491,8 @@ class PlatformHandler(object):
             self._log.debug(
                 'Connection has timed out attempting to connect to peers.')
             try:
-                self._connect()
+                if self._connection is None:
+                    self._connect()
             except gevent.Timeout:
                 # Here we are going to eat the exception as it won't help us.
                 # the _connect object
