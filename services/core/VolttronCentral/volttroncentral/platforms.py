@@ -317,6 +317,9 @@ class PlatformHandler(object):
             self._log.error(
                 'RPC call to manage did not return in a timely manner.')
             raise
+        else:
+            self._is_managed = True
+
 
     def _on_device_message(self, peer, sender, bus, topic, headers, message):
         self._log.debug("DEVICE MESSAGE: {}".format(message))
