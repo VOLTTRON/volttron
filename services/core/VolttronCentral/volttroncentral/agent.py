@@ -106,7 +106,7 @@ from volttron.platform.jsonrpc import (
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
     DISCOVERY_ERROR,
     UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM, INVALID_PARAMS,
-    UNAVAILABLE_AGENT)
+    UNAVAILABLE_AGENT, INTERNAL_ERROR)
 from volttron.platform.messaging.health import Status, \
     BAD_STATUS, GOOD_STATUS, UNKNOWN_STATUS
 from volttron.platform.vip.agent import Agent, RPC, PubSub, Core, Unreachable
@@ -762,27 +762,6 @@ class VolttronCentralAgent(Agent):
 
         return cn
 
-    def _handle_list_platforms(self, session_user, params):
-
-        platform_configs = [x for x in self.vip.config.list()
-                            if x.startswith('platforms/')]
-
-        results = []
-
-        platform_keys = (('uuid', 'instance_uuid'),
-                         ('name', 'display_name'),
-                         ('health', 'health'))
-
-        for x in platform_configs:
-            config = self.vip.config.get(x)
-
-            obj = dict()
-            for k in platform_keys:
-                obj[k[0]] = config.get(k[1])
-            results.append(obj)
-
-        return results
-
     def _register_instance(self, discovery_address, display_name=None):
         """ Register an instance with VOLTTRON Central based on jsonrpc.
 
@@ -985,6 +964,79 @@ class VolttronCentralAgent(Agent):
         print('Received from endpoint {} message: {}'.format(endpoint, message))
         self.vip.web.send(endpoint, message)
 
+    def set_setting(self, session_user, params):
+        """
+        Sets or removes a setting from the config store.  If the value is None
+        then the item will be removed from the store.  If there is an error in
+        saving the value then a jsonrpc.json_error object is returned.
+
+        :param session_user: Unused
+        :param params: Dictionary that must contain 'key' and 'value' keys.
+        :return: A 'SUCCESS' string or a jsonrpc.json_error object.
+        """
+        if 'key' not in params or not params['key']:
+            return jsonrpc.json_error(params['message_id'],
+                                      INVALID_PARAMS,
+                                      'Invalid parameter key not set')
+        if 'value' not in params:
+            return jsonrpc.json_error(params['message_id'],
+                                      INVALID_PARAMS,
+                                      'Invalid parameter key not set')
+
+        config_key = "settings/{}".format(params['key'])
+        value = params['value']
+
+        if value is None:
+            try:
+                self.vip.config.delete(config_key)
+            except KeyError:
+                pass
+        else:
+            # We handle empt string here because the config store doesn't allow
+            # empty strings to be set as a config store.  I wasn't able to
+            # trap the ValueError that is raised on the server side.
+            if value == "":
+                return jsonrpc.json_error(params['message_id'],
+                                          INVALID_PARAMS,
+                                          'Invalid value set (empty string?)')
+            self.vip.config.set(config_key, value)
+
+        return 'SUCCESS'
+
+    def get_setting(self, session_user, params):
+        """
+        Retrieve a value from the passed setting key.  The params object must
+        contain a "key" to return from the settings store.
+
+        :param session_user: Unused
+        :param params: Dictionary that must contain a 'key' key.
+        :return: The value or a jsonrpc error object.
+        """
+        config_key = "settings/{}".format(params['key'])
+        try:
+            value = self.vip.config.get(config_key)
+        except KeyError:
+            return jsonrpc.json_error(params['message_id'],
+                                      INVALID_PARAMS,
+                                      'Invalid key specified')
+        else:
+            return value
+
+    def get_setting_keys(self, session_user, params):
+        """
+        Returns a list of all of the settings keys so the caller can know
+        what settings to request.
+
+        :param session_user: Unused
+        :param params: Unused
+        :return: A list of settings available to the caller.
+        """
+
+        prefix = "settings/"
+        keys = [x[len(prefix):] for x in self.vip.config.list()
+                if x.startswith(prefix)]
+        return keys or []
+
     @Core.receiver('onstop')
     def onstop(self, sender, **kwargs):
         """ Clean up the  agent code before the agent is killed
@@ -1065,25 +1117,6 @@ class VolttronCentralAgent(Agent):
     #
     #     finally:
     #         self._flag_updating_deviceregistry = False
-
-    def _handle_list_performance(self, session_user, params):
-        _log.debug('Listing performance topics from vc')
-
-        config_list = [x for x in self.vip.config.list()
-                       if x.startswith('platforms/')]
-        _log.debug("Registered platforms: {}".format(config_list))
-
-        performances = []
-        for x in config_list:
-            platform = self.vip.config.get(x)
-            instance_uuid = x.split("/")[1]
-            performances.append(
-                {
-                    'platform.uuid': platform.get('instance_uuid', instance_uuid),
-                    'performance': platform.get('stats_point_list', {})
-                }
-            )
-        return performances
 
     def _handle_get_devices(self, platform_uuid):
         _log.debug('handling get_devices platform: {}'.format(platform_uuid))
@@ -1280,23 +1313,25 @@ class VolttronCentralAgent(Agent):
         vc_methods = dict(
             register_management_endpoint=self._handle_management_endpoint,
             list_platforms=self._platforms.get_platform_list,
-            list_performance=self._handle_list_performance
+            list_performance=self._platforms.get_performance_list,
+
+            # Settings
+            set_setting=self.set_setting,
+            get_setting=self.get_setting,
+            get_setting_keys=self.get_setting_keys
         )
 
         if method in vc_methods:
+            if not params:
+                params = dict(message_id=id)
+            else:
+                params['message_id'] = id
             return vc_methods[method](session_user, params)
 
         if method.endswith('get_devices'):
             _, _, platform_uuid, _ = method.split('.')
             return self._handle_get_devices(platform_uuid)
 
-        method_dict = {
-            'list_platforms': self._handle_list_platforms,
-            'list_performance': self._handle_list_performance
-        }
-
-        if method in method_dict.keys():
-            return method_dict[method]()
 
         if method == 'register_instance':
             if isinstance(params, list):
@@ -1305,37 +1340,7 @@ class VolttronCentralAgent(Agent):
                 return self._register_instance(**params)
         elif method == 'unregister_platform':
             return self.unregister_platform(params['instance_uuid'])
-        elif method == 'get_setting':
-            if 'key' not in params or not params['key']:
-                return err('Invalid parameter key not set',
-                           INVALID_PARAMS)
-            setting_key = "setting/{}".format(params['key'])
-            value = self.vip.config.get(setting_key)
-            if value is None:
-                return err('Invalid key specified', INVALID_PARAMS)
-            return value
-        elif method == 'get_setting_keys':
-            keys = [x[8:] for x in self.vip.config.list()
-                    if x.startswith("setting/")]
-            return keys
-        elif method == 'set_setting':
-            if 'key' not in params or not params['key']:
-                return err('Invalid parameter key not set',
-                           INVALID_PARAMS)
-            _log.debug('VALUE: {}'.format(params))
-            if 'value' not in params:
-                return err('Invalid parameter value not set',
-                           INVALID_PARAMS)
 
-            setting_key = "setting/{}".format(params['key'])
-
-            # if passing None value then remove the value from the keystore
-            # don't raise an error if the key isn't present in the store.
-            if params['value'] is None:
-                self.vip.config.delete(setting_key)
-            else:
-                self.vip.config.set(setting_key, params['value'])
-            return 'SUCCESS'
         elif 'historian' in method:
             has_platform_historian = PLATFORM_HISTORIAN in \
                                      self.vip.peerlist().get(timeout=30)
