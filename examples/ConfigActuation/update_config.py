@@ -73,6 +73,7 @@ from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent.utils import build_agent
 
+
 def get_keys():
     """Gets keys from keystore and known-hosts store
 
@@ -87,6 +88,7 @@ def get_keys():
     return {'publickey': publickey,
             'secretkey': secretkey,
             'serverkey': serverkey}
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -113,12 +115,11 @@ def main():
         except ValueError:
             pass
 
-
     agent = build_agent(**get_keys())
 
     files = agent.vip.rpc.call(CONFIGURATION_STORE,
-                       'manage_list_configs',
-                       vip_id).get(timeout=10)
+                               'manage_list_configs',
+                               vip_id).get(timeout=10)
 
     if filename not in files:
         config = {key: value}
