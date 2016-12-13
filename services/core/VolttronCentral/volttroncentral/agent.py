@@ -1157,14 +1157,15 @@ class VolttronCentralAgent(Agent):
 
         gevent.spawn_later(2, start_sending_props)
 
-    def _handle_bacnet_scan(self, req_args, params):
-        _log.debug('Handling bacnet_scan platform: {}'.format(
-            req_args.platform_uuid))
+    def _handle_bacnet_scan(self, session_user, params):
+        platform_uuid = params.pop('platform_uuid')
+        id = params.pop('message_id')
+        _log.debug('Handling bacnet_scan platform: {}'.format(platform_uuid))
 
-        if not self._platforms.is_registered(req_args.platform_uuid):
+        if not self._platforms.is_registered(platform_uuid):
             return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
                                       "Couldn't connect to platform {}".format(
-                                          req_args.platform_uuid
+                                          platform_uuid
                                       ))
 
         scan_length = params.pop('scan_length', 5)
@@ -1172,8 +1173,8 @@ class VolttronCentralAgent(Agent):
         try:
             scan_length = float(scan_length)
             params['scan_length'] = scan_length
-            platform = self._platforms.get_platform(req_args.platform_uuid)
-            iam_topic = "{}/iam".format(req_args.session_user['token'])
+            platform = self._platforms.get_platform(platform_uuid)
+            iam_topic = "{}/iam".format(session_user['token'])
             ws_socket_topic = "/vc/ws/{}".format(iam_topic)
             self.vip.web.register_websocket(ws_socket_topic,
                                             self.open_authenticate_ws_endpoint,
@@ -1183,13 +1184,12 @@ class VolttronCentralAgent(Agent):
                 # We want the datatype (iam) to be second in the response so
                 # we need to reposition the iam and the session id to the topic
                 # that is passed to the rpc function on vcp
-                iam_session_topic = "iam/{}".format(
-                    req_args.session_user['token'])
+                iam_session_topic = "iam/{}".format(session_user['token'])
                 platform.call("start_bacnet_scan", iam_session_topic, **params)
 
                 def close_socket():
                     _log.debug('Closing bacnet scan for {}'.format(
-                        req_args.platform_uuid))
+                        platform_uuid))
                     self.vip.web.unregister_websocket(ws_socket_topic)
 
                 gevent.spawn_later(scan_length, close_socket)
@@ -1199,7 +1199,7 @@ class VolttronCentralAgent(Agent):
         except ValueError:
             return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
                                       "Couldn't connect to platform {}".format(
-                                          req_args.platform_uuid
+                                          platform_uuid
                                       ))
         except KeyError:
             return jsonrpc.json_error(id, UNAUTHORIZED,
@@ -1261,8 +1261,8 @@ class VolttronCentralAgent(Agent):
         # and can be collected into a dictionary rather than an if tree.
         platform_methods = dict(
             # bacnet related
-            start_bacnet_scan="start_bacnet_scan",
-            publish_bacnet_props="publish_bacnet_props",
+            start_bacnet_scan=self._handle_bacnet_scan,
+            publish_bacnet_props=self._handle_bacnet_props,
             # config store related
             store_agent_config="store_agent_config",
             get_agent_config="get_agent_config",
@@ -1279,7 +1279,8 @@ class VolttronCentralAgent(Agent):
         # The jsonrpc method looks like the following
         #
         #   platform.uuid.<dynamic entry>.method_on_vcp
-        if method_check in platform_methods and len(method_split) == 4:
+        if method_check in platform_methods and len(method_split) == 4 or \
+            method_check in ('start_bacnet_scan', 'publish_bacnet_props'):
 
             platform_uuid = None
             if isinstance(params, dict):
@@ -1305,7 +1306,15 @@ class VolttronCentralAgent(Agent):
                 ))
                 class_method = platform_methods[method_check]
                 platform = self._platforms.get_platform(platform_uuid)
-                method_ref = getattr(platform, class_method)
+                # Determine whether the method to call is on the current class
+                # or on the platform object.
+                if isinstance(class_method, basestring):
+                    method_ref = getattr(platform, class_method)
+                else:
+                    method_ref = class_method
+                    # Put the platform_uuid in the params so it can be used
+                    # inside the method
+                    params['platform_uuid'] = platform_uuid
 
             except AttributeError or KeyError:
                 return jsonrpc.json_error(id, INTERNAL_ERROR,
