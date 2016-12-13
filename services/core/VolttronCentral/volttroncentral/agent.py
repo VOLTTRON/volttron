@@ -1280,8 +1280,7 @@ class VolttronCentralAgent(Agent):
                 platform_uuid = params.pop('platform_uuid', None)
 
             if platform_uuid is None:
-                if len(method_split) > 3 and method_split[0] == 'platform' and \
-                                method_split[1] == 'uuid':
+                if method_split[0] == 'platforms' and method_split[1] == 'uuid':
                     platform_uuid = method_split[2]
 
             if not platform_uuid:
@@ -1375,9 +1374,9 @@ class VolttronCentralAgent(Agent):
         # This isn't known as a proper method on vc or a platform.
         if len(method_split) < 3:
             return err('Unknown method {}'.format(method))
-        if method_split[0] != 'platform' or method_split[1] != 'uuid':
-            return error('Invalid format for instance must start with '
-                         'platform.uuid')
+        if method_split[0] != 'platforms' or method_split[1] != 'uuid':
+            return err('Invalid format for instance must start with '
+                       'platforms.uuid')
         instance_uuid = method_split[2]
         _log.debug('Instance uuid is: {}'.format(instance_uuid))
         if not self._platforms.is_registered(instance_uuid):
