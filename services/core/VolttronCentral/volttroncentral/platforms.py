@@ -110,10 +110,6 @@ class Platforms(object):
                 return True
         return False
 
-    # def get_devices(self, session_user, params):
-    #     try:
-    #         device_list = self.
-
     def get_platform_list(self, session_user, params):
         """
         Retrieve the platform list and respond in a manner that can
@@ -319,7 +315,6 @@ class PlatformHandler(object):
         return self._connection.call(platform_method, *args, **kwargs)
 
     def store_agent_config(self, session_user, params):
-        self._log.debug('Storing config')
         required = ('agent_identity', 'config_name', 'raw_contents')
         message_id = params.pop('message_id')
         errors = []
