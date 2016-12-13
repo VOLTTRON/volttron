@@ -35,7 +35,11 @@
     <button id="set_setting">Save Value</button>
     <button id="set_null_setting">Save Null Value (remove key)</button>
     <button id="get_setting">Get Value</button>
-    <button id="get_setting_keys">Get Keys</button>
+    <button id="get_setting_keys">Get Keys</button><br/>
+    <p>These will return a 401 error if the user is not in the admin group.</p>
+    <button id="enable_setup_mode">Enable Setup Mode</button>
+    <button id="disable_setup_mode">Disable Setup Mode</button>
+
 </div>
 <h3>Platform Methods</h3>
 <div>
@@ -281,6 +285,14 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             value: null
         }
         do_request('set_setting', data)
+    });
+
+    $('#enable_setup_mode').click(function(){
+        do_request('enable_setup_mode')
+    });
+
+    $('#disable_setup_mode').click(function(){
+        do_request('disable_setup_mode')
     });
 
 

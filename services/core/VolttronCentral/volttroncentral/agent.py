@@ -1118,18 +1118,6 @@ class VolttronCentralAgent(Agent):
     #     finally:
     #         self._flag_updating_deviceregistry = False
 
-    def _handle_get_devices(self, platform_uuid):
-        _log.debug('handling get_devices platform: {}'.format(platform_uuid))
-
-        try:
-            platform = self.vip.config.get('platforms/{}'.format(platform_uuid))
-            return platform['devices_health'].copy()
-        except KeyError:
-            _log.warn('Unknown platform platform_uuid specified! {}'.format(platform_uuid))
-
-    def _handle_list_agent_configs(self, req_args, params):
-        pass
-
     def _handle_bacnet_props(self, session_user, params):
         platform_uuid = params.pop('platform_uuid')
         id = params.pop('message_id')
@@ -1204,6 +1192,35 @@ class VolttronCentralAgent(Agent):
         except KeyError:
             return jsonrpc.json_error(id, UNAUTHORIZED,
                                       "Invalid user session token")
+
+    def _enable_setup_mode(self, session_user, params):
+        id = params.pop('message_id')
+        if 'admin' not in session_user['groups']:
+            _log.debug('Returning json_error enable_setup_mode')
+            return jsonrpc.json_error(
+                id, UNAUTHORIZED,
+                "Admin access is required to enable setup mode")
+        auth_file = AuthFile()
+        entries = auth_file.find_by_credentials(".*")
+        if len(entries) > 0:
+            return "SUCCESS"
+
+        entry = AuthEntry(credentials="/.*/",
+                          comments="Un-Authenticated connections allowed here",
+                          user_id="unknown")
+        auth_file.add(entry)
+        return "SUCCESS"
+
+    def _disable_setup_mode(self, session_user, params):
+        id = params.pop('message_id')
+        if 'admin' not in session_user['groups']:
+            _log.debug('Returning json_error disable_setup_mode')
+            return jsonrpc.json_error(
+                id, UNAUTHORIZED,
+                "Admin access is required to disable setup mode")
+        auth_file = AuthFile()
+        auth_file.remove_by_credentials("/.*/")
+        return "SUCCESS"
 
     def _handle_management_endpoint(self, session_user, params):
         ws_topic = "/vc/ws/{}/management".format(session_user.get('token'))
@@ -1347,7 +1364,11 @@ class VolttronCentralAgent(Agent):
             # Settings
             set_setting=self.set_setting,
             get_setting=self.get_setting,
-            get_setting_keys=self.get_setting_keys
+            get_setting_keys=self.get_setting_keys,
+
+            # Setup mode
+            enable_setup_mode=self._enable_setup_mode,
+            disable_setup_mode=self._disable_setup_mode
         )
 
         if method in vc_methods:
@@ -1355,11 +1376,9 @@ class VolttronCentralAgent(Agent):
                 params = dict(message_id=id)
             else:
                 params['message_id'] = id
-            return vc_methods[method](session_user, params)
-
-        if method.endswith('get_devices'):
-            _, _, platform_uuid, _ = method.split('.')
-            return self._handle_get_devices(platform_uuid)
+            response = vc_methods[method](session_user, params)
+            _log.debug("Response is {}".format(response))
+            return response #vc_methods[method](session_user, params)
 
         if method == 'register_instance':
             if isinstance(params, list):
@@ -1411,7 +1430,6 @@ class VolttronCentralAgent(Agent):
                     "Admin access is required to install agents")
 
         return platform.route_to_agent_method(id, platform_method, params)
-
 
     def _validate_config_params(self, config):
         """
