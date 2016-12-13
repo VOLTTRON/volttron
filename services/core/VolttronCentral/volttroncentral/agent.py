@@ -1199,34 +1199,6 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(id, UNAUTHORIZED,
                                       "Invalid user session token")
 
-    def _handle_store_agent_config(self, req_args, params):
-        required = ('agent_identity', 'config_name', 'raw_contents')
-        errors = []
-        for r in required:
-            if r not in params:
-                errors.append('Missing {}'.format(r))
-        config_type = params.get('config_type', None)
-        if config_type:
-            if config_type not in ('raw', 'json', 'csv'):
-                errors.append('Invalid config_type parameter')
-
-        if errors:
-            return jsonrpc.json_error(req_args.id, INVALID_PARAMS,
-                                      "\n".join(errors))
-        vcp_conn = self._get_connection(req_args.platform_uuid)
-        vcp_conn.call("store_agent_config", **params)
-        config_name = params.get("config_name")
-        if config_name.startswith("devices"):
-            self._send_management_message("new_device", params)
-
-    def _handle_get_agent_config(self, req_args, params):
-        vcp_conn = self._get_connection(req_args.platform_uuid)
-        return vcp_conn.call("get_agent_config", **params)
-
-    # def _handle_list_agent_configs(self, req_args, params):
-    #     vcp_conn = self._get_connection(req_args.platform_uuid)
-    #     return vcp_conn.call("list_agent_configs", **params)
-
     def _handle_management_endpoint(self, session_user, params):
         ws_topic = "/vc/ws/{}/management".format(session_user.get('token'))
         self.vip.web.register_websocket(ws_topic,
@@ -1234,7 +1206,7 @@ class VolttronCentralAgent(Agent):
                                         self._ws_closed, self._ws_received)
         return ws_topic
 
-    def _send_management_message(self, type, data={}):
+    def send_management_message(self, type, data={}):
         _log.debug("Sending to websockets management items.")
         management_sockets = [s for s in self._websocket_endpoints
                               if s.endswith("management")]
@@ -1272,43 +1244,86 @@ class VolttronCentralAgent(Agent):
         def err(message, code=METHOD_NOT_FOUND):
             return {'error': {'code': code, 'message': message}}
 
-        self._send_management_message(method)
+        self.send_management_message(method)
+
+        method_split = method.split('.')
+        # The last part of the jsonrpc method is the actual method to be called.
+        method_check = method_split[-1]
 
         # These functions will be sent to a platform.agent on either this
         # instance or another.  All of these functions have the same interface
         # and can be collected into a dictionary rather than an if tree.
         platform_methods = dict(
-            start_bacnet_scan=self._handle_bacnet_scan,
-            publish_bacnet_props=self._handle_bacnet_props,
-            store_agent_config=self._handle_store_agent_config,
-            get_agent_config=self._handle_get_agent_config,
-            list_agent_configs=self._handle_list_agent_configs
+            # bacnet related
+            start_bacnet_scan="start_bacnet_scan",
+            publish_bacnet_props="publish_bacnet_props",
+            # config store related
+            store_agent_config="store_agent_config",
+            get_agent_config="get_agent_config",
+            list_agent_configs="get_agent_config_list",
+            # management related
+
+            list_agents="get_agent_list",
+            get_devices="get_devices"
         )
 
-        if method in platform_methods:
-            platform_uuid = params.pop('platform_uuid', None)
+        # These methods are specifically to be handled by the platform not any
+        # agents on the platform that is why we have the length requirement.
+        #
+        # The jsonrpc method looks like the following
+        #
+        #   platform.uuid.<dynamic entry>.method_on_vcp
+        if method_check in platform_methods and len(method_split) == 4:
+
+            platform_uuid = None
+            if isinstance(params, dict):
+                platform_uuid = params.pop('platform_uuid', None)
+
+            if platform_uuid is None:
+                if len(method_split) > 3 and method_split[0] == 'platform' and \
+                                method_split[1] == 'uuid':
+                    platform_uuid = method_split[2]
+
             if not platform_uuid:
-                return err("Invalid platform_uuid specified as parameter",
+                return err("Invalid platform_uuid '{}' specified as parameter"
+                           .format(platform_uuid),
                            INVALID_PARAMS)
+
+            if not self._platforms.is_registered(platform_uuid):
+                return err("Unknown or unavailable platform {} specified as "
+                           "parameter".format(platform_uuid),
+                           UNAVAILABLE_PLATFORM)
+
             try:
-                cn = self._get_connection(platform_uuid)
-                if not cn.is_connected:
-                    return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
-                                              "Couldn't connect to platform "
-                                              "{}".format(platform_uuid))
+                _log.debug('Calling {} on platform {}'.format(
+                    method_check, platform_uuid
+                ))
+                class_method = platform_methods[method_check]
+                platform = self._platforms.get_platform(platform_uuid)
+                method_ref = getattr(platform, class_method)
+
+            except AttributeError or KeyError:
+                return jsonrpc.json_error(id, INTERNAL_ERROR,
+                                          "Attempted calling function "
+                                          "{} was unavailable".format(
+                                              class_method
+                                          ))
 
             except ValueError:
                 return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
                                           "Couldn't connect to platform "
                                           "{}".format(platform_uuid))
+            else:
+                # pass the id through the message_id parameter.
+                if not params:
+                    params = dict(message_id=id)
+                else:
+                    params['message_id'] = id
 
-            # No matter what else, we are going to need to pass the session
-            # and the platform we are talking to.  The methods may not use
-            # both, but they are available if we need to extend this to
-            # more arguments.
-            req_args = RequiredArgs(id, session_user, platform_uuid)
-
-            return platform_methods[method](req_args, params)
+                # Methods will all have the signature
+                #   method(session, params)
+                #
+                return method_ref(session_user, params)
 
         vc_methods = dict(
             register_management_endpoint=self._handle_management_endpoint,

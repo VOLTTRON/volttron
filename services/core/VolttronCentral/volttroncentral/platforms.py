@@ -62,11 +62,15 @@ import logging
 import gevent
 from copy import deepcopy
 
+from volttron.platform import jsonrpc
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
 from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now, \
     get_utc_seconds_from_epoch
+from volttron.platform.jsonrpc import INVALID_PARAMS, UNAVAILABLE_PLATFORM, \
+    INTERNAL_ERROR, RemoteError
 from volttron.platform.messaging.health import Status, UNKNOWN_STATUS, \
     GOOD_STATUS, BAD_STATUS
+from volttron.platform.vip.agent import Unreachable
 from volttron.platform.vip.agent.utils import build_connection
 
 
@@ -307,6 +311,51 @@ class PlatformHandler(object):
         """
         return 'platform.{}'.format(self._address_hash)
 
+    def store_agent_config(self, session_user, params):
+        self._log.debug('Storing config')
+        required = ('agent_identity', 'config_name', 'raw_contents')
+        message_id = params.pop('message_id')
+        errors = []
+        for r in required:
+            if r not in params:
+                errors.append('Missing {}'.format(r))
+        config_type = params.get('config_type', None)
+        if config_type:
+            if config_type not in ('raw', 'json', 'csv'):
+                errors.append('Invalid config_type parameter')
+
+        if errors:
+            return jsonrpc.json_error(message_id, INVALID_PARAMS,
+                                      "\n".join(errors))
+
+        self._connection.call("store_agent_config", **params)
+        config_name = params.get("config_name")
+        if config_name.startswith("devices"):
+            self.send_management_message("new_device", params)
+
+    def get_agent_list(self, session_user, params):
+        self._log.debug('Callling list_agents')
+        agents = self._connection.call('list_agents')
+
+        if agents is None:
+            self._log.warn('No agents found for instance_uuid {}'.format(
+                self.address_hash
+            ))
+            agents = []
+
+        for a in agents:
+            if 'admin' not in session_user['groups']:
+                a['permissions'] = {
+                    'can_stop': False,
+                    'can_start': False,
+                    'can_restart': False,
+                    'can_remove': False
+                }
+            else:
+                self._log.debug('Permissionse for {} are {}'
+                                .format(a['name'], a['permissions']))
+        return agents
+
     def get_agent_config_list(self, agent_identity):
         if self._is_managed:
             return self._connection.call('list_agent_configs', agent_identity)
@@ -342,6 +391,20 @@ class PlatformHandler(object):
     def handle_sending_bacnet_properties(self):
         pass
 
+    def route_to_agent_method(self, id, agent_method, params):
+        try:
+            self._log.debug('rout_to_agent_method')
+            resp = self._connection.call('route_request', id, agent_method,
+                                         params)
+            if isinstance(resp, dict):
+                if 'result' not in resp and 'error' not in resp:
+                    resp = jsonrpc.json_result(id, resp)
+            else:
+                resp = jsonrpc.json_result(id, resp)
+            return resp
+        except RemoteError as e:
+            return jsonrpc.json_error(id, INTERNAL_ERROR,
+                                      "Internal Error: {}".format(str(e)))
     def _raise_event(self, type, data={}):
         self._log.debug('RAISING EVENT: {} {}'.format(type, data))
         for listener in self._event_listeners:
