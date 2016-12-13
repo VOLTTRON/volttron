@@ -25,7 +25,7 @@ class PreviewRegistryForm extends BaseComponent {
     }
     _updateFileName(e) {
 
-        this.setState({ fileName: e.target.value})
+        this.setState({ fileName: e.target.value });
     }
     _onCancelClick(e) {
         modalActionCreators.closeModal();

@@ -20,6 +20,8 @@ var Platform = require('./components/platform');
 import PlatformManager from './components/platform-manager';
 var Platforms = require('./components/platforms');
 import ConfigureDevices from './components/configure-devices';
+import ReconfigureRegistry from './components/reconfigure-registry';
+import ReconfigureDevice from './components/reconfigure-device';
 var PlatformCharts = require('./components/platform-charts');
 var Navigation = require('./components/navigation');
 var devicesActionCreators = require('./action-creators/devices-action-creators');
@@ -67,6 +69,8 @@ var routes = (
             <Route path="platforms" component={checkAuth(Platforms)} />
             <Route path="platform/:uuid" component={checkAuth(Platform)} />
             <Route path="configure-devices" component={checkAuth(ConfigureDevices)} />
+            <Route path="reconfigure-registry" component={checkAuth(ReconfigureRegistry)} />
+            <Route path="reconfigure-device" component={checkAuth(ReconfigureDevice)} />
             <Route path="charts" component={checkAuth(PlatformCharts)} />
         </Route>
         <Route path="/" component={checkAuth(PublicExterior)} > 
@@ -109,22 +113,23 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
                 this.router.push('/configure-devices');
             }
         }
+        else if (devicesStore.reconfiguringRegistry())       
+        {
+            if (!this.router.isActive('reconfigure-registry'))
+            {
+                this.router.push('/reconfigure-registry');
+            }
+        }
+        else if (devicesStore.reconfiguringDevice())       
+        {
+            if (!this.router.isActive('reconfigure-device'))
+            {
+                this.router.push('/reconfigure-device');
+            }
+        }
 
     }.bind(this));
 
-
-    // var handleKeyDown = function (keydown) {
-
-    //     if (this.router.isActive('configure-devices'))
-    //     {
-    //         if (keydown.target.nodeName !== "INPUT")
-    //         {
-    //             devicesActionCreators.handleKeyDown(keydown);    
-    //         }            
-    //     }
-    // }
-
-    // document.addEventListener("keydown", handleKeyDown.bind(this));
 });
 
 

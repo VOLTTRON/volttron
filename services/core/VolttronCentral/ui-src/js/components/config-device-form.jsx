@@ -37,16 +37,16 @@ class ConfigDeviceForm extends BaseComponent {
         this.setState({settings: this.state.settings});
     }
     _updateCampus(evt) {
-        this.setState({campus: evt.target.value.replace(/ /g, "_").replace(/\//g, "")});
+        this.setState({campus: evt.target.value.replace(/ |\/|_/g, "")});
     }
     _updateBuilding(evt) {
-        this.setState({building: evt.target.value.replace(/ /g, "_").replace(/\//g, "")});
+        this.setState({building: evt.target.value.replace(/ |\/|_/g, "")});
     }
     _updateUnit(evt) {
-        this.setState({unit: evt.target.value.replace(/ /g, "_").replace(/\//g, "")});
+        this.setState({unit: evt.target.value.replace(/ |\/|_/g, "")});
     }
     _updatePath(evt) {
-        this.setState({path: evt.target.value.replace(/ /g, "_")});
+        this.setState({path: evt.target.value.replace(/ |_/g, "")});
     }
     _onCancelClick(e) {
         modalActionCreators.closeModal();
