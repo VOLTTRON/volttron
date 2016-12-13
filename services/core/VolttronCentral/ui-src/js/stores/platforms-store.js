@@ -112,11 +112,12 @@ platformsStore.getRunningBacnetProxies = function (uuid)
                 {
                     bacnetProxies = foundPlatform.agents.filter(function (agent) {
 
+                        // var runningProxy = ((agent.name.toLowerCase().indexOf("bacnet_proxy") > -1) &&
+                        //                     (agent.actionPending === false) &&
+                        //                     (agent.process_id !== null) &&
+                        //                     (agent.return_code === null));
                         var runningProxy = ((agent.name.toLowerCase().indexOf("bacnet_proxy") > -1) &&
-                                            (agent.actionPending === false) && 
-                                            (agent.process_id !== null) &&
-                                            (agent.return_code === null));
-
+                                            (agent.is_running));
                         return runningProxy;
                     });
                 }
