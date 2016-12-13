@@ -59,7 +59,10 @@
 """Script for adding or updating a JSON file in an agent's
 :ref:`configuration store <VOLTTRON-Configuration-Store>`.
 
-If the file does not exist it will be created.
+Add an integer, float, or string value in the top level dictionary
+of a configuration file.
+
+If the file does not exist it will be created with the given name.
 """
 
 import argparse
@@ -88,23 +91,27 @@ def get_keys():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('vip_identity',
-                        help='VIP Identity whose configstore we want to access')
+                        help='VIP Identity of the agent that owns the config')
     parser.add_argument('filename',
                         help='Name of the configstore file to edit')
     parser.add_argument('key',
                         help='Key to add or edit in the config')
     parser.add_argument('value',
-                        help='Value that the key will assume')
+                        help='int, float, or string')
     args = parser.parse_args()
 
     vip_id = args.vip_identity
     filename = args.filename
     key = args.key
+    value = args.value
 
     try:
-        value = float(args.value)
+        value = int(value)
     except ValueError:
-        value = args.value
+        try:
+            value = float(value)
+        except ValueError:
+            pass
 
 
     agent = build_agent(**get_keys())
