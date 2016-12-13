@@ -110,6 +110,10 @@ class Platforms(object):
                 return True
         return False
 
+    # def get_devices(self, session_user, params):
+    #     try:
+    #         device_list = self.
+
     def get_platform_list(self, session_user, params):
         """
         Retrieve the platform list and respond in a manner that can
@@ -311,6 +315,9 @@ class PlatformHandler(object):
         """
         return 'platform.{}'.format(self._address_hash)
 
+    def call(self, platform_method, *args, **kwargs):
+        return self._connection.call(platform_method, *args, **kwargs)
+
     def store_agent_config(self, session_user, params):
         self._log.debug('Storing config')
         required = ('agent_identity', 'config_name', 'raw_contents')
@@ -356,6 +363,9 @@ class PlatformHandler(object):
                                 .format(a['name'], a['permissions']))
         return agents
 
+    def get_agent_config(self, session_user, params):
+        self._log.debug('getting agent config')
+
     def get_agent_config_list(self, agent_identity):
         if self._is_managed:
             return self._connection.call('list_agent_configs', agent_identity)
@@ -371,6 +381,21 @@ class PlatformHandler(object):
                     config_name
                 ))
         return ""
+
+    def get_devices(self, session_user, params):
+        self._log.debug('handling get_devices platform: {}'.format(
+            self.address_hash))
+
+        try:
+            platform_store = self._vc.vip.config.get(self.config_store_name)
+        except KeyError:
+            self._log.warn('Unknown platform platform_uuid specified! {}'.format(
+                self.address_hash))
+        else:
+            try:
+                return platform_store['devices_health'].copy()
+            except KeyError:
+                return {}
 
     def get_stats(self, stat_type):
         # TODO Change so stat_type is available.
@@ -405,6 +430,19 @@ class PlatformHandler(object):
         except RemoteError as e:
             return jsonrpc.json_error(id, INTERNAL_ERROR,
                                       "Internal Error: {}".format(str(e)))
+
+        # except (Unreachable, gevent.Timeout) as e:
+        #     # since we are unreachable we can't be managed.
+        #     self._is_managed = False
+        #     return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
+        #                               "Can't route to platform {}"
+        #                               .format(self.address_hash))
+        # except Exception as e:
+        #     return jsonrpc.json_error(id, INTERNAL_ERROR,
+        #                               "An unkown error {} was found. "
+        #                               "The message is {}".format(type(e),
+        #                                                          e.message))
+
     def _raise_event(self, type, data={}):
         self._log.debug('RAISING EVENT: {} {}'.format(type, data))
         for listener in self._event_listeners:

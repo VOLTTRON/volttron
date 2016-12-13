@@ -813,7 +813,7 @@ class VolttronCentralAgent(Agent):
                 serverkey=pa_instance_serverkey,
                 address_type=pa_vip_address[:3],
                 display_name=display_name)
-            platform.add_event_listener(self._send_management_message)
+            platform.add_event_listener(self.send_management_message)
         except gevent.Timeout:
             _log.error("Failed to register instance.")
             self._platforms.remove_platform(address_hash)
@@ -1151,22 +1151,28 @@ class VolttronCentralAgent(Agent):
             cp = params.copy()
             cp['publish_topic'] = response_topic
             cp['device_id'] = int(cp['device_id'])
-            vcp_conn = self._get_connection(req_args.platform_uuid)
+            platform = self._platforms.get_platform(req_args.platform_uuid)
             _log.debug('PARAMS: {}'.format(cp))
-            vcp_conn.call("publish_bacnet_props", **cp)
+            platform.call("publish_bacnet_props", **cp)
 
-        gevent.spawn_later(3, start_sending_props)
+        gevent.spawn_later(2, start_sending_props)
 
     def _handle_bacnet_scan(self, req_args, params):
         _log.debug('Handling bacnet_scan platform: {}'.format(
             req_args.platform_uuid))
+
+        if not self._platforms.is_registered(req_args.platform_uuid):
+            return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
+                                      "Couldn't connect to platform {}".format(
+                                          req_args.platform_uuid
+                                      ))
 
         scan_length = params.pop('scan_length', 5)
 
         try:
             scan_length = float(scan_length)
             params['scan_length'] = scan_length
-            vcp_conn = self._get_connection(req_args.platform_uuid)
+            platform = self._platforms.get_platform(req_args.platform_uuid)
             iam_topic = "{}/iam".format(req_args.session_user['token'])
             ws_socket_topic = "/vc/ws/{}".format(iam_topic)
             self.vip.web.register_websocket(ws_socket_topic,
@@ -1179,7 +1185,7 @@ class VolttronCentralAgent(Agent):
                 # that is passed to the rpc function on vcp
                 iam_session_topic = "iam/{}".format(
                     req_args.session_user['token'])
-                vcp_conn.call("start_bacnet_scan", iam_session_topic, **params)
+                platform.call("start_bacnet_scan", iam_session_topic, **params)
 
                 def close_socket():
                     _log.debug('Closing bacnet scan for {}'.format(
@@ -1189,7 +1195,7 @@ class VolttronCentralAgent(Agent):
                 gevent.spawn_later(scan_length, close_socket)
             # By starting the scan a second later we allow the websocket
             # client to subscribe to the newly available endpoint.
-            gevent.spawn_later(3, start_scan)
+            gevent.spawn_later(2, start_scan)
         except ValueError:
             return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
                                       "Couldn't connect to platform {}".format(
@@ -1345,7 +1351,6 @@ class VolttronCentralAgent(Agent):
         if method.endswith('get_devices'):
             _, _, platform_uuid, _ = method.split('.')
             return self._handle_get_devices(platform_uuid)
-
 
         if method == 'register_instance':
             if isinstance(params, list):
