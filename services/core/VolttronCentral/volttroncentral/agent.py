@@ -1372,22 +1372,24 @@ class VolttronCentralAgent(Agent):
                 return self.vip.rpc.call(
                     PLATFORM_HISTORIAN, 'get_topic_list').get(timeout=30)
 
-        fields = method.split('.')
-        if len(fields) < 3:
+        # This isn't known as a proper method on vc or a platform.
+        if len(method_split) < 3:
             return err('Unknown method {}'.format(method))
-        instance_uuid = fields[2]
+        if method_split[0] != 'platform' or method_split[1] != 'uuid':
+            return error('Invalid format for instance must start with '
+                         'platform.uuid')
+        instance_uuid = method_split[2]
         _log.debug('Instance uuid is: {}'.format(instance_uuid))
-        cn = self.vcp_connections.get(instance_uuid)
-        if not cn:
+        if not self._platforms.is_registered(instance_uuid):
             return err('Unknown platform {}'.format(instance_uuid))
-        platform_method = '.'.join(fields[3:])
+        platform_method = '.'.join(method_split[3:])
         _log.debug("Platform method is: {}".format(platform_method))
-        if not cn:
+        platform = self._platforms.get_platform(instance_uuid)
+        if not platform:
             return jsonrpc.json_error(id,
                                       UNAVAILABLE_PLATFORM,
                                       "cannot connect to platform."
                                       )
-        _log.debug('Routing to {}'.format(VOLTTRON_CENTRAL_PLATFORM))
 
         if platform_method.startswith('install_agent'):
             if 'admin' not in session_user['groups']:
@@ -1395,44 +1397,8 @@ class VolttronCentralAgent(Agent):
                     id, UNAUTHORIZED,
                     "Admin access is required to install agents")
 
-        if platform_method == 'list_agents':
-            _log.debug('Callling list_agents')
-            agents = cn.call('list_agents')
+        return platform.route_to_agent_method(id, platform_method, params)
 
-            if agents is None:
-                _log.warn('No agents found for instance_uuid {}'.format(
-                    instance_uuid
-                ))
-                agents = []
-
-            for a in agents:
-                if 'admin' not in session_user['groups']:
-                    a['permissions'] = {
-                        'can_stop': False,
-                        'can_start': False,
-                        'can_restart': False,
-                        'can_remove': False
-                    }
-                else:
-                    _log.debug('Permissionse for {} are {}'
-                               .format(a['name'], a['permissions']))
-            return agents
-        else:
-            try:
-                resp = cn.call('route_request', id, platform_method, params)
-                _log.debug('RESPONSE FROM ROUT_REQUWST {}'.format(resp))
-                if isinstance(resp, dict):
-                    if 'result' not in resp and 'error' not in resp:
-                        _log.debug('BULIDNG JSONRPC OBJ')
-                        resp = jsonrpc.json_result(id, resp)
-                        _log.error('RESPONS RESP: {}'.format(resp))
-                else:
-                    resp = jsonrpc.json_result(id, resp)
-                return resp
-            except (Unreachable, gevent.Timeout) as e:
-                del self._platform_connections[instance_uuid]
-                return err("Can't route to platform",
-                           UNAVAILABLE_PLATFORM)
 
     def _validate_config_params(self, config):
         """
