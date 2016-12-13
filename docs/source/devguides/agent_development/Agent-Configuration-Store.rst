@@ -113,23 +113,40 @@ of any configuration may be set with the `self.vip.config.set` method.
 
 .. code-block:: python
 
-    set(config_name, contents, trigger_callback=False)
+    set(config_name, contents, trigger_callback=False, send_update=False)
 
 The contents of the configuration may be a string, list, or dictionary.
 
 This method is intended for agents that wish to maintain a copy of their state
 in the store for retrieval at startup with the `self.vip.config.get` method.
 
-Optionally an agent may trigger any callbacks by setting `trigger_callback` to True.
-
 .. warning::
 
-    This method may **not** be called from a callback. The Configuration Subsystem will
-    detect this and raise a :py:class:`RuntimeError`, even if `trigger_callback` is False.
+    This method may **not** be called from a configuration callback. The Configuration Subsystem will
+    detect this and raise a :py:class:`RuntimeError`, even if `trigger_callback` or `send_update` is False.
 
     The platform has a locking mechanism to prevent concurrent configuration updates to the Agent.
     Calling `self.vip.config.set` would cause the Agent and the Platform configuration store for that Agent to
     deadlock until a timeout occurs.
+
+Optionally an agent may trigger any callbacks by setting `trigger_callback` to True. If `trigger_callback` is
+set to False the platform will still send the updated configuration back to the agent. This ensures that a subsequent
+call to `self.cip.config.get` will still return the correct value. This way the agent's configuration subsystem
+is kept in sync with the platform's copy of the agent's configuration store at all times.
+
+Optionally the agent may prevent the platform from sending the updated file to the agent by setting `send_update`
+to False. This setting is available strictly for performance tuning.
+
+.. warning::
+
+    This setting will allow the agent's view of the configuration to fall out of sync with the platform.
+    Subsequent calls to `self.vip.config.get` will return an old version of the file if it exists in the
+    agent's view of the configuration store.
+
+    This will also affect any configurations that reference the configuration changed with this setting.
+
+    Care should be taken to ensure that the configuration is only retrieved at agent startup when using this
+    option.
 
 
 Setting a Default Configuration

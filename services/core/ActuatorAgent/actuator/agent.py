@@ -498,7 +498,7 @@ ACTUATOR_COLLECTION = 'actuators'
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-__version__ = "0.5"
+__version__ = "1.0"
 
 
 class LockError(StandardError):
@@ -533,7 +533,8 @@ def actuator_agent(config_path, **kwargs):
 
     allow_no_lock_write = bool(config.get('allow_no_lock_write', True))
 
-    return ActuatorAgent(heartbeat_interval, schedule_publish_interval,
+    return ActuatorAgent(heartbeat_interval,
+                         schedule_publish_interval,
                          preempt_grace_time,
                          driver_vip_identity,
                          allow_no_lock_write,
@@ -565,7 +566,8 @@ class ActuatorAgent(Agent):
     :type driver_vip_identity: str
     """
 
-    def __init__(self, heartbeat_interval=60, schedule_publish_interval=60,
+    def __init__(self, heartbeat_interval=60,
+                 schedule_publish_interval=60,
                  preempt_grace_time=60,
                  driver_vip_identity=PLATFORM_DRIVER,
                  allow_no_lock_write=True,
@@ -585,6 +587,7 @@ class ActuatorAgent(Agent):
         self.subscriptions_setup = False
         #Only turn this on once we have confirmation from the config store.
         self.allow_no_lock_write = False
+        self._update_event_time = None
 
         self.default_config = {"heartbeat_interval": heartbeat_interval,
                               "schedule_publish_interval": schedule_publish_interval,
@@ -683,7 +686,7 @@ class ActuatorAgent(Agent):
 
     def _schedule_save_callback(self, state_file_contents):
         _log.debug("Saving schedule state")
-        self.vip.config.set(self.schedule_state_file, state_file_contents)
+        self.vip.config.set(self.schedule_state_file, state_file_contents, send_update=False)
 
 
     def _setup_schedule(self, preempt_grace_time, initial_state=None):
@@ -696,14 +699,15 @@ class ActuatorAgent(Agent):
 
         self._update_device_state_and_schedule(now)
 
-    def _update_device_state_and_schedule(self, now):
+    def _update_device_state_and_schedule(self, now, device_only=None, publish=True):
         _log.debug("_update_device_state_and_schedule")
         # Sanity check now.
         # This is specifically for when this is running in a VM that gets
         # suspended and then resumed.
         # If we don't make this check a resumed VM will publish one event
         # per minute of
-        # time the VM was suspended for. 
+        # time the VM was suspended for.
+
         test_now = utils.get_aware_utc_now()
         if test_now - now > datetime.timedelta(minutes=3):
             now = test_now
@@ -712,33 +716,51 @@ class ActuatorAgent(Agent):
         self._device_states = self._schedule_manager.get_schedule_state(now)
         _log.debug("device states is {}".format(
             self._device_states))
+
+        #device_only and publish tells us if we were called by a reservation change.
+        #If we are being called as part of a regularly scheduled publish
+        #we ignore our previous publish schedule time.
+        if device_only is None and publish:
+            self._update_event_time = None
+
         schedule_next_event_time = self._schedule_manager.get_next_event_time(
             now)
         _log.debug("schedule_next_event_time is {}".format(
             schedule_next_event_time))
-        new_update_event_time = self._get_ajusted_next_event_time(
+        new_update_event_time = self._get_adjusted_next_event_time(
             now,
-            schedule_next_event_time)
+            schedule_next_event_time,
+            self._update_event_time)
         _log.debug("new_update_event_time is {}".format(
             new_update_event_time))
-        for device, state in self._device_states.iteritems():
-            _log.debug("device, state -  {}, {}".format(device, state))
-            header = self._get_headers(state.agent_id,
-                                       time=utils.format_timestamp(now),
-                                       task_id=state.task_id)
-            header['window'] = state.time_remaining
-            topic = topics.ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace('{device}',
-                                                                  device)
-            self.vip.pubsub.publish('pubsub', topic, headers=header)
+
+        if publish:
+            device_states = []
+            if device_only is not None:
+                if device_only in self._device_states:
+                    device_states.append((device_only, self._device_states[device_only]))
+            else:
+                device_states = self._device_states.iteritems()
+
+            for device, state in device_states:
+                _log.debug("device, state -  {}, {}".format(device, state))
+                header = self._get_headers(state.agent_id,
+                                           time=utils.format_timestamp(now),
+                                           task_id=state.task_id)
+                header['window'] = state.time_remaining
+                topic = topics.ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace('{device}',
+                                                                      device)
+                self.vip.pubsub.publish('pubsub', topic, headers=header)
 
         if self._update_event is not None:
             # This won't hurt anything if we are canceling ourselves.
             self._update_event.cancel()
+        self._update_event_time = new_update_event_time
         self._update_event = self.core.schedule(new_update_event_time,
                                                 self._update_schedule_state,
                                                 new_update_event_time)
 
-    def _get_ajusted_next_event_time(self, now, next_event_time):
+    def _get_adjusted_next_event_time(self, now, next_event_time, previously_scheduled_time):
         _log.debug("_get_adjusted_next_event_time")
         latest_next = now + datetime.timedelta(
             seconds=self.schedule_publish_interval)
@@ -747,9 +769,15 @@ class ActuatorAgent(Agent):
         if latest_next.microsecond:
             latest_next = latest_next.replace(
                 microsecond=0) + datetime.timedelta(seconds=1)
-        if next_event_time is None or latest_next < next_event_time:
-            return latest_next
-        return next_event_time
+
+        result = latest_next
+        if next_event_time is not None and result > next_event_time:
+            result = next_event_time
+
+        if previously_scheduled_time is not None and result > previously_scheduled_time:
+            result = previously_scheduled_time
+
+        return result
 
     def _update_schedule_state(self, now):
         self._update_device_state_and_schedule(now)
@@ -1246,9 +1274,9 @@ class ActuatorAgent(Agent):
             The return values are described in `New Task Response`_.
         """
         rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
-        return self._request_new_schedule(rpc_peer, task_id, priority, requests)
+        return self._request_new_schedule(rpc_peer, task_id, priority, requests, publish_result=False)
 
-    def _request_new_schedule(self, sender, task_id, priority, requests):
+    def _request_new_schedule(self, sender, task_id, priority, requests, publish_result=True):
         now = utils.get_aware_utc_now()
 
         topic = topics.ACTUATOR_SCHEDULE_RESULT()
@@ -1288,7 +1316,7 @@ class ActuatorAgent(Agent):
 
         # Dealing with success and other first world problems.
         if result.success:
-            self._update_device_state_and_schedule(now)
+            self._update_device_state_and_schedule(now, device_only=device)
             for preempted_task in result.data:
                 preempt_headers = self._get_headers(preempted_task[0],
                                                     task_id=preempted_task[1])
@@ -1308,8 +1336,10 @@ class ActuatorAgent(Agent):
         results = {'result': success,
                    'data': data,
                    'info': result.info_string}
-        self.vip.pubsub.publish('pubsub', topic, headers=headers,
-                                message=results)
+
+        if publish_result:
+            self.vip.pubsub.publish('pubsub', topic, headers=headers,
+                                    message=results)
 
         return results
 
@@ -1331,7 +1361,7 @@ class ActuatorAgent(Agent):
     def request_cancel_schedule(self, requester_id, task_id):
         """RPC method
         
-        Requests the cancelation of the specified task id.
+        Requests the cancellation of the specified task id.
         
         :param requester_id: Ignored, VIP Identity used internally
         :param task_id: Task name.
@@ -1347,9 +1377,9 @@ class ActuatorAgent(Agent):
         
         """
         rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
-        return self._request_cancel_schedule(rpc_peer, task_id)
+        return self._request_cancel_schedule(rpc_peer, task_id, publish_result=False)
 
-    def _request_cancel_schedule(self, sender, task_id):
+    def _request_cancel_schedule(self, sender, task_id, publish_result=True):
         now = utils.get_aware_utc_now()
         headers = self._get_headers(sender, task_id=task_id)
         headers['type'] = SCHEDULE_ACTION_CANCEL
@@ -1362,12 +1392,14 @@ class ActuatorAgent(Agent):
         message = {'result': success,
                    'info': result.info_string,
                    'data': {}}
-        self.vip.pubsub.publish('pubsub', topic,
-                                headers=headers,
-                                message=message)
+
+        if publish_result:
+            self.vip.pubsub.publish('pubsub', topic,
+                                    headers=headers,
+                                    message=message)
 
         if result.success:
-            self._update_device_state_and_schedule(now)
+            self._update_device_state_and_schedule(now, publish=False)
 
         return message
 

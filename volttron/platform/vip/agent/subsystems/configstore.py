@@ -379,7 +379,7 @@ class ConfigStore(SubsystemBase):
             del frame_records
 
 
-    def set(self, config_name, contents, trigger_callback=False ):
+    def set(self, config_name, contents, trigger_callback=False, send_update=True):
         """Called to set the contents of a configuration.
 
         May not be called before the onstart phase of an agents lifetime.
@@ -396,7 +396,9 @@ class ConfigStore(SubsystemBase):
         """
         self._check_call_from_process_callbacks()
 
-        self._rpc().call(CONFIGURATION_STORE, "set_config", config_name, contents, trigger_callback=trigger_callback).get(timeout=10.0)
+        self._rpc().call(CONFIGURATION_STORE, "set_config", config_name, contents,
+                         trigger_callback=trigger_callback,
+                         send_update=send_update).get(timeout=10.0)
 
     def set_default(self, config_name, contents):
         """Called to set the contents of a default configuration file. Default configurations are used if the
@@ -446,7 +448,7 @@ class ConfigStore(SubsystemBase):
         self._update_refs(config_name_lower, self._store[config_name_lower])
 
 
-    def delete(self, config_name, trigger_callback=False):
+    def delete(self, config_name, trigger_callback=False, send_update=True):
         """Delete a configuration by name. May not be called from a callback as this will cause
             deadlock with the platform. Will produce a runtime error if done so.
 
@@ -457,7 +459,9 @@ class ConfigStore(SubsystemBase):
             """
         self._check_call_from_process_callbacks()
 
-        self._rpc().call(CONFIGURATION_STORE, "delete_config", config_name, trigger_callback=trigger_callback).get(timeout=10.0)
+        self._rpc().call(CONFIGURATION_STORE, "delete_config", config_name,
+                         trigger_callback=trigger_callback,
+                         send_update=send_update).get(timeout=10.0)
 
     def subscribe(self, callback, actions=VALID_ACTIONS, pattern="*"):
         """Subscribe to changes to a configuration.
