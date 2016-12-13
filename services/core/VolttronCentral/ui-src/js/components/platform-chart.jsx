@@ -155,6 +155,7 @@ var PlatformChart = React.createClass({
                                         name={this.props.chartKey}
                                         hideControls={this.props.hideControls}
                                         refreshInterval={this.props.chart.refreshInterval}
+                                        dataLength={this.props.chart.dataLength}
                                         max={chartData.max}
                                         min={chartData.min}
                                         pinned={this.props.chart.pinned}
@@ -271,6 +272,14 @@ var GraphLineChart = OutsideClick(React.createClass({
   },
   _onRefreshChange: function (e) {
       platformChartActionCreators.changeRefreshRate(e.target.value, this.props.name);
+
+      if (this.state.pinned)
+      {
+          platformActionCreators.saveCharts();
+      }
+  },
+  _onLengthChange: function (e) {
+      platformChartActionCreators.changeDataLength(e.target.value, this.props.name);
 
       if (this.state.pinned)
       {
@@ -434,26 +443,39 @@ var GraphLineChart = OutsideClick(React.createClass({
                 icon={refreshChartIcon}></ControlButton>
         );
 
+        var dataLength = (
+            <div>
+                <input
+                    type="number"
+                    onChange={this._onLengthChange}
+                    value={this.props.dataLength}
+                    min="1"
+                    step="1"
+                />
+                <br/>
+            </div>
+        );
+
         var lengthIcon = (
             <i className="fa fa-arrows-h"></i>
         );
 
         var dataLengthTaptip = { 
             "title": "Data Length", 
-            "content": lengthChart,
+            "content": dataLength,
             "x": taptipX,
             "y": taptipY
         };
 
         var dataLengthTooltip = { 
             "content": "Data Length",
-            "x": tooltipX,
+            "x": tooltipX - 10,
             "y": tooltipY
         };  
 
-        var dataLengthButton = ( 
+        var dataLengthControlButton = ( 
             <ControlButton
-              name={this.state.chartName + "_dataLengthButton"}
+              name={this.state.chartName + "_dataLengthControlButton"}
               taptip={dataLengthTaptip}
               tooltip={dataLengthTooltip}
               icon={lengthIcon}></ControlButton>
@@ -548,6 +570,7 @@ var GraphLineChart = OutsideClick(React.createClass({
                 {pinChartControlButton}
                 {chartTypeControlButton}
                 {refreshChartControlButton}
+                {dataLengthControlButton}
                 {chartMinControlButton}
                 {chartMaxControlButton}
                 <div className="inlineBlock"

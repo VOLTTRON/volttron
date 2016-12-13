@@ -122,12 +122,15 @@ var devicesActionCreators = {
 
                 if (!objectIsEmpty(result.device))
                 {
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.DEVICE_DETECTED,
-                        platform: platform,
-                        bacnet: bacnet,
-                        device: result.device
-                    });
+                    if (result.device.hasOwnProperty("device_id"))
+                    {
+                        dispatcher.dispatch({
+                            type: ACTION_TYPES.DEVICE_DETECTED,
+                            platform: platform,
+                            bacnet: bacnet,
+                            device: result.device
+                        });
+                    }
                 }
             }
         }
@@ -150,11 +153,22 @@ var devicesActionCreators = {
             keydown: keydown
         });
     },
-    focusOnDevice: function (deviceId, address) {
+    focusOnDevice: function (deviceId, deviceAddress) {
         dispatcher.dispatch({
             type: ACTION_TYPES.FOCUS_ON_DEVICE,
             deviceId: deviceId,
-            address: address
+            deviceAddress: deviceAddress
+        });
+    },
+    refreshDevicePoints: function (deviceId, deviceAddress) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.REFRESH_DEVICE_POINTS,
+            deviceId: deviceId,
+            deviceAddress: deviceAddress
+        });
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLOSE_MODAL,
         });
     },
     configureDevice: function (device, bacnetIdentity) {
@@ -162,8 +176,6 @@ var devicesActionCreators = {
         var authorization = authorizationStore.getAuthorization();
 
         var params = {
-            // expanded:false, 
-            // "filter":[3000124], 
             proxy_identity: bacnetIdentity, 
             platform_uuid: device.platformUuid,
             device_id: Number(device.id), 
@@ -351,14 +363,6 @@ var devicesActionCreators = {
             params: params,
         }).promise
             .then(function (result) {
-
-                // dispatcher.dispatch({
-                //     type: ACTION_TYPES.SAVE_REGISTRY,
-                //     fileName: fileName,
-                //     deviceId: device.id,
-                //     deviceAddress: device.address,
-                //     data: values
-                // });
 
             })
             .catch(rpc.Error, function (error) {

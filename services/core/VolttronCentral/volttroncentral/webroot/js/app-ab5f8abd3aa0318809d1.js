@@ -11578,6 +11578,7 @@
 	    CHANGE_CHART_MIN: null,
 	    CHANGE_CHART_MAX: null,
 	    CHANGE_CHART_REFRESH: null,
+	    CHANGE_CHART_LENGTH: null,
 	    REFRESH_CHART: null,
 	    REMOVE_CHART: null,
 	    LOAD_CHARTS: null,
@@ -11598,6 +11599,7 @@
 	    POINT_RECEIVED: null,
 	    CANCEL_SCANNING: null,
 	    CONFIGURE_DEVICE: null,
+	    REFRESH_DEVICE_POINTS: null,
 	    TOGGLE_SHOW_POINTS: null,
 	    EDIT_REGISTRY: null,
 	    UPDATE_REGISTRY: null,
@@ -56598,6 +56600,13 @@
 	            chartKey: chartKey
 	        });
 	    },
+	    changeDataLength: function changeDataLength(length, chartKey) {
+	        dispatcher.dispatch({
+	            type: ACTION_TYPES.CHANGE_CHART_LENGTH,
+	            length: length,
+	            chartKey: chartKey
+	        });
+	    },
 	    setMin: function setMin(min, chartKey) {
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.CHANGE_CHART_MIN,
@@ -57420,12 +57429,14 @@
 	                }
 	
 	                if (!objectIsEmpty(result.device)) {
-	                    dispatcher.dispatch({
-	                        type: ACTION_TYPES.DEVICE_DETECTED,
-	                        platform: platform,
-	                        bacnet: bacnet,
-	                        device: result.device
-	                    });
+	                    if (result.device.hasOwnProperty("device_id")) {
+	                        dispatcher.dispatch({
+	                            type: ACTION_TYPES.DEVICE_DETECTED,
+	                            platform: platform,
+	                            bacnet: bacnet,
+	                            device: result.device
+	                        });
+	                    }
 	                }
 	            }
 	        }
@@ -57448,11 +57459,22 @@
 	            keydown: keydown
 	        });
 	    },
-	    focusOnDevice: function focusOnDevice(deviceId, address) {
+	    focusOnDevice: function focusOnDevice(deviceId, deviceAddress) {
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.FOCUS_ON_DEVICE,
 	            deviceId: deviceId,
-	            address: address
+	            deviceAddress: deviceAddress
+	        });
+	    },
+	    refreshDevicePoints: function refreshDevicePoints(deviceId, deviceAddress) {
+	        dispatcher.dispatch({
+	            type: ACTION_TYPES.REFRESH_DEVICE_POINTS,
+	            deviceId: deviceId,
+	            deviceAddress: deviceAddress
+	        });
+	
+	        dispatcher.dispatch({
+	            type: ACTION_TYPES.CLOSE_MODAL
 	        });
 	    },
 	    configureDevice: function configureDevice(device, bacnetIdentity) {
@@ -57460,8 +57482,6 @@
 	        var authorization = authorizationStore.getAuthorization();
 	
 	        var params = {
-	            // expanded:false, 
-	            // "filter":[3000124], 
 	            proxy_identity: bacnetIdentity,
 	            platform_uuid: device.platformUuid,
 	            device_id: Number(device.id),
@@ -57629,17 +57649,7 @@
 	            method: 'store_agent_config',
 	            authorization: authorization,
 	            params: params
-	        }).promise.then(function (result) {
-	
-	            // dispatcher.dispatch({
-	            //     type: ACTION_TYPES.SAVE_REGISTRY,
-	            //     fileName: fileName,
-	            //     deviceId: device.id,
-	            //     deviceAddress: device.address,
-	            //     data: values
-	            // });
-	
-	        }).catch(rpc.Error, function (error) {
+	        }).promise.then(function (result) {}).catch(rpc.Error, function (error) {
 	
 	            error.message = "Unable to save registry configuration. " + error.message + ".";
 	
@@ -58766,6 +58776,8 @@
 	};
 	var _focusedDevice = { id: null, address: null };
 	
+	var _backupPoints = [];
+	
 	var _placeHolders = Immutable.List([[{ "key": "Point_Name", "value": "" }, { "key": "Volttron_Point_Name", "value": "" }, { "key": "Units", "value": "" }, { "key": "Units_Details", "value": "" }, { "key": "Writable", "value": "" }, { "key": "Starting_Value", "value": "" }, { "key": "Type", "value": "" }, { "key": "Notes", "value": "" }]]);
 	
 	var vendorTable = {
@@ -59810,6 +59822,22 @@
 	    return updatedRow;
 	};
 	
+	devicesStore.getBackupPoints = function (deviceId, deviceAddress) {
+	    var backup = _backupPoints.find(function (backups) {
+	        return backups.id === deviceId && backups.address === deviceAddress;
+	    });
+	
+	    return typeof backup === "undefined" ? [] : backup.points;
+	};
+	
+	devicesStore.enableBackupPoints = function (deviceId, deviceAddress) {
+	    var backup = _backupPoints.find(function (backups) {
+	        return backups.id === deviceId && backups.address === deviceAddress;
+	    });
+	
+	    return typeof backup !== "undefined";
+	};
+	
 	devicesStore.dispatchToken = dispatcher.register(function (action) {
 	    dispatcher.waitFor([authorizationStore.dispatchToken]);
 	
@@ -59866,6 +59894,8 @@
 	
 	            device.configuring = false;
 	
+	            setBackupPoints(device);
+	
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.POINT_RECEIVED:
@@ -59879,13 +59909,31 @@
 	
 	        case ACTION_TYPES.FOCUS_ON_DEVICE:
 	
-	            var focusedDevice = devicesStore.getDeviceRef(action.deviceId, action.address);
+	            var focusedDevice = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 	
 	            if (focusedDevice) {
 	                if (_focusedDevice.id !== focusedDevice.id || _focusedDevice.address !== focusedDevice.address) {
 	                    _focusedDevice.id = focusedDevice.id;
 	                    _focusedDevice.address = focusedDevice.address;
 	
+	                    devicesStore.emitChange();
+	                }
+	            }
+	
+	            break;
+	
+	        case ACTION_TYPES.REFRESH_DEVICE_POINTS:
+	
+	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
+	
+	            if (device) {
+	                var backupPoints = _backupPoints.find(function (backups) {
+	                    return backups.id === device.id && backups.address === device.address;
+	                });
+	
+	                if (typeof backupPoints !== "undefined") {
+	                    device.registryConfig = JSON.parse(JSON.stringify(backupPoints.points));
+	                    device.registryCount = device.registryCount + 1;
 	                    devicesStore.emitChange();
 	                }
 	            }
@@ -60021,6 +60069,31 @@
 	            break;
 	    }
 	
+	    function setBackupPoints(device) {
+	        var backup = {
+	            id: device.id,
+	            address: device.address,
+	            points: JSON.parse(JSON.stringify(device.registryConfig))
+	        };
+	
+	        var index = -1;
+	        _backupPoints.find(function (backups, i) {
+	            var match = backups.id === device.id && backups.address === device.address;
+	
+	            if (match) {
+	                index = i;
+	            }
+	
+	            return match;
+	        });
+	
+	        if (index < 0) {
+	            _backupPoints.push(backup);
+	        } else {
+	            _backupPoints[index] = backup;
+	        }
+	    }
+	
 	    function sortPointColumns(row) {
 	        var sortedPoint = [];
 	
@@ -60094,7 +60167,6 @@
 	
 	    function loadPoint(data) {
 	        if (data) {
-	            // console.log(data);
 	            var pointData = JSON.parse(data);
 	
 	            // can remove && !pointData.hasProp(device_name) if fix websocket endpoint collision
@@ -60140,11 +60212,16 @@
 	                    } else {
 	                        if (pointData.status === "COMPLETE") {
 	                            device.configuring = false;
+	                            console.log("points complete");
+	
+	                            setBackupPoints(device);
 	                        }
 	                    }
 	                }
 	            }
 	        }
+	
+	        return device.configuring;
 	    }
 	
 	    function loadDevice(device, platformUuid, bacnetIdentity) {
@@ -62212,11 +62289,12 @@
 	
 	        var _this = _possibleConstructorReturn(this, (DevicesFound.__proto__ || Object.getPrototypeOf(DevicesFound)).call(this, props));
 	
-	        _this._bind('_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip', '_loadSavedRegistryFiles');
+	        _this._bind('_uploadRegistryFile', '_focusOnDevice', '_showFileButtonTooltip', '_loadSavedRegistryFiles', '_enableRefreshPoints', '_refreshDevicePoints');
 	
 	        _this.state = {
 	            triggerTooltip: -1,
-	            savedRegistryFiles: {}
+	            savedRegistryFiles: {},
+	            enableRefreshPoints: []
 	        };
 	        return _this;
 	    }
@@ -62226,7 +62304,28 @@
 	        value: function componentWillReceiveProps(nextProps) {
 	            if (nextProps.devices !== this.props.devices) {
 	                this.props.devicesloaded(nextProps.devices.length > 0);
+	
+	                this._enableRefreshPoints(nextProps.devices);
 	            }
+	        }
+	    }, {
+	        key: '_enableRefreshPoints',
+	        value: function _enableRefreshPoints(devices) {
+	
+	            var refreshPointsList = [];
+	
+	            devices.forEach(function (device) {
+	                var enableRefreshPoints = devicesStore.enableBackupPoints(device.id, device.address);
+	
+	                if (enableRefreshPoints) {
+	                    refreshPointsList.push({
+	                        id: device.id,
+	                        address: device.address
+	                    });
+	                }
+	            });
+	
+	            this.setState({ enableRefreshPoints: refreshPointsList });
 	        }
 	    }, {
 	        key: '_configureDevice',
@@ -62369,9 +62468,21 @@
 	                }.bind(this);
 	
 	                reader.readAsText(csvFile);
-	            } else {
-	                alert("Couldn't find device by ID " + deviceId + " and address " + deviceAddress);
 	            }
+	        }
+	    }, {
+	        key: '_refreshDevicePoints',
+	        value: function _refreshDevicePoints(device) {
+	
+	            var confirmAction = devicesActionCreators.refreshDevicePoints.bind(this, device.id, device.address);
+	
+	            modalActionCreators.openModal(_react2.default.createElement(ConfirmForm, {
+	                promptTitle: 'Reload Device Points',
+	                promptText: 'Reload the device\'s original points?',
+	                confirmText: 'Reload',
+	                cancelText: 'Cancel',
+	                onConfirm: confirmAction
+	            }));
 	        }
 	    }, {
 	        key: 'render',
@@ -62403,7 +62514,7 @@
 	                    };
 	
 	                    var fileSelectTooltip = {
-	                        content: "Select Registry File CSV)",
+	                        content: "Select Registry File (CSV)",
 	                        tooltipClass: "colorBlack",
 	                        "x": -20,
 	                        "y": -120
@@ -62438,6 +62549,32 @@
 	                            name: "config-arrow-" + deviceId + "-" + rowIndex,
 	                            controlclass: 'configure-arrow',
 	                            icon: spinIcon });
+	                    }
+	
+	                    var refreshPointsButton;
+	
+	                    var enableRefresh = this.state.enableRefreshPoints.find(function (enable) {
+	                        return enable.id === deviceId && enable.address === deviceAddress;
+	                    });
+	
+	                    if (typeof enableRefresh !== "undefined") {
+	                        var refreshPointsTooltip = {
+	                            content: "Reload Points From Device",
+	                            tooltipClass: "colorBlack",
+	                            "x": -20,
+	                            "y": -120
+	                        };
+	
+	                        refreshPointsButton = _react2.default.createElement(
+	                            'div',
+	                            { className: 'refreshPointsButton' },
+	                            _react2.default.createElement(_controlButton2.default, {
+	                                name: "refresh-points-" + deviceId + "-" + rowIndex,
+	                                tooltip: refreshPointsTooltip,
+	                                controlclass: 'refresh-points-button',
+	                                fontAwesomeIcon: 'undo',
+	                                clickAction: this._refreshDevicePoints.bind(this, device) })
+	                        );
 	                    }
 	
 	                    return _react2.default.createElement(
@@ -62481,7 +62618,8 @@
 	                                        onFocus: this._focusOnDevice.bind(this, deviceId, deviceAddress),
 	                                        onMouseEnter: this._showFileButtonTooltip.bind(this, true, rowIndex),
 	                                        onMouseLeave: this._showFileButtonTooltip.bind(this, false, rowIndex) })
-	                                )
+	                                ),
+	                                refreshPointsButton
 	                            )
 	                        )
 	                    );
@@ -65114,7 +65252,7 @@
 	                    },
 	                    interval: {
 	                        value: "",
-	                        label: "Interval",
+	                        label: "Interval (seconds)",
 	                        type: "number"
 	                    },
 	                    timezone: {
@@ -74750,6 +74888,7 @@
 	                                name: this.props.chartKey,
 	                                hideControls: this.props.hideControls,
 	                                refreshInterval: this.props.chart.refreshInterval,
+	                                dataLength: this.props.chart.dataLength,
 	                                max: chartData.max,
 	                                min: chartData.min,
 	                                pinned: this.props.chart.pinned,
@@ -74861,6 +75000,13 @@
 	    },
 	    _onRefreshChange: function _onRefreshChange(e) {
 	        platformChartActionCreators.changeRefreshRate(e.target.value, this.props.name);
+	
+	        if (this.state.pinned) {
+	            platformActionCreators.saveCharts();
+	        }
+	    },
+	    _onLengthChange: function _onLengthChange(e) {
+	        platformChartActionCreators.changeDataLength(e.target.value, this.props.name);
 	
 	        if (this.state.pinned) {
 	            platformActionCreators.saveCharts();
@@ -75022,23 +75168,36 @@
 	                tooltip: refreshChartTooltip,
 	                icon: refreshChartIcon });
 	
+	            var dataLength = React.createElement(
+	                'div',
+	                null,
+	                React.createElement('input', {
+	                    type: 'number',
+	                    onChange: this._onLengthChange,
+	                    value: this.props.dataLength,
+	                    min: '1',
+	                    step: '1'
+	                }),
+	                React.createElement('br', null)
+	            );
+	
 	            var lengthIcon = React.createElement('i', { className: 'fa fa-arrows-h' });
 	
 	            var dataLengthTaptip = {
 	                "title": "Data Length",
-	                "content": lengthChart,
+	                "content": dataLength,
 	                "x": taptipX,
 	                "y": taptipY
 	            };
 	
 	            var dataLengthTooltip = {
 	                "content": "Data Length",
-	                "x": tooltipX,
+	                "x": tooltipX - 10,
 	                "y": tooltipY
 	            };
 	
-	            var dataLengthButton = React.createElement(_controlButton2.default, {
-	                name: this.state.chartName + "_dataLengthButton",
+	            var dataLengthControlButton = React.createElement(_controlButton2.default, {
+	                name: this.state.chartName + "_dataLengthControlButton",
 	                taptip: dataLengthTaptip,
 	                tooltip: dataLengthTooltip,
 	                icon: lengthIcon });
@@ -75137,6 +75296,7 @@
 	                pinChartControlButton,
 	                chartTypeControlButton,
 	                refreshChartControlButton,
+	                dataLengthControlButton,
 	                chartMinControlButton,
 	                chartMaxControlButton,
 	                React.createElement('div', { className: 'inlineBlock',
@@ -115400,4 +115560,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-b938c3d1f46e2fe55f83.js.map
+//# sourceMappingURL=app-ab5f8abd3aa0318809d1.js.map
