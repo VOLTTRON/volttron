@@ -395,6 +395,9 @@ class VolttronCentralPlatform(Agent):
                 _log.debug("vc not connected")
                 return
 
+            if not vc.call("is_registered"):
+                self.registration_state = RegistrationStates.NotRegistered
+
             if self.registration_state == RegistrationStates.NotRegistered:
                 _log.debug('Not registred beginning registration process.')
                 _log.debug('Retrieving publickey from vc agent.')

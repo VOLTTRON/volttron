@@ -92,7 +92,7 @@ from volttron.platform.auth import AuthFile, AuthEntry
 from zmq.utils import jsonapi
 
 from authenticate import Authenticate
-from platforms import Platforms
+from platforms import Platforms, PlatformHandler
 from sessions import SessionHandler
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
@@ -350,6 +350,16 @@ class VolttronCentralAgent(Agent):
     def _ws_received(self, endpoint, message):
         _log.debug("RECEIVED endpoint: {} message: {}".format(endpoint,
                                                               message))
+
+    @RPC.export
+    def is_registered(self, address_hash=None, address=None):
+        if address_hash is None and address is None:
+            return False
+
+        if address_hash is None:
+            address_hash = PlatformHandler.address_hasher(address)
+
+        return self._platforms.is_registered(address_hash)
 
     @RPC.export
     def register_instance(self, address, display_name=None, vcpserverkey=None,
