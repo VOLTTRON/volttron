@@ -363,15 +363,17 @@ class PlatformHandler(object):
                                 .format(a['name'], a['permissions']))
         return agents
 
-    def get_agent_config(self, session_user, params):
-        self._log.debug('getting agent config')
-
-    def get_agent_config_list(self, agent_identity):
+    def get_agent_config_list(self, session_user, params):
+        agent_identity = params['agent_identity']
         if self._is_managed:
             return self._connection.call('list_agent_configs', agent_identity)
         return []
 
-    def get_agent_config(self, agent_identity, config_name, raw=True):
+    def get_agent_config(self, session_user, params):
+        agent_identity = params['agent_identity']
+        config_name = params['config_name']
+        raw = params.get('raw', True)
+        
         if self._is_managed:
             try:
                 return self._connection.call('get_agent_config', agent_identity,
