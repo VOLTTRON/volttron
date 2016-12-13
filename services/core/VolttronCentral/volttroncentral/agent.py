@@ -1306,8 +1306,7 @@ class VolttronCentralAgent(Agent):
         # The jsonrpc method looks like the following
         #
         #   platform.uuid.<dynamic entry>.method_on_vcp
-        if method_check in platform_methods and len(method_split) == 4 or \
-            method_check in ('start_bacnet_scan', 'publish_bacnet_props'):
+        if method_check in platform_methods:
 
             platform_uuid = None
             if isinstance(params, dict):
