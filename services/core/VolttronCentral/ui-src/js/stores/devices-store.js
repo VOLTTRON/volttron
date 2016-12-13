@@ -18,6 +18,8 @@ var _devices = [];
 var _settingsTemplate = {};
 var _savedRegistryFiles = {};
 var _newScan = false;
+var _reconfiguringRegistry = false;
+var _reconfiguringDevice = false;
 var _scanningComplete = true;
 var _warnings = {};
 var _keyboard = {
@@ -1108,8 +1110,20 @@ devicesStore.enableBackupPoints = function (deviceId, deviceAddress) {
     return (typeof backup !== "undefined");
 }
 
+devicesStore.reconfiguringRegistry = function () {
+    return _reconfiguringRegistry;
+}
+
+devicesStore.reconfiguringDevice = function () {
+    return _reconfiguringDevice;
+}
+
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
+
+    _reconfiguringRegistry = false;
+    _newScan = false;
+    _reconfiguringDevice = false;
 
     switch (action.type) {
         
@@ -1135,7 +1149,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             // devicesStore.emitChange();
             break;
         case ACTION_TYPES.LISTEN_FOR_IAMS:
-            _newScan = false;
+            // _newScan = false;
             _scanningComplete = false;
             _warnings = {};
             devicesStore.emitChange();
@@ -1319,6 +1333,11 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 attributes: action.attributes
             };
 
+            devicesStore.emitChange();
+            break;
+        case ACTION_TYPES.RECONFIGURE_REGISTRY_FILE:
+            var _registryConfig = action.data;
+            _reconfiguringRegistry = true;
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.EDIT_REGISTRY:

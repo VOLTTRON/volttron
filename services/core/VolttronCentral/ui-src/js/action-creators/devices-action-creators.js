@@ -227,6 +227,121 @@ var devicesActionCreators = {
 
         
     },
+    reconfigureRegistryConfigFile: function (devicePath, platformUuid) {
+
+        var deviceName = devicePath.replace(/_/g, "/" );
+        var agentDriver = "platform.driver";
+
+        devicesActionCreators.listDeviceConfigs(
+            platformUuid, 
+            agentDriver, 
+            deviceName, 
+            devicesActionCreators.loadRegistryFileToEdit
+        );
+
+    },
+    reconfigureDeviceConfigFile: function (devicePath) {
+
+    },
+    listDeviceConfigs: function (platformUuid, agentDriver, deviceName, callback) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        var params = {
+            platform_uuid: platformUuid, 
+            agent_identity: agentDriver
+        };
+
+        return new rpc.Exchange({
+            method: 'list_agent_configs',
+            authorization: authorization,
+            params: params,
+        }).promise
+            .then(function (result) {
+                callback(platformUuid, agentDriver, deviceName, result);
+            })
+            .catch(rpc.Error, function (error) {
+
+                error.message = "Unable to list agent configuration files. " + error.message + ".";
+
+                handle401(error, error.message);
+            });
+
+    },
+    getAgentConfig: function (platformUuid, agentDriver, configFile, callback) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        var params = {
+            platform_uuid: platformUuid, 
+            agent_identity: agentDriver,
+            config_name: configFile
+        }
+
+        return new rpc.Exchange({
+            method: 'get_agent_config',
+            authorization: authorization,
+            params: params,
+        }).promise
+            .then(function (result) {
+
+                callback(platformUuid, agentDriver, configFile, result);
+
+            })
+            .catch(rpc.Error, function (error) {
+
+                error.message = "Unable to retrieve configuration file: " + deviceConfig + ". " + error.message + ".";
+
+                handle401(error, error.message);
+            });
+
+    },
+    editRegistryConfig: function (platformUuid, agentDriver, deviceConfig, result) {
+
+        var deviceConfiguration = JSON.parse(result);
+        var registryConfig = deviceConfiguration.registry_config.replace("config://", "");
+            
+        var loadRegistryFileForDevice = function (platform_uuid, agent_driver, registry_config, result)
+        {
+            var registryConfig = deviceConfiguration.registry_config.replace("config://", "");
+            var deviceId = deviceConfiguration.driver_config.device_id;
+            var deviceAddress = deviceConfiguration.driver_config.device_address;
+        
+            devicesActionCreators.loadRegistryFile(
+                deviceId, 
+                deviceAddress, 
+                platform_uuid, 
+                agent_driver, 
+                registry_config,
+                devicesActionCreators.editRegistryFile
+            );
+        }
+
+        devicesActionCreators.getAgentConfig(
+            platformUuid, 
+            agentDriver,
+            registryConfig, 
+            loadRegistryFileForDevice
+        );
+    },
+    loadRegistryFileToEdit: function (platformUuid, agentDriver, deviceName, result) {
+
+        var deviceConfig = result.find(function (registryFile) {
+            var index = registryFile.replace(/_/g, "\/").indexOf(deviceName);
+
+            return index === 0;
+        });
+
+        if (typeof deviceConfig !== "undefined")
+        {
+            devicesActionCreators.getAgentConfig(
+                platformUuid, 
+                agentDriver,
+                deviceConfig, 
+                devicesActionCreators.editRegistryConfig
+            );
+        }
+    },
     toggleShowPoints: function (device) {
         dispatcher.dispatch({
             type: ACTION_TYPES.TOGGLE_SHOW_POINTS,
@@ -279,13 +394,13 @@ var devicesActionCreators = {
             type: ACTION_TYPES.UNLOAD_REGISTRY_FILES
         });
     },
-    loadRegistryFile: function (registryFile, device) {
+    loadRegistryFile: function (deviceId, deviceAddress, platformUuid, agentDriver, registryFile, callback) {
 
         var authorization = authorizationStore.getAuthorization();
 
         var params = {
-            platform_uuid: device.platformUuid, 
-            agent_identity: device.agentDriver,
+            platform_uuid: platformUuid, 
+            agent_identity: agentDriver,
             config_name: registryFile
         }
 
@@ -296,21 +411,28 @@ var devicesActionCreators = {
         }).promise
             .then(function (result) {
 
-                devicesActionCreators.unloadRegistryFiles();
-
                 var csvData = CsvParse.parseCsvFile(result);
 
                 if (csvData.warnings.length)
                 {
                     console.log(csvData.warnings[0]);
                 }
-                
-                devicesActionCreators.loadRegistry(
-                    device.id, 
-                    device.address,
-                    csvData.data,
-                    registryFile 
-                );
+
+                if (typeof callback === "function")
+                {
+                    callback(deviceId, deviceAddress, registryFile, csvData.data);
+                }
+                else
+                {
+                    devicesActionCreators.unloadRegistryFiles();
+                    
+                    devicesActionCreators.loadRegistry(
+                        device.id, 
+                        device.address,
+                        csvData.data,
+                        registryFile 
+                    );
+                }
 
             })
             .catch(rpc.Error, function (error) {
@@ -319,6 +441,17 @@ var devicesActionCreators = {
 
                 handle401(error, error.message);
             });
+    },
+    editRegistryFile: function (deviceId, deviceAddress, fileName, csvData) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECONFIGURE_REGISTRY_FILE,
+            deviceId: deviceId,
+            deviceAddress: deviceAddress,
+            data: csvData.filter(function (row) {
+                return row.length > 0;
+            }),
+            file: fileName
+        });
     },
     loadRegistry: function (deviceId, deviceAddress, csvData, fileName) {
         dispatcher.dispatch({
@@ -329,12 +462,6 @@ var devicesActionCreators = {
                 return row.length > 0;
             }),
             file: fileName
-        });
-    },
-    editRegistry: function (device) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.EDIT_REGISTRY,
-            device: device
         });
     },
     updateRegistry: function (deviceId, deviceAddress, attributes) {

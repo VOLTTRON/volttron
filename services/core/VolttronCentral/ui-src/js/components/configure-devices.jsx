@@ -1,6 +1,5 @@
 'use strict';
 
-var $ = require('jquery');
 import React from 'react';
 import BaseComponent from './base-component';
 import DevicesFound from './devices-found';

@@ -29,8 +29,11 @@ class RegistryFilesSelector extends BaseComponent {
     }
     _loadRegistryFile (registryFile) {
         devicesActionCreators.loadRegistryFile(
-            registryFile, 
-            this.props.device
+            this.props.device.id,
+            this.props.device.address,
+            this.props.device.platformUuid,
+            device.platformUuid.device.agentDriver,
+            registryFile
         );
 
         modalActionCreators.closeModal();

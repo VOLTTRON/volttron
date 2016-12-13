@@ -216,8 +216,29 @@ class PlatformsPanelItem extends BaseComponent {
             controlButtonActionCreators.hideTaptip("addDevicesButton");
         }
     }
-    _onDeviceConfig (config_option) {
+    _onDeviceConfig (config_option, panelItem) {
         console.log("TODO: " + config_option);
+
+        var deviceName = panelItem.getIn(["path", 5]);
+        var platformUuid = panelItem.getIn(["path", 1]);
+
+        switch (config_option)
+        {
+            case "registry_config":
+                
+                devicesActionCreators.reconfigureRegistryConfigFile(deviceName, platformUuid);
+                
+                break;
+            case "device_config":
+                
+                devicesActionCreators.reconfigureDeviceConfigFile(
+                    panelItem.getIn(["path", 5]), 
+                    panelItem.platformUuid
+                );
+
+                break;
+        }
+
     }
     render () {
 
