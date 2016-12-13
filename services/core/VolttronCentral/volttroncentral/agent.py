@@ -1130,11 +1130,12 @@ class VolttronCentralAgent(Agent):
     def _handle_list_agent_configs(self, req_args, params):
         pass
 
-    def _handle_bacnet_props(self, req_args, params):
-        _log.debug('Handling bacnet_props platform: {}'.format(
-            req_args.platform_uuid))
+    def _handle_bacnet_props(self, session_user, params):
+        platform_uuid = params.pop('platform_uuid')
+        id = params.pop('message_id')
+        _log.debug('Handling bacnet_props platform: {}'.format(platform_uuid))
 
-        configure_topic = "{}/configure".format(req_args.session_user['token'])
+        configure_topic = "{}/configure".format(session_user['token'])
 
         ws_socket_topic = "/vc/ws/{}".format(configure_topic)
         self.vip.web.register_websocket(ws_socket_topic,
@@ -1142,8 +1143,7 @@ class VolttronCentralAgent(Agent):
                                         self._ws_closed, self._ws_received)
 
         def start_sending_props():
-            response_topic = "configure/{}".format(
-                req_args.session_user['token'])
+            response_topic = "configure/{}".format(session_user['token'])
             # Two ways we could have handled this is to pop the identity off
             # of the params and then passed both the identity and the response
             # topic.  Or what I chose to do and to put the argument in a
@@ -1151,7 +1151,7 @@ class VolttronCentralAgent(Agent):
             cp = params.copy()
             cp['publish_topic'] = response_topic
             cp['device_id'] = int(cp['device_id'])
-            platform = self._platforms.get_platform(req_args.platform_uuid)
+            platform = self._platforms.get_platform(platform_uuid)
             _log.debug('PARAMS: {}'.format(cp))
             platform.call("publish_bacnet_props", **cp)
 
