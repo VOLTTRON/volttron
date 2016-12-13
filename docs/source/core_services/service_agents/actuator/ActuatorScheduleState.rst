@@ -1,3 +1,4 @@
+.. _ActuatorScheduleState:
 Schedule State Broadcast
 ------------------------
 
