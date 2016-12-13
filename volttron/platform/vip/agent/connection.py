@@ -167,7 +167,15 @@ class Connection(object):
             _log.debug('Spawning greenlet')
             event = gevent.event.Event()
             self._greenlet = gevent.spawn(self._server.core.run, event)
-            event.wait(timeout=DEFAULT_TIMEOUT)
+
+            try:
+                with gevent.Timeout(DEFAULT_TIMEOUT):
+                    event.wait()
+            except gevent.Timeout:
+                self.kill()
+                self._greenlet = None
+                raise
+
             self._connected_since = get_aware_utc_now()
             if self.peer not in self._server.vip.peerlist().get(timeout=2):
                 _log.warn('Peer {} not found connected to router.'.format(
@@ -188,6 +196,7 @@ class Connection(object):
         #     return False
 
     def is_peer_connected(self, timeout=DEFAULT_TIMEOUT):
+        _log.debug('Checking for peer {}'.format(self.peer))
         return self.peer in self.peers()
 
     def publish(self, topic, headers=None, message=None, timeout=DEFAULT_TIMEOUT):
@@ -199,6 +208,9 @@ class Connection(object):
         self.server.vip.pubsub.publish(
             'pubsub', topic=topic, headers=headers, message=message
         ).get(timeout=timeout)
+
+    def subscribe(self, prefix, callback):
+        self.server.vip.pubsub.subscribe('pubsub', prefix, callback)
 
     def call(self, method, *args, **kwargs):
         timeout = kwargs.pop('timeout', DEFAULT_TIMEOUT)
@@ -230,3 +242,5 @@ class Connection(object):
     def kill(self, *args, **kwargs):
         if self._greenlet is not None:
             self._greenlet.kill(*args, **kwargs)
+            del(self._greenlet)
+            self._greenlet = None

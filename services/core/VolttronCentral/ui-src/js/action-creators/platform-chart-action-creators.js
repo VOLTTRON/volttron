@@ -32,6 +32,13 @@ var platformChartActionCreators = {
             chartKey: chartKey
         });
     },
+    changeDataLength: function (length, chartKey) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHANGE_CHART_LENGTH,
+        length: length,
+            chartKey: chartKey
+        });
+    },
     setMin: function (min, chartKey) {
         dispatcher.dispatch({
             type: ACTION_TYPES.CHANGE_CHART_MIN,
@@ -46,7 +53,7 @@ var platformChartActionCreators = {
             chartKey: chartKey
         });
     },
-	refreshChart: function (series) {
+	refreshChart: function (series, length) {
 
 		var authorization = authorizationStore.getAuthorization();
 
@@ -55,7 +62,7 @@ var platformChartActionCreators = {
                 method: 'historian.query',
                 params: {
                     topic: item.topic,
-                    count: 20,
+                    count: (length > 0 ? length : 20),
                     order: 'LAST_TO_FIRST',
                 },
                 authorization: authorization,
@@ -183,6 +190,106 @@ var platformChartActionCreators = {
                 platformsPanelActionCreators.checkItem(panelItem.path, false);
                 handle401(error, message, null, orientation);
            });
+    },
+    addToCharts: function(panelItems) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        panelItems.forEach(function (panelItem) {
+
+            new rpc.Exchange({
+                method: 'historian.query',
+                params: {
+                    topic: panelItem.topic,
+                    count: 20,
+                    order: 'LAST_TO_FIRST',
+                },
+                authorization: authorization,
+            }).promise
+                .then(function (result) {
+
+                    if (result.hasOwnProperty("values"))
+                    {    
+                        panelItem.data = result.values;
+
+                        panelItem.data.forEach(function (datum) {
+                            datum.name = panelItem.name;
+                            datum.parent = panelItem.parentPath;
+                            datum.uuid = panelItem.uuid;
+                        });
+
+                        dispatcher.dispatch({
+                            type: ACTION_TYPES.SHOW_CHARTS,
+                            emitChange: false
+                        });
+
+                        dispatcher.dispatch({
+                            type: ACTION_TYPES.ADD_TO_CHART,
+                            panelItem: panelItem
+                        });
+
+                        platformsPanelActionCreators.checkItem(panelItem.path, true);
+
+                        var savedCharts = platformChartStore.getPinnedCharts();
+                        var inSavedChart = savedCharts.find(function (chart) {
+                            return chart.chartKey === panelItem.name;
+                        });
+                        
+                        if (inSavedChart)
+                        {
+                            platformActionCreators.saveCharts(savedCharts);
+                        }
+                    }
+                    else
+                    {
+                        var message = "Unable to load chart: An unknown problem occurred.";
+                        var orientation = "center";
+                        var error = {};
+
+                        if (panelItem.path && panelItem.path.length > 1)
+                        {
+                            var platformUuid = panelItem.path[1];
+                            var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
+
+                            if (!forwarderRunning)
+                            {
+                                message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
+                                orientation = "left";
+                            }             
+                        }
+
+                        platformsPanelActionCreators.checkItem(panelItem.path, false);
+                        handle401(error, message, null, orientation);
+                    }
+                })
+                .catch(rpc.Error, function (error) {
+
+                    var message = "Unable to load chart: " + error.message;
+                    var orientation;
+
+                    if (error.code === -32602)
+                    {
+                        if (error.message === "historian unavailable")
+                        {
+                            message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                            orientation = "left";
+                        }
+                    }
+                    else
+                    {
+                        var historianRunning = platformsStore.getVcHistorianRunning();
+
+                        if (!historianRunning)
+                        {
+                            message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                            orientation = "left";
+                        }
+                    }
+
+                    platformsPanelActionCreators.checkItem(panelItem.path, false);
+                    handle401(error, message, null, orientation);
+               });
+        });
     },
     removeFromChart: function(panelItem) {
 

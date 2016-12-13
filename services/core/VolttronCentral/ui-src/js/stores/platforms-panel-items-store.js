@@ -422,7 +422,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             for (var key in _items.platforms)
             {
-                var match = platforms.find(function (platform) {
+                var match = platforms.find(function findPlatform(platform) {
                     return key === platform.uuid;
                 });
 
@@ -580,6 +580,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             agentsHealth = checkStatuses(agentsHealth, agentProps);
         });
 
+        platform.expanded = (platform.agents.children.length > 0);
+
         platform.agents.status = agentsHealth;
         platform.agents.statusLabel = getStatusLabel(agentsHealth);
     }
@@ -680,9 +682,9 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             level.forEach(function (device) {
                 
                 var pathParts = device.path.split("/");
-                var buildingUuid = pathParts[0] + "_" + pathParts[1];
-                var buildingName = pathParts[1];
-                var legendInfo = pathParts[0] + " > " + buildingName;                
+                var buildingUuid = pathParts[1] + "_" + pathParts[1];
+                var buildingName = pathParts[2];
+                var legendInfo = pathParts[1] + " > " + buildingName;                
 
                 var building = insertBuilding(platform, buildingUuid, buildingName);                
 
@@ -721,6 +723,11 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             buildingsHealth = checkStatuses(buildingsHealth, blg);            
         });
 
+        if (platform.buildings.children.length > 0)
+        {
+            platform.expanded = true;
+        }
+        
         platform.buildings.status = buildingsHealth;
         platform.buildings.statusLabel = getStatusLabel(buildingsHealth);
     }

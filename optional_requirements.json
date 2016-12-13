@@ -1,18 +1,23 @@
 {
-    "--platform": {
-        "help": "Installs requirements for volttron central",
-        "packages": ["psutil"] 
-    },
-    "--vc": {
-        "help": "Installs requirements for volttron central",
-        "packages": ["tornado>4,<5", "ply"]
-    },
     "--pandas": {
         "help": "Installs numpy and pandas for applications",
         "packages": ["numpy>1.8,<2", "pandas"]
     },
     "--testing": {
         "help": "Installs testing infrastructure dependencies",
-        "packages": ["pytest>=2.8,<3", "pytest-bdd>=2.14,<3"]
+        "packages": ["pytest", "pytest-timeout", "mock", "websocket-client"]
+    },
+    "--mysql": {
+        "help": "Installs requirements for mysql databases",
+        "packages": ["mysql-connector-python-rf"]
+    },
+    "--mongo": {
+        "help": "Installs requirements for mongo databases",
+        "packages": ["pymongo"]
+    },
+    "--databases": {
+        "help": "Installs support for all known databases",
+        "packages": ["pymongo", "mysql-connector-python-rf"]
     }
+
 }

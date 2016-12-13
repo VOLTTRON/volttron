@@ -131,7 +131,9 @@ def build_vip_address(dest_wrapper, agent):
 
 
 def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
-                           volttron_central_address=None):
+                           volttron_central_address=None,
+                           volttron_central_serverkey=None,
+                           add_local_vc_address=False):
     """ Customize easily customize the platform wrapper before starting it.
     """
     assert not wrapper.is_running()
@@ -142,9 +144,17 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
         encrypt = True
     else:
         encrypt = False
+
+    if add_local_vc_address:
+        ks = KeyStore(os.path.join(wrapper.volttron_home, 'keystore'))
+        ks.generate()
+        volttron_central_address = vc_tcp
+        volttron_central_serverkey = ks.public
+
     wrapper.startup_platform(encrypt=encrypt, vip_address=vc_tcp,
                              bind_web_address=vc_http,
-                             volttron_central_address=volttron_central_address)
+                             volttron_central_address=volttron_central_address,
+                             volttron_central_serverkey=volttron_central_serverkey)
     if with_http:
         discovery = "{}/discovery/".format(vc_http)
         response = requests.get(discovery)
@@ -223,7 +233,7 @@ class PlatformWrapper:
 
     def build_connection(self, peer=None, address=None, identity=None,
                          publickey=None, secretkey=None, serverkey=None,
-                         **kwargs):
+                         capabilities=[], **kwargs):
 
         if self.encrypt:
             self.allow_all_connections()
@@ -239,6 +249,12 @@ class PlatformWrapper:
             keys.generate()
             publickey = keys.public
             secretkey = keys.secret
+            entry = AuthEntry(capabilities=capabilities,
+                              comments="Added by test",
+                              credentials=keys.public)
+            file = AuthFile(self.volttron_home+"/auth.json")
+            file.add(entry)
+
         if self.encrypt:
             conn = Connection(address=address, peer=peer, publickey=publickey,
                               secretkey=secretkey, serverkey=serverkey,
@@ -435,7 +451,9 @@ class PlatformWrapper:
         if volttron_central_address:
             parser.set('volttron', 'volttron-central-address',
                        volttron_central_address)
-
+        if volttron_central_serverkey:
+            parser.set('volttron', 'volttron-central-serverkey',
+                       volttron_central_serverkey)
         if self.mode == UNRESTRICTED:
             # TODO Restricted code should set with volttron as contianer
             # if RESTRICTED_AVAILABLE:
@@ -669,20 +687,7 @@ class PlatformWrapper:
 
         if agent_dir:
             assert not agent_wheel
-            if isinstance(config_file, dict):
-                from os.path import join, basename
-                temp_config = join(self.volttron_home,
-                                   basename(agent_dir) + "_config_file")
-                with open(temp_config, "w") as fp:
-                    fp.write(json.dumps(config_file))
-                config_file = temp_config
-            elif not config_file:
-                assert os.path.exists(os.path.join(agent_dir, "config"))
-                config_file = os.path.join(agent_dir, "config")
-            elif os.path.exists(config_file):
-                pass  # config_file already set!
-            else:
-                raise ValueError("Can't determine correct config file.")
+            config_file = self._get_config_file(agent_dir, config_file)
 
             self.logit('Building agent package')
             wheel_file = self.build_agentpackage(agent_dir, config_file)
@@ -695,6 +700,23 @@ class PlatformWrapper:
             assert self.is_agent_running(agent_uuid)
 
         return agent_uuid
+
+    def _get_config_file(self, agent_dir, config_file):
+        if isinstance(config_file, dict):
+            from os.path import join, basename
+            temp_config = join(self.volttron_home,
+                               basename(agent_dir) + "_config_file")
+            with open(temp_config, "w") as fp:
+                fp.write(json.dumps(config_file))
+            config_file = temp_config
+        elif not config_file:
+            assert os.path.exists(os.path.join(agent_dir, "config"))
+            config_file = os.path.join(agent_dir, "config")
+        elif os.path.exists(config_file):
+            pass  # config_file already set!
+        else:
+            raise ValueError("Can't determine correct config file.")
+        return config_file
 
     def start_agent(self, agent_uuid):
         self.logit('Starting agent {}'.format(agent_uuid))
@@ -782,14 +804,17 @@ class PlatformWrapper:
 
         return pid
 
-    def build_agentpackage(self, agent_dir, config_file):
+    def build_agentpackage(self, agent_dir, config_file={}):
         assert os.path.exists(agent_dir)
+        config_file = self._get_config_file(agent_dir, config_file)
         assert os.path.exists(config_file)
         wheel_path = packaging.create_package(agent_dir,
                                               self.packaged_dir)
         packaging.add_files_to_package(wheel_path, {
             'config_file': os.path.join('./', config_file)
         })
+
+        self.logit("Built agent package: {}".format(wheel_path))
 
         return wheel_path
 
@@ -889,10 +914,30 @@ class PlatformWrapper:
             self.t_process.wait()
         elif self.use_twistd:
             self.logit("twistd process was null")
+
+        if os.environ.get('PRINT_LOG'):
+            logpath = os.path.join(self.volttron_home, 'volttron.log')
+            if os.path.exists(logpath):
+                print("************************* Begin {}".format(logpath))
+                with open(logpath) as f:
+                    for l in f.readlines():
+                        print(l)
+                print("************************* End {}".format(logpath))
+            else:
+                print("######################### No Log Exists: {}".format(
+                    logpath
+                ))
         if not self.skip_cleanup:
             self.logit('Removing {}'.format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)
 
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        data = []
+        data.append('volttron_home: {}'.format(self.volttron_home))
+        return '\n'.join(data)
 
 def mergetree(src, dst, symlinks=False, ignore=None):
     if not os.path.exists(dst):
