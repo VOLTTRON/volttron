@@ -13,9 +13,11 @@ class PreviewRegistryForm extends BaseComponent {
         super(props);
         this._bind("_toggleLayout", "_updateFileName", "_onSubmit", "_saveRegistryFile");
 
-        this.state = {};
-        this.state.csvlayout = false;
-        this.state.fileName = "";
+        this.state = {
+            csvlayout: false,
+            fileName: (this.props.fileName ? this.props.fileName : ""),
+            disableRename: (this.props.fileName ? true : false)
+        }
 
         this.state.otherFileNames = getOtherRegistryFileNames();
     }
@@ -178,6 +180,7 @@ class PreviewRegistryForm extends BaseComponent {
                         <input 
                             onChange={this._updateFileName}
                             value={this.state.fileName}
+                            disabled={this.state.disableRename}
                             type="text">
                         </input>
                     </div>

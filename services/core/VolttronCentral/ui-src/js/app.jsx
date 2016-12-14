@@ -20,7 +20,6 @@ var Platform = require('./components/platform');
 import PlatformManager from './components/platform-manager';
 var Platforms = require('./components/platforms');
 import ConfigureDevices from './components/configure-devices';
-import ReconfigureRegistry from './components/reconfigure-registry';
 import ReconfigureDevice from './components/reconfigure-device';
 var PlatformCharts = require('./components/platform-charts');
 var Navigation = require('./components/navigation');
@@ -69,7 +68,6 @@ var routes = (
             <Route path="platforms" component={checkAuth(Platforms)} />
             <Route path="platform/:uuid" component={checkAuth(Platform)} />
             <Route path="configure-devices" component={checkAuth(ConfigureDevices)} />
-            <Route path="reconfigure-registry" component={checkAuth(ReconfigureRegistry)} />
             <Route path="reconfigure-device" component={checkAuth(ReconfigureDevice)} />
             <Route path="charts" component={checkAuth(PlatformCharts)} />
         </Route>
@@ -111,13 +109,6 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
             if (!this.router.isActive('configure-devices'))
             {
                 this.router.push('/configure-devices');
-            }
-        }
-        else if (devicesStore.reconfiguringRegistry())       
-        {
-            if (!this.router.isActive('reconfigure-registry'))
-            {
-                this.router.push('/reconfigure-registry');
             }
         }
         else if (devicesStore.reconfiguringDevice())       

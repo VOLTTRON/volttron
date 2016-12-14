@@ -1580,10 +1580,6 @@ a.view__item:hover::before {
 
 /***end react-select-me style overrides ***/
 
-.collapsible-registry-values.slow-show {
-    height: 100%;
-}
-
 .collapsible-registry-values.slow-hide {
     height: 0;
 }
@@ -1591,10 +1587,6 @@ a.view__item:hover::before {
 .slow-hide > .fixed-table-container {
     visibility: hidden;
     height: 0;
-}
-
-.slow-show > .fixed-table-container {
-    height: 100%;
 }
 
 .slow-hide > .registry-buttons {
@@ -1806,6 +1798,11 @@ td.plain {
     clear: both;
 }
 
+.device-box > .config-device-form > h1,
+.device-box > .config-device-form > h4 {
+    display: none;
+}
+
 .device-scan {
     margin-bottom: 0px;
 }
@@ -1816,6 +1813,10 @@ td.plain {
 
 .config-devices-table {
     width: auto;
+}
+
+.config-devices-table.reconfig .dd__list.dd__openTobottom {
+    z-index: 300;
 }
 
 .devicesFoundContainer {

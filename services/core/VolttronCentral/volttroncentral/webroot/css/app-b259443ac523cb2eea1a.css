@@ -1580,10 +1580,6 @@ a.view__item:hover::before {
 
 /***end react-select-me style overrides ***/
 
-.collapsible-registry-values.slow-show {
-    height: 100%;
-}
-
 .collapsible-registry-values.slow-hide {
     height: 0;
 }
@@ -1591,10 +1587,6 @@ a.view__item:hover::before {
 .slow-hide > .fixed-table-container {
     visibility: hidden;
     height: 0;
-}
-
-.slow-show > .fixed-table-container {
-    height: 100%;
 }
 
 .slow-hide > .registry-buttons {
@@ -1806,6 +1798,11 @@ td.plain {
     clear: both;
 }
 
+.device-box > .config-device-form > h1,
+.device-box > .config-device-form > h4 {
+    display: none;
+}
+
 .device-scan {
     margin-bottom: 0px;
 }
@@ -1816,6 +1813,10 @@ td.plain {
 
 .config-devices-table {
     width: auto;
+}
+
+.config-devices-table.reconfig .dd__list.dd__openTobottom {
+    z-index: 300;
 }
 
 .devicesFoundContainer {
@@ -1948,4 +1949,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-1b5174245f03439537c8.css.map*/
+/*# sourceMappingURL=app-b259443ac523cb2eea1a.css.map*/

@@ -251,14 +251,17 @@ class ConfigureRegistry extends BaseComponent {
     }
     _resetState(device){
     
-        var state = {};    
+        var state = {};
+
+        var newConfig = (this.props.registryFile ? false : true);
+        var allSelected = !newConfig;
 
         state.tableRef = "table-" + device.id + "-" + device.address;
 
         state.keyPropsList = device.keyProps;
         state.filterColumn = state.keyPropsList[0];
 
-        state.registryValues = getPointsFromStore(device, state.keyPropsList);
+        state.registryValues = getPointsFromStore(device, allSelected, state.keyPropsList);
 
         state.columnNames = [];
         state.filteredList = [];
@@ -273,7 +276,7 @@ class ConfigureRegistry extends BaseComponent {
             });
         }
 
-        state.allSelected = false;
+        state.allSelected = allSelected;
 
         state.selectedCells = [];
         state.selectedCellRow = null;
@@ -285,8 +288,6 @@ class ConfigureRegistry extends BaseComponent {
 
         this.scrollToBottom = false;
         this.resizeTable = false;
-
-        // this.keyboardIndex = -1;
 
         return state;
     }
@@ -401,7 +402,7 @@ class ConfigureRegistry extends BaseComponent {
         }
         else
         {
-            this.state.registryValues.push(initializeRow(updatedRow.toJS(), this.state.registryValues.length, keyProps));
+            this.state.registryValues.push(initializeRow(this.state.allSelected, updatedRow.toJS(), this.state.registryValues.length, keyProps));
         }
 
         if (updateKeyProps)
@@ -899,6 +900,7 @@ class ConfigureRegistry extends BaseComponent {
                         deviceId={this.props.device.id}
                         deviceAddress={this.props.device.address} 
                         deviceName={this.props.device.name}
+                        fileName={this.props.registryFile}
                         attributes={attributes}
                         onsaveregistry={this._saveRegistry}>
                     </PreviewRegistryForm>);
@@ -952,7 +954,14 @@ class ConfigureRegistry extends BaseComponent {
         this.setState({ registryValues: newValues });
         this.setState({ allSelected: false });
 
-        modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device} registryFile={fileName}/>);
+        if (this.state.newConfig)
+        {
+            modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device} registryFile={fileName}/>);
+        }
+        else
+        {
+            modalActionCreators.closeModal();
+        }
     }
     _getParentNode() {
         return ReactDOM.findDOMNode(this.refs[this.state.tableRef]);
@@ -1329,18 +1338,18 @@ function getFilteredPoints(registryValues, filterStr, column) {
     });
 }
 
-function getPointsFromStore(device, keyPropsList) {
-    return initializeList(devicesStore.getRegistryValues(device), keyPropsList);
+function getPointsFromStore(device, allSelected, keyPropsList) {
+    return initializeList(allSelected, devicesStore.getRegistryValues(device), keyPropsList);
 }
 
-function initializeList(registryConfig, keyPropsList)
+function initializeList(allSelected, registryConfig, keyPropsList)
 {
     return registryConfig.map(function (row, rowIndex) {
-        return initializeRow(row, rowIndex, keyPropsList);
+        return initializeRow(allSelected, row, rowIndex, keyPropsList);
     });
 }
 
-function initializeRow(row, rowIndex, keyPropsList)
+function initializeRow(allSelected, row, rowIndex, keyPropsList)
 {
     var bacnetObjectType, objectIndex;
 
@@ -1377,7 +1386,7 @@ function initializeRow(row, rowIndex, keyPropsList)
         bacnetObjectType: bacnetObjectType, 
         index: objectIndex,
         attributes: Immutable.List(row),
-        selected: false,
+        selected: allSelected,
         alreadyUsed: false
     });
 }

@@ -216,29 +216,12 @@ class PlatformsPanelItem extends BaseComponent {
             controlButtonActionCreators.hideTaptip("addDevicesButton");
         }
     }
-    _onDeviceConfig (config_option, panelItem) {
-        console.log("TODO: " + config_option);
+    _onDeviceConfig (panelItem) {
 
         var deviceName = panelItem.getIn(["path", 5]);
         var platformUuid = panelItem.getIn(["path", 1]);
 
-        switch (config_option)
-        {
-            case "registry_config":
-                
-                devicesActionCreators.reconfigureRegistryConfigFile(deviceName, platformUuid);
-                
-                break;
-            case "device_config":
-                
-                devicesActionCreators.reconfigureDeviceConfigFile(
-                    panelItem.getIn(["path", 5]), 
-                    panelItem.platformUuid
-                );
-
-                break;
-        }
-
+        devicesActionCreators.reconfigureDevice(deviceName, platformUuid);
     }
     render () {
 
@@ -304,42 +287,22 @@ class PlatformsPanelItem extends BaseComponent {
 
         if (panelItem.get("type") === "device")
         {
-            var editItems = [
-                { 
-                    label: "Registry Config",
-                    position: "top",
-                    action: this._onDeviceConfig.bind(this, "registry_config", panelItem)
-                },
-                { 
-                    label: "Device Config",
-                    position: "bottom",
-                    action: this._onDeviceConfig.bind(this, "device_config", panelItem)
-                }
-            ];            
-
             var configureTooltip = {
                 content: "Reconfigure Device",
                 xOffset: 40,
                 yOffset: 65
             }
 
-            var configureTaptip = {
-                content: "Reconfigure Device",
-                xOffset: 40,
-                yOffset: 55
-            };
-
             ConfigureButton = (
-                <EditSelectButton 
+                <ControlButton 
+                    name={"config-device-" + panelItem.get("uuid")}
                     tooltip={configureTooltip}
-                    taptip={configureTaptip}
-                    iconName="wrench"
-                    buttonClass="panelItemButton"
+                    fontAwesomeIcon="wrench"
+                    controlclass="panelItemButton"
                     nocentering={true}
                     floatleft={true}
-                    name={panelItem.get("uuid")}
-                    listItems={editItems}/>
-                );
+                    clickAction={this._onDeviceConfig.bind(this, panelItem)}></ControlButton>
+            );
         }
         
         var ChartCheckbox;
