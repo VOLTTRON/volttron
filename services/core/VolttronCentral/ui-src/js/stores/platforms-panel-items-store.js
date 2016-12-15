@@ -743,7 +743,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                 var deviceProps = {};
                 deviceProps.name = deviceParts[deviceParts.length - 1];
-                deviceProps.uuid = device.path.replace(/\//g, '_');
+                deviceProps.uuid = device.path;
                 deviceProps.expanded = false;
                 deviceProps.visible = true;
                 deviceProps.path = JSON.parse(JSON.stringify(building.devices.path));
@@ -799,7 +799,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                     var deviceProps = {};
                     deviceProps.name = deviceParts[subDeviceLevel];
-                    deviceProps.uuid = device.path.replace(/ \/ /g, '_');
+                    deviceProps.uuid = device.path;
                     deviceProps.expanded = false;
                     deviceProps.visible = true;
                     deviceProps.path = JSON.parse(JSON.stringify(parentDevice.path));

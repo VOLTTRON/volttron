@@ -229,7 +229,7 @@ var devicesActionCreators = {
     },
     reconfigureDevice: function (devicePath, platformUuid) {
 
-        var deviceName = devicePath.replace(/_/g, "/" );
+        var deviceName = devicePath;
         var agentDriver = "platform.driver";
 
         devicesActionCreators.listConfigs(
@@ -267,7 +267,7 @@ var devicesActionCreators = {
     getDeviceConfig: function (platformUuid, agentDriver, deviceName, result) {
 
         var deviceConfig = result.find(function (registryFile) {
-            var index = registryFile.replace(/_/g, "\/").indexOf(deviceName);
+            var index = registryFile.indexOf(deviceName);
 
             return index === 0;
         });
@@ -511,7 +511,7 @@ var devicesActionCreators = {
             settings.campus + "/" + 
             settings.building + "/" + 
             settings.unit + 
-            (settings.path ? "/" + settings.path : "")
+            (settings.path ? (settings.path.indexOf("/") === 0 ? settings.path : "/" + settings.path) : "");
 
         var config = {};
 
@@ -539,6 +539,12 @@ var devicesActionCreators = {
                     type: ACTION_TYPES.SAVE_CONFIG,
                     settings: settings
                 });
+
+                var highlight = device.name;
+                var message = "The configuration changes for " + highlight + " were successful.";
+                var orientation = "center";
+                
+                statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
 
             })
             .catch(rpc.Error, function (error) {

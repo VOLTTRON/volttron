@@ -105,7 +105,7 @@ class ReconfigureDevice extends BaseComponent {
                                 <td className="plain" style={cellStyle}></td>
                             </tr>
                             <tr>
-                                <td className="plain" style={cellStyle}><b>Config File: </b></td>
+                                <td className="plain" style={cellStyle}><b>File to Edit: </b></td>
                                 <td className="plain" style={cellStyle}>{configSelect}</td>  
                                 <td className="plain" style={cellStyle}></td>
                                 <td className="plain" style={cellStyle}></td>
@@ -130,7 +130,8 @@ class ReconfigureDevice extends BaseComponent {
             else
             {
                 deviceConfig = (
-                    <ConfigDeviceForm device={this.state.device} 
+                    <ConfigDeviceForm device={this.state.device}
+                        config={this.state.configuration} 
                         registryFile={this.state.configuration.deviceConfig}/>
                 );
             }

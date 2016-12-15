@@ -14,17 +14,50 @@ class ConfigDeviceForm extends BaseComponent {
         this._bind("_updateSetting", "_checkItem", "_updateCampus", "_updateBuilding",
             "_updateUnit", "_updatePath", "_onSubmit");
 
-        var settingsTemplate = devicesStore.getSettingsTemplate();
+        this.state = {};
+    
+        if (this.props.config)
+        {
+            this.state.settings = initializeSettings(this.props.config.driver_type, this.props.config);
+            this.state.driver_config = initializeDriverConfig(
+                this.props.config.driver_config.device_address, 
+                this.props.config.driver_config.device_id,
+                this.props.config.driver_config.proxy_address
+            );
 
-        this.state = {
-            campus: (settingsTemplate ? settingsTemplate.campus : ""),
-            building: (settingsTemplate ? settingsTemplate.building : ""),
-            unit: "",
-            path: ""
-        };
+            var nameParts = this.props.device.name.split("/");
 
-        this.state.settings = initializeSettings(this.props.device.type, settingsTemplate);
-        this.state.driver_config = initializeDriverConfig(this.props.device);
+            this.state.campus = nameParts[0];
+            this.state.building = nameParts[1];
+            this.state.unit = nameParts[2];
+            this.state.path = "";
+
+            for (var i = 3; i < nameParts.length; i++)
+            {
+                this.state.path = this.state.path + "/" + nameParts[i];
+            }
+
+            this.state.disableRename = true;
+        }
+        else
+        {
+            var settingsTemplate = devicesStore.getSettingsTemplate();
+
+            this.state.campus = (settingsTemplate ? settingsTemplate.campus : "");
+            this.state.building = (settingsTemplate ? settingsTemplate.building : "");
+            this.state.unit = "";
+            this.state.path = "";
+
+            this.state.settings = initializeSettings(this.props.device.type, null, settingsTemplate);
+            this.state.driver_config = initializeDriverConfig(
+                this.props.device.address, 
+                this.props.device.id, 
+                this.props.device.bacnetProxy
+            );
+
+            this.state.disableRename = false;
+        }
+        
     }
     _updateSetting(evt) {
         var key = evt.currentTarget.dataset.setting;
@@ -37,16 +70,16 @@ class ConfigDeviceForm extends BaseComponent {
         this.setState({settings: this.state.settings});
     }
     _updateCampus(evt) {
-        this.setState({campus: evt.target.value.replace(/ |\/|_/g, "")});
+        this.setState({campus: evt.target.value.replace(/ |\//g, "")});
     }
     _updateBuilding(evt) {
-        this.setState({building: evt.target.value.replace(/ |\/|_/g, "")});
+        this.setState({building: evt.target.value.replace(/ |\//g, "")});
     }
     _updateUnit(evt) {
-        this.setState({unit: evt.target.value.replace(/ |\/|_/g, "")});
+        this.setState({unit: evt.target.value.replace(/ |\//g, "")});
     }
     _updatePath(evt) {
-        this.setState({path: evt.target.value.replace(/ |_/g, "")});
+        this.setState({path: evt.target.value.replace(/ /g, "")});
     }
     _onCancelClick(e) {
         modalActionCreators.closeModal();
@@ -158,6 +191,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             type="text"
                                             onChange={this._updateCampus}
                                             value={this.state.campus}
+                                            disabled={this.state.disableRename}
                                         />
                                     </td>
                                 </tr>
@@ -173,6 +207,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             type="text"
                                             onChange={this._updateBuilding}
                                             value={this.state.building}
+                                            disabled={this.state.disableRename}
                                         />
                                     </td>
                                 </tr>
@@ -188,6 +223,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             type="text"
                                             onChange={this._updateUnit}
                                             value={this.state.unit}
+                                            disabled={this.state.disableRename}
                                         />
                                     </td>
                                 </tr>
@@ -200,6 +236,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             type="text"
                                             onChange={this._updatePath}
                                             value={this.state.path}
+                                            disabled={this.state.disableRename}
                                         />
                                     </td>
                                 </tr>
@@ -226,17 +263,17 @@ class ConfigDeviceForm extends BaseComponent {
     }
 };
 
-var initializeDriverConfig = (device) => {
+var initializeDriverConfig = (address, id, bacnetProxy) => {
     var driver_config = {
-        device_address: device.address,
-        device_id: device.id,
-        proxy_address: device.bacnetProxy
+        device_address: address,
+        device_id: id,
+        proxy_address: bacnetProxy
     };
 
     return driver_config;
 }
 
-var initializeSettings = (type, settingsTemplate) => {
+var initializeSettings = (type, savedConfig, settingsTemplate) => {
 
     var settings = {};
 
@@ -295,6 +332,14 @@ var initializeSettings = (type, settingsTemplate) => {
                         value: false,
                         label: "Publish Breadth-First All",
                         type: "bool"
+                    }
+                }
+
+                if (savedConfig)
+                {
+                    for (var key in settings)
+                    {
+                        settings[key].value = savedConfig[key];
                     }
                 }
             }

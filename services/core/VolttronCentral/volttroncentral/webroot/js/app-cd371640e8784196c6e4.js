@@ -36192,7 +36192,7 @@
 	
 	                var deviceProps = {};
 	                deviceProps.name = deviceParts[deviceParts.length - 1];
-	                deviceProps.uuid = device.path.replace(/\//g, '_');
+	                deviceProps.uuid = device.path;
 	                deviceProps.expanded = false;
 	                deviceProps.visible = true;
 	                deviceProps.path = JSON.parse(JSON.stringify(building.devices.path));
@@ -36243,7 +36243,7 @@
 	
 	                    var deviceProps = {};
 	                    deviceProps.name = deviceParts[subDeviceLevel];
-	                    deviceProps.uuid = device.path.replace(/ \/ /g, '_');
+	                    deviceProps.uuid = device.path;
 	                    deviceProps.expanded = false;
 	                    deviceProps.visible = true;
 	                    deviceProps.path = JSON.parse(JSON.stringify(parentDevice.path));
@@ -57517,7 +57517,7 @@
 	    },
 	    reconfigureDevice: function reconfigureDevice(devicePath, platformUuid) {
 	
-	        var deviceName = devicePath.replace(/_/g, "/");
+	        var deviceName = devicePath;
 	        var agentDriver = "platform.driver";
 	
 	        devicesActionCreators.listConfigs(platformUuid, agentDriver, deviceName, devicesActionCreators.getDeviceConfig);
@@ -57547,7 +57547,7 @@
 	    getDeviceConfig: function getDeviceConfig(platformUuid, agentDriver, deviceName, result) {
 	
 	        var deviceConfig = result.find(function (registryFile) {
-	            var index = registryFile.replace(/_/g, "\/").indexOf(deviceName);
+	            var index = registryFile.indexOf(deviceName);
 	
 	            return index === 0;
 	        });
@@ -57739,7 +57739,7 @@
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
-	        var config_name = "devices/" + settings.campus + "/" + settings.building + "/" + settings.unit + (settings.path ? "/" + settings.path : "");
+	        var config_name = "devices/" + settings.campus + "/" + settings.building + "/" + settings.unit + (settings.path ? settings.path.indexOf("/") === 0 ? settings.path : "/" + settings.path : "");
 	
 	        var config = {};
 	
@@ -57765,6 +57765,12 @@
 	                type: ACTION_TYPES.SAVE_CONFIG,
 	                settings: settings
 	            });
+	
+	            var highlight = device.name;
+	            var message = "The configuration changes for " + highlight + " were successful.";
+	            var orientation = "center";
+	
+	            statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
 	        }).catch(rpc.Error, function (error) {
 	
 	            error.message = "Unable to save device configuration. " + error.message + ".";
@@ -65066,17 +65072,38 @@
 	
 	        _this._bind("_updateSetting", "_checkItem", "_updateCampus", "_updateBuilding", "_updateUnit", "_updatePath", "_onSubmit");
 	
-	        var settingsTemplate = devicesStore.getSettingsTemplate();
+	        _this.state = {};
 	
-	        _this.state = {
-	            campus: settingsTemplate ? settingsTemplate.campus : "",
-	            building: settingsTemplate ? settingsTemplate.building : "",
-	            unit: "",
-	            path: ""
-	        };
+	        if (_this.props.config) {
+	            _this.state.settings = initializeSettings(_this.props.config.driver_type, _this.props.config);
+	            _this.state.driver_config = initializeDriverConfig(_this.props.config.driver_config.device_address, _this.props.config.driver_config.device_id, _this.props.config.driver_config.proxy_address);
 	
-	        _this.state.settings = initializeSettings(_this.props.device.type, settingsTemplate);
-	        _this.state.driver_config = initializeDriverConfig(_this.props.device);
+	            var nameParts = _this.props.device.name.split("/");
+	
+	            _this.state.campus = nameParts[0];
+	            _this.state.building = nameParts[1];
+	            _this.state.unit = nameParts[2];
+	            _this.state.path = "";
+	
+	            for (var i = 3; i < nameParts.length; i++) {
+	                _this.state.path = _this.state.path + "/" + nameParts[i];
+	            }
+	
+	            _this.state.disableRename = true;
+	        } else {
+	            var settingsTemplate = devicesStore.getSettingsTemplate();
+	
+	            _this.state.campus = settingsTemplate ? settingsTemplate.campus : "";
+	            _this.state.building = settingsTemplate ? settingsTemplate.building : "";
+	            _this.state.unit = "";
+	            _this.state.path = "";
+	
+	            _this.state.settings = initializeSettings(_this.props.device.type, null, settingsTemplate);
+	            _this.state.driver_config = initializeDriverConfig(_this.props.device.address, _this.props.device.id, _this.props.device.bacnetProxy);
+	
+	            _this.state.disableRename = false;
+	        }
+	
 	        return _this;
 	    }
 	
@@ -65097,22 +65124,22 @@
 	    }, {
 	        key: '_updateCampus',
 	        value: function _updateCampus(evt) {
-	            this.setState({ campus: evt.target.value.replace(/ |\/|_/g, "") });
+	            this.setState({ campus: evt.target.value.replace(/ |\//g, "") });
 	        }
 	    }, {
 	        key: '_updateBuilding',
 	        value: function _updateBuilding(evt) {
-	            this.setState({ building: evt.target.value.replace(/ |\/|_/g, "") });
+	            this.setState({ building: evt.target.value.replace(/ |\//g, "") });
 	        }
 	    }, {
 	        key: '_updateUnit',
 	        value: function _updateUnit(evt) {
-	            this.setState({ unit: evt.target.value.replace(/ |\/|_/g, "") });
+	            this.setState({ unit: evt.target.value.replace(/ |\//g, "") });
 	        }
 	    }, {
 	        key: '_updatePath',
 	        value: function _updatePath(evt) {
-	            this.setState({ path: evt.target.value.replace(/ |_/g, "") });
+	            this.setState({ path: evt.target.value.replace(/ /g, "") });
 	        }
 	    }, {
 	        key: '_onCancelClick',
@@ -65267,7 +65294,8 @@
 	                                            className: 'form__control form__control--block',
 	                                            type: 'text',
 	                                            onChange: this._updateCampus,
-	                                            value: this.state.campus
+	                                            value: this.state.campus,
+	                                            disabled: this.state.disableRename
 	                                        })
 	                                    )
 	                                ),
@@ -65292,7 +65320,8 @@
 	                                            className: 'form__control form__control--block',
 	                                            type: 'text',
 	                                            onChange: this._updateBuilding,
-	                                            value: this.state.building
+	                                            value: this.state.building,
+	                                            disabled: this.state.disableRename
 	                                        })
 	                                    )
 	                                ),
@@ -65317,7 +65346,8 @@
 	                                            className: 'form__control form__control--block',
 	                                            type: 'text',
 	                                            onChange: this._updateUnit,
-	                                            value: this.state.unit
+	                                            value: this.state.unit,
+	                                            disabled: this.state.disableRename
 	                                        })
 	                                    )
 	                                ),
@@ -65337,7 +65367,8 @@
 	                                            className: 'form__control form__control--block',
 	                                            type: 'text',
 	                                            onChange: this._updatePath,
-	                                            value: this.state.path
+	                                            value: this.state.path,
+	                                            disabled: this.state.disableRename
 	                                        })
 	                                    )
 	                                ),
@@ -65374,17 +65405,17 @@
 	
 	;
 	
-	var initializeDriverConfig = function initializeDriverConfig(device) {
+	var initializeDriverConfig = function initializeDriverConfig(address, id, bacnetProxy) {
 	    var driver_config = {
-	        device_address: device.address,
-	        device_id: device.id,
-	        proxy_address: device.bacnetProxy
+	        device_address: address,
+	        device_id: id,
+	        proxy_address: bacnetProxy
 	    };
 	
 	    return driver_config;
 	};
 	
-	var initializeSettings = function initializeSettings(type, settingsTemplate) {
+	var initializeSettings = function initializeSettings(type, savedConfig, settingsTemplate) {
 	
 	    var settings = {};
 	
@@ -65441,6 +65472,12 @@
 	                        type: "bool"
 	                    }
 	                };
+	
+	                if (savedConfig) {
+	                    for (var key in settings) {
+	                        settings[key].value = savedConfig[key];
+	                    }
+	                }
 	            }
 	
 	            break;
@@ -74489,7 +74526,7 @@
 	                                    _react2.default.createElement(
 	                                        'b',
 	                                        null,
-	                                        'Config File: '
+	                                        'File to Edit: '
 	                                    )
 	                                ),
 	                                _react2.default.createElement(
@@ -74514,6 +74551,7 @@
 	                        registryFile: this.state.configuration.registryFile });
 	                } else {
 	                    deviceConfig = _react2.default.createElement(_configDeviceForm2.default, { device: this.state.device,
+	                        config: this.state.configuration,
 	                        registryFile: this.state.configuration.deviceConfig });
 	                }
 	            } else {
@@ -115990,4 +116028,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-b259443ac523cb2eea1a.js.map
+//# sourceMappingURL=app-cd371640e8784196c6e4.js.map
