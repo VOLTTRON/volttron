@@ -14,7 +14,8 @@ var _device = null;
 var _data = {};
 var _updatedRow = {};
 var _platform;
-var _devices = [];
+var _devices = []; // the main list of devices detected for configuration
+var _devicesList = {}; // a simple object of known devices
 var _settingsTemplate = {};
 var _savedRegistryFiles = {};
 var _newScan = false;
@@ -1040,6 +1041,13 @@ devicesStore.getDevices = function (platform, bacnetIdentity) {
     return JSON.parse(JSON.stringify(devices));
 }
 
+devicesStore.getDevicesList = function (platformUuid) {
+
+    return (_devicesList.hasOwnProperty(platformUuid) ? 
+                JSON.parse(JSON.stringify(_devicesList[platformUuid])) : 
+                    []);
+}
+
 devicesStore.getDeviceByID = function (deviceId) {
 
     var device = _devices.find(function (dvc) {
@@ -1381,6 +1389,13 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _view = "Configure Device";
             
             _settingsTemplate = action.settings;
+
+            break;
+        case ACTION_TYPES.UPDATE_DEVICES_LIST:
+            _action = "configure_device";
+            _view = "Configure Device";
+            
+            _devicesList[action.platformUuid] = action.devices;
 
             break;
     }

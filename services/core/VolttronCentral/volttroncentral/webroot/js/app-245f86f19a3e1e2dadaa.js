@@ -11594,6 +11594,7 @@
 	    CANCEL_REGISTRY: null,
 	    SAVE_REGISTRY: null,
 	    SAVE_CONFIG: null,
+	    UPDATE_DEVICES_LIST: null,
 	
 	    TOGGLE_TAPTIP: null,
 	    HIDE_TAPTIP: null,
@@ -57670,7 +57671,7 @@
 	                {
 	                    // RegistryFilesSelector component
 	
-	                    devicesActionCreators.unloadRegistryFiles();
+	                    // devicesActionCreators.unloadRegistryFiles();
 	
 	                    devicesActionCreators.loadRegistry(configuration.deviceId, configuration.deviceAddress, csvData.data, configuration.registryFile);
 	                }
@@ -57712,7 +57713,7 @@
 	            attributes: attributes
 	        });
 	    },
-	    saveRegistry: function saveRegistry(device, fileName, values) {
+	    saveRegistry: function saveRegistry(device, fileName, update, values) {
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
@@ -57728,18 +57729,28 @@
 	            method: 'store_agent_config',
 	            authorization: authorization,
 	            params: params
-	        }).promise.then(function (result) {}).catch(rpc.Error, function (error) {
+	        }).promise.then(function (result) {
+	
+	            var action = update ? "updated" : "saved";
+	            var highlight = fileName;
+	            var message = "The registry file " + highlight + " was successfully " + action + ".";
+	            var orientation = "center";
+	
+	            statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
+	
+	            if (!update) {
+	                devicesActionCreators.updateDevicesList(device.platformUuid);
+	            }
+	        }).catch(rpc.Error, function (error) {
 	
 	            error.message = "Unable to save registry configuration. " + error.message + ".";
 	
 	            handle401(error, error.message);
 	        });
 	    },
-	    saveConfig: function saveConfig(device, settings) {
+	    saveConfig: function saveConfig(device, update, config_name, settings) {
 	
 	        var authorization = authorizationStore.getAuthorization();
-	
-	        var config_name = "devices/" + settings.campus + "/" + settings.building + "/" + settings.unit + (settings.path ? settings.path.indexOf("/") === 0 ? settings.path : "/" + settings.path : "");
 	
 	        var config = {};
 	
@@ -57766,8 +57777,9 @@
 	                settings: settings
 	            });
 	
-	            var highlight = device.name;
-	            var message = "The configuration changes for " + highlight + " were successful.";
+	            var action = update ? "updated" : "created";
+	            var highlight = config_name;
+	            var message = "The device configuration was successfully " + action + " for " + highlight + ".";
 	            var orientation = "center";
 	
 	            statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
@@ -57776,6 +57788,23 @@
 	            error.message = "Unable to save device configuration. " + error.message + ".";
 	
 	            handle401(error, error.message);
+	        });
+	    },
+	    updateDevicesList: function updateDevicesList(platformUuid) {
+	        var authorization = authorizationStore.getAuthorization();
+	
+	        new rpc.Exchange({
+	            method: 'platforms.uuid.' + platformUuid + '.get_devices',
+	            authorization: authorization
+	        }).promise.then(function (result) {
+	
+	            dispatcher.dispatch({
+	                type: ACTION_TYPES.UPDATE_DEVICES_LIST,
+	                platformUuid: platformUuid,
+	                devices: result
+	            });
+	        }).catch(rpc.Error, function (error) {
+	            handle401(error, "Unable to update devices list.");
 	        });
 	    }
 	};
@@ -58847,7 +58876,8 @@
 	var _data = {};
 	var _updatedRow = {};
 	var _platform;
-	var _devices = [];
+	var _devices = []; // the main list of devices detected for configuration
+	var _devicesList = {}; // a simple object of known devices
 	var _settingsTemplate = {};
 	var _savedRegistryFiles = {};
 	var _newScan = false;
@@ -59856,6 +59886,11 @@
 	    return JSON.parse(JSON.stringify(devices));
 	};
 	
+	devicesStore.getDevicesList = function (platformUuid) {
+	
+	    return _devicesList.hasOwnProperty(platformUuid) ? JSON.parse(JSON.stringify(_devicesList[platformUuid])) : [];
+	};
+	
 	devicesStore.getDeviceByID = function (deviceId) {
 	
 	    var device = _devices.find(function (dvc) {
@@ -60175,6 +60210,13 @@
 	            _view = "Configure Device";
 	
 	            _settingsTemplate = action.settings;
+	
+	            break;
+	        case ACTION_TYPES.UPDATE_DEVICES_LIST:
+	            _action = "configure_device";
+	            _view = "Configure Device";
+	
+	            _devicesList[action.platformUuid] = action.devices;
 	
 	            break;
 	    }
@@ -63178,15 +63220,15 @@
 	
 	            var state = {};
 	
-	            var newConfig = this.props.registryFile ? false : true;
-	            var allSelected = !newConfig;
+	            state.configUpdate = this.props.registryFile ? true : false;
+	            state.allSelected = state.configUpdate;
 	
 	            state.tableRef = "table-" + device.id + "-" + device.address;
 	
 	            state.keyPropsList = device.keyProps;
 	            state.filterColumn = state.keyPropsList[0];
 	
-	            state.registryValues = getPointsFromStore(device, allSelected, state.keyPropsList);
+	            state.registryValues = getPointsFromStore(device, state.allSelected, state.keyPropsList);
 	
 	            state.columnNames = [];
 	            state.filteredList = [];
@@ -63199,8 +63241,6 @@
 	                    return column.key;
 	                });
 	            }
-	
-	            state.allSelected = allSelected;
 	
 	            state.selectedCells = [];
 	            state.selectedCellRow = null;
@@ -63840,12 +63880,12 @@
 	                return attributeRow;
 	            });
 	
-	            devicesActionCreators.saveRegistry(this.props.device, fileName, csvData);
+	            devicesActionCreators.saveRegistry(this.props.device, fileName, this.state.configUpdate, csvData);
 	
 	            this.setState({ registryValues: newValues });
 	            this.setState({ allSelected: false });
 	
-	            if (this.state.newConfig) {
+	            if (!this.state.configUpdate) {
 	                modalActionCreators.openModal(_react2.default.createElement(_configDeviceForm2.default, { device: this.props.device, registryFile: fileName }));
 	            } else {
 	                modalActionCreators.closeModal();
@@ -65060,6 +65100,7 @@
 	
 	var modalActionCreators = __webpack_require__(324);
 	var devicesActionCreators = __webpack_require__(305);
+	var statusIndicatorActionCreators = __webpack_require__(270);
 	var devicesStore = __webpack_require__(310);
 	
 	var ConfigDeviceForm = function (_BaseComponent) {
@@ -65089,7 +65130,7 @@
 	                _this.state.path = _this.state.path + "/" + nameParts[i];
 	            }
 	
-	            _this.state.disableRename = true;
+	            _this.state.configUpdate = true;
 	        } else {
 	            var settingsTemplate = devicesStore.getSettingsTemplate();
 	
@@ -65101,7 +65142,7 @@
 	            _this.state.settings = initializeSettings(_this.props.device.type, null, settingsTemplate);
 	            _this.state.driver_config = initializeDriverConfig(_this.props.device.address, _this.props.device.id, _this.props.device.bacnetProxy);
 	
-	            _this.state.disableRename = false;
+	            _this.state.configUpdate = false;
 	        }
 	
 	        return _this;
@@ -65124,22 +65165,22 @@
 	    }, {
 	        key: '_updateCampus',
 	        value: function _updateCampus(evt) {
-	            this.setState({ campus: evt.target.value.replace(/ |\//g, "") });
+	            this.setState({ campus: evt.target.value.replace(/\//g, "").replace(/ /g, "_") });
 	        }
 	    }, {
 	        key: '_updateBuilding',
 	        value: function _updateBuilding(evt) {
-	            this.setState({ building: evt.target.value.replace(/ |\//g, "") });
+	            this.setState({ building: evt.target.value.replace(/\//g, "").replace(/ /g, "_") });
 	        }
 	    }, {
 	        key: '_updateUnit',
 	        value: function _updateUnit(evt) {
-	            this.setState({ unit: evt.target.value.replace(/ |\//g, "") });
+	            this.setState({ unit: evt.target.value.replace(/\//g, "").replace(/ /g, "_") });
 	        }
 	    }, {
 	        key: '_updatePath',
 	        value: function _updatePath(evt) {
-	            this.setState({ path: evt.target.value.replace(/ /g, "") });
+	            this.setState({ path: evt.target.value.replace(/ /g, "_") });
 	        }
 	    }, {
 	        key: '_onCancelClick',
@@ -65160,12 +65201,60 @@
 	                path: this.state.path
 	            };
 	
-	            settings.config.driver_config = this.state.driver_config;
-	            settings.config.registry_config = "config://" + this.props.registryFile;
+	            var informalName = settings.campus + "/" + settings.building + "/" + settings.unit + settings.path;
 	
-	            devicesActionCreators.saveConfig(this.props.device, settings);
+	            var config_name = "devices/" + informalName;
 	
-	            modalActionCreators.closeModal();
+	            var allowDevice = true;
+	
+	            if (!this.state.configUpdate) {
+	                var preppedPath = "";
+	
+	                if (settings.path) // If it's a subdevice ...
+	                    {
+	                        preppedPath = settings.path.indexOf("/") === 0 ? settings.path : "/" + settings.path;
+	
+	                        if (preppedPath.lastIndexOf("/") === preppedPath.length - 1) // if ends with "/", trim it
+	                            {
+	                                preppedPath = preppedPath.substring(0, preppedPath.length - 2);
+	                            }
+	
+	                        informalName = settings.campus + "/" + settings.building + "/" + settings.unit + preppedPath;
+	
+	                        config_name = "devices/" + informalName;
+	
+	                        // ... make sure the parent has been configured
+	                        var devicesList = devicesStore.getDevicesList(this.props.device.platformUuid);
+	
+	                        var index = informalName.lastIndexOf("/");
+	
+	                        var parent = informalName.substring(0, index);
+	
+	                        var parentInTree = Object.keys(devicesList).find(function (device) {
+	                            return parent === device;
+	                        });
+	
+	                        allowDevice = typeof parentInTree !== "undefined";
+	                    }
+	            }
+	
+	            if (allowDevice) {
+	                settings.config.driver_config = this.state.driver_config;
+	                settings.config.registry_config = "config://" + this.props.registryFile;
+	
+	                devicesActionCreators.saveConfig(this.props.device, this.state.configUpdate, config_name, settings);
+	
+	                if (!this.props.config) {
+	                    modalActionCreators.closeModal();
+	                }
+	            } else {
+	                var message = "Unable to add subdevice " + informalName + " because the parent " + "device hasn't been added. Add parent devices first, then subdevices.";
+	
+	                var highlight = informalName;
+	                var orientation = "center";
+	
+	                statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
+	            }
 	        }
 	    }, {
 	        key: 'render',
@@ -65295,7 +65384,7 @@
 	                                            type: 'text',
 	                                            onChange: this._updateCampus,
 	                                            value: this.state.campus,
-	                                            disabled: this.state.disableRename
+	                                            disabled: this.state.configUpdate
 	                                        })
 	                                    )
 	                                ),
@@ -65321,7 +65410,7 @@
 	                                            type: 'text',
 	                                            onChange: this._updateBuilding,
 	                                            value: this.state.building,
-	                                            disabled: this.state.disableRename
+	                                            disabled: this.state.configUpdate
 	                                        })
 	                                    )
 	                                ),
@@ -65347,7 +65436,7 @@
 	                                            type: 'text',
 	                                            onChange: this._updateUnit,
 	                                            value: this.state.unit,
-	                                            disabled: this.state.disableRename
+	                                            disabled: this.state.configUpdate
 	                                        })
 	                                    )
 	                                ),
@@ -65368,7 +65457,7 @@
 	                                            type: 'text',
 	                                            onChange: this._updatePath,
 	                                            value: this.state.path,
-	                                            disabled: this.state.disableRename
+	                                            disabled: this.state.configUpdate
 	                                        })
 	                                    )
 	                                ),
@@ -116028,4 +116117,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-cd371640e8784196c6e4.js.map
+//# sourceMappingURL=app-245f86f19a3e1e2dadaa.js.map

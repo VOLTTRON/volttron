@@ -77,6 +77,7 @@ module.exports = keyMirror({
     CANCEL_REGISTRY: null,
     SAVE_REGISTRY: null,
     SAVE_CONFIG: null,
+    UPDATE_DEVICES_LIST: null, 
 
     TOGGLE_TAPTIP: null,
     HIDE_TAPTIP: null,

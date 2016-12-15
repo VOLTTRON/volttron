@@ -1679,20 +1679,11 @@ a.view__item:hover::before {
     background-color: rgba(192,206,216,.5);
 }
 
-.already-used-point input[type="text"] {
+.already-used-point input[type="text"],
+.already-used-point label {
     font-style: italic;
     color: #7F7F7F;
 }
-
-/*.already-used-point {
-    background-color: #DCEEFD
-}*/
-
-/*.already-used-point input[type="text"] {
-    font-style: italic;
-    background-color: rgba(136, 165, 191, 0.15)
-    color: #7F7F7F;
-}*/
 
 .th-inner {
     position: absolute;
@@ -1949,4 +1940,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-cd371640e8784196c6e4.css.map*/
+/*# sourceMappingURL=app-245f86f19a3e1e2dadaa.css.map*/

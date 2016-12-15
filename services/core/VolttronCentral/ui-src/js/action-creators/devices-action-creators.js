@@ -426,7 +426,7 @@ var devicesActionCreators = {
                 else // There's not a callback function when called from
                 {       // RegistryFilesSelector component
 
-                    devicesActionCreators.unloadRegistryFiles();
+                    // devicesActionCreators.unloadRegistryFiles();
                     
                     devicesActionCreators.loadRegistry(
                         configuration.deviceId, 
@@ -475,7 +475,7 @@ var devicesActionCreators = {
             attributes: attributes
         });
     },
-    saveRegistry: function (device, fileName, values) {
+    saveRegistry: function (device, fileName, update, values) {
 
         var authorization = authorizationStore.getAuthorization();
 
@@ -494,6 +494,18 @@ var devicesActionCreators = {
         }).promise
             .then(function (result) {
 
+                var action = (update ? "updated" : "saved");
+                var highlight = fileName;
+                var message = "The registry file " + highlight + " was successfully " + action + ".";
+                var orientation = "center";
+                
+                statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
+
+                if (!update)
+                {
+                    devicesActionCreators.updateDevicesList(device.platformUuid);
+                }
+
             })
             .catch(rpc.Error, function (error) {
 
@@ -503,15 +515,9 @@ var devicesActionCreators = {
             });
         
     },
-    saveConfig: function (device, settings) {
+    saveConfig: function (device, update, config_name, settings) {
 
         var authorization = authorizationStore.getAuthorization();
-
-        var config_name =  "devices/" +
-            settings.campus + "/" + 
-            settings.building + "/" + 
-            settings.unit + 
-            (settings.path ? (settings.path.indexOf("/") === 0 ? settings.path : "/" + settings.path) : "");
 
         var config = {};
 
@@ -540,8 +546,9 @@ var devicesActionCreators = {
                     settings: settings
                 });
 
-                var highlight = device.name;
-                var message = "The configuration changes for " + highlight + " were successful.";
+                var action = (update ? "updated" : "created");
+                var highlight = config_name;
+                var message = "The device configuration was successfully " + action + " for " + highlight + ".";
                 var orientation = "center";
                 
                 statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
@@ -554,6 +561,27 @@ var devicesActionCreators = {
                 handle401(error, error.message);
             });
         
+    },
+    updateDevicesList: function (platformUuid) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platformUuid + '.get_devices',
+            authorization: authorization,
+        }).promise
+            .then(function (result) {
+                
+                
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.UPDATE_DEVICES_LIST,
+                    platformUuid: platformUuid,
+                    devices: result
+                });
+                
+            })                     
+            .catch(rpc.Error, function (error) {
+                handle401(error, "Unable to update devices list.");
+            });    
     },
 };
 

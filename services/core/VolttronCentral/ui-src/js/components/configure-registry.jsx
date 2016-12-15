@@ -253,15 +253,15 @@ class ConfigureRegistry extends BaseComponent {
     
         var state = {};
 
-        var newConfig = (this.props.registryFile ? false : true);
-        var allSelected = !newConfig;
+        state.configUpdate = (this.props.registryFile ? true : false);
+        state.allSelected = state.configUpdate;
 
         state.tableRef = "table-" + device.id + "-" + device.address;
 
         state.keyPropsList = device.keyProps;
         state.filterColumn = state.keyPropsList[0];
 
-        state.registryValues = getPointsFromStore(device, allSelected, state.keyPropsList);
+        state.registryValues = getPointsFromStore(device, state.allSelected, state.keyPropsList);
 
         state.columnNames = [];
         state.filteredList = [];
@@ -275,8 +275,6 @@ class ConfigureRegistry extends BaseComponent {
                 return column.key;
             });
         }
-
-        state.allSelected = allSelected;
 
         state.selectedCells = [];
         state.selectedCellRow = null;
@@ -949,12 +947,12 @@ class ConfigureRegistry extends BaseComponent {
 
         });
 
-        devicesActionCreators.saveRegistry(this.props.device, fileName, csvData);
+        devicesActionCreators.saveRegistry(this.props.device, fileName, this.state.configUpdate, csvData);
 
         this.setState({ registryValues: newValues });
         this.setState({ allSelected: false });
 
-        if (this.state.newConfig)
+        if (!this.state.configUpdate)
         {
             modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device} registryFile={fileName}/>);
         }

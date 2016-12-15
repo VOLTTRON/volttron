@@ -6,6 +6,7 @@ import CheckBox from './check-box';
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var devicesStore = require('../stores/devices-store');
 
 class ConfigDeviceForm extends BaseComponent {
@@ -37,7 +38,7 @@ class ConfigDeviceForm extends BaseComponent {
                 this.state.path = this.state.path + "/" + nameParts[i];
             }
 
-            this.state.disableRename = true;
+            this.state.configUpdate = true;
         }
         else
         {
@@ -55,7 +56,7 @@ class ConfigDeviceForm extends BaseComponent {
                 this.props.device.bacnetProxy
             );
 
-            this.state.disableRename = false;
+            this.state.configUpdate = false;
         }
         
     }
@@ -70,16 +71,16 @@ class ConfigDeviceForm extends BaseComponent {
         this.setState({settings: this.state.settings});
     }
     _updateCampus(evt) {
-        this.setState({campus: evt.target.value.replace(/ |\//g, "")});
+        this.setState({campus: evt.target.value.replace(/\//g, "").replace(/ /g, "_")});
     }
     _updateBuilding(evt) {
-        this.setState({building: evt.target.value.replace(/ |\//g, "")});
+        this.setState({building: evt.target.value.replace(/\//g, "").replace(/ /g, "_")});
     }
     _updateUnit(evt) {
-        this.setState({unit: evt.target.value.replace(/ |\//g, "")});
+        this.setState({unit: evt.target.value.replace(/\//g, "").replace(/ /g, "_")});
     }
     _updatePath(evt) {
-        this.setState({path: evt.target.value.replace(/ /g, "")});
+        this.setState({path: evt.target.value.replace(/ /g, "_")});
     }
     _onCancelClick(e) {
         modalActionCreators.closeModal();
@@ -96,12 +97,69 @@ class ConfigDeviceForm extends BaseComponent {
             path: this.state.path
         };
 
-        settings.config.driver_config = this.state.driver_config;
-        settings.config.registry_config = "config://" + this.props.registryFile;
-        
-        devicesActionCreators.saveConfig(this.props.device, settings);
+        var informalName = settings.campus + "/" + settings.building + "/" + 
+                            settings.unit + settings.path;
 
-        modalActionCreators.closeModal();
+        var config_name =  "devices/" + informalName;
+
+        var allowDevice = true;
+
+        if (!this.state.configUpdate) 
+        {
+            var preppedPath = "";
+
+            if (settings.path) // If it's a subdevice ...
+            {
+                preppedPath = (settings.path.indexOf("/") === 0 ? settings.path : "/" + settings.path);
+
+                if (preppedPath.lastIndexOf("/") === preppedPath.length - 1) // if ends with "/", trim it
+                {
+                    preppedPath = preppedPath.substring(0, preppedPath.length - 2);
+                }
+
+                informalName = settings.campus + "/" + settings.building + "/" + 
+                                settings.unit + preppedPath;
+
+                config_name =  "devices/" + informalName;
+
+                // ... make sure the parent has been configured
+                var devicesList = devicesStore.getDevicesList(this.props.device.platformUuid);
+
+                var index = informalName.lastIndexOf("/");
+
+                var parent = informalName.substring(0, index);
+
+                var parentInTree = Object.keys(devicesList).find(function (device) {
+                    return parent === device;
+                });
+
+                allowDevice = (typeof parentInTree !== "undefined");
+            }
+        }
+        
+        if (allowDevice)
+        {
+            settings.config.driver_config = this.state.driver_config;
+            settings.config.registry_config = "config://" + this.props.registryFile;
+            
+            devicesActionCreators.saveConfig(this.props.device, this.state.configUpdate, config_name, settings);
+
+            if (!this.props.config)
+            {
+                modalActionCreators.closeModal();
+            }
+        }
+        else
+        {
+            var message = "Unable to add subdevice " + informalName + " because the parent " +
+                "device hasn't been added. Add parent devices first, then subdevices.";
+            
+            var highlight = informalName;
+            var orientation = "center";
+
+            statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
+        }
+        
     }
     render() {   
 
@@ -191,7 +249,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             type="text"
                                             onChange={this._updateCampus}
                                             value={this.state.campus}
-                                            disabled={this.state.disableRename}
+                                            disabled={this.state.configUpdate}
                                         />
                                     </td>
                                 </tr>
@@ -207,7 +265,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             type="text"
                                             onChange={this._updateBuilding}
                                             value={this.state.building}
-                                            disabled={this.state.disableRename}
+                                            disabled={this.state.configUpdate}
                                         />
                                     </td>
                                 </tr>
@@ -223,7 +281,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             type="text"
                                             onChange={this._updateUnit}
                                             value={this.state.unit}
-                                            disabled={this.state.disableRename}
+                                            disabled={this.state.configUpdate}
                                         />
                                     </td>
                                 </tr>
@@ -236,7 +294,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             type="text"
                                             onChange={this._updatePath}
                                             value={this.state.path}
-                                            disabled={this.state.disableRename}
+                                            disabled={this.state.configUpdate}
                                         />
                                     </td>
                                 </tr>
