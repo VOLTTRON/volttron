@@ -3,7 +3,7 @@
 Driver Override Specification
 ==============================
 This document describes the specification for the global override feature.
-By default, every user is allowed write access to the devices by the master driver. The override feature will allow the user (for example, building administrator) to override this default behavior and enable the user to lock the write access on the devices for specified duration of time .
+By default, every user is allowed write access to the devices by the master driver. The override feature will allow the user (for example, building administrator) to override this default behavior and enable the user to lock the write access on the devices for a specified duration of time or indefinitely.
 
 Functional Capabilities
 -----------------------------
@@ -18,9 +18,7 @@ Functional Capabilities
 
          The pattern matching shall use bash style filename matching semantics.
 
-    * Time duration over which override behavior is applicable.
-
-    * Optional indefinite-duration flag for applying override condition indefinitely.
+    * Time duration over which override behavior is applicable. If the time duration is negative, then override condition is applied indefinitely.
 
     * Optional revert-to-fail-safe-state flag. If the flag is set, master driver shall set all the set points falling under the override condition to its default state/value immediately. This is to ensure that the devices are in fail-safe state when the override/lock feature is removed. If the flag is not set, the device state/value is untouched.
 
@@ -36,13 +34,15 @@ Functional Capabilities
 
 5. User shall be able to clear all the overrides.
 
-6. Any changes to override pattern list shall be  the config store.
+6. Any changes to override patterns list shall be stored in the config store. On startup, list of override patterns and corresponding end times are retrieved from the config store. If the end time is indefinite or greater than current time for any pattern, then override is set on the matching devices for remaining duration of time.
 
-7. Whenever a device is newly configured or removed, a check is made to see if it is part of the overridden patterns. If yes, it is added/removed from list of overridden devices.
+7. Whenever a device is newly configured, a check is made to see if it is part of the overridden patterns. If yes, it is added to list of overridden devices.
+
+8. When a device is being removed, a check is made to see if it is part of the overridden devices. If yes, it is removed from the list of overridden devices.
 
 Driver RPC Methods
 ********************
-set_override_on( pattern, duration=1.0, indefinite_duration=False, failsafe_revert=True, staggered_revert=True ) - Turn on override condition on all the devices matching the pattern. The time duration for the override condition has to be in seconds.
+set_override_on( pattern, duration=0.0, failsafe_revert=True, staggered_revert=True ) - Turn on override condition on all the devices matching the pattern. Time duration for the override condition has to be in seconds. For indefinite duration, the time duration has to be <= 0.0.
 
 set_override_off( pattern ) - Turn off override condition on all the devices matching the pattern. The specified pattern will be removed from the override patterns list. All the devices falling under the given pattern will be removed from the list of overridden devices.
 

@@ -66,9 +66,10 @@ import gevent
 from volttron.platform.jsonrpc import RemoteError
 
 TEST_AGENT = 'test-agent'
+TEST1_AGENT = 'test1-agent'
 SET_FAILURE = 0.0
 REVERT_FAILURE = 0.0
-
+master_uuid = ''
 fake_device_config = """
 {{
     "driver_config": {{}},
@@ -172,7 +173,6 @@ def test_set_override(config_store, test_agent):
         'set_override_on', # Method
         device_path, # Override Pattern
         2,  # Duration for override in secs
-        False,
         True, #Rvert to default state is required
         True #Staggered revert
     ).get(timeout=10)
@@ -223,7 +223,6 @@ def test_set_point_after_override_elapsed_interval(config_store, test_agent):
         'set_override_on', # Method
         device_path, # Override Pattern
         1,  # Duration for override in secs
-        False,
         True, #revert to default
         True #staggered revert
     ).get(timeout=10)
@@ -261,7 +260,6 @@ def test_set_hierarchical_override(config_store, test_agent):
         'set_override_on',  # Method
         device_path,  # Override Pattern
         1,  # Duration for override in secs
-        False,
         True,
         True
     ).get(timeout=10)
@@ -307,7 +305,6 @@ def test_set_override_no_revert(config_store, test_agent):
         'set_override_on',  # Method
         device_path,  # Override Pattern
         2,  # Duration for override in secs
-        False,
         False, #revert flag to False
         False
     ).get(timeout=10)
@@ -335,7 +332,6 @@ def test_set_override_off(config_store, test_agent):
         'set_override_on',  # Method
         device_path,  # Override Pattern
         60,  # Duration for override in secs
-        False,
         False, #revert flag to False
         True
     ).get(timeout=10)
@@ -498,7 +494,6 @@ def test_overlapping_override_onoff2(config_store, test_agent):
         'set_override_on',  # Method
         all_device_path,  # Override Pattern
         5,  # Duration for override in secs
-        False,
         True, #revert flag to True
         True
     ).get(timeout=10)
@@ -591,7 +586,6 @@ def test_duplicate_override_on(config_store, test_agent):
         'set_override_on',  # Method
         all_device_path,  # Override Pattern
         1,  # Duration for override in secs
-        False,
         True, #revert flag to True
         True
     ).get(timeout=10)
@@ -602,7 +596,6 @@ def test_duplicate_override_on(config_store, test_agent):
         'set_override_on',  # Method
         all_device_path,  # Override Pattern
         0.5,  # Duration for override in secs
-        False,
         True, #revert flag to True
         True
     ).get(timeout=10)
@@ -638,8 +631,7 @@ def test_indefinite_override_on(config_store, test_agent):
         PLATFORM_DRIVER,  # Target agent
         'set_override_on',  # Method
         device_path,  # Override Pattern
-        1,  # Duration for override in secs
-        True,
+        -1,  # Indefinite override
         False, #revert flag to True
         False
     ).get(timeout=10)
@@ -650,7 +642,6 @@ def test_indefinite_override_on(config_store, test_agent):
         'set_override_on',  # Method
         device_path,  # Override Pattern
         0.5,  # Duration for override in secs
-        False,
         True, #revert flag to True
         True
     ).get(timeout=10)
@@ -673,3 +664,59 @@ def test_indefinite_override_on(config_store, test_agent):
         assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             device_path)
+    result = test_agent.vip.rpc.call(
+        PLATFORM_DRIVER,  # Target agent
+        'clear_overrides'  # Method
+    ).get(timeout=10)
+
+@pytest.mark.driver
+def test_indefinite_override_after_restart(config_store, test_agent, volttron_instance1):
+    for i in xrange(4):
+        config_name = "devices/fakedriver{}".format(i)
+        setup_config(config_store, config_name, fake_device_config)
+    device_path = 'fakedriver2'
+
+    # Set override feature on device
+    test_agent.vip.rpc.call(
+        PLATFORM_DRIVER,  # Target agent
+        'set_override_on',  # Method
+        device_path,  # Override Pattern
+        0.0,  # Indefinite override
+        False,  # revert flag to True
+        False
+    ).get(timeout=10)
+
+    # Give it enough time to set indefinite override.
+    gevent.sleep(0.5)
+    global master_uuid
+    volttron_instance1.stop_agent(master_uuid)
+    volttron_instance1.remove_agent(master_uuid)
+    gevent.sleep(1)
+    # Start the master driver agent which would in turn start the fake driver
+    #  using the configs created above
+    master_uuid = volttron_instance1.install_agent(
+        agent_dir="services/core/MasterDriverAgent",
+        config_file={},
+        start=True)
+    gevent.sleep(1)  # wait for the agent to start and start the devices
+
+    point = 'SampleWritableFloat1'
+    new_value = 65.5
+    try:
+        #Try to set a point on fakedriver1
+        result = test_agent.vip.rpc.call(
+            PLATFORM_DRIVER,  # Target agent
+            'set_point', # Method
+            device_path, #device path
+            point,
+            new_value
+        ).get(timeout=10)
+        pytest.fail("Expecting Override Error. Code returned : {}".format(result))
+    except RemoteError as e:
+        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.message == 'Cannot set point on device {} since global override is set'.format(
+            device_path)
+    result = test_agent.vip.rpc.call(
+        PLATFORM_DRIVER,  # Target agent
+        'clear_overrides'  # Method
+    ).get(timeout=10)
