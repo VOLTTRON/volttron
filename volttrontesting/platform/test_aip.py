@@ -41,7 +41,6 @@ def aip(request):
     # 'volttron_central_address': volttron_central_address,
     # 'volttron_central_serverkey': volttron_central_serverkey,
     # 'platform_name': None,
-    # 'developer_mode': not encrypt,
     # 'log': os.path.join(self.volttron_home, 'volttron.log'),
     # 'log_config': None,
     # 'monitor': True,

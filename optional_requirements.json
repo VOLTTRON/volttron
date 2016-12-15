@@ -14,5 +14,9 @@
     "--testing": {
         "help": "Installs testing infrastructure dependencies",
         "packages": ["pytest>=2.8,<3", "pytest-bdd>=2.14,<3"]
+    },
+    "--logstat": {
+        "help": "Installs requirement for log statistics",
+        "packages": ["statistics"]
     }
 }

@@ -127,7 +127,7 @@ class TimeSlice(object):
 class Task(object):
     STATE_PRE_RUN = 'PRE_RUN'
     STATE_RUNNING = 'RUNNING'
-    STATE_PREEMTED = 'PREEMPTED'
+    STATE_PREEMPTED = 'PREEMPTED'
     STATE_FINISHED = 'FINISHED'
 
     def __init__(self, agent_id, priority, requests):
@@ -167,7 +167,7 @@ class Task(object):
                 del self.devices[device]
 
         if self.time_slice.contains_include_start(now):
-            if self.state != Task.STATE_PREEMTED:
+            if self.state != Task.STATE_PREEMPTED:
                 self.change_state(Task.STATE_RUNNING)
 
         elif self.time_slice > TimeSlice(now):
@@ -211,7 +211,7 @@ class Task(object):
     def preempt(self, grace_time, now):
         """Return true if there are time slots that have a grace period left"""
         self.make_current(now)
-        if self.state == Task.STATE_PREEMTED:
+        if self.state == Task.STATE_PREEMPTED:
             return True
         if self.state == Task.STATE_FINISHED:
             return False
@@ -223,9 +223,9 @@ class Task(object):
 
         self.change_state(
             Task.STATE_FINISHED if not current_time_slots else
-            Task.STATE_PREEMTED)
+            Task.STATE_PREEMPTED)
 
-        if self.state == Task.STATE_PREEMTED:
+        if self.state == Task.STATE_PREEMPTED:
             self.time_slice = TimeSlice(now, now + grace_time)
             return True
 
@@ -331,7 +331,7 @@ class ScheduleManager(object):
     def __init__(self, grace_time, now=None, save_state_callback=None, initial_state_string=None):
         self.tasks = {}
         self.running_tasks = set()
-        self.preemted_tasks = set()
+        self.preempted_tasks = set()
         self.set_grace_period(grace_time)
         self.save_state_callback = save_state_callback
         if now is None:
@@ -403,7 +403,7 @@ class ScheduleManager(object):
                                      ex))
 
         conflicts = defaultdict(dict)
-        preemted_tasks = set()
+        preempted_tasks = set()
 
         for task_id, task in self.tasks.iteritems():
             conflict_list = new_task.get_conflicts(task)
@@ -412,7 +412,7 @@ class ScheduleManager(object):
                 if not new_task.check_can_preempt_other(task):
                     conflicts[agent_id][task_id] = conflict_list
                 else:
-                    preemted_tasks.add((agent_id, task_id))
+                    preempted_tasks.add((agent_id, task_id))
 
         if conflicts:
             return RequestResult(False, conflicts,
@@ -423,13 +423,13 @@ class ScheduleManager(object):
         # and the request will succeed.
         self.tasks[id_] = new_task
 
-        for _, task_id in preemted_tasks:
+        for _, task_id in preempted_tasks:
             task = self.tasks[task_id]
             task.preempt(self.grace_time, now)
 
         self.save_state(now)
 
-        return RequestResult(True, preemted_tasks, '')
+        return RequestResult(True, preempted_tasks, '')
 
     def cancel_task(self, agent_id, task_id, now):
         if task_id not in self.tasks:
@@ -455,16 +455,16 @@ class ScheduleManager(object):
             agent_id = task.agent_id
             current_task_slots = task.get_current_slots(now)
             _log.debug("current_task_slots {}".format(current_task_slots))
-            for device, time_slot in current_task_slots.items():
+            for device, time_slot in current_task_slots.iteritems():
                 assert (device not in running_results)
                 running_results[device] = DeviceState(agent_id, task_id, (
                     time_slot.end - now).total_seconds())
 
-        for task_id in self.preemted_tasks:
+        for task_id in self.preempted_tasks:
             task = self.tasks[task_id]
             agent_id = task.agent_id
             current_task_slots = task.get_current_slots(now)
-            for device, time_slot in current_task_slots.items():
+            for device, time_slot in current_task_slots.iteritems():
                 assert (device not in preempted_results)
                 preempted_results[device] = DeviceState(agent_id, task_id, (
                     time_slot.end - now).total_seconds())
@@ -473,7 +473,7 @@ class ScheduleManager(object):
         return running_results
 
     def get_next_event_time(self, now):
-        task_times = (x.get_next_event_time(now) for x in self.tasks.values())
+        task_times = (x.get_next_event_time(now) for x in self.tasks.itervalues())
         events = [x for x in task_times if x is not None]
 
         if events:
@@ -492,7 +492,7 @@ class ScheduleManager(object):
 
         # Reset the running tasks.
         self.running_tasks = set()
-        self.preemted_tasks = set()
+        self.preempted_tasks = set()
 
         for task_id in self.tasks.keys():
             task = self.tasks[task_id]
@@ -503,8 +503,8 @@ class ScheduleManager(object):
             elif task.state == Task.STATE_RUNNING:
                 self.running_tasks.add(task_id)
 
-            elif task.state == Task.STATE_PREEMTED:
-                self.preemted_tasks.add(task_id)
+            elif task.state == Task.STATE_PREEMPTED:
+                self.preempted_tasks.add(task_id)
 
     def __repr__(self):
         pass

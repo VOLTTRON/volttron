@@ -1,0 +1,1 @@
+suds-jurko==0.6

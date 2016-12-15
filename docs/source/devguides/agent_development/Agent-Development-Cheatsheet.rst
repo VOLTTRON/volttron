@@ -1,6 +1,5 @@
 .. _Agent-Development-Cheatsheet:
 
-=============================
 Agent Development Cheat Sheet
 =============================
 
