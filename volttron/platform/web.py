@@ -62,6 +62,7 @@ import re
 import requests
 import sys
 from urlparse import urlparse, urljoin
+import traceback
 
 from gevent import pywsgi
 import mimetypes
@@ -252,7 +253,7 @@ class MasterWebService(Agent):
 
     @RPC.export
     def register_path_route(self, peer, regex, root_dir):
-        _log.info('Registiering path route: {}'.format(root_dir))
+        _log.info('Registering path route: {} to peer {}'.format(root_dir,peer))
         compiled = re.compile(regex)
         self.pathroutes[peer].append(compiled)
         self.registeredroutes.append((compiled, 'path', root_dir))
@@ -407,6 +408,7 @@ class MasterWebService(Agent):
 
         _log.info('Starting web server binding to {}:{}.' \
                    .format(hostname, port))
+        _log.info(traceback.format_stack())
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
                                       self._get_discovery))
         self.registeredroutes.append((re.compile('^/discovery/allow$'),
@@ -418,7 +420,7 @@ class MasterWebService(Agent):
         vhome = os.environ.get('VOLTTRON_HOME')
         logdir = os.path.join(vhome, "log")
         if not os.path.exists(logdir):
-            os.makedirs(logdir)
+            os.makedirs(logdir)        
         with open(os.path.join(logdir, 'web.access.log'), 'wb') as accesslog:
             with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
                 server = pywsgi.WSGIServer((hostname, port), self.app_routing,

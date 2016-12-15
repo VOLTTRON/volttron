@@ -6,6 +6,8 @@ var del = require('del');
 var fs = require('fs');
 var gulp = require('gulp');
 var inject = require('gulp-inject');
+var inject_str = require('gulp-inject-string');
+var header = require('gulp-header');
 var rev = require('gulp-rev');
 var source = require('vinyl-source-stream');
 var through2 = require('through2');
@@ -26,11 +28,13 @@ gulp.task('watch', ['build'], watch);
 gulp.task('vendor', ['clean-vendor'], vendor);
 
 function cleanApp (callback) {
-    del(BUILD_DIR + APP_GLOB, callback);
+        del(BUILD_DIR + APP_GLOB, callback);
+    //console.log("skippoing CleanApp");
 }
 
 function cleanVendor(callback) {
-    del(BUILD_DIR + VENDOR_GLOB, callback);
+  del(BUILD_DIR + VENDOR_GLOB, callback);
+  //  console.log("skippoing CleanVendor");
 }
 
 function css() {
@@ -114,6 +118,9 @@ function vendor() {
         .pipe(source('vendor.js'))
         .pipe(buffer())
         .pipe(rev())
+    // temporary bugfix. 
+	.pipe(inject_str.after('var IGNORE_CLASS = \'ignore-react-onclickoutside\';','var React = require(\'react\');\n'))
+//	.pipe(inject_str.after('var asn1 = exports;','var React = require(\'react\');\n'))
         .pipe(gulp.dest(BUILD_DIR + 'js'));
 }
 

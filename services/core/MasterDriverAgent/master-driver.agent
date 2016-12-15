@@ -1,8 +1,7 @@
 {
     "agentid": "master_driver",
     "driver_config_list": [
-    					   #"/home/kyle/workspaces/volttron/services/core/MasterDriverAgent/master_driver/test_bacnet1.config"
-    					   #"/home/kyle/workspaces/volttron/services/core/MasterDriverAgent/master_driver/test_bacnet2.config",
-    					   "/home/kyle/workspaces/volttron/services/core/MasterDriverAgent/master_driver/test_modbus1.config"
+    	"/home/volttron/volttron/services/core/MasterDriverAgent/master_driver/modbus1.config",
+    	"/home/volttron/volttron/services/core/MasterDriverAgent/master_driver/modbus2.config"
     					  ]
 }

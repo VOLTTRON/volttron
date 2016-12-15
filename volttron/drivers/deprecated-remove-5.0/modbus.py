@@ -179,10 +179,16 @@ class ModbusByteRegister(ModbusRegisterBase):
         return self.parse_struct.unpack(target_bytes)[0]
     
     def get_state_callback(self, response):
+        """
+        """
         if response is None:
             raise ModbusInterfaceException("pymodbus returned None")
+        #
+        #print ("GSC",response,dir(response),response.registers)
         response_bytes = response.encode()
-        #skip the result count
+        print response_bytes
+        ####
+        #[line[i:i+n] for i in range(0, len(line), n)]
         return self.parse_struct.unpack(response_bytes[1:])[0]
     
     def get_state_async(self, client):
@@ -198,14 +204,18 @@ class ModbusByteRegister(ModbusRegisterBase):
             response = client.read_input_registers(self.address, count=self.get_register_count(), unit=self.slave_id)
         else:
             response = client.read_holding_registers(self.address, count=self.get_register_count(), unit=self.slave_id)
-            
+        #print ("GSS",response,len(response))
         return self.get_state_callback(response)
     
     def set_state_sync(self, client, value):
-        if not self.read_only:   
+        if not self.read_only:
             value_bytes = self.parse_struct.pack(value)
-            register_values = PYMODBUS_REGISTER_STRUCT.unpack_from(value_bytes)
+            n=2
+            paired = [value_bytes[i:i+n] for i in range(0, len(value_bytes), n)]
+            register_values = [ PYMODBUS_REGISTER_STRUCT.unpack_from(pair)[0]
+                                for pair in paired]
             client.write_registers(self.address, register_values, unit=self.slave_id)
+            #print ("WRITTEN")
             return self.get_state_sync(client)
         return None
     
@@ -378,7 +388,7 @@ class ModbusInterface(BaseInterface):
             
             for regDef in configDict:
                 #Skip lines that have no address yet.
-                if not regDef['Point Name']:
+                if not regDef['Volttron Point Name']:
                     continue
                 
                 io_type = regDef['Modbus Register']

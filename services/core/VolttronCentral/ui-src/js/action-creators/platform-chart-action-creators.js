@@ -32,6 +32,13 @@ var platformChartActionCreators = {
             chartKey: chartKey
         });
     },
+    changeDataLength: function (length, chartKey) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHANGE_CHART_LENGTH,
+	    length: length,
+            chartKey: chartKey
+        });
+    },
     setMin: function (min, chartKey) {
         dispatcher.dispatch({
             type: ACTION_TYPES.CHANGE_CHART_MIN,
@@ -46,16 +53,16 @@ var platformChartActionCreators = {
             chartKey: chartKey
         });
     },
-	refreshChart: function (series) {
+    refreshChart: function (series, length) {
 
 		var authorization = authorizationStore.getAuthorization();
 
 		series.forEach(function (item) {            
             new rpc.Exchange({
                 method: 'historian.query',
-                params: {
+                params: { // TODO
                     topic: item.topic,
-                    count: 20,
+                    count: (length > 0 ? length: 20 ),
                     order: 'LAST_TO_FIRST',
                 },
                 authorization: authorization,
@@ -93,9 +100,9 @@ var platformChartActionCreators = {
 
         new rpc.Exchange({
             method: 'historian.query',
-            params: {
+            params: { // TODO
                 topic: panelItem.topic,
-                count: 20,
+                count: (length > 0? length:20),
                 order: 'LAST_TO_FIRST',
             },
             authorization: authorization,

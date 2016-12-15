@@ -22,7 +22,7 @@ var PlatformChart = React.createClass({
 
         state.refreshInterval = this.props.chart.refreshInterval;
         state.pinned = this.props.chart.pinned;
-
+	state.dataLength = this.props.chart.dataLength;
         state.refreshing = false;
 
         return state;
@@ -59,9 +59,10 @@ var PlatformChart = React.createClass({
         if (this.props.hasOwnProperty("chart"))
         {
             this.setState({refreshing: true});
-
+	    console.log(this.state.dataLength);
             platformChartActionCreators.refreshChart(
-                this.props.chart.series
+                this.props.chart.series,
+		this.props.chart.dataLength
             );
 
             if (this.state.refreshInterval) {
@@ -152,6 +153,7 @@ var PlatformChart = React.createClass({
                                         name={this.props.chartKey}
                                         hideControls={this.props.hideControls}
                                         refreshInterval={this.props.chart.refreshInterval}
+                                        dataLength={this.props.chart.dataLength}
                                         max={chartData.max}
                                         min={chartData.min}
                                         pinned={this.props.chart.pinned}
@@ -191,6 +193,7 @@ var GraphLineChart = React.createClass({
       state.showTaptip = false;
       state.taptipX = 0;
       state.taptipY = 0;
+      state.dataLength = 20;
       state.min = (this.props.min ? this.props.min : d3.min(this.props.data, function (d) {return d["1"]}));
       state.max = (this.props.max ? this.props.max : d3.max(this.props.data, function (d) {return d["1"]}));
 
@@ -271,6 +274,14 @@ var GraphLineChart = React.createClass({
   },
   _onRefreshChange: function (e) {
       platformChartActionCreators.changeRefreshRate(e.target.value, this.props.name);
+
+      if (this.state.pinned)
+      {
+          platformActionCreators.saveCharts();
+      }
+  },
+  _onLengthChange: function (e) {
+      platformChartActionCreators.changeDataLength(e.target.value, this.props.name);
 
       if (this.state.pinned)
       {
@@ -410,6 +421,22 @@ var GraphLineChart = React.createClass({
                 </span>
             </div>
         );
+        var lengthChart = (
+            <div>
+                <input
+                    type="number"
+                    onChange={this._onLengthChange}
+                    value={this.props.dataLength}
+                    min="1"
+                    step="1"
+                    placeholder="disabled"
+                /> (ms)
+                <br/>
+                <span>
+                    Omit to disable
+                </span>
+            </div>
+        );
 
         var refreshChartTaptip = { 
             "title": "Refresh Rate", 
@@ -419,6 +446,9 @@ var GraphLineChart = React.createClass({
         };
         var refreshChartIcon = (
             <i className="fa fa-hourglass"></i>
+        );
+        var lengthIcon = (
+            <i className="fa fa-arrows-h"></i>
         );
         var refreshChartTooltip = {
             "content": "Refresh Rate",
@@ -433,6 +463,28 @@ var GraphLineChart = React.createClass({
                 tooltip={refreshChartTooltip}
                 icon={refreshChartIcon}></ControlButton>
         );
+
+        var dataLengthTaptip = { 
+            "title": "Data Length", 
+            "content": lengthChart,
+            "x": taptipX,
+            "y": taptipY
+        };
+
+	var dataLengthTooltip = { 
+	"content": "Data Length",
+            "x": tooltipX,
+            "y": tooltipY
+	};	
+
+	var dataLengthButton = ( 
+	<ControlButton
+		name={this.state.chartName + "_dataLengthButton"}
+		taptip={dataLengthTaptip}
+		tooltip={dataLengthTooltip}
+		icon={lengthIcon}></ControlButton>
+
+	);
 
         var chartMin = (
             <div>
@@ -523,6 +575,7 @@ var GraphLineChart = React.createClass({
                 {pinChartControlButton}
                 {chartTypeControlButton}
                 {refreshChartControlButton}
+                {dataLengthButton}
                 {chartMinControlButton}
                 {chartMaxControlButton}
                 <div className="inlineBlock"
