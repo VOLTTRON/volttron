@@ -331,7 +331,7 @@ var devicesActionCreators = {
             })
             .catch(rpc.Error, function (error) {
 
-                error.message = "Unable to retrieve configuration file: " + deviceConfig + ". " + error.message + ".";
+                error.message = "Unable to retrieve configuration file: " + configFile + ". " + error.message + ".";
 
                 handle401(error, error.message);
             });
@@ -425,8 +425,6 @@ var devicesActionCreators = {
                 }
                 else // There's not a callback function when called from
                 {       // RegistryFilesSelector component
-
-                    // devicesActionCreators.unloadRegistryFiles();
                     
                     devicesActionCreators.loadRegistry(
                         configuration.deviceId, 

@@ -132,7 +132,7 @@ class ReconfigureDevice extends BaseComponent {
                 deviceConfig = (
                     <ConfigDeviceForm device={this.state.device}
                         config={this.state.configuration} 
-                        registryFile={this.state.configuration.deviceConfig}/>
+                        registryFile={this.state.configuration.registryFile}/>
                 );
             }
         }

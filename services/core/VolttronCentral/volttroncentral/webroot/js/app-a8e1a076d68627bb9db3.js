@@ -57589,7 +57589,7 @@
 	            callback(platformUuid, agentDriver, deviceName, configFile, result);
 	        }).catch(rpc.Error, function (error) {
 	
-	            error.message = "Unable to retrieve configuration file: " + deviceConfig + ". " + error.message + ".";
+	            error.message = "Unable to retrieve configuration file: " + configFile + ". " + error.message + ".";
 	
 	            handle401(error, error.message);
 	        });
@@ -57670,8 +57670,6 @@
 	            } else // There's not a callback function when called from
 	                {
 	                    // RegistryFilesSelector component
-	
-	                    // devicesActionCreators.unloadRegistryFiles();
 	
 	                    devicesActionCreators.loadRegistry(configuration.deviceId, configuration.deviceAddress, csvData.data, configuration.registryFile);
 	                }
@@ -74641,7 +74639,7 @@
 	                } else {
 	                    deviceConfig = _react2.default.createElement(_configDeviceForm2.default, { device: this.state.device,
 	                        config: this.state.configuration,
-	                        registryFile: this.state.configuration.deviceConfig });
+	                        registryFile: this.state.configuration.registryFile });
 	                }
 	            } else {
 	                defaultMessage = _react2.default.createElement(
@@ -116117,4 +116115,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-245f86f19a3e1e2dadaa.js.map
+//# sourceMappingURL=app-a8e1a076d68627bb9db3.js.map
