@@ -141,7 +141,7 @@ def test_primary_on_secondary_crash(simple_failover):
     gevent.sleep(SLEEP_TIME)
     assert all_agents_running(primary)
 
-    secondary.startup_platform(secondary.vip_address, encrypt=secondary.encrypt)
+    secondary.startup_platform(secondary.vip_address)
     secondary.start_agent(uuid_secondary)
 
     gevent.sleep(SLEEP_TIME)
@@ -159,7 +159,7 @@ def test_secondary_on_primary_crash(simple_failover):
     gevent.sleep(SLEEP_TIME)
     assert all_agents_running(secondary)
 
-    primary.startup_platform(primary.vip_address, encrypt=primary.encrypt)
+    primary.startup_platform(primary.vip_address)
 
     # primary.startup_platform(vip_address, **args)
     primary.start_agent(uuid_primary)

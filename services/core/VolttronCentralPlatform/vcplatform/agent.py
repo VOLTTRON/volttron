@@ -221,14 +221,14 @@ class VolttronCentralPlatform(Agent):
         vc_serverkey = q.query('volttron-central-serverkey').get(timeout=5)
         instance_name = q.query('instance-name').get(timeout=5)
         bind_web_address = q.query('bind-web-address').get(timeout=5)
-        instance_id = hashlib.md5(external_addresses[0]).hexdigest()
+        address_hash = hashlib.md5(external_addresses[0]).hexdigest()
 
         updates = dict(
             bind_web_address=bind_web_address,
             volttron_central_address=vc_address,
             volttron_central_serverkey=vc_serverkey,
             instance_name=instance_name,
-            instance_id=instance_id,
+            address_hash=address_hash,
             local_serverkey=local_serverkey,
             local_external_addresses=external_addresses
         )
@@ -596,7 +596,10 @@ class VolttronCentralPlatform(Agent):
     @RPC.export
     @RPC.allow("manager")
     def get_instance_uuid(self):
-        return self.current_config.get('instance_id')
+        _log.debug('ADDRESS HASH for {} is {}'.format(
+            self.current_config.get('local_external_addresses')[0],
+            self.current_config.get("address_hash")))
+        return self.current_config.get('address_hash')
 
     @RPC.export
     @RPC.allow("manager")

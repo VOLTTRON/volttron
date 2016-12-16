@@ -465,7 +465,9 @@ class PlatformHandler(object):
                 self._raise_event("MANAGED", data=dict(
                     address=self._address,
                     address_hash=self._address_hash))
-
+                status = self._connection.call('health.get_status')
+                status.pop('last_updated', None)
+                self._health = Status.build(**status)
         except gevent.Timeout:
             self._log.error(
                 'RPC call to manage did not return in a timely manner.')
@@ -688,7 +690,7 @@ class PlatformHandler(object):
                     self._manage()
 
                 if self._last_time_verified_connection:
-                    self._health.update_status(GOOD_STATUS,
+                    self._health.status_update(GOOD_STATUS,
                                                "Connected to platform.")
                 self._last_time_verified_connection = get_utc_seconds_from_epoch()
                 self._log.debug('platform.agent is connected to remote instance')

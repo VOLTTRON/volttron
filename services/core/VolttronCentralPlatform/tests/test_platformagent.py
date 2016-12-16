@@ -3,6 +3,7 @@ import os
 import tempfile
 import uuid
 
+import gevent
 import pytest
 import requests
 from volttron.platform.agent.known_identities import (
@@ -10,6 +11,7 @@ from volttron.platform.agent.known_identities import (
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.keystore import KeyStore
 from volttron.platform.messaging.health import STATUS_GOOD
+from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.web import DiscoveryInfo
 from volttrontesting.utils.core_service_installs import \
@@ -89,7 +91,14 @@ def contains_keys(keylist, lookup):
     return False
 
 
-@pytest.fixture(scope="module", params=['volttron.central', 'simulated.vc'])
+class SimulatedVC(Agent):
+    def __init__(self, **kwargs):
+        super(SimulatedVC, self).__init__(**kwargs)
+        self._functioncalls = {}
+    def add_method_response(self, method_name, response):
+        pass
+
+@pytest.fixture(scope="module")
 def vcp_simulated_vc(request):
     """
     This method yields a platform wrapper with a vcp installed and an agent
@@ -103,8 +112,9 @@ def vcp_simulated_vc(request):
     start_wrapper_platform(p, with_tcp=True)
     vcp_uuid = add_volttron_central_platform(p)
 
+    # Build a connection to the just installed vcp agent.
     vc_simulated_agent = p.build_connection("platform.agent",
-                                            identity=request.param)
+                                            identity="volttron.central")
     p.add_capabilities(vc_simulated_agent.server.core.publickey, "manager")
 
     yield p, vc_simulated_agent
@@ -146,14 +156,12 @@ def test_get_health(vcp_simulated_vc):
 
 
 @pytest.mark.pa
-def test_listagents(pa_instance):
+def test_listagents(vcp_simulated_vc):
     try:
-        wrapper, agent_uuid = pa_instance
+        wrapper, vc = vcp_simulated_vc
 
         os.environ['VOLTTRON_HOME'] = wrapper.volttron_home
-        agent = Connection(wrapper.local_vip_address, VOLTTRON_CENTRAL_PLATFORM)
-        params = dict(id='foo', method='list_agents')
-        agent_list = agent.call(
+        agent_list = vc.call(
             'route_request', 'foo', 'list_agents', None)
         assert 1 <= len(agent_list)
         expected_keys = ['name', 'uuid', 'tag', 'priority', 'process_id', 'health',
