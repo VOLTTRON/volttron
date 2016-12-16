@@ -18,6 +18,10 @@ class WsPubSub{
     //     this.session = session_key
     // }
 
+    // TODO this works but it sucks.  The WsPub doesn't get elevated to global on the
+    // page so that when a socket event is happening it is almost like a new scope is
+    // added.  Perhaps we need to use window.WSPubsub somewhere to make it global?
+
     subscribe(topic, onmessage){
 
         let self = this;
@@ -30,7 +34,10 @@ class WsPubSub{
         // if (topic in this.subscriptions) {
         //
         // }
+//        if (!this.websockets.hasOwnProperty(topic)){
         if (!this.websockets.hasOwnProperty(topic)){
+            this.websockets[topic] = new Set();
+        }
 
             if (window.WebSocket) {
                 ws = new WebSocket(wspath);
@@ -39,7 +46,7 @@ class WsPubSub{
                 ws = MozWebSocket(wspath);
             }
 
-            self.websockets[topic] = ws;
+            self.websockets[topic].add(ws);
 
             ws.onerror = function(evt) {
                 console.log("ERROR: ");
@@ -70,6 +77,8 @@ class WsPubSub{
 
             ws.onclose = function (evt)
             {
+
+                self.websockets.delete(this);
                 var topic = this;
 
                 if(self.subscriptions.hasOwnProperty(topic)){
@@ -78,8 +87,8 @@ class WsPubSub{
                     }, topic);
                 }
                 delete self.websockets[topic];
-            }.bind(topic)
-        }
+            }.bind(ws)
+  //      }
 
         if (!self.subscriptions.hasOwnProperty(topic)){
             self.subscriptions[topic] = new Set();
@@ -96,9 +105,13 @@ class WsPubSub{
             });
         }
 
-        let self = this;
+        this.websockets[topic].forEach(function(ws){
+            console.log('Closing sockets')
+            ws.close();
+        });
 
-        self.websockets[topic].close();
+        delete this.websockets[topic];
+
     }
     //
     // publish(topic, message) {
@@ -106,4 +119,6 @@ class WsPubSub{
     // }
 }
 
-export let pubsub = new WsPubSub(); //let pubsub =  new WsPubSub(ws_root);
+let ws = new WsPubSub();
+
+export let pubsub = ws; //let pubsub =  new WsPubSub(ws_root);

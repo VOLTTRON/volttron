@@ -1577,8 +1577,11 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                         if (pointData.status === "COMPLETE")
                         {
                             device.configuring = false;
-                            console.log("points complete");
 
+                            console.log("points complete");
+                            console.log(pointData.device_id);
+                            console.log(pointData.address);
+                            console.log(device);
                             setBackupPoints(device);
                         }
                     }
