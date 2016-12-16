@@ -47,17 +47,20 @@ class ConfigureDevices extends BaseComponent {
     }
     _onDevicesStoresChange() {
 
-        if (devicesStore.getNewScan())
+        if (this.refs["config-device-ref"])
         {
-            this.setState(getInitialState());
-        }
-        else 
-        {
-            this.setState({devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyIdentity)});
-
-            if (devicesStore.getScanningComplete() && this.state.scanning)
+            if (devicesStore.getNewScan())
             {
-                this._cancelScan();
+                this.setState(getInitialState());
+            }
+            else 
+            {
+                this.setState({devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyIdentity)});
+
+                if (devicesStore.getScanningComplete() && this.state.scanning)
+                {
+                    this._cancelScan();
+                }
             }
         }
     }
@@ -424,7 +427,8 @@ class ConfigureDevices extends BaseComponent {
 
         
         return (  
-            <div className="view">   
+            <div className="view"
+                ref="config-device-ref">   
                 <h2>Install Devices</h2>      
                 {deviceContent} 
                 {defaultMessage} 

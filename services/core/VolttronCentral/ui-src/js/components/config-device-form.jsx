@@ -6,6 +6,7 @@ import CheckBox from './check-box';
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var devicesStore = require('../stores/devices-store');
 
 class ConfigDeviceForm extends BaseComponent {
@@ -14,17 +15,50 @@ class ConfigDeviceForm extends BaseComponent {
         this._bind("_updateSetting", "_checkItem", "_updateCampus", "_updateBuilding",
             "_updateUnit", "_updatePath", "_onSubmit");
 
-        var settingsTemplate = devicesStore.getSettingsTemplate();
+        this.state = {};
+    
+        if (this.props.config)
+        {
+            this.state.settings = initializeSettings(this.props.config.driver_type, this.props.config);
+            this.state.driver_config = initializeDriverConfig(
+                this.props.config.driver_config.device_address, 
+                this.props.config.driver_config.device_id,
+                this.props.config.driver_config.proxy_address
+            );
 
-        this.state = {
-            campus: (settingsTemplate ? settingsTemplate.campus : ""),
-            building: (settingsTemplate ? settingsTemplate.building : ""),
-            unit: "",
-            path: ""
-        };
+            var nameParts = this.props.device.name.split("/");
 
-        this.state.settings = initializeSettings(this.props.device.type, settingsTemplate);
-        this.state.driver_config = initializeDriverConfig(this.props.device);
+            this.state.campus = nameParts[0];
+            this.state.building = nameParts[1];
+            this.state.unit = nameParts[2];
+            this.state.path = "";
+
+            for (var i = 3; i < nameParts.length; i++)
+            {
+                this.state.path = this.state.path + "/" + nameParts[i];
+            }
+
+            this.state.configUpdate = true;
+        }
+        else
+        {
+            var settingsTemplate = devicesStore.getSettingsTemplate();
+
+            this.state.campus = (settingsTemplate ? settingsTemplate.campus : "");
+            this.state.building = (settingsTemplate ? settingsTemplate.building : "");
+            this.state.unit = "";
+            this.state.path = "";
+
+            this.state.settings = initializeSettings(this.props.device.type, null, settingsTemplate);
+            this.state.driver_config = initializeDriverConfig(
+                this.props.device.address, 
+                this.props.device.id, 
+                this.props.device.bacnetProxy
+            );
+
+            this.state.configUpdate = false;
+        }
+        
     }
     _updateSetting(evt) {
         var key = evt.currentTarget.dataset.setting;
@@ -37,16 +71,16 @@ class ConfigDeviceForm extends BaseComponent {
         this.setState({settings: this.state.settings});
     }
     _updateCampus(evt) {
-        this.setState({campus: evt.target.value.replace(/ |\/|_/g, "")});
+        this.setState({campus: evt.target.value.replace(/\//g, "").replace(/ /g, "_")});
     }
     _updateBuilding(evt) {
-        this.setState({building: evt.target.value.replace(/ |\/|_/g, "")});
+        this.setState({building: evt.target.value.replace(/\//g, "").replace(/ /g, "_")});
     }
     _updateUnit(evt) {
-        this.setState({unit: evt.target.value.replace(/ |\/|_/g, "")});
+        this.setState({unit: evt.target.value.replace(/\//g, "").replace(/ /g, "_")});
     }
     _updatePath(evt) {
-        this.setState({path: evt.target.value.replace(/ |_/g, "")});
+        this.setState({path: evt.target.value.replace(/ /g, "_")});
     }
     _onCancelClick(e) {
         modalActionCreators.closeModal();
@@ -63,12 +97,69 @@ class ConfigDeviceForm extends BaseComponent {
             path: this.state.path
         };
 
-        settings.config.driver_config = this.state.driver_config;
-        settings.config.registry_config = "config://" + this.props.registryFile;
-        
-        devicesActionCreators.saveConfig(this.props.device, settings);
+        var informalName = settings.campus + "/" + settings.building + "/" + 
+                            settings.unit + settings.path;
 
-        modalActionCreators.closeModal();
+        var config_name =  "devices/" + informalName;
+
+        var allowDevice = true;
+
+        if (!this.state.configUpdate) 
+        {
+            var preppedPath = "";
+
+            if (settings.path) // If it's a subdevice ...
+            {
+                preppedPath = (settings.path.indexOf("/") === 0 ? settings.path : "/" + settings.path);
+
+                if (preppedPath.lastIndexOf("/") === preppedPath.length - 1) // if ends with "/", trim it
+                {
+                    preppedPath = preppedPath.substring(0, preppedPath.length - 2);
+                }
+
+                informalName = settings.campus + "/" + settings.building + "/" + 
+                                settings.unit + preppedPath;
+
+                config_name =  "devices/" + informalName;
+
+                // ... make sure the parent has been configured
+                var devicesList = devicesStore.getDevicesList(this.props.device.platformUuid);
+
+                var index = informalName.lastIndexOf("/");
+
+                var parent = informalName.substring(0, index);
+
+                var parentInTree = Object.keys(devicesList).find(function (device) {
+                    return parent === device;
+                });
+
+                allowDevice = (typeof parentInTree !== "undefined");
+            }
+        }
+        
+        if (allowDevice)
+        {
+            settings.config.driver_config = this.state.driver_config;
+            settings.config.registry_config = "config://" + this.props.registryFile;
+            
+            devicesActionCreators.saveConfig(this.props.device, this.state.configUpdate, config_name, settings);
+
+            if (!this.props.config)
+            {
+                modalActionCreators.closeModal();
+            }
+        }
+        else
+        {
+            var message = "Unable to add subdevice " + informalName + " because the parent " +
+                "device hasn't been added. Add parent devices first, then subdevices.";
+            
+            var highlight = informalName;
+            var orientation = "center";
+
+            statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
+        }
+        
     }
     render() {   
 
@@ -158,6 +249,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             type="text"
                                             onChange={this._updateCampus}
                                             value={this.state.campus}
+                                            disabled={this.state.configUpdate}
                                         />
                                     </td>
                                 </tr>
@@ -173,6 +265,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             type="text"
                                             onChange={this._updateBuilding}
                                             value={this.state.building}
+                                            disabled={this.state.configUpdate}
                                         />
                                     </td>
                                 </tr>
@@ -188,6 +281,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             type="text"
                                             onChange={this._updateUnit}
                                             value={this.state.unit}
+                                            disabled={this.state.configUpdate}
                                         />
                                     </td>
                                 </tr>
@@ -200,6 +294,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             type="text"
                                             onChange={this._updatePath}
                                             value={this.state.path}
+                                            disabled={this.state.configUpdate}
                                         />
                                     </td>
                                 </tr>
@@ -226,17 +321,17 @@ class ConfigDeviceForm extends BaseComponent {
     }
 };
 
-var initializeDriverConfig = (device) => {
+var initializeDriverConfig = (address, id, bacnetProxy) => {
     var driver_config = {
-        device_address: device.address,
-        device_id: device.id,
-        proxy_address: device.bacnetProxy
+        device_address: address,
+        device_id: id,
+        proxy_address: bacnetProxy
     };
 
     return driver_config;
 }
 
-var initializeSettings = (type, settingsTemplate) => {
+var initializeSettings = (type, savedConfig, settingsTemplate) => {
 
     var settings = {};
 
@@ -295,6 +390,14 @@ var initializeSettings = (type, settingsTemplate) => {
                         value: false,
                         label: "Publish Breadth-First All",
                         type: "bool"
+                    }
+                }
+
+                if (savedConfig)
+                {
+                    for (var key in settings)
+                    {
+                        settings[key].value = savedConfig[key];
                     }
                 }
             }

@@ -1580,10 +1580,6 @@ a.view__item:hover::before {
 
 /***end react-select-me style overrides ***/
 
-.collapsible-registry-values.slow-show {
-    height: 100%;
-}
-
 .collapsible-registry-values.slow-hide {
     height: 0;
 }
@@ -1591,10 +1587,6 @@ a.view__item:hover::before {
 .slow-hide > .fixed-table-container {
     visibility: hidden;
     height: 0;
-}
-
-.slow-show > .fixed-table-container {
-    height: 100%;
 }
 
 .slow-hide > .registry-buttons {
@@ -1687,20 +1679,11 @@ a.view__item:hover::before {
     background-color: rgba(192,206,216,.5);
 }
 
-.already-used-point input[type="text"] {
+.already-used-point input[type="text"],
+.already-used-point label {
     font-style: italic;
     color: #7F7F7F;
 }
-
-/*.already-used-point {
-    background-color: #DCEEFD
-}*/
-
-/*.already-used-point input[type="text"] {
-    font-style: italic;
-    background-color: rgba(136, 165, 191, 0.15)
-    color: #7F7F7F;
-}*/
 
 .th-inner {
     position: absolute;
@@ -1806,6 +1789,11 @@ td.plain {
     clear: both;
 }
 
+.device-box > .config-device-form > h1,
+.device-box > .config-device-form > h4 {
+    display: none;
+}
+
 .device-scan {
     margin-bottom: 0px;
 }
@@ -1816,6 +1804,14 @@ td.plain {
 
 .config-devices-table {
     width: auto;
+}
+
+.config-devices-table.reconfig .dd__list.dd__openTobottom {
+    z-index: 300;
+}
+
+.config-devices-table.reconfig .fileSelectContainer {
+    float: right;
 }
 
 .devicesFoundContainer {
@@ -1908,6 +1904,19 @@ td.buffer_row {
     font-size: 0;
 }
 
+.fileExportButton {
+    font-size: 20px;
+    line-height: 12px;
+    padding-left: 2px;
+    color: gray;
+    position: relative;
+}
+
+.fileExportTooltip {
+    font-size: 12px;
+    color: black;
+}
+
 .fileButton, 
 .fileSelectButton,
 .refreshPointsButton {
@@ -1948,4 +1957,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-1b5174245f03439537c8.css.map*/
+/*# sourceMappingURL=app-e0b36bca9bcfa720b6e2.css.map*/

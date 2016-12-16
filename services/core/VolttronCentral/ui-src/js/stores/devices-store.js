@@ -14,12 +14,13 @@ var _device = null;
 var _data = {};
 var _updatedRow = {};
 var _platform;
-var _devices = [];
+var _devices = []; // the main list of devices detected for configuration
+var _devicesList = {}; // a simple object of known devices
 var _settingsTemplate = {};
 var _savedRegistryFiles = {};
 var _newScan = false;
-var _reconfiguringRegistry = false;
 var _reconfiguringDevice = false;
+var _reconfiguration = {};
 var _scanningComplete = true;
 var _warnings = {};
 var _keyboard = {
@@ -31,6 +32,8 @@ var _keyboard = {
 var _focusedDevice = {id: null, address: null};
 
 var _backupPoints = [];
+
+var _defaultKeyProps = ["volttron_point_name", "units", "writable"];
 
 var _placeHolders = Immutable.List([ [
     {"key": "Point_Name", "value": ""},
@@ -985,9 +988,9 @@ devicesStore.getState = function () {
     return { action: _action, view: _view, device: _device, platform: _platform };
 };
 
-devicesStore.getRegistryValues = function (device) {
+devicesStore.getRegistryValues = function (deviceId, deviceAddress) {
 
-    var device = devicesStore.getDeviceRef(device.id, device.address);
+    var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
     var config = [];
 
     if (device)
@@ -1025,12 +1028,24 @@ devicesStore.getWarnings = function () {
 
 devicesStore.getDevices = function (platform, bacnetIdentity) {
 
-    var devices = _devices.filter(function (device) {
-        return ((device.platformUuid === platform.uuid) 
-            && (device.bacnetProxyIdentity === bacnetIdentity));
-    });
+    var devices = [];
+
+    if (typeof platform !== "undefined" && platform.hasOwnProperty("uuid"))
+    {
+        devices = _devices.filter(function (device) {
+            return ((device.platformUuid === platform.uuid) 
+                && (device.bacnetProxyIdentity === bacnetIdentity));
+        });
+    }
 
     return JSON.parse(JSON.stringify(devices));
+}
+
+devicesStore.getDevicesList = function (platformUuid) {
+
+    return (_devicesList.hasOwnProperty(platformUuid) ? 
+                JSON.parse(JSON.stringify(_devicesList[platformUuid])) : 
+                    []);
 }
 
 devicesStore.getDeviceByID = function (deviceId) {
@@ -1110,18 +1125,17 @@ devicesStore.enableBackupPoints = function (deviceId, deviceAddress) {
     return (typeof backup !== "undefined");
 }
 
-devicesStore.reconfiguringRegistry = function () {
-    return _reconfiguringRegistry;
-}
-
 devicesStore.reconfiguringDevice = function () {
     return _reconfiguringDevice;
+}
+
+devicesStore.getReconfiguration = function () {
+    return _reconfiguration;
 }
 
 devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
-    _reconfiguringRegistry = false;
     _newScan = false;
     _reconfiguringDevice = false;
 
@@ -1335,9 +1349,20 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             devicesStore.emitChange();
             break;
-        case ACTION_TYPES.RECONFIGURE_REGISTRY_FILE:
-            var _registryConfig = action.data;
-            _reconfiguringRegistry = true;
+        case ACTION_TYPES.RECONFIGURE_DEVICE:
+            
+            _reconfiguration = action.configuration,
+
+            reconfigureRegistry(
+                action.platformUuid, 
+                action.agentDriver, 
+                action.deviceName, 
+                _reconfiguration, 
+                action.data
+            );
+
+            _reconfiguringDevice = true;
+
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.EDIT_REGISTRY:
@@ -1363,10 +1388,14 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _action = "configure_device";
             _view = "Configure Device";
             
-            if (ObjectIsEmpty(_settingsTemplate))
-            {
-                _settingsTemplate = action.settings;
-            }
+            _settingsTemplate = action.settings;
+
+            break;
+        case ACTION_TYPES.UPDATE_DEVICES_LIST:
+            _action = "configure_device";
+            _view = "Configure Device";
+            
+            _devicesList[action.platformUuid] = action.devices;
 
             break;
     }
@@ -1562,8 +1591,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
     function loadDevice(device, platformUuid, bacnetIdentity) 
     {
-        console.log("device");
-        console.log(device);
         var deviceIdStr = device.device_id.toString();
 
         _devices.push({
@@ -1581,7 +1608,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             agentDriver: device.agentDriver,
             registryCount: 0,
             registryConfig: [],
-            keyProps: ["volttron_point_name", "units", "writable"],
+            keyProps: _defaultKeyProps,
             items: [
                 { key: "address", label: "Address", value: device.address },  
                 { key: "deviceName", label: "Name", value: device.device_name },  
@@ -1592,6 +1619,50 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 { key: "type", label: "Type", value: device.type }
             ]
         });
+    }
+
+    function reconfigureRegistry(platformUuid, agentDriver, deviceName, configuration, data) {
+
+        var deviceId = configuration.driver_config.device_id;
+        var deviceAddress = configuration.driver_config.device_address;
+
+        var name = deviceName.replace("devices/", "");
+
+        var preppedDevice = {
+            id: deviceId,
+            address: deviceAddress,
+            name: name,
+            platformUuid: platformUuid,
+            agentDriver: agentDriver,
+            registryFile: configuration.registryFile,
+            showPoints: true,
+            configuring: false,
+            registryCount: 0,
+            registryConfig: getPreppedData(data),
+            keyProps: _defaultKeyProps
+        };
+
+        var index = -1;
+
+        var deviceInList = _devices.find(function (dvc, i) {
+            var match = ((dvc.id === deviceId) && (dvc.address === deviceAddress));
+
+            if (match)
+            {
+                index = i;
+            }
+
+            return match;
+        });
+
+        if (index > -1)
+        {
+            _devices.splice(index, 1, preppedDevice);
+        }
+        else
+        {
+            _devices.push(preppedDevice);
+        }
     }
     
 });

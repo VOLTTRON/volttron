@@ -69,7 +69,7 @@ module.exports = keyMirror({
     TOGGLE_SHOW_POINTS: null,
     EDIT_REGISTRY_CONFIG: null,
     EDIT_DEVICE_CONFIG: null,
-    RECONFIGURE_REGISTRY_FILE: null,
+    RECONFIGURE_DEVICE: null,
     UPDATE_REGISTRY: null,
     LOAD_REGISTRY: null,
     LOAD_REGISTRY_FILES: null,
@@ -77,6 +77,7 @@ module.exports = keyMirror({
     CANCEL_REGISTRY: null,
     SAVE_REGISTRY: null,
     SAVE_CONFIG: null,
+    UPDATE_DEVICES_LIST: null, 
 
     TOGGLE_TAPTIP: null,
     HIDE_TAPTIP: null,

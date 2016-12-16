@@ -163,21 +163,23 @@ class RegistryRow extends BaseComponent {
                 var selectedCellStyle = (item.selected ? {backgroundColor: "rgba(187, 137, 102, 0.6)", width: "100%"} : {width: "100%"});
                 var focusedCell = (this.props.immutableProps.get("selectedCellColumn") === columnIndex && this.props.immutableProps.get("selectedCell") ? "focusedCell" : "");
 
-                var itemCell = (!item.editable ? 
-                                    <td key={item.key + "-" + rowIndex + "-" + columnIndex}
-                                        ref={this.state.devicePrefix + columnIndex}>
-                                        <label>{ item.value }</label>
-                                    </td> : 
-                                    <td key={item.key + "-" + rowIndex + "-" + columnIndex}
-                                        ref={this.state.devicePrefix + columnIndex}>
-                                        <input 
-                                            id={this.state.attributesList.get("attributes").get(columnIndex).key + "-" + columnIndex + "-" + rowIndex}
-                                            type="text"
-                                            className={focusedCell}
-                                            style={selectedCellStyle}
-                                            onChange={this._updateCell.bind(this, columnIndex)} 
-                                            value={ this.state.attributesList.get("attributes").get(columnIndex).value }/>
-                                    </td>);
+                var itemCell = (
+                    !item.editable ? 
+                        <td key={item.key + "-" + rowIndex + "-" + columnIndex}
+                            ref={this.state.devicePrefix + columnIndex}>
+                            <label>{ item.value }</label>
+                        </td> : 
+                            <td key={item.key + "-" + rowIndex + "-" + columnIndex}
+                                ref={this.state.devicePrefix + columnIndex}>
+                                <input 
+                                    id={this.state.attributesList.get("attributes").get(columnIndex).key + "-" + columnIndex + "-" + rowIndex}
+                                    type="text"
+                                    className={focusedCell}
+                                    style={selectedCellStyle}
+                                    onChange={this._updateCell.bind(this, columnIndex)} 
+                                    value={ this.state.attributesList.get("attributes").get(columnIndex).value }/>
+                            </td>
+                );
 
                 registryCells.push(itemCell);
 

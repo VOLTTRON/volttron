@@ -28,12 +28,18 @@ class RegistryFilesSelector extends BaseComponent {
         this.setState({ registryFiles: devicesStore.getSavedRegistryFiles()});
     }
     _loadRegistryFile (registryFile) {
+
+        var configuration = {
+            deviceId: this.props.deviceId,
+            deviceAddress: this.props.deviceAddress,
+            registryFile: registryFile
+        };
+
         devicesActionCreators.loadRegistryFile(
-            this.props.device.id,
-            this.props.device.address,
-            this.props.device.platformUuid,
-            device.platformUuid.device.agentDriver,
-            registryFile
+            this.props.platformUuid,
+            this.props.agentDriver,
+            null,
+            configuration
         );
 
         modalActionCreators.closeModal();
