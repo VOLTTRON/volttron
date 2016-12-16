@@ -314,6 +314,9 @@ class PlatformHandler(object):
     def call(self, platform_method, *args, **kwargs):
         return self._connection.call(platform_method, *args, **kwargs)
 
+    def send_management_message(self, message_type, params):
+        self._log.debug("Sending management message: {}, params: {}".format(message_type, params))
+
     def store_agent_config(self, session_user, params):
         required = ('agent_identity', 'config_name', 'raw_contents')
         message_id = params.pop('message_id')
