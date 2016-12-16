@@ -22,8 +22,6 @@ var ConfirmForm = require('./confirm-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
 
-
-
 var _defaultColumnWidth = "200px";
 var _tableWidth;
 

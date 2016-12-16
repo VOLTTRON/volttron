@@ -1904,6 +1904,19 @@ td.buffer_row {
     font-size: 0;
 }
 
+.fileExportButton {
+    font-size: 20px;
+    line-height: 12px;
+    padding-left: 2px;
+    color: gray;
+    position: relative;
+}
+
+.fileExportTooltip {
+    font-size: 12px;
+    color: black;
+}
+
 .fileButton, 
 .fileSelectButton,
 .refreshPointsButton {

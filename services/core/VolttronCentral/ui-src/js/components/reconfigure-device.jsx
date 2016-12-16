@@ -7,6 +7,7 @@ import ConfigureRegistry from './configure-registry';
 import ConfigDeviceForm from './config-device-form';
 import FileUploadButton from './control_buttons/file-upload-button';
 import FileSelectButton from './control_buttons/file-select-button';
+import FileExportButton from './control_buttons/file-export-button';
 
 import Select from 'react-select-me';
 
@@ -99,20 +100,6 @@ class ReconfigureDevice extends BaseComponent {
                 </Select>
             );
 
-            var fileSelectTooltip = {
-                content: "Select Registry File (CSV)",
-                tooltipClass: "colorBlack",
-                "x": -20,
-                "y": -120
-            }
-
-            var fileUploadTooltip = {
-                content: "Import Registry File (CSV)",
-                tooltipClass: "colorBlack",
-                "x": -20,
-                "y": -120
-            }
-
             var fileSelectContainer = (
                 <div className="fileSelectContainer">
                     <FileSelectButton 
@@ -127,6 +114,12 @@ class ReconfigureDevice extends BaseComponent {
                         deviceAddress={this.state.device.address}
                         tooltipY={-60}
                         tooltipX={30}/>
+                    <FileExportButton
+                        deviceId={this.state.device.id}
+                        deviceAddress={this.state.device.address}
+                        tooltipY={-60}
+                        tooltipX={-20}
+                        fileName={this.state.configuration.registryFile}/>
                 </div>
             );
 
