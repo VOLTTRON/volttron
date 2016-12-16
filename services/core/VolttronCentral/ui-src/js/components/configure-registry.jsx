@@ -52,6 +52,9 @@ class ConfigureRegistry extends BaseComponent {
         this.fixedHeader = document.getElementsByClassName("header-background")[0];
         this.fixedInner = document.getElementsByClassName("fixed-table-container-inner")[0];
         this.registryTable = document.getElementsByClassName("registryConfigTable")[0];
+        this.viewDiv = document.getElementsByClassName("view")[0];
+
+        this.direction = "down";
 
         devicesStore.addChangeListener(this._onStoresChange);
         document.addEventListener("keydown", this._handleKeyDown);
@@ -67,6 +70,39 @@ class ConfigureRegistry extends BaseComponent {
             this.containerDiv.scrollTop = this.containerDiv.scrollHeight;
 
             this.scrollToBottom = false;
+        }
+
+        if (this.state.keyboardRange[0] > -1)
+        {
+
+            var rowItems = document.querySelectorAll(".registry-row");
+
+            var topItem = rowItems[this.state.keyboardRange[0]];
+            var bottomItem = rowItems[this.state.keyboardRange[1]];
+
+            var tableRect = this.containerDiv.getBoundingClientRect();
+            var viewRect = this.viewDiv.getBoundingClientRect();
+            var topRect = topItem.getBoundingClientRect();
+            var bottomRect = bottomItem.getBoundingClientRect();
+
+            if (this.direction === "down")
+            {    
+                if (bottomRect.bottom > viewRect.bottom)
+                {
+                    var newTop = bottomRect.top - tableRect.top;
+
+                    this.viewDiv.scrollTop = newTop;
+                }
+            }
+            else
+            {
+                if (topRect.top < viewRect.top)
+                {
+                    var newTop = topRect.top - tableRect.top;
+
+                    this.viewDiv.scrollTop = newTop;
+                }
+            }
         }
 
         if (this.resizeTable)
@@ -143,6 +179,8 @@ class ConfigureRegistry extends BaseComponent {
                         keydown.preventDefault();
                         keydown.stopPropagation();
 
+                        this.direction = "down";
+
                         if (keydown.shiftKey) // extend down
                         {
                             var newIndex = this.state.keyboardRange[1] + 1;
@@ -171,6 +209,8 @@ class ConfigureRegistry extends BaseComponent {
                     case _up:
                         keydown.preventDefault();
                         keydown.stopPropagation();
+
+                        this.direction = "_up";
 
                         if (keydown.shiftKey) // extend up
                         {
@@ -889,7 +929,12 @@ class ConfigureRegistry extends BaseComponent {
                 );
             }))
             {
-                devicesActionCreators.loadRegistryFiles(this.props.device);
+                devicesActionCreators.loadRegistryFiles(
+                    this.props.device.platformUuid, 
+                    this.props.device.agentDriver, 
+                    this.props.device.id,
+                    this.props.device.address
+                );
 
                 modalActionCreators.openModal(
                     <PreviewRegistryForm 

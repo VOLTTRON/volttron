@@ -57,8 +57,10 @@ var devicesActionCreators = {
         var setUpDevicesSocket = function(platformUuid, bacnetIdentity) {
             var topic = "/vc/ws/" + authorization + "/iam";
             wspubsub.WsPubSub.subscribe(topic, function(topic, message){
-                // Special CLOSING method happens when socket is closed.
-                if (message === "CLOSING") {
+                
+                var result = JSON.parse(message);
+                
+                if (result.status === "FINISHED IAM") {
                     dispatcher.dispatch({
                         type: ACTION_TYPES.DEVICE_SCAN_FINISHED
                     });

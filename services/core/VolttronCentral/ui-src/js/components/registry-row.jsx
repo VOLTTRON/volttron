@@ -207,16 +207,16 @@ class RegistryRow extends BaseComponent {
                 </div>
             </td>);
 
-        var selectedRowClasses = [];
+        var rowClasses = ["registry-row"];
 
         if (this.props.immutableProps.get("keyboardSelected"))
         {
-            selectedRowClasses.push("keyboard-selected");
+            rowClasses.push("keyboard-selected");
         }
 
         if (this.state.attributesList.get("alreadyUsed"))
         {
-            selectedRowClasses.push("already-used-point");
+            rowClasses.push("already-used-point");
         }
 
         var visibleStyle = (!this.props.immutableProps.get("filterOn") || this.state.attributesList.get("visible") ? {} : {display: "none"});
@@ -225,7 +225,7 @@ class RegistryRow extends BaseComponent {
             <tr key={"registry-row-" + rowIndex}
                 data-row={rowIndex}
                 onClickCapture={this._handleRowClick}
-                className={selectedRowClasses.join(" ")}
+                className={rowClasses.join(" ")}
                 style={visibleStyle}>
                 <td key={"checkbox-" + rowIndex}>
                     <div className="centerContent flexContent">

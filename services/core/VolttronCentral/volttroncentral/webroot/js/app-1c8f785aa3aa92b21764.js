@@ -57367,8 +57367,10 @@
 	        var setUpDevicesSocket = function setUpDevicesSocket(platformUuid, bacnetIdentity) {
 	            var topic = "/vc/ws/" + authorization + "/iam";
 	            wspubsub.WsPubSub.subscribe(topic, function (topic, message) {
-	                // Special CLOSING method happens when socket is closed.
-	                if (message === "CLOSING") {
+	
+	                var result = JSON.parse(message);
+	
+	                if (result.status === "FINISHED IAM") {
 	                    dispatcher.dispatch({
 	                        type: ACTION_TYPES.DEVICE_SCAN_FINISHED
 	                    });
@@ -62939,6 +62941,9 @@
 	            this.fixedHeader = document.getElementsByClassName("header-background")[0];
 	            this.fixedInner = document.getElementsByClassName("fixed-table-container-inner")[0];
 	            this.registryTable = document.getElementsByClassName("registryConfigTable")[0];
+	            this.viewDiv = document.getElementsByClassName("view")[0];
+	
+	            this.direction = "down";
 	
 	            devicesStore.addChangeListener(this._onStoresChange);
 	            document.addEventListener("keydown", this._handleKeyDown);
@@ -62957,6 +62962,33 @@
 	                this.containerDiv.scrollTop = this.containerDiv.scrollHeight;
 	
 	                this.scrollToBottom = false;
+	            }
+	
+	            if (this.state.keyboardRange[0] > -1) {
+	
+	                var rowItems = document.querySelectorAll(".registry-row");
+	
+	                var topItem = rowItems[this.state.keyboardRange[0]];
+	                var bottomItem = rowItems[this.state.keyboardRange[1]];
+	
+	                var tableRect = this.containerDiv.getBoundingClientRect();
+	                var viewRect = this.viewDiv.getBoundingClientRect();
+	                var topRect = topItem.getBoundingClientRect();
+	                var bottomRect = bottomItem.getBoundingClientRect();
+	
+	                if (this.direction === "down") {
+	                    if (bottomRect.bottom > viewRect.bottom) {
+	                        var newTop = bottomRect.top - tableRect.top;
+	
+	                        this.viewDiv.scrollTop = newTop;
+	                    }
+	                } else {
+	                    if (topRect.top < viewRect.top) {
+	                        var newTop = topRect.top - tableRect.top;
+	
+	                        this.viewDiv.scrollTop = newTop;
+	                    }
+	                }
 	            }
 	
 	            if (this.resizeTable) {
@@ -63025,6 +63057,8 @@
 	                            keydown.preventDefault();
 	                            keydown.stopPropagation();
 	
+	                            this.direction = "down";
+	
 	                            if (keydown.shiftKey) // extend down
 	                                {
 	                                    var newIndex = this.state.keyboardRange[1] + 1;
@@ -63049,6 +63083,8 @@
 	                        case _up:
 	                            keydown.preventDefault();
 	                            keydown.stopPropagation();
+	
+	                            this.direction = "_up";
 	
 	                            if (keydown.shiftKey) // extend up
 	                                {
@@ -63727,7 +63763,7 @@
 	                        cancelText: 'OK'
 	                    }));
 	                })) {
-	                    devicesActionCreators.loadRegistryFiles(this.props.device);
+	                    devicesActionCreators.loadRegistryFiles(this.props.device.platformUuid, this.props.device.agentDriver, this.props.device.id, this.props.device.address);
 	
 	                    modalActionCreators.openModal(_react2.default.createElement(_previewRegistryForm2.default, {
 	                        deviceId: this.props.device.id,
@@ -66058,14 +66094,14 @@
 	                )
 	            ));
 	
-	            var selectedRowClasses = [];
+	            var rowClasses = ["registry-row"];
 	
 	            if (this.props.immutableProps.get("keyboardSelected")) {
-	                selectedRowClasses.push("keyboard-selected");
+	                rowClasses.push("keyboard-selected");
 	            }
 	
 	            if (this.state.attributesList.get("alreadyUsed")) {
-	                selectedRowClasses.push("already-used-point");
+	                rowClasses.push("already-used-point");
 	            }
 	
 	            var visibleStyle = !this.props.immutableProps.get("filterOn") || this.state.attributesList.get("visible") ? {} : { display: "none" };
@@ -66075,7 +66111,7 @@
 	                { key: "registry-row-" + rowIndex,
 	                    'data-row': rowIndex,
 	                    onClickCapture: this._handleRowClick,
-	                    className: selectedRowClasses.join(" "),
+	                    className: rowClasses.join(" "),
 	                    style: visibleStyle },
 	                _react2.default.createElement(
 	                    'td',
@@ -116497,4 +116533,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-3232ac93e8fcc4a1cd21.js.map
+//# sourceMappingURL=app-1c8f785aa3aa92b21764.js.map
