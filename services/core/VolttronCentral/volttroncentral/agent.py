@@ -1134,11 +1134,12 @@ class VolttronCentralAgent(Agent):
         _log.debug('Handling bacnet_props platform: {}'.format(platform_uuid))
 
         configure_topic = "{}/configure".format(session_user['token'])
-
         ws_socket_topic = "/vc/ws/{}".format(configure_topic)
-        self.vip.web.register_websocket(ws_socket_topic,
-                                        self.open_authenticate_ws_endpoint,
-                                        self._ws_closed, self._ws_received)
+
+        if configure_topic not in self._websocket_endpoints:
+            self.vip.web.register_websocket(ws_socket_topic,
+                                            self.open_authenticate_ws_endpoint,
+                                            self._ws_closed, self._ws_received)
 
         def start_sending_props():
             response_topic = "configure/{}".format(session_user['token'])
@@ -1188,7 +1189,7 @@ class VolttronCentralAgent(Agent):
                 def close_socket():
                     _log.debug('Closing bacnet scan for {}'.format(
                         platform_uuid))
-                    self.vip.web.unregister_websocket(ws_socket_topic)
+                    #self.vip.web.unregister_websocket(ws_socket_topic)
 
                 gevent.spawn_later(scan_length, close_socket)
             # By starting the scan a second later we allow the websocket
