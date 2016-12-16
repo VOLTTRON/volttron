@@ -337,6 +337,24 @@ class PlatformHandler(object):
         config_name = params.get("config_name")
         if config_name.startswith("devices"):
             self.send_management_message("new_device", params)
+            try:
+                platform_store = self._vc.vip.config.get(self.config_store_name)
+            except KeyError:
+                return jsonrpc.json_error(message_id,  INTERNAL_ERROR, 
+                                          "Platform store doesns't exist!")
+            status = Status.build(UNKNOWN_STATUS,
+                                  context="Not published since update")
+            device_config_name = params.get('config_name')
+            device_no_prefix = device_config_name[len('devices/'):]
+            devices_health = platform_store.get('devices_health', {})
+
+            devices_health[device_no_prefix] = dict(
+                last_publish_utc=None,
+                health=status.as_dict(),
+                points=devices_health.get("points", [])
+            )
+            platform_store['devices_health'] = devices_health
+            self._vc.vip.config.set(self.config_store_name, platform_store)
 
     def get_agent_list(self, session_user, params):
         self._log.debug('Callling list_agents')
