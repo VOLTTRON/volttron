@@ -988,9 +988,9 @@ devicesStore.getState = function () {
     return { action: _action, view: _view, device: _device, platform: _platform };
 };
 
-devicesStore.getRegistryValues = function (device) {
+devicesStore.getRegistryValues = function (deviceId, deviceAddress) {
 
-    var device = devicesStore.getDeviceRef(device.id, device.address);
+    var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
     var config = [];
 
     if (device)

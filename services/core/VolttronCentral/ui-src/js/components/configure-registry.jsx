@@ -1337,7 +1337,7 @@ function getFilteredPoints(registryValues, filterStr, column) {
 }
 
 function getPointsFromStore(device, allSelected, keyPropsList) {
-    return initializeList(allSelected, devicesStore.getRegistryValues(device), keyPropsList);
+    return initializeList(allSelected, devicesStore.getRegistryValues(device.id, device.address), keyPropsList);
 }
 
 function initializeList(allSelected, registryConfig, keyPropsList)

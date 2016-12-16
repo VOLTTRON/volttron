@@ -349,13 +349,13 @@ var devicesActionCreators = {
             device: device
         });
     },
-    loadRegistryFiles: function (device) {
+    loadRegistryFiles: function (platformUuid, agentDriver, deviceId, deviceAddress) {
 
         var authorization = authorizationStore.getAuthorization();
 
         var params = {
-            platform_uuid: device.platformUuid, 
-            agent_identity: device.agentDriver
+            platform_uuid: platformUuid, 
+            agent_identity: agentDriver
         };
 
         return new rpc.Exchange({
@@ -372,8 +372,8 @@ var devicesActionCreators = {
 
                         return index !== 0;
                     }),
-                    deviceId: device.id,
-                    deviceAddress: device.address
+                    deviceId: deviceId,
+                    deviceAddress: deviceAddress
                 });
 
             })

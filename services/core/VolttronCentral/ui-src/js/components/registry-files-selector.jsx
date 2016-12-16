@@ -30,14 +30,14 @@ class RegistryFilesSelector extends BaseComponent {
     _loadRegistryFile (registryFile) {
 
         var configuration = {
-            deviceId: this.props.device.id,
-            deviceAddress: this.props.device.address,
+            deviceId: this.props.deviceId,
+            deviceAddress: this.props.deviceAddress,
             registryFile: registryFile
         };
 
         devicesActionCreators.loadRegistryFile(
-            this.props.device.platformUuid,
-            this.props.device.agentDriver,
+            this.props.platformUuid,
+            this.props.agentDriver,
             null,
             configuration
         );

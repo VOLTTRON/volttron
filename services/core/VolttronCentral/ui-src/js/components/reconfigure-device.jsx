@@ -5,6 +5,8 @@ import ReactDOM from 'react-dom';
 import BaseComponent from './base-component';
 import ConfigureRegistry from './configure-registry';
 import ConfigDeviceForm from './config-device-form';
+import FileUploadButton from './control_buttons/file-upload-button';
+import FileSelectButton from './control_buttons/file-select-button';
 
 import Select from 'react-select-me';
 
@@ -27,7 +29,20 @@ class ReconfigureDevice extends BaseComponent {
         devicesStore.removeChangeListener(this._onStoresChange);
     }
     _onStoresChange() {
-        this.setState(getStateFromStore());
+        
+        if (devicesStore.reconfiguringDevice())
+        {
+            this.setState(getStateFromStore);
+        }
+        else
+        {
+            this.setState({ 
+                device: devicesStore.getDevice(
+                            this.state.device.id, 
+                            this.state.device.address
+                        )
+            });
+        }
     }
     _onConfigChange(selection) {
         this.setState({ configFile: selection.value });
@@ -84,6 +99,41 @@ class ReconfigureDevice extends BaseComponent {
                 </Select>
             );
 
+            var fileSelectTooltip = {
+                content: "Select Registry File (CSV)",
+                tooltipClass: "colorBlack",
+                "x": -20,
+                "y": -120
+            }
+
+            var fileUploadTooltip = {
+                content: "Import Registry File (CSV)",
+                tooltipClass: "colorBlack",
+                "x": -20,
+                "y": -120
+            }
+
+            var fileSelectContainer = (
+                <div className="fileSelectContainer">
+                    <FileSelectButton 
+                        deviceId={this.state.device.id}
+                        deviceAddress={this.state.device.address}
+                        platformUuid={this.state.device.platformUuid}
+                        agentDriver={this.state.device.agentDriver}
+                        tooltipY={-60}
+                        tooltipX={30}/>
+                    <FileUploadButton
+                        deviceId={this.state.device.id}
+                        deviceAddress={this.state.device.address}
+                        tooltipY={-60}
+                        tooltipX={30}/>
+                </div>
+            );
+
+            var cellStyle = {
+                verticalAlign: "top"
+            };
+
             configuration = (
                 <div className="">
                     <table className="config-devices-table reconfig">
@@ -92,7 +142,7 @@ class ReconfigureDevice extends BaseComponent {
                                 <td className="plain" style={cellStyle}>
                                     <b>Registry Config: </b>
                                 </td>
-                                <td className="plain" style={cellStyle}>{this.state.configuration.registryFile}</td>
+                                <td className="plain" style={cellStyle}>{this.state.configuration.registryFile} {fileSelectContainer}</td>
                                 <td className="plain" style={cellStyle}></td>
                                 <td className="plain" style={cellStyle}></td>
                             </tr>
@@ -115,10 +165,6 @@ class ReconfigureDevice extends BaseComponent {
                 </div>
             );
             
-            var cellStyle = {
-                verticalAlign: "top"
-            };
-
             if (this.state.configFile === "registryConfig")
             {
                 registryConfig = (

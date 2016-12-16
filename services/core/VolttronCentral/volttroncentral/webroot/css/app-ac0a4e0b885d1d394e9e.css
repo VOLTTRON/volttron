@@ -1810,6 +1810,10 @@ td.plain {
     z-index: 300;
 }
 
+.config-devices-table.reconfig .fileSelectContainer {
+    float: right;
+}
+
 .devicesFoundContainer {
     width: 900px;
 }
@@ -1940,4 +1944,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-a8e1a076d68627bb9db3.css.map*/
+/*# sourceMappingURL=app-ac0a4e0b885d1d394e9e.css.map*/
