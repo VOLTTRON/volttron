@@ -802,6 +802,7 @@ class VolttronCentralPlatform(Agent):
     @RPC.allow("manager")
     def store_agent_config(self, agent_identity, config_name, raw_contents,
                             config_type='raw'):
+        _log.debug("Storeing configuration file: {}".format(config_name))
         self.vip.rpc.call(CONFIGURATION_STORE, "manage_store", agent_identity,
                           config_name, raw_contents, config_type)
 
