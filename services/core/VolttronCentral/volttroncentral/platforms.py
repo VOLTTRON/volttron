@@ -690,7 +690,7 @@ class PlatformHandler(object):
                     self._manage()
 
                 if self._last_time_verified_connection:
-                    self._health.status_update(GOOD_STATUS,
+                    self._health.update_status(GOOD_STATUS,
                                                "Connected to platform.")
                 self._last_time_verified_connection = get_utc_seconds_from_epoch()
                 self._log.debug('platform.agent is connected to remote instance')
