@@ -57681,6 +57681,7 @@
 	        });
 	    },
 	    editConfigFiles: function editConfigFiles(platformUuid, agentDriver, deviceName, configuration, csvData) {
+	
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.RECONFIGURE_DEVICE,
 	            platformUuid: platformUuid,
@@ -60375,8 +60376,6 @@
 	    }
 	
 	    function loadDevice(device, platformUuid, bacnetIdentity) {
-	        console.log("device");
-	        console.log(device);
 	        var deviceIdStr = device.device_id.toString();
 	
 	        _devices.push({
@@ -61879,13 +61878,15 @@
 	        key: '_onDevicesStoresChange',
 	        value: function _onDevicesStoresChange() {
 	
-	            if (devicesStore.getNewScan()) {
-	                this.setState(getInitialState());
-	            } else {
-	                this.setState({ devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyIdentity) });
+	            if (this.refs["config-device-ref"]) {
+	                if (devicesStore.getNewScan()) {
+	                    this.setState(getInitialState());
+	                } else {
+	                    this.setState({ devices: devicesStore.getDevices(this.state.platform, this.state.selectedProxyIdentity) });
 	
-	                if (devicesStore.getScanningComplete() && this.state.scanning) {
-	                    this._cancelScan();
+	                    if (devicesStore.getScanningComplete() && this.state.scanning) {
+	                        this._cancelScan();
+	                    }
 	                }
 	            }
 	        }
@@ -62358,7 +62359,8 @@
 	
 	            return _react2.default.createElement(
 	                'div',
-	                { className: 'view' },
+	                { className: 'view',
+	                    ref: 'config-device-ref' },
 	                _react2.default.createElement(
 	                    'h2',
 	                    null,
@@ -74676,7 +74678,7 @@
 	
 	        _this._bind('_onStoresChange', '_onConfigChange', '_validateDataFile');
 	
-	        var state = getStateFromStore();
+	        _this.state = getStateFromStore();
 	        return _this;
 	    }
 	
@@ -74695,12 +74697,16 @@
 	        key: '_onStoresChange',
 	        value: function _onStoresChange() {
 	
-	            if (devicesStore.reconfiguringDevice()) {
+	            var reconfiguring = devicesStore.reconfiguringDevice();
+	
+	            if (reconfiguring) {
 	                this.setState(getStateFromStore);
 	            } else {
-	                this.setState({
-	                    device: devicesStore.getDevice(this.state.device.id, this.state.device.address)
-	                });
+	                if (this.state.device) {
+	                    this.setState({
+	                        device: devicesStore.getDevice(this.state.device.id, this.state.device.address)
+	                    });
+	                }
 	            }
 	        }
 	    }, {
@@ -74745,7 +74751,7 @@
 	
 	            var registryConfig, deviceConfig, configuration, defaultMessage;
 	
-	            if (this.state) {
+	            if (this.state.device) {
 	                var configOptions = [{ value: "registryConfig", label: "Registry Config" }, { value: "deviceConfig", label: "Device Config" }];
 	
 	                var configSelect = _react2.default.createElement(_reactSelectMe2.default, {
@@ -116474,4 +116480,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-5020a14030557dadd627.js.map
+//# sourceMappingURL=app-e0b36bca9bcfa720b6e2.js.map

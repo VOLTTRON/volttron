@@ -20,7 +20,7 @@ class ReconfigureDevice extends BaseComponent {
         super(props);
         this._bind('_onStoresChange', '_onConfigChange', '_validateDataFile');
 
-        var state = getStateFromStore();
+        this.state = getStateFromStore();
     }
     componentDidMount() {
         
@@ -31,18 +31,23 @@ class ReconfigureDevice extends BaseComponent {
     }
     _onStoresChange() {
         
-        if (devicesStore.reconfiguringDevice())
+        var reconfiguring = devicesStore.reconfiguringDevice();
+
+        if (reconfiguring)
         {
             this.setState(getStateFromStore);
         }
         else
         {
-            this.setState({ 
-                device: devicesStore.getDevice(
-                            this.state.device.id, 
-                            this.state.device.address
-                        )
-            });
+            if (this.state.device)
+            {
+                this.setState({ 
+                    device: devicesStore.getDevice(
+                                this.state.device.id, 
+                                this.state.device.address
+                            )
+                });
+            }
         }
     }
     _onConfigChange(selection) {
@@ -84,7 +89,7 @@ class ReconfigureDevice extends BaseComponent {
         
         var registryConfig, deviceConfig, configuration, defaultMessage;
 
-        if (this.state) 
+        if (this.state.device) 
         {
             var configOptions = [
                 { value: "registryConfig", label: "Registry Config"},

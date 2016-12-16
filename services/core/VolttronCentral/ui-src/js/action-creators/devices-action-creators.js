@@ -443,6 +443,7 @@ var devicesActionCreators = {
             });
     },
     editConfigFiles: function (platformUuid, agentDriver, deviceName, configuration, csvData) {
+        
         dispatcher.dispatch({
             type: ACTION_TYPES.RECONFIGURE_DEVICE,
             platformUuid: platformUuid,

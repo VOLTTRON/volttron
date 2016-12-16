@@ -1591,8 +1591,6 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
     function loadDevice(device, platformUuid, bacnetIdentity) 
     {
-        console.log("device");
-        console.log(device);
         var deviceIdStr = device.device_id.toString();
 
         _devices.push({
