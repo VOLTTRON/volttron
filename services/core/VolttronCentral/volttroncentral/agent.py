@@ -878,6 +878,14 @@ class VolttronCentralAgent(Agent):
                         "Invalid username/password specified.")
                 _log.info('Session created for {}'.format(
                     rpcdata.params['username']))
+                self.vip.web.register_websocket("/vc/ws/{}/management",
+                                                self.open_authenticate_ws_endpoint,
+                                                self._ws_closed,
+                                                self._received_data)
+                _log.info('Session created for {}'.format(
+                    rpcdata.params['username']))
+                
+                gevent.sleep(1)
                 return jsonrpc.json_result(rpcdata.id, sess)
 
             token = rpcdata.authorization
