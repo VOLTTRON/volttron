@@ -108,7 +108,7 @@ var Platform = React.createClass({
         }
 
         return (
-            <div className="platform-view">
+            <div className="view">
                 <h2>
                     <Router.Link to="platforms">Platforms</Router.Link>
                     &nbsp;/&nbsp;

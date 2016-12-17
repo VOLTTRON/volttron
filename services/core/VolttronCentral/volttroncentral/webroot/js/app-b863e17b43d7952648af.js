@@ -115297,7 +115297,7 @@
 	
 	        return React.createElement(
 	            'div',
-	            { className: 'platform-view' },
+	            { className: 'view' },
 	            React.createElement(
 	                'h2',
 	                null,
@@ -116581,4 +116581,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-28ad81c3dae2b6e07832.js.map
+//# sourceMappingURL=app-b863e17b43d7952648af.js.map

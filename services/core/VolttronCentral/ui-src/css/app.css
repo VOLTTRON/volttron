@@ -275,7 +275,7 @@ br + .form__control-help {
     height: 100%;
     z-index: 1;
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: auto;
     background-color: #f8f8f8;
 }
 
@@ -489,7 +489,7 @@ br + .form__control-help {
 .agents-container {
     max-height: 50%;
     width: 100%;
-    overflow: auto;
+    overflow: visible;
 }
 
 .extend-panel {
@@ -961,12 +961,12 @@ br + .form__control-help {
 }
 
 .view {
-    padding: 1.5em 2.5em;
+    padding: 0em 2.5em;
     border-top: 1px solid #fff;
     height: 80vh;
-    width: 100%;
+    width: 90%;
     float: left;
-    overflow: auto;
+    overflow: visible;
 }
 
 .view > * {
@@ -974,17 +974,17 @@ br + .form__control-help {
 }
 
 .panel-exterior {
-    padding: 1.5em 2.5em;
+    padding: 1.5em 0;
     height: 100%;
     float: left;
 }
 
 .narrow-exterior {
-    width: 70%;
+    width: 80%;
 }
 
 .wide-exterior {
-    width: 90%;
+    width: 95vw;
 }
 
 .panel-exterior > * {
@@ -1205,6 +1205,7 @@ a.view__item:hover::before {
     top: 0;
     width: 3px;    
     cursor: ew-resize;
+    z-index: 300;
 }
 
 .resize-handle:hover, .resize-handle-td:hover, .resize-handle-th:hover {
