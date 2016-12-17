@@ -94,6 +94,11 @@ class ControlButton extends BaseComponent {
 	    	if (showTaptip === true)
 	    	{
 	    		this.setState({ showTooltip: false });
+
+                if (typeof this.props.taptip.getTaptipRef === "function")
+                {
+                    this.props.taptip.getTaptipRef(this.taptip);
+                }
 	    	}
             else
             {
@@ -108,6 +113,7 @@ class ControlButton extends BaseComponent {
         if (this.state.showTaptip)
         {
             controlButtonActionCreators.hideTaptip(this.props.name);
+            this.taptip.style.top = this.state.taptipY + "px";
         }
 
         if (this.state.showTooltip)
@@ -224,7 +230,12 @@ class ControlButton extends BaseComponent {
                 });
             }
 
-		    var tapTipClasses = "taptip_outer";
+		    var tapTipClasses = ["taptip_outer"];
+
+            if (this.props.taptip.taptipClass)
+            {
+                tapTipClasses.push(this.props.taptip.taptipClass);
+            }
 
             var taptipBreak = (this.props.taptip.hasOwnProperty("break") ? this.props.taptip.break : <br/>);
             var taptipTitle = (this.props.taptip.hasOwnProperty("title") ? (<h4>{this.props.taptip.title}</h4>) : "");
@@ -239,8 +250,11 @@ class ControlButton extends BaseComponent {
             } 
 
 		    taptip = (
-		    	<div className={tapTipClasses}
-	                style={taptipStyle}>
+		    	<div className={tapTipClasses.join(" ")}
+	                style={taptipStyle}
+                    ref={function(div) {
+                        this.taptip = div;
+                    }.bind(this)}>
 	                <div className="taptip_inner"
                         style={innerStyle}>
 	                    <div className="opaque_inner">

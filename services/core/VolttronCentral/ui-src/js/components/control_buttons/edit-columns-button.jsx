@@ -189,7 +189,14 @@ class EditColumnButton extends BaseComponent {
             "content": editBox,
             "x": 80,
             "y": -150,
-            "styles": [{"key": "width", "value": "250px"}]
+            "styles": [{"key": "width", "value": "250px"}],
+            "break": "",
+            "getTaptipRef": function (taptip) {
+                if (typeof this.props.taptipRef === "function")
+                {
+                    this.props.taptipRef(taptip);
+                }
+            }.bind(this)
         };
         
         var editTooltip = {

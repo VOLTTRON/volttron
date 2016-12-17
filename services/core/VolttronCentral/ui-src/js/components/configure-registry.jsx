@@ -41,7 +41,7 @@ class ConfigureRegistry extends BaseComponent {
             "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_getParentNode",
             "_cloneColumn", "_onStoresChange", "_selectPoints", "_onRegistrySave", "_focusOnDevice",
             "_handleKeyDown", "_onSelectForActions", "_resizeColumn", "_initializeTable", "_updateTable",
-            "_handleMouseMove", "_createBlankRow" );
+            "_handleMouseMove", "_createBlankRow", "_setTaptipTarget" );
 
         this.state = this._resetState(this.props.device);
 
@@ -53,6 +53,8 @@ class ConfigureRegistry extends BaseComponent {
         this.fixedInner = document.getElementsByClassName("fixed-table-container-inner")[0];
         this.registryTable = document.getElementsByClassName("registryConfigTable")[0];
         this.viewDiv = document.getElementsByClassName("view")[0];
+
+        this.taptipTarget = null;
 
         this.direction = "down";
 
@@ -72,9 +74,9 @@ class ConfigureRegistry extends BaseComponent {
             this.scrollToBottom = false;
         }
 
+        // scroll to keep keyboard selections on screen
         if (this.state.keyboardRange[0] > -1)
         {
-
             var rowItems = document.querySelectorAll(".registry-row");
 
             var topItem = rowItems[this.state.keyboardRange[0]];
@@ -119,6 +121,31 @@ class ConfigureRegistry extends BaseComponent {
             if (focusedCell)
             {
                 focusedCell.focus();
+            }
+
+            // scroll to keep find-and-replace selections on screen
+            var targetRow = focusedCell.parentNode.parentNode;
+
+            var tableRect = this.containerDiv.getBoundingClientRect();
+            var viewRect = this.viewDiv.getBoundingClientRect();
+            var targetRect = targetRow.getBoundingClientRect();
+                
+            if (targetRect.bottom > viewRect.bottom || targetRect.top < viewRect.top)
+            {
+                var newTop = targetRect.top - tableRect.top;
+
+                this.viewDiv.scrollTop = newTop;
+            }
+
+            // move the find-and-replace taptip to keep it on screen
+            if (this.taptipTarget)
+            {
+                var taptipRect = this.taptipTarget.getBoundingClientRect();
+
+                if (taptipRect.top < viewRect.top)
+                {
+                    this.taptipTarget.style.top = ((targetRect.top - tableRect.top - 200) + "px");
+                }
             }
         }
     }
@@ -1007,6 +1034,9 @@ class ConfigureRegistry extends BaseComponent {
     _getParentNode() {
         return ReactDOM.findDOMNode(this.refs[this.state.tableRef]);
     }
+    _setTaptipTarget(taptip) {
+        this.taptipTarget = taptip;
+    }
     render() {        
         
         var registryRows, registryHeader, registryButtons;
@@ -1090,7 +1120,7 @@ class ConfigureRegistry extends BaseComponent {
 
                     var editColumnTaptip = {                        
                         taptipX: 80,
-                        taptipY: -80,
+                        taptipY: -80
                     }
 
                     var editSelectButton = (<EditSelectButton 
@@ -1111,7 +1141,8 @@ class ConfigureRegistry extends BaseComponent {
                                                 replaceEnabled={this.state.selectedCells.length > 0}
                                                 onclear={this._onClearFind}
                                                 onhide={this._removeFocus}
-                                                name={editColumnButtonName}/>);
+                                                name={editColumnButtonName}
+                                                taptipRef={this._setTaptipTarget}/>);
 
                     var headerCell;
 

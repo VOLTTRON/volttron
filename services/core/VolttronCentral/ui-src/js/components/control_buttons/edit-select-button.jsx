@@ -16,11 +16,11 @@ class EditSelectButton extends BaseComponent {
             buttonName: "editSelect-" + this.props.name + "-controlButton"
         };
     }
-    _handleAction(callback) {
+    _handleAction(callback, evt) {
         
         if (typeof callback === "function")
         {
-            callback(this);    
+            callback(this, evt.target);    
         }
 
         controlButtonActionCreators.hideTaptip(this.state.buttonName);

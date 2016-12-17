@@ -11232,6 +11232,10 @@
 	
 	                if (showTaptip === true) {
 	                    this.setState({ showTooltip: false });
+	
+	                    if (typeof this.props.taptip.getTaptipRef === "function") {
+	                        this.props.taptip.getTaptipRef(this.taptip);
+	                    }
 	                } else {
 	                    if (typeof this.props.closeAction == 'function') {
 	                        this.props.closeAction();
@@ -11244,6 +11248,7 @@
 	        value: function handleClickOutside() {
 	            if (this.state.showTaptip) {
 	                controlButtonActionCreators.hideTaptip(this.props.name);
+	                this.taptip.style.top = this.state.taptipY + "px";
 	            }
 	
 	            if (this.state.showTooltip) {
@@ -11367,7 +11372,11 @@
 	                    });
 	                }
 	
-	                var tapTipClasses = "taptip_outer";
+	                var tapTipClasses = ["taptip_outer"];
+	
+	                if (this.props.taptip.taptipClass) {
+	                    tapTipClasses.push(this.props.taptip.taptipClass);
+	                }
 	
 	                var taptipBreak = this.props.taptip.hasOwnProperty("break") ? this.props.taptip.break : _react2.default.createElement('br', null);
 	                var taptipTitle = this.props.taptip.hasOwnProperty("title") ? _react2.default.createElement(
@@ -11386,8 +11395,11 @@
 	
 	                taptip = _react2.default.createElement(
 	                    'div',
-	                    { className: tapTipClasses,
-	                        style: taptipStyle },
+	                    { className: tapTipClasses.join(" "),
+	                        style: taptipStyle,
+	                        ref: function (div) {
+	                            this.taptip = div;
+	                        }.bind(this) },
 	                    _react2.default.createElement(
 	                        'div',
 	                        { className: 'taptip_inner',
@@ -30058,10 +30070,10 @@
 	
 	    _createClass(EditSelectButton, [{
 	        key: '_handleAction',
-	        value: function _handleAction(callback) {
+	        value: function _handleAction(callback, evt) {
 	
 	            if (typeof callback === "function") {
-	                callback(this);
+	                callback(this, evt.target);
 	            }
 	
 	            controlButtonActionCreators.hideTaptip(this.state.buttonName);
@@ -30414,7 +30426,13 @@
 	                "content": editBox,
 	                "x": 80,
 	                "y": -150,
-	                "styles": [{ "key": "width", "value": "250px" }]
+	                "styles": [{ "key": "width", "value": "250px" }],
+	                "break": "",
+	                "getTaptipRef": function (taptip) {
+	                    if (typeof this.props.taptipRef === "function") {
+	                        this.props.taptipRef(taptip);
+	                    }
+	                }.bind(this)
 	            };
 	
 	            var editTooltip = {
@@ -62926,7 +62944,7 @@
 	
 	        var _this = _possibleConstructorReturn(this, (ConfigureRegistry.__proto__ || Object.getPrototypeOf(ConfigureRegistry)).call(this, props));
 	
-	        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_getParentNode", "_cloneColumn", "_onStoresChange", "_selectPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForActions", "_resizeColumn", "_initializeTable", "_updateTable", "_handleMouseMove", "_createBlankRow");
+	        _this._bind("_onFilterBoxChange", "_onClearFilter", "_onAddPoint", "_onRemovePoints", "_removePoints", "_selectAll", "_onAddColumn", "_onCloneColumn", "_onRemoveColumn", "_removeColumn", "_onFindNext", "_onReplace", "_onReplaceAll", "_onClearFind", "_cancelRegistry", "_saveRegistry", "_removeFocus", "_resetState", "_addColumn", "_selectCells", "_getParentNode", "_cloneColumn", "_onStoresChange", "_selectPoints", "_onRegistrySave", "_focusOnDevice", "_handleKeyDown", "_onSelectForActions", "_resizeColumn", "_initializeTable", "_updateTable", "_handleMouseMove", "_createBlankRow", "_setTaptipTarget");
 	
 	        _this.state = _this._resetState(_this.props.device);
 	
@@ -62942,6 +62960,8 @@
 	            this.fixedInner = document.getElementsByClassName("fixed-table-container-inner")[0];
 	            this.registryTable = document.getElementsByClassName("registryConfigTable")[0];
 	            this.viewDiv = document.getElementsByClassName("view")[0];
+	
+	            this.taptipTarget = null;
 	
 	            this.direction = "down";
 	
@@ -62964,8 +62984,8 @@
 	                this.scrollToBottom = false;
 	            }
 	
+	            // scroll to keep keyboard selections on screen
 	            if (this.state.keyboardRange[0] > -1) {
-	
 	                var rowItems = document.querySelectorAll(".registry-row");
 	
 	                var topItem = rowItems[this.state.keyboardRange[0]];
@@ -63002,6 +63022,28 @@
 	                var focusedCell = document.getElementsByClassName("focusedCell")[0];
 	                if (focusedCell) {
 	                    focusedCell.focus();
+	                }
+	
+	                // scroll to keep find-and-replace selections on screen
+	                var targetRow = focusedCell.parentNode.parentNode;
+	
+	                var tableRect = this.containerDiv.getBoundingClientRect();
+	                var viewRect = this.viewDiv.getBoundingClientRect();
+	                var targetRect = targetRow.getBoundingClientRect();
+	
+	                if (targetRect.bottom > viewRect.bottom || targetRect.top < viewRect.top) {
+	                    var newTop = targetRect.top - tableRect.top;
+	
+	                    this.viewDiv.scrollTop = newTop;
+	                }
+	
+	                // move the find-and-replace taptip to keep it on screen
+	                if (this.taptipTarget) {
+	                    var taptipRect = this.taptipTarget.getBoundingClientRect();
+	
+	                    if (taptipRect.top < viewRect.top) {
+	                        this.taptipTarget.style.top = targetRect.top - tableRect.top - 200 + "px";
+	                    }
 	                }
 	            }
 	        }
@@ -63833,6 +63875,11 @@
 	            return _reactDom2.default.findDOMNode(this.refs[this.state.tableRef]);
 	        }
 	    }, {
+	        key: '_setTaptipTarget',
+	        value: function _setTaptipTarget(taptip) {
+	            this.taptipTarget = taptip;
+	        }
+	    }, {
 	        key: 'render',
 	        value: function render() {
 	
@@ -63925,7 +63972,8 @@
 	                            replaceEnabled: this.state.selectedCells.length > 0,
 	                            onclear: this._onClearFind,
 	                            onhide: this._removeFocus,
-	                            name: editColumnButtonName });
+	                            name: editColumnButtonName,
+	                            taptipRef: this._setTaptipTarget });
 	
 	                        var headerCell;
 	
@@ -116533,4 +116581,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-1c8f785aa3aa92b21764.js.map
+//# sourceMappingURL=app-28ad81c3dae2b6e07832.js.map
