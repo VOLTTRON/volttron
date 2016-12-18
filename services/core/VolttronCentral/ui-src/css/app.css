@@ -309,6 +309,10 @@ br + .form__control-help {
     padding: 0;
 }
 
+.not-logged-in .main {
+    overflow: hidden;
+}
+
 .logo {
     float: left;
     line-height: 1;
@@ -618,6 +622,7 @@ br + .form__control-help {
     vertical-align: middle;
 }
 
+.file-export-button,
 .file-select-button,
 .refresh-points-button {
     cursor: pointer;
@@ -781,25 +786,8 @@ br + .form__control-help {
     box-shadow: 0px 2px 10px 2px #ccc;
 }
 
-.tooltip_point, .taptip_point {
-    /*color: #ffffff;
-    transform: rotate(90deg);
-    transform-origin: 20px 20px;
-    margin: 0px;
-    padding: 0px;
-    opacity: .5;*/
-}
-
-/*.tooltip_show {
-    display: "block";
-}
-
-.tooltip_hide {
-    display: "none";
-}*/
-
 .tooltip_outer, .taptip_outer {
-    z-index: 100;
+    z-index: 301;
     position: relative;
 }
 
@@ -883,6 +871,7 @@ br + .form__control-help {
 }
 
 .file-button > .centeredDiv,
+.file-export-button > .centeredDiv,
 .file-select-button > .centeredDiv,
 .refresh-points-button > .centeredDiv {
     transform: translateY(-6px);
@@ -1579,6 +1568,15 @@ a.view__item:hover::before {
     padding: 4px;
 }
 
+#app {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
 /***end react-select-me style overrides ***/
 
 .collapsible-registry-values.slow-hide {
@@ -1785,7 +1783,6 @@ td.plain {
 }
 
 .device-box {
-    width: 100%;
     float: left;
     clear: both;
 }
@@ -1793,6 +1790,10 @@ td.plain {
 .device-box > .config-device-form > h1,
 .device-box > .config-device-form > h4 {
     display: none;
+}
+
+.config-devices .device-box {
+    width: 100%;
 }
 
 .device-scan {
@@ -1918,6 +1919,11 @@ td.buffer_row {
     color: black;
 }
 
+.file-export-button {
+    font-size: 24px;
+    height: 24px;
+}
+
 .fileButton, 
 .fileSelectButton,
 .refreshPointsButton {
@@ -1935,11 +1941,18 @@ td.buffer_row {
 
 .fileButton {
     line-height: 12px;
+    transform: translateY(2px);
 }
 
 .fileButton > div {
     line-height: 16px;
+    font-size: 14px;
     transform: translateY(7px);
+}
+
+.fileUploadTooltip {
+    font-size: 12px;
+    color: black;
 }
 
 .buttonWrapper {

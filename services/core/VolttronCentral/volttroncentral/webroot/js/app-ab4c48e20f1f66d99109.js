@@ -62396,7 +62396,7 @@
 	
 	            return _react2.default.createElement(
 	                'div',
-	                { className: 'view',
+	                { className: 'view config-devices',
 	                    ref: 'config-device-ref' },
 	                _react2.default.createElement(
 	                    'h2',
@@ -65859,14 +65859,15 @@
 	            var keyboardHelpTaptip = {
 	                "title": "Keyboard Shortcuts",
 	                "content": shortcutsBox,
-	                "x": -240,
-	                "y": -260,
-	                "styles": [{ "key": "width", "value": "500px" }]
+	                "x": -470,
+	                "y": -220,
+	                "styles": [{ "key": "width", "value": "500px" }],
+	                "break": ""
 	            };
 	
 	            var keyboardHelpTooltip = {
 	                "content": "Keyboard Shortcuts",
-	                "x": -20,
+	                "x": -60,
 	                "y": -100
 	            };
 	
@@ -66552,7 +66553,7 @@
 	
 	            var fileUploadTooltip = {
 	                content: "Import Registry File (CSV)",
-	                tooltipClass: "colorBlack",
+	                tooltipClass: "fileUploadTooltip",
 	                "x": this.props.tooltipX,
 	                "y": this.props.tooltipY
 	            };
@@ -74861,9 +74862,14 @@
 	                    value: this.state.configFile,
 	                    onChange: this._onConfigChange });
 	
+	                var containerWidth = {
+	                    width: "80px"
+	                };
+	
 	                var fileSelectContainer = _react2.default.createElement(
 	                    'div',
-	                    { className: 'fileSelectContainer' },
+	                    { className: 'fileSelectContainer',
+	                        style: containerWidth },
 	                    _react2.default.createElement(_fileSelectButton2.default, {
 	                        deviceId: this.state.device.id,
 	                        deviceAddress: this.state.device.address,
@@ -75151,9 +75157,9 @@
 	                'div',
 	                { className: 'fileExportButton' },
 	                _react2.default.createElement(_controlButton2.default, {
-	                    name: "file-select-" + this.props.deviceId + "-" + this.props.deviceAddress,
+	                    name: "file-export-" + this.props.deviceId + "-" + this.props.deviceAddress,
 	                    tooltip: fileExportTooltip,
-	                    controlclass: 'file-select-button',
+	                    controlclass: 'file-export-button',
 	                    icon: exportIcon,
 	                    clickAction: this._exportFile })
 	            );
@@ -116581,4 +116587,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-b863e17b43d7952648af.js.map
+//# sourceMappingURL=app-ab4c48e20f1f66d99109.js.map

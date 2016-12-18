@@ -427,7 +427,7 @@ class ConfigureDevices extends BaseComponent {
 
         
         return (  
-            <div className="view"
+            <div className="view config-devices"
                 ref="config-device-ref">   
                 <h2>Install Devices</h2>      
                 {deviceContent} 

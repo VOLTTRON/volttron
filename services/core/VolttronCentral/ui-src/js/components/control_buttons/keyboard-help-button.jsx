@@ -152,14 +152,15 @@ class KeyboardHelpButton extends BaseComponent {
         var keyboardHelpTaptip = { 
             "title": "Keyboard Shortcuts", 
             "content": shortcutsBox,
-            "x": -240,
-            "y": -260,
-            "styles": [{"key": "width", "value": "500px"}]
+            "x": -470,
+            "y": -220,
+            "styles": [{"key": "width", "value": "500px"}],
+            "break": ""
         };
         
         var keyboardHelpTooltip = {
             "content": "Keyboard Shortcuts",
-            "x": -20,
+            "x": -60,
             "y": -100
         };
 

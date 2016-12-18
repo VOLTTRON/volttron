@@ -105,8 +105,13 @@ class ReconfigureDevice extends BaseComponent {
                 </Select>
             );
 
+            var containerWidth = {
+                width: "80px"
+            };
+
             var fileSelectContainer = (
-                <div className="fileSelectContainer">
+                <div className="fileSelectContainer"
+                    style={containerWidth}>
                     <FileSelectButton 
                         deviceId={this.state.device.id}
                         deviceAddress={this.state.device.address}

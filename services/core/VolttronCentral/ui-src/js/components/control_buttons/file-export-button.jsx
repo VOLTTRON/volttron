@@ -81,9 +81,9 @@ class FileExportButton extends BaseComponent {
         return (
             <div className="fileExportButton">
                 <ControlButton
-                    name={"file-select-" + this.props.deviceId + "-" + this.props.deviceAddress}
+                    name={"file-export-" + this.props.deviceId + "-" + this.props.deviceAddress}
                     tooltip={fileExportTooltip}
-                    controlclass="file-select-button"
+                    controlclass="file-export-button"
                     icon={exportIcon}
                     clickAction={this._exportFile}/>
             </div>
