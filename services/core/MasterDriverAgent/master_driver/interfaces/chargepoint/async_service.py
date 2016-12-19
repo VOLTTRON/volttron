@@ -105,7 +105,7 @@ class CPRequest (object):
 
     """
 
-    def __init__(self, method, *args, **kwargs):
+    def __init__(self, method, timeout, *args, **kwargs):
         """
         Stores the method+params and creates a new AsyncResult.
 
@@ -114,6 +114,7 @@ class CPRequest (object):
         @param kwargs
         """
         self._method = method
+        self._timeout = timeout
         self._args = args
         self._kwargs = kwargs
         self._sent = None
@@ -121,6 +122,9 @@ class CPRequest (object):
         self._response = None
         self._result = gevent.event.AsyncResult()
 
+    @property
+    def timeout(self):
+        return self._timeout
 
     def __str__(self):
         return self.key()
@@ -136,7 +140,7 @@ class CPRequest (object):
 
 
     @classmethod
-    def request(cls, method, *args, **kwargs):
+    def request(cls, method, timeout, *args, **kwargs):
         """Generate a new request and put it on the web service queue.
 
            Returns the requests AsyncResult instance which will be
@@ -144,7 +148,7 @@ class CPRequest (object):
 
         """
         global web_service_queue
-        r = CPRequest(method, *args, **kwargs)
+        r = CPRequest(method, timeout, *args, **kwargs)
 
         web_service_queue.put(r)
         return r.result()
@@ -202,11 +206,11 @@ class CacheItem (object):
         request.
     """
 
-    def __init__(self):
+    def __init__(self, cache_life):
         self._request = None
         self._response = None
         self._waiting_results = set()
-        self._expiration = datetime.utcnow() + timedelta(seconds=15)
+        self._expiration = datetime.utcnow() + timedelta(seconds=cache_life)
 
 
     @property
@@ -255,7 +259,7 @@ def web_service():
             # Item is a request to make an async call.
 
             item_key = item.key()
-
+            _log.info("START {0}".format(item))
             # First deal with expiration, popping anything that is too old.
             if item_key in web_cache and web_cache[item_key].expiration < datetime.utcnow():
                 web_cache.pop(item_key)
@@ -263,6 +267,7 @@ def web_service():
             cached_request = web_cache.get(item_key, None)
             if cached_request:
                 # Found item, use it
+                _log.info("FOUND {0}".format(cached_request))
                 if cached_request.response:
                     item.result().set(cached_request.response)
                 else:
@@ -271,7 +276,8 @@ def web_service():
                 del item
             else:
                 # New request
-                cache_item = CacheItem()
+                _log.info("MISSED {0}".format(cached_request))
+                cache_item = CacheItem(item.timeout)
                 cache_item.request = item
                 cache_item.waiting_results.add(item.result())
                 web_cache[item_key] = cache_item
@@ -284,4 +290,3 @@ def web_service():
             for result in cached_request.waiting_results:
                 result.set(cached_request.response)
             cached_request.waiting_results.clear()
-
