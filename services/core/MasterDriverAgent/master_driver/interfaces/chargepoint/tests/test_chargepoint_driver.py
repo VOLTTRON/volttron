@@ -59,7 +59,8 @@ DRIVER1_CONFIG_STRING = """{
     "driver_config": {
         "stationID" : "1:34003",
         "username" : "9d44ba0be5fe6b6628e50af1335d4fcf5743a6f3c63ee1464051443",
-        "password" : "%s"
+        "password" : "%s",
+        "cacheExpiration" : 40
     },
     "campus": "campus",
     "building": "building",
@@ -75,7 +76,8 @@ DRIVER2_CONFIG_STRING = """{
     "driver_config": {
         "stationID" : "1:34033",
         "username" : "9d44ba0be5fe6b6628e50af1335d4fcf5743a6f3c63ee1464051443",
-        "password" : "%s"
+        "password" : "%s",
+        "cacheExpiration" : 40
     },
     "campus": "campus",
     "building": "building",
