@@ -527,6 +527,8 @@ var devicesActionCreators = {
             config[key] = (settings.config[key].hasOwnProperty("value") ? settings.config[key].value : settings.config[key]);
         }
 
+        config.publish_depth_first = true;
+
         var params = {
             platform_uuid: device.platformUuid, 
             agent_identity: "platform.driver", 
@@ -548,7 +550,7 @@ var devicesActionCreators = {
                 });
 
                 var action = (update ? "updated" : "created");
-                var highlight = config_name;
+                var highlight = config_name.replace("devices/", "");
                 var message = "The device configuration was successfully " + action + " for " + highlight + ".";
                 var orientation = "center";
                 

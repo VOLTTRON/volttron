@@ -682,7 +682,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             level.forEach(function (device) {
                 
                 var pathParts = device.path.split("/");
-                var buildingUuid = pathParts[1] + "_" + pathParts[1];
+                var buildingUuid = pathParts[1] + "_" + pathParts[2];
                 var buildingName = pathParts[2];
                 var legendInfo = pathParts[1] + " > " + buildingName;                
 
@@ -769,9 +769,9 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                 var subDeviceLevel = deviceParts.length - 1;
 
-                // the top two spots in the device path are the campus and building,
-                // so add 2 to the row and that should equal the subdevice's level
-                if (subDeviceLevel !== row + 2)
+                // the top three spots in the device path are the device/, campus, and building,
+                // so add 3 to the row and that should equal the subdevice's level
+                if (subDeviceLevel !== row + 3)
                 {
                     console.log("wrong level number");
                 }
@@ -781,7 +781,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                     // to walk the tree
                     var parentPath = JSON.parse(JSON.stringify(building.path));
                     var parentDevice = building; // start at the building
-                    var currentLevel = 2; // the level of the top-level devices
+                    var currentLevel = 3; // the level of the top-level devices
 
                     while (currentLevel < subDeviceLevel)
                     {
@@ -789,7 +789,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                         for (var i = 1; i <= currentLevel; i++)
                         {
-                            parentDeviceUuid = parentDeviceUuid + "_" + deviceParts[i];
+                            parentDeviceUuid = parentDeviceUuid + "/" + deviceParts[i];
                         }
 
                         parentDevice = parentDevice.devices;

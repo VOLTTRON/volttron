@@ -152,7 +152,8 @@ class ConfigureRegistry extends BaseComponent {
     componentWillReceiveProps(nextProps) {
         if ((this.props.device.configuring !== nextProps.device.configuring) || 
             (this.props.device.showPoints !== nextProps.device.showPoints) ||
-            (this.props.device.registryCount !== nextProps.device.registryCount))
+            (this.props.device.registryCount !== nextProps.device.registryCount) ||
+            (this.props.device.name !== nextProps.device.name))
         {
             var newState = this._resetState(nextProps.device);
             newState.keyboardRange = this.state.keyboardRange;
@@ -961,17 +962,18 @@ class ConfigureRegistry extends BaseComponent {
                     this.props.device.agentDriver, 
                     this.props.device.id,
                     this.props.device.address
-                );
+                ).then(function () {
 
-                modalActionCreators.openModal(
-                    <PreviewRegistryForm 
-                        deviceId={this.props.device.id}
-                        deviceAddress={this.props.device.address} 
-                        deviceName={this.props.device.name}
-                        fileName={this.props.registryFile}
-                        attributes={attributes}
-                        onsaveregistry={this._saveRegistry}>
-                    </PreviewRegistryForm>);
+                    modalActionCreators.openModal(
+                        <PreviewRegistryForm 
+                            deviceId={this.props.device.id}
+                            deviceAddress={this.props.device.address} 
+                            deviceName={this.props.device.name}
+                            fileName={this.props.registryFile}
+                            attributes={attributes}
+                            onsaveregistry={this._saveRegistry}>
+                        </PreviewRegistryForm>);
+                    }.bind(this));
             }
         }
     }
@@ -1411,7 +1413,7 @@ function getFilteredPoints(registryValues, filterStr, column) {
 }
 
 function getPointsFromStore(device, allSelected, keyPropsList) {
-    return initializeList(allSelected, devicesStore.getRegistryValues(device.id, device.address), keyPropsList);
+    return initializeList(allSelected, devicesStore.getRegistryValues(device.id, device.address, device.name), keyPropsList);
 }
 
 function initializeList(allSelected, registryConfig, keyPropsList)

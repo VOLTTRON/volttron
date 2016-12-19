@@ -40,7 +40,7 @@ class FileSelectButton extends BaseComponent {
     render() {
 
         var fileSelectTooltip = {
-            content: "Select Registry File (CSV)",
+            content: <span>Select&nbsp;Registry File&nbsp;(CSV)</span>,
             tooltipClass: "colorBlack",
             "x": this.props.tooltipX,
             "y": this.props.tooltipY

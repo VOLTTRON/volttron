@@ -182,23 +182,28 @@ class ConfigDeviceForm extends BaseComponent {
 
                 if (this.state.settings[key].type === "bool")
                 {
-                    setting = (
-                        <tr key={key}>
-                            <td style={firstStyle}>{this.state.settings[key].label}</td>
-                            <td style={secondStyle}
-                                className="plain">
-                                <div className="centerContent flexContent"
-                                    width="100%">
-                                    <CheckBox 
-                                        dataItem={key}
-                                        oncheck={this._checkItem}
-                                        selected={this.state.settings[key].value}
-                                        controlClass="flexChild">
-                                    </CheckBox>
-                                </div>
-                            </td>
-                        </tr>
-                    );
+                    if (key !== "publish_depth_first")
+                    {
+                        setting = (
+                            <tr key={key}>
+                                <td style={firstStyle}>{this.state.settings[key].label}</td>
+                                <td style={secondStyle}
+                                    className="plain">
+                                    <div className="centerContent flexContent"
+                                        width="100%">
+                                        <CheckBox 
+                                            dataItem={key}
+                                            oncheck={this._checkItem}
+                                            selected={this.state.settings[key].value}
+                                            controlClass="flexChild">
+                                        </CheckBox>
+                                    </div>
+                                </td>
+                            </tr>
+                        );
+
+                        editableAttributes.push(setting);
+                    }
                 }
                 else
                 { 
@@ -217,9 +222,9 @@ class ConfigDeviceForm extends BaseComponent {
                             </td>
                         </tr>
                     );
-                }
 
-                editableAttributes.push(setting);
+                    editableAttributes.push(setting);
+                }
             }
         }
 
@@ -377,7 +382,7 @@ var initializeSettings = (type, savedConfig, settingsTemplate) => {
                         type: "number"
                     },
                     publish_depth_first: {
-                        value: false,
+                        value: true,
                         label: "Publish Depth-First",
                         type: "bool"
                     },

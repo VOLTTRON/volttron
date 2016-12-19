@@ -36155,7 +36155,7 @@
 	            level.forEach(function (device) {
 	
 	                var pathParts = device.path.split("/");
-	                var buildingUuid = pathParts[1] + "_" + pathParts[1];
+	                var buildingUuid = pathParts[1] + "_" + pathParts[2];
 	                var buildingName = pathParts[2];
 	                var legendInfo = pathParts[1] + " > " + buildingName;
 	
@@ -36237,22 +36237,22 @@
 	
 	                var subDeviceLevel = deviceParts.length - 1;
 	
-	                // the top two spots in the device path are the campus and building,
-	                // so add 2 to the row and that should equal the subdevice's level
-	                if (subDeviceLevel !== row + 2) {
+	                // the top three spots in the device path are the device/, campus, and building,
+	                // so add 3 to the row and that should equal the subdevice's level
+	                if (subDeviceLevel !== row + 3) {
 	                    console.log("wrong level number");
 	                } else {
 	                    //Now find the subdevice's parent device by using the parts of its path
 	                    // to walk the tree
 	                    var parentPath = JSON.parse(JSON.stringify(building.path));
 	                    var parentDevice = building; // start at the building
-	                    var currentLevel = 2; // the level of the top-level devices
+	                    var currentLevel = 3; // the level of the top-level devices
 	
 	                    while (currentLevel < subDeviceLevel) {
 	                        var parentDeviceUuid = deviceParts[0];
 	
 	                        for (var i = 1; i <= currentLevel; i++) {
-	                            parentDeviceUuid = parentDeviceUuid + "_" + deviceParts[i];
+	                            parentDeviceUuid = parentDeviceUuid + "/" + deviceParts[i];
 	                        }
 	
 	                        parentDevice = parentDevice.devices;
@@ -57777,6 +57777,8 @@
 	            config[key] = settings.config[key].hasOwnProperty("value") ? settings.config[key].value : settings.config[key];
 	        }
 	
+	        config.publish_depth_first = true;
+	
 	        var params = {
 	            platform_uuid: device.platformUuid,
 	            agent_identity: "platform.driver",
@@ -57797,7 +57799,7 @@
 	            });
 	
 	            var action = update ? "updated" : "created";
-	            var highlight = config_name;
+	            var highlight = config_name.replace("devices/", "");
 	            var message = "The device configuration was successfully " + action + " for " + highlight + ".";
 	            var orientation = "center";
 	
@@ -59859,9 +59861,9 @@
 	    return { action: _action, view: _view, device: _device, platform: _platform };
 	};
 	
-	devicesStore.getRegistryValues = function (deviceId, deviceAddress) {
+	devicesStore.getRegistryValues = function (deviceId, deviceAddress, deviceName) {
 	
-	    var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
+	    var device = devicesStore.getDeviceRef(deviceId, deviceAddress, deviceName);
 	    var config = [];
 	
 	    if (device) {
@@ -59919,10 +59921,10 @@
 	    return device;
 	};
 	
-	devicesStore.getDeviceRef = function (deviceId, deviceAddress) {
+	devicesStore.getDeviceRef = function (deviceId, deviceAddress, deviceName) {
 	
 	    var device = _devices.find(function (dvc) {
-	        return dvc.id === deviceId && dvc.address === deviceAddress;
+	        return dvc.id === deviceId && dvc.address === deviceAddress && (deviceName ? dvc.name === deviceName : true);
 	    });
 	
 	    return typeof device === "undefined" ? null : device;
@@ -60200,7 +60202,10 @@
 	            break;
 	        case ACTION_TYPES.RECONFIGURE_DEVICE:
 	
-	            _reconfiguration = action.configuration, reconfigureRegistry(action.platformUuid, action.agentDriver, action.deviceName, _reconfiguration, action.data);
+	            _reconfiguration = action.configuration;
+	            _reconfiguration.deviceName = action.deviceName.replace("devices/", "");
+	
+	            reconfigureRegistry(action.platformUuid, action.agentDriver, _reconfiguration.deviceName, _reconfiguration, action.data);
 	
 	            _reconfiguringDevice = true;
 	
@@ -60426,12 +60431,10 @@
 	        var deviceId = configuration.driver_config.device_id;
 	        var deviceAddress = configuration.driver_config.device_address;
 	
-	        var name = deviceName.replace("devices/", "");
-	
 	        var preppedDevice = {
 	            id: deviceId,
 	            address: deviceAddress,
-	            name: name,
+	            name: deviceName,
 	            platformUuid: platformUuid,
 	            agentDriver: agentDriver,
 	            registryFile: configuration.registryFile,
@@ -60445,7 +60448,7 @@
 	        var index = -1;
 	
 	        var deviceInList = _devices.find(function (dvc, i) {
-	            var match = dvc.id === deviceId && dvc.address === deviceAddress;
+	            var match = dvc.id === deviceId && dvc.address === deviceAddress && dvc.name === deviceName;
 	
 	            if (match) {
 	                index = i;
@@ -60455,6 +60458,8 @@
 	        });
 	
 	        if (index > -1) {
+	            preppedDevice.registryCount = _devices[index].registryCount + 1;
+	
 	            _devices.splice(index, 1, preppedDevice);
 	        } else {
 	            _devices.push(preppedDevice);
@@ -62681,10 +62686,14 @@
 	
 	                    if (typeof enableRefresh !== "undefined") {
 	                        var refreshPointsTooltip = {
-	                            content: "Reload Points From Device",
+	                            content: _react2.default.createElement(
+	                                'span',
+	                                null,
+	                                'Reload\xA0Points From\xA0Device'
+	                            ),
 	                            tooltipClass: "colorBlack",
 	                            "x": -20,
-	                            "y": -120
+	                            "y": -70
 	                        };
 	
 	                        refreshPointsButton = _react2.default.createElement(
@@ -62719,15 +62728,15 @@
 	                                    deviceAddress: deviceAddress,
 	                                    platformUuid: device.platformUuid,
 	                                    agentDriver: device.agentDriver,
-	                                    tooltipY: -120,
+	                                    tooltipY: -70,
 	                                    tooltipX: -20 }),
 	                                _react2.default.createElement(_fileUploadButton2.default, {
 	                                    onupload: this._focusOnDevice,
 	                                    onfocus: this._focusOnDevice,
 	                                    deviceId: deviceId,
 	                                    deviceAddress: deviceAddress,
-	                                    tooltipY: -120,
-	                                    tooltipX: -20 }),
+	                                    tooltipY: -80,
+	                                    tooltipX: -30 }),
 	                                refreshPointsButton
 	                            )
 	                        )
@@ -63050,7 +63059,7 @@
 	    }, {
 	        key: 'componentWillReceiveProps',
 	        value: function componentWillReceiveProps(nextProps) {
-	            if (this.props.device.configuring !== nextProps.device.configuring || this.props.device.showPoints !== nextProps.device.showPoints || this.props.device.registryCount !== nextProps.device.registryCount) {
+	            if (this.props.device.configuring !== nextProps.device.configuring || this.props.device.showPoints !== nextProps.device.showPoints || this.props.device.registryCount !== nextProps.device.registryCount || this.props.device.name !== nextProps.device.name) {
 	                var newState = this._resetState(nextProps.device);
 	                newState.keyboardRange = this.state.keyboardRange;
 	
@@ -63805,15 +63814,16 @@
 	                        cancelText: 'OK'
 	                    }));
 	                })) {
-	                    devicesActionCreators.loadRegistryFiles(this.props.device.platformUuid, this.props.device.agentDriver, this.props.device.id, this.props.device.address);
+	                    devicesActionCreators.loadRegistryFiles(this.props.device.platformUuid, this.props.device.agentDriver, this.props.device.id, this.props.device.address).then(function () {
 	
-	                    modalActionCreators.openModal(_react2.default.createElement(_previewRegistryForm2.default, {
-	                        deviceId: this.props.device.id,
-	                        deviceAddress: this.props.device.address,
-	                        deviceName: this.props.device.name,
-	                        fileName: this.props.registryFile,
-	                        attributes: attributes,
-	                        onsaveregistry: this._saveRegistry }));
+	                        modalActionCreators.openModal(_react2.default.createElement(_previewRegistryForm2.default, {
+	                            deviceId: this.props.device.id,
+	                            deviceAddress: this.props.device.address,
+	                            deviceName: this.props.device.name,
+	                            fileName: this.props.registryFile,
+	                            attributes: attributes,
+	                            onsaveregistry: this._saveRegistry }));
+	                    }.bind(this));
 	                }
 	            }
 	        }
@@ -64255,7 +64265,7 @@
 	}
 	
 	function getPointsFromStore(device, allSelected, keyPropsList) {
-	    return initializeList(allSelected, devicesStore.getRegistryValues(device.id, device.address), keyPropsList);
+	    return initializeList(allSelected, devicesStore.getRegistryValues(device.id, device.address, device.name), keyPropsList);
 	}
 	
 	function initializeList(allSelected, registryConfig, keyPropsList) {
@@ -64577,18 +64587,23 @@
 	        value: function _onSubmit(e) {
 	            e.preventDefault();
 	
-	            if (this.state.otherFileNames.indexOf(this.state.fileName) > -1) {
-	                modalActionCreators.closeModal();
-	
-	                modalActionCreators.openModal(_react2.default.createElement(ConfirmForm, {
-	                    promptTitle: 'Duplicate File Names',
-	                    promptText: "Another registry file exists with the name \"" + this.state.fileName + "\". Using this name will overwrite " + "the other file and risk disrupting previously configured devices. " + "Proceed with save?",
-	                    confirmText: 'Save',
-	                    onConfirm: this._saveRegistryFile,
-	                    cancelText: 'Cancel'
-	                }));
-	            } else {
+	            if (this.state.disableRename) {
 	                this._saveRegistryFile();
+	            } else {
+	                if (this.state.otherFileNames.indexOf(this.state.fileName) > -1) {
+	                    modalActionCreators.closeModal();
+	
+	                    modalActionCreators.openModal(_react2.default.createElement(ConfirmForm, {
+	                        promptTitle: 'Duplicate File Names',
+	                        promptText: "Another registry file exists with the name \"" + this.state.fileName + "\". Using this name will overwrite " + "the other file and risk disrupting previously configured devices. " + "Proceed with save?",
+	                        confirmText: 'Save',
+	                        onConfirm: this._saveRegistryFile,
+	                        cancelText: 'Cancel',
+	                        width: '400px'
+	                    }));
+	                } else {
+	                    this._saveRegistryFile();
+	                }
 	            }
 	        }
 	    }, {
@@ -64852,9 +64867,19 @@
 	
 	        var cancelText = this.props.cancelText ? this.props.cancelText : "Cancel";
 	
+	        var formWidth;
+	
+	        if (this.props.width) {
+	            formWidth = {
+	                width: this.props.width
+	            };
+	        }
+	
 	        return React.createElement(
 	            'form',
-	            { className: 'confirmation-form', onSubmit: this._onSubmit },
+	            { className: 'confirmation-form',
+	                onSubmit: this._onSubmit,
+	                style: formWidth },
 	            React.createElement(
 	                'h1',
 	                null,
@@ -65259,30 +65284,34 @@
 	                    var setting;
 	
 	                    if (this.state.settings[key].type === "bool") {
-	                        setting = _react2.default.createElement(
-	                            'tr',
-	                            { key: key },
-	                            _react2.default.createElement(
-	                                'td',
-	                                { style: firstStyle },
-	                                this.state.settings[key].label
-	                            ),
-	                            _react2.default.createElement(
-	                                'td',
-	                                { style: secondStyle,
-	                                    className: 'plain' },
+	                        if (key !== "publish_depth_first") {
+	                            setting = _react2.default.createElement(
+	                                'tr',
+	                                { key: key },
 	                                _react2.default.createElement(
-	                                    'div',
-	                                    { className: 'centerContent flexContent',
-	                                        width: '100%' },
-	                                    _react2.default.createElement(_checkBox2.default, {
-	                                        dataItem: key,
-	                                        oncheck: this._checkItem,
-	                                        selected: this.state.settings[key].value,
-	                                        controlClass: 'flexChild' })
+	                                    'td',
+	                                    { style: firstStyle },
+	                                    this.state.settings[key].label
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { style: secondStyle,
+	                                        className: 'plain' },
+	                                    _react2.default.createElement(
+	                                        'div',
+	                                        { className: 'centerContent flexContent',
+	                                            width: '100%' },
+	                                        _react2.default.createElement(_checkBox2.default, {
+	                                            dataItem: key,
+	                                            oncheck: this._checkItem,
+	                                            selected: this.state.settings[key].value,
+	                                            controlClass: 'flexChild' })
+	                                    )
 	                                )
-	                            )
-	                        );
+	                            );
+	
+	                            editableAttributes.push(setting);
+	                        }
 	                    } else {
 	                        setting = _react2.default.createElement(
 	                            'tr',
@@ -65305,9 +65334,9 @@
 	                                })
 	                            )
 	                        );
-	                    }
 	
-	                    editableAttributes.push(setting);
+	                        editableAttributes.push(setting);
+	                    }
 	                }
 	            }
 	
@@ -65530,7 +65559,7 @@
 	                        type: "number"
 	                    },
 	                    publish_depth_first: {
-	                        value: false,
+	                        value: true,
 	                        label: "Publish Depth-First",
 	                        type: "bool"
 	                    },
@@ -66552,7 +66581,11 @@
 	        value: function render() {
 	
 	            var fileUploadTooltip = {
-	                content: "Import Registry File (CSV)",
+	                content: _react2.default.createElement(
+	                    'span',
+	                    null,
+	                    'Import\xA0Registry File\xA0(CSV)'
+	                ),
 	                tooltipClass: "fileUploadTooltip",
 	                "x": this.props.tooltipX,
 	                "y": this.props.tooltipY
@@ -66656,7 +66689,11 @@
 	        value: function render() {
 	
 	            var fileSelectTooltip = {
-	                content: "Select Registry File (CSV)",
+	                content: _react2.default.createElement(
+	                    'span',
+	                    null,
+	                    'Select\xA0Registry File\xA0(CSV)'
+	                ),
 	                tooltipClass: "colorBlack",
 	                "x": this.props.tooltipX,
 	                "y": this.props.tooltipY
@@ -74876,12 +74913,12 @@
 	                        platformUuid: this.state.device.platformUuid,
 	                        agentDriver: this.state.device.agentDriver,
 	                        tooltipY: -60,
-	                        tooltipX: 30 }),
+	                        tooltipX: -20 }),
 	                    _react2.default.createElement(_fileUploadButton2.default, {
 	                        deviceId: this.state.device.id,
 	                        deviceAddress: this.state.device.address,
-	                        tooltipY: -60,
-	                        tooltipX: 30 }),
+	                        tooltipY: -70,
+	                        tooltipX: -30 }),
 	                    _react2.default.createElement(_fileExportButton2.default, {
 	                        deviceId: this.state.device.id,
 	                        deviceAddress: this.state.device.address,
@@ -75023,7 +75060,7 @@
 	        var deviceAddress = reconfiguration.driver_config.device_address;
 	
 	        state = {
-	            device: devicesStore.getDeviceRef(deviceId, deviceAddress),
+	            device: devicesStore.getDeviceRef(deviceId, deviceAddress, reconfiguration.deviceName),
 	            configuration: reconfiguration,
 	            configFile: "registryConfig"
 	        };
@@ -116587,4 +116624,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-ab4c48e20f1f66d99109.js.map
+//# sourceMappingURL=app-a3efc4eba9a4127ba242.js.map

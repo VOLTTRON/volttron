@@ -27,10 +27,19 @@ var ConfirmForm = React.createClass({
             (this.props.cancelText ? this.props.cancelText : "Cancel")
         );
 
+        var formWidth;
 
+        if (this.props.width)
+        {
+            formWidth = {
+                width: this.props.width
+            }
+        }
 
         return (
-            <form className="confirmation-form" onSubmit={this._onSubmit}>
+            <form className="confirmation-form" 
+                onSubmit={this._onSubmit}
+                style={formWidth}>
                 <h1>{this.props.promptTitle}</h1>
                 <p>
                     {this.props.preText}{promptText}{this.props.postText}

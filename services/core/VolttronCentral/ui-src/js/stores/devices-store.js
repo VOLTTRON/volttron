@@ -988,9 +988,9 @@ devicesStore.getState = function () {
     return { action: _action, view: _view, device: _device, platform: _platform };
 };
 
-devicesStore.getRegistryValues = function (deviceId, deviceAddress) {
+devicesStore.getRegistryValues = function (deviceId, deviceAddress, deviceName) {
 
-    var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
+    var device = devicesStore.getDeviceRef(deviceId, deviceAddress, deviceName);
     var config = [];
 
     if (device)
@@ -1057,10 +1057,14 @@ devicesStore.getDeviceByID = function (deviceId) {
     return device;
 }
 
-devicesStore.getDeviceRef = function (deviceId, deviceAddress) {
+devicesStore.getDeviceRef = function (deviceId, deviceAddress, deviceName) {
 
     var device = _devices.find(function (dvc) {
-        return ((dvc.id === deviceId) && (dvc.address === deviceAddress));
+        return (
+            (dvc.id === deviceId) && 
+            (dvc.address === deviceAddress) && 
+            (deviceName ? dvc.name === deviceName : true)
+        );
     });
 
     return (typeof device === "undefined" ? null : device);
@@ -1351,12 +1355,13 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             break;
         case ACTION_TYPES.RECONFIGURE_DEVICE:
             
-            _reconfiguration = action.configuration,
+            _reconfiguration = action.configuration;
+            _reconfiguration.deviceName = action.deviceName.replace("devices/", "");
 
             reconfigureRegistry(
                 action.platformUuid, 
                 action.agentDriver, 
-                action.deviceName, 
+                _reconfiguration.deviceName, 
                 _reconfiguration, 
                 action.data
             );
@@ -1629,12 +1634,10 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         var deviceId = configuration.driver_config.device_id;
         var deviceAddress = configuration.driver_config.device_address;
 
-        var name = deviceName.replace("devices/", "");
-
         var preppedDevice = {
             id: deviceId,
             address: deviceAddress,
-            name: name,
+            name: deviceName,
             platformUuid: platformUuid,
             agentDriver: agentDriver,
             registryFile: configuration.registryFile,
@@ -1648,7 +1651,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         var index = -1;
 
         var deviceInList = _devices.find(function (dvc, i) {
-            var match = ((dvc.id === deviceId) && (dvc.address === deviceAddress));
+            var match = ((dvc.id === deviceId) && (dvc.address === deviceAddress) && (dvc.name === deviceName));
 
             if (match)
             {
@@ -1660,6 +1663,8 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
         if (index > -1)
         {
+            preppedDevice.registryCount = _devices[index].registryCount + 1;
+
             _devices.splice(index, 1, preppedDevice);
         }
         else

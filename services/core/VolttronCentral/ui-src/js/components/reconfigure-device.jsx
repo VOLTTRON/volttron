@@ -118,12 +118,12 @@ class ReconfigureDevice extends BaseComponent {
                         platformUuid={this.state.device.platformUuid}
                         agentDriver={this.state.device.agentDriver}
                         tooltipY={-60}
-                        tooltipX={30}/>
+                        tooltipX={-20}/>
                     <FileUploadButton
                         deviceId={this.state.device.id}
                         deviceAddress={this.state.device.address}
-                        tooltipY={-60}
-                        tooltipX={30}/>
+                        tooltipY={-70}
+                        tooltipX={-30}/>
                     <FileExportButton
                         deviceId={this.state.device.id}
                         deviceAddress={this.state.device.address}
@@ -218,7 +218,7 @@ function getStateFromStore() {
         var deviceAddress = reconfiguration.driver_config.device_address;
 
         state = {
-            device: devicesStore.getDeviceRef(deviceId, deviceAddress),
+            device: devicesStore.getDeviceRef(deviceId, deviceAddress, reconfiguration.deviceName),
             configuration: reconfiguration,
             configFile: "registryConfig"
         };

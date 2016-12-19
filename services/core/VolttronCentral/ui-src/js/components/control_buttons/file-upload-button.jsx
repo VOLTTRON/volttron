@@ -152,7 +152,7 @@ class FileUploadButton extends BaseComponent {
     render() {
 
         var fileUploadTooltip = {
-            content: "Import Registry File (CSV)",
+            content: <span>Import&nbsp;Registry File&nbsp;(CSV)</span>,
             tooltipClass: "fileUploadTooltip",
             "x": this.props.tooltipX,
             "y": this.props.tooltipY

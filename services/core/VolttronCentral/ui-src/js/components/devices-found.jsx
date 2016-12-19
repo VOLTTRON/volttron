@@ -177,10 +177,10 @@ class DevicesFound extends BaseComponent {
                     if (typeof enableRefresh !== "undefined")
                     {
                         var refreshPointsTooltip = {
-                            content: "Reload Points From Device",
+                            content: <span>Reload&nbsp;Points From&nbsp;Device</span>,
                             tooltipClass: "colorBlack",
                             "x": -20,
-                            "y": -120
+                            "y": -70
                         }
 
                         refreshPointsButton = (
@@ -210,15 +210,15 @@ class DevicesFound extends BaseComponent {
                                         deviceAddress={deviceAddress}
                                         platformUuid={device.platformUuid}
                                         agentDriver={device.agentDriver}
-                                        tooltipY={-120}
+                                        tooltipY={-70}
                                         tooltipX={-20}/>
                                     <FileUploadButton
                                         onupload={this._focusOnDevice}
                                         onfocus={this._focusOnDevice}
                                         deviceId={deviceId}
                                         deviceAddress={deviceAddress}
-                                        tooltipY={-120}
-                                        tooltipX={-20}/>
+                                        tooltipY={-80}
+                                        tooltipX={-30}/>
                                     {refreshPointsButton}
                                 </div>
                             </td>

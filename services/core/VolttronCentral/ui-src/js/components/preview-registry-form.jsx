@@ -35,26 +35,34 @@ class PreviewRegistryForm extends BaseComponent {
     _onSubmit(e) {
         e.preventDefault();
 
-        if (this.state.otherFileNames.indexOf(this.state.fileName) > -1)
-        {   
-            modalActionCreators.closeModal();
-
-            modalActionCreators.openModal(
-                <ConfirmForm
-                    promptTitle="Duplicate File Names"
-                    promptText={"Another registry file exists with the name \"" + 
-                        this.state.fileName + "\". Using this name will overwrite " + 
-                        "the other file and risk disrupting previously configured devices. " +
-                        "Proceed with save?"} 
-                    confirmText="Save"
-                    onConfirm={ this._saveRegistryFile }
-                    cancelText="Cancel"
-                ></ConfirmForm> 
-            );
+        if (this.state.disableRename)
+        {
+            this._saveRegistryFile();
         }
         else
         {
-            this._saveRegistryFile();
+            if (this.state.otherFileNames.indexOf(this.state.fileName) > -1)
+            {   
+                modalActionCreators.closeModal();
+
+                modalActionCreators.openModal(
+                    <ConfirmForm
+                        promptTitle="Duplicate File Names"
+                        promptText={"Another registry file exists with the name \"" + 
+                            this.state.fileName + "\". Using this name will overwrite " + 
+                            "the other file and risk disrupting previously configured devices. " +
+                            "Proceed with save?"} 
+                        confirmText="Save"
+                        onConfirm={ this._saveRegistryFile }
+                        cancelText="Cancel"
+                        width="400px"
+                    ></ConfirmForm> 
+                );
+            }
+            else
+            {
+                this._saveRegistryFile();
+            }
         }
     }
     _saveRegistryFile() {
