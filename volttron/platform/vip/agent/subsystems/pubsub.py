@@ -76,6 +76,7 @@ from .... import jsonrpc
 from volttron.platform.agent import utils
 from ..results import ResultsDictionary
 from gevent.queue import Queue, Empty
+from collections import defaultdict
 
 __all__ = ['PubSub']
 min_compatible_version = '3.0'
@@ -101,8 +102,11 @@ class PubSub(SubsystemBase):
         self.rpc = weakref.ref(rpc_subsys)
         self.peerlist = weakref.ref(peerlist_subsys)
         self._owner = owner
-        self._peer_subscriptions = {}
-        self._my_subscriptions = {}
+
+        def subscriptions():
+            return defaultdict(set)
+
+        self._my_subscriptions = defaultdict(subscriptions)
         self.protected_topics = ProtectedPubSubTopics()
         core.register('pubsub', self._handle_subsystem, self._handle_error)
         self.vip_socket = None
@@ -115,37 +119,44 @@ class PubSub(SubsystemBase):
             # pylint: disable=unused-argument
             self._processgreenlet = gevent.spawn(self._process_loop)
             core.onconnected.connect(self._connected)
-            peerlist_subsys.onadd.connect(self._peer_add)
             self.vip_socket = self.core().socket
             def subscribe(member):   # pylint: disable=redefined-outer-name
                 for peer, bus, prefix in annotations(
                         member, set, 'pubsub.subscriptions'):
                     # XXX: needs updated in light of onconnected signal
-                    self.add_subscription(peer, prefix, member, bus)
-                    #_log.debug("PUBSUB SUBSYS subscribe with annotate. prefix {0}, identity: {1}".format(prefix, self.core().identity))
+                    self._add_subscription(prefix, member, bus)
             inspect.getmembers(owner, subscribe)
         core.onsetup.connect(setup, self)
 
     def _connected(self, sender, **kwargs):
+        """
+        Synchronize local subscriptions with PubSubService upon receiving connected signal.
+        param sender: identity of sender
+        type sender: str
+        param kwargs: optional arguments
+        type kwargs: pointer to arguments
+        """
         #_log.debug("PUBSUB SUBSYS: connected so sync up {}".format(sender))
-        self.synchronize(None, True)
+        self.synchronize()
 
-    def _peer_add(self, sender, peer, **kwargs):
-        # Delay sync by some random amount to prevent reply storm.
-        #_log.debug("PUBSUB SUBSYS: peer add {}".format(peer))
-        delay = random.random()
-        self.core().spawn_later(delay, self.synchronize, peer, False)
-
-    def _peer_push(self, sender, bus, topic, headers, message):
-        '''Handle incoming subscription pushes from peers.'''
+    def _process_callback(self, sender, bus, topic, headers, message):
+        """Handle incoming subscription pushes from PubSubService. It iterates over all subscriptions to find the
+        subscription matching the topic and bus. It then calls the corresponding callback on finding a match.
+        param sender: identity of the publisher
+        type sender: str
+        param bus: bus
+        type bus: str
+        param topic: publishing topic
+        type topic: str
+        param headers: header information for the incoming message
+        type headers: dict
+        param message: actual message
+        type message: dict
+        """
         peer = 'pubsub'
         handled = 0
-        try:
-            subscriptions = self._my_subscriptions[peer][bus]
-        except KeyError:
-            pass
-        else:
-            sender = decode_peer(sender)
+        if bus in self._my_subscriptions:
+            subscriptions = self._my_subscriptions[bus]
             for prefix, callbacks in subscriptions.iteritems():
                 if topic.startswith(prefix):
                     handled += 1
@@ -153,60 +164,58 @@ class PubSub(SubsystemBase):
                         callback(peer, sender, bus, topic, headers, message)
         if not handled:
             # No callbacks for topic; synchronize with sender
-            self.synchronize(peer, False)
+            self.synchronize()
 
-    def synchronize(self, peer, connected_event):
-        '''Unsubscribe from stale/forgotten/unsolicited subscriptions.'''
-        #_log.debug("AGENT PUBSUB {0} before synchronize: {1}".format(self.core().identity, self._my_subscriptions))
-        if peer is None:
-            items = [(peer, {bus: subscriptions.keys()
-                             for bus, subscriptions in buses.iteritems()})
-                     for peer, buses in self._my_subscriptions.iteritems()]
-        else:
-            buses = self._my_subscriptions.get(peer) or {}
-            items = [(peer, {bus: subscriptions.keys()
-                             for bus, subscriptions in buses.iteritems()})]
-        for (peer, subscriptions) in items:
+    def synchronize(self):
+        """Synchronize local subscriptions with the PubSubService.
+        """
+        items = [{bus: subscriptions.keys()
+                         for bus, subscriptions in self._my_subscriptions.items()}]
+        for subscriptions in items:
             sync_msg = jsonapi.dumps(
-                dict(identity=self.core().identity, subscriptions=subscriptions)
-            )
-            if connected_event:
-                #_log.debug("AGENT PUBSUB Syncing: {}".format(sync_msg))
-                frames = [b'synchronize', b'connected', sync_msg]
-                self.vip_socket.send_vip(b'', 'pubsub', frames, copy=False)
+                        dict(subscriptions=subscriptions)
+                    )
+            frames = [b'synchronize', b'connected', sync_msg]
+            self.vip_socket.send_vip(b'', 'pubsub', frames, copy=False)
 
     def list(self, peer, prefix='', bus='', subscribed=True, reverse=False):
+        """Gets list of subscriptions matching the prefix and bus for the specified peer.
+        param peer: peer
+        type peer: str
+        param prefix: prefix of a topic
+        type prefix: str
+        param bus: bus
+        type bus: bus
+        param subscribed: subscribed or not
+        type subscribed: boolean
+        param reverse: reverse
+        type reverse:
+        :returns: List of subscriptions, i.e, list of tuples of bus, topic and flag to indicate if peer is a
+        subscriber or not
+        :rtype: list of tuples
+
+        :Return Values:
+        List of tuples [(topic, bus, flag to indicate if peer is a subscriber or not)]
+        """
         result = next(self._results)
 
-        list_msg = jsonapi.dumps(
-            dict(identity=self.core().identity, prefix=prefix,
-                 subscribed=subscribed, reverse=reverse, bus=bus)
-        )
+        list_msg = jsonapi.dumps(dict(prefix=prefix, subscribed=subscribed, reverse=reverse, bus=bus))
         frames = [b'list', list_msg]
         self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
         return result
 
-    def add_subscription(self, peer, prefix, callback, bus=''):
+    def _add_subscription(self, prefix, callback, bus=''):
         if not callable(callback):
             raise ValueError('callback %r is not callable' % (callback,))
         try:
-            buses = self._my_subscriptions[peer]
+            self._my_subscriptions[bus][prefix].add(callback)
         except KeyError:
-            self._my_subscriptions[peer] = buses = {}
-        try:
-            subscriptions = buses[bus]
-        except KeyError:
-            buses[bus] = subscriptions = {}
-        try:
-            callbacks = subscriptions[prefix]
-        except KeyError:
-            subscriptions[prefix] = callbacks = set()
-        callbacks.add(callback)
+            _log.error("PUBSUB something went wrong in add subscriptions")
 
     @dualmethod
     @spawn
     def subscribe(self, peer, prefix, callback, bus=''):
-        '''Subscribe to topic and register callback.
+        """Subscribe to topic and register callback.
 
         Subscribes to topics beginning with prefix. If callback is
         supplied, it should be a function taking four arguments,
@@ -215,90 +224,145 @@ class PubSub(SubsystemBase):
         publishing peer, topic is the full message topic, headers is a
         case-insensitive dictionary (mapping) of message headers, and
         message is a possibly empty list of message parts.
-        '''
-        self.add_subscription(peer, prefix, callback, bus)
+        :param peer
+        :type peer
+        :param prefix prefix to the topic
+        :type prefix str
+        :param callback callback method
+        :type callback method
+        :param bus bus
+        :type bus str
+        :returns: Subscribe is successful or not
+        :rtype: boolean
+
+        :Return Values:
+        Success or Failure
+        """
+        result = next(self._results)
+        self._add_subscription(prefix, callback, bus)
 
         sub_msg = jsonapi.dumps(
-            dict(identity=self.core().identity, prefix=prefix, bus=bus)
+            dict(prefix=prefix, bus=bus)
         )
         frames = [b'subscribe', sub_msg]
-        #_log.debug("PUBSUB SUBSYS Subscribing: {}".format(sub_msg))
-        self.vip_socket.send_vip(b'', 'pubsub', frames, copy=False)
-        return FakeAsyncResult()
+        self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
+        return result
 
     @subscribe.classmethod
     def subscribe(cls, peer, prefix, bus=''):
-        #_log.debug("PUBSUB SUBSYS subscribe with classmethod. prefix {}".format(prefix))
         def decorate(method):
             annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix))
             return method
         return decorate
 
-    def drop_subscription(self, peer, prefix, callback, bus=''):
-        buses = self._my_subscriptions[peer]
+    def _drop_subscription(self, prefix, callback, bus=''):
+        """
+        Drop the subscription for the specified prefix, callback and bus.
+        param prefix: prefix to be removed
+        type prefix: str
+        param callback: callback method
+        type callback: method
+        param bus: bus
+        type bus: bus
+        return: list of topics/prefixes
+        :rtype: list
+
+        :Return Values:
+        List of prefixes
+        """
+        topics = []
         if prefix is None:
             if callback is None:
-                subscriptions = buses.pop(bus)
+                subscriptions = self._my_subscriptions.pop(bus)
                 topics = subscriptions.keys()
             else:
-                subscriptions = buses[bus]
-                topics = []
-                remove = []
-                for topic, callbacks in subscriptions.iteritems():
+                if bus in self._my_subscriptions[bus]:
+                    subscriptions = self._my_subscriptions[bus]
+                    remove = []
+                    for topic, callbacks in subscriptions.iteritems():
+                        try:
+                            callbacks.remove(callback)
+                        except KeyError:
+                            pass
+                        else:
+                            topics.append(topic)
+                        if not callbacks:
+                            remove.append(topic)
+                    for topic in remove:
+                        del subscriptions[topic]
+                    if not subscriptions:
+                        del self._my_subscriptions[bus]
+            if not topics:
+                raise KeyError('no such subscription')
+        else:
+            if bus in self._my_subscriptions:
+                subscriptions = self._my_subscriptions[bus]
+                if callback is None:
+                    del subscriptions[prefix]
+                else:
+                    callbacks = subscriptions[prefix]
                     try:
                         callbacks.remove(callback)
                     except KeyError:
                         pass
-                    else:
-                        topics.append(topic)
                     if not callbacks:
-                        remove.append(topic)
-                for topic in remove:
-                    del subscriptions[topic]
+                        del subscriptions[prefix]
+                topics = [prefix]
                 if not subscriptions:
-                    del buses[bus]
-            if not topics:
-                raise KeyError('no such subscription')
-        else:
-            subscriptions = buses[bus]
-            if callback is None:
-                del subscriptions[prefix]
-            else:
-                callbacks = subscriptions[prefix]
-                callbacks.remove(callback)
-                if not callbacks:
-                    del subscriptions[prefix]
-            topics = [prefix]
-            if not subscriptions:
-                del buses[bus]
-        if not buses:
-            del self._my_subscriptions[peer]
+                    del self._my_subscriptions[bus]
         return topics
 
     def unsubscribe(self, peer, prefix, callback, bus=''):
-        '''Unsubscribe and remove callback(s).
+        """Unsubscribe and remove callback(s).
 
-        Remove all handlers matching the given handler ID, which is the
-        ID returned by the subscribe method. If all handlers for a
-        topic prefix are removed, the topic is also unsubscribed.
-        '''
-        topics = self.drop_subscription(peer, prefix, callback, bus)
+        Remove all handlers matching the given info - peer, callback and bus, which was used earlier to subscribe as
+        well. If all handlers for a topic prefix are removed, the topic is also unsubscribed.
+        param peer: peer
+        type peer: str
+        param prefix: prefix that needs to be unsubscribed
+        type prefix: str
+        param callback: callback method
+        type callback: method
+        param bus: bus
+        type bus: bus
+        return: success or not
+        :rtype: boolean
+
+        :Return Values:
+        success or not
+        """
+        result = next(self._results)
+        topics = self._drop_subscription(prefix, callback, bus)
         unsub_msg = jsonapi.dumps(
-            dict(identity=self.core().identity, prefix=topics, bus=bus)
+            dict(prefix=topics, bus=bus)
         )
         frames = [b'unsubscribe', unsub_msg]
-        #_log.debug("UnSubscribing: {}".format(unsub_msg))
-        self.vip_socket.send_vip(b'', 'pubsub', frames, copy=False)
-        return FakeAsyncResult()
+        self.vip_socket.send_vip(b'', 'pubsub', frames, result.ident, copy=False)
+        return result
 
     def publish(self, peer, topic, headers=None, message=None, bus=''):
-        '''Publish a message to a given topic via a peer.
+        """Publish a message to a given topic via a peer.
 
-        Publish headers and message to all subscribers of topic on bus
-        at peer. If peer is None, use self. Adds volttron platform version
+        Publish headers and message to all subscribers of topic on bus.
+        If peer is None, use self. Adds volttron platform version
         compatibility information to header as variables
         min_compatible_version and max_compatible version
-        '''
+        param peer: peer
+        type peer: str
+        param topic: topic for the publish message
+        type topic: str
+        param headers: header info for the message
+        type headers: None or dict
+        param message: actual message
+        type message: None or any
+        param bus: bus
+        type bus: str
+        return: Number of subscribers the message was sent to.
+        :rtype: int
+
+        :Return Values:
+        Number of subscribers
+        """
         result = next(self._results)
         if headers is None:
             headers = {}
@@ -309,7 +373,7 @@ class PubSub(SubsystemBase):
             peer = 'pubsub'
 
         json_msg = jsonapi.dumps(
-            dict(identity=self.core().identity, bus=bus, headers=headers, message=message)
+            dict(bus=bus, headers=headers, message=message)
         )
         frames = [zmq.Frame(b'publish'), zmq.Frame(str(topic)), zmq.Frame(str(json_msg))]
         #<recipient, subsystem, args, msg_id, flags>
@@ -328,14 +392,34 @@ class PubSub(SubsystemBase):
                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
 
     def _handle_subsystem(self, message):
+        """Handler for incoming messages
+        param message: VIP message from PubSubService
+        type message: dict
+        """
         self._event_queue.put(message)
 
     def _process_incoming_message(self, message):
-        #_log.debug("Pubsub Agent handle subsystem: ")
+        """Process incoming messages
+        param message: VIP message from PubSubService
+        type message: dict
+        """
         op = message.args[0].bytes
-        #_log.debug("OP: {}".format(op))
-        if op == 'subscribe_response':
-            _log.debug("subscribe response message")
+        # if op == 'request_response':
+        #     _log.debug("Reponse to request")
+        #     try:
+        #         result = self._results.pop(bytes(message.id))
+        #     except KeyError:
+        #         return
+        #     _log.debug("Message result: {}".format(message.args))
+        #     result.set([bytes(arg) for arg in message.args[1:]])
+        if op == 'request_response':
+            try:
+                result = self._results.pop(bytes(message.id))
+            except KeyError:
+                return
+            response = message.args[1].bytes
+            _log.debug("Message result: {}".format(response))
+            result.set(response)
         elif op == 'publish':
             try:
                 topic = topic = message.args[1].bytes
@@ -346,51 +430,16 @@ class PubSub(SubsystemBase):
             msg = jsonapi.loads(data)
             headers = msg['headers']
             message = msg['message']
-            peer = msg['identity']
+            sender = msg['sender']
             bus = msg['bus']
-            self._peer_push(peer, bus, topic, headers, message)
-        elif op == 'publish_response':
-            #_log.debug("publish response message value: {}".format(message.args[1].bytes))
-            try:
-                result = self._results.pop(bytes(message.id))
-            except KeyError:
-                return
-            result.set([bytes(arg) for arg in message.args[1:]])
-        elif op == 'list_response':
-            #_log.debug("list response message value: {}".format(message.args[1].bytes))
-            try:
-                result = self._results.pop(bytes(message.id))
-            except KeyError:
-                _log.debug("list response key error")
-                return
-            result.set([bytes(arg) for arg in message.args[1:]])
+            self._process_callback(sender, bus, topic, headers, message)
+        else:
+            _log.error("Unknown operation")
 
     # Incoming message processing loop
     def _process_loop(self):
-        new_msg_list = []
-        # _log.debug("Reading from/waiting for queue.")
-        while True:
-            try:
-                new_msg_list = []
-                # _log.debug("PUBSUB Reading from/waiting for queue.")
-                new_msg_list = [
-                    self._event_queue.get(True, self._retry_period)]
-
-            except Empty:
-                # _log.debug("Queue wait timed out. Falling out.")
-                new_to_publish = []
-
-            if len(new_msg_list) != 0:
-                # _log.debug("Checking for queue build up.")
-                while True:
-                    try:
-                        new_msg_list.append(self._event_queue.get_nowait())
-                    except Empty:
-                        break
-
-            # _log.debug('SUB: Length of data got from event queue {}'.format(len(new_msg_list)))
-            for msg in new_msg_list:
-                self._process_incoming_message(msg)
+        for msg in self._event_queue:
+            self._process_incoming_message(msg)
 
     def _handle_error(self, sender, message, error, **kwargs):
         _log.debug("Error is generated {0}, {1}, {2}".format(sender, message, error))
@@ -401,7 +450,7 @@ class PubSub(SubsystemBase):
         result.set_exception(error)
 
 class ProtectedPubSubTopics(object):
-    '''Simple class to contain protected pubsub topics'''
+    """Simple class to contain protected pubsub topics"""
     def __init__(self):
         self._dict = {}
         self._re_list = []
@@ -423,8 +472,3 @@ class ProtectedPubSubTopics(object):
                 return capabilities
         return None
 
-
-class FakeAsyncResult(object):
-    '''Dummy class that fakes get()'''
-    def get(self, *args, **kwargs):
-        pass

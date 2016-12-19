@@ -346,6 +346,7 @@ class Router(BaseRouter):
             try:
                 drop = frames[6].bytes
                 self._drop_peer(drop)
+                self.drop_pubsub_peers(drop)
                 _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
             except IndexError:
                 pass
