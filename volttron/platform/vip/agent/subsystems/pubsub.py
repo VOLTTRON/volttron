@@ -273,10 +273,11 @@ class PubSub(SubsystemBase):
         topics = []
         if prefix is None:
             if callback is None:
-                subscriptions = self._my_subscriptions.pop(bus)
-                topics = subscriptions.keys()
+                if bus in self._my_subscriptions:
+                    subscriptions = self._my_subscriptions.pop(bus)
+                    topics = subscriptions.keys()
             else:
-                if bus in self._my_subscriptions[bus]:
+                if bus in self._my_subscriptions:
                     subscriptions = self._my_subscriptions[bus]
                     remove = []
                     for topic, callbacks in subscriptions.iteritems():
