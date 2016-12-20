@@ -142,9 +142,26 @@ class ConfigureRegistry extends BaseComponent {
             {
                 var taptipRect = this.taptipTarget.getBoundingClientRect();
 
-                if (taptipRect.top < viewRect.top)
+                // if (taptipRect.top < viewRect.top)
+                // {
+                //     this.taptipTarget.style.top = ((targetRect.top - tableRect.top - 200) + "px");
+                // }
+
+                var windowHeight = window.innerHeight;
+
+                if (taptipRect.top < 0 || taptipRect.top > windowHeight)
                 {
-                    this.taptipTarget.style.top = ((targetRect.top - tableRect.top - 200) + "px");
+                    var innerTable = this._getParentNode();
+                    var top = innerTable.getClientRects()[0].top;
+
+                    var newTop = 100;
+
+                    if (top < 0)
+                    {
+                        newTop = 0 - top + 100;
+                    }
+
+                    this.taptipTarget.style.top = newTop + "px";
                 }
             }
         }
@@ -1091,7 +1108,7 @@ class ConfigureRegistry extends BaseComponent {
                 if (item.keyProp)
                 {
                     var editColumnButtonName = 
-                        "editColumn-" + this.props.device.id + "-" + item.key + "-controlButton";
+                        "editColumn-" + this.props.device.id + "-" + this.props.device.address + "-" + item.key + "-controlButton";
 
                     var editItems = [
                         { 
@@ -1130,7 +1147,7 @@ class ConfigureRegistry extends BaseComponent {
                                                 taptip={editColumnTaptip}
                                                 iconName="pencil"
                                                 buttonClass="edit_column_select"
-                                                name={this.props.device.id + "-" + item.key}
+                                                name={this.props.device.id + "-" + this.props.device.address + "-" + item.key}
                                                 listItems={editItems}/>);
 
                     var editColumnButton = (<EditColumnButton 

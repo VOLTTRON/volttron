@@ -11240,6 +11240,8 @@
 	                    if (typeof this.props.closeAction == 'function') {
 	                        this.props.closeAction();
 	                    }
+	
+	                    this.taptip.style.top = this.state.taptipY + "px";
 	                }
 	            }
 	        }
@@ -11248,7 +11250,6 @@
 	        value: function handleClickOutside() {
 	            if (this.state.showTaptip) {
 	                controlButtonActionCreators.hideTaptip(this.props.name);
-	                this.taptip.style.top = this.state.taptipY + "px";
 	            }
 	
 	            if (this.state.showTooltip) {
@@ -63050,8 +63051,24 @@
 	                if (this.taptipTarget) {
 	                    var taptipRect = this.taptipTarget.getBoundingClientRect();
 	
-	                    if (taptipRect.top < viewRect.top) {
-	                        this.taptipTarget.style.top = targetRect.top - tableRect.top - 200 + "px";
+	                    // if (taptipRect.top < viewRect.top)
+	                    // {
+	                    //     this.taptipTarget.style.top = ((targetRect.top - tableRect.top - 200) + "px");
+	                    // }
+	
+	                    var windowHeight = window.innerHeight;
+	
+	                    if (taptipRect.top < 0 || taptipRect.top > windowHeight) {
+	                        var innerTable = this._getParentNode();
+	                        var top = innerTable.getClientRects()[0].top;
+	
+	                        var newTop = 100;
+	
+	                        if (top < 0) {
+	                            newTop = 0 - top + 100;
+	                        }
+	
+	                        this.taptipTarget.style.top = newTop + "px";
 	                    }
 	                }
 	            }
@@ -63935,7 +63952,7 @@
 	                this.state.registryValues[0].get("attributes").forEach(function (item, index) {
 	
 	                    if (item.keyProp) {
-	                        var editColumnButtonName = "editColumn-" + this.props.device.id + "-" + item.key + "-controlButton";
+	                        var editColumnButtonName = "editColumn-" + this.props.device.id + "-" + this.props.device.address + "-" + item.key + "-controlButton";
 	
 	                        var editItems = [{
 	                            label: "Find and Replace",
@@ -63969,7 +63986,7 @@
 	                            taptip: editColumnTaptip,
 	                            iconName: 'pencil',
 	                            buttonClass: 'edit_column_select',
-	                            name: this.props.device.id + "-" + item.key,
+	                            name: this.props.device.id + "-" + this.props.device.address + "-" + item.key,
 	                            listItems: editItems });
 	
 	                        var editColumnButton = _react2.default.createElement(_editColumnsButton2.default, {
@@ -66073,22 +66090,9 @@
 	            var innerTable = this.props.ongetparentnode();
 	
 	            var top = innerTable.getClientRects()[0].top;
-	            var bottom = innerTable.getClientRects()[0].bottom;
 	            var height = innerTable.getClientRects()[0].height;
 	
-	            var view = document.querySelector(".view");
-	            var viewRect = view.getClientRects();
-	            var viewBottom = viewRect[0].bottom;
-	
-	            viewBottom = bottom > viewBottom ? viewBottom : bottom;
-	
-	            var viewTop = viewRect[0].top;
-	
-	            viewTop = top > viewTop ? top : viewTop;
-	
-	            height = viewBottom < viewTop + height ? viewBottom - viewTop : height;
-	
-	            columnMoverActionCreators.startColumnMovement(originalClientX, viewTop, height);
+	            columnMoverActionCreators.startColumnMovement(originalClientX, top, height);
 	
 	            this.props.oninitializetable();
 	
@@ -116624,4 +116628,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-a3efc4eba9a4127ba242.js.map
+//# sourceMappingURL=app-c0f56cb0c9044ce1412c.js.map

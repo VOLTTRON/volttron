@@ -106,6 +106,8 @@ class ControlButton extends BaseComponent {
                 {
                     this.props.closeAction();
                 }
+
+                this.taptip.style.top = this.state.taptipY + "px";
             }
 	    }
     }
@@ -113,7 +115,6 @@ class ControlButton extends BaseComponent {
         if (this.state.showTaptip)
         {
             controlButtonActionCreators.hideTaptip(this.props.name);
-            this.taptip.style.top = this.state.taptipY + "px";
         }
 
         if (this.state.showTooltip)
