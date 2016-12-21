@@ -65,7 +65,7 @@ import gevent
 
 from volttron.platform.vip.agent import Agent, Core, compat
 from volttron.platform.vip.agent.utils import build_agent
-from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.agent.base_historian import BaseHistorian, add_timing_data_to_header
 from volttron.platform.agent import utils
 from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.messaging import topics, headers as headers_mod
@@ -92,6 +92,8 @@ def historian(config_path, **kwargs):
                                                 'platform.historian')
     backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
 
+    gather_timing_data = config.get('gather_timing_data', False)
+
     hosts = KnownHostsStore()
     destination_serverkey = hosts.serverkey(destination_vip)
     if destination_serverkey is None:
@@ -104,6 +106,7 @@ def historian(config_path, **kwargs):
                      destination_vip,
                      destination_serverkey,
                      destination_historian_identity,
+                     gather_timing_data,
                      backup_storage_limit_gb=backup_storage_limit_gb,
                      **kwargs)
 
@@ -119,6 +122,7 @@ class DataMover(BaseHistorian):
                  destination_vip,
                  destination_serverkey,
                  destination_historian_identity,
+                 gather_timing_data,
                  **kwargs):
 
         self.services_topic_list = services_topic_list
@@ -127,6 +131,7 @@ class DataMover(BaseHistorian):
         self.destination_vip = destination_vip
         self.destination_serverkey = destination_serverkey
         self.destination_historian_identity = destination_historian_identity
+        self.gather_timing_data = gather_timing_data
 
         # will be available in both threads.
         self._topic_replace_map = {}
@@ -195,6 +200,9 @@ class DataMover(BaseHistorian):
                     self._topic_replace_map[k] = v
                 topic = self._topic_replace_map[topic]
 
+        if self._gather_timing_data:
+            add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
+
         payload = {'headers': headers, 'message': data}
 
         self._event_queue.put({'source': "forwarded",
@@ -221,9 +229,16 @@ class DataMover(BaseHistorian):
 
         to_send = []
         for x in to_publish_list:
-            to_send.append({'topic': x['topic'],
-                            'headers': x['value']['headers'],
-                            'message': x['value']['message']})
+            topic = x['topic']
+            headers = x['value']['headers']
+            message = x['value']['message']
+
+            if self._gather_timing_data:
+                add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "forwarded")
+
+            to_send.append({'topic': topic,
+                            'headers': headers,
+                            'message': message})
 
         try:
             self._target_platform.vip.rpc.call(self.destination_historian_identity,
@@ -234,7 +249,7 @@ class DataMover(BaseHistorian):
             self._target_platform.core.stop()
             self._target_platform = None
             self.vip.health.set_status(
-                STATUS_BAD, "Timout occured")
+                STATUS_BAD, "Timeout occurred")
 
     def historian_setup(self):
         _log.debug("Setting up to forward to {}".format(self.destination_vip))

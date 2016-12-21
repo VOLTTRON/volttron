@@ -253,6 +253,8 @@ from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
 from zmq.utils import jsonapi
 
+from volttron.platform.agent import utils
+
 _log = logging.getLogger(__name__)
 
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
@@ -260,6 +262,19 @@ ALL_REX = re.compile('.*/all$')
 
 # Register a better datetime parser in sqlite3.
 fix_sqlite3_datetime()
+
+def add_timing_data_to_header(headers, agent_id, phase):
+    if "timing_data" not in headers:
+        headers["timing_data"] = timing_data = {}
+    else:
+        timing_data = headers["timing_data"]
+
+    if agent_id not in timing_data:
+        timing_data[agent_id] = agent_timing_data = {}
+    else:
+        agent_timing_data = timing_data[agent_id]
+
+    agent_timing_data[phase] = utils.format_timestamp(utils.get_aware_utc_now())
 
 
 class BaseHistorianAgent(Agent):
@@ -295,6 +310,7 @@ class BaseHistorianAgent(Agent):
                  max_time_publishing=30,
                  backup_storage_limit_gb=None,
                  topic_replace_list=None,
+                 gather_timing_data=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -305,6 +321,8 @@ class BaseHistorianAgent(Agent):
 
         _log.info('Topic string replace list: {}'
                   .format(self._topic_replace_list))
+
+        self._gather_timing_data = gather_timing_data
 
         self.volttron_table_defs = 'volttron_table_definitions'
         self._backup_storage_limit_gb = backup_storage_limit_gb
@@ -445,11 +463,16 @@ class BaseHistorianAgent(Agent):
 
         if sender == 'pubsub.compat':
             message = compat.unpack_legacy_message(headers, message)
+
+        if self._gather_timing_data:
+            add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
+
         self._event_queue.put(
             {'source': 'record',
              'topic': topic,
              'readings': [(timestamp, message)],
-             'meta': {}})
+             'meta': {},
+             'headers': headers})
 
     def _capture_log_data(self, peer, sender, bus, topic, headers, message):
         """Capture log data and submit it to be published by a historian."""
@@ -472,6 +495,9 @@ class BaseHistorianAgent(Agent):
             _log.error("message for {topic} missing message string".format(
                 topic=topic))
             return
+
+        if self._gather_timing_data:
+            add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
         for point, item in data.iteritems():
             if 'Readings' not in item or 'Units' not in item:
@@ -501,7 +527,8 @@ class BaseHistorianAgent(Agent):
             self._event_queue.put({'source': 'log',
                                    'topic': topic + '/' + point,
                                    'readings': readings,
-                                   'meta': meta})
+                                   'meta': meta,
+                                   'headers': headers})
 
     def _capture_device_data(self, peer, sender, bus, topic, headers,
                              message):
@@ -588,12 +615,16 @@ class BaseHistorianAgent(Agent):
             "Queuing {topic} from {source} for publish".format(topic=topic,
                                                                source=source))
 
+        if self._gather_timing_data:
+            add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
+
         for key, value in values.iteritems():
             point_topic = device + '/' + key
             self._event_queue.put({'source': source,
                                    'topic': point_topic,
                                    'readings': [(timestamp, value)],
-                                   'meta': meta.get(key, {})})
+                                   'meta': meta.get(key, {}),
+                                   'headers': headers})
 
     def _capture_actuator_data(self, topic, headers, message, match):
         """Capture actuation data and submit it to be published by a historian.
@@ -632,10 +663,14 @@ class BaseHistorianAgent(Agent):
             "Queuing {topic} from {source} for publish".format(topic=topic,
                                                                source=source))
 
+        if self._gather_timing_data:
+            add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
+
         self._event_queue.put({'source': source,
                                'topic': topic,
                                'readings': [timestamp, value],
-                               'meta': {}})
+                               'meta': {},
+                               'headers': headers})
 
     def _process_loop(self):
         """
@@ -848,6 +883,7 @@ class BackupDatabase:
             topic = item['topic']
             meta = item.get('meta', {})
             readings = item['readings']
+            headers = item.get('headers', {})
 
             topic_id = self._backup_cache.get(topic)
 
@@ -874,8 +910,8 @@ class BackupDatabase:
                     timestamp = get_aware_utc_now()
                 c.execute(
                     '''INSERT OR REPLACE INTO outstanding
-                    values(NULL, ?, ?, ?, ?)''',
-                    (timestamp, source, topic_id, jsonapi.dumps(value)))
+                    values(NULL, ?, ?, ?, ?, ?)''',
+                    (timestamp, source, topic_id, jsonapi.dumps(value), jsonapi.dumps(headers)))
 
         self._connection.commit()
 
@@ -933,12 +969,14 @@ class BackupDatabase:
             source = row[2]
             topic_id = row[3]
             value = jsonapi.loads(row[4])
+            headers = {} if row[5] is None else jsonapi.loads(row[5])
             meta = self._meta_data[(source, topic_id)].copy()
             results.append({'_id': _id,
                             'timestamp': timestamp.replace(tzinfo=pytz.UTC),
                             'source': source,
                             'topic': self._backup_cache[topic_id],
                             'value': value,
+                            'headers': headers,
                             'meta': meta})
 
         c.close()
@@ -972,7 +1010,26 @@ class BackupDatabase:
                                          source TEXT NOT NULL,
                                          topic_id INTEGER NOT NULL,
                                          value_string TEXT NOT NULL,
+                                         header_string TEXT,
                                          UNIQUE(ts, topic_id, source))''')
+        else:
+            #Check to see if we have a header_string column.
+            c.execute("pragma table_info(outstanding);")
+            name_index = 0
+            for description in c.description:
+                if description[0] == "name":
+                    break
+                name_index += 1
+
+            found_header_column = False
+            for row in c:
+                if row[name_index] == "header_string":
+                    found_header_column = True
+                    break
+
+            if not found_header_column:
+                _log.info("Updating cache database to support storing header data.")
+                c.execute("ALTER TABLE outstanding ADD COLUMN header_string text;")
 
         c.execute("SELECT name FROM sqlite_master WHERE type='table' "
                   "AND name='metadata';")
