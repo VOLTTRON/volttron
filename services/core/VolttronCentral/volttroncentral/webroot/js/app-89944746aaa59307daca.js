@@ -10814,7 +10814,7 @@
 	        key: '_onDeviceConfig',
 	        value: function _onDeviceConfig(panelItem) {
 	
-	            var deviceName = panelItem.getIn(["path", 5]);
+	            var deviceName = panelItem.getIn(["path", panelItem.get("path").size - 1]);
 	            var platformUuid = panelItem.getIn(["path", 1]);
 	
 	            devicesActionCreators.reconfigureDevice(deviceName, platformUuid);
@@ -36157,7 +36157,7 @@
 	
 	                var pathParts = device.path.split("/");
 	                var buildingUuid = pathParts[1] + "_" + pathParts[2];
-	                var buildingName = pathParts[2];
+	                var buildingName = pathParts[1] + ": " + pathParts[2];
 	                var legendInfo = pathParts[1] + " > " + buildingName;
 	
 	                var building = insertBuilding(platform, buildingUuid, buildingName);
@@ -59891,6 +59891,8 @@
 	    return ObjectIsEmpty(_savedRegistryFiles) ? null : _savedRegistryFiles;
 	};
 	
+	devicesStore.getRegistryFileShared = function (registryFile, deviceId, deviceAddress, deviceName) {};
+	
 	devicesStore.getWarnings = function () {
 	    return _warnings;
 	};
@@ -64575,7 +64577,7 @@
 	        _this.state = {
 	            csvlayout: false,
 	            fileName: _this.props.fileName ? _this.props.fileName : "",
-	            disableRename: _this.props.fileName ? true : false
+	            reconfiguring: _this.props.fileName ? true : false
 	        };
 	
 	        _this.state.otherFileNames = getOtherRegistryFileNames();
@@ -64604,7 +64606,34 @@
 	        value: function _onSubmit(e) {
 	            e.preventDefault();
 	
-	            if (this.state.disableRename) {
+	            if (this.state.reconfiguring) {
+	                // if (this.state.reconfiguring)
+	                // {
+	                //     this.state.sharedRegistryFile = devicesStore.getRegistryFileShared(
+	                //         this.props.fileName,
+	                //         this.props.deviceId,
+	                //         this.props.deviceAddress,
+	                //         this.props.deviceName
+	                //     );
+	                // }
+	
+	                // if (this.state.otherFileNames.indexOf(this.state.fileName) > -1)
+	                // {   
+	                //     modalActionCreators.openModal(
+	                //         <ConfirmForm
+	                //             promptTitle="Duplicate File Names"
+	                //             promptText={"Another registry file exists with the name \"" + 
+	                //                 this.state.fileName + "\". Using this name will overwrite " + 
+	                //                 "the other file and risk disrupting previously configured devices. " +
+	                //                 "Proceed with save?"} 
+	                //             confirmText="Save"
+	                //             onConfirm={ this._saveRegistryFile }
+	                //             cancelText="Cancel"
+	                //             width="400px"
+	                //         ></ConfirmForm> 
+	                //     );
+	                // }
+	
 	                this._saveRegistryFile();
 	            } else {
 	                if (this.state.otherFileNames.indexOf(this.state.fileName) > -1) {
@@ -64805,7 +64834,6 @@
 	                        _react2.default.createElement('input', {
 	                            onChange: this._updateFileName,
 	                            value: this.state.fileName,
-	                            disabled: this.state.disableRename,
 	                            type: 'text' })
 	                    )
 	                ),
@@ -116628,4 +116656,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-c0f56cb0c9044ce1412c.js.map
+//# sourceMappingURL=app-89944746aaa59307daca.js.map

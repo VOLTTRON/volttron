@@ -16,7 +16,7 @@ class PreviewRegistryForm extends BaseComponent {
         this.state = {
             csvlayout: false,
             fileName: (this.props.fileName ? this.props.fileName : ""),
-            disableRename: (this.props.fileName ? true : false)
+            reconfiguring: (this.props.fileName ? true : false)
         }
 
         this.state.otherFileNames = getOtherRegistryFileNames();
@@ -35,8 +35,35 @@ class PreviewRegistryForm extends BaseComponent {
     _onSubmit(e) {
         e.preventDefault();
 
-        if (this.state.disableRename)
+        if (this.state.reconfiguring)
         {
+            // if (this.state.reconfiguring)
+            // {
+            //     this.state.sharedRegistryFile = devicesStore.getRegistryFileShared(
+            //         this.props.fileName,
+            //         this.props.deviceId,
+            //         this.props.deviceAddress,
+            //         this.props.deviceName
+            //     );
+            // }
+
+            // if (this.state.otherFileNames.indexOf(this.state.fileName) > -1)
+            // {   
+            //     modalActionCreators.openModal(
+            //         <ConfirmForm
+            //             promptTitle="Duplicate File Names"
+            //             promptText={"Another registry file exists with the name \"" + 
+            //                 this.state.fileName + "\". Using this name will overwrite " + 
+            //                 "the other file and risk disrupting previously configured devices. " +
+            //                 "Proceed with save?"} 
+            //             confirmText="Save"
+            //             onConfirm={ this._saveRegistryFile }
+            //             cancelText="Cancel"
+            //             width="400px"
+            //         ></ConfirmForm> 
+            //     );
+            // }
+
             this._saveRegistryFile();
         }
         else
@@ -188,7 +215,6 @@ class PreviewRegistryForm extends BaseComponent {
                         <input 
                             onChange={this._updateFileName}
                             value={this.state.fileName}
-                            disabled={this.state.disableRename}
                             type="text">
                         </input>
                     </div>

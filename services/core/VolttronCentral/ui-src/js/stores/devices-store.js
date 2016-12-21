@@ -1022,6 +1022,10 @@ devicesStore.getSavedRegistryFiles = function () {
     return (ObjectIsEmpty(_savedRegistryFiles) ? null : _savedRegistryFiles);
 };
 
+devicesStore.getRegistryFileShared = function (registryFile, deviceId, deviceAddress, deviceName) {
+    
+}
+
 devicesStore.getWarnings = function () {
     return _warnings;
 };

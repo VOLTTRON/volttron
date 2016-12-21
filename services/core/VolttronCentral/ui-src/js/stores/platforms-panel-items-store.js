@@ -683,7 +683,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 
                 var pathParts = device.path.split("/");
                 var buildingUuid = pathParts[1] + "_" + pathParts[2];
-                var buildingName = pathParts[2];
+                var buildingName = pathParts[1] + ": " + pathParts[2];
                 var legendInfo = pathParts[1] + " > " + buildingName;                
 
                 var building = insertBuilding(platform, buildingUuid, buildingName);                
