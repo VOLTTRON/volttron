@@ -461,6 +461,7 @@ class VolttronCentralAgent(Agent):
         platforms = [x for x in self.vip.config.list()
                      if x.startswith('platforms/')]
         _log.debug('Platforms: {}'.format(platforms))
+        self.send_management_message("PLATFORM_HEARTBEAT", "Checking Platforms")
         for x in platforms:
             platform = self.vip.config.get(x)
             address = platform.get('address')
@@ -471,6 +472,7 @@ class VolttronCentralAgent(Agent):
                 if cn.is_connected() and cn.is_peer_connected():
                     _log.debug('Platform {} already connected'.format(
                         platform.get('address')))
+
                     continue
                 elif cn.is_connected() and not cn.is_peer_connected():
                     _log.debug("Connection available, missing peer.")
@@ -499,6 +501,7 @@ class VolttronCentralAgent(Agent):
     def _on_platform_heartbeat(self, peer, sender, bus, topic, headers,
                                message):
 
+        self.send_management_message("PLATFORM_HEARTBEAT", {"topic": topic, "message": message})
         address_hash = topic[len("heartbeat/platforms"):]
         config_name = "platforms/{}".format(address_hash)
         if config_name not in self.vip.config.list():
@@ -526,6 +529,9 @@ class VolttronCentralAgent(Agent):
             if 'Date' in headers:
                 platform['last_seen_utc'] = headers['Date']
             self.vip.config.set(config_name, platform, True)
+
+            self.send_management_message("PLATFORM_HEARTBEAT", platform['health'])
+
 
     @PubSub.subscribe("pubsub", "platforms")
     def _on_platforms_messsage(self, peer, sender, bus, topic, headers,
@@ -878,7 +884,7 @@ class VolttronCentralAgent(Agent):
                         "Invalid username/password specified.")
                 _log.info('Session created for {}'.format(
                     rpcdata.params['username']))
-                self.vip.web.register_websocket("/vc/ws/{}/management",
+                self.vip.web.register_websocket("/vc/ws/{}/management".format(sess),
                                                 self.open_authenticate_ws_endpoint,
                                                 self._ws_closed,
                                                 self._received_data)

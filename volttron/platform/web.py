@@ -264,13 +264,16 @@ class WebApplicationWrapper(object):
             client.close(reason='Authentication failure!')
             return
 
+        # In order to get into endpoint_clients create_ws must be called.
         if endpoint not in self.endpoint_clients:
-            self.endpoint_clients[endpoint] = set()
+            self._log.error('Unknown endpoint detected: {}'.format(endpoint))
+            client.close(reason="Unknown endpoint! {}".format(endpoint))
+            return
 
         if (identity, client) in  self.endpoint_clients[endpoint]:
-            self._log.debug("identity: {} already in endpoint set".format(identity))
+            self._log.debug("IDENTITY,CLIENT: {} already in endpoint set".format(identity))
         else:
-            self._log.debug("identity: {} added to endpoint set".format(identity))
+            self._log.debug("IDENTITY,CLIENT: {} added to endpoint set".format(identity))
             self.endpoint_clients[endpoint].add((identity, client))
 
     def client_received(self, endpoint, message):
@@ -282,11 +285,15 @@ class WebApplicationWrapper(object):
     def client_closed(self, client, endpoint, identity,
                       reason="Client left without proper explaination"):
 
-        clients = self.endpoint_clients.get(endpoint, [])
-        key = (identity, client)
-        if key in clients:
+        client_set = self.endpoint_clients.get(endpoint, set())
+
+        try:
+            key = (identity, client)
+            client_set.remove(key)
+        except KeyError:
+            pass
+        else:
             self.masterweb.vip.rpc.call(identity, 'client.closed', endpoint)
-            clients.remove(key)
 
     def create_ws_endpoint(self, endpoint, identity):
         #_log.debug()print(endpoint, identity)
@@ -297,16 +304,16 @@ class WebApplicationWrapper(object):
         #         for client in self.endpoint_clients.values():
         #             client.close()
         #         r
-        if endpoint in self.endpoint_clients:
-            self._log.warn('Already have clients for endpoint {}'.format(
-                endpoint))
-        self.endpoint_clients[endpoint] = set()
+
+        if endpoint not in self.endpoint_clients:
+            self.endpoint_clients[endpoint] = set()
         self._wsregistry[endpoint] = identity
 
     def destroy_ws_endpoint(self, endpoint):
         clients = self.endpoint_clients.get(endpoint, [])
         for identity, client in clients:
             client.close(reason="Endpoint closed.")
+        del self.endpoint_clients[endpoint]
 
     def websocket_send(self, endpoint, message):
         self._log.debug('Sending message to clients!')
@@ -483,6 +490,7 @@ class MasterWebService(Agent):
     def register_websocket(self, endpoint):
         identity = bytes(self.vip.rpc.context.vip_message.peer)
         _log.debug('Caller identity: {}'.format(identity))
+        _log.debug('REGISTERING ENDPOINT: {}'.format(endpoint))
         self.appContainer.create_ws_endpoint(endpoint, identity)
 
     @RPC.export

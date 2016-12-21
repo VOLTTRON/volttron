@@ -2,123 +2,116 @@
 
 var WsPubSubError = require('./error');
 
-class WsPubSub{
-    constructor(){
-        let prefix = (window.location.protocol === "https:" ? "wss://" : "ws://");
-        let ws_root = prefix + window.location.host;
-        this.url = ws_root;
-        this.session = null;
-        this.subscriptions = {};
-        this.websockets = {};
+var sockets = {}
+var authorization = null;
+ 
+function bind(fn, me) { 
+    return function() { 
+        return fn.apply(me, arguments); 
+    }; 
+};
 
-        return this;
-    }
-
-    // setSessionKey(session_key){
-    //     this.session = session_key
-    // }
-
-    // TODO this works but it sucks.  The WsPub doesn't get elevated to global on the
-    // page so that when a socket event is happening it is almost like a new scope is
-    // added.  Perhaps we need to use window.WSPubsub somewhere to make it global?
-
-    subscribe(topic, onmessage){
-
-        let self = this;
-        let wspath = this.url + topic;
-        let ws = null;
-        // if (this.session == null){
-        //     throw new WsPubSubError({"message":
-        //         "Must setSessionKey before subscription"});
-        // }
-        // if (topic in this.subscriptions) {
-        //
-        // }
-//        if (!this.websockets.hasOwnProperty(topic)){
-        if (!this.websockets.hasOwnProperty(topic)){
-            this.websockets[topic] = new Set();
-        }
-
-            if (window.WebSocket) {
-                ws = new WebSocket(wspath);
-            }
-            else if (window.MozWebSocket) {
-                ws = MozWebSocket(wspath);
-            }
-
-            self.websockets[topic].add(ws);
-
-            ws.onerror = function(evt) {
-                console.log("ERROR: ");
-                console.log(evt);
-            }
-
-            ws.onopen = function(evt) {
-                console.log("OPENING");
-            }
-
-            ws.onmessage = function(evt)
-            {
-                if(self.subscriptions.hasOwnProperty(topic)){
-
-                    self.subscriptions[topic].forEach(function(cb){
-                        cb(topic, evt.data);
-                    });
-                    // for (cb in self.subscriptions[topic]) {
-                    //     console.log('Calling callback for '+ topic)
-                    //     cb(topic, evt.data);
-                    // }
-                }
-
-                else{
-                    console.log('No subscription for '+topic);
-                }
-            }
-
-            ws.onclose = function (evt)
-            {
-
-                self.websockets.delete(this);
-                var topic = this;
-
-                if(self.subscriptions.hasOwnProperty(topic)){
-                    self.subscriptions[topic].forEach(function(cb){
-                        cb(this, "CLOSING");
-                    }, topic);
-                }
-                delete self.websockets[topic];
-            }.bind(ws)
-  //      }
-
-        if (!self.subscriptions.hasOwnProperty(topic)){
-            self.subscriptions[topic] = new Set();
-        }
-
-        self.subscriptions[topic].add(onmessage);
-
-    }
-
-    unsubscribe(topic, onmessage) {
-        if (!this.subscriptions.hasOwnProperty(topic)){
-            throw new WsPubSubError({
-                message: "Topic not found in subscriptions."
-            });
-        }
-
-        this.websockets[topic].forEach(function(ws){
-            console.log('Closing sockets')
-            ws.close();
-        });
-
-        delete this.websockets[topic];
-
-    }
-    //
-    // publish(topic, message) {
-    //
-    // }
+function setAuthorization(auth) {
+    authorization = auth;
 }
 
-let ws = new WsPubSub();
+function _buildEndpoint(suffix) {
+    let prefix = (window.location.protocol === "https:" ? "wss://" : "ws://");
+    let ws_root = prefix + window.location.host;
+    return ws_root + "/vc/ws/" + authorization + "/" + suffix
+}
 
-export let pubsub = ws; //let pubsub =  new WsPubSub(ws_root);
+function openManagementWS(onmessage) {
+    let endpoint = _buildEndpoint("management");
+    if (sockets[endpoint] == null){
+
+        sockets[endpoint] = new SuperSocket(endpoint);
+    }
+    sockets[endpoint].addOnMessageCallback(onmessage);
+}
+
+function openConfigureWS(onmessage) {
+    let endpoint = _buildEndpoint("configure");
+    if (sockets[endpoint] == null){
+        console.log("Creating new SuperSocket for configure")
+        sockets[endpoint] = new SuperSocket(endpoint);
+    }
+    else {
+        console.log("Using existing socket.")
+    }
+    sockets[endpoint].addOnMessageCallback(onmessage);
+}
+
+function openIAmWS(onmessage) {
+    let endpoint = _buildEndpoint("iam");
+    if (sockets[endpoint] == null){
+        sockets[endpoint] = new SuperSocket(endpoint);
+    }
+    sockets[endpoint].addOnMessageCallback(onmessage);
+}
+
+class SuperSocket { 
+
+    constructor(endpoint) {
+
+        if (window.WebSocket) {
+            this.ws = new WebSocket(endpoint);
+        }
+        else if (window.MozWebSocket) {
+            this.ws = MozWebSocket(endpoint);
+        }
+
+        this.endpoint = endpoint;
+        this.onMessage = bind(this.onMessage, this);
+        this.ws.onmessage = this.onMessage;
+        this.ws.onerror = this.onError;
+        this.ws.onclose = this.onClose;
+        this.callbacks = [];
+    }
+
+    addOnMessageCallback(callback) {
+        return this.callbacks.push(callback);
+    }
+
+    onMessage(event) {
+        var callback, i, len, ref, results;
+        ref = this.callbacks;
+        results = [];
+
+        for (i = 0, len = ref.length; i < len; i++) {
+          callback = ref[i];
+          results.push(callback.call(this, event.data));
+        }
+        return results;        
+    }
+
+    onClose(event) {
+        var callback, i, len, ref, results;
+        ref = this.callbacks;
+        results = [];
+        for (i = 0, len = ref.length; i < len; i++) {
+          callback = ref[i];
+          results.push(callback.call(this, event.data));
+        }
+        return results;   
+    }
+
+    onErorr(event) {
+        var callback, i, len, ref, results;
+        ref = this.callbacks;
+        results = [];
+        for (i = 0, len = ref.length; i < len; i++) {
+          callback = ref[i];
+          results.push(callback.call(this, event.data));
+        }
+        return results;
+    }
+}
+
+
+module.exports = {
+    openManagementWS: openManagementWS,
+    openConfigureWS: openConfigureWS,
+    openIAmWS: openIAmWS,
+    setAuthorization: setAuthorization
+} // let pubsub = ws; //let pubsub =  new WsPubSub(ws_root);

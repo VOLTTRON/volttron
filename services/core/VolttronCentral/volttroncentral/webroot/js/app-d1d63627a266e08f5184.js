@@ -80,7 +80,7 @@
 	
 	var authorizationStore = __webpack_require__(103);
 	var platformsPanelItemsStore = __webpack_require__(266);
-	var devicesStore = __webpack_require__(310);
+	var devicesStore = __webpack_require__(270);
 	var Dashboard = __webpack_require__(415);
 	var LoginForm = __webpack_require__(531);
 	var PageNotFound = __webpack_require__(540);
@@ -90,7 +90,7 @@
 	
 	var PlatformCharts = __webpack_require__(547);
 	var Navigation = __webpack_require__(326);
-	var devicesActionCreators = __webpack_require__(305);
+	var devicesActionCreators = __webpack_require__(309);
 	
 	var _afterLoginPath = '/dashboard';
 	
@@ -9928,7 +9928,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var $ = __webpack_require__(299);
+	var $ = __webpack_require__(300);
 	
 	var ReactDOM = __webpack_require__(112);
 	var Router = __webpack_require__(1);
@@ -10618,10 +10618,12 @@
 	var platformsPanelItemsStore = __webpack_require__(266);
 	var platformsStore = __webpack_require__(268);
 	var platformsPanelActionCreators = __webpack_require__(269);
-	var platformChartActionCreators = __webpack_require__(303);
+	var platformChartActionCreators = __webpack_require__(307);
 	var controlButtonActionCreators = __webpack_require__(110);
-	var devicesActionCreators = __webpack_require__(305);
-	var statusIndicatorActionCreators = __webpack_require__(270);
+	var devicesActionCreators = __webpack_require__(309);
+	var statusIndicatorActionCreators = __webpack_require__(271);
+	var wspubsub = __webpack_require__(304);
+	var authorizationStore = __webpack_require__(103);
 	
 	var PlatformsPanelItem = function (_BaseComponent) {
 	    _inherits(PlatformsPanelItem, _BaseComponent);
@@ -10651,8 +10653,21 @@
 	    }
 	
 	    _createClass(PlatformsPanelItem, [{
+	        key: 'managmentMessage',
+	        value: function managmentMessage(topic, message) {
+	
+	            console.log("WOOO HOOO!!!");
+	            console.log('TOPIC: ' + topic);
+	            console.log('MESSAGE: ' + message);
+	        }
+	    }, {
 	        key: 'componentDidMount',
 	        value: function componentDidMount() {
+	            var authorization = authorizationStore.getAuthorization();
+	
+	            // wspubsub.WsPubSub.set_authorization_key(authorization);       
+	            // wspubsub.WsPubSub.open_management_socket(this.managmentMessage);
+	
 	            platformsPanelItemsStore.addChangeListener(this._onStoresChange);
 	        }
 	    }, {
@@ -35947,6 +35962,9 @@
 	
 	            if (action.devices.length > 0) {
 	                insertDevices(platform, action.devices);
+	                if (action.shouldUpdate === true) {
+	                    platformsPanelItemsStore.emitChange();
+	                }
 	            }
 	
 	            break;
@@ -37063,15 +37081,48 @@
 	var ACTION_TYPES = __webpack_require__(101);
 	var authorizationStore = __webpack_require__(103);
 	var platformsPanelItemsStore = __webpack_require__(266);
-	var statusIndicatorActionCreators = __webpack_require__(270);
+	var devicesStore = __webpack_require__(270);
+	var statusIndicatorActionCreators = __webpack_require__(271);
 	var dispatcher = __webpack_require__(104);
-	var rpc = __webpack_require__(271);
+	var rpc = __webpack_require__(272);
+	var wsapi = __webpack_require__(304);
 	
 	var platformsPanelActionCreators = {
 	    togglePanel: function togglePanel() {
 	
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.TOGGLE_PLATFORMS_PANEL
+	        });
+	    },
+	
+	    addNewDevice: function addNewDevice(device_props) {
+	        /*
+	        device_props example (NOTE: this is an invalid json object because of the '
+	        {
+	            'device_address': '10.10.1.15',
+	            'device_id': 500,
+	            'path': 'devices/pnnl/foo/2',
+	            'points': ['ReturnAirTemperature', 'CoolingValveOutputCommand', 'ReturnAirHumidity'],
+	            'health': {
+	                'status': 'UNKNOWN',
+	                'last_updated': '2016-12-21T17:54:28.855561+00:00',
+	                'context': 'Unpublished'
+	            }
+	        }
+	        */
+	
+	        // The passed device_props is a string because it comes from a larger
+	        // object.  We need to replace the ' with " so that the JSON parser
+	        // will work correctly
+	        device_props = JSON.parse(device_props.replace(/'/g, '"'));
+	
+	        var platform = devicesStore.getState().platform;
+	
+	        dispatcher.dispatch({
+	            type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+	            shouldUpdate: true,
+	            platform: platform,
+	            devices: [device_props]
 	        });
 	    },
 	
@@ -37286,6 +37337,1604 @@
 	'use strict';
 	
 	var ACTION_TYPES = __webpack_require__(101);
+	var authorizationStore = __webpack_require__(103);
+	var dispatcher = __webpack_require__(104);
+	var Store = __webpack_require__(108);
+	var Immutable = __webpack_require__(265);
+	
+	var devicesStore = new Store();
+	
+	var _action = "get_scan_settings";
+	var _view = "Detect Devices";
+	var _device = null;
+	var _data = {};
+	var _updatedRow = {};
+	var _platform;
+	var _devices = []; // the main list of devices detected for configuration
+	var _devicesList = {}; // a simple object of known devices
+	var _settingsTemplate = {};
+	var _savedRegistryFiles = {};
+	var _newScan = false;
+	var _reconfiguringDevice = false;
+	var _reconfiguration = {};
+	var _scanningComplete = true;
+	var _warnings = {};
+	var _keyboard = {
+	    device: null,
+	    active: false,
+	    cmd: null,
+	    started: false
+	};
+	var _focusedDevice = { id: null, address: null };
+	
+	var _backupPoints = [];
+	
+	var _defaultKeyProps = ["volttron_point_name", "units", "writable"];
+	
+	var _placeHolders = Immutable.List([[{ "key": "Point_Name", "value": "" }, { "key": "Volttron_Point_Name", "value": "" }, { "key": "Units", "value": "" }, { "key": "Units_Details", "value": "" }, { "key": "Writable", "value": "" }, { "key": "Starting_Value", "value": "" }, { "key": "Type", "value": "" }, { "key": "Notes", "value": "" }]]);
+	
+	var vendorTable = {
+	    "0": "ASHRAE",
+	    "1": "NIST",
+	    "2": "The Trane Company",
+	    "3": "McQuay International",
+	    "4": "PolarSoft",
+	    "5": "Johnson Controls, Inc.",
+	    "6": "American Auto-Matrix",
+	    "7": "Siemens Schweiz AG (Formerly: Landis & Staefa Division Europe)",
+	    "8": "Delta Controls",
+	    "9": "Siemens Schweiz AG",
+	    "10": "Schneider Electric",
+	    "11": "TAC",
+	    "12": "Orion Analysis Corporation",
+	    "13": "Teletrol Systems Inc.",
+	    "14": "Cimetrics Technology",
+	    "15": "Cornell University",
+	    "16": "United Technologies Carrier",
+	    "17": "Honeywell Inc.",
+	    "18": "Alerton / Honeywell",
+	    "19": "TAC AB",
+	    "20": "Hewlett-Packard Company",
+	    "21": "Dorsette’s Inc.",
+	    "22": "Siemens Schweiz AG (Formerly: Cerberus AG)",
+	    "23": "York Controls Group",
+	    "24": "Automated Logic Corporation",
+	    "25": "CSI Control Systems International",
+	    "26": "Phoenix Controls Corporation",
+	    "27": "Innovex Technologies, Inc.",
+	    "28": "KMC Controls, Inc.",
+	    "29": "Xn Technologies, Inc.",
+	    "30": "Hyundai Information Technology Co., Ltd.",
+	    "31": "Tokimec Inc.",
+	    "32": "Simplex",
+	    "33": "North Building Technologies Limited",
+	    "34": "Notifier",
+	    "35": "Reliable Controls Corporation",
+	    "36": "Tridium Inc.",
+	    "37": "Sierra Monitor Corporation/FieldServer Technologies",
+	    "38": "Silicon Energy",
+	    "39": "Kieback & Peter GmbH & Co KG",
+	    "40": "Anacon Systems, Inc.",
+	    "41": "Systems Controls & Instruments, LLC",
+	    "42": "Acuity Brands Lighting, Inc.",
+	    "43": "Micropower Manufacturing",
+	    "44": "Matrix Controls",
+	    "45": "METALAIRE",
+	    "46": "ESS Engineering",
+	    "47": "Sphere Systems Pty Ltd.",
+	    "48": "Walker Technologies Corporation",
+	    "49": "H I Solutions, Inc.",
+	    "50": "MBS GmbH",
+	    "51": "SAMSON AG",
+	    "52": "Badger Meter Inc.",
+	    "53": "DAIKIN Industries Ltd.",
+	    "54": "NARA Controls Inc.",
+	    "55": "Mammoth Inc.",
+	    "56": "Liebert Corporation",
+	    "57": "SEMCO Incorporated",
+	    "58": "Air Monitor Corporation",
+	    "59": "TRIATEK, LLC",
+	    "60": "NexLight",
+	    "61": "Multistack",
+	    "62": "TSI Incorporated",
+	    "63": "Weather-Rite, Inc.",
+	    "64": "Dunham-Bush",
+	    "65": "Reliance Electric",
+	    "66": "LCS Inc.",
+	    "67": "Regulator Australia PTY Ltd.",
+	    "68": "Touch-Plate Lighting Controls",
+	    "69": "Amann GmbH",
+	    "70": "RLE Technologies",
+	    "71": "Cardkey Systems",
+	    "72": "SECOM Co., Ltd.",
+	    "73": "ABB Gebäudetechnik AG Bereich NetServ",
+	    "74": "KNX Association cvba",
+	    "75": "Institute of Electrical Installation Engineers of Japan (IEIEJ)",
+	    "76": "Nohmi Bosai, Ltd.",
+	    "77": "Carel S.p.A.",
+	    "78": "UTC Fire & Security España, S.L.",
+	    "79": "Hochiki Corporation",
+	    "80": "Fr. Sauter AG",
+	    "81": "Matsushita Electric Works, Ltd.",
+	    "82": "Mitsubishi Electric Corporation, Inazawa Works",
+	    "83": "Mitsubishi Heavy Industries, Ltd.",
+	    "84": "Xylem, Inc.",
+	    "85": "Yamatake Building Systems Co., Ltd.",
+	    "86": "The Watt Stopper, Inc.",
+	    "87": "Aichi Tokei Denki Co., Ltd.",
+	    "88": "Activation Technologies, LLC",
+	    "89": "Saia-Burgess Controls, Ltd.",
+	    "90": "Hitachi, Ltd.",
+	    "91": "Novar Corp./Trend Control Systems Ltd.",
+	    "92": "Mitsubishi Electric Lighting Corporation",
+	    "93": "Argus Control Systems, Ltd.",
+	    "94": "Kyuki Corporation",
+	    "95": "Richards-Zeta Building Intelligence, Inc.",
+	    "96": "Scientech R&D, Inc.",
+	    "97": "VCI Controls, Inc.",
+	    "98": "Toshiba Corporation",
+	    "99": "Mitsubishi Electric Corporation Air Conditioning & Refrigeration Systems Works",
+	    "100": "Custom Mechanical Equipment, LLC",
+	    "101": "ClimateMaster",
+	    "102": "ICP Panel-Tec, Inc.",
+	    "103": "D-Tek Controls",
+	    "104": "NEC Engineering, Ltd.",
+	    "105": "PRIVA BV",
+	    "106": "Meidensha Corporation",
+	    "107": "JCI Systems Integration Services",
+	    "108": "Freedom Corporation",
+	    "109": "Neuberger Gebäudeautomation GmbH",
+	    "110": "eZi Controls",
+	    "111": "Leviton Manufacturing",
+	    "112": "Fujitsu Limited",
+	    "113": "Emerson Network Power",
+	    "114": "S. A. Armstrong, Ltd.",
+	    "115": "Visonet AG",
+	    "116": "M&M Systems, Inc.",
+	    "117": "Custom Software Engineering",
+	    "118": "Nittan Company, Limited",
+	    "119": "Elutions Inc. (Wizcon Systems SAS)",
+	    "120": "Pacom Systems Pty., Ltd.",
+	    "121": "Unico, Inc.",
+	    "122": "Ebtron, Inc.",
+	    "123": "Scada Engine",
+	    "124": "AC Technology Corporation",
+	    "125": "Eagle Technology",
+	    "126": "Data Aire, Inc.",
+	    "127": "ABB, Inc.",
+	    "128": "Transbit Sp. z o. o.",
+	    "129": "Toshiba Carrier Corporation",
+	    "130": "Shenzhen Junzhi Hi-Tech Co., Ltd.",
+	    "131": "Tokai Soft",
+	    "132": "Blue Ridge Technologies",
+	    "133": "Veris Industries",
+	    "134": "Centaurus Prime",
+	    "135": "Sand Network Systems",
+	    "136": "Regulvar, Inc.",
+	    "137": "AFDtek Division of Fastek International Inc.",
+	    "138": "PowerCold Comfort Air Solutions, Inc.",
+	    "139": "I Controls",
+	    "140": "Viconics Electronics, Inc.",
+	    "141": "Yaskawa America, Inc.",
+	    "142": "DEOS control systems GmbH",
+	    "143": "Digitale Mess- und Steuersysteme AG",
+	    "144": "Fujitsu General Limited",
+	    "145": "Project Engineering S.r.l.",
+	    "146": "Sanyo Electric Co., Ltd.",
+	    "147": "Integrated Information Systems, Inc.",
+	    "148": "Temco Controls, Ltd.",
+	    "149": "Airtek International Inc.",
+	    "150": "Advantech Corporation",
+	    "151": "Titan Products, Ltd.",
+	    "152": "Regel Partners",
+	    "153": "National Environmental Product",
+	    "154": "Unitec Corporation",
+	    "155": "Kanden Engineering Company",
+	    "156": "Messner Gebäudetechnik GmbH",
+	    "157": "Integrated.CH",
+	    "158": "Price Industries",
+	    "159": "SE-Elektronic GmbH",
+	    "160": "Rockwell Automation",
+	    "161": "Enflex Corp.",
+	    "162": "ASI Controls",
+	    "163": "SysMik GmbH Dresden",
+	    "164": "HSC Regelungstechnik GmbH",
+	    "165": "Smart Temp Australia Pty. Ltd.",
+	    "166": "Cooper Controls",
+	    "167": "Duksan Mecasys Co., Ltd.",
+	    "168": "Fuji IT Co., Ltd.",
+	    "169": "Vacon Plc",
+	    "170": "Leader Controls",
+	    "171": "Cylon Controls, Ltd.",
+	    "172": "Compas",
+	    "173": "Mitsubishi Electric Building Techno-Service Co., Ltd.",
+	    "174": "Building Control Integrators",
+	    "175": "ITG Worldwide (M) Sdn Bhd",
+	    "176": "Lutron Electronics Co., Inc.",
+	    "177": "Cooper-Atkins Corporation",
+	    "178": "LOYTEC Electronics GmbH",
+	    "179": "ProLon",
+	    "180": "Mega Controls Limited",
+	    "181": "Micro Control Systems, Inc.",
+	    "182": "Kiyon, Inc.",
+	    "183": "Dust Networks",
+	    "184": "Advanced Building Automation Systems",
+	    "185": "Hermos AG",
+	    "186": "CEZIM",
+	    "187": "Softing",
+	    "188": "Lynxspring, Inc.",
+	    "189": "Schneider Toshiba Inverter Europe",
+	    "190": "Danfoss Drives A/S",
+	    "191": "Eaton Corporation",
+	    "192": "Matyca S.A.",
+	    "193": "Botech AB",
+	    "194": "Noveo, Inc.",
+	    "195": "AMEV",
+	    "196": "Yokogawa Electric Corporation",
+	    "197": "GFR Gesellschaft für Regelungstechnik",
+	    "198": "Exact Logic",
+	    "199": "Mass Electronics Pty Ltd dba Innotech Control Systems Australia",
+	    "200": "Kandenko Co., Ltd.",
+	    "201": "DTF, Daten-Technik Fries",
+	    "202": "Klimasoft, Ltd.",
+	    "203": "Toshiba Schneider Inverter Corporation",
+	    "204": "Control Applications, Ltd.",
+	    "205": "KDT Systems Co., Ltd.",
+	    "206": "Onicon Incorporated",
+	    "207": "Automation Displays, Inc.",
+	    "208": "Control Solutions, Inc.",
+	    "209": "Remsdaq Limited",
+	    "210": "NTT Facilities, Inc.",
+	    "211": "VIPA GmbH",
+	    "212": "TSC21 Association of Japan",
+	    "213": "Strato Automation",
+	    "214": "HRW Limited",
+	    "215": "Lighting Control & Design, Inc.",
+	    "216": "Mercy Electronic and Electrical Industries",
+	    "217": "Samsung SDS Co., Ltd",
+	    "218": "Impact Facility Solutions, Inc.",
+	    "219": "Aircuity",
+	    "220": "Control Techniques, Ltd.",
+	    "221": "OpenGeneral Pty., Ltd.",
+	    "222": "WAGO Kontakttechnik GmbH & Co. KG",
+	    "223": "Cerus Industrial",
+	    "224": "Chloride Power Protection Company",
+	    "225": "Computrols, Inc.",
+	    "226": "Phoenix Contact GmbH & Co. KG",
+	    "227": "Grundfos Management A/S",
+	    "228": "Ridder Drive Systems",
+	    "229": "Soft Device SDN BHD",
+	    "230": "Integrated Control Technology Limited",
+	    "231": "AIRxpert Systems, Inc.",
+	    "232": "Microtrol Limited",
+	    "233": "Red Lion Controls",
+	    "234": "Digital Electronics Corporation",
+	    "235": "Ennovatis GmbH",
+	    "236": "Serotonin Software Technologies, Inc.",
+	    "237": "LS Industrial Systems Co., Ltd.",
+	    "238": "Square D Company",
+	    "239": "S Squared Innovations, Inc.",
+	    "240": "Aricent Ltd.",
+	    "241": "EtherMetrics, LLC",
+	    "242": "Industrial Control Communications, Inc.",
+	    "243": "Paragon Controls, Inc.",
+	    "244": "A. O. Smith Corporation",
+	    "245": "Contemporary Control Systems, Inc.",
+	    "246": "Intesis Software SL",
+	    "247": "Ingenieurgesellschaft N. Hartleb mbH",
+	    "248": "Heat-Timer Corporation",
+	    "249": "Ingrasys Technology, Inc.",
+	    "250": "Costerm Building Automation",
+	    "251": "WILO SE",
+	    "252": "Embedia Technologies Corp.",
+	    "253": "Technilog",
+	    "254": "HR Controls Ltd. & Co. KG",
+	    "255": "Lennox International, Inc.",
+	    "256": "RK-Tec Rauchklappen-Steuerungssysteme GmbH & Co. KG",
+	    "257": "Thermomax, Ltd.",
+	    "258": "ELCON Electronic Control, Ltd.",
+	    "259": "Larmia Control AB",
+	    "260": "BACnet Stack at SourceForge",
+	    "261": "G4S Security Services A/S",
+	    "262": "Exor International S.p.A.",
+	    "263": "Cristal Controles",
+	    "264": "Regin AB",
+	    "265": "Dimension Software, Inc.",
+	    "266": "SynapSense Corporation",
+	    "267": "Beijing Nantree Electronic Co., Ltd.",
+	    "268": "Camus Hydronics Ltd.",
+	    "269": "Kawasaki Heavy Industries, Ltd.",
+	    "270": "Critical Environment Technologies",
+	    "271": "ILSHIN IBS Co., Ltd.",
+	    "272": "ELESTA Energy Control AG",
+	    "273": "KROPMAN Installatietechniek",
+	    "274": "Baldor Electric Company",
+	    "275": "INGA mbH",
+	    "276": "GE Consumer & Industrial",
+	    "277": "Functional Devices, Inc.",
+	    "278": "ESAC",
+	    "279": "M-System Co., Ltd.",
+	    "280": "Yokota Co., Ltd.",
+	    "281": "Hitranse Technology Co., LTD",
+	    "282": "Vigilent Corporation",
+	    "283": "Kele, Inc.",
+	    "284": "Opera Electronics, Inc.",
+	    "285": "Gentec",
+	    "286": "Embedded Science Labs, LLC",
+	    "287": "Parker Hannifin Corporation",
+	    "288": "MaCaPS International Limited",
+	    "289": "Link4 Corporation",
+	    "290": "Romutec Steuer-u. Regelsysteme GmbH",
+	    "291": "Pribusin, Inc.",
+	    "292": "Advantage Controls",
+	    "293": "Critical Room Control",
+	    "294": "LEGRAND",
+	    "295": "Tongdy Control Technology Co., Ltd.",
+	    "296": "ISSARO Integrierte Systemtechnik",
+	    "297": "Pro-Dev Industries",
+	    "298": "DRI-STEEM",
+	    "299": "Creative Electronic GmbH",
+	    "300": "Swegon AB",
+	    "301": "Jan Brachacek",
+	    "302": "Hitachi Appliances, Inc.",
+	    "303": "Real Time Automation, Inc.",
+	    "304": "ITEC Hankyu-Hanshin Co.",
+	    "305": "Cyrus E&M Engineering Co., Ltd.",
+	    "306": "Badger Meter",
+	    "307": "Cirrascale Corporation",
+	    "308": "Elesta GmbH Building Automation",
+	    "309": "Securiton",
+	    "310": "OSlsoft, Inc.",
+	    "311": "Hanazeder Electronic GmbH",
+	    "312": "Honeywell Security Deutschland, Novar GmbH",
+	    "313": "Siemens Industry, Inc.",
+	    "314": "ETM Professional Control GmbH",
+	    "315": "Meitav-tec, Ltd.",
+	    "316": "Janitza Electronics GmbH",
+	    "317": "MKS Nordhausen",
+	    "318": "De Gier Drive Systems B.V.",
+	    "319": "Cypress Envirosystems",
+	    "320": "SMARTron s.r.o.",
+	    "321": "Verari Systems, Inc.",
+	    "322": "K-W Electronic Service, Inc.",
+	    "323": "ALFA-SMART Energy Management",
+	    "324": "Telkonet, Inc.",
+	    "325": "Securiton GmbH",
+	    "326": "Cemtrex, Inc.",
+	    "327": "Performance Technologies, Inc.",
+	    "328": "Xtralis (Aust) Pty Ltd",
+	    "329": "TROX GmbH",
+	    "330": "Beijing Hysine Technology Co., Ltd",
+	    "331": "RCK Controls, Inc.",
+	    "332": "Distech Controls SAS",
+	    "333": "Novar/Honeywell",
+	    "334": "The S4 Group, Inc.",
+	    "335": "Schneider Electric",
+	    "336": "LHA Systems",
+	    "337": "GHM engineering Group, Inc.",
+	    "338": "Cllimalux S.A.",
+	    "339": "VAISALA Oyj",
+	    "340": "COMPLEX (Beijing) Technology, Co., LTD.",
+	    "341": "SCADAmetrics",
+	    "342": "POWERPEG NSI Limited",
+	    "343": "BACnet Interoperability Testing Services, Inc.",
+	    "344": "Teco a.s.",
+	    "345": "Plexus Technology, Inc.",
+	    "346": "Energy Focus, Inc.",
+	    "347": "Powersmiths International Corp.",
+	    "348": "Nichibei Co., Ltd.",
+	    "349": "HKC Technology Ltd.",
+	    "350": "Ovation Networks, Inc.",
+	    "351": "Setra Systems",
+	    "352": "AVG Automation",
+	    "353": "ZXC Ltd.",
+	    "354": "Byte Sphere",
+	    "355": "Generiton Co., Ltd.",
+	    "356": "Holter Regelarmaturen GmbH & Co. KG",
+	    "357": "Bedford Instruments, LLC",
+	    "358": "Standair Inc.",
+	    "359": "WEG Automation - R&D",
+	    "360": "Prolon Control Systems ApS",
+	    "361": "Inneasoft",
+	    "362": "ConneXSoft GmbH",
+	    "363": "CEAG Notlichtsysteme GmbH",
+	    "364": "Distech Controls Inc.",
+	    "365": "Industrial Technology Research Institute",
+	    "366": "ICONICS, Inc.",
+	    "367": "IQ Controls s.c.",
+	    "368": "OJ Electronics A/S",
+	    "369": "Rolbit Ltd.",
+	    "370": "Synapsys Solutions Ltd.",
+	    "371": "ACME Engineering Prod. Ltd.",
+	    "372": "Zener Electric Pty, Ltd.",
+	    "373": "Selectronix, Inc.",
+	    "374": "Gorbet & Banerjee, LLC.",
+	    "375": "IME",
+	    "376": "Stephen H. Dawson Computer Service",
+	    "377": "Accutrol, LLC",
+	    "378": "Schneider Elektronik GmbH",
+	    "379": "Alpha-Inno Tec GmbH",
+	    "380": "ADMMicro, Inc.",
+	    "381": "Greystone Energy Systems, Inc.",
+	    "382": "CAP Technologie",
+	    "383": "KeRo Systems",
+	    "384": "Domat Control System s.r.o.",
+	    "385": "Efektronics Pty. Ltd.",
+	    "386": "Hekatron Vertriebs GmbH",
+	    "387": "Securiton AG",
+	    "388": "Carlo Gavazzi Controls SpA",
+	    "389": "Chipkin Automation Systems",
+	    "390": "Savant Systems, LLC",
+	    "391": "Simmtronic Lighting Controls",
+	    "392": "Abelko Innovation AB",
+	    "393": "Seresco Technologies Inc.",
+	    "394": "IT Watchdogs",
+	    "395": "Automation Assist Japan Corp.",
+	    "396": "Thermokon Sensortechnik GmbH",
+	    "397": "EGauge Systems, LLC",
+	    "398": "Quantum Automation (ASIA) PTE, Ltd.",
+	    "399": "Toshiba Lighting & Technology Corp.",
+	    "400": "SPIN Engenharia de Automação Ltda.",
+	    "401": "Logistics Systems & Software Services India PVT. Ltd.",
+	    "402": "Delta Controls Integration Products",
+	    "403": "Focus Media",
+	    "404": "LUMEnergi Inc.",
+	    "405": "Kara Systems",
+	    "406": "RF Code, Inc.",
+	    "407": "Fatek Automation Corp.",
+	    "408": "JANDA Software Company, LLC",
+	    "409": "Open System Solutions Limited",
+	    "410": "Intelec Systems PTY Ltd.",
+	    "411": "Ecolodgix, LLC",
+	    "412": "Douglas Lighting Controls",
+	    "413": "iSAtech GmbH",
+	    "414": "AREAL",
+	    "415": "Beckhoff Automation GmbH",
+	    "416": "IPAS GmbH",
+	    "417": "KE2 Therm Solutions",
+	    "418": "Base2Products",
+	    "419": "DTL Controls, LLC",
+	    "420": "INNCOM International, Inc.",
+	    "421": "BTR Netcom GmbH",
+	    "422": "Greentrol Automation, Inc",
+	    "423": "BELIMO Automation AG",
+	    "424": "Samsung Heavy Industries Co, Ltd",
+	    "425": "Triacta Power Technologies, Inc.",
+	    "426": "Globestar Systems",
+	    "427": "MLB Advanced Media, LP",
+	    "428": "SWG Stuckmann Wirtschaftliche Gebäudesysteme GmbH",
+	    "429": "SensorSwitch",
+	    "430": "Multitek Power Limited",
+	    "431": "Aquametro AG",
+	    "432": "LG Electronics Inc.",
+	    "433": "Electronic Theatre Controls, Inc.",
+	    "434": "Mitsubishi Electric Corporation Nagoya Works",
+	    "435": "Delta Electronics, Inc.",
+	    "436": "Elma Kurtalj, Ltd.",
+	    "437": "ADT Fire and Security Sp. A.o.o.",
+	    "438": "Nedap Security Management",
+	    "439": "ESC Automation Inc.",
+	    "440": "DSP4YOU Ltd.",
+	    "441": "GE Sensing and Inspection Technologies",
+	    "442": "Embedded Systems SIA",
+	    "443": "BEFEGA GmbH",
+	    "444": "Baseline Inc.",
+	    "445": "M2M Systems Integrators",
+	    "446": "OEMCtrl",
+	    "447": "Clarkson Controls Limited",
+	    "448": "Rogerwell Control System Limited",
+	    "449": "SCL Elements",
+	    "450": "Hitachi Ltd.",
+	    "451": "Newron System SA",
+	    "452": "BEVECO Gebouwautomatisering BV",
+	    "453": "Streamside Solutions",
+	    "454": "Yellowstone Soft",
+	    "455": "Oztech Intelligent Systems Pty Ltd.",
+	    "456": "Novelan GmbH",
+	    "457": "Flexim Americas Corporation",
+	    "458": "ICP DAS Co., Ltd.",
+	    "459": "CARMA Industries Inc.",
+	    "460": "Log-One Ltd.",
+	    "461": "TECO Electric & Machinery Co., Ltd.",
+	    "462": "ConnectEx, Inc.",
+	    "463": "Turbo DDC Südwest",
+	    "464": "Quatrosense Environmental Ltd.",
+	    "465": "Fifth Light Technology Ltd.",
+	    "466": "Scientific Solutions, Ltd.",
+	    "467": "Controller Area Network Solutions (M) Sdn Bhd",
+	    "468": "RESOL - Elektronische Regelungen GmbH",
+	    "469": "RPBUS LLC",
+	    "470": "BRS Sistemas Eletronicos",
+	    "471": "WindowMaster A/S",
+	    "472": "Sunlux Technologies Ltd.",
+	    "473": "Measurlogic",
+	    "474": "Frimat GmbH",
+	    "475": "Spirax Sarco",
+	    "476": "Luxtron",
+	    "477": "Raypak Inc",
+	    "478": "Air Monitor Corporation",
+	    "479": "Regler Och Webbteknik Sverige (ROWS)",
+	    "480": "Intelligent Lighting Controls Inc.",
+	    "481": "Sanyo Electric Industry Co., Ltd",
+	    "482": "E-Mon Energy Monitoring Products",
+	    "483": "Digital Control Systems",
+	    "484": "ATI Airtest Technologies, Inc.",
+	    "485": "SCS SA",
+	    "486": "HMS Industrial Networks AB",
+	    "487": "Shenzhen Universal Intellisys Co Ltd",
+	    "488": "EK Intellisys Sdn Bhd",
+	    "489": "SysCom",
+	    "490": "Firecom, Inc.",
+	    "491": "ESA Elektroschaltanlagen Grimma GmbH",
+	    "492": "Kumahira Co Ltd",
+	    "493": "Hotraco",
+	    "494": "SABO Elektronik GmbH",
+	    "495": "Equip'Trans",
+	    "496": "TCS Basys Controls",
+	    "497": "FlowCon International A/S",
+	    "498": "ThyssenKrupp Elevator Americas",
+	    "499": "Abatement Technologies",
+	    "500": "Continental Control Systems, LLC",
+	    "501": "WISAG Automatisierungstechnik GmbH & Co KG",
+	    "502": "EasyIO",
+	    "503": "EAP-Electric GmbH",
+	    "504": "Hardmeier",
+	    "505": "Mircom Group of Companies",
+	    "506": "Quest Controls",
+	    "507": "Mestek, Inc",
+	    "508": "Pulse Energy",
+	    "509": "Tachikawa Corporation",
+	    "510": "University of Nebraska-Lincoln",
+	    "511": "Redwood Systems",
+	    "512": "PASStec Industrie-Elektronik GmbH",
+	    "513": "NgEK, Inc.",
+	    "514": "t-mac Technologies",
+	    "515": "Jireh Energy Tech Co., Ltd.",
+	    "516": "Enlighted Inc.",
+	    "517": "El-Piast Sp. Z o.o",
+	    "518": "NetxAutomation Software GmbH",
+	    "519": "Invertek Drives",
+	    "520": "Deutschmann Automation GmbH & Co. KG",
+	    "521": "EMU Electronic AG",
+	    "522": "Phaedrus Limited",
+	    "523": "Sigmatek GmbH & Co KG",
+	    "524": "Marlin Controls",
+	    "525": "Circutor, SA",
+	    "526": "UTC Fire & Security",
+	    "527": "DENT Instruments, Inc.",
+	    "528": "FHP Manufacturing Company - Bosch Group",
+	    "529": "GE Intelligent Platforms",
+	    "530": "Inner Range Pty Ltd",
+	    "531": "GLAS Energy Technology",
+	    "532": "MSR-Electronic-GmbH",
+	    "533": "Energy Control Systems, Inc.",
+	    "534": "EMT Controls",
+	    "535": "Daintree Networks Inc.",
+	    "536": "EURO ICC d.o.o",
+	    "537": "TE Connectivity Energy",
+	    "538": "GEZE GmbH",
+	    "539": "NEC Corporation",
+	    "540": "Ho Cheung International Company Limited",
+	    "541": "Sharp Manufacturing Systems Corporation",
+	    "542": "DOT CONTROLS a.s.",
+	    "543": "BeaconMedæs",
+	    "544": "Midea Commercial Aircon",
+	    "545": "WattMaster Controls",
+	    "546": "Kamstrup A/S",
+	    "547": "CA Computer Automation GmbH",
+	    "548": "Laars Heating Systems Company",
+	    "549": "Hitachi Systems, Ltd.",
+	    "550": "Fushan AKE Electronic Engineering Co., Ltd.",
+	    "551": "Toshiba International Corporation",
+	    "552": "Starman Systems, LLC",
+	    "553": "Samsung Techwin Co., Ltd.",
+	    "554": "ISAS-Integrated Switchgear and Systems P/L",
+	    "555": "Reserved for ASHRAE",
+	    "556": "Obvius",
+	    "557": "Marek Guzik",
+	    "558": "Vortek Instruments, LLC",
+	    "559": "Universal Lighting Technologies",
+	    "560": "Myers Power Products, Inc.",
+	    "561": "Vector Controls GmbH",
+	    "562": "Crestron Electronics, Inc.",
+	    "563": "A&E Controls Limited",
+	    "564": "Projektomontaza A.D.",
+	    "565": "Freeaire Refrigeration",
+	    "566": "Aqua Cooler Pty Limited",
+	    "567": "Basic Controls",
+	    "568": "GE Measurement and Control Solutions Advanced Sensors",
+	    "569": "EQUAL Networks",
+	    "570": "Millennial Net",
+	    "571": "APLI Ltd",
+	    "572": "Electro Industries/GaugeTech",
+	    "573": "SangMyung University",
+	    "574": "Coppertree Analytics, Inc.",
+	    "575": "CoreNetiX GmbH",
+	    "576": "Acutherm",
+	    "577": "Dr. Riedel Automatisierungstechnik GmbH",
+	    "578": "Shina System Co., Ltd",
+	    "579": "Iqapertus",
+	    "580": "PSE Technology",
+	    "581": "BA Systems",
+	    "582": "BTICINO",
+	    "583": "Monico, Inc.",
+	    "584": "iCue",
+	    "585": "tekmar Control Systems Ltd.",
+	    "586": "Control Technology Corporation",
+	    "587": "GFAE GmbH",
+	    "588": "BeKa Software GmbH",
+	    "589": "Isoil Industria SpA",
+	    "590": "Home Systems Consulting SpA",
+	    "591": "Socomec",
+	    "592": "Everex Communications, Inc.",
+	    "593": "Ceiec Electric Technology",
+	    "594": "Atrila GmbH",
+	    "595": "WingTechs",
+	    "596": "Shenzhen Mek Intellisys Pte Ltd.",
+	    "597": "Nestfield Co., Ltd.",
+	    "598": "Swissphone Telecom AG",
+	    "599": "PNTECH JSC",
+	    "600": "Horner APG, LLC",
+	    "601": "PVI Industries, LLC",
+	    "602": "Ela-compil",
+	    "603": "Pegasus Automation International LLC",
+	    "604": "Wight Electronic Services Ltd.",
+	    "605": "Marcom",
+	    "606": "Exhausto A/S",
+	    "607": "Dwyer Instruments, Inc.",
+	    "608": "Link GmbH",
+	    "609": "Oppermann Regelgerate GmbH",
+	    "610": "NuAire, Inc.",
+	    "611": "Nortec Humidity, Inc.",
+	    "612": "Bigwood Systems, Inc.",
+	    "613": "Enbala Power Networks",
+	    "614": "Inter Energy Co., Ltd.",
+	    "615": "ETC",
+	    "616": "COMELEC S.A.R.L",
+	    "617": "Pythia Technologies",
+	    "618": "TrendPoint Systems, Inc.",
+	    "619": "AWEX",
+	    "620": "Eurevia",
+	    "621": "Kongsberg E-lon AS",
+	    "622": "FlaktWoods",
+	    "623": "E + E Elektronik GES M.B.H.",
+	    "624": "ARC Informatique",
+	    "625": "SKIDATA AG",
+	    "626": "WSW Solutions",
+	    "627": "Trefon Electronic GmbH",
+	    "628": "Dongseo System",
+	    "629": "Kanontec Intelligence Technology Co., Ltd.",
+	    "630": "EVCO S.p.A.",
+	    "631": "Accuenergy (CANADA) Inc.",
+	    "632": "SoftDEL",
+	    "633": "Orion Energy Systems, Inc.",
+	    "634": "Roboticsware",
+	    "635": "DOMIQ Sp. z o.o.",
+	    "636": "Solidyne",
+	    "637": "Elecsys Corporation",
+	    "638": "Conditionaire International Pty. Limited",
+	    "639": "Quebec, Inc.",
+	    "640": "Homerun Holdings",
+	    "641": "Murata Americas",
+	    "642": "Comptek",
+	    "643": "Westco Systems, Inc.",
+	    "644": "Advancis Software & Services GmbH",
+	    "645": "Intergrid, LLC",
+	    "646": "Markerr Controls, Inc.",
+	    "647": "Toshiba Elevator and Building Systems Corporation",
+	    "648": "Spectrum Controls, Inc.",
+	    "649": "Mkservice",
+	    "650": "Fox Thermal Instruments",
+	    "651": "SyxthSense Ltd",
+	    "652": "DUHA System S R.O.",
+	    "653": "NIBE",
+	    "654": "Melink Corporation",
+	    "655": "Fritz-Haber-Institut",
+	    "656": "MTU Onsite Energy GmbH, Gas Power Systems",
+	    "657": "Omega Engineering, Inc.",
+	    "658": "Avelon",
+	    "659": "Ywire Technologies, Inc.",
+	    "660": "M.R. Engineering Co., Ltd.",
+	    "661": "Lochinvar, LLC",
+	    "662": "Sontay Limited",
+	    "663": "GRUPA Slawomir Chelminski",
+	    "664": "Arch Meter Corporation",
+	    "665": "Senva, Inc.",
+	    "666": "Reserved for ASHRAE",
+	    "667": "FM-Tec",
+	    "668": "Systems Specialists, Inc.",
+	    "669": "SenseAir",
+	    "670": "AB IndustrieTechnik Srl",
+	    "671": "Cortland Research, LLC",
+	    "672": "MediaView",
+	    "673": "VDA Elettronica",
+	    "674": "CSS, Inc.",
+	    "675": "Tek-Air Systems, Inc.",
+	    "676": "ICDT",
+	    "677": "The Armstrong Monitoring Corporation",
+	    "678": "DIXELL S.r.l",
+	    "679": "Lead System, Inc.",
+	    "680": "ISM EuroCenter S.A.",
+	    "681": "TDIS",
+	    "682": "Trade FIDES",
+	    "683": "Knürr GmbH (Emerson Network Power)",
+	    "684": "Resource Data Management",
+	    "685": "Abies Technology, Inc.",
+	    "686": "Amalva",
+	    "687": "MIRAE Electrical Mfg. Co., Ltd.",
+	    "688": "HunterDouglas Architectural Projects Scandinavia ApS",
+	    "689": "RUNPAQ Group Co., Ltd",
+	    "690": "Unicard SA",
+	    "691": "IE Technologies",
+	    "692": "Ruskin Manufacturing",
+	    "693": "Calon Associates Limited",
+	    "694": "Contec Co., Ltd.",
+	    "695": "iT GmbH",
+	    "696": "Autani Corporation",
+	    "697": "Christian Fortin",
+	    "698": "HDL",
+	    "699": "IPID Sp. Z.O.O Limited",
+	    "700": "Fuji Electric Co., Ltd",
+	    "701": "View, Inc.",
+	    "702": "Samsung S1 Corporation",
+	    "703": "New Lift",
+	    "704": "VRT Systems",
+	    "705": "Motion Control Engineering, Inc.",
+	    "706": "Weiss Klimatechnik GmbH",
+	    "707": "Elkon",
+	    "708": "Eliwell Controls S.r.l.",
+	    "709": "Japan Computer Technos Corp",
+	    "710": "Rational Network ehf",
+	    "711": "Magnum Energy Solutions, LLC",
+	    "712": "MelRok",
+	    "713": "VAE Group",
+	    "714": "LGCNS",
+	    "715": "Berghof Automationstechnik GmbH",
+	    "716": "Quark Communications, Inc.",
+	    "717": "Sontex",
+	    "718": "mivune AG",
+	    "719": "Panduit",
+	    "720": "Smart Controls, LLC",
+	    "721": "Compu-Aire, Inc.",
+	    "722": "Sierra",
+	    "723": "ProtoSense Technologies",
+	    "724": "Eltrac Technologies Pvt Ltd",
+	    "725": "Bektas Invisible Controls GmbH",
+	    "726": "Entelec",
+	    "727": "INNEXIV",
+	    "728": "Covenant",
+	    "729": "Davitor AB",
+	    "730": "TongFang Technovator",
+	    "731": "Building Robotics, Inc.",
+	    "732": "HSS-MSR UG",
+	    "733": "FramTack LLC",
+	    "734": "B. L. Acoustics, Ltd.",
+	    "735": "Traxxon Rock Drills, Ltd",
+	    "736": "Franke",
+	    "737": "Wurm GmbH & Co",
+	    "738": "AddENERGIE",
+	    "739": "Mirle Automation Corporation",
+	    "740": "Ibis Networks",
+	    "741": "ID-KARTA s.r.o.",
+	    "742": "Anaren, Inc.",
+	    "743": "Span, Incorporated",
+	    "744": "Bosch Thermotechnology Corp",
+	    "745": "DRC Technology S.A.",
+	    "746": "Shanghai Energy Building Technology Co, Ltd",
+	    "747": "Fraport AG",
+	    "748": "Flowgroup",
+	    "749": "Skytron Energy, GmbH",
+	    "750": "ALTEL Wicha, Golda Sp. J.",
+	    "751": "Drupal",
+	    "752": "Axiomatic Technology, Ltd",
+	    "753": "Bohnke + Partner",
+	    "754": "Function 1",
+	    "755": "Optergy Pty, Ltd",
+	    "756": "LSI Virticus",
+	    "757": "Konzeptpark GmbH",
+	    "758": "Hubbell Building Automation, Inc.",
+	    "759": "eCurv, Inc.",
+	    "760": "Agnosys GmbH",
+	    "761": "Shanghai Sunfull Automation Co., LTD",
+	    "762": "Kurz Instruments, Inc.",
+	    "763": "Cias Elettronica S.r.l.",
+	    "764": "Multiaqua, Inc.",
+	    "765": "BlueBox",
+	    "766": "Sensidyne",
+	    "767": "Viessmann Elektronik GmbH",
+	    "768": "ADFweb.com srl",
+	    "769": "Gaylord Industries",
+	    "770": "Majur Ltd.",
+	    "771": "Shanghai Huilin Technology Co., Ltd.",
+	    "772": "Exotronic",
+	    "773": "Safecontrol spol s.r.o.",
+	    "774": "Amatis",
+	    "775": "Universal Electric Corporation",
+	    "776": "iBACnet",
+	    "777": "Reserved for ASHRAE",
+	    "778": "Smartrise Engineering, Inc.",
+	    "779": "Miratron, Inc.",
+	    "780": "SmartEdge",
+	    "781": "Mitsubishi Electric Australia Pty Ltd",
+	    "782": "Triangle Research International Ptd Ltd",
+	    "783": "Produal Oy",
+	    "784": "Milestone Systems A/S",
+	    "785": "Trustbridge",
+	    "786": "Feedback Solutions",
+	    "787": "IES",
+	    "788": "GE Critical Power",
+	    "789": "Riptide IO",
+	    "790": "Messerschmitt Systems AG",
+	    "791": "Dezem Energy Controlling",
+	    "792": "MechoSystems",
+	    "793": "evon GmbH",
+	    "794": "CS Lab GmbH",
+	    "795": "8760 Enterprises, Inc.",
+	    "796": "Touche Controls",
+	    "797": "Ontrol Teknik Malzeme San. ve Tic. A.S.",
+	    "798": "Uni Control System Sp. Z o.o.",
+	    "799": "Weihai Ploumeter Co., Ltd",
+	    "800": "Elcom International Pvt. Ltd",
+	    "801": "Philips Lighting",
+	    "802": "AutomationDirect",
+	    "803": "Paragon Robotics",
+	    "804": "SMT System & Modules Technology AG",
+	    "805": "OS Technology Service and Trading Co., LTD",
+	    "806": "CMR Controls Ltd",
+	    "807": "Innovari, Inc.",
+	    "808": "ABB Control Products",
+	    "809": "Gesellschaft fur Gebäudeautomation mbH",
+	    "810": "RODI Systems Corp.",
+	    "811": "Nextek Power Systems",
+	    "812": "Creative Lighting",
+	    "813": "WaterFurnace International",
+	    "814": "Mercury Security",
+	    "815": "Hisense (Shandong) Air-Conditioning Co., Ltd.",
+	    "816": "Layered Solutions, Inc.",
+	    "817": "Leegood Automatic System, Inc.",
+	    "818": "Shanghai Restar Technology Co., Ltd.",
+	    "819": "Reimann Ingenieurbüro",
+	    "820": "LynTec",
+	    "821": "HTP",
+	    "822": "Elkor Technologies, Inc.",
+	    "823": "Bentrol Pty Ltd",
+	    "824": "Team-Control Oy",
+	    "825": "NextDevice, LLC",
+	    "826": "GLOBAL CONTROL 5 Sp. z o.o.",
+	    "827": "King I Electronics Co., Ltd",
+	    "828": "SAMDAV",
+	    "829": "Next Gen Industries Pvt. Ltd.",
+	    "830": "Entic LLC",
+	    "831": "ETAP",
+	    "832": "Moralle Electronics Limited",
+	    "833": "Leicom AG",
+	    "834": "Watts Regulator Company",
+	    "835": "S.C. Orbtronics S.R.L.",
+	    "836": "Gaussan Technologies",
+	    "837": "WEBfactory GmbH",
+	    "838": "Ocean Controls",
+	    "839": "Messana Air-Ray Conditioning s.r.l.",
+	    "840": "Hangzhou BATOWN Technology Co. Ltd.",
+	    "841": "Reasonable Controls",
+	    "842": "Servisys, Inc.",
+	    "843": "halstrup-walcher GmbH",
+	    "844": "SWG Automation Fuzhou Limited",
+	    "845": "KSB Aktiengesellschaft",
+	    "846": "Hybryd Sp. z o.o.",
+	    "847": "Helvatron AG",
+	    "848": "Oderon Sp. Z.O.O.",
+	    "849": "miko",
+	    "850": "Exodraft",
+	    "851": "Hochhuth GmbH",
+	    "852": "Integrated System Technologies Ltd.",
+	    "853": "Shanghai Cellcons Controls Co., Ltd",
+	    "854": "Emme Controls, LLC",
+	    "855": "Field Diagnostic Services, Inc.",
+	    "856": "Ges Teknik A.S.",
+	    "857": "Global Power Products, Inc.",
+	    "858": "Option NV",
+	    "859": "BV-Control AG",
+	    "860": "Sigren Engineering AG",
+	    "861": "Shanghai Jaltone Technology Co., Ltd.",
+	    "862": "MaxLine Solutions Ltd",
+	    "863": "Kron Instrumentos Elétricos Ltda",
+	    "864": "Thermo Matrix",
+	    "865": "Infinite Automation Systems, Inc.",
+	    "866": "Vantage",
+	    "867": "Elecon Measurements Pvt Ltd",
+	    "868": "TBA",
+	    "869": "Carnes Company",
+	    "870": "Harman Professional",
+	    "871": "Nenutec Asia Pacific Pte Ltd",
+	    "872": "Gia NV",
+	    "873": "Kepware Tehnologies",
+	    "874": "Temperature Electronics Ltd",
+	    "875": "Packet Power",
+	    "876": "Project Haystack Corporation",
+	    "877": "DEOS Controls Americas Inc.",
+	    "878": "Senseware Inc",
+	    "879": "MST Systemtechnik AG",
+	    "880": "Lonix Ltd",
+	    "881": "GMC-I Messtechnik GmbH",
+	    "882": "Aviosys International Inc.",
+	    "883": "Efficient Building Automation Corp.",
+	    "884": "Accutron Instruments Inc.",
+	    "885": "Vermont Energy Control Systems LLC",
+	    "886": "DCC Dynamics",
+	    "887": "Brück Electronic GmbH",
+	    "888": "Reserved for ASHRAE",
+	    "889": "NGBS Hungary Ltd.",
+	    "890": "ILLUM Technology, LLC",
+	    "891": "Delta Controls Germany Limited",
+	    "892": "S+T Service & Technique S.A.",
+	    "893": "SimpleSoft",
+	    "894": "Candi Controls, Inc.",
+	    "895": "EZEN Solution Inc.",
+	    "896": "Fujitec Co. Ltd.",
+	    "897": "Terralux",
+	    "898": "Annicom",
+	    "899": "Bihl+Wiedemann GmbH",
+	    "900": "Daper, Inc.",
+	    "901": "Schüco International KG",
+	    "902": "Otis Elevator Company",
+	    "903": "Fidelix Oy",
+	    "904": "RAM GmbH Mess- und Regeltechnik",
+	    "905": "WEMS",
+	    "906": "Ravel Electronics Pvt Ltd",
+	    "907": "OmniMagni",
+	    "908": "Echelon",
+	    "909": "Intellimeter Canada, Inc.",
+	    "910": "Bithouse Oy",
+	    "911": "Reserved for ASHRAE",
+	    "912": "BuildPulse",
+	    "913": "Shenzhen 1000 Building Automation Co. Ltd",
+	    "914": "AED Engineering GmbH",
+	    "915": "Güntner GmbH & Co. KG",
+	    "916": "KNXlogic",
+	    "917": "CIM Environmental Group",
+	    "918": "Flow Control",
+	    "919": "Lumen Cache, Inc.",
+	    "920": "Ecosystem",
+	    "921": "Potter Electric Signal Company, LLC",
+	    "922": "Tyco Fire & Security S.p.A.",
+	    "923": "Watanabe Electric Industry Co., Ltd.",
+	    "924": "Causam Energy",
+	    "925": "W-tec AG",
+	    "926": "IMI Hydronic Engineering International SA",
+	    "927": "ARIGO Software",
+	    "928": "MSA Safety",
+	    "929": "Smart Solucoes Ltda - MERCATO",
+	    "930": "PIATRA Engineering",
+	    "931": "ODIN Automation Systems, LLC",
+	    "932": "Belparts NV",
+	    "999": "Reserved for ASHRAE"
+	};
+	
+	devicesStore.getState = function () {
+	    return { action: _action, view: _view, device: _device, platform: _platform };
+	};
+	
+	devicesStore.getRegistryValues = function (deviceId, deviceAddress, deviceName) {
+	
+	    var device = devicesStore.getDeviceRef(deviceId, deviceAddress, deviceName);
+	    var config = [];
+	
+	    if (device) {
+	        if (device.registryConfig.length) {
+	            config = device.registryConfig;
+	        }
+	    } else {
+	        config = _placeHolders;
+	    }
+	
+	    return config;
+	};
+	
+	devicesStore.getSettingsTemplate = function () {
+	
+	    return ObjectIsEmpty(_settingsTemplate) ? null : _settingsTemplate;
+	};
+	
+	devicesStore.getDataLoaded = function (device) {
+	    return _data.hasOwnProperty(device.deviceId) && _data.hasOwnProperty(device.deviceId) ? _data[device.deviceId].length : false;
+	};
+	
+	devicesStore.getSavedRegistryFiles = function () {
+	    return ObjectIsEmpty(_savedRegistryFiles) ? null : _savedRegistryFiles;
+	};
+	
+	devicesStore.getRegistryFileShared = function (registryFile, deviceId, deviceAddress, deviceName) {};
+	
+	devicesStore.getWarnings = function () {
+	    return _warnings;
+	};
+	
+	devicesStore.getDevices = function (platform, bacnetIdentity) {
+	
+	    var devices = [];
+	
+	    if (typeof platform !== "undefined" && platform.hasOwnProperty("uuid")) {
+	        devices = _devices.filter(function (device) {
+	            return device.platformUuid === platform.uuid && device.bacnetProxyIdentity === bacnetIdentity;
+	        });
+	    }
+	
+	    return JSON.parse(JSON.stringify(devices));
+	};
+	
+	devicesStore.getDevicesList = function (platformUuid) {
+	
+	    return _devicesList.hasOwnProperty(platformUuid) ? JSON.parse(JSON.stringify(_devicesList[platformUuid])) : [];
+	};
+	
+	devicesStore.getDeviceByID = function (deviceId) {
+	
+	    var device = _devices.find(function (dvc) {
+	        return dvc.id === deviceId;
+	    });
+	
+	    return device;
+	};
+	
+	devicesStore.getDeviceRef = function (deviceId, deviceAddress, deviceName) {
+	
+	    var device = _devices.find(function (dvc) {
+	        return dvc.id === deviceId && dvc.address === deviceAddress && (deviceName ? dvc.name === deviceName : true);
+	    });
+	
+	    return typeof device === "undefined" ? null : device;
+	};
+	
+	devicesStore.getDevice = function (deviceId, deviceAddress) {
+	
+	    return JSON.parse(JSON.stringify(devicesStore.getDeviceRef(deviceId, deviceAddress)));
+	};
+	
+	devicesStore.getNewScan = function () {
+	
+	    return _newScan;
+	};
+	
+	devicesStore.getKeyboard = function (deviceId) {
+	
+	    var keyboard = deviceId === _keyboard.device ? JSON.parse(JSON.stringify(_keyboard)) : null;
+	
+	    return keyboard;
+	};
+	
+	devicesStore.deviceHasFocus = function (deviceId, deviceAddress) {
+	    return _focusedDevice.id === deviceId && _focusedDevice.address === deviceAddress;
+	};
+	
+	devicesStore.getScanningComplete = function () {
+	    return _scanningComplete;
+	};
+	
+	devicesStore.getUpdatedRow = function (deviceId, deviceAddress) {
+	
+	    var updatedRow = null;
+	
+	    if (_updatedRow.hasOwnProperty("attributes")) {
+	        if (_updatedRow.deviceId === deviceId && _updatedRow.deviceAddress === deviceAddress) {
+	            updatedRow = _updatedRow.attributes.toJS(); // then converting back to Immutable 
+	            // list in component ensures it's a new object,
+	            // not using the same reference
+	            _updatedRow = {};
+	        }
+	    }
+	
+	    return updatedRow;
+	};
+	
+	devicesStore.getBackupPoints = function (deviceId, deviceAddress) {
+	    var backup = _backupPoints.find(function (backups) {
+	        return backups.id === deviceId && backups.address === deviceAddress;
+	    });
+	
+	    return typeof backup === "undefined" ? [] : backup.points;
+	};
+	
+	devicesStore.enableBackupPoints = function (deviceId, deviceAddress) {
+	    var backup = _backupPoints.find(function (backups) {
+	        return backups.id === deviceId && backups.address === deviceAddress;
+	    });
+	
+	    return typeof backup !== "undefined";
+	};
+	
+	devicesStore.reconfiguringDevice = function () {
+	    return _reconfiguringDevice;
+	};
+	
+	devicesStore.getReconfiguration = function () {
+	    return _reconfiguration;
+	};
+	
+	devicesStore.dispatchToken = dispatcher.register(function (action) {
+	    dispatcher.waitFor([authorizationStore.dispatchToken]);
+	
+	    _newScan = false;
+	    _reconfiguringDevice = false;
+	
+	    switch (action.type) {
+	
+	        case ACTION_TYPES.CONFIGURE_DEVICES:
+	            _platform = action.platform;
+	            _devices = [];
+	            _newScan = true;
+	            _scanningComplete = false;
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.ADD_DEVICES:
+	            _action = "get_scan_settings";
+	            _view = "Detect Devices";
+	            _device = null;
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.CANCEL_SCANNING:
+	            // _action = "get_scan_settings";
+	            // _view = "Detect Devices";
+	            // devicesWs.close();
+	            // devicesWs = null;
+	
+	            // devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.LISTEN_FOR_IAMS:
+	            // _newScan = false;
+	            _scanningComplete = false;
+	            _warnings = {};
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.DEVICE_DETECTED:
+	            _action = "device_detected";
+	            _view = "Devices Found";
+	
+	            loadDevice(action.device, action.platform, action.bacnet);
+	
+	            if (_devices.length) {
+	                devicesStore.emitChange();
+	            }
+	            break;
+	        case ACTION_TYPES.DEVICE_SCAN_FINISHED:
+	
+	            _scanningComplete = true;
+	
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.POINT_SCAN_FINISHED:
+	
+	            var deviceId = action.device.id;
+	            var deviceAddress = action.device.address;
+	            var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
+	
+	            device.configuring = false;
+	
+	            setBackupPoints(device);
+	
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.POINT_RECEIVED:
+	            _action = "point_received";
+	            _view = "Devices Found";
+	            loadPoint(action.data);
+	
+	            devicesStore.emitChange();
+	
+	            break;
+	
+	        case ACTION_TYPES.FOCUS_ON_DEVICE:
+	
+	            var focusedDevice = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
+	
+	            if (focusedDevice) {
+	                if (_focusedDevice.id !== focusedDevice.id || _focusedDevice.address !== focusedDevice.address) {
+	                    _focusedDevice.id = focusedDevice.id;
+	                    _focusedDevice.address = focusedDevice.address;
+	
+	                    devicesStore.emitChange();
+	                }
+	            }
+	
+	            break;
+	
+	        case ACTION_TYPES.REFRESH_DEVICE_POINTS:
+	
+	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
+	
+	            if (device) {
+	                var backupPoints = _backupPoints.find(function (backups) {
+	                    return backups.id === device.id && backups.address === device.address;
+	                });
+	
+	                if (typeof backupPoints !== "undefined") {
+	                    device.registryConfig = JSON.parse(JSON.stringify(backupPoints.points));
+	                    device.registryCount = device.registryCount + 1;
+	                    devicesStore.emitChange();
+	                }
+	            }
+	
+	            break;
+	
+	        case ACTION_TYPES.CONFIGURE_DEVICE:
+	            _action = "configure_device";
+	            _view = "Configure Device";
+	            _device = action.device;
+	
+	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+	
+	            if (device) {
+	                device.showPoints = action.device.showPoints;
+	                device.configuring = action.device.configuring;
+	                device.configuringStarted = true;
+	                device.bacnetProxy = action.bacnet;
+	
+	                if (device.configuring) {
+	                    device.registryCount = device.registryCount + 1;
+	                    device.registryConfig = [];
+	                }
+	            }
+	
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.TOGGLE_SHOW_POINTS:
+	            _action = "configure_device";
+	            _view = "Configure Device";
+	            _device = action.device;
+	
+	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+	
+	            if (device) {
+	                device.showPoints = action.device.showPoints;
+	            }
+	
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.CANCEL_REGISTRY:
+	            _action = "configure_device";
+	            _view = "Configure Device";
+	            _device = action.device;
+	
+	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+	
+	            if (device) {
+	                device.registryConfig = [];
+	                device.showPoints = false;
+	                device.configuring = false;
+	                device.configuringStarted = false;
+	            }
+	
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.LOAD_REGISTRY:
+	            _action = "configure_registry";
+	            _view = "Registry Configuration";
+	
+	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
+	
+	            if (device) {
+	                device.registryCount = device.registryCount + 1;
+	                device.registryConfig = getPreppedData(action.data);
+	                device.showPoints = true;
+	            }
+	
+	            devicesStore.emitChange();
+	            break;
+	
+	        case ACTION_TYPES.LOAD_REGISTRY_FILES:
+	            _action = "configure_registry";
+	            _view = "Registry Configuration";
+	
+	            _savedRegistryFiles = {
+	                files: action.registryFiles,
+	                deviceId: action.deviceId,
+	                deviceAddress: action.deviceAddress
+	            };
+	
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.UNLOAD_REGISTRY_FILES:
+	            _action = "configure_registry";
+	            _view = "Registry Configuration";
+	
+	            _savedRegistryFiles = {};
+	
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.UPDATE_REGISTRY:
+	            _action = "update_registry";
+	            _view = "Registry Configuration";
+	
+	            var i = -1;
+	            var keyProps = [];
+	
+	            _updatedRow = {
+	                deviceId: action.deviceId,
+	                deviceAddress: action.deviceAddress,
+	                attributes: action.attributes
+	            };
+	
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.RECONFIGURE_DEVICE:
+	
+	            _reconfiguration = action.configuration;
+	            _reconfiguration.deviceName = action.deviceName.replace("devices/", "");
+	
+	            reconfigureRegistry(action.platformUuid, action.agentDriver, _reconfiguration.deviceName, _reconfiguration, action.data);
+	
+	            _reconfiguringDevice = true;
+	
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.EDIT_REGISTRY:
+	            _action = "configure_registry";
+	            _view = "Registry Configuration";
+	            _device = action.device;
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.SAVE_REGISTRY:
+	            _action = "configure_device";
+	            _view = "Configure Device";
+	
+	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
+	
+	            if (device) {
+	                device.showPoints = false;
+	            }
+	
+	            devicesStore.emitChange();
+	            break;
+	        case ACTION_TYPES.SAVE_CONFIG:
+	            _action = "configure_device";
+	            _view = "Configure Device";
+	
+	            _settingsTemplate = action.settings;
+	
+	            break;
+	        case ACTION_TYPES.UPDATE_DEVICES_LIST:
+	            _action = "configure_device";
+	            _view = "Configure Device";
+	
+	            _devicesList[action.platformUuid] = action.devices;
+	
+	            break;
+	    }
+	
+	    function setBackupPoints(device) {
+	        var backup = {
+	            id: device.id,
+	            address: device.address,
+	            points: JSON.parse(JSON.stringify(device.registryConfig))
+	        };
+	
+	        var index = -1;
+	        _backupPoints.find(function (backups, i) {
+	            var match = backups.id === device.id && backups.address === device.address;
+	
+	            if (match) {
+	                index = i;
+	            }
+	
+	            return match;
+	        });
+	
+	        if (index < 0) {
+	            _backupPoints.push(backup);
+	        } else {
+	            _backupPoints[index] = backup;
+	        }
+	    }
+	
+	    function sortPointColumns(row) {
+	        var sortedPoint = [];
+	
+	        var indexCell = row.find(function (cell) {
+	            return cell.key === "index";
+	        });
+	
+	        if (typeof indexCell !== "undefined") {
+	            sortedPoint.push(indexCell);
+	        }
+	
+	        var referencePointNameCell = row.find(function (cell) {
+	            return cell.key === "reference_point_name";
+	        });
+	
+	        if (typeof referencePointNameCell !== "undefined") {
+	            sortedPoint.push(referencePointNameCell);
+	        }
+	
+	        var pointNameCell = row.find(function (cell) {
+	            return cell.key === "point_name";
+	        });
+	
+	        if (typeof pointNameCell !== "undefined") {
+	            sortedPoint.push(pointNameCell);
+	        }
+	
+	        var volttronPointNameCell = row.find(function (cell) {
+	            return cell.key === "volttron_point_name";
+	        });
+	
+	        if (typeof volttronPointNameCell !== "undefined") {
+	            sortedPoint.push(volttronPointNameCell);
+	        }
+	
+	        for (var i = 0; i < row.length; ++i) {
+	            if (row[i].key !== "index" && row[i].key !== "reference_point_name" && row[i].key !== "point_name" && row[i].key !== "volttron_point_name") {
+	                sortedPoint.push(row[i]);
+	            }
+	        }
+	
+	        return sortedPoint;
+	    }
+	
+	    function getPreppedData(data) {
+	
+	        var preppedData = data.map(function (row) {
+	            var preppedRow = row.map(function (cell) {
+	
+	                prepCell(cell);
+	
+	                return cell;
+	            });
+	
+	            var sortedRow = sortPointColumns(preppedRow);
+	
+	            return sortedRow;
+	        });
+	
+	        return preppedData;
+	    }
+	
+	    function prepCell(cell) {
+	
+	        cell.key = cell.key.toLowerCase();
+	
+	        cell.editable = !(cell.key === "point_name" || cell.key === "reference_point_name" || cell.key === "object_type" || cell.key === "index");
+	
+	        cell.filterable = cell.key === "point_name" || cell.key === "reference_point_name" || cell.key === "volttron_point_name" || cell.key === "index";
+	    }
+	
+	    function loadPoint(data) {
+	        if (data) {
+	            var pointData = JSON.parse(data);
+	
+	            // can remove && !pointData.hasProp(device_name) if fix websocket endpoint collision
+	            if (pointData.hasOwnProperty("device_id") && !pointData.hasOwnProperty("device_name")) {
+	                var deviceId = pointData.device_id.toString();
+	                var deviceAddress = pointData.address;
+	                var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
+	
+	                if (device) {
+	                    if (!pointData.hasOwnProperty("status")) {
+	                        var pointInList = device.registryConfig.find(function (point) {
+	                            var indexCell = point.find(function (cell) {
+	                                return cell.key === "index";
+	                            });
+	
+	                            var match = false;
+	
+	                            if (indexCell) {
+	                                match = indexCell.value === pointData.results.Index;
+	                            }
+	
+	                            return match;
+	                        });
+	
+	                        if (typeof pointInList === "undefined") {
+	                            var newPoint = [];
+	
+	                            for (var key in pointData.results) {
+	                                var cell = {
+	                                    key: key.toLowerCase().replace(/ /g, "_"),
+	                                    label: key,
+	                                    value: pointData.results[key] === null ? "" : pointData.results[key]
+	                                };
+	
+	                                prepCell(cell);
+	
+	                                newPoint.push(cell);
+	                            }
+	
+	                            var sortedPoint = sortPointColumns(newPoint);
+	                            device.registryConfig.push(sortedPoint);
+	                        }
+	                    } else {
+	                        if (pointData.status === "COMPLETE") {
+	                            device.configuring = false;
+	
+	                            console.log("points complete");
+	                            console.log(pointData.device_id);
+	                            console.log(pointData.address);
+	                            console.log(device);
+	                            setBackupPoints(device);
+	                        }
+	                    }
+	                }
+	            }
+	        }
+	
+	        return device.configuring;
+	    }
+	
+	    function loadDevice(device, platformUuid, bacnetIdentity) {
+	        var deviceIdStr = device.device_id.toString();
+	
+	        _devices.push({
+	            id: deviceIdStr,
+	            name: device.device_name,
+	            type: device.type,
+	            vendor_id: device.vendor_id,
+	            address: device.address,
+	            max_apdu_length: device.max_apdu_length,
+	            segmentation_supported: device.segmentation_supported,
+	            showPoints: false,
+	            configuring: false,
+	            platformUuid: platformUuid,
+	            bacnetProxyIdentity: bacnetIdentity,
+	            agentDriver: device.agentDriver,
+	            registryCount: 0,
+	            registryConfig: [],
+	            keyProps: _defaultKeyProps,
+	            items: [{ key: "address", label: "Address", value: device.address }, { key: "deviceName", label: "Name", value: device.device_name }, { key: "deviceDescription", label: "Description", value: device.device_description }, { key: "deviceId", label: "Device ID", value: deviceIdStr }, { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] }, { key: "type", label: "Type", value: device.type }]
+	        });
+	    }
+	
+	    function reconfigureRegistry(platformUuid, agentDriver, deviceName, configuration, data) {
+	
+	        var deviceId = configuration.driver_config.device_id;
+	        var deviceAddress = configuration.driver_config.device_address;
+	
+	        var preppedDevice = {
+	            id: deviceId,
+	            address: deviceAddress,
+	            name: deviceName,
+	            platformUuid: platformUuid,
+	            agentDriver: agentDriver,
+	            registryFile: configuration.registryFile,
+	            showPoints: true,
+	            configuring: false,
+	            registryCount: 0,
+	            registryConfig: getPreppedData(data),
+	            keyProps: _defaultKeyProps
+	        };
+	
+	        var index = -1;
+	
+	        var deviceInList = _devices.find(function (dvc, i) {
+	            var match = dvc.id === deviceId && dvc.address === deviceAddress && dvc.name === deviceName;
+	
+	            if (match) {
+	                index = i;
+	            }
+	
+	            return match;
+	        });
+	
+	        if (index > -1) {
+	            preppedDevice.registryCount = _devices[index].registryCount + 1;
+	
+	            _devices.splice(index, 1, preppedDevice);
+	        } else {
+	            _devices.push(preppedDevice);
+	        }
+	    }
+	});
+	
+	function ObjectIsEmpty(obj) {
+	    return Object.keys(obj).length === 0;
+	}
+	
+	module.exports = devicesStore;
+
+/***/ },
+/* 271 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var ACTION_TYPES = __webpack_require__(101);
 	var dispatcher = __webpack_require__(104);
 	
 	var actionStatusCreators = {
@@ -37309,18 +38958,18 @@
 	module.exports = actionStatusCreators;
 
 /***/ },
-/* 271 */
+/* 272 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	module.exports = {
-	    Error: __webpack_require__(272),
-	    Exchange: __webpack_require__(273)
+	    Error: __webpack_require__(273),
+	    Exchange: __webpack_require__(274)
 	};
 
 /***/ },
-/* 272 */
+/* 273 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -37338,17 +38987,17 @@
 	module.exports = RpcError;
 
 /***/ },
-/* 273 */
+/* 274 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
-	var uuid = __webpack_require__(274);
+	var uuid = __webpack_require__(275);
 	
 	var ACTION_TYPES = __webpack_require__(101);
 	var dispatcher = __webpack_require__(104);
-	var RpcError = __webpack_require__(272);
-	var xhr = __webpack_require__(297);
+	var RpcError = __webpack_require__(273);
+	var xhr = __webpack_require__(298);
 	
 	function RpcExchange(request, redactedParams) {
 	    if (!(this instanceof RpcExchange)) {
@@ -37425,7 +39074,7 @@
 	module.exports = RpcExchange;
 
 /***/ },
-/* 274 */
+/* 275 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_RESULT__;/* WEBPACK VAR INJECTION */(function(Buffer) {//     uuid.js
@@ -37486,7 +39135,7 @@
 	    // Moderately fast, high quality
 	    if (true) {
 	      try {
-	        var _rb = __webpack_require__(279).randomBytes;
+	        var _rb = __webpack_require__(280).randomBytes;
 	        _nodeRNG = _rng = _rb && function() {return _rb(16);};
 	        _rng();
 	      } catch(e) {}
@@ -37701,10 +39350,10 @@
 	  }
 	})('undefined' !== typeof window ? window : null);
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(276).Buffer))
 
 /***/ },
-/* 275 */
+/* 276 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(Buffer, global) {/*!
@@ -37717,9 +39366,9 @@
 	
 	'use strict'
 	
-	var base64 = __webpack_require__(276)
-	var ieee754 = __webpack_require__(277)
-	var isArray = __webpack_require__(278)
+	var base64 = __webpack_require__(277)
+	var ieee754 = __webpack_require__(278)
+	var isArray = __webpack_require__(279)
 	
 	exports.Buffer = Buffer
 	exports.SlowBuffer = SlowBuffer
@@ -39497,10 +41146,10 @@
 	  return val !== val // eslint-disable-line no-self-compare
 	}
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer, (function() { return this; }())))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(276).Buffer, (function() { return this; }())))
 
 /***/ },
-/* 276 */
+/* 277 */
 /***/ function(module, exports) {
 
 	'use strict'
@@ -39620,7 +41269,7 @@
 
 
 /***/ },
-/* 277 */
+/* 278 */
 /***/ function(module, exports) {
 
 	exports.read = function (buffer, offset, isLE, mLen, nBytes) {
@@ -39710,7 +41359,7 @@
 
 
 /***/ },
-/* 278 */
+/* 279 */
 /***/ function(module, exports) {
 
 	var toString = {}.toString;
@@ -39721,10 +41370,10 @@
 
 
 /***/ },
-/* 279 */
+/* 280 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(Buffer) {var rng = __webpack_require__(280)
+	/* WEBPACK VAR INJECTION */(function(Buffer) {var rng = __webpack_require__(281)
 	
 	function error () {
 	  var m = [].slice.call(arguments).join(' ')
@@ -39735,9 +41384,9 @@
 	    ].join('\n'))
 	}
 	
-	exports.createHash = __webpack_require__(282)
+	exports.createHash = __webpack_require__(283)
 	
-	exports.createHmac = __webpack_require__(294)
+	exports.createHmac = __webpack_require__(295)
 	
 	exports.randomBytes = function(size, callback) {
 	  if (callback && callback.call) {
@@ -39758,7 +41407,7 @@
 	  return ['sha1', 'sha256', 'sha512', 'md5', 'rmd160']
 	}
 	
-	var p = __webpack_require__(295)(exports)
+	var p = __webpack_require__(296)(exports)
 	exports.pbkdf2 = p.pbkdf2
 	exports.pbkdf2Sync = p.pbkdf2Sync
 	
@@ -39778,16 +41427,16 @@
 	  }
 	})
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(276).Buffer))
 
 /***/ },
-/* 280 */
+/* 281 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(global, Buffer) {(function() {
 	  var g = ('undefined' === typeof window ? global : window) || {}
 	  _crypto = (
-	    g.crypto || g.msCrypto || __webpack_require__(281)
+	    g.crypto || g.msCrypto || __webpack_require__(282)
 	  )
 	  module.exports = function(size) {
 	    // Modern Browsers
@@ -39811,22 +41460,22 @@
 	  }
 	}())
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(275).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(276).Buffer))
 
 /***/ },
-/* 281 */
+/* 282 */
 /***/ function(module, exports) {
 
 	/* (ignored) */
 
 /***/ },
-/* 282 */
+/* 283 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(Buffer) {var createHash = __webpack_require__(283)
+	/* WEBPACK VAR INJECTION */(function(Buffer) {var createHash = __webpack_require__(284)
 	
-	var md5 = toConstructor(__webpack_require__(291))
-	var rmd160 = toConstructor(__webpack_require__(293))
+	var md5 = toConstructor(__webpack_require__(292))
+	var rmd160 = toConstructor(__webpack_require__(294))
 	
 	function toConstructor (fn) {
 	  return function () {
@@ -39854,10 +41503,10 @@
 	  return createHash(alg)
 	}
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(276).Buffer))
 
 /***/ },
-/* 283 */
+/* 284 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var exports = module.exports = function (alg) {
@@ -39866,16 +41515,16 @@
 	  return new Alg()
 	}
 	
-	var Buffer = __webpack_require__(275).Buffer
-	var Hash   = __webpack_require__(284)(Buffer)
+	var Buffer = __webpack_require__(276).Buffer
+	var Hash   = __webpack_require__(285)(Buffer)
 	
-	exports.sha1 = __webpack_require__(285)(Buffer, Hash)
-	exports.sha256 = __webpack_require__(289)(Buffer, Hash)
-	exports.sha512 = __webpack_require__(290)(Buffer, Hash)
+	exports.sha1 = __webpack_require__(286)(Buffer, Hash)
+	exports.sha256 = __webpack_require__(290)(Buffer, Hash)
+	exports.sha512 = __webpack_require__(291)(Buffer, Hash)
 
 
 /***/ },
-/* 284 */
+/* 285 */
 /***/ function(module, exports) {
 
 	module.exports = function (Buffer) {
@@ -39958,7 +41607,7 @@
 
 
 /***/ },
-/* 285 */
+/* 286 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/*
@@ -39970,7 +41619,7 @@
 	 * See http://pajhome.org.uk/crypt/md5 for details.
 	 */
 	
-	var inherits = __webpack_require__(286).inherits
+	var inherits = __webpack_require__(287).inherits
 	
 	module.exports = function (Buffer, Hash) {
 	
@@ -40102,7 +41751,7 @@
 
 
 /***/ },
-/* 286 */
+/* 287 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(global, process) {// Copyright Joyent, Inc. and other Node contributors.
@@ -40630,7 +42279,7 @@
 	}
 	exports.isPrimitive = isPrimitive;
 	
-	exports.isBuffer = __webpack_require__(287);
+	exports.isBuffer = __webpack_require__(288);
 	
 	function objectToString(o) {
 	  return Object.prototype.toString.call(o);
@@ -40674,7 +42323,7 @@
 	 *     prototype.
 	 * @param {function} superCtor Constructor function to inherit prototype from.
 	 */
-	exports.inherits = __webpack_require__(288);
+	exports.inherits = __webpack_require__(289);
 	
 	exports._extend = function(origin, add) {
 	  // Don't do anything if add isn't an object
@@ -40695,7 +42344,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }()), __webpack_require__(5)))
 
 /***/ },
-/* 287 */
+/* 288 */
 /***/ function(module, exports) {
 
 	module.exports = function isBuffer(arg) {
@@ -40706,7 +42355,7 @@
 	}
 
 /***/ },
-/* 288 */
+/* 289 */
 /***/ function(module, exports) {
 
 	if (typeof Object.create === 'function') {
@@ -40735,7 +42384,7 @@
 
 
 /***/ },
-/* 289 */
+/* 290 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
@@ -40747,7 +42396,7 @@
 	 *
 	 */
 	
-	var inherits = __webpack_require__(286).inherits
+	var inherits = __webpack_require__(287).inherits
 	
 	module.exports = function (Buffer, Hash) {
 	
@@ -40888,10 +42537,10 @@
 
 
 /***/ },
-/* 290 */
+/* 291 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var inherits = __webpack_require__(286).inherits
+	var inherits = __webpack_require__(287).inherits
 	
 	module.exports = function (Buffer, Hash) {
 	  var K = [
@@ -41138,7 +42787,7 @@
 
 
 /***/ },
-/* 291 */
+/* 292 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/*
@@ -41150,7 +42799,7 @@
 	 * See http://pajhome.org.uk/crypt/md5 for more info.
 	 */
 	
-	var helpers = __webpack_require__(292);
+	var helpers = __webpack_require__(293);
 	
 	/*
 	 * Calculate the MD5 of an array of little-endian words, and a bit length
@@ -41299,7 +42948,7 @@
 
 
 /***/ },
-/* 292 */
+/* 293 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(Buffer) {var intSize = 4;
@@ -41337,10 +42986,10 @@
 	
 	module.exports = { hash: hash };
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(276).Buffer))
 
 /***/ },
-/* 293 */
+/* 294 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(Buffer) {
@@ -41549,13 +43198,13 @@
 	
 	
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(276).Buffer))
 
 /***/ },
-/* 294 */
+/* 295 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(Buffer) {var createHash = __webpack_require__(282)
+	/* WEBPACK VAR INJECTION */(function(Buffer) {var createHash = __webpack_require__(283)
 	
 	var zeroBuffer = new Buffer(128)
 	zeroBuffer.fill(0)
@@ -41599,13 +43248,13 @@
 	}
 	
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(276).Buffer))
 
 /***/ },
-/* 295 */
+/* 296 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var pbkdf2Export = __webpack_require__(296)
+	var pbkdf2Export = __webpack_require__(297)
 	
 	module.exports = function (crypto, exports) {
 	  exports = exports || {}
@@ -41620,7 +43269,7 @@
 
 
 /***/ },
-/* 296 */
+/* 297 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(Buffer) {module.exports = function(crypto) {
@@ -41708,18 +43357,7 @@
 	  }
 	}
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(275).Buffer))
-
-/***/ },
-/* 297 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	module.exports = {
-	    Request: __webpack_require__(298),
-	    Error: __webpack_require__(302)
-	};
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(276).Buffer))
 
 /***/ },
 /* 298 */
@@ -41727,10 +43365,21 @@
 
 	'use strict';
 	
-	var jQuery = __webpack_require__(299);
-	var Promise = __webpack_require__(300);
+	module.exports = {
+	    Request: __webpack_require__(299),
+	    Error: __webpack_require__(303)
+	};
+
+/***/ },
+/* 299 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
 	
-	var XhrError = __webpack_require__(302);
+	var jQuery = __webpack_require__(300);
+	var Promise = __webpack_require__(301);
+	
+	var XhrError = __webpack_require__(303);
 	
 	function XhrRequest(opts) {
 	    return new Promise(function (resolve, reject) {
@@ -41755,7 +43404,7 @@
 	module.exports = XhrRequest;
 
 /***/ },
-/* 299 */
+/* 300 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -51575,7 +53224,7 @@
 
 
 /***/ },
-/* 300 */
+/* 301 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process, global, setImmediate) {/* @preserve
@@ -56470,10 +58119,10 @@
 	
 	},{"./es5.js":14}]},{},[4])(4)
 	});                    ;if (typeof window !== 'undefined' && window !== null) {                               window.P = window.Promise;                                                     } else if (typeof self !== 'undefined' && self !== null) {                             self.P = self.Promise;                                                         }
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5), (function() { return this; }()), __webpack_require__(301).setImmediate))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5), (function() { return this; }()), __webpack_require__(302).setImmediate))
 
 /***/ },
-/* 301 */
+/* 302 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(setImmediate, clearImmediate) {var nextTick = __webpack_require__(5).nextTick;
@@ -56552,10 +58201,10 @@
 	exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate : function(id) {
 	  delete immediateIds[id];
 	};
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(301).setImmediate, __webpack_require__(301).clearImmediate))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(302).setImmediate, __webpack_require__(302).clearImmediate))
 
 /***/ },
-/* 302 */
+/* 303 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -56571,7 +58220,170 @@
 	module.exports = XhrError;
 
 /***/ },
-/* 303 */
+/* 304 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var wsapi = __webpack_require__(305);
+	
+	module.exports = {
+	    Error: __webpack_require__(306),
+	
+	    openManagementWS: wsapi.openManagementWS,
+	    openConfigureWS: wsapi.openConfigureWS,
+	    openIAmWS: wsapi.openIAmWS,
+	    setAuthorization: wsapi.setAuthorization
+	};
+
+/***/ },
+/* 305 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	
+	var WsPubSubError = __webpack_require__(306);
+	
+	var sockets = {};
+	var authorization = null;
+	
+	function bind(fn, me) {
+	    return function () {
+	        return fn.apply(me, arguments);
+	    };
+	};
+	
+	function setAuthorization(auth) {
+	    authorization = auth;
+	}
+	
+	function _buildEndpoint(suffix) {
+	    var prefix = window.location.protocol === "https:" ? "wss://" : "ws://";
+	    var ws_root = prefix + window.location.host;
+	    return ws_root + "/vc/ws/" + authorization + "/" + suffix;
+	}
+	
+	function openManagementWS(onmessage) {
+	    var endpoint = _buildEndpoint("management");
+	    if (sockets[endpoint] == null) {
+	
+	        sockets[endpoint] = new SuperSocket(endpoint);
+	    }
+	    sockets[endpoint].addOnMessageCallback(onmessage);
+	}
+	
+	function openConfigureWS(onmessage) {
+	    var endpoint = _buildEndpoint("configure");
+	    if (sockets[endpoint] == null) {
+	        console.log("Creating new SuperSocket for configure");
+	        sockets[endpoint] = new SuperSocket(endpoint);
+	    } else {
+	        console.log("Using existing socket.");
+	    }
+	    sockets[endpoint].addOnMessageCallback(onmessage);
+	}
+	
+	function openIAmWS(onmessage) {
+	    var endpoint = _buildEndpoint("iam");
+	    if (sockets[endpoint] == null) {
+	        sockets[endpoint] = new SuperSocket(endpoint);
+	    }
+	    sockets[endpoint].addOnMessageCallback(onmessage);
+	}
+	
+	var SuperSocket = function () {
+	    function SuperSocket(endpoint) {
+	        _classCallCheck(this, SuperSocket);
+	
+	        if (window.WebSocket) {
+	            this.ws = new WebSocket(endpoint);
+	        } else if (window.MozWebSocket) {
+	            this.ws = MozWebSocket(endpoint);
+	        }
+	
+	        this.endpoint = endpoint;
+	        this.onMessage = bind(this.onMessage, this);
+	        this.ws.onmessage = this.onMessage;
+	        this.ws.onerror = this.onError;
+	        this.ws.onclose = this.onClose;
+	        this.callbacks = [];
+	    }
+	
+	    _createClass(SuperSocket, [{
+	        key: "addOnMessageCallback",
+	        value: function addOnMessageCallback(callback) {
+	            return this.callbacks.push(callback);
+	        }
+	    }, {
+	        key: "onMessage",
+	        value: function onMessage(event) {
+	            var callback, i, len, ref, results;
+	            ref = this.callbacks;
+	            results = [];
+	
+	            for (i = 0, len = ref.length; i < len; i++) {
+	                callback = ref[i];
+	                results.push(callback.call(this, event.data));
+	            }
+	            return results;
+	        }
+	    }, {
+	        key: "onClose",
+	        value: function onClose(event) {
+	            var callback, i, len, ref, results;
+	            ref = this.callbacks;
+	            results = [];
+	            for (i = 0, len = ref.length; i < len; i++) {
+	                callback = ref[i];
+	                results.push(callback.call(this, event.data));
+	            }
+	            return results;
+	        }
+	    }, {
+	        key: "onErorr",
+	        value: function onErorr(event) {
+	            var callback, i, len, ref, results;
+	            ref = this.callbacks;
+	            results = [];
+	            for (i = 0, len = ref.length; i < len; i++) {
+	                callback = ref[i];
+	                results.push(callback.call(this, event.data));
+	            }
+	            return results;
+	        }
+	    }]);
+	
+	    return SuperSocket;
+	}();
+	
+	module.exports = {
+	    openManagementWS: openManagementWS,
+	    openConfigureWS: openConfigureWS,
+	    openIAmWS: openIAmWS,
+	    setAuthorization: setAuthorization
+	}; // let pubsub = ws; //let pubsub =  new WsPubSub(ws_root);
+
+/***/ },
+/* 306 */
+/***/ function(module, exports) {
+
+	'use strict';
+	
+	function WsPubSubError(error) {
+	    this.name = 'WsPubSubError';
+	    this.message = error.message;
+	}
+	WsPubSubError.prototype = Object.create(Error.prototype);
+	WsPubSubError.prototype.constructor = WsPubSubError;
+	
+	module.exports = WsPubSubError;
+
+/***/ },
+/* 307 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -56582,10 +58394,10 @@
 	var platformChartStore = __webpack_require__(267);
 	var platformsStore = __webpack_require__(268);
 	var platformsPanelItemsStore = __webpack_require__(266);
-	var statusIndicatorActionCreators = __webpack_require__(270);
+	var statusIndicatorActionCreators = __webpack_require__(271);
 	var platformsPanelActionCreators = __webpack_require__(269);
-	var platformActionCreators = __webpack_require__(304);
-	var rpc = __webpack_require__(271);
+	var platformActionCreators = __webpack_require__(308);
+	var rpc = __webpack_require__(272);
 	
 	var platformChartActionCreators = {
 	    pinChart: function pinChart(chartKey) {
@@ -56880,7 +58692,7 @@
 	module.exports = platformChartActionCreators;
 
 /***/ },
-/* 304 */
+/* 308 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -56891,8 +58703,8 @@
 	var platformChartStore = __webpack_require__(267);
 	var platformsPanelItemsStore = __webpack_require__(266);
 	var dispatcher = __webpack_require__(104);
-	var rpc = __webpack_require__(271);
-	var statusIndicatorActionCreators = __webpack_require__(270);
+	var rpc = __webpack_require__(272);
+	var statusIndicatorActionCreators = __webpack_require__(271);
 	
 	var platformActionCreators = {
 	    loadPlatform: function loadPlatform(platform) {
@@ -57329,21 +59141,21 @@
 	module.exports = platformActionCreators;
 
 /***/ },
-/* 305 */
+/* 309 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
-	var _csvparse = __webpack_require__(306);
+	var _csvparse = __webpack_require__(310);
 	
 	var ACTION_TYPES = __webpack_require__(101);
 	var authorizationStore = __webpack_require__(103);
-	var devicesStore = __webpack_require__(310);
+	var devicesStore = __webpack_require__(270);
 	var dispatcher = __webpack_require__(104);
-	var wspubsub = __webpack_require__(311);
-	var rpc = __webpack_require__(271);
+	var wspubsub = __webpack_require__(304);
+	var rpc = __webpack_require__(272);
 	
-	var statusIndicatorActionCreators = __webpack_require__(270);
+	var statusIndicatorActionCreators = __webpack_require__(271);
 	
 	var devicesActionCreators = {
 	    configureDevices: function configureDevices(platform) {
@@ -57384,9 +59196,7 @@
 	        }
 	
 	        var setUpDevicesSocket = function setUpDevicesSocket(platformUuid, bacnetIdentity) {
-	            var topic = "/vc/ws/" + authorization + "/iam";
-	            wspubsub.WsPubSub.subscribe(topic, function (topic, message) {
-	
+	            wspubsub.openIAmWS(function (message) {
 	                var result = JSON.parse(message);
 	
 	                if (result.status === "FINISHED IAM") {
@@ -57458,10 +59268,8 @@
 	        });
 	    },
 	    cancelDeviceScan: function cancelDeviceScan() {
-	        var authorization = authorizationStore.getAuthorization();
-	        var topic = "/vc/ws/" + authorization + "/iam";
+	        // Just a noop at this point
 	
-	        wspubsub.WsPubSub.unsubscribe(topic);
 	    },
 	    handleKeyDown: function handleKeyDown(keydown) {
 	        dispatcher.dispatch({
@@ -57499,9 +59307,7 @@
 	        };
 	
 	        var setUpPointsSocket = function setUpPointsSocket() {
-	
-	            var topic = "/vc/ws/" + authorization + "/configure";
-	            wspubsub.WsPubSub.subscribe(topic, function (topic, message) {
+	            wspubsub.openConfigureWS(function (message) {
 	                // Special CLOSING method happens when socket is closed.
 	                if (message === "CLOSING") {
 	                    dispatcher.dispatch({
@@ -57894,17 +59700,17 @@
 	module.exports = devicesActionCreators;
 
 /***/ },
-/* 306 */
+/* 310 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
-	var _CsvParse = __webpack_require__(307);
+	var _CsvParse = __webpack_require__(311);
 	
 	exports.CsvParse = _CsvParse.default;
 
 /***/ },
-/* 307 */
+/* 311 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -57912,7 +59718,7 @@
 	Object.defineProperty(exports, "__esModule", {
 	    value: true
 	});
-	var CsvParse = __webpack_require__(308);
+	var CsvParse = __webpack_require__(312);
 	
 	var parseCsvFile = function parseCsvFile(contents) {
 	
@@ -57986,7 +59792,7 @@
 	exports.default = { parseCsvFile: parseCsvFile };
 
 /***/ },
-/* 308 */
+/* 312 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_RESULT__;/*
@@ -58029,7 +59835,7 @@
 		Baby.Parser = Parser;				// For testing/dev only
 		Baby.ParserHandle = ParserHandle;	// For testing/dev only
 		
-		var fs = fs || __webpack_require__(309)
+		var fs = fs || __webpack_require__(313)
 		
 		function ParseFiles(_input, _config)
 		{
@@ -58873,1773 +60679,10 @@
 
 
 /***/ },
-/* 309 */
-/***/ function(module, exports) {
-
-
-
-/***/ },
-/* 310 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var ACTION_TYPES = __webpack_require__(101);
-	var authorizationStore = __webpack_require__(103);
-	var dispatcher = __webpack_require__(104);
-	var Store = __webpack_require__(108);
-	var Immutable = __webpack_require__(265);
-	
-	var devicesStore = new Store();
-	
-	var _action = "get_scan_settings";
-	var _view = "Detect Devices";
-	var _device = null;
-	var _data = {};
-	var _updatedRow = {};
-	var _platform;
-	var _devices = []; // the main list of devices detected for configuration
-	var _devicesList = {}; // a simple object of known devices
-	var _settingsTemplate = {};
-	var _savedRegistryFiles = {};
-	var _newScan = false;
-	var _reconfiguringDevice = false;
-	var _reconfiguration = {};
-	var _scanningComplete = true;
-	var _warnings = {};
-	var _keyboard = {
-	    device: null,
-	    active: false,
-	    cmd: null,
-	    started: false
-	};
-	var _focusedDevice = { id: null, address: null };
-	
-	var _backupPoints = [];
-	
-	var _defaultKeyProps = ["volttron_point_name", "units", "writable"];
-	
-	var _placeHolders = Immutable.List([[{ "key": "Point_Name", "value": "" }, { "key": "Volttron_Point_Name", "value": "" }, { "key": "Units", "value": "" }, { "key": "Units_Details", "value": "" }, { "key": "Writable", "value": "" }, { "key": "Starting_Value", "value": "" }, { "key": "Type", "value": "" }, { "key": "Notes", "value": "" }]]);
-	
-	var vendorTable = {
-	    "0": "ASHRAE",
-	    "1": "NIST",
-	    "2": "The Trane Company",
-	    "3": "McQuay International",
-	    "4": "PolarSoft",
-	    "5": "Johnson Controls, Inc.",
-	    "6": "American Auto-Matrix",
-	    "7": "Siemens Schweiz AG (Formerly: Landis & Staefa Division Europe)",
-	    "8": "Delta Controls",
-	    "9": "Siemens Schweiz AG",
-	    "10": "Schneider Electric",
-	    "11": "TAC",
-	    "12": "Orion Analysis Corporation",
-	    "13": "Teletrol Systems Inc.",
-	    "14": "Cimetrics Technology",
-	    "15": "Cornell University",
-	    "16": "United Technologies Carrier",
-	    "17": "Honeywell Inc.",
-	    "18": "Alerton / Honeywell",
-	    "19": "TAC AB",
-	    "20": "Hewlett-Packard Company",
-	    "21": "Dorsette’s Inc.",
-	    "22": "Siemens Schweiz AG (Formerly: Cerberus AG)",
-	    "23": "York Controls Group",
-	    "24": "Automated Logic Corporation",
-	    "25": "CSI Control Systems International",
-	    "26": "Phoenix Controls Corporation",
-	    "27": "Innovex Technologies, Inc.",
-	    "28": "KMC Controls, Inc.",
-	    "29": "Xn Technologies, Inc.",
-	    "30": "Hyundai Information Technology Co., Ltd.",
-	    "31": "Tokimec Inc.",
-	    "32": "Simplex",
-	    "33": "North Building Technologies Limited",
-	    "34": "Notifier",
-	    "35": "Reliable Controls Corporation",
-	    "36": "Tridium Inc.",
-	    "37": "Sierra Monitor Corporation/FieldServer Technologies",
-	    "38": "Silicon Energy",
-	    "39": "Kieback & Peter GmbH & Co KG",
-	    "40": "Anacon Systems, Inc.",
-	    "41": "Systems Controls & Instruments, LLC",
-	    "42": "Acuity Brands Lighting, Inc.",
-	    "43": "Micropower Manufacturing",
-	    "44": "Matrix Controls",
-	    "45": "METALAIRE",
-	    "46": "ESS Engineering",
-	    "47": "Sphere Systems Pty Ltd.",
-	    "48": "Walker Technologies Corporation",
-	    "49": "H I Solutions, Inc.",
-	    "50": "MBS GmbH",
-	    "51": "SAMSON AG",
-	    "52": "Badger Meter Inc.",
-	    "53": "DAIKIN Industries Ltd.",
-	    "54": "NARA Controls Inc.",
-	    "55": "Mammoth Inc.",
-	    "56": "Liebert Corporation",
-	    "57": "SEMCO Incorporated",
-	    "58": "Air Monitor Corporation",
-	    "59": "TRIATEK, LLC",
-	    "60": "NexLight",
-	    "61": "Multistack",
-	    "62": "TSI Incorporated",
-	    "63": "Weather-Rite, Inc.",
-	    "64": "Dunham-Bush",
-	    "65": "Reliance Electric",
-	    "66": "LCS Inc.",
-	    "67": "Regulator Australia PTY Ltd.",
-	    "68": "Touch-Plate Lighting Controls",
-	    "69": "Amann GmbH",
-	    "70": "RLE Technologies",
-	    "71": "Cardkey Systems",
-	    "72": "SECOM Co., Ltd.",
-	    "73": "ABB Gebäudetechnik AG Bereich NetServ",
-	    "74": "KNX Association cvba",
-	    "75": "Institute of Electrical Installation Engineers of Japan (IEIEJ)",
-	    "76": "Nohmi Bosai, Ltd.",
-	    "77": "Carel S.p.A.",
-	    "78": "UTC Fire & Security España, S.L.",
-	    "79": "Hochiki Corporation",
-	    "80": "Fr. Sauter AG",
-	    "81": "Matsushita Electric Works, Ltd.",
-	    "82": "Mitsubishi Electric Corporation, Inazawa Works",
-	    "83": "Mitsubishi Heavy Industries, Ltd.",
-	    "84": "Xylem, Inc.",
-	    "85": "Yamatake Building Systems Co., Ltd.",
-	    "86": "The Watt Stopper, Inc.",
-	    "87": "Aichi Tokei Denki Co., Ltd.",
-	    "88": "Activation Technologies, LLC",
-	    "89": "Saia-Burgess Controls, Ltd.",
-	    "90": "Hitachi, Ltd.",
-	    "91": "Novar Corp./Trend Control Systems Ltd.",
-	    "92": "Mitsubishi Electric Lighting Corporation",
-	    "93": "Argus Control Systems, Ltd.",
-	    "94": "Kyuki Corporation",
-	    "95": "Richards-Zeta Building Intelligence, Inc.",
-	    "96": "Scientech R&D, Inc.",
-	    "97": "VCI Controls, Inc.",
-	    "98": "Toshiba Corporation",
-	    "99": "Mitsubishi Electric Corporation Air Conditioning & Refrigeration Systems Works",
-	    "100": "Custom Mechanical Equipment, LLC",
-	    "101": "ClimateMaster",
-	    "102": "ICP Panel-Tec, Inc.",
-	    "103": "D-Tek Controls",
-	    "104": "NEC Engineering, Ltd.",
-	    "105": "PRIVA BV",
-	    "106": "Meidensha Corporation",
-	    "107": "JCI Systems Integration Services",
-	    "108": "Freedom Corporation",
-	    "109": "Neuberger Gebäudeautomation GmbH",
-	    "110": "eZi Controls",
-	    "111": "Leviton Manufacturing",
-	    "112": "Fujitsu Limited",
-	    "113": "Emerson Network Power",
-	    "114": "S. A. Armstrong, Ltd.",
-	    "115": "Visonet AG",
-	    "116": "M&M Systems, Inc.",
-	    "117": "Custom Software Engineering",
-	    "118": "Nittan Company, Limited",
-	    "119": "Elutions Inc. (Wizcon Systems SAS)",
-	    "120": "Pacom Systems Pty., Ltd.",
-	    "121": "Unico, Inc.",
-	    "122": "Ebtron, Inc.",
-	    "123": "Scada Engine",
-	    "124": "AC Technology Corporation",
-	    "125": "Eagle Technology",
-	    "126": "Data Aire, Inc.",
-	    "127": "ABB, Inc.",
-	    "128": "Transbit Sp. z o. o.",
-	    "129": "Toshiba Carrier Corporation",
-	    "130": "Shenzhen Junzhi Hi-Tech Co., Ltd.",
-	    "131": "Tokai Soft",
-	    "132": "Blue Ridge Technologies",
-	    "133": "Veris Industries",
-	    "134": "Centaurus Prime",
-	    "135": "Sand Network Systems",
-	    "136": "Regulvar, Inc.",
-	    "137": "AFDtek Division of Fastek International Inc.",
-	    "138": "PowerCold Comfort Air Solutions, Inc.",
-	    "139": "I Controls",
-	    "140": "Viconics Electronics, Inc.",
-	    "141": "Yaskawa America, Inc.",
-	    "142": "DEOS control systems GmbH",
-	    "143": "Digitale Mess- und Steuersysteme AG",
-	    "144": "Fujitsu General Limited",
-	    "145": "Project Engineering S.r.l.",
-	    "146": "Sanyo Electric Co., Ltd.",
-	    "147": "Integrated Information Systems, Inc.",
-	    "148": "Temco Controls, Ltd.",
-	    "149": "Airtek International Inc.",
-	    "150": "Advantech Corporation",
-	    "151": "Titan Products, Ltd.",
-	    "152": "Regel Partners",
-	    "153": "National Environmental Product",
-	    "154": "Unitec Corporation",
-	    "155": "Kanden Engineering Company",
-	    "156": "Messner Gebäudetechnik GmbH",
-	    "157": "Integrated.CH",
-	    "158": "Price Industries",
-	    "159": "SE-Elektronic GmbH",
-	    "160": "Rockwell Automation",
-	    "161": "Enflex Corp.",
-	    "162": "ASI Controls",
-	    "163": "SysMik GmbH Dresden",
-	    "164": "HSC Regelungstechnik GmbH",
-	    "165": "Smart Temp Australia Pty. Ltd.",
-	    "166": "Cooper Controls",
-	    "167": "Duksan Mecasys Co., Ltd.",
-	    "168": "Fuji IT Co., Ltd.",
-	    "169": "Vacon Plc",
-	    "170": "Leader Controls",
-	    "171": "Cylon Controls, Ltd.",
-	    "172": "Compas",
-	    "173": "Mitsubishi Electric Building Techno-Service Co., Ltd.",
-	    "174": "Building Control Integrators",
-	    "175": "ITG Worldwide (M) Sdn Bhd",
-	    "176": "Lutron Electronics Co., Inc.",
-	    "177": "Cooper-Atkins Corporation",
-	    "178": "LOYTEC Electronics GmbH",
-	    "179": "ProLon",
-	    "180": "Mega Controls Limited",
-	    "181": "Micro Control Systems, Inc.",
-	    "182": "Kiyon, Inc.",
-	    "183": "Dust Networks",
-	    "184": "Advanced Building Automation Systems",
-	    "185": "Hermos AG",
-	    "186": "CEZIM",
-	    "187": "Softing",
-	    "188": "Lynxspring, Inc.",
-	    "189": "Schneider Toshiba Inverter Europe",
-	    "190": "Danfoss Drives A/S",
-	    "191": "Eaton Corporation",
-	    "192": "Matyca S.A.",
-	    "193": "Botech AB",
-	    "194": "Noveo, Inc.",
-	    "195": "AMEV",
-	    "196": "Yokogawa Electric Corporation",
-	    "197": "GFR Gesellschaft für Regelungstechnik",
-	    "198": "Exact Logic",
-	    "199": "Mass Electronics Pty Ltd dba Innotech Control Systems Australia",
-	    "200": "Kandenko Co., Ltd.",
-	    "201": "DTF, Daten-Technik Fries",
-	    "202": "Klimasoft, Ltd.",
-	    "203": "Toshiba Schneider Inverter Corporation",
-	    "204": "Control Applications, Ltd.",
-	    "205": "KDT Systems Co., Ltd.",
-	    "206": "Onicon Incorporated",
-	    "207": "Automation Displays, Inc.",
-	    "208": "Control Solutions, Inc.",
-	    "209": "Remsdaq Limited",
-	    "210": "NTT Facilities, Inc.",
-	    "211": "VIPA GmbH",
-	    "212": "TSC21 Association of Japan",
-	    "213": "Strato Automation",
-	    "214": "HRW Limited",
-	    "215": "Lighting Control & Design, Inc.",
-	    "216": "Mercy Electronic and Electrical Industries",
-	    "217": "Samsung SDS Co., Ltd",
-	    "218": "Impact Facility Solutions, Inc.",
-	    "219": "Aircuity",
-	    "220": "Control Techniques, Ltd.",
-	    "221": "OpenGeneral Pty., Ltd.",
-	    "222": "WAGO Kontakttechnik GmbH & Co. KG",
-	    "223": "Cerus Industrial",
-	    "224": "Chloride Power Protection Company",
-	    "225": "Computrols, Inc.",
-	    "226": "Phoenix Contact GmbH & Co. KG",
-	    "227": "Grundfos Management A/S",
-	    "228": "Ridder Drive Systems",
-	    "229": "Soft Device SDN BHD",
-	    "230": "Integrated Control Technology Limited",
-	    "231": "AIRxpert Systems, Inc.",
-	    "232": "Microtrol Limited",
-	    "233": "Red Lion Controls",
-	    "234": "Digital Electronics Corporation",
-	    "235": "Ennovatis GmbH",
-	    "236": "Serotonin Software Technologies, Inc.",
-	    "237": "LS Industrial Systems Co., Ltd.",
-	    "238": "Square D Company",
-	    "239": "S Squared Innovations, Inc.",
-	    "240": "Aricent Ltd.",
-	    "241": "EtherMetrics, LLC",
-	    "242": "Industrial Control Communications, Inc.",
-	    "243": "Paragon Controls, Inc.",
-	    "244": "A. O. Smith Corporation",
-	    "245": "Contemporary Control Systems, Inc.",
-	    "246": "Intesis Software SL",
-	    "247": "Ingenieurgesellschaft N. Hartleb mbH",
-	    "248": "Heat-Timer Corporation",
-	    "249": "Ingrasys Technology, Inc.",
-	    "250": "Costerm Building Automation",
-	    "251": "WILO SE",
-	    "252": "Embedia Technologies Corp.",
-	    "253": "Technilog",
-	    "254": "HR Controls Ltd. & Co. KG",
-	    "255": "Lennox International, Inc.",
-	    "256": "RK-Tec Rauchklappen-Steuerungssysteme GmbH & Co. KG",
-	    "257": "Thermomax, Ltd.",
-	    "258": "ELCON Electronic Control, Ltd.",
-	    "259": "Larmia Control AB",
-	    "260": "BACnet Stack at SourceForge",
-	    "261": "G4S Security Services A/S",
-	    "262": "Exor International S.p.A.",
-	    "263": "Cristal Controles",
-	    "264": "Regin AB",
-	    "265": "Dimension Software, Inc.",
-	    "266": "SynapSense Corporation",
-	    "267": "Beijing Nantree Electronic Co., Ltd.",
-	    "268": "Camus Hydronics Ltd.",
-	    "269": "Kawasaki Heavy Industries, Ltd.",
-	    "270": "Critical Environment Technologies",
-	    "271": "ILSHIN IBS Co., Ltd.",
-	    "272": "ELESTA Energy Control AG",
-	    "273": "KROPMAN Installatietechniek",
-	    "274": "Baldor Electric Company",
-	    "275": "INGA mbH",
-	    "276": "GE Consumer & Industrial",
-	    "277": "Functional Devices, Inc.",
-	    "278": "ESAC",
-	    "279": "M-System Co., Ltd.",
-	    "280": "Yokota Co., Ltd.",
-	    "281": "Hitranse Technology Co., LTD",
-	    "282": "Vigilent Corporation",
-	    "283": "Kele, Inc.",
-	    "284": "Opera Electronics, Inc.",
-	    "285": "Gentec",
-	    "286": "Embedded Science Labs, LLC",
-	    "287": "Parker Hannifin Corporation",
-	    "288": "MaCaPS International Limited",
-	    "289": "Link4 Corporation",
-	    "290": "Romutec Steuer-u. Regelsysteme GmbH",
-	    "291": "Pribusin, Inc.",
-	    "292": "Advantage Controls",
-	    "293": "Critical Room Control",
-	    "294": "LEGRAND",
-	    "295": "Tongdy Control Technology Co., Ltd.",
-	    "296": "ISSARO Integrierte Systemtechnik",
-	    "297": "Pro-Dev Industries",
-	    "298": "DRI-STEEM",
-	    "299": "Creative Electronic GmbH",
-	    "300": "Swegon AB",
-	    "301": "Jan Brachacek",
-	    "302": "Hitachi Appliances, Inc.",
-	    "303": "Real Time Automation, Inc.",
-	    "304": "ITEC Hankyu-Hanshin Co.",
-	    "305": "Cyrus E&M Engineering Co., Ltd.",
-	    "306": "Badger Meter",
-	    "307": "Cirrascale Corporation",
-	    "308": "Elesta GmbH Building Automation",
-	    "309": "Securiton",
-	    "310": "OSlsoft, Inc.",
-	    "311": "Hanazeder Electronic GmbH",
-	    "312": "Honeywell Security Deutschland, Novar GmbH",
-	    "313": "Siemens Industry, Inc.",
-	    "314": "ETM Professional Control GmbH",
-	    "315": "Meitav-tec, Ltd.",
-	    "316": "Janitza Electronics GmbH",
-	    "317": "MKS Nordhausen",
-	    "318": "De Gier Drive Systems B.V.",
-	    "319": "Cypress Envirosystems",
-	    "320": "SMARTron s.r.o.",
-	    "321": "Verari Systems, Inc.",
-	    "322": "K-W Electronic Service, Inc.",
-	    "323": "ALFA-SMART Energy Management",
-	    "324": "Telkonet, Inc.",
-	    "325": "Securiton GmbH",
-	    "326": "Cemtrex, Inc.",
-	    "327": "Performance Technologies, Inc.",
-	    "328": "Xtralis (Aust) Pty Ltd",
-	    "329": "TROX GmbH",
-	    "330": "Beijing Hysine Technology Co., Ltd",
-	    "331": "RCK Controls, Inc.",
-	    "332": "Distech Controls SAS",
-	    "333": "Novar/Honeywell",
-	    "334": "The S4 Group, Inc.",
-	    "335": "Schneider Electric",
-	    "336": "LHA Systems",
-	    "337": "GHM engineering Group, Inc.",
-	    "338": "Cllimalux S.A.",
-	    "339": "VAISALA Oyj",
-	    "340": "COMPLEX (Beijing) Technology, Co., LTD.",
-	    "341": "SCADAmetrics",
-	    "342": "POWERPEG NSI Limited",
-	    "343": "BACnet Interoperability Testing Services, Inc.",
-	    "344": "Teco a.s.",
-	    "345": "Plexus Technology, Inc.",
-	    "346": "Energy Focus, Inc.",
-	    "347": "Powersmiths International Corp.",
-	    "348": "Nichibei Co., Ltd.",
-	    "349": "HKC Technology Ltd.",
-	    "350": "Ovation Networks, Inc.",
-	    "351": "Setra Systems",
-	    "352": "AVG Automation",
-	    "353": "ZXC Ltd.",
-	    "354": "Byte Sphere",
-	    "355": "Generiton Co., Ltd.",
-	    "356": "Holter Regelarmaturen GmbH & Co. KG",
-	    "357": "Bedford Instruments, LLC",
-	    "358": "Standair Inc.",
-	    "359": "WEG Automation - R&D",
-	    "360": "Prolon Control Systems ApS",
-	    "361": "Inneasoft",
-	    "362": "ConneXSoft GmbH",
-	    "363": "CEAG Notlichtsysteme GmbH",
-	    "364": "Distech Controls Inc.",
-	    "365": "Industrial Technology Research Institute",
-	    "366": "ICONICS, Inc.",
-	    "367": "IQ Controls s.c.",
-	    "368": "OJ Electronics A/S",
-	    "369": "Rolbit Ltd.",
-	    "370": "Synapsys Solutions Ltd.",
-	    "371": "ACME Engineering Prod. Ltd.",
-	    "372": "Zener Electric Pty, Ltd.",
-	    "373": "Selectronix, Inc.",
-	    "374": "Gorbet & Banerjee, LLC.",
-	    "375": "IME",
-	    "376": "Stephen H. Dawson Computer Service",
-	    "377": "Accutrol, LLC",
-	    "378": "Schneider Elektronik GmbH",
-	    "379": "Alpha-Inno Tec GmbH",
-	    "380": "ADMMicro, Inc.",
-	    "381": "Greystone Energy Systems, Inc.",
-	    "382": "CAP Technologie",
-	    "383": "KeRo Systems",
-	    "384": "Domat Control System s.r.o.",
-	    "385": "Efektronics Pty. Ltd.",
-	    "386": "Hekatron Vertriebs GmbH",
-	    "387": "Securiton AG",
-	    "388": "Carlo Gavazzi Controls SpA",
-	    "389": "Chipkin Automation Systems",
-	    "390": "Savant Systems, LLC",
-	    "391": "Simmtronic Lighting Controls",
-	    "392": "Abelko Innovation AB",
-	    "393": "Seresco Technologies Inc.",
-	    "394": "IT Watchdogs",
-	    "395": "Automation Assist Japan Corp.",
-	    "396": "Thermokon Sensortechnik GmbH",
-	    "397": "EGauge Systems, LLC",
-	    "398": "Quantum Automation (ASIA) PTE, Ltd.",
-	    "399": "Toshiba Lighting & Technology Corp.",
-	    "400": "SPIN Engenharia de Automação Ltda.",
-	    "401": "Logistics Systems & Software Services India PVT. Ltd.",
-	    "402": "Delta Controls Integration Products",
-	    "403": "Focus Media",
-	    "404": "LUMEnergi Inc.",
-	    "405": "Kara Systems",
-	    "406": "RF Code, Inc.",
-	    "407": "Fatek Automation Corp.",
-	    "408": "JANDA Software Company, LLC",
-	    "409": "Open System Solutions Limited",
-	    "410": "Intelec Systems PTY Ltd.",
-	    "411": "Ecolodgix, LLC",
-	    "412": "Douglas Lighting Controls",
-	    "413": "iSAtech GmbH",
-	    "414": "AREAL",
-	    "415": "Beckhoff Automation GmbH",
-	    "416": "IPAS GmbH",
-	    "417": "KE2 Therm Solutions",
-	    "418": "Base2Products",
-	    "419": "DTL Controls, LLC",
-	    "420": "INNCOM International, Inc.",
-	    "421": "BTR Netcom GmbH",
-	    "422": "Greentrol Automation, Inc",
-	    "423": "BELIMO Automation AG",
-	    "424": "Samsung Heavy Industries Co, Ltd",
-	    "425": "Triacta Power Technologies, Inc.",
-	    "426": "Globestar Systems",
-	    "427": "MLB Advanced Media, LP",
-	    "428": "SWG Stuckmann Wirtschaftliche Gebäudesysteme GmbH",
-	    "429": "SensorSwitch",
-	    "430": "Multitek Power Limited",
-	    "431": "Aquametro AG",
-	    "432": "LG Electronics Inc.",
-	    "433": "Electronic Theatre Controls, Inc.",
-	    "434": "Mitsubishi Electric Corporation Nagoya Works",
-	    "435": "Delta Electronics, Inc.",
-	    "436": "Elma Kurtalj, Ltd.",
-	    "437": "ADT Fire and Security Sp. A.o.o.",
-	    "438": "Nedap Security Management",
-	    "439": "ESC Automation Inc.",
-	    "440": "DSP4YOU Ltd.",
-	    "441": "GE Sensing and Inspection Technologies",
-	    "442": "Embedded Systems SIA",
-	    "443": "BEFEGA GmbH",
-	    "444": "Baseline Inc.",
-	    "445": "M2M Systems Integrators",
-	    "446": "OEMCtrl",
-	    "447": "Clarkson Controls Limited",
-	    "448": "Rogerwell Control System Limited",
-	    "449": "SCL Elements",
-	    "450": "Hitachi Ltd.",
-	    "451": "Newron System SA",
-	    "452": "BEVECO Gebouwautomatisering BV",
-	    "453": "Streamside Solutions",
-	    "454": "Yellowstone Soft",
-	    "455": "Oztech Intelligent Systems Pty Ltd.",
-	    "456": "Novelan GmbH",
-	    "457": "Flexim Americas Corporation",
-	    "458": "ICP DAS Co., Ltd.",
-	    "459": "CARMA Industries Inc.",
-	    "460": "Log-One Ltd.",
-	    "461": "TECO Electric & Machinery Co., Ltd.",
-	    "462": "ConnectEx, Inc.",
-	    "463": "Turbo DDC Südwest",
-	    "464": "Quatrosense Environmental Ltd.",
-	    "465": "Fifth Light Technology Ltd.",
-	    "466": "Scientific Solutions, Ltd.",
-	    "467": "Controller Area Network Solutions (M) Sdn Bhd",
-	    "468": "RESOL - Elektronische Regelungen GmbH",
-	    "469": "RPBUS LLC",
-	    "470": "BRS Sistemas Eletronicos",
-	    "471": "WindowMaster A/S",
-	    "472": "Sunlux Technologies Ltd.",
-	    "473": "Measurlogic",
-	    "474": "Frimat GmbH",
-	    "475": "Spirax Sarco",
-	    "476": "Luxtron",
-	    "477": "Raypak Inc",
-	    "478": "Air Monitor Corporation",
-	    "479": "Regler Och Webbteknik Sverige (ROWS)",
-	    "480": "Intelligent Lighting Controls Inc.",
-	    "481": "Sanyo Electric Industry Co., Ltd",
-	    "482": "E-Mon Energy Monitoring Products",
-	    "483": "Digital Control Systems",
-	    "484": "ATI Airtest Technologies, Inc.",
-	    "485": "SCS SA",
-	    "486": "HMS Industrial Networks AB",
-	    "487": "Shenzhen Universal Intellisys Co Ltd",
-	    "488": "EK Intellisys Sdn Bhd",
-	    "489": "SysCom",
-	    "490": "Firecom, Inc.",
-	    "491": "ESA Elektroschaltanlagen Grimma GmbH",
-	    "492": "Kumahira Co Ltd",
-	    "493": "Hotraco",
-	    "494": "SABO Elektronik GmbH",
-	    "495": "Equip'Trans",
-	    "496": "TCS Basys Controls",
-	    "497": "FlowCon International A/S",
-	    "498": "ThyssenKrupp Elevator Americas",
-	    "499": "Abatement Technologies",
-	    "500": "Continental Control Systems, LLC",
-	    "501": "WISAG Automatisierungstechnik GmbH & Co KG",
-	    "502": "EasyIO",
-	    "503": "EAP-Electric GmbH",
-	    "504": "Hardmeier",
-	    "505": "Mircom Group of Companies",
-	    "506": "Quest Controls",
-	    "507": "Mestek, Inc",
-	    "508": "Pulse Energy",
-	    "509": "Tachikawa Corporation",
-	    "510": "University of Nebraska-Lincoln",
-	    "511": "Redwood Systems",
-	    "512": "PASStec Industrie-Elektronik GmbH",
-	    "513": "NgEK, Inc.",
-	    "514": "t-mac Technologies",
-	    "515": "Jireh Energy Tech Co., Ltd.",
-	    "516": "Enlighted Inc.",
-	    "517": "El-Piast Sp. Z o.o",
-	    "518": "NetxAutomation Software GmbH",
-	    "519": "Invertek Drives",
-	    "520": "Deutschmann Automation GmbH & Co. KG",
-	    "521": "EMU Electronic AG",
-	    "522": "Phaedrus Limited",
-	    "523": "Sigmatek GmbH & Co KG",
-	    "524": "Marlin Controls",
-	    "525": "Circutor, SA",
-	    "526": "UTC Fire & Security",
-	    "527": "DENT Instruments, Inc.",
-	    "528": "FHP Manufacturing Company - Bosch Group",
-	    "529": "GE Intelligent Platforms",
-	    "530": "Inner Range Pty Ltd",
-	    "531": "GLAS Energy Technology",
-	    "532": "MSR-Electronic-GmbH",
-	    "533": "Energy Control Systems, Inc.",
-	    "534": "EMT Controls",
-	    "535": "Daintree Networks Inc.",
-	    "536": "EURO ICC d.o.o",
-	    "537": "TE Connectivity Energy",
-	    "538": "GEZE GmbH",
-	    "539": "NEC Corporation",
-	    "540": "Ho Cheung International Company Limited",
-	    "541": "Sharp Manufacturing Systems Corporation",
-	    "542": "DOT CONTROLS a.s.",
-	    "543": "BeaconMedæs",
-	    "544": "Midea Commercial Aircon",
-	    "545": "WattMaster Controls",
-	    "546": "Kamstrup A/S",
-	    "547": "CA Computer Automation GmbH",
-	    "548": "Laars Heating Systems Company",
-	    "549": "Hitachi Systems, Ltd.",
-	    "550": "Fushan AKE Electronic Engineering Co., Ltd.",
-	    "551": "Toshiba International Corporation",
-	    "552": "Starman Systems, LLC",
-	    "553": "Samsung Techwin Co., Ltd.",
-	    "554": "ISAS-Integrated Switchgear and Systems P/L",
-	    "555": "Reserved for ASHRAE",
-	    "556": "Obvius",
-	    "557": "Marek Guzik",
-	    "558": "Vortek Instruments, LLC",
-	    "559": "Universal Lighting Technologies",
-	    "560": "Myers Power Products, Inc.",
-	    "561": "Vector Controls GmbH",
-	    "562": "Crestron Electronics, Inc.",
-	    "563": "A&E Controls Limited",
-	    "564": "Projektomontaza A.D.",
-	    "565": "Freeaire Refrigeration",
-	    "566": "Aqua Cooler Pty Limited",
-	    "567": "Basic Controls",
-	    "568": "GE Measurement and Control Solutions Advanced Sensors",
-	    "569": "EQUAL Networks",
-	    "570": "Millennial Net",
-	    "571": "APLI Ltd",
-	    "572": "Electro Industries/GaugeTech",
-	    "573": "SangMyung University",
-	    "574": "Coppertree Analytics, Inc.",
-	    "575": "CoreNetiX GmbH",
-	    "576": "Acutherm",
-	    "577": "Dr. Riedel Automatisierungstechnik GmbH",
-	    "578": "Shina System Co., Ltd",
-	    "579": "Iqapertus",
-	    "580": "PSE Technology",
-	    "581": "BA Systems",
-	    "582": "BTICINO",
-	    "583": "Monico, Inc.",
-	    "584": "iCue",
-	    "585": "tekmar Control Systems Ltd.",
-	    "586": "Control Technology Corporation",
-	    "587": "GFAE GmbH",
-	    "588": "BeKa Software GmbH",
-	    "589": "Isoil Industria SpA",
-	    "590": "Home Systems Consulting SpA",
-	    "591": "Socomec",
-	    "592": "Everex Communications, Inc.",
-	    "593": "Ceiec Electric Technology",
-	    "594": "Atrila GmbH",
-	    "595": "WingTechs",
-	    "596": "Shenzhen Mek Intellisys Pte Ltd.",
-	    "597": "Nestfield Co., Ltd.",
-	    "598": "Swissphone Telecom AG",
-	    "599": "PNTECH JSC",
-	    "600": "Horner APG, LLC",
-	    "601": "PVI Industries, LLC",
-	    "602": "Ela-compil",
-	    "603": "Pegasus Automation International LLC",
-	    "604": "Wight Electronic Services Ltd.",
-	    "605": "Marcom",
-	    "606": "Exhausto A/S",
-	    "607": "Dwyer Instruments, Inc.",
-	    "608": "Link GmbH",
-	    "609": "Oppermann Regelgerate GmbH",
-	    "610": "NuAire, Inc.",
-	    "611": "Nortec Humidity, Inc.",
-	    "612": "Bigwood Systems, Inc.",
-	    "613": "Enbala Power Networks",
-	    "614": "Inter Energy Co., Ltd.",
-	    "615": "ETC",
-	    "616": "COMELEC S.A.R.L",
-	    "617": "Pythia Technologies",
-	    "618": "TrendPoint Systems, Inc.",
-	    "619": "AWEX",
-	    "620": "Eurevia",
-	    "621": "Kongsberg E-lon AS",
-	    "622": "FlaktWoods",
-	    "623": "E + E Elektronik GES M.B.H.",
-	    "624": "ARC Informatique",
-	    "625": "SKIDATA AG",
-	    "626": "WSW Solutions",
-	    "627": "Trefon Electronic GmbH",
-	    "628": "Dongseo System",
-	    "629": "Kanontec Intelligence Technology Co., Ltd.",
-	    "630": "EVCO S.p.A.",
-	    "631": "Accuenergy (CANADA) Inc.",
-	    "632": "SoftDEL",
-	    "633": "Orion Energy Systems, Inc.",
-	    "634": "Roboticsware",
-	    "635": "DOMIQ Sp. z o.o.",
-	    "636": "Solidyne",
-	    "637": "Elecsys Corporation",
-	    "638": "Conditionaire International Pty. Limited",
-	    "639": "Quebec, Inc.",
-	    "640": "Homerun Holdings",
-	    "641": "Murata Americas",
-	    "642": "Comptek",
-	    "643": "Westco Systems, Inc.",
-	    "644": "Advancis Software & Services GmbH",
-	    "645": "Intergrid, LLC",
-	    "646": "Markerr Controls, Inc.",
-	    "647": "Toshiba Elevator and Building Systems Corporation",
-	    "648": "Spectrum Controls, Inc.",
-	    "649": "Mkservice",
-	    "650": "Fox Thermal Instruments",
-	    "651": "SyxthSense Ltd",
-	    "652": "DUHA System S R.O.",
-	    "653": "NIBE",
-	    "654": "Melink Corporation",
-	    "655": "Fritz-Haber-Institut",
-	    "656": "MTU Onsite Energy GmbH, Gas Power Systems",
-	    "657": "Omega Engineering, Inc.",
-	    "658": "Avelon",
-	    "659": "Ywire Technologies, Inc.",
-	    "660": "M.R. Engineering Co., Ltd.",
-	    "661": "Lochinvar, LLC",
-	    "662": "Sontay Limited",
-	    "663": "GRUPA Slawomir Chelminski",
-	    "664": "Arch Meter Corporation",
-	    "665": "Senva, Inc.",
-	    "666": "Reserved for ASHRAE",
-	    "667": "FM-Tec",
-	    "668": "Systems Specialists, Inc.",
-	    "669": "SenseAir",
-	    "670": "AB IndustrieTechnik Srl",
-	    "671": "Cortland Research, LLC",
-	    "672": "MediaView",
-	    "673": "VDA Elettronica",
-	    "674": "CSS, Inc.",
-	    "675": "Tek-Air Systems, Inc.",
-	    "676": "ICDT",
-	    "677": "The Armstrong Monitoring Corporation",
-	    "678": "DIXELL S.r.l",
-	    "679": "Lead System, Inc.",
-	    "680": "ISM EuroCenter S.A.",
-	    "681": "TDIS",
-	    "682": "Trade FIDES",
-	    "683": "Knürr GmbH (Emerson Network Power)",
-	    "684": "Resource Data Management",
-	    "685": "Abies Technology, Inc.",
-	    "686": "Amalva",
-	    "687": "MIRAE Electrical Mfg. Co., Ltd.",
-	    "688": "HunterDouglas Architectural Projects Scandinavia ApS",
-	    "689": "RUNPAQ Group Co., Ltd",
-	    "690": "Unicard SA",
-	    "691": "IE Technologies",
-	    "692": "Ruskin Manufacturing",
-	    "693": "Calon Associates Limited",
-	    "694": "Contec Co., Ltd.",
-	    "695": "iT GmbH",
-	    "696": "Autani Corporation",
-	    "697": "Christian Fortin",
-	    "698": "HDL",
-	    "699": "IPID Sp. Z.O.O Limited",
-	    "700": "Fuji Electric Co., Ltd",
-	    "701": "View, Inc.",
-	    "702": "Samsung S1 Corporation",
-	    "703": "New Lift",
-	    "704": "VRT Systems",
-	    "705": "Motion Control Engineering, Inc.",
-	    "706": "Weiss Klimatechnik GmbH",
-	    "707": "Elkon",
-	    "708": "Eliwell Controls S.r.l.",
-	    "709": "Japan Computer Technos Corp",
-	    "710": "Rational Network ehf",
-	    "711": "Magnum Energy Solutions, LLC",
-	    "712": "MelRok",
-	    "713": "VAE Group",
-	    "714": "LGCNS",
-	    "715": "Berghof Automationstechnik GmbH",
-	    "716": "Quark Communications, Inc.",
-	    "717": "Sontex",
-	    "718": "mivune AG",
-	    "719": "Panduit",
-	    "720": "Smart Controls, LLC",
-	    "721": "Compu-Aire, Inc.",
-	    "722": "Sierra",
-	    "723": "ProtoSense Technologies",
-	    "724": "Eltrac Technologies Pvt Ltd",
-	    "725": "Bektas Invisible Controls GmbH",
-	    "726": "Entelec",
-	    "727": "INNEXIV",
-	    "728": "Covenant",
-	    "729": "Davitor AB",
-	    "730": "TongFang Technovator",
-	    "731": "Building Robotics, Inc.",
-	    "732": "HSS-MSR UG",
-	    "733": "FramTack LLC",
-	    "734": "B. L. Acoustics, Ltd.",
-	    "735": "Traxxon Rock Drills, Ltd",
-	    "736": "Franke",
-	    "737": "Wurm GmbH & Co",
-	    "738": "AddENERGIE",
-	    "739": "Mirle Automation Corporation",
-	    "740": "Ibis Networks",
-	    "741": "ID-KARTA s.r.o.",
-	    "742": "Anaren, Inc.",
-	    "743": "Span, Incorporated",
-	    "744": "Bosch Thermotechnology Corp",
-	    "745": "DRC Technology S.A.",
-	    "746": "Shanghai Energy Building Technology Co, Ltd",
-	    "747": "Fraport AG",
-	    "748": "Flowgroup",
-	    "749": "Skytron Energy, GmbH",
-	    "750": "ALTEL Wicha, Golda Sp. J.",
-	    "751": "Drupal",
-	    "752": "Axiomatic Technology, Ltd",
-	    "753": "Bohnke + Partner",
-	    "754": "Function 1",
-	    "755": "Optergy Pty, Ltd",
-	    "756": "LSI Virticus",
-	    "757": "Konzeptpark GmbH",
-	    "758": "Hubbell Building Automation, Inc.",
-	    "759": "eCurv, Inc.",
-	    "760": "Agnosys GmbH",
-	    "761": "Shanghai Sunfull Automation Co., LTD",
-	    "762": "Kurz Instruments, Inc.",
-	    "763": "Cias Elettronica S.r.l.",
-	    "764": "Multiaqua, Inc.",
-	    "765": "BlueBox",
-	    "766": "Sensidyne",
-	    "767": "Viessmann Elektronik GmbH",
-	    "768": "ADFweb.com srl",
-	    "769": "Gaylord Industries",
-	    "770": "Majur Ltd.",
-	    "771": "Shanghai Huilin Technology Co., Ltd.",
-	    "772": "Exotronic",
-	    "773": "Safecontrol spol s.r.o.",
-	    "774": "Amatis",
-	    "775": "Universal Electric Corporation",
-	    "776": "iBACnet",
-	    "777": "Reserved for ASHRAE",
-	    "778": "Smartrise Engineering, Inc.",
-	    "779": "Miratron, Inc.",
-	    "780": "SmartEdge",
-	    "781": "Mitsubishi Electric Australia Pty Ltd",
-	    "782": "Triangle Research International Ptd Ltd",
-	    "783": "Produal Oy",
-	    "784": "Milestone Systems A/S",
-	    "785": "Trustbridge",
-	    "786": "Feedback Solutions",
-	    "787": "IES",
-	    "788": "GE Critical Power",
-	    "789": "Riptide IO",
-	    "790": "Messerschmitt Systems AG",
-	    "791": "Dezem Energy Controlling",
-	    "792": "MechoSystems",
-	    "793": "evon GmbH",
-	    "794": "CS Lab GmbH",
-	    "795": "8760 Enterprises, Inc.",
-	    "796": "Touche Controls",
-	    "797": "Ontrol Teknik Malzeme San. ve Tic. A.S.",
-	    "798": "Uni Control System Sp. Z o.o.",
-	    "799": "Weihai Ploumeter Co., Ltd",
-	    "800": "Elcom International Pvt. Ltd",
-	    "801": "Philips Lighting",
-	    "802": "AutomationDirect",
-	    "803": "Paragon Robotics",
-	    "804": "SMT System & Modules Technology AG",
-	    "805": "OS Technology Service and Trading Co., LTD",
-	    "806": "CMR Controls Ltd",
-	    "807": "Innovari, Inc.",
-	    "808": "ABB Control Products",
-	    "809": "Gesellschaft fur Gebäudeautomation mbH",
-	    "810": "RODI Systems Corp.",
-	    "811": "Nextek Power Systems",
-	    "812": "Creative Lighting",
-	    "813": "WaterFurnace International",
-	    "814": "Mercury Security",
-	    "815": "Hisense (Shandong) Air-Conditioning Co., Ltd.",
-	    "816": "Layered Solutions, Inc.",
-	    "817": "Leegood Automatic System, Inc.",
-	    "818": "Shanghai Restar Technology Co., Ltd.",
-	    "819": "Reimann Ingenieurbüro",
-	    "820": "LynTec",
-	    "821": "HTP",
-	    "822": "Elkor Technologies, Inc.",
-	    "823": "Bentrol Pty Ltd",
-	    "824": "Team-Control Oy",
-	    "825": "NextDevice, LLC",
-	    "826": "GLOBAL CONTROL 5 Sp. z o.o.",
-	    "827": "King I Electronics Co., Ltd",
-	    "828": "SAMDAV",
-	    "829": "Next Gen Industries Pvt. Ltd.",
-	    "830": "Entic LLC",
-	    "831": "ETAP",
-	    "832": "Moralle Electronics Limited",
-	    "833": "Leicom AG",
-	    "834": "Watts Regulator Company",
-	    "835": "S.C. Orbtronics S.R.L.",
-	    "836": "Gaussan Technologies",
-	    "837": "WEBfactory GmbH",
-	    "838": "Ocean Controls",
-	    "839": "Messana Air-Ray Conditioning s.r.l.",
-	    "840": "Hangzhou BATOWN Technology Co. Ltd.",
-	    "841": "Reasonable Controls",
-	    "842": "Servisys, Inc.",
-	    "843": "halstrup-walcher GmbH",
-	    "844": "SWG Automation Fuzhou Limited",
-	    "845": "KSB Aktiengesellschaft",
-	    "846": "Hybryd Sp. z o.o.",
-	    "847": "Helvatron AG",
-	    "848": "Oderon Sp. Z.O.O.",
-	    "849": "miko",
-	    "850": "Exodraft",
-	    "851": "Hochhuth GmbH",
-	    "852": "Integrated System Technologies Ltd.",
-	    "853": "Shanghai Cellcons Controls Co., Ltd",
-	    "854": "Emme Controls, LLC",
-	    "855": "Field Diagnostic Services, Inc.",
-	    "856": "Ges Teknik A.S.",
-	    "857": "Global Power Products, Inc.",
-	    "858": "Option NV",
-	    "859": "BV-Control AG",
-	    "860": "Sigren Engineering AG",
-	    "861": "Shanghai Jaltone Technology Co., Ltd.",
-	    "862": "MaxLine Solutions Ltd",
-	    "863": "Kron Instrumentos Elétricos Ltda",
-	    "864": "Thermo Matrix",
-	    "865": "Infinite Automation Systems, Inc.",
-	    "866": "Vantage",
-	    "867": "Elecon Measurements Pvt Ltd",
-	    "868": "TBA",
-	    "869": "Carnes Company",
-	    "870": "Harman Professional",
-	    "871": "Nenutec Asia Pacific Pte Ltd",
-	    "872": "Gia NV",
-	    "873": "Kepware Tehnologies",
-	    "874": "Temperature Electronics Ltd",
-	    "875": "Packet Power",
-	    "876": "Project Haystack Corporation",
-	    "877": "DEOS Controls Americas Inc.",
-	    "878": "Senseware Inc",
-	    "879": "MST Systemtechnik AG",
-	    "880": "Lonix Ltd",
-	    "881": "GMC-I Messtechnik GmbH",
-	    "882": "Aviosys International Inc.",
-	    "883": "Efficient Building Automation Corp.",
-	    "884": "Accutron Instruments Inc.",
-	    "885": "Vermont Energy Control Systems LLC",
-	    "886": "DCC Dynamics",
-	    "887": "Brück Electronic GmbH",
-	    "888": "Reserved for ASHRAE",
-	    "889": "NGBS Hungary Ltd.",
-	    "890": "ILLUM Technology, LLC",
-	    "891": "Delta Controls Germany Limited",
-	    "892": "S+T Service & Technique S.A.",
-	    "893": "SimpleSoft",
-	    "894": "Candi Controls, Inc.",
-	    "895": "EZEN Solution Inc.",
-	    "896": "Fujitec Co. Ltd.",
-	    "897": "Terralux",
-	    "898": "Annicom",
-	    "899": "Bihl+Wiedemann GmbH",
-	    "900": "Daper, Inc.",
-	    "901": "Schüco International KG",
-	    "902": "Otis Elevator Company",
-	    "903": "Fidelix Oy",
-	    "904": "RAM GmbH Mess- und Regeltechnik",
-	    "905": "WEMS",
-	    "906": "Ravel Electronics Pvt Ltd",
-	    "907": "OmniMagni",
-	    "908": "Echelon",
-	    "909": "Intellimeter Canada, Inc.",
-	    "910": "Bithouse Oy",
-	    "911": "Reserved for ASHRAE",
-	    "912": "BuildPulse",
-	    "913": "Shenzhen 1000 Building Automation Co. Ltd",
-	    "914": "AED Engineering GmbH",
-	    "915": "Güntner GmbH & Co. KG",
-	    "916": "KNXlogic",
-	    "917": "CIM Environmental Group",
-	    "918": "Flow Control",
-	    "919": "Lumen Cache, Inc.",
-	    "920": "Ecosystem",
-	    "921": "Potter Electric Signal Company, LLC",
-	    "922": "Tyco Fire & Security S.p.A.",
-	    "923": "Watanabe Electric Industry Co., Ltd.",
-	    "924": "Causam Energy",
-	    "925": "W-tec AG",
-	    "926": "IMI Hydronic Engineering International SA",
-	    "927": "ARIGO Software",
-	    "928": "MSA Safety",
-	    "929": "Smart Solucoes Ltda - MERCATO",
-	    "930": "PIATRA Engineering",
-	    "931": "ODIN Automation Systems, LLC",
-	    "932": "Belparts NV",
-	    "999": "Reserved for ASHRAE"
-	};
-	
-	devicesStore.getState = function () {
-	    return { action: _action, view: _view, device: _device, platform: _platform };
-	};
-	
-	devicesStore.getRegistryValues = function (deviceId, deviceAddress, deviceName) {
-	
-	    var device = devicesStore.getDeviceRef(deviceId, deviceAddress, deviceName);
-	    var config = [];
-	
-	    if (device) {
-	        if (device.registryConfig.length) {
-	            config = device.registryConfig;
-	        }
-	    } else {
-	        config = _placeHolders;
-	    }
-	
-	    return config;
-	};
-	
-	devicesStore.getSettingsTemplate = function () {
-	
-	    return ObjectIsEmpty(_settingsTemplate) ? null : _settingsTemplate;
-	};
-	
-	devicesStore.getDataLoaded = function (device) {
-	    return _data.hasOwnProperty(device.deviceId) && _data.hasOwnProperty(device.deviceId) ? _data[device.deviceId].length : false;
-	};
-	
-	devicesStore.getSavedRegistryFiles = function () {
-	    return ObjectIsEmpty(_savedRegistryFiles) ? null : _savedRegistryFiles;
-	};
-	
-	devicesStore.getRegistryFileShared = function (registryFile, deviceId, deviceAddress, deviceName) {};
-	
-	devicesStore.getWarnings = function () {
-	    return _warnings;
-	};
-	
-	devicesStore.getDevices = function (platform, bacnetIdentity) {
-	
-	    var devices = [];
-	
-	    if (typeof platform !== "undefined" && platform.hasOwnProperty("uuid")) {
-	        devices = _devices.filter(function (device) {
-	            return device.platformUuid === platform.uuid && device.bacnetProxyIdentity === bacnetIdentity;
-	        });
-	    }
-	
-	    return JSON.parse(JSON.stringify(devices));
-	};
-	
-	devicesStore.getDevicesList = function (platformUuid) {
-	
-	    return _devicesList.hasOwnProperty(platformUuid) ? JSON.parse(JSON.stringify(_devicesList[platformUuid])) : [];
-	};
-	
-	devicesStore.getDeviceByID = function (deviceId) {
-	
-	    var device = _devices.find(function (dvc) {
-	        return dvc.id === deviceId;
-	    });
-	
-	    return device;
-	};
-	
-	devicesStore.getDeviceRef = function (deviceId, deviceAddress, deviceName) {
-	
-	    var device = _devices.find(function (dvc) {
-	        return dvc.id === deviceId && dvc.address === deviceAddress && (deviceName ? dvc.name === deviceName : true);
-	    });
-	
-	    return typeof device === "undefined" ? null : device;
-	};
-	
-	devicesStore.getDevice = function (deviceId, deviceAddress) {
-	
-	    return JSON.parse(JSON.stringify(devicesStore.getDeviceRef(deviceId, deviceAddress)));
-	};
-	
-	devicesStore.getNewScan = function () {
-	
-	    return _newScan;
-	};
-	
-	devicesStore.getKeyboard = function (deviceId) {
-	
-	    var keyboard = deviceId === _keyboard.device ? JSON.parse(JSON.stringify(_keyboard)) : null;
-	
-	    return keyboard;
-	};
-	
-	devicesStore.deviceHasFocus = function (deviceId, deviceAddress) {
-	    return _focusedDevice.id === deviceId && _focusedDevice.address === deviceAddress;
-	};
-	
-	devicesStore.getScanningComplete = function () {
-	    return _scanningComplete;
-	};
-	
-	devicesStore.getUpdatedRow = function (deviceId, deviceAddress) {
-	
-	    var updatedRow = null;
-	
-	    if (_updatedRow.hasOwnProperty("attributes")) {
-	        if (_updatedRow.deviceId === deviceId && _updatedRow.deviceAddress === deviceAddress) {
-	            updatedRow = _updatedRow.attributes.toJS(); // then converting back to Immutable 
-	            // list in component ensures it's a new object,
-	            // not using the same reference
-	            _updatedRow = {};
-	        }
-	    }
-	
-	    return updatedRow;
-	};
-	
-	devicesStore.getBackupPoints = function (deviceId, deviceAddress) {
-	    var backup = _backupPoints.find(function (backups) {
-	        return backups.id === deviceId && backups.address === deviceAddress;
-	    });
-	
-	    return typeof backup === "undefined" ? [] : backup.points;
-	};
-	
-	devicesStore.enableBackupPoints = function (deviceId, deviceAddress) {
-	    var backup = _backupPoints.find(function (backups) {
-	        return backups.id === deviceId && backups.address === deviceAddress;
-	    });
-	
-	    return typeof backup !== "undefined";
-	};
-	
-	devicesStore.reconfiguringDevice = function () {
-	    return _reconfiguringDevice;
-	};
-	
-	devicesStore.getReconfiguration = function () {
-	    return _reconfiguration;
-	};
-	
-	devicesStore.dispatchToken = dispatcher.register(function (action) {
-	    dispatcher.waitFor([authorizationStore.dispatchToken]);
-	
-	    _newScan = false;
-	    _reconfiguringDevice = false;
-	
-	    switch (action.type) {
-	
-	        case ACTION_TYPES.CONFIGURE_DEVICES:
-	            _platform = action.platform;
-	            _devices = [];
-	            _newScan = true;
-	            _scanningComplete = false;
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.ADD_DEVICES:
-	            _action = "get_scan_settings";
-	            _view = "Detect Devices";
-	            _device = null;
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.CANCEL_SCANNING:
-	            // _action = "get_scan_settings";
-	            // _view = "Detect Devices";
-	            // devicesWs.close();
-	            // devicesWs = null;
-	
-	            // devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.LISTEN_FOR_IAMS:
-	            // _newScan = false;
-	            _scanningComplete = false;
-	            _warnings = {};
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.DEVICE_DETECTED:
-	            _action = "device_detected";
-	            _view = "Devices Found";
-	
-	            loadDevice(action.device, action.platform, action.bacnet);
-	
-	            if (_devices.length) {
-	                devicesStore.emitChange();
-	            }
-	            break;
-	        case ACTION_TYPES.DEVICE_SCAN_FINISHED:
-	
-	            _scanningComplete = true;
-	
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.POINT_SCAN_FINISHED:
-	
-	            var deviceId = action.device.id;
-	            var deviceAddress = action.device.address;
-	            var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
-	
-	            device.configuring = false;
-	
-	            setBackupPoints(device);
-	
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.POINT_RECEIVED:
-	            _action = "point_received";
-	            _view = "Devices Found";
-	            loadPoint(action.data);
-	
-	            devicesStore.emitChange();
-	
-	            break;
-	
-	        case ACTION_TYPES.FOCUS_ON_DEVICE:
-	
-	            var focusedDevice = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
-	
-	            if (focusedDevice) {
-	                if (_focusedDevice.id !== focusedDevice.id || _focusedDevice.address !== focusedDevice.address) {
-	                    _focusedDevice.id = focusedDevice.id;
-	                    _focusedDevice.address = focusedDevice.address;
-	
-	                    devicesStore.emitChange();
-	                }
-	            }
-	
-	            break;
-	
-	        case ACTION_TYPES.REFRESH_DEVICE_POINTS:
-	
-	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
-	
-	            if (device) {
-	                var backupPoints = _backupPoints.find(function (backups) {
-	                    return backups.id === device.id && backups.address === device.address;
-	                });
-	
-	                if (typeof backupPoints !== "undefined") {
-	                    device.registryConfig = JSON.parse(JSON.stringify(backupPoints.points));
-	                    device.registryCount = device.registryCount + 1;
-	                    devicesStore.emitChange();
-	                }
-	            }
-	
-	            break;
-	
-	        case ACTION_TYPES.CONFIGURE_DEVICE:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	            _device = action.device;
-	
-	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
-	
-	            if (device) {
-	                device.showPoints = action.device.showPoints;
-	                device.configuring = action.device.configuring;
-	                device.configuringStarted = true;
-	                device.bacnetProxy = action.bacnet;
-	
-	                if (device.configuring) {
-	                    device.registryCount = device.registryCount + 1;
-	                    device.registryConfig = [];
-	                }
-	            }
-	
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.TOGGLE_SHOW_POINTS:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	            _device = action.device;
-	
-	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
-	
-	            if (device) {
-	                device.showPoints = action.device.showPoints;
-	            }
-	
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.CANCEL_REGISTRY:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	            _device = action.device;
-	
-	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
-	
-	            if (device) {
-	                device.registryConfig = [];
-	                device.showPoints = false;
-	                device.configuring = false;
-	                device.configuringStarted = false;
-	            }
-	
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.LOAD_REGISTRY:
-	            _action = "configure_registry";
-	            _view = "Registry Configuration";
-	
-	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
-	
-	            if (device) {
-	                device.registryCount = device.registryCount + 1;
-	                device.registryConfig = getPreppedData(action.data);
-	                device.showPoints = true;
-	            }
-	
-	            devicesStore.emitChange();
-	            break;
-	
-	        case ACTION_TYPES.LOAD_REGISTRY_FILES:
-	            _action = "configure_registry";
-	            _view = "Registry Configuration";
-	
-	            _savedRegistryFiles = {
-	                files: action.registryFiles,
-	                deviceId: action.deviceId,
-	                deviceAddress: action.deviceAddress
-	            };
-	
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.UNLOAD_REGISTRY_FILES:
-	            _action = "configure_registry";
-	            _view = "Registry Configuration";
-	
-	            _savedRegistryFiles = {};
-	
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.UPDATE_REGISTRY:
-	            _action = "update_registry";
-	            _view = "Registry Configuration";
-	
-	            var i = -1;
-	            var keyProps = [];
-	
-	            _updatedRow = {
-	                deviceId: action.deviceId,
-	                deviceAddress: action.deviceAddress,
-	                attributes: action.attributes
-	            };
-	
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.RECONFIGURE_DEVICE:
-	
-	            _reconfiguration = action.configuration;
-	            _reconfiguration.deviceName = action.deviceName.replace("devices/", "");
-	
-	            reconfigureRegistry(action.platformUuid, action.agentDriver, _reconfiguration.deviceName, _reconfiguration, action.data);
-	
-	            _reconfiguringDevice = true;
-	
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.EDIT_REGISTRY:
-	            _action = "configure_registry";
-	            _view = "Registry Configuration";
-	            _device = action.device;
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.SAVE_REGISTRY:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	
-	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
-	
-	            if (device) {
-	                device.showPoints = false;
-	            }
-	
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.SAVE_CONFIG:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	
-	            _settingsTemplate = action.settings;
-	
-	            break;
-	        case ACTION_TYPES.UPDATE_DEVICES_LIST:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	
-	            _devicesList[action.platformUuid] = action.devices;
-	
-	            break;
-	    }
-	
-	    function setBackupPoints(device) {
-	        var backup = {
-	            id: device.id,
-	            address: device.address,
-	            points: JSON.parse(JSON.stringify(device.registryConfig))
-	        };
-	
-	        var index = -1;
-	        _backupPoints.find(function (backups, i) {
-	            var match = backups.id === device.id && backups.address === device.address;
-	
-	            if (match) {
-	                index = i;
-	            }
-	
-	            return match;
-	        });
-	
-	        if (index < 0) {
-	            _backupPoints.push(backup);
-	        } else {
-	            _backupPoints[index] = backup;
-	        }
-	    }
-	
-	    function sortPointColumns(row) {
-	        var sortedPoint = [];
-	
-	        var indexCell = row.find(function (cell) {
-	            return cell.key === "index";
-	        });
-	
-	        if (typeof indexCell !== "undefined") {
-	            sortedPoint.push(indexCell);
-	        }
-	
-	        var referencePointNameCell = row.find(function (cell) {
-	            return cell.key === "reference_point_name";
-	        });
-	
-	        if (typeof referencePointNameCell !== "undefined") {
-	            sortedPoint.push(referencePointNameCell);
-	        }
-	
-	        var pointNameCell = row.find(function (cell) {
-	            return cell.key === "point_name";
-	        });
-	
-	        if (typeof pointNameCell !== "undefined") {
-	            sortedPoint.push(pointNameCell);
-	        }
-	
-	        var volttronPointNameCell = row.find(function (cell) {
-	            return cell.key === "volttron_point_name";
-	        });
-	
-	        if (typeof volttronPointNameCell !== "undefined") {
-	            sortedPoint.push(volttronPointNameCell);
-	        }
-	
-	        for (var i = 0; i < row.length; ++i) {
-	            if (row[i].key !== "index" && row[i].key !== "reference_point_name" && row[i].key !== "point_name" && row[i].key !== "volttron_point_name") {
-	                sortedPoint.push(row[i]);
-	            }
-	        }
-	
-	        return sortedPoint;
-	    }
-	
-	    function getPreppedData(data) {
-	
-	        var preppedData = data.map(function (row) {
-	            var preppedRow = row.map(function (cell) {
-	
-	                prepCell(cell);
-	
-	                return cell;
-	            });
-	
-	            var sortedRow = sortPointColumns(preppedRow);
-	
-	            return sortedRow;
-	        });
-	
-	        return preppedData;
-	    }
-	
-	    function prepCell(cell) {
-	
-	        cell.key = cell.key.toLowerCase();
-	
-	        cell.editable = !(cell.key === "point_name" || cell.key === "reference_point_name" || cell.key === "object_type" || cell.key === "index");
-	
-	        cell.filterable = cell.key === "point_name" || cell.key === "reference_point_name" || cell.key === "volttron_point_name" || cell.key === "index";
-	    }
-	
-	    function loadPoint(data) {
-	        if (data) {
-	            var pointData = JSON.parse(data);
-	
-	            // can remove && !pointData.hasProp(device_name) if fix websocket endpoint collision
-	            if (pointData.hasOwnProperty("device_id") && !pointData.hasOwnProperty("device_name")) {
-	                var deviceId = pointData.device_id.toString();
-	                var deviceAddress = pointData.address;
-	                var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
-	
-	                if (device) {
-	                    if (!pointData.hasOwnProperty("status")) {
-	                        var pointInList = device.registryConfig.find(function (point) {
-	                            var indexCell = point.find(function (cell) {
-	                                return cell.key === "index";
-	                            });
-	
-	                            var match = false;
-	
-	                            if (indexCell) {
-	                                match = indexCell.value === pointData.results.Index;
-	                            }
-	
-	                            return match;
-	                        });
-	
-	                        if (typeof pointInList === "undefined") {
-	                            var newPoint = [];
-	
-	                            for (var key in pointData.results) {
-	                                var cell = {
-	                                    key: key.toLowerCase().replace(/ /g, "_"),
-	                                    label: key,
-	                                    value: pointData.results[key] === null ? "" : pointData.results[key]
-	                                };
-	
-	                                prepCell(cell);
-	
-	                                newPoint.push(cell);
-	                            }
-	
-	                            var sortedPoint = sortPointColumns(newPoint);
-	                            device.registryConfig.push(sortedPoint);
-	                        }
-	                    } else {
-	                        if (pointData.status === "COMPLETE") {
-	                            device.configuring = false;
-	
-	                            console.log("points complete");
-	                            console.log(pointData.device_id);
-	                            console.log(pointData.address);
-	                            console.log(device);
-	                            setBackupPoints(device);
-	                        }
-	                    }
-	                }
-	            }
-	        }
-	
-	        return device.configuring;
-	    }
-	
-	    function loadDevice(device, platformUuid, bacnetIdentity) {
-	        var deviceIdStr = device.device_id.toString();
-	
-	        _devices.push({
-	            id: deviceIdStr,
-	            name: device.device_name,
-	            type: device.type,
-	            vendor_id: device.vendor_id,
-	            address: device.address,
-	            max_apdu_length: device.max_apdu_length,
-	            segmentation_supported: device.segmentation_supported,
-	            showPoints: false,
-	            configuring: false,
-	            platformUuid: platformUuid,
-	            bacnetProxyIdentity: bacnetIdentity,
-	            agentDriver: device.agentDriver,
-	            registryCount: 0,
-	            registryConfig: [],
-	            keyProps: _defaultKeyProps,
-	            items: [{ key: "address", label: "Address", value: device.address }, { key: "deviceName", label: "Name", value: device.device_name }, { key: "deviceDescription", label: "Description", value: device.device_description }, { key: "deviceId", label: "Device ID", value: deviceIdStr }, { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] }, { key: "type", label: "Type", value: device.type }]
-	        });
-	    }
-	
-	    function reconfigureRegistry(platformUuid, agentDriver, deviceName, configuration, data) {
-	
-	        var deviceId = configuration.driver_config.device_id;
-	        var deviceAddress = configuration.driver_config.device_address;
-	
-	        var preppedDevice = {
-	            id: deviceId,
-	            address: deviceAddress,
-	            name: deviceName,
-	            platformUuid: platformUuid,
-	            agentDriver: agentDriver,
-	            registryFile: configuration.registryFile,
-	            showPoints: true,
-	            configuring: false,
-	            registryCount: 0,
-	            registryConfig: getPreppedData(data),
-	            keyProps: _defaultKeyProps
-	        };
-	
-	        var index = -1;
-	
-	        var deviceInList = _devices.find(function (dvc, i) {
-	            var match = dvc.id === deviceId && dvc.address === deviceAddress && dvc.name === deviceName;
-	
-	            if (match) {
-	                index = i;
-	            }
-	
-	            return match;
-	        });
-	
-	        if (index > -1) {
-	            preppedDevice.registryCount = _devices[index].registryCount + 1;
-	
-	            _devices.splice(index, 1, preppedDevice);
-	        } else {
-	            _devices.push(preppedDevice);
-	        }
-	    }
-	});
-	
-	function ObjectIsEmpty(obj) {
-	    return Object.keys(obj).length === 0;
-	}
-	
-	module.exports = devicesStore;
-
-/***/ },
-/* 311 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	module.exports = {
-	    Error: __webpack_require__(312),
-	    WsPubSub: __webpack_require__(313).pubsub
-	};
-
-/***/ },
-/* 312 */
-/***/ function(module, exports) {
-
-	'use strict';
-	
-	function WsPubSubError(error) {
-	    this.name = 'WsPubSubError';
-	    this.message = error.message;
-	}
-	WsPubSubError.prototype = Object.create(Error.prototype);
-	WsPubSubError.prototype.constructor = WsPubSubError;
-	
-	module.exports = WsPubSubError;
-
-/***/ },
 /* 313 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ function(module, exports) {
 
-	"use strict";
-	
-	Object.defineProperty(exports, "__esModule", {
-	    value: true
-	});
-	
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-	
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-	
-	var WsPubSubError = __webpack_require__(312);
-	
-	var WsPubSub = function () {
-	    function WsPubSub() {
-	        _classCallCheck(this, WsPubSub);
-	
-	        var prefix = window.location.protocol === "https:" ? "wss://" : "ws://";
-	        var ws_root = prefix + window.location.host;
-	        this.url = ws_root;
-	        this.session = null;
-	        this.subscriptions = {};
-	        this.websockets = {};
-	
-	        return this;
-	    }
-	
-	    // setSessionKey(session_key){
-	    //     this.session = session_key
-	    // }
-	
-	    // TODO this works but it sucks.  The WsPub doesn't get elevated to global on the
-	    // page so that when a socket event is happening it is almost like a new scope is
-	    // added.  Perhaps we need to use window.WSPubsub somewhere to make it global?
-	
-	    _createClass(WsPubSub, [{
-	        key: "subscribe",
-	        value: function subscribe(topic, onmessage) {
-	
-	            var self = this;
-	            var wspath = this.url + topic;
-	            var ws = null;
-	            // if (this.session == null){
-	            //     throw new WsPubSubError({"message":
-	            //         "Must setSessionKey before subscription"});
-	            // }
-	            // if (topic in this.subscriptions) {
-	            //
-	            // }
-	            //        if (!this.websockets.hasOwnProperty(topic)){
-	            if (!this.websockets.hasOwnProperty(topic)) {
-	                this.websockets[topic] = new Set();
-	            }
-	
-	            if (window.WebSocket) {
-	                ws = new WebSocket(wspath);
-	            } else if (window.MozWebSocket) {
-	                ws = MozWebSocket(wspath);
-	            }
-	
-	            self.websockets[topic].add(ws);
-	
-	            ws.onerror = function (evt) {
-	                console.log("ERROR: ");
-	                console.log(evt);
-	            };
-	
-	            ws.onopen = function (evt) {
-	                console.log("OPENING");
-	            };
-	
-	            ws.onmessage = function (evt) {
-	                if (self.subscriptions.hasOwnProperty(topic)) {
-	
-	                    self.subscriptions[topic].forEach(function (cb) {
-	                        cb(topic, evt.data);
-	                    });
-	                    // for (cb in self.subscriptions[topic]) {
-	                    //     console.log('Calling callback for '+ topic)
-	                    //     cb(topic, evt.data);
-	                    // }
-	                } else {
-	                    console.log('No subscription for ' + topic);
-	                }
-	            };
-	
-	            ws.onclose = function (evt) {
-	
-	                self.websockets.delete(this);
-	                var topic = this;
-	
-	                if (self.subscriptions.hasOwnProperty(topic)) {
-	                    self.subscriptions[topic].forEach(function (cb) {
-	                        cb(this, "CLOSING");
-	                    }, topic);
-	                }
-	                delete self.websockets[topic];
-	            }.bind(ws);
-	            //      }
-	
-	            if (!self.subscriptions.hasOwnProperty(topic)) {
-	                self.subscriptions[topic] = new Set();
-	            }
-	
-	            self.subscriptions[topic].add(onmessage);
-	        }
-	    }, {
-	        key: "unsubscribe",
-	        value: function unsubscribe(topic, onmessage) {
-	            if (!this.subscriptions.hasOwnProperty(topic)) {
-	                throw new WsPubSubError({
-	                    message: "Topic not found in subscriptions."
-	                });
-	            }
-	
-	            this.websockets[topic].forEach(function (ws) {
-	                console.log('Closing sockets');
-	                ws.close();
-	            });
-	
-	            delete this.websockets[topic];
-	        }
-	        //
-	        // publish(topic, message) {
-	        //
-	        // }
-	
-	    }]);
-	
-	    return WsPubSub;
-	}();
-	
-	var ws = new WsPubSub();
-	
-	var pubsub = exports.pubsub = ws; //let pubsub =  new WsPubSub(ws_root);
+
 
 /***/ },
 /* 314 */
@@ -60914,7 +60957,7 @@
 	
 	var ACTION_TYPES = __webpack_require__(101);
 	var dispatcher = __webpack_require__(104);
-	var RpcExchange = __webpack_require__(273);
+	var RpcExchange = __webpack_require__(274);
 	
 	var consoleActionCreators = {
 	    toggleConsole: function toggleConsole() {
@@ -61036,7 +61079,7 @@
 
 	'use strict';
 	
-	var $ = __webpack_require__(299);
+	var $ = __webpack_require__(300);
 	var React = __webpack_require__(3);
 	var ReactDOM = __webpack_require__(112);
 	
@@ -61370,9 +61413,11 @@
 	var ACTION_TYPES = __webpack_require__(101);
 	var authorizationStore = __webpack_require__(103);
 	var dispatcher = __webpack_require__(104);
-	var platformActionCreators = __webpack_require__(304);
-	var statusIndicatorActionCreators = __webpack_require__(270);
-	var rpc = __webpack_require__(271);
+	var platformsPanelActionCreators = __webpack_require__(269);
+	var platformActionCreators = __webpack_require__(308);
+	var statusIndicatorActionCreators = __webpack_require__(271);
+	var wspubsub = __webpack_require__(304);
+	var rpc = __webpack_require__(272);
 	
 	var initializing = false;
 	
@@ -61381,6 +61426,20 @@
 	        if (!authorizationStore.getAuthorization()) {
 	            return;
 	        }
+	        var authorization = authorizationStore.getAuthorization();
+	
+	        wspubsub.setAuthorization(authorization);
+	        wspubsub.openManagementWS(function (message) {
+	            var obj = JSON.parse(message);
+	
+	            switch (obj.type) {
+	                case 'NEW_DEVICE':
+	                    platformsPanelActionCreators.addNewDevice(obj.data);
+	                    break;
+	                default:
+	                    console.log('UNKNOWN TYPE MESSAGE: ' + message);
+	            }
+	        });
 	
 	        var reload = false;
 	        platformManagerActionCreators.loadPlatforms(reload);
@@ -61393,7 +61452,6 @@
 	                password: password
 	            }
 	        }, ['password']).promise.then(function (result) {
-	
 	            dispatcher.dispatch({
 	                type: ACTION_TYPES.WILL_INITIALIZE_PLATFORMS
 	            });
@@ -61579,7 +61637,7 @@
 	
 	var React = __webpack_require__(3);
 	
-	var statusIndicatorCreators = __webpack_require__(270);
+	var statusIndicatorCreators = __webpack_require__(271);
 	var statusIndicatorStore = __webpack_require__(329);
 	
 	var StatusIndicator = React.createClass({
@@ -61873,9 +61931,9 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var platformsStore = __webpack_require__(268);
-	var devicesStore = __webpack_require__(310);
-	var devicesActionCreators = __webpack_require__(305);
-	var statusIndicatorActionCreators = __webpack_require__(270);
+	var devicesStore = __webpack_require__(270);
+	var devicesActionCreators = __webpack_require__(309);
+	var statusIndicatorActionCreators = __webpack_require__(271);
 	
 	var scanDuration = 10000; // 10 seconds
 	
@@ -62515,9 +62573,9 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var ConfirmForm = __webpack_require__(335);
-	var devicesActionCreators = __webpack_require__(305);
+	var devicesActionCreators = __webpack_require__(309);
 	var modalActionCreators = __webpack_require__(324);
-	var devicesStore = __webpack_require__(310);
+	var devicesStore = __webpack_require__(270);
 	
 	var DevicesFound = function (_BaseComponent) {
 	    _inherits(DevicesFound, _BaseComponent);
@@ -62932,8 +62990,8 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var devicesActionCreators = __webpack_require__(305);
-	var devicesStore = __webpack_require__(310);
+	var devicesActionCreators = __webpack_require__(309);
+	var devicesStore = __webpack_require__(270);
 	var ConfirmForm = __webpack_require__(335);
 	var modalActionCreators = __webpack_require__(324);
 	var controlButtonActionCreators = __webpack_require__(110);
@@ -64373,7 +64431,7 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var modalActionCreators = __webpack_require__(324);
-	var devicesActionCreators = __webpack_require__(305);
+	var devicesActionCreators = __webpack_require__(309);
 	
 	var EditPointForm = function (_BaseComponent) {
 	    _inherits(EditPointForm, _BaseComponent);
@@ -64571,8 +64629,8 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var modalActionCreators = __webpack_require__(324);
-	var devicesActionCreators = __webpack_require__(305);
-	var devicesStore = __webpack_require__(310);
+	var devicesActionCreators = __webpack_require__(309);
+	var devicesStore = __webpack_require__(270);
 	var ConfirmForm = __webpack_require__(335);
 	
 	var PreviewRegistryForm = function (_BaseComponent) {
@@ -64998,7 +65056,7 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var modalActionCreators = __webpack_require__(324);
-	var devicesActionCreators = __webpack_require__(305);
+	var devicesActionCreators = __webpack_require__(309);
 	
 	var NewColumnForm = function (_BaseComponent) {
 	    _inherits(NewColumnForm, _BaseComponent);
@@ -65164,9 +65222,9 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var modalActionCreators = __webpack_require__(324);
-	var devicesActionCreators = __webpack_require__(305);
-	var statusIndicatorActionCreators = __webpack_require__(270);
-	var devicesStore = __webpack_require__(310);
+	var devicesActionCreators = __webpack_require__(309);
+	var statusIndicatorActionCreators = __webpack_require__(271);
+	var devicesStore = __webpack_require__(270);
 	
 	var ConfigDeviceForm = function (_BaseComponent) {
 	    _inherits(ConfigDeviceForm, _BaseComponent);
@@ -66013,11 +66071,11 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var devicesActionCreators = __webpack_require__(305);
+	var devicesActionCreators = __webpack_require__(309);
 	var modalActionCreators = __webpack_require__(324);
 	var columnMoverActionCreators = __webpack_require__(340);
-	var statusIndicatorActionCreators = __webpack_require__(270);
-	var devicesStore = __webpack_require__(310);
+	var statusIndicatorActionCreators = __webpack_require__(271);
+	var devicesStore = __webpack_require__(270);
 	
 	var RegistryRow = function (_BaseComponent) {
 	    _inherits(RegistryRow, _BaseComponent);
@@ -66481,7 +66539,7 @@
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
-	var _csvparse = __webpack_require__(306);
+	var _csvparse = __webpack_require__(310);
 	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
@@ -66491,8 +66549,8 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var statusIndicatorActionCreators = __webpack_require__(270);
-	var devicesActionCreators = __webpack_require__(305);
+	var statusIndicatorActionCreators = __webpack_require__(271);
+	var devicesActionCreators = __webpack_require__(309);
 	
 	var FileUploadButton = function (_BaseComponent) {
 	    _inherits(FileUploadButton, _BaseComponent);
@@ -66685,7 +66743,7 @@
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
-	var _csvparse = __webpack_require__(306);
+	var _csvparse = __webpack_require__(310);
 	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
@@ -66697,7 +66755,7 @@
 	
 	var RegistryFilesSelector = __webpack_require__(344);
 	
-	var devicesActionCreators = __webpack_require__(305);
+	var devicesActionCreators = __webpack_require__(309);
 	var modalActionCreators = __webpack_require__(324);
 	
 	var FileSelectButton = function (_BaseComponent) {
@@ -66786,9 +66844,9 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var devicesActionCreators = __webpack_require__(305);
+	var devicesActionCreators = __webpack_require__(309);
 	var modalActionCreators = __webpack_require__(324);
-	var devicesStore = __webpack_require__(310);
+	var devicesStore = __webpack_require__(270);
 	
 	var RegistryFilesSelector = function (_BaseComponent) {
 	    _inherits(RegistryFilesSelector, _BaseComponent);
@@ -74847,8 +74905,8 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var devicesActionCreators = __webpack_require__(305);
-	var devicesStore = __webpack_require__(310);
+	var devicesActionCreators = __webpack_require__(309);
+	var devicesStore = __webpack_require__(270);
 	
 	var ReconfigureDevice = function (_BaseComponent) {
 	    _inherits(ReconfigureDevice, _BaseComponent);
@@ -75142,7 +75200,7 @@
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
-	var _csvparse = __webpack_require__(306);
+	var _csvparse = __webpack_require__(310);
 	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
@@ -75153,9 +75211,9 @@
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
 	var RegistryFilesSelector = __webpack_require__(344);
-	var devicesActionCreators = __webpack_require__(305);
+	var devicesActionCreators = __webpack_require__(309);
 	var modalActionCreators = __webpack_require__(324);
-	var devicesStore = __webpack_require__(310);
+	var devicesStore = __webpack_require__(270);
 	
 	var FileExportButton = function (_BaseComponent) {
 	    _inherits(FileExportButton, _BaseComponent);
@@ -75849,8 +75907,8 @@
 	
 	var chartStore = __webpack_require__(267);
 	var platformChartStore = __webpack_require__(267);
-	var platformChartActionCreators = __webpack_require__(303);
-	var platformActionCreators = __webpack_require__(304);
+	var platformChartActionCreators = __webpack_require__(307);
+	var platformActionCreators = __webpack_require__(308);
 	var platformsPanelActionCreators = __webpack_require__(269);
 	var modalActionCreators = __webpack_require__(324);
 	var ConfirmForm = __webpack_require__(335);
@@ -115235,8 +115293,8 @@
 	var Router = __webpack_require__(1);
 	
 	var AgentRow = __webpack_require__(542);
-	var platformActionCreators = __webpack_require__(304);
-	var statusIndicatorActionCreators = __webpack_require__(270);
+	var platformActionCreators = __webpack_require__(308);
+	var statusIndicatorActionCreators = __webpack_require__(271);
 	var platformsStore = __webpack_require__(268);
 	
 	var Platform = React.createClass({
@@ -115437,7 +115495,7 @@
 	
 	var React = __webpack_require__(3);
 	
-	var platformActionCreators = __webpack_require__(304);
+	var platformActionCreators = __webpack_require__(308);
 	var modalActionCreators = __webpack_require__(324);
 	
 	var RemoveAgentForm = __webpack_require__(543);
@@ -115551,7 +115609,7 @@
 	var React = __webpack_require__(3);
 	
 	var modalActionCreators = __webpack_require__(324);
-	var platformActionCreators = __webpack_require__(304);
+	var platformActionCreators = __webpack_require__(308);
 	
 	var RemoveAgentForm = React.createClass({
 	    displayName: 'RemoveAgentForm',
@@ -116276,7 +116334,7 @@
 	var React = __webpack_require__(3);
 	var PlatformChart = __webpack_require__(416);
 	var modalActionCreators = __webpack_require__(324);
-	var platformActionCreators = __webpack_require__(304);
+	var platformActionCreators = __webpack_require__(308);
 	var NewChartForm = __webpack_require__(548);
 	var chartStore = __webpack_require__(267);
 	
@@ -116380,8 +116438,8 @@
 	var React = __webpack_require__(3);
 	
 	var modalActionCreators = __webpack_require__(324);
-	var platformActionCreators = __webpack_require__(304);
-	var platformChartActionCreators = __webpack_require__(303);
+	var platformActionCreators = __webpack_require__(308);
+	var platformChartActionCreators = __webpack_require__(307);
 	var platformsPanelActionCreators = __webpack_require__(269);
 	var platformsPanelItemsStore = __webpack_require__(266);
 	var chartStore = __webpack_require__(267);
@@ -116667,4 +116725,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-a4d23da89f22252ec319.js.map
+//# sourceMappingURL=app-d1d63627a266e08f5184.js.map

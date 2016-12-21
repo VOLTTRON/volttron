@@ -15,6 +15,8 @@ var platformChartActionCreators = require('../action-creators/platform-chart-act
 var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var wspubsub = require('../lib/wspubsub');
+var authorizationStore = require('../stores/authorization-store');
 
 
 class PlatformsPanelItem extends BaseComponent {
@@ -40,7 +42,20 @@ class PlatformsPanelItem extends BaseComponent {
             this.state.cancelButton = false;            
         }
     }
+
+    managmentMessage(topic, message) {
+
+        console.log("WOOO HOOO!!!");
+        console.log('TOPIC: '+topic);
+        console.log('MESSAGE: '+message);
+   }
+
     componentDidMount () {
+        var authorization = authorizationStore.getAuthorization();
+        
+        // wspubsub.WsPubSub.set_authorization_key(authorization);       
+        // wspubsub.WsPubSub.open_management_socket(this.managmentMessage);
+
         platformsPanelItemsStore.addChangeListener(this._onStoresChange);
     }
     componentWillUnmount () {

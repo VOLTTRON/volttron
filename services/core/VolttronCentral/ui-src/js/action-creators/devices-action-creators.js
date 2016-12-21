@@ -55,10 +55,8 @@ var devicesActionCreators = {
         }
 
         var setUpDevicesSocket = function(platformUuid, bacnetIdentity) {
-            var topic = "/vc/ws/" + authorization + "/iam";
-            wspubsub.WsPubSub.subscribe(topic, function(topic, message){
-                
-                var result = JSON.parse(message);
+            wspubsub.openIAmWS(function(message){
+            var result = JSON.parse(message);
                 
                 if (result.status === "FINISHED IAM") {
                     dispatcher.dispatch({
@@ -144,10 +142,8 @@ var devicesActionCreators = {
         });
     },
     cancelDeviceScan: function () {
-        var authorization = authorizationStore.getAuthorization();
-        var topic = "/vc/ws/" + authorization + "/iam";
-
-        wspubsub.WsPubSub.unsubscribe(topic);
+        // Just a noop at this point
+        
     },
     handleKeyDown: function (keydown) {
         dispatcher.dispatch({
@@ -185,9 +181,7 @@ var devicesActionCreators = {
         }
 
         var setUpPointsSocket = function() {
-
-            var topic = "/vc/ws/" + authorization + "/configure";
-            wspubsub.WsPubSub.subscribe(topic, function(topic, message){
+            wspubsub.openConfigureWS(function(message){
                 // Special CLOSING method happens when socket is closed.
                 if (message === "CLOSING") {
                     dispatcher.dispatch({
@@ -202,7 +196,6 @@ var devicesActionCreators = {
                     devicesActionCreators.pointReceived(message);
                 }
             }.bind(device));
-
         }
 
         return new rpc.Exchange({

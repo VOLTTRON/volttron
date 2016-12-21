@@ -3,8 +3,10 @@
 var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
+var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var wspubsub = require('../lib/wspubsub');
 var rpc = require('../lib/rpc');
 
 var initializing = false;
@@ -12,6 +14,21 @@ var initializing = false;
 var platformManagerActionCreators = {
     initialize: function () {
         if (!authorizationStore.getAuthorization()) { return; }
+        var authorization = authorizationStore.getAuthorization();
+
+        wspubsub.setAuthorization(authorization);
+        wspubsub.openManagementWS(function(message){
+            var obj = JSON.parse(message);
+
+            switch (obj.type) {
+                case 'NEW_DEVICE': 
+                    platformsPanelActionCreators.addNewDevice(obj.data);
+                    break;
+                default:
+                    console.log('UNKNOWN TYPE MESSAGE: '+message);
+            }
+            
+        });
 
         var reload = false;
         platformManagerActionCreators.loadPlatforms(reload);
@@ -25,7 +42,6 @@ var platformManagerActionCreators = {
             },
         }, ['password']).promise
             .then(function (result) {
-                
                 dispatcher.dispatch({
                     type: ACTION_TYPES.WILL_INITIALIZE_PLATFORMS
                 });
