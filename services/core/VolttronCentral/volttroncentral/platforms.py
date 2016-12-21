@@ -72,6 +72,7 @@ from volttron.platform.messaging.health import Status, UNKNOWN_STATUS, \
     GOOD_STATUS, BAD_STATUS
 from volttron.platform.vip.agent import Unreachable
 from volttron.platform.vip.agent.utils import build_connection
+from zmq.utils import jsonapi
 
 
 class Platforms(object):
@@ -314,9 +315,6 @@ class PlatformHandler(object):
     def call(self, platform_method, *args, **kwargs):
         return self._connection.call(platform_method, *args, **kwargs)
 
-    def send_management_message(self, message_type, params):
-        self._log.debug("Sending management message: {}, params: {}".format(message_type, params))
-
     def store_agent_config(self, session_user, params):
         required = ('agent_identity', 'config_name', 'raw_contents')
         message_id = params.pop('message_id')
@@ -332,11 +330,46 @@ class PlatformHandler(object):
         if errors:
             return jsonrpc.json_error(message_id, INVALID_PARAMS,
                                       "\n".join(errors))
-
-        self._connection.call("store_agent_config", **params)
+        try:
+            self._log.debug("Calling store_agent_config on external platform.")
+            self._connection.call("store_agent_config", **params)
+        except Exception as e:
+            self._log.error(str(e))
+            return jsonrpc.json_error(message_id, INTERNAL_ERROR,
+                                      str(e))
         config_name = params.get("config_name")
+        agent_identity = params.get("agent_identity")
         if config_name.startswith("devices"):
-            self.send_management_message("new_device", params)
+            # Since we start with devices, we assume that we are attempting
+            # to save a master driver config file.
+            rawdict = jsonapi.loads(params['raw_contents'])
+            # Registry config starts with config://
+            registry_config = rawdict['registry_config'][8:]
+            try:
+                self._log.debug("Retriving registry_config for new device.")
+                point_config = self._connection.call("get_agent_config",
+                                                     agent_identity,
+                                                     registry_config, raw=False)
+            except Exception as e:
+                self._log.error(str(e))
+                return jsonrpc.json_error(message_id, INTERNAL_ERROR,
+                                          "Couldn't retrieve registry_config "
+                                          "from connection.")
+            else:
+                new_device = dict(
+                    device_address=rawdict['driver_config']['device_address'],
+                    device_id=rawdict['driver_config']['device_id'],
+                    points=[],
+                    path=config_name,
+                    health=Status.build(UNKNOWN_STATUS,
+                                        context="Unpublished").as_dict()
+                )
+                points = [p['Volttron Point Name'] for p in point_config]
+                new_device['points'] = points
+                self._vc.send_management_message("NEW_DEVICE", new_device)
+
+            self._log.debug('Updating device store for new device.')
+            # Update the devices store for get_devices function call.
             try:
                 platform_store = self._vc.vip.config.get(self.config_store_name)
             except KeyError:
@@ -355,6 +388,7 @@ class PlatformHandler(object):
             )
             platform_store['devices_health'] = devices_health
             self._vc.vip.config.set(self.config_store_name, platform_store)
+            return jsonrpc.json_result(message_id, "SUCCESS")
 
     def get_agent_list(self, session_user, params):
         self._log.debug('Callling list_agents')

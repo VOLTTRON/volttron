@@ -457,6 +457,9 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             if (action.devices.length > 0)
             {
                 insertDevices(platform, action.devices);
+                if (action.shouldUpdate === true) {
+                    platformsPanelItemsStore.emitChange();
+                }
             }
 
             break;

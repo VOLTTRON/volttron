@@ -3,15 +3,48 @@
 var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
+var devicesStore = require('../stores/devices-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
+var wsapi = require('../lib/wspubsub');
 
 var platformsPanelActionCreators = {    
     togglePanel: function() {
 
         dispatcher.dispatch({
             type: ACTION_TYPES.TOGGLE_PLATFORMS_PANEL,
+        });
+    },
+
+    addNewDevice: function(device_props){
+        /*
+        device_props example (NOTE: this is an invalid json object because of the '
+        {
+            'device_address': '10.10.1.15',
+            'device_id': 500,
+            'path': 'devices/pnnl/foo/2',
+            'points': ['ReturnAirTemperature', 'CoolingValveOutputCommand', 'ReturnAirHumidity'],
+            'health': {
+                'status': 'UNKNOWN',
+                'last_updated': '2016-12-21T17:54:28.855561+00:00',
+                'context': 'Unpublished'
+            }
+        }
+        */
+
+        // The passed device_props is a string because it comes from a larger
+        // object.  We need to replace the ' with " so that the JSON parser
+        // will work correctly
+        device_props = JSON.parse(device_props.replace(/'/g, '"'))
+
+        var platform = devicesStore.getState().platform;
+        
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+            shouldUpdate: true,
+            platform: platform,
+            devices: [device_props]
         });
     },
 
