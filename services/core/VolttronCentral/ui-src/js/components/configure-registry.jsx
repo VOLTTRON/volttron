@@ -633,7 +633,10 @@ class ConfigureRegistry extends BaseComponent {
     }
     _selectAll(checked) {
         var newRegistryValues = this.state.registryValues.map(function (row) {
-            row = row.set("selected", checked);
+            if (row.get("visible"))
+            {
+                row = row.set("selected", checked);
+            }
             return row;
         });
 
@@ -777,7 +780,9 @@ class ConfigureRegistry extends BaseComponent {
         this.setState({ registryValues: this.state.registryValues.map(function (row, index) {
 
                 //searching i-th column in each row, and if the cell contains the target value, select it
-                row.get("attributes").get(column).selected = (row.get("attributes").get(column).value.indexOf(findValue) > -1);
+                row.get("attributes").get(column).selected = (
+                    (row.get("visible")) &&
+                    (row.get("attributes").get(column).value.indexOf(findValue) > -1));
 
                 if (row.get("attributes").get(column).selected)
                 {
@@ -816,11 +821,15 @@ class ConfigureRegistry extends BaseComponent {
 
                 this.setState({ selectedCellRow: selectedCellRow});
             }
+            else
+            {
+                this.setState({ selectedCellRow: this.state.selectedCells[0] });
+            }
         }
     }
     _onReplace(findValue, replaceValue, column) {
 
-        if (!this.state.selectedCellRow)
+        if (this.state.selectedCellRow === null)
         {
             this._onFindNext(findValue, column);
         }
@@ -834,39 +843,45 @@ class ConfigureRegistry extends BaseComponent {
                     return item;
                 });
 
-            //If the cell no longer has the target value, deselect it and move focus to the next selected cell
-            if (newValue.indexOf(findValue) < 0)
+            while (newValue.indexOf(findValue) > -1)
             {
                 this.state.registryValues[this.state.selectedCellRow] = 
                     this.state.registryValues[this.state.selectedCellRow].updateIn(["attributes", column], function (item) {
-                        item.selected = false;
+                        newValue = item.value = item.value.replace(findValue, replaceValue);
                         return item;
                     });
-
-                //see if there will even be another selected cell to move to
-                var selectedCells = this.state.selectedCells.slice();
-                var index = selectedCells.indexOf(this.state.selectedCellRow);
-
-                if (index > -1)
-                {
-                    selectedCells.splice(index, 1);
-                }
-
-                if (selectedCells.length > 0)
-                {
-                    var selectedCellRow = this._goToNext(this.state.selectedCellRow, this.state.selectedCells);
-                
-                    this.setState({ selectedCellRow: selectedCellRow});
-                    this.setState({ selectedCells: selectedCells });
-                }
-                else
-                {
-                    //there were no more selected cells, so clear everything out
-                    this.setState({ selectedCells: [] });
-                    this.setState({ selectedCellRow: null });
-                    this.setState({ selectedCellColumn: null });
-                }
             }
+
+            this.state.registryValues[this.state.selectedCellRow] = 
+                this.state.registryValues[this.state.selectedCellRow].updateIn(["attributes", column], function (item) {
+                    item.selected = false;
+                    return item;
+                });
+
+            //see if there will even be another selected cell to move to
+            var selectedCells = this.state.selectedCells.slice();
+            var index = selectedCells.indexOf(this.state.selectedCellRow);
+
+            if (index > -1)
+            {
+                selectedCells.splice(index, 1);
+            }
+
+            if (selectedCells.length > 0)
+            {
+                var selectedCellRow = this._goToNext(this.state.selectedCellRow, this.state.selectedCells);
+            
+                this.setState({ selectedCellRow: selectedCellRow});
+                this.setState({ selectedCells: selectedCells });
+            }
+            else
+            {
+                //there were no more selected cells, so clear everything out
+                this.setState({ selectedCells: [] });
+                this.setState({ selectedCellRow: null });
+                this.setState({ selectedCellColumn: null });
+            }
+            
 
             this.setState({ registryValues: this.state.registryValues});
         }
@@ -884,14 +899,19 @@ class ConfigureRegistry extends BaseComponent {
                 return item;
             });  
 
-            if (newValue.indexOf(findValue) < 0)
+            while (newValue.indexOf(findValue) > -1)
             {
                 this.state.registryValues[selectedCell] = this.state.registryValues[selectedCell].updateIn(["attributes", column], function (item) {
-                    item.selected = false;
-                    selectedCellsToKeep.push(selectedCell);
+                    newValue = item.value = item.value.replace(findValue, replaceValue);
                     return item;
-                }); 
+                });
             }
+
+            this.state.registryValues[selectedCell] = this.state.registryValues[selectedCell].updateIn(["attributes", column], function (item) {
+                item.selected = false;
+                selectedCellsToKeep.push(selectedCell);
+                return item;
+            }); 
         });
 
         this.setState({ selectedCellRow: null});
@@ -901,21 +921,18 @@ class ConfigureRegistry extends BaseComponent {
     }
     _onClearFind(column) {
 
-        if (this.state.selectedCells.length)
-        {
-            this.state.selectedCells.forEach((row) => {
-                this.state.registryValues[row] = this.state.registryValues[row].updateIn(["attributes", column], function (item) {                    
-                    item.selected = false;
-                    return item;
-                });
+        this.state.selectedCells.forEach((row) => {
+            this.state.registryValues[row] = this.state.registryValues[row].updateIn(["attributes", column], function (item) {                    
+                item.selected = false;
+                return item;
+            });
 
-            }, this);
+        }, this);
 
-            this.setState({ registryValues: this.state.registryValues });
-            this.setState({ selectedCells: [] });
-            this.setState({ selectedCellRow: null });
-            this.setState({ selectedCellColumn: null });
-        }
+        this.setState({ registryValues: this.state.registryValues });
+        this.setState({ selectedCells: [] });
+        this.setState({ selectedCellRow: null });
+        this.setState({ selectedCellColumn: null });
     }
     _goToNext(selectedCellRow, selectedCells) {
 
