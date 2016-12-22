@@ -548,7 +548,6 @@ class Interface(BasicRevert, BaseInterface):
         write_registers = self.get_registers_by_type("byte", False)
         for register in read_registers + write_registers:
             result[register.point_name] = register.value
-        print result
         return result
 
     def parse_config(self, config_dict, registry_config_str):
