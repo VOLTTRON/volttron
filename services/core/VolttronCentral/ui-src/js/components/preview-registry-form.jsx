@@ -37,34 +37,27 @@ class PreviewRegistryForm extends BaseComponent {
 
         if (this.state.reconfiguring)
         {
-            // if (this.state.reconfiguring)
-            // {
-            //     this.state.sharedRegistryFile = devicesStore.getRegistryFileShared(
-            //         this.props.fileName,
-            //         this.props.deviceId,
-            //         this.props.deviceAddress,
-            //         this.props.deviceName
-            //     );
-            // }
-
-            // if (this.state.otherFileNames.indexOf(this.state.fileName) > -1)
-            // {   
-            //     modalActionCreators.openModal(
-            //         <ConfirmForm
-            //             promptTitle="Duplicate File Names"
-            //             promptText={"Another registry file exists with the name \"" + 
-            //                 this.state.fileName + "\". Using this name will overwrite " + 
-            //                 "the other file and risk disrupting previously configured devices. " +
-            //                 "Proceed with save?"} 
-            //             confirmText="Save"
-            //             onConfirm={ this._saveRegistryFile }
-            //             cancelText="Cancel"
-            //             width="400px"
-            //         ></ConfirmForm> 
-            //     );
-            // }
-
-            this._saveRegistryFile();
+            if (this.state.otherFileNames.indexOf(this.state.fileName) > -1)
+            {   
+                modalActionCreators.openModal(
+                    <ConfirmForm
+                        promptTitle="Existing File Name"
+                        promptText={"This registry file uses a pre-existing file name, \"" 
+                            + this.state.fileName + "\". Saving changes to the registry using " + 
+                            " this file name could affect other devices if they are configured with " +
+                            " this registry file. You can proceed with the save, or cancel " +
+                            " and choose a different file name. Proceed with save?"} 
+                        confirmText="Save"
+                        onConfirm={ this._saveRegistryFile }
+                        cancelText="Cancel"
+                        width="400px"
+                    ></ConfirmForm> 
+                );
+            }
+            else
+            {
+                this._saveRegistryFile();
+            }
         }
         else
         {

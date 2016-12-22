@@ -1348,7 +1348,7 @@ class ConfigureRegistry extends BaseComponent {
             
             registryButtons = (
                 <div className="registry-buttons" style={wideDiv}>
-                    <div className="inlineBlock">
+                    <div className="inlineBlock cancel-button">
                         {cancelButton}
                     </div>
                     <div className="inlineBlock">

@@ -193,7 +193,7 @@ class ReconfigureDevice extends BaseComponent {
         }
 
         return (
-            <div className="view">   
+            <div className="view reconfig-device">   
                 <h2>Reconfigure Device</h2> 
                 {defaultMessage}      
                 {configuration} 

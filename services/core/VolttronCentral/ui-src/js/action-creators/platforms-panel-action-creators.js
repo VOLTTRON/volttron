@@ -42,7 +42,7 @@ var platformsPanelActionCreators = {
         
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
-            shouldUpdate: true,
+            fromWebsocket: true,
             platform: platform,
             devices: [device_props]
         });
@@ -113,6 +113,7 @@ var platformsPanelActionCreators = {
 
                     dispatcher.dispatch({
                         type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+                        fromWebsocket: false,
                         platform: platform,
                         devices: devicesList
                     });

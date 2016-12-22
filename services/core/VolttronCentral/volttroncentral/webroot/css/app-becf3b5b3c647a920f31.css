@@ -1816,6 +1816,16 @@ td.plain {
     float: right;
 }
 
+.view.reconfig-device .cancel-button,
+.view.reconfig-device .config-buttons,
+.modal__dialog .reconfig-button {
+    display: none;
+}
+
+.reconfig-button {
+    text-align: center;
+}
+
 .devicesFoundContainer {
     width: 900px;
 }
@@ -1971,4 +1981,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-d1d63627a266e08f5184.css.map*/
+/*# sourceMappingURL=app-becf3b5b3c647a920f31.css.map*/

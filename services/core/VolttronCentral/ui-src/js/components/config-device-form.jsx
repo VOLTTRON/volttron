@@ -3,6 +3,7 @@
 import React from 'react';
 import BaseComponent from './base-component';
 import CheckBox from './check-box';
+import ControlButton from './control-button';
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
@@ -234,6 +235,23 @@ class ConfigDeviceForm extends BaseComponent {
             marginBottom: "20px"
         }
 
+        var tooltipX = 320;
+        var tooltipY = 150;        
+        
+        var saveTooltip = {
+            "content": "Save Configuration",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
+        };
+
+        var saveButton = (
+            <ControlButton 
+                name="saveConfigButton"
+                tooltip={saveTooltip}
+                fontAwesomeIcon="save"
+                clickAction={this._onSubmit}></ControlButton>
+        );   
+
         return (
             <form className="config-device-form" onSubmit={this._onSubmit}>
                 <h1>Device Configuration</h1>
@@ -308,7 +326,7 @@ class ConfigDeviceForm extends BaseComponent {
                         </table>
                     </div>
                 </div>
-                <div className="form__actions">
+                <div className="form__actions config-buttons">
                     <button
                         className="button button--secondary"
                         type="button"
@@ -320,6 +338,11 @@ class ConfigDeviceForm extends BaseComponent {
                         disabled={!this.state.campus || !this.state.building || !this.state.unit}>
                         Save
                     </button>
+                </div>
+                <div className="reconfig-button">
+                    <div className="inlineBlock">
+                        {saveButton}
+                    </div>                    
                 </div>
             </form>
         );

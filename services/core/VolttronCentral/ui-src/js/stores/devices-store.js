@@ -1023,7 +1023,7 @@ devicesStore.getSavedRegistryFiles = function () {
 };
 
 devicesStore.getRegistryFileShared = function (registryFile, deviceId, deviceAddress, deviceName) {
-    
+
 }
 
 devicesStore.getWarnings = function () {
@@ -1361,6 +1361,10 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             
             _reconfiguration = action.configuration;
             _reconfiguration.deviceName = action.deviceName.replace("devices/", "");
+
+            _platform = {
+                "uuid": action.platformUuid
+            };
 
             reconfigureRegistry(
                 action.platformUuid, 

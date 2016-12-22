@@ -1816,6 +1816,16 @@ td.plain {
     float: right;
 }
 
+.view.reconfig-device .cancel-button,
+.view.reconfig-device .config-buttons,
+.modal__dialog .reconfig-button {
+    display: none;
+}
+
+.reconfig-button {
+    text-align: center;
+}
+
 .devicesFoundContainer {
     width: 900px;
 }

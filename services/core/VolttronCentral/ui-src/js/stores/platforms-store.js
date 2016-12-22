@@ -61,7 +61,7 @@ platformsStore.getVcInstance = function ()
         }
     }
 
-    return vc;
+    return (typeof vc === "undefined" ? null : vc);
 };
 
 platformsStore.getAgentRunning = function (platform, agentType) {
@@ -86,9 +86,9 @@ platformsStore.getAgentRunning = function (platform, agentType) {
     return agentRunning;
 };
 
-platformsStore.getVcHistorianRunning = function () {
+platformsStore.getVcHistorianRunning = function (vcInstance) {
 
-    var platform = platformsStore.getVcInstance();    
+    var platform = (vcInstance ? vcInstance : platformsStore.getVcInstance());
     var historianRunning = platformsStore.getAgentRunning(platform, "historian");
 
     return historianRunning;

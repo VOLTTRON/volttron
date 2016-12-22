@@ -150,13 +150,24 @@ var platformChartActionCreators = {
                     if (panelItem.path && panelItem.path.length > 1)
                     {
                         var platformUuid = panelItem.path[1];
-                        var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
 
-                        if (!forwarderRunning)
+                        var vcInstance = platformsStore.getVcInstance();
+
+                        if (vcInstance.uuid === platformUuid)
                         {
-                            message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
+                            message = "Unable to load chart: The master driver agent is unavailable on the VOLTTRON Central platform.";
                             orientation = "left";
-                        }             
+                        }  
+                        else
+                        {
+                            var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
+
+                            if (!forwarderRunning)
+                            {
+                                message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
+                                orientation = "left";
+                            } 
+                        }           
                     }
 
                     platformsPanelActionCreators.checkItem(panelItem.path, false);
@@ -172,17 +183,27 @@ var platformChartActionCreators = {
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
                         orientation = "left";
                     }
                 }
                 else
                 {
-                    var historianRunning = platformsStore.getVcHistorianRunning();
+                    var vcInstance = platformsStore.getVcInstance();
 
-                    if (!historianRunning)
+                    if (vcInstance)
                     {
-                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        var historianRunning = platformsStore.getVcHistorianRunning(vcInstance);
+
+                        if (!historianRunning)
+                        {
+                            message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
+                            orientation = "left";
+                        }
+                    }
+                    else
+                    {
+                        message = "Unable to load chart: An unknown problem occurred.";
                         orientation = "left";
                     }
                 }

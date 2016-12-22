@@ -35700,6 +35700,46 @@
 	    return item;
 	};
 	
+	platformsPanelItemsStore.findDevice = function (targetUuid, platformUuid) {
+	    var foundDevice = null;
+	
+	    if (platformUuid) {
+	        var platform = _items.platforms[platformUuid];
+	
+	        if (platform) {
+	            var deviceParts = targetUuid.split("/");
+	
+	            if (platform.hasOwnProperty("buildings") && deviceParts.length > 2) {
+	                var buildingUuid = deviceParts[1] + "_" + deviceParts[2];
+	                if (platform.buildings.hasOwnProperty(buildingUuid)) {
+	                    var parent = platform.buildings[buildingUuid];
+	
+	                    var deviceUuid = deviceParts[0] + "/" + deviceParts[1] + "/" + deviceParts[2];
+	
+	                    var depth;
+	
+	                    for (var i = 3; i < deviceParts.length; i++) {
+	                        if (parent.hasOwnProperty("devices")) {
+	                            deviceUuid = deviceUuid.concat("/" + deviceParts[i]);
+	                            depth = i;
+	
+	                            if (parent.devices.hasOwnProperty(deviceUuid)) {
+	                                parent = parent.devices[deviceUuid];
+	                            }
+	                        }
+	                    }
+	
+	                    if (deviceUuid === targetUuid && depth === deviceParts.length) {
+	                        foundDevice = parent;
+	                    }
+	                }
+	            }
+	        }
+	    }
+	
+	    return foundDevice;
+	};
+	
 	platformsPanelItemsStore.getChildren = function (parent, parentPath) {
 	
 	    var itemsList = [];
@@ -35961,9 +36001,13 @@
 	            var platform = _items["platforms"][action.platform.uuid];
 	
 	            if (action.devices.length > 0) {
-	                insertDevices(platform, action.devices);
-	                if (action.shouldUpdate === true) {
-	                    platformsPanelItemsStore.emitChange();
+	                var treeHasExpanded = _items.platforms.hasOwnProperty(platform.uuid) && _items.platforms[platform.uuid].children.length > 0;
+	
+	                if (!action.fromWebsocket || treeHasExpanded) {
+	                    insertDevices(platform, action.devices, action.fromWebsocket);
+	                    if (action.fromWebsocket === true) {
+	                        platformsPanelItemsStore.emitChange();
+	                    }
 	                }
 	            }
 	
@@ -36133,7 +36177,7 @@
 	        return platform.buildings[uuid];
 	    }
 	
-	    function insertDevices(platform, devices) {
+	    function insertDevices(platform, devices, shouldUpdate) {
 	        var devicesToInsert = JSON.parse(JSON.stringify(devices));
 	
 	        var buildings = [];
@@ -36169,18 +36213,18 @@
 	        //Now we can add each row of devices, confident
 	        // that any parent devices will be added to the tree
 	        // before their subdevices
-	        nestedDevices.forEach(function (level, row) {
+	        nestedDevices.forEach(function (nestedDevice) {
 	
-	            level.forEach(function (device) {
+	            nestedDevice.forEach(function (device) {
 	
 	                var pathParts = device.path.split("/");
 	                var buildingUuid = pathParts[1] + "_" + pathParts[2];
 	                var buildingName = pathParts[1] + ": " + pathParts[2];
-	                var legendInfo = pathParts[1] + " > " + buildingName;
+	                var legendInfo = pathParts[1] + " > " + pathParts[2];
 	
 	                var building = insertBuilding(platform, buildingUuid, buildingName);
 	
-	                insertDevice(device, building, legendInfo, row);
+	                insertDevice(device, building, legendInfo, platform, shouldUpdate);
 	
 	                var alreadyInTree = buildings.find(function (building) {
 	                    return building.uuid === buildingUuid;
@@ -36221,46 +36265,47 @@
 	        platform.buildings.statusLabel = getStatusLabel(buildingsHealth);
 	    }
 	
-	    function insertDevice(device, building, legendInfo, row) {
-	        switch (row) {
-	            case 0:
-	                //top-level devices
+	    function insertDevice(device, building, legendInfo, platform, shouldUpdate) {
+	        var foundDevice = platformsPanelItemsStore.findDevice(device.path, platform.uuid);
 	
-	                var deviceParts = device.path.split("/");
+	        if (foundDevice) {
+	            foundDevice.status = device.health.status.toUpperCase();
+	            foundDevice.statusLabel = getStatusLabel(deviceProps.status);
+	            foundDevice.context = device.health.context;
+	            checkForPoints(foundDevice, device);
+	        } else {
+	            var deviceParts = device.path.split("/");
 	
-	                var deviceProps = {};
-	                deviceProps.name = deviceParts[deviceParts.length - 1];
-	                deviceProps.uuid = device.path;
-	                deviceProps.expanded = false;
-	                deviceProps.visible = true;
-	                deviceProps.path = JSON.parse(JSON.stringify(building.devices.path));
-	                deviceProps.path.push(deviceProps.uuid);
-	                deviceProps.status = device.health.status.toUpperCase();
-	                deviceProps.statusLabel = getStatusLabel(deviceProps.status);
-	                deviceProps.context = device.health.context;
-	                deviceProps.children = [];
-	                deviceProps.type = "device";
-	                deviceProps.sortOrder = 0;
+	            switch (deviceParts.length) {
+	                case 4:
+	                    //top-level devices
 	
-	                deviceProps.legendInfo = legendInfo + " > " + deviceProps.name;
+	                    var deviceProps = {};
+	                    deviceProps.name = deviceParts[deviceParts.length - 1];
+	                    deviceProps.uuid = device.path;
+	                    deviceProps.expanded = false;
+	                    deviceProps.visible = true;
+	                    deviceProps.path = JSON.parse(JSON.stringify(building.devices.path));
+	                    deviceProps.path.push(deviceProps.uuid);
+	                    deviceProps.status = device.health.status.toUpperCase();
+	                    deviceProps.statusLabel = getStatusLabel(deviceProps.status);
+	                    deviceProps.context = device.health.context;
+	                    deviceProps.children = [];
+	                    deviceProps.type = "device";
+	                    deviceProps.sortOrder = 0;
 	
-	                checkForPoints(deviceProps, device);
+	                    deviceProps.legendInfo = legendInfo + " > " + deviceProps.name;
 	
-	                building.devices.children.push(deviceProps.uuid);
-	                building.devices[deviceProps.uuid] = deviceProps;
+	                    checkForPoints(deviceProps, device);
 	
-	                break;
-	            default:
-	                //subdevices:
-	                var deviceParts = device.path.split("/");
+	                    building.devices.children.push(deviceProps.uuid);
+	                    building.devices[deviceProps.uuid] = deviceProps;
 	
-	                var subDeviceLevel = deviceParts.length - 1;
+	                    break;
+	                default:
+	                    //subdevices:
+	                    var subDeviceLevel = deviceParts.length - 1;
 	
-	                // the top three spots in the device path are the device/, campus, and building,
-	                // so add 3 to the row and that should equal the subdevice's level
-	                if (subDeviceLevel !== row + 3) {
-	                    console.log("wrong level number");
-	                } else {
 	                    //Now find the subdevice's parent device by using the parts of its path
 	                    // to walk the tree
 	                    var parentPath = JSON.parse(JSON.stringify(building.path));
@@ -36307,7 +36352,7 @@
 	                        parentDevice.devices.path = JSON.parse(JSON.stringify(parentDevice.path));
 	                        parentDevice.devices.path.push("devices");
 	                        parentDevice.devices.name = "Devices";
-	                        parentDevice.devices.expanded = false;
+	                        parentDevice.devices.expanded = shouldUpdate ? shouldUpdate : false;
 	                        parentDevice.devices.visible = true;
 	                        parentDevice.devices.children = [];
 	                        parentDevice.devices.type = "type";
@@ -36323,9 +36368,9 @@
 	                    if (parentDevice.devices.children.length > 1) {
 	                        updateDeviceGroupStatus(parentDevice);
 	                    }
-	                }
 	
-	                break;
+	                    break;
+	            }
 	        }
 	    }
 	
@@ -36977,7 +37022,7 @@
 	        }
 	    }
 	
-	    return vc;
+	    return typeof vc === "undefined" ? null : vc;
 	};
 	
 	platformsStore.getAgentRunning = function (platform, agentType) {
@@ -36999,9 +37044,9 @@
 	    return agentRunning;
 	};
 	
-	platformsStore.getVcHistorianRunning = function () {
+	platformsStore.getVcHistorianRunning = function (vcInstance) {
 	
-	    var platform = platformsStore.getVcInstance();
+	    var platform = vcInstance ? vcInstance : platformsStore.getVcInstance();
 	    var historianRunning = platformsStore.getAgentRunning(platform, "historian");
 	
 	    return historianRunning;
@@ -37120,7 +37165,7 @@
 	
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
-	            shouldUpdate: true,
+	            fromWebsocket: true,
 	            platform: platform,
 	            devices: [device_props]
 	        });
@@ -37184,6 +37229,7 @@
 	
 	                dispatcher.dispatch({
 	                    type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+	                    fromWebsocket: false,
 	                    platform: platform,
 	                    devices: devicesList
 	                });
@@ -38659,6 +38705,10 @@
 	
 	            _reconfiguration = action.configuration;
 	            _reconfiguration.deviceName = action.deviceName.replace("devices/", "");
+	
+	            _platform = {
+	                "uuid": action.platformUuid
+	            };
 	
 	            reconfigureRegistry(action.platformUuid, action.agentDriver, _reconfiguration.deviceName, _reconfiguration, action.data);
 	
@@ -58526,11 +58576,19 @@
 	
 	                if (panelItem.path && panelItem.path.length > 1) {
 	                    var platformUuid = panelItem.path[1];
-	                    var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
 	
-	                    if (!forwarderRunning) {
-	                        message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
+	                    var vcInstance = platformsStore.getVcInstance();
+	
+	                    if (vcInstance.uuid === platformUuid) {
+	                        message = "Unable to load chart: The master driver agent is unavailable on the VOLTTRON Central platform.";
 	                        orientation = "left";
+	                    } else {
+	                        var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
+	
+	                        if (!forwarderRunning) {
+	                            message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
+	                            orientation = "left";
+	                        }
 	                    }
 	                }
 	
@@ -58544,14 +58602,21 @@
 	
 	            if (error.code === -32602) {
 	                if (error.message === "historian unavailable") {
-	                    message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+	                    message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
 	                    orientation = "left";
 	                }
 	            } else {
-	                var historianRunning = platformsStore.getVcHistorianRunning();
+	                var vcInstance = platformsStore.getVcInstance();
 	
-	                if (!historianRunning) {
-	                    message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+	                if (vcInstance) {
+	                    var historianRunning = platformsStore.getVcHistorianRunning(vcInstance);
+	
+	                    if (!historianRunning) {
+	                        message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
+	                        orientation = "left";
+	                    }
+	                } else {
+	                    message = "Unable to load chart: An unknown problem occurred.";
 	                    orientation = "left";
 	                }
 	            }
@@ -64254,7 +64319,7 @@
 	                    { className: 'registry-buttons', style: wideDiv },
 	                    _react2.default.createElement(
 	                        'div',
-	                        { className: 'inlineBlock' },
+	                        { className: 'inlineBlock cancel-button' },
 	                        cancelButton
 	                    ),
 	                    _react2.default.createElement(
@@ -64676,34 +64741,18 @@
 	            e.preventDefault();
 	
 	            if (this.state.reconfiguring) {
-	                // if (this.state.reconfiguring)
-	                // {
-	                //     this.state.sharedRegistryFile = devicesStore.getRegistryFileShared(
-	                //         this.props.fileName,
-	                //         this.props.deviceId,
-	                //         this.props.deviceAddress,
-	                //         this.props.deviceName
-	                //     );
-	                // }
-	
-	                // if (this.state.otherFileNames.indexOf(this.state.fileName) > -1)
-	                // {   
-	                //     modalActionCreators.openModal(
-	                //         <ConfirmForm
-	                //             promptTitle="Duplicate File Names"
-	                //             promptText={"Another registry file exists with the name \"" + 
-	                //                 this.state.fileName + "\". Using this name will overwrite " + 
-	                //                 "the other file and risk disrupting previously configured devices. " +
-	                //                 "Proceed with save?"} 
-	                //             confirmText="Save"
-	                //             onConfirm={ this._saveRegistryFile }
-	                //             cancelText="Cancel"
-	                //             width="400px"
-	                //         ></ConfirmForm> 
-	                //     );
-	                // }
-	
-	                this._saveRegistryFile();
+	                if (this.state.otherFileNames.indexOf(this.state.fileName) > -1) {
+	                    modalActionCreators.openModal(_react2.default.createElement(ConfirmForm, {
+	                        promptTitle: 'Existing File Name',
+	                        promptText: "This registry file uses a pre-existing file name, \"" + this.state.fileName + "\". Saving changes to the registry using " + " this file name could affect other devices if they are configured with " + " this registry file. You can proceed with the save, or cancel " + " and choose a different file name. Proceed with save?",
+	                        confirmText: 'Save',
+	                        onConfirm: this._saveRegistryFile,
+	                        cancelText: 'Cancel',
+	                        width: '400px'
+	                    }));
+	                } else {
+	                    this._saveRegistryFile();
+	                }
 	            } else {
 	                if (this.state.otherFileNames.indexOf(this.state.fileName) > -1) {
 	                    modalActionCreators.closeModal();
@@ -65213,6 +65262,10 @@
 	
 	var _checkBox2 = _interopRequireDefault(_checkBox);
 	
+	var _controlButton = __webpack_require__(99);
+	
+	var _controlButton2 = _interopRequireDefault(_controlButton);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -65460,6 +65513,21 @@
 	                marginBottom: "20px"
 	            };
 	
+	            var tooltipX = 320;
+	            var tooltipY = 150;
+	
+	            var saveTooltip = {
+	                "content": "Save Configuration",
+	                "xOffset": tooltipX,
+	                "yOffset": tooltipY
+	            };
+	
+	            var saveButton = _react2.default.createElement(_controlButton2.default, {
+	                name: 'saveConfigButton',
+	                tooltip: saveTooltip,
+	                fontAwesomeIcon: 'save',
+	                clickAction: this._onSubmit });
+	
 	            return _react2.default.createElement(
 	                'form',
 	                { className: 'config-device-form', onSubmit: this._onSubmit },
@@ -65595,7 +65663,7 @@
 	                ),
 	                _react2.default.createElement(
 	                    'div',
-	                    { className: 'form__actions' },
+	                    { className: 'form__actions config-buttons' },
 	                    _react2.default.createElement(
 	                        'button',
 	                        {
@@ -65610,6 +65678,15 @@
 	                        { className: 'button',
 	                            disabled: !this.state.campus || !this.state.building || !this.state.unit },
 	                        'Save'
+	                    )
+	                ),
+	                _react2.default.createElement(
+	                    'div',
+	                    { className: 'reconfig-button' },
+	                    _react2.default.createElement(
+	                        'div',
+	                        { className: 'inlineBlock' },
+	                        saveButton
 	                    )
 	                )
 	            );
@@ -75128,7 +75205,7 @@
 	
 	            return _react2.default.createElement(
 	                'div',
-	                { className: 'view' },
+	                { className: 'view reconfig-device' },
 	                _react2.default.createElement(
 	                    'h2',
 	                    null,
@@ -116725,4 +116802,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-d1d63627a266e08f5184.js.map
+//# sourceMappingURL=app-becf3b5b3c647a920f31.js.map
