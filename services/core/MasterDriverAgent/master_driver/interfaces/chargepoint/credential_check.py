@@ -58,7 +58,8 @@ station_port_list = ['portNumber', 'Lat', 'Long', 'Reservable', 'Level', 'Mode',
                      'Description']
 
 station_status_csv = {
-    'Status': u'Status{port},Status,StationStatusRegister,{port},string,,,FALSE,"AVAILABLE, INUSE, UNREACHABLE, UNKNOWN\n"',
+    'Status': u'Status{port},Status,StationStatusRegister,{port},string,,,FALSE,'
+              u'"AVAILABLE, INUSE, UNREACHABLE, UNKNOWN"\n',
     'TimeStamp': u'TimeStamp{port},TimeStamp,StationStatusRegister,{port},datetime,,,FALSE,'
                  u'Timestamp of the last communication between the station and ChargePoint\n',
 }
@@ -76,9 +77,10 @@ shed_load_csv = {
 shed_load_list = ['shedState', 'portLoad', 'allowedLoad', 'percentShed']
 
 alarm_csv = {
-    'alarmType': u'alarmType,alarmType,AlarmRegister,,string,,,FALSE,eg. GFCI Trip\n',
-    'alarmTime': u'alarmTime,alarmTime,AlarmRegister,,datetime,,,FALSE,\n',
-    'clearAlarms': u'clearAlarms,clearAlarms,AlarmRegister,,int,,,TRUE,Sends the clearAlarms query when set to True\n',
+    'alarmType': u'alarmType{port},alarmType,AlarmRegister,{port},string,,,FALSE,eg. GFCI Trip\n',
+    'alarmTime': u'alarmTime{port},alarmTime,AlarmRegister,{port},datetime,,,FALSE,\n',
+    'clearAlarms': u'clearAlarms{port},clearAlarms,AlarmRegister,{port},int,,,TRUE,'
+                   u'Sends the clearAlarms query when set to True\n',
 }
 alarm_list = ['alarmType', 'alarmTime', 'clearAlarms']
 
@@ -108,44 +110,66 @@ if __name__ == '__main__':
 
         cp_station = raw_input('To generate a CSV, please input a Chargepoint Station ID: ')
         if service.getStations(stationID=cp_station).responseCode == "100":
-            with io.open('newFile.csv', 'w') as file:
-                file.write(u'Volttron Point Name,Attribute Name,Register Name,Port #,'
-                           u'Type,Units,Starting Value,Writable,Notes\n')
+            with io.open('newFile.csv', 'w') as f:
+                f.write(u'Volttron Point Name,Attribute Name,Register Name,Port #,'
+                        u'Type,Units,Starting Value,Writable,Notes\n')
 
                 station_response = service.getStations(stationID=cp_station)
                 station_rights_response = service.getStationRights(stationID=cp_station)
+                station_status_response = service.getStationStatus(cp_station)
                 shed_load_response = service.getLoad(stationID=cp_station)
-                alarm_response = service.getAlarms(stationID = cp_station)
+                alarm_response = service.getAlarms(stationID=cp_station)
+                charging_session_response = service.getChargingSessionData(stationID=cp_station)
 
                 for attr in station_list:
                     if getattr(station_response, attr)()[0] is not None:
-                        file.write(station_csv[attr])
+                        f.write(station_csv[attr])
 
                 for attr in alarm_list:
                     try:
                         if getattr(alarm_response, attr)()[0] is not None:
-                            file.write(alarm_csv[attr])
+                            f.write(alarm_csv[attr].format(port=''))
                         elif attr == 'clearAlarms':
-                            file.write(alarm_csv[attr])
+                            f.write(alarm_csv[attr].format(port=''))
                     except cps.CPAPIException as exception:
                         if alarm_response.responseCode == '153':
-                            file.write(alarm_csv[attr])
+                            f.write(alarm_csv[attr].format(port=''))
                         else:
                             continue
 
+                for attr in charging_session_list:
+                    if getattr(charging_session_response, attr)()[0] is not None:
+                        f.write(charging_session_csv[attr])
 
-                # for attr in station_rights_list:
-                #     if getattr(station_rights_response, attr)()[0] is not None:
-                #         file.write(station_rights_csv[attr])
+                # Station Rights are slightly different.
+                for attr in station_rights_list:
+                    if getattr(station_rights_response, 'rights')[0] is not None:
+                        f.write(station_rights_csv[attr])
 
-                for port in range(station_response.numPorts()[0]):
+                for port in range(1, station_response.numPorts()[0]+1):
                     for attr in station_port_list:
-                        if getattr(station_response, attr)(port+1)[0] is not None:
-                            file.write(station_port_csv[attr].format(port=port+1))
+                        if getattr(station_response, attr)(port)[0] is not None:
+                            f.write(station_port_csv[attr].format(port=port))
 
                     for attr in shed_load_list:
-                        if getattr(shed_load_response, attr)(port+1)[0] is not None:
-                            file.write(shed_load_csv[attr].format(port=port+1))
+                        if getattr(shed_load_response, attr)(port)[0] is not None:
+                            f.write(shed_load_csv[attr].format(port=port))
+
+                    for attr in station_status_list:
+                        if getattr(station_status_response, attr)(port)[0] is not None:
+                            f.write(station_status_csv[attr].format(port=port))
+
+                    for attr in alarm_list:
+                        try:
+                            if getattr(alarm_response, attr)(port)[0] is not None:
+                                f.write(alarm_csv[attr].format(port=port))
+                            elif attr == 'clearAlarms':
+                                f.write(alarm_csv[attr].format(port=port))
+                        except cps.CPAPIException as exception:
+                            if alarm_response.responseCode == '153':
+                                f.write(alarm_csv[attr].format(port=port))
+                            else:
+                                continue
 
         elif service.getStations(stationID=cp_station).responseCode == "102":
             print "No station {0} found.".format(cp_station)
