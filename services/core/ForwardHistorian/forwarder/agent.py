@@ -185,7 +185,7 @@ def historian(config_path, **kwargs):
                         self._topic_replace_map[k] = v
                     topic = self._topic_replace_map[topic]
 
-            if self._gather_timing_data:
+            if gather_timing_data:
                 add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
             payload = {'headers': headers, 'message': data}
@@ -252,7 +252,7 @@ def historian(config_path, **kwargs):
                 except KeyError:
                     pass
 
-                if self._gather_timing_data:
+                if gather_timing_data:
                     add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity,"forwarded")
 
                 if timeout_occurred:

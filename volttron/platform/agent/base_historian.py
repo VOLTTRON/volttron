@@ -239,7 +239,7 @@ import weakref
 from Queue import Queue, Empty
 from abc import abstractmethod
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from threading import Thread
 
 import pytz
@@ -275,6 +275,17 @@ def add_timing_data_to_header(headers, agent_id, phase):
         agent_timing_data = timing_data[agent_id]
 
     agent_timing_data[phase] = utils.format_timestamp(utils.get_aware_utc_now())
+
+    values = agent_timing_data.values()
+
+    if len(values) < 2:
+        return 0.0
+
+    #Assume 2 phases and proper format.
+    time1 = datetime.strptime(values[0][11:26], "%H:%M:%S.%f")
+    time2 = datetime.strptime(values[1][11:26], "%H:%M:%S.%f")
+
+    return abs((time1 - time2).total_seconds())
 
 
 class BaseHistorianAgent(Agent):

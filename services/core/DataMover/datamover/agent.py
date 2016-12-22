@@ -200,7 +200,7 @@ class DataMover(BaseHistorian):
                     self._topic_replace_map[k] = v
                 topic = self._topic_replace_map[topic]
 
-        if self._gather_timing_data:
+        if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
         payload = {'headers': headers, 'message': data}
@@ -233,7 +233,7 @@ class DataMover(BaseHistorian):
             headers = x['value']['headers']
             message = x['value']['message']
 
-            if self._gather_timing_data:
+            if self.gather_timing_data:
                 add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "forwarded")
 
             to_send.append({'topic': topic,
