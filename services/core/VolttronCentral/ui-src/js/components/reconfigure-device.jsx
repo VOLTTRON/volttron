@@ -51,6 +51,12 @@ class ReconfigureDevice extends BaseComponent {
         }
     }
     _onConfigChange(selection) {
+
+        if (selection.value === "registryConfig")
+        {
+            // TODO: get new registry points
+        }
+        
         this.setState({ configFile: selection.value });
     }
     _validateDataFile(data, callback) {

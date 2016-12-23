@@ -35721,7 +35721,6 @@
 	                    for (var i = 3; i < deviceParts.length; i++) {
 	                        if (parent.hasOwnProperty("devices")) {
 	                            deviceUuid = deviceUuid.concat("/" + deviceParts[i]);
-	                            depth = i;
 	
 	                            if (parent.devices.hasOwnProperty(deviceUuid)) {
 	                                parent = parent.devices[deviceUuid];
@@ -35729,7 +35728,7 @@
 	                        }
 	                    }
 	
-	                    if (deviceUuid === targetUuid && depth === deviceParts.length) {
+	                    if (parent.uuid === targetUuid) {
 	                        foundDevice = parent;
 	                    }
 	                }
@@ -36270,7 +36269,7 @@
 	
 	        if (foundDevice) {
 	            foundDevice.status = device.health.status.toUpperCase();
-	            foundDevice.statusLabel = getStatusLabel(deviceProps.status);
+	            foundDevice.statusLabel = getStatusLabel(foundDevice.status);
 	            foundDevice.context = device.health.context;
 	            checkForPoints(foundDevice, device);
 	        } else {
@@ -36390,6 +36389,16 @@
 	                item.points.children = [];
 	                item.points.type = "type";
 	                item.points.sortOrder = _pointsOrder;
+	            } else {
+	                // There already were points, but the list may have changed, so rebuild it
+	
+	                var pointsToDelete = JSON.parse(JSON.stringify(item.points.children));
+	
+	                pointsToDelete.forEach(function (pointName) {
+	                    delete item.points[pointName];
+	                });
+	
+	                item.points.children = [];
 	            }
 	
 	            data.points.forEach(function (pointName) {
@@ -75029,6 +75038,11 @@
 	    }, {
 	        key: '_onConfigChange',
 	        value: function _onConfigChange(selection) {
+	
+	            if (selection.value === "registryConfig") {
+	                // TODO: get new registry points
+	            }
+	
 	            this.setState({ configFile: selection.value });
 	        }
 	    }, {
@@ -116802,4 +116816,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-becf3b5b3c647a920f31.js.map
+//# sourceMappingURL=app-5ac0743e367c982a6d32.js.map

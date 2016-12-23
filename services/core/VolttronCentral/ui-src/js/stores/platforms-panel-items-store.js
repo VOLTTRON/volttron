@@ -176,7 +176,6 @@ platformsPanelItemsStore.findDevice = function (targetUuid, platformUuid)
                         if (parent.hasOwnProperty("devices"))
                         {
                             deviceUuid = deviceUuid.concat("/" + deviceParts[i]);
-                            depth = i;
 
                             if (parent.devices.hasOwnProperty(deviceUuid))
                             {                        
@@ -185,7 +184,7 @@ platformsPanelItemsStore.findDevice = function (targetUuid, platformUuid)
                         }
                     }
 
-                    if (deviceUuid === targetUuid && depth === deviceParts.length)
+                    if (parent.uuid === targetUuid)
                     {
                         foundDevice = parent;
                     }
@@ -797,7 +796,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         if (foundDevice)
         {
             foundDevice.status = device.health.status.toUpperCase();
-            foundDevice.statusLabel = getStatusLabel(deviceProps.status);
+            foundDevice.statusLabel = getStatusLabel(foundDevice.status);
             foundDevice.context = device.health.context;
             checkForPoints(foundDevice, device);
         }
@@ -928,6 +927,18 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 item.points.type = "type";
                 item.points.sortOrder = _pointsOrder;
             }
+            else
+            {
+                // There already were points, but the list may have changed, so rebuild it
+
+                var pointsToDelete = JSON.parse(JSON.stringify(item.points.children));
+
+                pointsToDelete.forEach(function (pointName) {
+                    delete item.points[pointName];
+                });
+
+                item.points.children = [];
+            }
 
             data.points.forEach(function (pointName) {
 
@@ -957,7 +968,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                 item.points.children.push(pointProps.uuid);
                 item.points[pointProps.uuid] = pointProps;
-
             });
         }
     }
