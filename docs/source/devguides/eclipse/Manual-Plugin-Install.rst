@@ -1,5 +1,5 @@
 .. _Manual-Plugin-Install:
-=================================
+
 Manual Python Plugin Installation
 =================================
 

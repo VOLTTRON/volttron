@@ -10,8 +10,8 @@ virtual environment should be used for subsequent bootstraps whenever
 there are significant changes. The system's Python need only be used on
 the initial bootstrap.
 
-Before bootstrapping, ensure the `required
-packages :ref:'VOLTTRON-Prerequisites` are installed. If you intend to
+Before bootstrapping, ensure the :ref:`required
+packages <VOLTTRON-Prerequisites>` are installed. If you intend to
 develop in Eclipse, we recommend creating the work directory: ~/git or
 ~/workspace. Then run the following commands in the work directory to
 work with the master branch of the repository:

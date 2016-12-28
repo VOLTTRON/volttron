@@ -1251,7 +1251,7 @@ def get_config(opts):
             _stdout.write(results)
         else:
             _stdout.write(json.dumps(results, indent=2))
-            _stdout.write("\n'")
+            _stdout.write("\n")
 
 
 class ControlConnection(object):
