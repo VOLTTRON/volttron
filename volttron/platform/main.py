@@ -549,7 +549,7 @@ def start_volttron_process(opts):
         # Ensure auth service is running before router
         auth_file = os.path.join(opts.volttron_home, 'auth.json')
         auth = AuthService(
-            auth_file, opts.aip, address=address, identity=AUTH,
+            auth_file, protected_topics_file, opts.aip, address=address, identity=AUTH,
             enable_store=False)
 
         event = gevent.event.Event()

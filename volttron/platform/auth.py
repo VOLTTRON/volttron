@@ -104,7 +104,7 @@ class AuthException(Exception):
 
 
 class AuthService(Agent):
-    def __init__(self, auth_file, aip, *args, **kwargs):
+    def __init__(self, auth_file, protected_topics_file, aip, *args, **kwargs):
         self.allow_any = kwargs.pop('allow_any', False)
         super(AuthService, self).__init__(*args, **kwargs)
 
@@ -119,6 +119,7 @@ class AuthService(Agent):
         self._zap_greenlet = None
         self.auth_entries = []
         self._is_connected = False
+        self._protected_topics_file_path = os.path.abspath(protected_topics_file)
 
     @Core.receiver('onsetup')
     def setup_zap(self, sender, **kwargs):
@@ -128,6 +129,7 @@ class AuthService(Agent):
             _log.warn('insecure permissive authentication enabled')
         self.read_auth_file()
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
+        self.core.spawn(watch_file, self._protected_topics_file_path, self._send_protected_update_to_pubsub)
 
     def read_auth_file(self):
         _log.info('loading auth file %s', self.auth_file_path)
@@ -146,9 +148,9 @@ class AuthService(Agent):
         _log.debug("AUTH new capabilities update: {}".format(user_to_caps))
         for peer in peers:
             self.vip.rpc.call(peer, 'auth.update', user_to_caps)
-        self._send_update_to_pubsub()
+        self._send_auth_update_to_pubsub()
 
-    def _send_update_to_pubsub(self):
+    def _send_auth_update_to_pubsub(self):
         user_to_caps = self.get_user_to_capabilities()
         #Send auth update message to router
         json_msg = jsonapi.dumps(
@@ -157,6 +159,12 @@ class AuthService(Agent):
         frames = [zmq.Frame(b'auth_update'), zmq.Frame(str(json_msg))]
         # <recipient, subsystem, args, msg_id, flags>
         self.core.socket.send_vip(b'', 'pubsub', frames, copy=False)
+
+    def _send_protected_update_to_pubsub(self):
+        frames = [zmq.Frame(b'protected_update')]
+        if self._is_connected:
+            # <recipient, subsystem, args, msg_id, flags>
+            self.core.socket.send_vip(b'', 'pubsub', frames, copy=False)
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):
@@ -177,7 +185,7 @@ class AuthService(Agent):
         blocked = {}
         wait_list = []
         timeout = None
-        self._send_update_to_pubsub()
+        self._send_auth_update_to_pubsub()
         while True:
             events = sock.poll(timeout)
             now = time()

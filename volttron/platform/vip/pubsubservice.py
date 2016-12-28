@@ -68,6 +68,7 @@ import os
 import sys
 import threading
 import uuid
+import re
 
 import gevent
 from gevent.fileobject import FileObject
@@ -79,7 +80,7 @@ from collections import defaultdict
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from zmq.utils import jsonapi
-from ..agent import utils
+from volttron.platform.agent.utils import watch_file, create_file_if_missing
 from .agent.subsystems.pubsub import ProtectedPubSubTopics
 from .. import jsonrpc
 
@@ -106,8 +107,8 @@ class PubSubService(object):
         self._user_capabilities = {}
         self._protected_topics = ProtectedPubSubTopics()
         self._read_protected_topics_file()
-        self._read_protected_greenlet = gevent.spawn(utils.watch_file, self._protected_topics_file,
-                                                     self._read_protected_topics_file)
+        # self._read_protected_greenlet = gevent.spawn(watch_file, self._protected_topics_file,
+        #                                              self._read_protected_topics_file)
 
     def _read_protected_topics_file(self):
         """ Reads the protected topics file and loads the topics and associated capabilities. AuthService shall provide
@@ -117,7 +118,7 @@ class PubSubService(object):
         self._logger.info('loading protected-topics file %s',
                           self._protected_topics_file)
         try:
-            utils.create_file_if_missing(self._protected_topics_file)
+            create_file_if_missing(self._protected_topics_file)
             with open(self._protected_topics_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 data = FileObject(fil, close=False).read()
@@ -320,8 +321,7 @@ class PubSubService(object):
             bus = msg['bus']
             subscribed = msg['subscribed']
             reverse = msg['reverse']
-            self._logger.debug("PUBSUBSERVICE LIST: peer {0}, prefix {1}, subscribed {2}, reverse {3}"
-                               .format(peer, prefix, subscribed, reverse))
+
             if bus is None:
                 buses = self._peer_subscriptions.iteritems()
             else:
@@ -369,7 +369,6 @@ class PubSubService(object):
         errmsg = self._check_if_protected_topic(user_id, topic)
         #Send error message as peer is not authorized to publish to the topic
         if errmsg is not None:
-            #self._logger.debug("PUBSUBSERVICE Protected topic error message: {}".format(errmsg))
             publisher, receiver, proto, user_id, msg_id, subsystem = frames[0:6]
             try:
                 frames = [publisher, b'', proto, user_id, msg_id,
@@ -452,7 +451,6 @@ class PubSubService(object):
         """
         if len(frames) > 7:
             data = frames[7].bytes
-            #self._logger.debug("PUBSUBSERVICE: user capabilities from auth: {}".format(data))
             try:
                 json0 = data.find('{')
                 msg = jsonapi.loads(data[json0:])
@@ -500,6 +498,8 @@ class PubSubService(object):
                 self._peer_sync(frames)
             elif op == b'auth_update':
                 self._update_caps_users(frames)
+            elif op == b'protected_update':
+                self._read_protected_topics_file()
             else:
                 self._logger.error("Unknown pubsub request {}".format(bytes(op)))
                 pass
@@ -568,7 +568,7 @@ class ProtectedPubSubTopics(object):
         return None
 
     def _isprefix(self, topic):
-        for prefix in self._dict.keys():
+        for prefix in self._dict:
             if topic[:len(prefix)] == prefix:
                 return prefix
         return None
