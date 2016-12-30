@@ -63,20 +63,19 @@ from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 
 _log = logging.getLogger(__name__)
 
-## Ignored operations
-# get_network_info - seems less useful than get_network_status
-# get_message
-# confirm_message
-# reboot
-
 ## Accessible operations
 # get_network_status
 # get_instantaneous_demand
 # get_price
-# get_current_summation - returns two things
+# get_current_summation - implemented as two registers
+# get_demand_peaks - implemeted as two registers
 
 ## Not implemented
-# get_history_data - requires time arguments
+# get_network_info
+# get_message
+# confirm_message
+# get_history_data
+# reboot
 # set_schedule - multiple params
 # get_schedule - optional event enum argument
 
@@ -84,12 +83,10 @@ auth = None
 macid = None
 address = None
 
-
 class NetworkStatus(BaseRegister):
     def __init__(self):
         super(NetworkStatus, self).__init__('byte', True, 'NetworkStatus', 'string')
 
-    @property
     def value(self):
         command = '<Command>\
                      <Name>get_network_status</Name>\
@@ -108,7 +105,6 @@ class InstantaneousDemand(BaseRegister):
     def __init__(self):
         super(InstantaneousDemand, self).__init__('byte', True, 'InstantaneousDemand', 'float')
 
-    @property
     def value(self):
         command = '<Command>\
                      <Name>get_instantaneous_demand</Name>\
@@ -157,7 +153,6 @@ class SummationDelivered(BaseRegister):
     def __init__(self):
         super(SummationDelivered, self).__init__('byte', True, 'SummationDelivered', 'float')
 
-    @property
     def value(self):
         return get_summation(self.__class__.__name__)
 
@@ -166,7 +161,6 @@ class SummationReceived(BaseRegister):
     def __init__(self):
         super(SummationReceived, self).__init__('byte', True, 'SummationReceived', 'float')
 
-    @property
     def value(self):
         return get_summation(self.__class__.__name__)
 
@@ -175,7 +169,6 @@ class PriceCluster(BaseRegister):
     def __init__(self):
         super(PriceCluster, self).__init__('byte', True, 'PriceCluster', 'float')
 
-    @property
     def value(self):
         command = '<Command>\
                      <Name>get_price</Name>\
@@ -189,6 +182,33 @@ class PriceCluster(BaseRegister):
         trailing_digits = int(result['TrailingDigits'], 16)
 
         return price / (10 ** trailing_digits)
+
+
+def get_demand_peaks(key):
+    command = '<Command>\
+                 <Name>get_demand_peaks</Name>\
+                 <Format>JSON</Format>\
+               </Command>'
+    result = requests.post(address, auth=auth, data=command)
+
+    result = result.json()['DemandPeaks']
+    return float(result[key])
+
+
+class PeakDelivered(BaseRegister):
+    def __init__(self):
+        super(PeakDelivered, self).__init__('byte', True, 'PeakDelivered', 'float')
+
+    def value(self):
+        return get_demand_peaks(self.__class__.__name__)
+
+
+class PeakReceived(BaseRegister):
+    def __init__(self):
+        super(PeakReceived, self).__init__('byte', True, 'PeakReceived', 'float')
+
+    def value(self):
+        return get_demand_peaks(self.__class__.__name__)
 
 
 class Interface(BasicRevert, BaseInterface):
@@ -210,11 +230,13 @@ class Interface(BasicRevert, BaseInterface):
         self.insert_register(PriceCluster())
         self.insert_register(SummationDelivered())
         self.insert_register(SummationReceived())
+        self.insert_register(PeakDelivered())
+        self.insert_register(PeakReceived())
 
     def get_point(self, point_name):
         register = self.get_register_by_name(point_name)
 
-        return register.value
+        return register.value()
 
     def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
@@ -228,13 +250,13 @@ class Interface(BasicRevert, BaseInterface):
     def _scrape_all(self):
         # Skip the scrape if there are anomalous network conditions
         ns_register = self.get_register_by_name('NetworkStatus')
-        network_status = ns_register.value
+        network_status = ns_register.value()
         if network_status != 'Connected':
             return {ns_register.point_name: network_status}
 
         result = {}
         registers = self.get_registers_by_type('byte', True)
         for r in registers:
-            result[r.point_name] = r.value
+            result[r.point_name] = r.value()
 
         return result
