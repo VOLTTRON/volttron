@@ -73,9 +73,9 @@ _log = logging.getLogger(__name__)
 # get_network_status
 # get_instantaneous_demand
 # get_price
+# get_current_summation - returns two things
 
 ## Not implemented
-# get_current_summation - returns two things
 # get_history_data - requires time arguments
 # set_schedule - multiple params
 # get_schedule - optional event enum argument
@@ -84,11 +84,10 @@ auth = None
 macid = None
 address = None
 
-REGISTER_TYPE = 'byte'
 
 class NetworkStatus(BaseRegister):
     def __init__(self):
-        super(NetworkStatus, self).__init__(REGISTER_TYPE, True, 'NetworkStatus', 'string')
+        super(NetworkStatus, self).__init__('byte', True, 'NetworkStatus', 'string')
 
     @property
     def value(self):
@@ -107,7 +106,7 @@ class NetworkStatus(BaseRegister):
 
 class InstantaneousDemand(BaseRegister):
     def __init__(self):
-        super(InstantaneousDemand, self).__init__(REGISTER_TYPE, True, 'InstantaneousDemand', 'string')
+        super(InstantaneousDemand, self).__init__('byte', True, 'InstantaneousDemand', 'float')
 
     @property
     def value(self):
@@ -132,9 +131,49 @@ class InstantaneousDemand(BaseRegister):
         return demand * (multiplier / divisor)
 
 
+def get_summation(key):
+    command = '<Command>\
+                 <Name>get_current_summation</Name>\
+                 <MacId>{}</MacId>\
+                 <Format>JSON</Format>\
+               </Command>'.format(macid)
+    result = requests.post(address, auth=auth, data=command)
+
+    result = result.json()['CurrentSummation']
+    summation = float(int(result[key], 16))
+
+    multiplier = float(int(result['Multiplier'], 16))
+    if multiplier == 0:
+        multiplier = 1
+
+    divisor = float(int(result['Divisor'], 16))
+    if divisor == 0:
+        divisor = 1
+
+    return summation * (multiplier / divisor)
+
+
+class SummationDelivered(BaseRegister):
+    def __init__(self):
+        super(SummationDelivered, self).__init__('byte', True, 'SummationDelivered', 'float')
+
+    @property
+    def value(self):
+        return get_summation(self.__class__.__name__)
+
+
+class SummationReceived(BaseRegister):
+    def __init__(self):
+        super(SummationReceived, self).__init__('byte', True, 'SummationReceived', 'float')
+
+    @property
+    def value(self):
+        return get_summation(self.__class__.__name__)
+
+
 class PriceCluster(BaseRegister):
     def __init__(self):
-        super(PriceCluster, self).__init__(REGISTER_TYPE, True, 'PriceCluster', 'string')
+        super(PriceCluster, self).__init__('byte', True, 'PriceCluster', 'float')
 
     @property
     def value(self):
@@ -169,6 +208,8 @@ class Interface(BasicRevert, BaseInterface):
         self.insert_register(NetworkStatus())
         self.insert_register(InstantaneousDemand())
         self.insert_register(PriceCluster())
+        self.insert_register(SummationDelivered())
+        self.insert_register(SummationReceived())
 
     def get_point(self, point_name):
         register = self.get_register_by_name(point_name)
@@ -192,7 +233,7 @@ class Interface(BasicRevert, BaseInterface):
             return {ns_register.point_name: network_status}
 
         result = {}
-        registers = self.get_registers_by_type(REGISTER_TYPE, True)
+        registers = self.get_registers_by_type('byte', True)
         for r in registers:
             result[r.point_name] = r.value
 
