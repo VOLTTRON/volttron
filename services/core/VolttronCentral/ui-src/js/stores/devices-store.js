@@ -19,6 +19,7 @@ var _devicesList = {}; // a simple object of known devices
 var _settingsTemplate = {};
 var _savedRegistryFiles = {};
 var _newScan = false;
+var _clearConfig = false;
 var _reconfiguringDevice = false;
 var _reconfiguration = {};
 var _scanningComplete = true;
@@ -1074,9 +1075,9 @@ devicesStore.getDeviceRef = function (deviceId, deviceAddress, deviceName) {
     return (typeof device === "undefined" ? null : device);
 }
 
-devicesStore.getDevice = function (deviceId, deviceAddress) {
+devicesStore.getDevice = function (deviceId, deviceAddress, deviceName) {
 
-    return JSON.parse(JSON.stringify(devicesStore.getDeviceRef(deviceId, deviceAddress)));
+    return JSON.parse(JSON.stringify(devicesStore.getDeviceRef(deviceId, deviceAddress, deviceName)));
 }
 
 devicesStore.getNewScan = function () {
@@ -1138,7 +1139,13 @@ devicesStore.reconfiguringDevice = function () {
 }
 
 devicesStore.getReconfiguration = function () {
+    console.log("getting reconfiguration");
+    console.log(_reconfiguration);
     return _reconfiguration;
+}
+
+devicesStore.getClearConfig = function () {
+    return _clearConfig;
 }
 
 devicesStore.dispatchToken = dispatcher.register(function (action) {
@@ -1146,6 +1153,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
     _newScan = false;
     _reconfiguringDevice = false;
+    _clearConfig = false;
 
     switch (action.type) {
         
@@ -1154,6 +1162,12 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _devices = [];
             _newScan = true;
             _scanningComplete = false;
+            devicesStore.emitChange();
+            break;
+        case ACTION_TYPES.CLEAR_CONFIG:
+            _clearConfig = true;
+            _reconfiguration = {};
+            _devices = [];
             devicesStore.emitChange();
             break;
         case ACTION_TYPES.ADD_DEVICES:
@@ -1342,7 +1356,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
              
             devicesStore.emitChange();
             break;
-        case ACTION_TYPES.UPDATE_REGISTRY:
+        case ACTION_TYPES.UPDATE_REGISTRY_ROW:
             _action = "update_registry";
             _view = "Registry Configuration";
             
@@ -1357,22 +1371,39 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
             devicesStore.emitChange();
             break;
+        case ACTION_TYPES.UPDATE_REGISTRY_VALUES:
+            
+            // var device = {
+            //     id: action.deviceId,
+            //     address: action.deviceAddress,
+            //     name: action.deviceName,
+            //     platformUuid: action.platformUuid,
+            //     agentDriver: action.agentDriver
+            // }
+            
+            // reconfigureRegistry(device, _reconfiguration, action.data);
+
+            // devicesStore.emitChange();
+            break;
         case ACTION_TYPES.RECONFIGURE_DEVICE:
             
             _reconfiguration = action.configuration;
             _reconfiguration.deviceName = action.deviceName.replace("devices/", "");
 
+            console.log("reconfigure device " + _reconfiguration.deviceName);
             _platform = {
                 "uuid": action.platformUuid
             };
 
-            reconfigureRegistry(
-                action.platformUuid, 
-                action.agentDriver, 
-                _reconfiguration.deviceName, 
-                _reconfiguration, 
-                action.data
-            );
+            var device = {
+                id: _reconfiguration.driver_config.device_id,
+                address: _reconfiguration.driver_config.device_address,
+                name: _reconfiguration.deviceName,
+                platformUuid: action.platformUuid,
+                agentDriver: action.agentDriver
+            }
+
+            reconfigureRegistry(device, _reconfiguration, action.data);
 
             _reconfiguringDevice = true;
 
@@ -1637,17 +1668,14 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         });
     }
 
-    function reconfigureRegistry(platformUuid, agentDriver, deviceName, configuration, data) {
-
-        var deviceId = configuration.driver_config.device_id;
-        var deviceAddress = configuration.driver_config.device_address;
+    function reconfigureRegistry(device, configuration, data) {
 
         var preppedDevice = {
-            id: deviceId,
-            address: deviceAddress,
-            name: deviceName,
-            platformUuid: platformUuid,
-            agentDriver: agentDriver,
+            id: device.id,
+            address: device.address,
+            name: device.name,
+            platformUuid: device.platformUuid,
+            agentDriver: device.agentDriver,
             registryFile: configuration.registryFile,
             showPoints: true,
             configuring: false,
@@ -1659,7 +1687,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         var index = -1;
 
         var deviceInList = _devices.find(function (dvc, i) {
-            var match = ((dvc.id === deviceId) && (dvc.address === deviceAddress) && (dvc.name === deviceName));
+            var match = ((dvc.id === device.deviceId) && (dvc.address === device.deviceAddress) && (dvc.name === deviceName));
 
             if (match)
             {

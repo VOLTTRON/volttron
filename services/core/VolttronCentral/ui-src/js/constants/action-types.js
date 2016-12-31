@@ -56,6 +56,7 @@ module.exports = keyMirror({
     FILTER_ITEMS: null,
 
     CONFIGURE_DEVICES: null,
+    CLEAR_CONFIG: null,
     FOCUS_ON_DEVICE: null,
     ADD_DEVICES: null,
     LISTEN_FOR_IAMS: null,
@@ -70,7 +71,8 @@ module.exports = keyMirror({
     EDIT_REGISTRY_CONFIG: null,
     EDIT_DEVICE_CONFIG: null,
     RECONFIGURE_DEVICE: null,
-    UPDATE_REGISTRY: null,
+    UPDATE_REGISTRY_ROW: null,
+    UPDATE_REGISTRY_VALUES: null,
     LOAD_REGISTRY: null,
     LOAD_REGISTRY_FILES: null,
     UNLOAD_REGISTRY_FILES: null,

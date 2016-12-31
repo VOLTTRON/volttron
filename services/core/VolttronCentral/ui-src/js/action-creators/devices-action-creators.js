@@ -461,21 +461,35 @@ var devicesActionCreators = {
             file: fileName
         });
     },
-    updateRegistry: function (deviceId, deviceAddress, attributes) {
+    updateRegistryRow: function (deviceId, deviceAddress, attributes) {
         dispatcher.dispatch({
-            type: ACTION_TYPES.UPDATE_REGISTRY,
+            type: ACTION_TYPES.UPDATE_REGISTRY_ROW,
             deviceId: deviceId,
             deviceAddress: deviceAddress,
             attributes: attributes
+        });
+    },
+    updateRegistryValues: function (deviceId, deviceAddress, deviceName, platformUuid, agentIdentity, values) {
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.UPDATE_REGISTRY_VALUES,
+            deviceId: deviceId,
+            deviceAddress: deviceAddress,
+            deviceName: deviceName,
+            platformUuid: platformUuid, 
+            agentIdentity: agentIdentity,
+            data: values
         });
     },
     saveRegistry: function (device, fileName, update, values) {
 
         var authorization = authorizationStore.getAuthorization();
 
+        var agentIdentity = "platform.driver";
+
         var params = {
             platform_uuid: device.platformUuid, 
-            agent_identity: "platform.driver", 
+            agent_identity: agentIdentity, 
             config_name: fileName,
             config_type: "csv",
             raw_contents: values
@@ -495,7 +509,22 @@ var devicesActionCreators = {
                 
                 statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
 
-                if (!update)
+                if (update)
+                {
+                    var csvData = CsvParse.parseCsvFile(values);
+
+                    devicesActionCreators.updateRegistryValues(
+                        device.id, 
+                        device.address,
+                        device.name,
+                        device.platformUuid,
+                        agentIdentity,
+                        csvData.data
+                    );
+
+                    devicesActionCreators.clearConfig();
+                }
+                else
                 {
                     devicesActionCreators.updateDevicesList(device.platformUuid);
                 }
@@ -509,7 +538,7 @@ var devicesActionCreators = {
             });
         
     },
-    saveConfig: function (device, update, config_name, settings) {
+    saveConfig: function (device, update, announce, config_name, settings) {
 
         var authorization = authorizationStore.getAuthorization();
 
@@ -542,12 +571,20 @@ var devicesActionCreators = {
                     settings: settings
                 });
 
-                var action = (update ? "updated" : "created");
-                var highlight = config_name.replace("devices/", "");
-                var message = "The device configuration was successfully " + action + " for " + highlight + ".";
-                var orientation = "center";
-                
-                statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
+                if (update) 
+                {
+                    devicesActionCreators.clearConfig();
+                }
+
+                if (announce)
+                {
+                    var action = (update ? "updated" : "created");
+                    var highlight = config_name.replace("devices/", "");
+                    var message = "The device configuration was successfully " + action + " for " + highlight + ".";
+                    var orientation = "center";
+                    
+                    statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
+                }
 
             })
             .catch(rpc.Error, function (error) {
@@ -567,7 +604,6 @@ var devicesActionCreators = {
         }).promise
             .then(function (result) {
                 
-                
                 dispatcher.dispatch({
                     type: ACTION_TYPES.UPDATE_DEVICES_LIST,
                     platformUuid: platformUuid,
@@ -579,6 +615,11 @@ var devicesActionCreators = {
                 handle401(error, "Unable to update devices list.");
             });    
     },
+    clearConfig: function() {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLEAR_CONFIG
+        });
+    }
 };
 
 function checkDevice(device, platformUuid) 
