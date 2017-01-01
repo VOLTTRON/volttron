@@ -391,7 +391,7 @@ class PlatformHandler(object):
             devices_health[device_no_prefix] = dict(
                 last_publish_utc=None,
                 health=status.as_dict(),
-                points=devices_health.get("points", [])
+                points=devices_health.get("points", points)
             )
             platform_store['devices_health'] = devices_health
             self._vc.vip.config.set(self.config_store_name, platform_store)
@@ -471,9 +471,6 @@ class PlatformHandler(object):
 
     def add_event_listener(self, callback):
         self._event_listeners.add(callback)
-
-    def handle_sending_bacnet_properties(self):
-        pass
 
     def route_to_agent_method(self, id, agent_method, params):
         try:
