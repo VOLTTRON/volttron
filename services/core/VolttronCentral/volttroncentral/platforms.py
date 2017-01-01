@@ -77,8 +77,7 @@ from zmq.utils import jsonapi
 
 class Platforms(object):
     """
-    A class to manage the connections and interactions
-    with external instances.
+    A class to manage the connections and interactions with external instances.
     """
 
     def __init__(self, vc):
@@ -343,10 +342,18 @@ class PlatformHandler(object):
             # Since we start with devices, we assume that we are attempting
             # to save a master driver config file.
             rawdict = jsonapi.loads(params['raw_contents'])
+
+            # if this is not a bacnet device_type then we cannot do anything
+            # more than save and retrieve it from the store.
+            driver_type = rawdict.get('driver_type', None)
+            if driver_type is None or driver_type not in ('bacnet', 'modbus'):
+                return jsonrpc.json_result(message_id, "SUCCESS")
+
             # Registry config starts with config://
-            registry_config = rawdict['registry_config'][8:]
+            registry_config = rawdict['registry_config'][len('config://'):]
+
             try:
-                self._log.debug("Retriving registry_config for new device.")
+                self._log.debug("Retrieving registry_config for new device.")
                 point_config = self._connection.call("get_agent_config",
                                                      agent_identity,
                                                      registry_config, raw=False)
