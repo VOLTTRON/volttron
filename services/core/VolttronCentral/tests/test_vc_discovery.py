@@ -69,23 +69,24 @@ def both_with_vc_vcp(request):
 
     p.shutdown_platform()
 
-#
-# @pytest.mark.vc
-# @pytest.mark.timeout(300)
-# def test_autoregister_external(vc_vcp_platforms):
-#     gevent.sleep(15)
-#     vc, vcp = vc_vcp_platforms
-#
-#     api = APITester(vc.jsonrpc_endpoint)
-#
-#     platforms = api.get_result(api.list_platforms)
-#     assert len(platforms) == 1
-#     p = platforms[0]
-#     assert p['uuid']
-#     assert p['name'] == vcp.vip_address
-#     assert vcp.vip_address != vc.vip_address
-#     assert isinstance(p['health'], dict)
-#     assert STATUS_GOOD == p['health']['status']
+
+@pytest.mark.vc
+@pytest.mark.timeout(300)
+@pytest.mark.skipif(condition=True, reason="need to fix")
+def test_autoregister_external(vc_vcp_platforms):
+    gevent.sleep(15)
+    vc, vcp = vc_vcp_platforms
+
+    api = APITester(vc.jsonrpc_endpoint)
+
+    platforms = api.get_result(api.list_platforms)
+    assert len(platforms) == 1
+    p = platforms[0]
+    assert p['uuid']
+    assert p['name'] == vcp.vip_address
+    assert vcp.vip_address != vc.vip_address
+    assert isinstance(p['health'], dict)
+    assert STATUS_GOOD == p['health']['status']
 
 
 @pytest.mark.vc
