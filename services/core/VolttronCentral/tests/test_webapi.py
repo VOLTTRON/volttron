@@ -224,7 +224,7 @@ def test_installagent(vc_vcp_platforms):
     agents = api.get_result(api.list_agents, platform['uuid'])
     assert agents
 
-    agent = api.get_result(api.install_agent, platform['uuid'], file)
+    agent = api.get_result(api.install_agent, platform['uuid'], fileargs=file)
 
     assert agent
     assert agent.get('uuid')

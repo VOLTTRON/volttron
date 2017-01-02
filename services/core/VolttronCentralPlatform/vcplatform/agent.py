@@ -939,7 +939,6 @@ class VolttronCentralPlatform(Agent):
         elif method in ('agent_status', 'start_agent', 'stop_agent',
                         'remove_agent', 'restart_agent'):
             _log.debug('We are trying to exectute method {}'.format(method))
-            _log.debug('Params are: {}'.format(params))
             if isinstance(params, list) and len(params) != 1 or \
                             isinstance(params,
                                        dict) and 'uuid' not in params.keys():
@@ -966,7 +965,7 @@ class VolttronCentralPlatform(Agent):
             if 'files' not in params:
                 result = jsonrpc.json_error(
                     ident=id, code=INVALID_PARAMS,
-                    message="Invalid parameter missing 'file'")
+                    message="Invalid parameter missing 'files'")
             else:
                 # TODD: This should be only a single file at a time for installs
                 fileargs = params.get('files')[0]
