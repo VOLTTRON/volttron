@@ -45,9 +45,6 @@ def test_can_get_publickey(volttron_instance):
 
     @param volttron_instance:
     """
-    if not volttron_instance.encrypt:
-        pytest.skip("Keys aren't used in developer-mode")
-
     listener_identity = "listener_test"
     volttron_instance.is_running()
 

@@ -56,9 +56,7 @@ def test_can_get_peers(setup_control_connection):
 @pytest.mark.control
 def test_can_get_serverkey(setup_control_connection):
     wrapper, connection = setup_control_connection
-
     assert wrapper.serverkey == control_connection.serverkey
-
 
 
 @pytest.mark.control
