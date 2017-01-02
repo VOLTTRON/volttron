@@ -1,3 +1,6 @@
+.. _sample-applications:
+
+================================
 Acquiring Third Party Agent Code
 ================================
 
@@ -64,17 +67,14 @@ In a terminal window, enter the following commands:
 
 ::
 
-	$ . scripts/core/pack_install.sh applications/PassiveAFDD 
-	applications/PassiveAFDD/passiveafdd.launch.json passive-afdd
+	$ . scripts/core/pack_install.sh applications/PassiveAFDD applications/PassiveAFDD/passiveafdd.launch.json passive-afdd
 
 
 Upon successful completion of this command, the terminal output will show the install directory, the agent UUID (unique identifier for an agent; the UUID shown in red is  only an example and each instance of an agent will have a different UUID), and the agent name (blue text):
 
 ::
 
-	Installed 
-	/home/volttron-user/.volttron/packaged/passiveafdd-0.1-py2-none-any.whl as 
-	5df00517-6a4e-4283-8c70-5f0759713c64 passiveafdd-0.1
+	Installed /home/volttron-user/.volttron/packaged/passiveafdd-0.1-py2-none-any.whl as 5df00517-6a4e-4283-8c70-5f0759713c64 passiveafdd-0.1
 
 
 2. Start the agent:

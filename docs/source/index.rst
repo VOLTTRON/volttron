@@ -4,14 +4,13 @@
    contain the root `toctree` directive.
 
 ====================================================
-Welcome to VOLTTRON\ :sup:`TM`\ 's documentation!
+Welcome to VOLTTRON\ :sup:`TM`\  documentation!
 ====================================================
 
 |VOLTTRON Tagline|
 
-VOLTTRON\ :sup:`TM` is an open source platform for distributed sensing and control. The platform provides services
-for collecting and storing data from buildings and devices and provides an environment for developing applications
-which interact with that data.
+VOLTTRON\ :sup:`TM` is an open-source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications
+that interact with that data.
 
 Features
 --------
@@ -36,9 +35,8 @@ technologies, the following resources are recommended:
 Installation
 ------------
 
-:ref:`Install VOLTTRON <install>` by running the following commands which installs needed
-:ref:`prerequisites <VOLTTRON-Prerequisites>`, clones the source code, then builds the virtual environment for using
-the platform.
+:ref:`Install VOLTTRON <install>` by running the following commands that installs needed
+:ref:`prerequisites <VOLTTRON-Prerequisites>`, clones the source code, then builds the virtual environment for using the platform.
 
 .. code-block:: bash
 
@@ -55,8 +53,7 @@ This will build the platform and create a virtual Python environment. Activate t
     . env/bin/activate
     volttron -vv -l volttron.log&
 
-This enters the virtual Python environment and then starts the platform in debug (vv) mode with a log file named
-volttron.log.
+This enters the virtual Python environment and then starts the platform in debug (vv) mode with a log file named volttron.log.
 
 Next, start an example listener to see it publish and subscribe to the message bus:
 
@@ -65,8 +62,7 @@ Next, start an example listener to see it publish and subscribe to the message b
     scripts/core/make-listener
 
 
-This script handles several different commands for installing and starting an agent after removing an old copy. This
-simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log
+This script handles several different commands for installing and starting an agent after removing an old copy. This simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log
 to see the activity:
 
 .. code-block:: bash
@@ -103,6 +99,7 @@ Acquiring Third Party Agent Code
 
 Third party agents are available under volttron-applications repository. In order to use those agents, add
 volttron-applications repository under the volttron/applications directory by using following command:
+
 
     git subtree add --prefix applications https://github.com/VOLTTRON/volttron-applications.git develop --squash
 
@@ -143,20 +140,14 @@ Contents:
    :maxdepth: 2
 
    overview/index
-   Install Instructions <install>
    community_resources/index
-
-   core_services/index
+   Installing VOLTTRON <install>
+   setup/index
    devguides/index
-   sample_applications/index
-   supporting/index
-   scalability/index
+   core_services/index
    specifications/index
-   roadmap/index
+   API Documentation <apidocs>
 
-   API Documenation <apidocs>
-
-   License <license>
 
 Indices and tables
 ==================

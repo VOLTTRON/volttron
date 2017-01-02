@@ -92,12 +92,9 @@ def publish_agent(request, volttron_instance1):
     :return: an instance of fake agent used for publishing
     """
 
-    developer_mode = volttron_instance1.opts.get('developer_mode', False)
 
     # Reset master driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
-    if developer_mode:
-        cmd.append('--developer-mode')
     process = Popen(cmd, env=volttron_instance1.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -108,8 +105,6 @@ def publish_agent(request, volttron_instance1):
     # Add master driver configuration files to config store.
     cmd = ['volttron-ctl', 'config', 'store',PLATFORM_DRIVER,
            'fake.csv', 'fake_unit_testing.csv', '--csv']
-    if developer_mode:
-        cmd.append('--developer-mode')
     process = Popen(cmd, env=volttron_instance1.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -121,8 +116,6 @@ def publish_agent(request, volttron_instance1):
         config_name = "devices/fakedriver{}".format(i)
         cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
                config_name, 'fake_unit_testing.config', '--json']
-        if developer_mode:
-            cmd.append('--developer-mode')
         process = Popen(cmd, env=volttron_instance1.env,
                         cwd='scripts/scalability-testing',
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -579,37 +572,19 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
     # msg for task_low_priority
     gevent.sleep(6)
     print ('call args list:', publish_agent.callback.call_args_list)
-    assert publish_agent.callback.call_count == 2
+    assert publish_agent.callback.call_count == 1
 
     # Grab the args of callback and verify
     call_args1 = publish_agent.callback.call_args_list[0][0]
-    call_args2 = publish_agent.callback.call_args_list[1][0]
 
     assert call_args1[1] == PLATFORM_ACTUATOR
     assert call_args1[3] == topics.ACTUATOR_SCHEDULE_RESULT
 
-    # initialize 0 to schedule response and 1 to cancel response
-    schedule_header = call_args1[4]
-    schedule_message = call_args1[5]
-    cancel_header = call_args2[4]
-    cancel_message = call_args2[5]
+    cancel_header = call_args1[4]
+    cancel_message = call_args1[5]
 
-    # check if order is reversed: 0 is cancelresponse and 1 is new schedule
-    if call_args1[4]['type'] == 'CANCEL_SCHEDULE':
-        assert call_args2[4]['type'] == 'NEW_SCHEDULE'
-        cancel_header = call_args1[4]
-        cancel_message = call_args1[5]
-        schedule_header = call_args2[4]
-        schedule_message = call_args2[5]
-    else:
-        assert call_args1[4]['type'] == 'NEW_SCHEDULE'
-        assert call_args2[4]['type'] == 'CANCEL_SCHEDULE'
-        # values remain as initialized above if/else
 
-    assert schedule_header['type'] == 'NEW_SCHEDULE'
-    assert schedule_header['taskID'] == taskid
-    # assert schedule_header['requesterID'] == TEST_AGENT
-    assert schedule_message['result'] == SUCCESS
+    assert call_args1[4]['type'] == 'CANCEL_SCHEDULE'
 
     assert cancel_header['taskID'] == 'task_low_priority'
     assert cancel_message['data']['agentID'] == TEST_AGENT
@@ -677,39 +652,18 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedules):
     # msg for task_low_priority
     gevent.sleep(6)
     print ('call args list:', publish_agent.callback.call_args_list)
-    assert publish_agent.callback.call_count == 2
+    assert publish_agent.callback.call_count == 1
 
     # Grab the args of callback and verify
     call_args1 = publish_agent.callback.call_args_list[0][0]
-    call_args2 = publish_agent.callback.call_args_list[1][0]
 
     assert call_args1[1] == PLATFORM_ACTUATOR
     assert call_args1[3] == topics.ACTUATOR_SCHEDULE_RESULT
 
-    # initialize 0 to schedule response and 1 to cancel response
-    schedule_header = call_args1[4]
-    schedule_message = call_args1[5]
-    print ("call args of 1 ", publish_agent.callback.call_args_list[1])
-    cancel_header = call_args2[4]
-    cancel_message = call_args2[5]
+    cancel_header = call_args1[4]
+    cancel_message = call_args1[5]
 
-    # check if order is reversed: 0 is cancelresponse and 1 is new schedule
-    if call_args1[4]['type'] == 'CANCEL_SCHEDULE':
-        assert call_args2[4]['type'] == 'NEW_SCHEDULE'
-        cancel_header = call_args1[4]
-        cancel_message = call_args1[5]
-        schedule_header = call_args2[4]
-        schedule_message = call_args2[5]
-    else:
-        assert call_args1[4]['type'] == 'NEW_SCHEDULE'
-        assert call_args2[4]['type'] == 'CANCEL_SCHEDULE'
-        # values remain as initialized above if/else
-
-    assert schedule_header['type'] == 'NEW_SCHEDULE'
-    assert schedule_header['taskID'] == taskid
-    # assert schedule_header['requesterID'] == agentid
-    assert schedule_message['result'] == SUCCESS
-
+    assert call_args1[4]['type'] == 'CANCEL_SCHEDULE'
     assert cancel_header['taskID'] == 'task_low_priority2'
     # assert cancel_message['data']['agentID'] == agentid
     assert cancel_message['data']['taskID'] == taskid
@@ -957,38 +911,18 @@ def test_schedule_premept_future_task(publish_agent, cancel_schedules):
     # msg for task_low_priority
     gevent.sleep(6)
     print ('call args list:', publish_agent.callback.call_args_list)
-    assert publish_agent.callback.call_count == 2
+    assert publish_agent.callback.call_count == 1
 
     # Grab the args of callback and verify
     call_args1 = publish_agent.callback.call_args_list[0][0]
-    call_args2 = publish_agent.callback.call_args_list[1][0]
 
     assert call_args1[1] == PLATFORM_ACTUATOR
     assert call_args1[3] == topics.ACTUATOR_SCHEDULE_RESULT
 
-    # initialize 0 to schedule response and 1 to cancel response
-    schedule_header = call_args1[4]
-    schedule_message = call_args1[5]
-    print ("call args of 1 ", publish_agent.callback.call_args_list[1])
-    cancel_header = call_args2[4]
-    cancel_message = call_args2[5]
+    cancel_header = call_args1[4]
+    cancel_message = call_args1[5]
 
-    # check if order is reversed: 0 is cancelresponse and 1 is new schedule
-    if call_args1[4]['type'] == 'CANCEL_SCHEDULE':
-        assert call_args2[4]['type'] == 'NEW_SCHEDULE'
-        cancel_header = call_args1[4]
-        cancel_message = call_args1[5]
-        schedule_header = call_args2[4]
-        schedule_message = call_args2[5]
-    else:
-        assert call_args1[4]['type'] == 'NEW_SCHEDULE'
-        assert call_args2[4]['type'] == 'CANCEL_SCHEDULE'
-        # values remain as initialized above if/else
-
-    assert schedule_header['type'] == 'NEW_SCHEDULE'
-    assert schedule_header['taskID'] == taskid
-    # assert schedule_header['requesterID'] == TEST_AGENT
-    assert schedule_message['result'] == SUCCESS
+    assert call_args1[4]['type'] == 'CANCEL_SCHEDULE'
 
     assert cancel_header['taskID'] == 'task_low_priority4'
     assert cancel_message['data']['agentID'] == TEST_AGENT
@@ -1187,7 +1121,7 @@ def test_get_default(publish_agent):
     ).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
-    assert result == 2.5
+    assert result == 10.0
 
 
 @pytest.mark.actuator

@@ -104,7 +104,7 @@ platform (and how does it scale with the hardware)?
    Agent A receives reply)
 -  Do messages get lost at some point (EAgain error)?
 -  What impact does security have? Are things significantly faster in
-   developer-mode?
+   developer-mode? (Option to turn off encryption, no longer available)
 
 -  | Regulation Agent
    | Every 10 minutes there is an action the master node determines.

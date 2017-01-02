@@ -122,9 +122,9 @@ more of the following tags
        4. the word NOT can be prefixed before any of the above three to negate
           the condition. For example
 
-          .. code-block: python
+          .. code-block:: python
 
-          condition="(tag1 = 1 or tag1 = 2) and not (tag2 < '' and tag2 > '') and not has tag3 and tag4 REGEXP '^a.*b$'"
+            condition="(tag1 = 1 or tag1 = 2) and not (tag2 < '' and tag2 > '') and not has tag3 and tag4 REGEXP '^a.*b$'"
 
     6. **count** - limit the total number of tag groups returned to given count
     7. **skip** - number of groups to skip. this parameter along with count can be
@@ -155,9 +155,9 @@ rpc call to to tagging service method **'add_tags'** with parameters:
     1. **tags** - dictionary object or file containing the topic and the tag details
        dictionary object or the file content should be of the format:
 
-       .. code-block: python
+       .. code-block:: python
 
-       <topic_name or prefix or topic_name pattern>: {<valid tag>:<value>, ... }, ... }
+            <topic_name or prefix or topic_name pattern>: {<valid tag>:<value>, ... }, ... }
 
     2. **update_version** - True/False. Default to False. If set to True and if any
        of the tags update an existing tag value the older value would be preserved
@@ -170,17 +170,20 @@ Use case examples
 
 1. Loading news tags for an existing VOLTTRON instance
 ------------------------------------------------------
+
 Current topic names:
-/campus1/building1/deviceA1/point1
-/campus1/building1/deviceA1/point2
-/campus1/building1/deviceA1/point3
-/campus1/building1/deviceA2/point1
-/campus1/building1/deviceA2/point2
-/campus1/building1/deviceA2/point3
-/campus1/building1/deviceB1/point1
-/campus1/building1/deviceB1/point2
-/campus1/building1/deviceB2/point1
-/campus1/building1/deviceB1/point2
+
+| /campus1/building1/deviceA1/point1
+| /campus1/building1/deviceA1/point2
+| /campus1/building1/deviceA1/point3
+| /campus1/building1/deviceA2/point1
+| /campus1/building1/deviceA2/point2
+| /campus1/building1/deviceA2/point3
+| /campus1/building1/deviceB1/point1
+| /campus1/building1/deviceB1/point2
+| /campus1/building1/deviceB2/point1
+| /campus1/building1/deviceB1/point2
+
 
 Step 1:
 ^^^^^^^
@@ -189,80 +192,80 @@ pair. Use topic pattern names to fill out tags that can be applied to more than
 one topic or topic prefix. Use specific topic name and topic prefix for tags that
 apply only to a single entityFor example:
 
-    .. code-block: python
+    .. code-block:: python
 
-    {
-    # tags specific to building1
-    '/campus1/building1':
         {
-        'id': '@buildingname',
-        'site': true,
-        'dis': ": 'some building description',
-        'yearBuilt': 2015,
-        'area': '24000sqft'
-        },
-    # tags that apply to all device of a specific type
-    '/campus1/building1/deviceA*':
-        {
-        'dis': "building1 chilled water system - CHW",
-        'equip': true,
-        'siteRef': '@buildingname',
-        'chilled': true,
-        'water' : true,
-        'secondaryLoop': true
+        # tags specific to building1
+        '/campus1/building1':
+            {
+            'id': '@buildingname',
+            'site': true,
+            'dis': ": 'some building description',
+            'yearBuilt': 2015,
+            'area': '24000sqft'
+            },
+        # tags that apply to all device of a specific type
+        '/campus1/building1/deviceA*':
+            {
+            'dis': "building1 chilled water system - CHW",
+            'equip': true,
+            'siteRef': '@buildingname',
+            'chilled': true,
+            'water' : true,
+            'secondaryLoop': true
+            }
+        # tags that apply to point1 of all device of a specific type
+        '/campus1/building1/deviceA*/point1':
+            {
+            'dis': "building1 chilled water system - point1",
+            'point': true,
+            'kind': 'Bool',
+            'siteRef': '@buildingname'
+            }
+        # tags that apply to point2 of all device of a specific type
+        '/campus1/building1/deviceA*/point2':
+            {
+            'dis': "building1 chilled water system - point2",
+            'point': true,
+            'kind': 'Number',
+            'siteRef': '@buildingname'
+            }
+        # tags that apply to point3 of all device of a specific type
+        '/campus1/building1/deviceA*/point3':
+            {
+            'dis': "building1 chilled water system - point3",
+            'point': true,
+            'kind': 'Number',
+            'siteRef': '@buildingname'
+            }
+        # tags that apply to all device of a specific type
+        '/campus1/building1/deviceB*':
+            {
+            'dis': "building1 device of type B",
+            'equip': true,
+            'chilled': true,
+            'water' : true,
+            'secondaryLoop': true,
+            'siteRef': '@buildingname'
+            }
+        # tags that apply to point1 of all device of a specific type
+        '/campus1/building1/deviceB*/point1':
+            {
+            'dis': "building1 device B - point1",
+            'point': true,
+            'kind': 'Bool',
+            'siteRef': '@buildingname',
+            'command':true
+            }
+        # tags that apply to point1 of all device of a specific type
+        '/campus1/building1/deviceB*/point2':
+            {
+            'dis': "building1 device B - point2",
+            'point': true,
+            'kind': 'Number',
+            'siteRef': '@buildingname',
+            }
         }
-    # tags that apply to point1 of all device of a specific type
-    '/campus1/building1/deviceA*/point1':
-        {
-        'dis': "building1 chilled water system - point1",
-        'point': true,
-        'kind': 'Bool',
-        'siteRef': '@buildingname'
-        }
-    # tags that apply to point2 of all device of a specific type
-    '/campus1/building1/deviceA*/point2':
-        {
-        'dis': "building1 chilled water system - point2",
-        'point': true,
-        'kind': 'Number',
-        'siteRef': '@buildingname'
-        }
-    # tags that apply to point3 of all device of a specific type
-    '/campus1/building1/deviceA*/point3':
-        {
-        'dis': "building1 chilled water system - point3",
-        'point': true,
-        'kind': 'Number',
-        'siteRef': '@buildingname'
-        }
-    # tags that apply to all device of a specific type
-    '/campus1/building1/deviceB*':
-        {
-        'dis': "building1 device of type B",
-        'equip': true,
-        'chilled': true,
-        'water' : true,
-        'secondaryLoop': true,
-        'siteRef': '@buildingname'
-        }
-    # tags that apply to point1 of all device of a specific type
-    '/campus1/building1/deviceB*/point1':
-        {
-        'dis': "building1 device B - point1",
-        'point': true,
-        'kind': 'Bool',
-        'siteRef': '@buildingname',
-        'command':true
-        }
-    # tags that apply to point1 of all device of a specific type
-    '/campus1/building1/deviceB*/point2':
-        {
-        'dis': "building1 device B - point2",
-        'point': true,
-        'kind': 'Number',
-        'siteRef': '@buildingname',
-        }
-    }
 
 Step 2: Create tags using template above
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -276,27 +279,27 @@ added using the rpc call to tagging service either the method
 
  For example:
 
-    .. code-block::
+    .. code-block:: python
 
-    agent.vip.rpc.call(
-            'platform.tagging',
-            'add_topic_tags',
-            topic_prefix='/campus1/building1/deviceA1',
-            tags={'id':'@buildingname.deviceA1','tag1':'value'})
+        agent.vip.rpc.call(
+                'platform.tagging',
+                'add_topic_tags',
+                topic_prefix='/campus1/building1/deviceA1',
+                tags={'id':'@buildingname.deviceA1','tag1':'value'})
 
 
-    .. code-block::
+    .. code-block:: python
 
-    agent.vip.rpc.call(
-            'platform.tagging',
-            'add_topic_tags',
-            tags={
-                '/campus1/building1/deviceA2':
-                    {'id':'@buildingname.deviceA2','tag1':'value'},
-                '/campus1/building1/deviceA2/point1':
-                    {'equipRef':'@buildingname.deviceA2'}
-                 }
-            )
+        agent.vip.rpc.call(
+                'platform.tagging',
+                'add_topic_tags',
+                tags={
+                    '/campus1/building1/deviceA2':
+                        {'id':'@buildingname.deviceA2','tag1':'value'},
+                    '/campus1/building1/deviceA2/point1':
+                        {'equipRef':'@buildingname.deviceA2'}
+                     }
+                )
 
 
 
@@ -306,7 +309,7 @@ added using the rpc call to tagging service either the method
 Query - Find all points that have the tag 'command' and belong to a device/unit
 that has a tag 'chilled'
 
-. code-block::
+.. code-block:: python
 
     agent.vip.rpc.call(
             'platform.tagging',
@@ -321,7 +324,7 @@ tags in the system are as follows
 
 '/campus1/building1/deviceB1/point1' tags:
 
-. code-block::
+.. code-block:: json
 
         {
         'dis': "building1 device B - point1",
@@ -334,7 +337,7 @@ tags in the system are as follows
 
 '/campus1/building1/deviceB1' tags
 
-. code-block::
+.. code-block:: json
 
         {
         'dis': "building1 device of type B",
