@@ -120,10 +120,17 @@ class Connection(object):
             else:
                 raise AttributeError(
                     'Invalid address type specified. ipc or tcp accepted.')
-        self._server = Agent(address=address, serverkey=serverkey,
-                             secretkey=secretkey, publickey=publickey,
+
+        self._server = Agent(address=full_address,
+                             volttron_home=self.volttron_home,
                              enable_store=False,
-                             volttron_home=self.volttron_home, **kwargs)
+                             reconnect_interval=1000,
+                             **kwargs)
+        # TODO the following should work as well, but doesn't.  Not sure why!
+        # self._server = Agent(address=address, serverkey=serverkey,
+        #                      secretkey=secretkey, publickey=publickey,
+        #                      enable_store=False,
+        #                      volttron_home=self.volttron_home, **kwargs)
         self._greenlet = None
         self._connected_since = None
         self._last_publish = None
