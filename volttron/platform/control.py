@@ -193,7 +193,8 @@ class ControlService(BaseAgent):
         tag = self._aip.agent_tag
         priority = self._aip.agent_priority
         return [{'name': name, 'uuid': uuid,
-                 'tag': tag(uuid), 'priority': priority(uuid)}
+                 'tag': tag(uuid), 'priority': priority(uuid),
+                 'identity': self.agent_vip_identity(uuid)}
                 for uuid, name in self._aip.list_agents().iteritems()]
 
     @RPC.export
@@ -248,16 +249,39 @@ class ControlService(BaseAgent):
         return self._aip.agent_identity(uuid)
 
     @RPC.export
+    def get_all_agent_publickeys(self):
+        """
+        RPC method to retrieve the public keys of all of the agents installed
+        on the VOLTTRON instance.
+
+        This method does not differentiate between running and not running
+        agents.
+
+        .. note::
+
+            This method will only retrieve a publickey for an installed agents.
+            It is recommended that dynamic agents use the context of the
+            containing agent's publickey for connections to external instances.
+
+        :return: mapping of identity to agent publickey
+        :rtype: dict
+        """
+        id_map = self._aip.get_agent_identity_to_uuid_mapping()
+        retmap = {}
+        for id, uuid in id_map.items():
+            retmap[id] = self._aip.get_agent_keystore(uuid).public
+        return retmap
+
+    @RPC.export
     def install_agent_local(self, filename, vip_identity=None, publickey=None,
-                            secretkey=None, add_auth=True):
+                            secretkey=None):
         return self._aip.install_agent(filename, vip_identity=vip_identity,
                                        publickey=publickey,
-                                       secretkey=secretkey,
-                                       add_auth=add_auth)
+                                       secretkey=secretkey)
 
     @RPC.export
     def install_agent(self, filename, channel_name, vip_identity=None,
-                      publickey=None, secretkey=None, add_auth=True):
+                      publickey=None, secretkey=None):
         """
         Installs an agent on the instance instance.
 
@@ -303,8 +327,6 @@ class ControlService(BaseAgent):
             Encoded public key the installed agent will use
         :param:string:secretkey:
             Encoded secret key the installed agent will use
-        :param:bool:add_auth:
-            Add the agent's credentials to the authorized-agent list
         """
 
         peer = bytes(self.vip.rpc.context.vip_message.peer)
@@ -356,8 +378,7 @@ class ControlService(BaseAgent):
             agent_uuid = self._aip.install_agent(path,
                                                  vip_identity=vip_identity,
                                                  publickey=publickey,
-                                                 secretkey=secretkey,
-                                                 add_auth=add_auth)
+                                                 secretkey=secretkey)
             return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
@@ -423,7 +444,6 @@ def filter_agent(agents, pattern, opts):
 def upgrade_agent(opts):
     publickey = None
     secretkey = None
-    add_auth = False
 
     identity = opts.vip_identity
     if not identity:
@@ -445,13 +465,11 @@ def upgrade_agent(opts):
     if secretkey is None or publickey is None:
         publickey = None
         secretkey = None
-        add_auth = True
 
-    install_agent(opts, publickey=publickey, secretkey=secretkey,
-                  add_auth=add_auth)
+    install_agent(opts, publickey=publickey, secretkey=secretkey)
 
 
-def install_agent(opts, publickey=None, secretkey=None, add_auth=True):
+def install_agent(opts, publickey=None, secretkey=None):
     aip = opts.aip
     filename = opts.wheel
     tag = opts.tag
@@ -464,8 +482,7 @@ def install_agent(opts, publickey=None, secretkey=None, add_auth=True):
                                           filename,
                                           vip_identity=vip_identity,
                                           publickey=publickey,
-                                          secretkey=secretkey,
-                                          add_auth=add_auth)
+                                          secretkey=secretkey)
 
         if tag:
             opts.connection.call('tag_agent', agent_uuid, tag)
@@ -482,8 +499,7 @@ def install_agent(opts, publickey=None, secretkey=None, add_auth=True):
                                                      channel_name,
                                                      vip_identity=vip_identity,
                                                      publickey=publickey,
-                                                     secretkey=secretkey,
-                                                     add_auth=add_auth)
+                                                     secretkey=secretkey)
 
             _log.debug('Sending wheel to control')
             sha512 = hashlib.sha512()

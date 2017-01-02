@@ -79,7 +79,7 @@ class Health(SubsystemBase):
         self._rpc = weakref.ref(rpc)
         self._statusobj = Status.build(
             STATUS_GOOD, status_changed_callback=self._status_changed)
-
+        self._status_callbacks = set()
         def onsetup(sender, **kwargs):
             rpc.export(self.set_status, 'health.set_status')
             rpc.export(self.get_status, 'health.get_status')
@@ -112,10 +112,33 @@ class Health(SubsystemBase):
                                        headers=headers,
                                        message=statusobj.as_json())
 
+    def add_status_callback(self, fn):
+        """
+        Add callbacks to the passed function.  The function must have the
+        following interface
+
+        .. code::python
+
+            def status_callback(status, context):
+
+        :param fn: The method to be executed when status is changed.
+        :param fn: callable
+        """
+        self._status_callbacks.add(fn)
+
     def _status_changed(self):
         """ Internal function that happens when the status changes state.
         :return:
         """
+        remove = set()
+        for fn in self._status_callbacks:
+            try:
+                fn(self._statusobj.status, self._statusobj.context)
+            except NameError:
+                remove.add(fn)
+        # Removes the items that are in remove from the callbacks.
+        self._status_callbacks.difference_update(remove)
+
         self._owner.vip.heartbeat.restart()
 
     def set_status(self, status, context=None):

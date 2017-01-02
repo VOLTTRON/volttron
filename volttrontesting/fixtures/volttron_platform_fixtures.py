@@ -8,6 +8,7 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 PRINT_LOG_ON_SHUTDOWN = False
 
+
 def print_log(volttron_home):
     if PRINT_LOG_ON_SHUTDOWN:
         if os.environ.get('PRINT_LOGS', PRINT_LOG_ON_SHUTDOWN):
@@ -96,7 +97,7 @@ def volttron_instance_encrypt(request):
         address = get_rand_vip()
     else:
         address = get_rand_ipc_vip()
-    wrapper = build_wrapper(address, encrypt=True)
+    wrapper = build_wrapper(address)
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -110,7 +111,7 @@ def volttron_instance1_web(request):
     print("building instance 1 (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
-    wrapper = build_wrapper(address, encrypt=True,
+    wrapper = build_wrapper(address,
                             bind_web_address=web_address)
 
     def cleanup():
@@ -125,7 +126,7 @@ def volttron_instance2_web(request):
     print("building instance 2 (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
-    wrapper = build_wrapper(address, encrypt=True,
+    wrapper = build_wrapper(address,
                             bind_web_address=web_address)
 
     def cleanup():
@@ -149,11 +150,7 @@ def volttron_instance(request):
     """
     wrapper = None
     address = get_rand_vip()
-    if request.param == 'encrypted':
-        print("building instance (using encryption)")
-        wrapper = build_wrapper(address, encrypt=True)
-    else:
-        wrapper = build_wrapper(address)
+    wrapper = build_wrapper(address)
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
@@ -195,7 +192,6 @@ def get_volttron_instances(request):
     all_instances = []
 
     def get_n_volttron_instances(n, should_start=True):
-        print('GETTING NEW INSTANCES!!!!!', request.param, n)
         get_n_volttron_instances.count = n
         instances = []
         for i in range(0, n):
@@ -204,7 +200,7 @@ def get_volttron_instances(request):
             if should_start:
                 if request.param == 'encrypted':
                     print("building instance  (using encryption)")
-                    wrapper = build_wrapper(address, encrypt=True)
+                    wrapper = build_wrapper(address)
                 else:
                     wrapper = build_wrapper(address)
             else:

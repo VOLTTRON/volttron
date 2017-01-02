@@ -27,11 +27,16 @@ class APITester(object):
             'params': params,
             'id': '1'
         }
+
         if use_auth_token:
             data['authorization'] = self._auth_token
-        print('posting data')
-        print(data)
+
+        print('Posting: {}'.format(data))
         return requests.post(self._url, json=data)
+
+    @staticmethod
+    def get_result(cb, *args, **kwargs):
+        return cb(*args, **kwargs).json()['result']
 
     def get_auth_token(self):
         response = self.do_rpc(
@@ -50,14 +55,44 @@ class APITester(object):
         return self.do_rpc('register_instance', discovery_address=addr,
                            display_name=name)
 
+    def register_instance_with_serverkey(self, addr, serverkey, name=None):
+        return self.do_rpc('register_instance', adress=addr,
+                           serverkey=serverkey, display_name=name)
+
     def list_platforms(self):
         return self.do_rpc('list_platforms')
 
+    def install_agent(self, platform_uuid, fileargs):
+        rpc = 'platforms.uuid.{}.install'.format(platform_uuid)
+        return self.do_rpc(rpc, files=[fileargs])
+
     def list_agents(self, platform_uuid):
+        print('Listing agents for platform: {}'.format(platform_uuid))
         return self.do_rpc('platforms.uuid.' + platform_uuid + '.list_agents')
 
     def unregister_platform(self, platform_uuid):
         return self.do_rpc('unregister_platform', platform_uuid=platform_uuid)
+
+    def store_agent_config(self, platform_uuid, agent_identity, config_name,
+                           raw_contents, config_type="json"):
+        params = dict(platform_uuid=platform_uuid,
+                      agent_identity=agent_identity,
+                      config_name=config_name, raw_contents=raw_contents,
+                      config_type=config_type)
+        return self.do_rpc("store_agent_config", **params)
+
+    def list_agent_configs(self, platform_uuid, agent_identity):
+        params = dict(platform_uuid=platform_uuid,
+                      agent_identity=agent_identity)
+        return self.do_rpc("list_agent_configs", **params)
+
+    def get_agent_config(self, platform_uuid, agent_identity, config_name,
+                         raw=True):
+        params = dict(platform_uuid=platform_uuid,
+                      agent_identity=agent_identity, config_name=config_name,
+                      raw=raw)
+        return self.do_rpc("get_agent_config", **params)
+
 
 def do_rpc(method, params=None, auth_token=None, rpc_root=None):
     """ A utility method for calling json rpc based funnctions.
