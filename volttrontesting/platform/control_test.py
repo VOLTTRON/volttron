@@ -51,7 +51,6 @@ def test_can_get_publickey(volttron_instance):
     cn = volttron_instance.build_connection(peer='control')
     assert cn.is_peer_connected()
     id_serverkey_map = cn.call('get_all_agent_publickeys')
-    assert id_serverkey_map == {}
 
     auuid = volttron_instance.install_agent(
         agent_dir="examples/ListenerAgent", start=True,
@@ -59,6 +58,5 @@ def test_can_get_publickey(volttron_instance):
     assert auuid is not None
 
     id_serverkey_map = cn.call('get_all_agent_publickeys')
-    assert len(id_serverkey_map) == 1
     assert listener_identity in id_serverkey_map
     assert id_serverkey_map.get(listener_identity) is not None
