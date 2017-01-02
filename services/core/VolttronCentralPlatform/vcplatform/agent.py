@@ -65,7 +65,6 @@ from enum import Enum
 import hashlib
 import logging
 import os
-import re
 import shutil
 import sys
 import tempfile
@@ -91,15 +90,12 @@ from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.vip.agent.utils import build_connection
 from volttron.platform.web import DiscoveryInfo, DiscoveryError
+from . bacnet_proxy_reader import BACnetReader
 
 __version__ = '3.6.0'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
-# After setup logging
-from . bacnet_proxy_reader import BACnetReader
-_log.debug('LOGGING SETUP?')
 
 
 class NotManagedError(StandardError):
@@ -375,6 +371,7 @@ class VolttronCentralPlatform(Agent):
 
     def _periodic_attempt_registration(self):
 
+        _log.debug("periodic attempt to register.")
         if self._scheduled_connection_event is not None:
             # This won't hurt anything if we are canceling ourselves.
             self._scheduled_connection_event.cancel()
@@ -394,13 +391,13 @@ class VolttronCentralPlatform(Agent):
             if vc is None:
                 _log.debug("vc not connected")
                 return
-
-            if not vc.call("is_registered"):
+            local_address = self.current_config.get(
+                'local_external_addresses')[0]
+            if not vc.call("is_registered", address=local_address):
+                _log.debug("platform agent is not registered.")
                 self.registration_state = RegistrationStates.NotRegistered
 
             if self.registration_state == RegistrationStates.NotRegistered:
-                _log.debug('Not registred beginning registration process.')
-                _log.debug('Retrieving publickey from vc agent.')
                 vc_agent_publickey = vc.call("get_publickey")
                 _log.debug('vc agent publickey is {}'.format(
                     vc_agent_publickey))
