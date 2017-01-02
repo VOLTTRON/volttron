@@ -954,8 +954,8 @@ class VolttronCentralPlatform(Agent):
                 _log.debug('calling control with method: {} uuid: {}'.format(
                     method, uuid
                 ))
-                status = self.vip.rpc.call(CONTROL, method, uuid)
-                if method == 'stop_agent' or status == None:
+                status = self.vip.rpc.call(CONTROL, method, uuid).get(timeout=5)
+                if method == 'stop_agent' or status is None:
                     # Note we recurse here to get the agent status.
                     result = self.route_request(id, 'agent_status', uuid)
                 else:
