@@ -1447,7 +1447,7 @@ class VolttronCentralAgent(Agent):
                                       "cannot connect to platform."
                                       )
 
-        if platform_method.startswith('install_agent'):
+        if platform_method.startswith('install'):
             if 'admin' not in session_user['groups']:
                 return jsonrpc.json_error(
                     id, UNAUTHORIZED,

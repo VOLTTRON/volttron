@@ -911,6 +911,8 @@ class VolttronCentralPlatform(Agent):
         _log.debug(
             'platform agent routing request: {}, {}'.format(id, method))
 
+        _log.debug(params)
+
         method_map = {
             'list_agents': self.list_agents,
             'get_devices': self.get_devices,
@@ -959,12 +961,16 @@ class VolttronCentralPlatform(Agent):
                 else:
                     result = {'process_id': status[0],
                               'return_code': status[1]}
-        elif method in ('install_agent',):
+        elif method in ('install',):
             _log.debug("Attempting install!")
-            if 'file' not in params:
-                result = jsonrpc.json_error(ident=id, code=INVALID_PARAMS)
+            if 'files' not in params:
+                result = jsonrpc.json_error(
+                    ident=id, code=INVALID_PARAMS,
+                    message="Invalid parameter missing 'file'")
             else:
-                result = self._install_agent(params['file'])
+                # TODD: This should be only a single file at a time for installs
+                fileargs = params.get('files')[0]
+                result = self._install_agent(fileargs)
 
         else:
 
@@ -1036,27 +1042,27 @@ class VolttronCentralPlatform(Agent):
             else:
                 path = os.path.join(tmpdir, fileargs['file_name'])
 
-                # The file should start with base64, which shows that it is
-                # a base64 encoded string.
+                base64_sep = 'base64,'
+                if base64_sep not in fileargs['file']:
+                    raise Exception('File must be base64 encoded.')
+
+                # The start of the string representing the file is right
+                # after base64,
                 with open(path, 'wb') as fout:
-                    expected_prefix = 'base64,'
-                    if fileargs['file'].startswith(expected_prefix):
-                        fout.write(
-                            base64.decodestring(fileargs['file'][len(expected_prefix):]))
-                    else:
-                        raise Exception("'file' parameter must begin with base64,")
-            _log.debug('Installing path: {}'.format(path))
-            _log.debug('Calling control install agent.')
+                    fout.write(
+                        base64.decodestring(
+                            fileargs['file'].split(base64_sep)[1]))
+
             uuid = self.vip.rpc.call(CONTROL,  'install_agent_local',
                                      path, vip_identity=vip_identity
                                      ).get(timeout=30)
             result = dict(uuid=uuid)
         except Exception as e:
             err_str = "EXCEPTION: " + str(e)
-            result = dict(error=err_str)
-
+            result = dict(error=dict(code=INTERNAL_ERROR,
+                                     message=err_str))
         shutil.rmtree(tmpdir, ignore_errors=True)
-        _log.debug('Results from install_agent are: '.format(result))
+        _log.debug('Results from install_agent are: {}'.format(result))
         return result
 
     def _publish_stats(self):

@@ -474,7 +474,7 @@ class PlatformHandler(object):
 
     def route_to_agent_method(self, id, agent_method, params):
         try:
-            self._log.debug('rout_to_agent_method')
+            self._log.debug('route_to_agent_method')
             resp = self._connection.call('route_request', id, agent_method,
                                          params)
             if isinstance(resp, dict):
@@ -486,18 +486,6 @@ class PlatformHandler(object):
         except RemoteError as e:
             return jsonrpc.json_error(id, INTERNAL_ERROR,
                                       "Internal Error: {}".format(str(e)))
-
-        # except (Unreachable, gevent.Timeout) as e:
-        #     # since we are unreachable we can't be managed.
-        #     self._is_managed = False
-        #     return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
-        #                               "Can't route to platform {}"
-        #                               .format(self.address_hash))
-        # except Exception as e:
-        #     return jsonrpc.json_error(id, INTERNAL_ERROR,
-        #                               "An unkown error {} was found. "
-        #                               "The message is {}".format(type(e),
-        #                                                          e.message))
 
     def _raise_event(self, type, data={}):
         self._log.debug('RAISING EVENT: {} {}'.format(type, data))
