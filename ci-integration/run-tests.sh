@@ -45,22 +45,29 @@ done
 echo "SplitDirs"
 for dir in $splitdirs; do
 
-for D in $dir; do
-    if [ -d "${D}" ]; then
-  echo "*********SPLITDIR: $D"
-        py.test -s -v ${D}
-        tmp_code=$?
-        if [ $tmp_code -ne 0 ]; then
-          if [ $tmp_code -ne 5 ]; then
-            if [ ${FAST_FAIL} ]; then
-              echo "Fast failing!"
-              exit $tmp_code
+    for D in $dir; do
+        for p in $testdirs; do
+            if [ "$p" == "$d" ]; then
+                echo "ALREADY TESTED DIR: $p";
+                continue;
+            fi;
+        done
+
+        if [ -d "${D}" ]; then
+            echo "*********SPLITDIR: $D"
+            py.test -s -v ${D}
+            tmp_code=$?
+            if [ $tmp_code -ne 0 ]; then
+              if [ $tmp_code -ne 5 ]; then
+                if [ ${FAST_FAIL} ]; then
+                  echo "Fast failing!"
+                  exit $tmp_code
+                fi
+                exit_code=$tmp_code
+              fi
             fi
-            exit_code=$tmp_code
-          fi
         fi
-    fi
-done
+    done
 done
 
 echo "File tests"
