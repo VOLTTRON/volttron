@@ -140,7 +140,7 @@ def volttron_instance2_web(request):
 # Use this fixture when you want a single instance of volttron platform for
 # test
 @pytest.fixture(scope="module",
-                params=['encrypted', 'unencrypted'])
+                params=['encrypted'])
 def volttron_instance(request):
     """Fixture that returns a single instance of volttron platform for testing
     Tests using this fixture will be run twice, once with an unencrypted
@@ -165,7 +165,7 @@ def volttron_instance(request):
 # def test_function_that_uses_n_instances(request, get_volttron_instances):
 #     instances = get_volttron_instances(3)
 @pytest.fixture(scope="module",
-                params=['encrypted', 'unencrypted'])
+                params=['encrypted'])
 def get_volttron_instances(request):
     """ Fixture to get more than 1 volttron instance for test
     Use this fixture to get more than 1 volttron instance for test. This
@@ -198,11 +198,7 @@ def get_volttron_instances(request):
             address = get_rand_vip()
             wrapper = None
             if should_start:
-                if request.param == 'encrypted':
-                    print("building instance  (using encryption)")
-                    wrapper = build_wrapper(address)
-                else:
-                    wrapper = build_wrapper(address)
+                wrapper = build_wrapper(address)
             else:
                 wrapper = PlatformWrapper()
             instances.append(wrapper)

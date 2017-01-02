@@ -185,25 +185,24 @@ def forwarder(request, volttron_instances):
     global forwarder_uuid, forwarder_config
     # 1. Update destination address in forwarder configuration
 
-    if volttron_instance1.encrypt:
-        tf = tempfile.NamedTemporaryFile()
-        ks = KeyStore(tf.name)
-        # generate public private key pair for instance1
-        ks.generate()
 
-        # add public key of instance1 to instance2 auth file
-        authfile = AuthFile(volttron_instance2.volttron_home + "/auth.json")
-        entry = AuthEntry(credentials=ks.public)
-        authfile.add(entry)
+    tf = tempfile.NamedTemporaryFile()
+    ks = KeyStore(tf.name)
+    # generate public private key pair for instance1
+    ks.generate()
 
-        # setup destination address to include keys
-        forwarder_config["destination-vip"] =\
-            "{}?serverkey={}&publickey={}&secretkey={}".format(
-                volttron_instance2.vip_address,
-                volttron_instance2.serverkey,
-                ks.public, ks.secret)
-    else:
-        forwarder_config["destination-vip"] = volttron_instance2.vip_address
+    # add public key of instance1 to instance2 auth file
+    authfile = AuthFile(volttron_instance2.volttron_home + "/auth.json")
+    entry = AuthEntry(credentials=ks.public)
+    authfile.add(entry)
+
+    # setup destination address to include keys
+    forwarder_config["destination-vip"] =\
+        "{}?serverkey={}&publickey={}&secretkey={}".format(
+            volttron_instance2.vip_address,
+            volttron_instance2.serverkey,
+            ks.public, ks.secret)
+
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     forwarder_uuid = volttron_instance1.install_agent(
