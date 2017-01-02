@@ -631,8 +631,6 @@ class AIPplatform(object):
         environ['AGENT_PUB_ADDR'] = self.publish_address
         environ['AGENT_UUID'] = agent_uuid
         environ['_LAUNCHED_BY_PLATFORM'] = '1'
-        if self.env.developer_mode:
-            environ['_DEVELOPER_MODE'] = '1'
 
         #For backwards compatibility create the identity file if it does not exist.
         identity_file = os.path.join(self.install_dir, agent_uuid, "IDENTITY")

@@ -80,7 +80,7 @@ from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from zmq.utils import jsonapi
 
-from .auth import AuthEntry, AuthFile
+from .auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
 from .vip.agent import Agent, Core, RPC
 from .vip.agent.subsystems import query
 from .jsonrpc import (
@@ -529,7 +529,11 @@ class MasterWebService(Agent):
         authfile = AuthFile()
         authentry = AuthEntry(credentials=vcpublickey)
 
-        authfile.add(authentry)
+        try:
+            authfile.add(authentry)
+        except AuthFileEntryAlreadyExists:
+            pass
+
         start_response('200 OK',
                        [('Content-Type', 'application/json')])
         return jsonapi.dumps(

@@ -19,5 +19,4 @@
         "help": "Installs support for all known databases",
         "packages": ["pymongo", "mysql-connector-python-rf"]
     }
-
 }

@@ -57,6 +57,7 @@
 
 import gevent
 from volttron.platform.vip.agent import Agent
+from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
 from volttron.platform import get_address
 from volttron.platform.keystore import KeyStore
 from argparse import ArgumentParser, RawTextHelpFormatter
@@ -108,15 +109,15 @@ def install_configs(input_directory, keep=False):
 
     if not keep:
         print "Deleting old Master Driver store"
-        agent.vip.rpc.call('config.store',
+        agent.vip.rpc.call(CONFIGURATION_STORE,
                            'manage_delete_store',
-                           'platform.driver').get(timeout=10)
+                           PLATFORM_DRIVER).get(timeout=10)
 
     with open("config") as f:
         print "Storing main configuration"
-        agent.vip.rpc.call('config.store',
+        agent.vip.rpc.call(CONFIGURATION_STORE,
                            'manage_store',
-                           'platform.driver',
+                           PLATFORM_DRIVER,
                            'config',
                            f.read(),
                            config_type="json").get(timeout=10)
@@ -125,9 +126,9 @@ def install_configs(input_directory, keep=False):
     for name in glob.iglob("registry_configs/*"):
         with open(name) as f:
             print "Storing configuration:", name
-            agent.vip.rpc.call('config.store',
+            agent.vip.rpc.call(CONFIGURATION_STORE,
                                'manage_store',
-                               'platform.driver',
+                               PLATFORM_DRIVER,
                                name,
                                f.read(),
                                config_type="csv").get(timeout=10)
@@ -137,9 +138,9 @@ def install_configs(input_directory, keep=False):
             name = os.path.join(dir_path, file_name)
             with open(name) as f:
                 print "Storing configuration:", name
-                agent.vip.rpc.call('config.store',
+                agent.vip.rpc.call(CONFIGURATION_STORE,
                                    'manage_store',
-                                   'platform.driver',
+                                   PLATFORM_DRIVER,
                                    name,
                                    f.read(),
                                    config_type="json").get(timeout=10)

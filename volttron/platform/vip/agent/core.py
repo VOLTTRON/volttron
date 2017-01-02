@@ -419,7 +419,7 @@ class Core(BasicCore):
     def __init__(self, owner, address=None, identity=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, developer_mode=False, reconnect_interval=None):
+                 agent_uuid=None, reconnect_interval=None):
         self.volttron_home = volttron_home
 
         # These signals need to exist before calling super().__init__()
@@ -436,7 +436,6 @@ class Core(BasicCore):
         self.publickey = publickey
         self.secretkey = secretkey
         self.serverkey = serverkey
-        self.developer_mode = developer_mode
         self.reconnect_interval = reconnect_interval
 
         self._set_keys()
@@ -454,12 +453,6 @@ class Core(BasicCore):
         """Implements logic for setting encryption keys and putting
         those keys in the parameters of the VIP address
         """
-        if self.developer_mode:
-            self.publickey = None
-            self.secretkey = None
-            self.serverkey = None
-            return
-
         self._set_server_key()
         self._set_public_and_secret_keys()
 

@@ -67,6 +67,7 @@ from gevent.subprocess import Popen
 from mock import MagicMock
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 REQUEST_CANCEL_SCHEDULE = 'request_cancel_schedule'
 REQUEST_NEW_SCHEDULE = 'request_new_schedule'
@@ -91,12 +92,9 @@ def publish_agent(request, volttron_instance1):
     :return: an instance of fake agent used for publishing
     """
 
-    developer_mode = volttron_instance1.opts.get('developer_mode', False)
 
     # Reset master driver config store
-    cmd = ['volttron-ctl', 'config', 'delete', 'platform.driver', '--all']
-    if developer_mode:
-        cmd.append('--developer-mode')
+    cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
     process = Popen(cmd, env=volttron_instance1.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -105,10 +103,8 @@ def publish_agent(request, volttron_instance1):
     assert result == 0
 
     # Add master driver configuration files to config store.
-    cmd = ['volttron-ctl', 'config', 'store','platform.driver',
+    cmd = ['volttron-ctl', 'config', 'store',PLATFORM_DRIVER,
            'fake.csv', 'fake_unit_testing.csv', '--csv']
-    if developer_mode:
-        cmd.append('--developer-mode')
     process = Popen(cmd, env=volttron_instance1.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -118,10 +114,8 @@ def publish_agent(request, volttron_instance1):
 
     for i in xrange(4):
         config_name = "devices/fakedriver{}".format(i)
-        cmd = ['volttron-ctl', 'config', 'store', 'platform.driver',
+        cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
                config_name, 'fake_unit_testing.config', '--json']
-        if developer_mode:
-            cmd.append('--developer-mode')
         process = Popen(cmd, env=volttron_instance1.env,
                         cwd='scripts/scalability-testing',
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -578,37 +572,19 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
     # msg for task_low_priority
     gevent.sleep(6)
     print ('call args list:', publish_agent.callback.call_args_list)
-    assert publish_agent.callback.call_count == 2
+    assert publish_agent.callback.call_count == 1
 
     # Grab the args of callback and verify
     call_args1 = publish_agent.callback.call_args_list[0][0]
-    call_args2 = publish_agent.callback.call_args_list[1][0]
 
     assert call_args1[1] == PLATFORM_ACTUATOR
     assert call_args1[3] == topics.ACTUATOR_SCHEDULE_RESULT
 
-    # initialize 0 to schedule response and 1 to cancel response
-    schedule_header = call_args1[4]
-    schedule_message = call_args1[5]
-    cancel_header = call_args2[4]
-    cancel_message = call_args2[5]
+    cancel_header = call_args1[4]
+    cancel_message = call_args1[5]
 
-    # check if order is reversed: 0 is cancelresponse and 1 is new schedule
-    if call_args1[4]['type'] == 'CANCEL_SCHEDULE':
-        assert call_args2[4]['type'] == 'NEW_SCHEDULE'
-        cancel_header = call_args1[4]
-        cancel_message = call_args1[5]
-        schedule_header = call_args2[4]
-        schedule_message = call_args2[5]
-    else:
-        assert call_args1[4]['type'] == 'NEW_SCHEDULE'
-        assert call_args2[4]['type'] == 'CANCEL_SCHEDULE'
-        # values remain as initialized above if/else
 
-    assert schedule_header['type'] == 'NEW_SCHEDULE'
-    assert schedule_header['taskID'] == taskid
-    # assert schedule_header['requesterID'] == TEST_AGENT
-    assert schedule_message['result'] == SUCCESS
+    assert call_args1[4]['type'] == 'CANCEL_SCHEDULE'
 
     assert cancel_header['taskID'] == 'task_low_priority'
     assert cancel_message['data']['agentID'] == TEST_AGENT
@@ -676,39 +652,18 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedules):
     # msg for task_low_priority
     gevent.sleep(6)
     print ('call args list:', publish_agent.callback.call_args_list)
-    assert publish_agent.callback.call_count == 2
+    assert publish_agent.callback.call_count == 1
 
     # Grab the args of callback and verify
     call_args1 = publish_agent.callback.call_args_list[0][0]
-    call_args2 = publish_agent.callback.call_args_list[1][0]
 
     assert call_args1[1] == PLATFORM_ACTUATOR
     assert call_args1[3] == topics.ACTUATOR_SCHEDULE_RESULT
 
-    # initialize 0 to schedule response and 1 to cancel response
-    schedule_header = call_args1[4]
-    schedule_message = call_args1[5]
-    print ("call args of 1 ", publish_agent.callback.call_args_list[1])
-    cancel_header = call_args2[4]
-    cancel_message = call_args2[5]
+    cancel_header = call_args1[4]
+    cancel_message = call_args1[5]
 
-    # check if order is reversed: 0 is cancelresponse and 1 is new schedule
-    if call_args1[4]['type'] == 'CANCEL_SCHEDULE':
-        assert call_args2[4]['type'] == 'NEW_SCHEDULE'
-        cancel_header = call_args1[4]
-        cancel_message = call_args1[5]
-        schedule_header = call_args2[4]
-        schedule_message = call_args2[5]
-    else:
-        assert call_args1[4]['type'] == 'NEW_SCHEDULE'
-        assert call_args2[4]['type'] == 'CANCEL_SCHEDULE'
-        # values remain as initialized above if/else
-
-    assert schedule_header['type'] == 'NEW_SCHEDULE'
-    assert schedule_header['taskID'] == taskid
-    # assert schedule_header['requesterID'] == agentid
-    assert schedule_message['result'] == SUCCESS
-
+    assert call_args1[4]['type'] == 'CANCEL_SCHEDULE'
     assert cancel_header['taskID'] == 'task_low_priority2'
     # assert cancel_message['data']['agentID'] == agentid
     assert cancel_message['data']['taskID'] == taskid
@@ -956,38 +911,18 @@ def test_schedule_premept_future_task(publish_agent, cancel_schedules):
     # msg for task_low_priority
     gevent.sleep(6)
     print ('call args list:', publish_agent.callback.call_args_list)
-    assert publish_agent.callback.call_count == 2
+    assert publish_agent.callback.call_count == 1
 
     # Grab the args of callback and verify
     call_args1 = publish_agent.callback.call_args_list[0][0]
-    call_args2 = publish_agent.callback.call_args_list[1][0]
 
     assert call_args1[1] == PLATFORM_ACTUATOR
     assert call_args1[3] == topics.ACTUATOR_SCHEDULE_RESULT
 
-    # initialize 0 to schedule response and 1 to cancel response
-    schedule_header = call_args1[4]
-    schedule_message = call_args1[5]
-    print ("call args of 1 ", publish_agent.callback.call_args_list[1])
-    cancel_header = call_args2[4]
-    cancel_message = call_args2[5]
+    cancel_header = call_args1[4]
+    cancel_message = call_args1[5]
 
-    # check if order is reversed: 0 is cancelresponse and 1 is new schedule
-    if call_args1[4]['type'] == 'CANCEL_SCHEDULE':
-        assert call_args2[4]['type'] == 'NEW_SCHEDULE'
-        cancel_header = call_args1[4]
-        cancel_message = call_args1[5]
-        schedule_header = call_args2[4]
-        schedule_message = call_args2[5]
-    else:
-        assert call_args1[4]['type'] == 'NEW_SCHEDULE'
-        assert call_args2[4]['type'] == 'CANCEL_SCHEDULE'
-        # values remain as initialized above if/else
-
-    assert schedule_header['type'] == 'NEW_SCHEDULE'
-    assert schedule_header['taskID'] == taskid
-    # assert schedule_header['requesterID'] == TEST_AGENT
-    assert schedule_message['result'] == SUCCESS
+    assert call_args1[4]['type'] == 'CANCEL_SCHEDULE'
 
     assert cancel_header['taskID'] == 'task_low_priority4'
     assert cancel_message['data']['agentID'] == TEST_AGENT
@@ -1186,7 +1121,7 @@ def test_get_default(publish_agent):
     ).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
-    assert result == 2.5
+    assert result == 10.0
 
 
 @pytest.mark.actuator
@@ -1699,3 +1634,126 @@ def test_set_multiple_captures_errors(publish_agent, cancel_schedules):
         pytest.fail('read only point did not raise an exception')
 
     assert True
+
+@pytest.mark.actuator
+def test_set_value_no_lock(publish_agent, volttron_instance1):
+    """ Tests the (now default) setting to allow writing without a
+    lock as long as nothing else has the device locked.
+
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param volttron_instance: Volttron instance on which test is run
+    """
+
+    alternate_actuator_vip_id = "my_actuator"
+    #Use actuator that allows write with no lock.
+    my_actuator_uuid = volttron_instance1.install_agent(
+        agent_dir="services/core/ActuatorAgent",
+        config_file="services/core/ActuatorAgent/tests/actuator-no-lock.config",
+        start=True, vip_identity=alternate_actuator_vip_id)
+    try:
+        agentid = TEST_AGENT
+
+        result = publish_agent.vip.rpc.call(
+            alternate_actuator_vip_id,  # Target agent
+            'set_point',  # Method
+            agentid,  # Requestor
+            'fakedriver0/SampleWritableFloat1',  # Point to set
+            6.5  # New value
+        ).get(timeout=10)
+        assert result == 6.5
+
+    finally:
+        publish_agent.vip.rpc.call(
+            alternate_actuator_vip_id,  # Target agent
+            'revert_device',  # Method
+            agentid,  # Requestor
+            'fakedriver0'  # Point to revert
+        ).get(timeout=10)
+
+        volttron_instance1.stop_agent(my_actuator_uuid)
+        volttron_instance1.remove_agent(my_actuator_uuid)
+
+@pytest.mark.actuator
+def test_set_value_no_lock_failure(publish_agent, volttron_instance1):
+    """ Tests the (now default) setting to allow writing without a
+    lock as long as nothing else has the device locked.
+
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param volttron_instance: Volttron instance on which test is run
+    """
+
+    alternate_actuator_vip_id = "my_actuator"
+    #Use actuator that allows write with no lock.
+    my_actuator_uuid = volttron_instance1.install_agent(
+        agent_dir="services/core/ActuatorAgent",
+        config_file="services/core/ActuatorAgent/tests/actuator-no-lock.config",
+        start=True, vip_identity=alternate_actuator_vip_id)
+    try:
+        agentid2 = "test-agent2"
+        taskid = "test-task"
+        publish_agent2 = volttron_instance1.build_agent(identity=agentid2)
+
+        start = str(datetime.now())
+        end = str(datetime.now() + timedelta(seconds=60))
+        msg = [
+            ['fakedriver0', start, end]
+        ]
+        result = publish_agent2.vip.rpc.call(
+            alternate_actuator_vip_id,
+            REQUEST_NEW_SCHEDULE,
+            agentid2,
+            taskid,
+            PRIORITY_LOW,
+            msg).get(timeout=10)
+        # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
+        print result
+        assert result['result'] == SUCCESS
+
+        agentid = TEST_AGENT
+
+        with pytest.raises(RemoteError, message="Expecting remote error."):
+            result = publish_agent.vip.rpc.call(
+                alternate_actuator_vip_id,  # Target agent
+                'set_point',  # Method
+                agentid,  # Requestor
+                'fakedriver0/SampleWritableFloat1',  # Point to set
+                7.5  # New value
+            ).get(timeout=10)
+
+    finally:
+        publish_agent2.vip.rpc.call(
+            alternate_actuator_vip_id,  # Target agent
+            'revert_device',  # Method
+            agentid,  # Requestor
+            'fakedriver0'  # Point to revert
+        ).get(timeout=10)
+
+        publish_agent2.core.stop()
+        volttron_instance1.stop_agent(my_actuator_uuid)
+        volttron_instance1.remove_agent(my_actuator_uuid)
+
+@pytest.mark.actuator
+def test_set_value_float_failure(publish_agent):
+    """
+    Test setting a float value of a point through rpc
+    Expected result = value of the actuation point
+
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
+    """
+    print ("\n**** test_set_float_value ****")
+    taskid = 'task_set_float_value'
+    agentid = TEST_AGENT
+
+    with pytest.raises(RemoteError, message="Expecting remote error."):
+        publish_agent.vip.rpc.call(
+            PLATFORM_ACTUATOR,  # Target agent
+            'set_point',  # Method
+            agentid,  # Requestor
+            'fakedriver0/SampleWritableFloat1',  # Point to set
+            2.5  # New value
+        ).get(timeout=10)

@@ -28,10 +28,22 @@ The following example sets the driver_scrape_interval to 0.05 seconds or 20 devi
 .. code-block:: json
 
     {
-        "driver_scrape_interval": 0.05
+        "driver_scrape_interval": 0.05,
+        "publish_breadth_first_all": false,
+        "publish_depth_first": false,
+        "publish_breadth_first": false,
+        "publish_depth_first_all": true
     }
     
 * **driver_scrape_interval** - Sets the interval between devices scrapes. Defaults to 0.02 or 50 devices per second. Useful for when the platform scrapes too many devices at once resulting in failed scrapes.
+
+In order to improve the scalability of the platform unneeded device state publishes for all devices can be turned off.
+All of the following setting are optional and default to `True`.
+
+* **publish_depth_first_all** - Enable "depth first" publish of all points to a single topic for all devices.
+* **publish_breadth_first_all** - Enable "breadth first" publish of all points to a single topic for all devices.
+* **publish_depth_first** - Enable "depth first" device state publishes for each register on the device for all devices.
+* **publish_breadth_first** - Enable "breadth first" device state publishes for each register on the device for all devices.
 
 An example master driver configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/master-driver.agent``.
 
@@ -154,7 +166,7 @@ Note the name ``registry_configs/hvac.csv`` matches the configuration reference 
 
 To store the driver configuration run the command
 
-``volttron-ctl config store platform.driver devices/my_building/hvac1 modbus1.config``
+``volttron-ctl config store platform.driver devices/my_campus/my_building/hvac1 modbus1.config``
 
 
 Converting Old Style Configuration
@@ -245,7 +257,7 @@ Device Scalability Settings
 ---------------------------
 
 In order to improve the scalability of the platform unneeded device state publishes for a device can be turned off.
-All of the following settings are optional and default to `True`.
+All of the following setting are optional and will override the value set in the main master driver configuration.
 
     - **publish_depth_first_all** - Enable "depth first" publish of all points to a single topic.
     - **publish_breadth_first_all** - Enable "breadth first" publish of all points to a single topic.
@@ -429,6 +441,77 @@ Any additional columns will be ignored. It is common practice to include a **Poi
 
 A sample BACnet registry file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/bacnet.csv>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/bacnet.csv``
+
+
+
+
+.. _Chargepoint-config:
+Chargepoint Driver Configuration
+--------------------------------
+
+The chargepoint driver requires at least one additional python library and has its own ``requirements.txt``.
+Make sure to run ``pip install -r <chargepoint driver path>/requirements.txt`` before using this driver.
+
+
+driver_config
+*************
+
+There are three arguments for the **driver_config** section of the device configuration file:
+
+    - **stationID** - Chargepoint ID of the station. This format is ususally '1:00001'
+    - **username** - Login credentials for the Chargepoint API
+    - **password** - Login credentials for the Chargepoint API
+
+The Chargepoint login credentials are generated in the Chargepoint web portal and require
+a chargepoint account with sufficient privileges.  Station IDs are also available on
+the web portal.
+
+Here is an example device configuration file:
+
+.. code-block:: json
+
+    {
+        "driver_config": {"stationID": "3:12345",
+                          "username": "4b90fc0ae5fe8b6628e50af1215d4fcf5743a6f3c63ee1464012875",
+                          "password": "ebaf1a3cdfb80baf5b274bdf831e2648"},
+        "driver_type": "chargepoint",
+        "registry_config":"config://chargepoint.csv",
+        "interval": 60,
+        "timezone": "UTC",
+        "heart_beat_point": "heartbeat"
+    }
+
+A sample Chargepoint configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/chargepoint1.config``
+
+
+.. _Chargepoint-Driver:
+Chargepoint Registry Configuration File
+***************************************
+
+The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device.
+
+The following columns are required for each row:
+
+    - **Volttron Point Name** - The name by which the platform and agents running on the platform will refer to this point.
+    - **Attribute Name** - Chargepoint API attribute name. This determines the field that will be read from the API response and must be one of the allowed values.
+    - **Port #** - If the point describes a specific port on the Chargestation, it is defined here. (Note 0 and an empty value are equivalent.)
+    - **Type** - Python type of the point value.
+    - **Units** - Used for meta data when creating point information on the historian.
+    - **Writable** - Either "TRUE" or "FALSE". Determines if the point can be written to. Only points labeled TRUE can be written.
+    - **Notes** - Miscellaneous notes field.
+    - **Register Name** - A string representing how to interpret the data register. Acceptable values are:
+        * StationRegister
+        * StationStatusRegister
+        * LoadRegister
+        * AlarmRegister
+        * StationRightsRegister
+    - **Starting Value** - Default value for writeable points. Read-only points should not have a value in this column.
+
+Detailed descriptions for all available chargepoint registers may be found in the ``README.rst`` in the
+chargepoint driver directory.
+
+A sample Chargepoint registry file can be found in the VOLTTRON repository in ``examples/configurations/drivers/chargepoint.csv``
+
 
 Fake Device Driver Configuration
 --------------------------------
