@@ -46,9 +46,6 @@ def simple_failover(request, get_volttron_instances):
 
     primary, secondary = get_volttron_instances(2)
 
-    if primary.encrypt == False:
-        pytest.skip("Only encrypted communication allowed for failovers")
-
     primary.allow_all_connections()
     secondary.allow_all_connections()
 

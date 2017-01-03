@@ -34,9 +34,6 @@ vc_uuid = None
 
 def tcp_to(instance):
 
-    if not instance.encrypt:
-        return instance.vip_address
-
     tmp = tempfile.NamedTemporaryFile()
     key = KeyStore(tmp.name)
     key.generate()

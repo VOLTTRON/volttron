@@ -77,8 +77,7 @@ from zmq.utils import jsonapi
 
 class Platforms(object):
     """
-    A class to manage the connections and interactions
-    with external instances.
+    A class to manage the connections and interactions with external instances.
     """
 
     def __init__(self, vc):
@@ -343,10 +342,18 @@ class PlatformHandler(object):
             # Since we start with devices, we assume that we are attempting
             # to save a master driver config file.
             rawdict = jsonapi.loads(params['raw_contents'])
+
+            # if this is not a bacnet device_type then we cannot do anything
+            # more than save and retrieve it from the store.
+            driver_type = rawdict.get('driver_type', None)
+            if driver_type is None or driver_type not in ('bacnet', 'modbus'):
+                return jsonrpc.json_result(message_id, "SUCCESS")
+
             # Registry config starts with config://
-            registry_config = rawdict['registry_config'][8:]
+            registry_config = rawdict['registry_config'][len('config://'):]
+
             try:
-                self._log.debug("Retriving registry_config for new device.")
+                self._log.debug("Retrieving registry_config for new device.")
                 point_config = self._connection.call("get_agent_config",
                                                      agent_identity,
                                                      registry_config, raw=False)
@@ -384,7 +391,7 @@ class PlatformHandler(object):
             devices_health[device_no_prefix] = dict(
                 last_publish_utc=None,
                 health=status.as_dict(),
-                points=devices_health.get("points", [])
+                points=devices_health.get("points", points)
             )
             platform_store['devices_health'] = devices_health
             self._vc.vip.config.set(self.config_store_name, platform_store)
@@ -465,12 +472,9 @@ class PlatformHandler(object):
     def add_event_listener(self, callback):
         self._event_listeners.add(callback)
 
-    def handle_sending_bacnet_properties(self):
-        pass
-
     def route_to_agent_method(self, id, agent_method, params):
         try:
-            self._log.debug('rout_to_agent_method')
+            self._log.debug('route_to_agent_method')
             resp = self._connection.call('route_request', id, agent_method,
                                          params)
             if isinstance(resp, dict):
@@ -482,18 +486,6 @@ class PlatformHandler(object):
         except RemoteError as e:
             return jsonrpc.json_error(id, INTERNAL_ERROR,
                                       "Internal Error: {}".format(str(e)))
-
-        # except (Unreachable, gevent.Timeout) as e:
-        #     # since we are unreachable we can't be managed.
-        #     self._is_managed = False
-        #     return jsonrpc.json_error(id, UNAVAILABLE_PLATFORM,
-        #                               "Can't route to platform {}"
-        #                               .format(self.address_hash))
-        # except Exception as e:
-        #     return jsonrpc.json_error(id, INTERNAL_ERROR,
-        #                               "An unkown error {} was found. "
-        #                               "The message is {}".format(type(e),
-        #                                                          e.message))
 
     def _raise_event(self, type, data={}):
         self._log.debug('RAISING EVENT: {} {}'.format(type, data))

@@ -65,7 +65,6 @@ from enum import Enum
 import hashlib
 import logging
 import os
-import re
 import shutil
 import sys
 import tempfile
@@ -91,15 +90,12 @@ from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.vip.agent.utils import build_connection
 from volttron.platform.web import DiscoveryInfo, DiscoveryError
+from . bacnet_proxy_reader import BACnetReader
 
 __version__ = '3.6.0'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
-# After setup logging
-from . bacnet_proxy_reader import BACnetReader
-_log.debug('LOGGING SETUP?')
 
 
 class NotManagedError(StandardError):
@@ -375,6 +371,7 @@ class VolttronCentralPlatform(Agent):
 
     def _periodic_attempt_registration(self):
 
+        _log.debug("periodic attempt to register.")
         if self._scheduled_connection_event is not None:
             # This won't hurt anything if we are canceling ourselves.
             self._scheduled_connection_event.cancel()
@@ -394,13 +391,13 @@ class VolttronCentralPlatform(Agent):
             if vc is None:
                 _log.debug("vc not connected")
                 return
-
-            if not vc.call("is_registered"):
+            local_address = self.current_config.get(
+                'local_external_addresses')[0]
+            if not vc.call("is_registered", address=local_address):
+                _log.debug("platform agent is not registered.")
                 self.registration_state = RegistrationStates.NotRegistered
 
             if self.registration_state == RegistrationStates.NotRegistered:
-                _log.debug('Not registred beginning registration process.')
-                _log.debug('Retrieving publickey from vc agent.')
                 vc_agent_publickey = vc.call("get_publickey")
                 _log.debug('vc agent publickey is {}'.format(
                     vc_agent_publickey))
@@ -911,6 +908,8 @@ class VolttronCentralPlatform(Agent):
         _log.debug(
             'platform agent routing request: {}, {}'.format(id, method))
 
+        _log.debug(params)
+
         method_map = {
             'list_agents': self.list_agents,
             'get_devices': self.get_devices,
@@ -937,7 +936,6 @@ class VolttronCentralPlatform(Agent):
         elif method in ('agent_status', 'start_agent', 'stop_agent',
                         'remove_agent', 'restart_agent'):
             _log.debug('We are trying to exectute method {}'.format(method))
-            _log.debug('Params are: {}'.format(params))
             if isinstance(params, list) and len(params) != 1 or \
                             isinstance(params,
                                        dict) and 'uuid' not in params.keys():
@@ -952,19 +950,23 @@ class VolttronCentralPlatform(Agent):
                 _log.debug('calling control with method: {} uuid: {}'.format(
                     method, uuid
                 ))
-                status = self.vip.rpc.call(CONTROL, method, uuid)
-                if method == 'stop_agent' or status == None:
+                status = self.vip.rpc.call(CONTROL, method, uuid).get(timeout=5)
+                if method == 'stop_agent' or status is None:
                     # Note we recurse here to get the agent status.
                     result = self.route_request(id, 'agent_status', uuid)
                 else:
                     result = {'process_id': status[0],
                               'return_code': status[1]}
-        elif method in ('install_agent',):
+        elif method in ('install',):
             _log.debug("Attempting install!")
-            if 'file' not in params:
-                result = jsonrpc.json_error(ident=id, code=INVALID_PARAMS)
+            if 'files' not in params:
+                result = jsonrpc.json_error(
+                    ident=id, code=INVALID_PARAMS,
+                    message="Invalid parameter missing 'files'")
             else:
-                result = self._install_agent(params['file'])
+                # TODD: This should be only a single file at a time for installs
+                fileargs = params.get('files')[0]
+                result = self._install_agent(fileargs)
 
         else:
 
@@ -1036,27 +1038,27 @@ class VolttronCentralPlatform(Agent):
             else:
                 path = os.path.join(tmpdir, fileargs['file_name'])
 
-                # The file should start with base64, which shows that it is
-                # a base64 encoded string.
+                base64_sep = 'base64,'
+                if base64_sep not in fileargs['file']:
+                    raise Exception('File must be base64 encoded.')
+
+                # The start of the string representing the file is right
+                # after base64,
                 with open(path, 'wb') as fout:
-                    expected_prefix = 'base64,'
-                    if fileargs['file'].startswith(expected_prefix):
-                        fout.write(
-                            base64.decodestring(fileargs['file'][len(expected_prefix):]))
-                    else:
-                        raise Exception("'file' parameter must begin with base64,")
-            _log.debug('Installing path: {}'.format(path))
-            _log.debug('Calling control install agent.')
+                    fout.write(
+                        base64.decodestring(
+                            fileargs['file'].split(base64_sep)[1]))
+
             uuid = self.vip.rpc.call(CONTROL,  'install_agent_local',
                                      path, vip_identity=vip_identity
                                      ).get(timeout=30)
             result = dict(uuid=uuid)
         except Exception as e:
             err_str = "EXCEPTION: " + str(e)
-            result = dict(error=err_str)
-
+            result = dict(error=dict(code=INTERNAL_ERROR,
+                                     message=err_str))
         shutil.rmtree(tmpdir, ignore_errors=True)
-        _log.debug('Results from install_agent are: '.format(result))
+        _log.debug('Results from install_agent are: {}'.format(result))
         return result
 
     def _publish_stats(self):
