@@ -19,12 +19,6 @@ var devicesActionCreators = {
             platform: platform
         });
     },
-    addDevices: function (platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.ADD_DEVICES,
-            platform: platform
-        });
-    },
     scanForDevices: function (platformUuid, bacnetProxyIdentity, low, high, address, scan_length) {
 
         var authorization = authorizationStore.getAuthorization();
@@ -145,12 +139,6 @@ var devicesActionCreators = {
         // Just a noop at this point
         
     },
-    handleKeyDown: function (keydown) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.HANDLE_KEY_DOWN,
-            keydown: keydown
-        });
-    },
     focusOnDevice: function (deviceId, deviceAddress) {
         dispatcher.dispatch({
             type: ACTION_TYPES.FOCUS_ON_DEVICE,
@@ -188,8 +176,6 @@ var devicesActionCreators = {
                         type: ACTION_TYPES.POINT_SCAN_FINISHED,
                         device: this
                     });
-
-                    console.log("closing points socket");
                 }
                 else{
                     var platform = null;
@@ -469,18 +455,6 @@ var devicesActionCreators = {
             attributes: attributes
         });
     },
-    updateRegistryValues: function (deviceId, deviceAddress, deviceName, platformUuid, agentIdentity, values) {
-
-        dispatcher.dispatch({
-            type: ACTION_TYPES.UPDATE_REGISTRY_VALUES,
-            deviceId: deviceId,
-            deviceAddress: deviceAddress,
-            deviceName: deviceName,
-            platformUuid: platformUuid, 
-            agentIdentity: agentIdentity,
-            data: values
-        });
-    },
     saveRegistry: function (device, fileName, update, values) {
 
         var authorization = authorizationStore.getAuthorization();
@@ -511,17 +485,6 @@ var devicesActionCreators = {
 
                 if (update)
                 {
-                    var csvData = CsvParse.parseCsvFile(values);
-
-                    devicesActionCreators.updateRegistryValues(
-                        device.id, 
-                        device.address,
-                        device.name,
-                        device.platformUuid,
-                        agentIdentity,
-                        csvData.data
-                    );
-
                     devicesActionCreators.clearConfig();
                 }
                 else

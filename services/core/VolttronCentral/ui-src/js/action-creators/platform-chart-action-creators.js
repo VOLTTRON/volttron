@@ -83,10 +83,6 @@ var platformChartActionCreators = {
                             item: item
                         });
                     }
-                    else
-                    {
-                        console.log("chart " + item.name + " isn't being refreshed");
-                    }
                 })
                 .catch(rpc.Error, function (error) {
                     handle401(error);

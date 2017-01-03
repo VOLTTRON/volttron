@@ -10637,7 +10637,7 @@
 	
 	        var _this = _possibleConstructorReturn(this, (PlatformsPanelItem.__proto__ || Object.getPrototypeOf(PlatformsPanelItem)).call(this, props));
 	
-	        _this._bind('_onStoresChange', '_expandAll', '_handleArrowClick', '_showCancel', '_resumeLoad', '_checkItem', '_showTooltip', '_hideTooltip', '_moveTooltip', '_onAddDevices', '_onDeviceMethodChange', '_onDeviceConfig');
+	        _this._bind('_onStoresChange', '_expandAll', '_handleArrowClick', '_showCancel', '_resumeLoad', '_checkItem', '_showTooltip', '_hideTooltip', '_moveTooltip', '_onAddDevices', '_onDeviceConfig');
 	
 	        _this.state = {};
 	
@@ -10657,21 +10657,9 @@
 	    }
 	
 	    _createClass(PlatformsPanelItem, [{
-	        key: 'managmentMessage',
-	        value: function managmentMessage(topic, message) {
-	
-	            console.log("WOOO HOOO!!!");
-	            console.log('TOPIC: ' + topic);
-	            console.log('MESSAGE: ' + message);
-	        }
-	    }, {
 	        key: 'componentDidMount',
 	        value: function componentDidMount() {
 	            var authorization = authorizationStore.getAuthorization();
-	
-	            // wspubsub.WsPubSub.set_authorization_key(authorization);       
-	            // wspubsub.WsPubSub.open_management_socket(this.managmentMessage);
-	
 	            platformsPanelItemsStore.addChangeListener(this._onStoresChange);
 	        }
 	    }, {
@@ -10814,19 +10802,6 @@
 	                devicesActionCreators.configureDevices(this.state.panelItem.toJS());
 	            } else {
 	                statusIndicatorActionCreators.openStatusIndicator("error", "To scan for devices, a BACNet proxy agent for the platform must be installed and running.", null, "left");
-	            }
-	        }
-	    }, {
-	        key: '_onDeviceMethodChange',
-	        value: function _onDeviceMethodChange(evt) {
-	
-	            var deviceMethod = evt.target.value;
-	
-	            this.setState({ deviceMethod: deviceMethod });
-	
-	            if (deviceMethod) {
-	                devicesActionCreators.addDevices(this.state.panelItem.toJS(), deviceMethod);
-	                controlButtonActionCreators.hideTaptip("addDevicesButton");
 	            }
 	        }
 	    }, {
@@ -11552,7 +11527,6 @@
 	var keyMirror = __webpack_require__(102);
 	
 	module.exports = keyMirror({
-	    HANDLE_KEY_DOWN: null,
 	    OPEN_MODAL: null,
 	    CLOSE_MODAL: null,
 	
@@ -11607,7 +11581,6 @@
 	    CONFIGURE_DEVICES: null,
 	    CLEAR_CONFIG: null,
 	    FOCUS_ON_DEVICE: null,
-	    ADD_DEVICES: null,
 	    LISTEN_FOR_IAMS: null,
 	    DEVICE_DETECTED: null,
 	    DEVICE_SCAN_FINISHED: null,
@@ -11617,16 +11590,12 @@
 	    CONFIGURE_DEVICE: null,
 	    REFRESH_DEVICE_POINTS: null,
 	    TOGGLE_SHOW_POINTS: null,
-	    EDIT_REGISTRY_CONFIG: null,
-	    EDIT_DEVICE_CONFIG: null,
 	    RECONFIGURE_DEVICE: null,
 	    UPDATE_REGISTRY_ROW: null,
-	    UPDATE_REGISTRY_VALUES: null,
 	    LOAD_REGISTRY: null,
 	    LOAD_REGISTRY_FILES: null,
 	    UNLOAD_REGISTRY_FILES: null,
 	    CANCEL_REGISTRY: null,
-	    SAVE_REGISTRY: null,
 	    SAVE_CONFIG: null,
 	    UPDATE_DEVICES_LIST: null,
 	
@@ -37176,7 +37145,7 @@
 	        // will work correctly
 	        device_props = JSON.parse(device_props.replace(/'/g, '"'));
 	
-	        var platform = devicesStore.getState().platform;
+	        var platform = devicesStore.getPlatform();
 	
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
@@ -37405,9 +37374,6 @@
 	
 	var devicesStore = new Store();
 	
-	var _action = "get_scan_settings";
-	var _view = "Detect Devices";
-	var _device = null;
 	var _data = {};
 	var _updatedRow = {};
 	var _platform;
@@ -38372,8 +38338,8 @@
 	    "999": "Reserved for ASHRAE"
 	};
 	
-	devicesStore.getState = function () {
-	    return { action: _action, view: _view, device: _device, platform: _platform };
+	devicesStore.getPlatform = function () {
+	    return _platform;
 	};
 	
 	devicesStore.getRegistryValues = function (deviceId, deviceAddress, deviceName) {
@@ -38397,18 +38363,8 @@
 	    return ObjectIsEmpty(_settingsTemplate) ? null : _settingsTemplate;
 	};
 	
-	devicesStore.getDataLoaded = function (device) {
-	    return _data.hasOwnProperty(device.deviceId) && _data.hasOwnProperty(device.deviceId) ? _data[device.deviceId].length : false;
-	};
-	
 	devicesStore.getSavedRegistryFiles = function () {
 	    return ObjectIsEmpty(_savedRegistryFiles) ? null : _savedRegistryFiles;
-	};
-	
-	devicesStore.getRegistryFileShared = function (registryFile, deviceId, deviceAddress, deviceName) {};
-	
-	devicesStore.getWarnings = function () {
-	    return _warnings;
 	};
 	
 	devicesStore.getDevices = function (platform, bacnetIdentity) {
@@ -38457,13 +38413,6 @@
 	    return _newScan;
 	};
 	
-	devicesStore.getKeyboard = function (deviceId) {
-	
-	    var keyboard = deviceId === _keyboard.device ? JSON.parse(JSON.stringify(_keyboard)) : null;
-	
-	    return keyboard;
-	};
-	
 	devicesStore.deviceHasFocus = function (deviceId, deviceAddress) {
 	    return _focusedDevice.id === deviceId && _focusedDevice.address === deviceAddress;
 	};
@@ -38488,14 +38437,6 @@
 	    return updatedRow;
 	};
 	
-	devicesStore.getBackupPoints = function (deviceId, deviceAddress) {
-	    var backup = _backupPoints.find(function (backups) {
-	        return backups.id === deviceId && backups.address === deviceAddress;
-	    });
-	
-	    return typeof backup === "undefined" ? [] : backup.points;
-	};
-	
 	devicesStore.enableBackupPoints = function (deviceId, deviceAddress) {
 	    var backup = _backupPoints.find(function (backups) {
 	        return backups.id === deviceId && backups.address === deviceAddress;
@@ -38509,8 +38450,6 @@
 	};
 	
 	devicesStore.getReconfiguration = function () {
-	    console.log("getting reconfiguration");
-	    console.log(_reconfiguration);
 	    return _reconfiguration;
 	};
 	
@@ -38531,6 +38470,7 @@
 	            _platform = action.platform;
 	            _devices = [];
 	            _newScan = true;
+	            _backupPoints = [];
 	            _scanningComplete = false;
 	            devicesStore.emitChange();
 	            break;
@@ -38540,15 +38480,7 @@
 	            _devices = [];
 	            devicesStore.emitChange();
 	            break;
-	        case ACTION_TYPES.ADD_DEVICES:
-	            _action = "get_scan_settings";
-	            _view = "Detect Devices";
-	            _device = null;
-	            devicesStore.emitChange();
-	            break;
 	        case ACTION_TYPES.CANCEL_SCANNING:
-	            // _action = "get_scan_settings";
-	            // _view = "Detect Devices";
 	            // devicesWs.close();
 	            // devicesWs = null;
 	
@@ -38561,9 +38493,6 @@
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.DEVICE_DETECTED:
-	            _action = "device_detected";
-	            _view = "Devices Found";
-	
 	            loadDevice(action.device, action.platform, action.bacnet);
 	
 	            if (_devices.length) {
@@ -38589,14 +38518,9 @@
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.POINT_RECEIVED:
-	            _action = "point_received";
-	            _view = "Devices Found";
 	            loadPoint(action.data);
-	
 	            devicesStore.emitChange();
-	
 	            break;
-	
 	        case ACTION_TYPES.FOCUS_ON_DEVICE:
 	
 	            var focusedDevice = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
@@ -38631,11 +38555,7 @@
 	            break;
 	
 	        case ACTION_TYPES.CONFIGURE_DEVICE:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	            _device = action.device;
-	
-	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+	            var device = devicesStore.getDeviceRef(action.device.id, action.device.address);
 	
 	            if (device) {
 	                device.showPoints = action.device.showPoints;
@@ -38652,11 +38572,7 @@
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.TOGGLE_SHOW_POINTS:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	            _device = action.device;
-	
-	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+	            var device = devicesStore.getDeviceRef(action.device.id, action.device.address);
 	
 	            if (device) {
 	                device.showPoints = action.device.showPoints;
@@ -38665,11 +38581,7 @@
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.CANCEL_REGISTRY:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	            _device = action.device;
-	
-	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+	            var device = devicesStore.getDeviceRef(action.device.id, action.device.address);
 	
 	            if (device) {
 	                device.registryConfig = [];
@@ -38681,8 +38593,6 @@
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.LOAD_REGISTRY:
-	            _action = "configure_registry";
-	            _view = "Registry Configuration";
 	
 	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 	
@@ -38696,8 +38606,6 @@
 	            break;
 	
 	        case ACTION_TYPES.LOAD_REGISTRY_FILES:
-	            _action = "configure_registry";
-	            _view = "Registry Configuration";
 	
 	            _savedRegistryFiles = {
 	                files: action.registryFiles,
@@ -38708,16 +38616,12 @@
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.UNLOAD_REGISTRY_FILES:
-	            _action = "configure_registry";
-	            _view = "Registry Configuration";
 	
 	            _savedRegistryFiles = {};
 	
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.UPDATE_REGISTRY_ROW:
-	            _action = "update_registry";
-	            _view = "Registry Configuration";
 	
 	            var i = -1;
 	            var keyProps = [];
@@ -38730,26 +38634,11 @@
 	
 	            devicesStore.emitChange();
 	            break;
-	        case ACTION_TYPES.UPDATE_REGISTRY_VALUES:
-	
-	            // var device = {
-	            //     id: action.deviceId,
-	            //     address: action.deviceAddress,
-	            //     name: action.deviceName,
-	            //     platformUuid: action.platformUuid,
-	            //     agentDriver: action.agentDriver
-	            // }
-	
-	            // reconfigureRegistry(device, _reconfiguration, action.data);
-	
-	            // devicesStore.emitChange();
-	            break;
 	        case ACTION_TYPES.RECONFIGURE_DEVICE:
 	
 	            _reconfiguration = action.configuration;
 	            _reconfiguration.deviceName = action.deviceName.replace("devices/", "");
 	
-	            console.log("reconfigure device " + _reconfiguration.deviceName);
 	            _platform = {
 	                "uuid": action.platformUuid
 	            };
@@ -38768,37 +38657,13 @@
 	
 	            devicesStore.emitChange();
 	            break;
-	        case ACTION_TYPES.EDIT_REGISTRY:
-	            _action = "configure_registry";
-	            _view = "Registry Configuration";
-	            _device = action.device;
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.SAVE_REGISTRY:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	
-	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
-	
-	            if (device) {
-	                device.showPoints = false;
-	            }
-	
-	            devicesStore.emitChange();
-	            break;
 	        case ACTION_TYPES.SAVE_CONFIG:
-	            _action = "configure_device";
-	            _view = "Configure Device";
 	
 	            _settingsTemplate = action.settings;
 	
 	            break;
 	        case ACTION_TYPES.UPDATE_DEVICES_LIST:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	
 	            _devicesList[action.platformUuid] = action.devices;
-	
 	            break;
 	    }
 	
@@ -38945,11 +38810,6 @@
 	                    } else {
 	                        if (pointData.status === "COMPLETE") {
 	                            device.configuring = false;
-	
-	                            console.log("points complete");
-	                            console.log(pointData.device_id);
-	                            console.log(pointData.address);
-	                            console.log(device);
 	                            setBackupPoints(device);
 	                        }
 	                    }
@@ -58378,10 +58238,7 @@
 	function openConfigureWS(onmessage) {
 	    var endpoint = _buildEndpoint("configure");
 	    if (sockets[endpoint] == null) {
-	        console.log("Creating new SuperSocket for configure");
 	        sockets[endpoint] = new SuperSocket(endpoint);
-	    } else {
-	        console.log("Using existing socket.");
 	    }
 	    sockets[endpoint].addOnMessageCallback(onmessage);
 	}
@@ -58567,8 +58424,6 @@
 	                        type: ACTION_TYPES.REFRESH_CHART,
 	                        item: item
 	                    });
-	                } else {
-	                    console.log("chart " + item.name + " isn't being refreshed");
 	                }
 	            }).catch(rpc.Error, function (error) {
 	                handle401(error);
@@ -59278,12 +59133,6 @@
 	            platform: platform
 	        });
 	    },
-	    addDevices: function addDevices(platform) {
-	        dispatcher.dispatch({
-	            type: ACTION_TYPES.ADD_DEVICES,
-	            platform: platform
-	        });
-	    },
 	    scanForDevices: function scanForDevices(platformUuid, bacnetProxyIdentity, low, high, address, scan_length) {
 	
 	        var authorization = authorizationStore.getAuthorization();
@@ -59385,12 +59234,6 @@
 	        // Just a noop at this point
 	
 	    },
-	    handleKeyDown: function handleKeyDown(keydown) {
-	        dispatcher.dispatch({
-	            type: ACTION_TYPES.HANDLE_KEY_DOWN,
-	            keydown: keydown
-	        });
-	    },
 	    focusOnDevice: function focusOnDevice(deviceId, deviceAddress) {
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.FOCUS_ON_DEVICE,
@@ -59428,8 +59271,6 @@
 	                        type: ACTION_TYPES.POINT_SCAN_FINISHED,
 	                        device: this
 	                    });
-	
-	                    console.log("closing points socket");
 	                } else {
 	                    var platform = null;
 	                    devicesActionCreators.pointReceived(message);
@@ -59653,18 +59494,6 @@
 	            attributes: attributes
 	        });
 	    },
-	    updateRegistryValues: function updateRegistryValues(deviceId, deviceAddress, deviceName, platformUuid, agentIdentity, values) {
-	
-	        dispatcher.dispatch({
-	            type: ACTION_TYPES.UPDATE_REGISTRY_VALUES,
-	            deviceId: deviceId,
-	            deviceAddress: deviceAddress,
-	            deviceName: deviceName,
-	            platformUuid: platformUuid,
-	            agentIdentity: agentIdentity,
-	            data: values
-	        });
-	    },
 	    saveRegistry: function saveRegistry(device, fileName, update, values) {
 	
 	        var authorization = authorizationStore.getAuthorization();
@@ -59693,10 +59522,6 @@
 	            statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
 	
 	            if (update) {
-	                var csvData = _csvparse.CsvParse.parseCsvFile(values);
-	
-	                devicesActionCreators.updateRegistryValues(device.id, device.address, device.name, device.platformUuid, agentIdentity, csvData.data);
-	
 	                devicesActionCreators.clearConfig();
 	            } else {
 	                devicesActionCreators.updateDevicesList(device.platformUuid);
@@ -62632,7 +62457,8 @@
 	
 	function getInitialState() {
 	
-	    var state = devicesStore.getState();
+	    var state = {};
+	    state.platform = devicesStore.getPlatform();
 	
 	    if (state.platform) {
 	        state.bacnetProxies = platformsStore.getRunningBacnetProxies(state.platform.uuid);
@@ -63277,7 +63103,6 @@
 	        key: 'componentWillReceiveProps',
 	        value: function componentWillReceiveProps(nextProps) {
 	            if (this.props.device.configuring !== nextProps.device.configuring || this.props.device.showPoints !== nextProps.device.showPoints || this.props.device.registryCount !== nextProps.device.registryCount || this.props.device.name !== nextProps.device.name) {
-	                console.log("receiving props");
 	                var newState = this._resetState(nextProps.device);
 	                newState.keyboardRange = this.state.keyboardRange;
 	
@@ -64498,7 +64323,6 @@
 	}
 	
 	function getPointsFromStore(device, allSelected, keyPropsList) {
-	    console.log("getting registry values for " + device.id + ", " + device.address + ", " + device.name);
 	    return initializeList(allSelected, devicesStore.getRegistryValues(device.id, device.address, device.name), keyPropsList);
 	}
 	
@@ -116927,4 +116751,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-add2af0bbfbcb42b31f1.js.map
+//# sourceMappingURL=app-edf7950c305267842d13.js.map

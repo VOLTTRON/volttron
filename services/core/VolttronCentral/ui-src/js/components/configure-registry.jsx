@@ -167,7 +167,6 @@ class ConfigureRegistry extends BaseComponent {
             (this.props.device.registryCount !== nextProps.device.registryCount) ||
             (this.props.device.name !== nextProps.device.name))
         {
-            console.log("receiving props");
             var newState = this._resetState(nextProps.device);
             newState.keyboardRange = this.state.keyboardRange;
 
@@ -1448,7 +1447,6 @@ function getFilteredPoints(registryValues, filterStr, column) {
 }
 
 function getPointsFromStore(device, allSelected, keyPropsList) {
-    console.log("getting registry values for " + device.id + ", " + device.address + ", " + device.name);
     return initializeList(allSelected, devicesStore.getRegistryValues(device.id, device.address, device.name), keyPropsList);
 }
 

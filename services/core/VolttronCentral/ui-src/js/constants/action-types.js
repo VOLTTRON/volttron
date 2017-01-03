@@ -3,7 +3,6 @@
 var keyMirror = require('keymirror');
 
 module.exports = keyMirror({
-    HANDLE_KEY_DOWN: null,
     OPEN_MODAL: null,
     CLOSE_MODAL: null,
 
@@ -58,7 +57,6 @@ module.exports = keyMirror({
     CONFIGURE_DEVICES: null,
     CLEAR_CONFIG: null,
     FOCUS_ON_DEVICE: null,
-    ADD_DEVICES: null,
     LISTEN_FOR_IAMS: null,
     DEVICE_DETECTED: null,
     DEVICE_SCAN_FINISHED: null,
@@ -68,16 +66,12 @@ module.exports = keyMirror({
     CONFIGURE_DEVICE: null,
     REFRESH_DEVICE_POINTS: null,
     TOGGLE_SHOW_POINTS: null,
-    EDIT_REGISTRY_CONFIG: null,
-    EDIT_DEVICE_CONFIG: null,
     RECONFIGURE_DEVICE: null,
     UPDATE_REGISTRY_ROW: null,
-    UPDATE_REGISTRY_VALUES: null,
     LOAD_REGISTRY: null,
     LOAD_REGISTRY_FILES: null,
     UNLOAD_REGISTRY_FILES: null,
     CANCEL_REGISTRY: null,
-    SAVE_REGISTRY: null,
     SAVE_CONFIG: null,
     UPDATE_DEVICES_LIST: null, 
 
