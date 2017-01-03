@@ -466,7 +466,8 @@ def add_fake_device_to_configstore():
         _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
               'fake.csv', 'examples/configurations/drivers/fake.csv', '--csv'])
         _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
-              'devices/fake', 'examples/configurations/drivers/fake.config'])
+              'devices/fake-campus/fake-building/fake-device',
+              'examples/configurations/drivers/fake.config'])
 
 
 @installs('services/core/MasterDriverAgent', 'master_driver',

@@ -35,7 +35,7 @@ var platformChartActionCreators = {
     changeDataLength: function (length, chartKey) {
         dispatcher.dispatch({
             type: ACTION_TYPES.CHANGE_CHART_LENGTH,
-	    length: length,
+        length: length,
             chartKey: chartKey
         });
     },
@@ -53,7 +53,7 @@ var platformChartActionCreators = {
             chartKey: chartKey
         });
     },
-    refreshChart: function (series, length) {
+	refreshChart: function (series, length) {
 
 		var authorization = authorizationStore.getAuthorization();
 
@@ -62,7 +62,7 @@ var platformChartActionCreators = {
                 method: 'historian.query',
                 params: { // TODO
                     topic: item.topic,
-                    count: (length > 0 ? length: 20 ),
+                    count: (length > 0 ? length : 20),
                     order: 'LAST_TO_FIRST',
                 },
                 authorization: authorization,
@@ -150,13 +150,24 @@ var platformChartActionCreators = {
                     if (panelItem.path && panelItem.path.length > 1)
                     {
                         var platformUuid = panelItem.path[1];
-                        var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
 
-                        if (!forwarderRunning)
+                        var vcInstance = platformsStore.getVcInstance();
+
+                        if (vcInstance.uuid === platformUuid)
                         {
-                            message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
+                            message = "Unable to load chart: The master driver agent is unavailable on the VOLTTRON Central platform.";
                             orientation = "left";
-                        }             
+                        }  
+                        else
+                        {
+                            var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
+
+                            if (!forwarderRunning)
+                            {
+                                message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
+                                orientation = "left";
+                            } 
+                        }           
                     }
 
                     platformsPanelActionCreators.checkItem(panelItem.path, false);
@@ -172,17 +183,27 @@ var platformChartActionCreators = {
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
                         orientation = "left";
                     }
                 }
                 else
                 {
-                    var historianRunning = platformsStore.getVcHistorianRunning();
+                    var vcInstance = platformsStore.getVcInstance();
 
-                    if (!historianRunning)
+                    if (vcInstance)
                     {
-                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                        var historianRunning = platformsStore.getVcHistorianRunning(vcInstance);
+
+                        if (!historianRunning)
+                        {
+                            message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
+                            orientation = "left";
+                        }
+                    }
+                    else
+                    {
+                        message = "Unable to load chart: An unknown problem occurred.";
                         orientation = "left";
                     }
                 }
@@ -190,6 +211,106 @@ var platformChartActionCreators = {
                 platformsPanelActionCreators.checkItem(panelItem.path, false);
                 handle401(error, message, null, orientation);
            });
+    },
+    addToCharts: function(panelItems) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        panelItems.forEach(function (panelItem) {
+
+            new rpc.Exchange({
+                method: 'historian.query',
+                params: {
+                    topic: panelItem.topic,
+                    count: 20,
+                    order: 'LAST_TO_FIRST',
+                },
+                authorization: authorization,
+            }).promise
+                .then(function (result) {
+
+                    if (result.hasOwnProperty("values"))
+                    {    
+                        panelItem.data = result.values;
+
+                        panelItem.data.forEach(function (datum) {
+                            datum.name = panelItem.name;
+                            datum.parent = panelItem.parentPath;
+                            datum.uuid = panelItem.uuid;
+                        });
+
+                        dispatcher.dispatch({
+                            type: ACTION_TYPES.SHOW_CHARTS,
+                            emitChange: false
+                        });
+
+                        dispatcher.dispatch({
+                            type: ACTION_TYPES.ADD_TO_CHART,
+                            panelItem: panelItem
+                        });
+
+                        platformsPanelActionCreators.checkItem(panelItem.path, true);
+
+                        var savedCharts = platformChartStore.getPinnedCharts();
+                        var inSavedChart = savedCharts.find(function (chart) {
+                            return chart.chartKey === panelItem.name;
+                        });
+                        
+                        if (inSavedChart)
+                        {
+                            platformActionCreators.saveCharts(savedCharts);
+                        }
+                    }
+                    else
+                    {
+                        var message = "Unable to load chart: An unknown problem occurred.";
+                        var orientation = "center";
+                        var error = {};
+
+                        if (panelItem.path && panelItem.path.length > 1)
+                        {
+                            var platformUuid = panelItem.path[1];
+                            var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
+
+                            if (!forwarderRunning)
+                            {
+                                message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
+                                orientation = "left";
+                            }             
+                        }
+
+                        platformsPanelActionCreators.checkItem(panelItem.path, false);
+                        handle401(error, message, null, orientation);
+                    }
+                })
+                .catch(rpc.Error, function (error) {
+
+                    var message = "Unable to load chart: " + error.message;
+                    var orientation;
+
+                    if (error.code === -32602)
+                    {
+                        if (error.message === "historian unavailable")
+                        {
+                            message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                            orientation = "left";
+                        }
+                    }
+                    else
+                    {
+                        var historianRunning = platformsStore.getVcHistorianRunning();
+
+                        if (!historianRunning)
+                        {
+                            message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
+                            orientation = "left";
+                        }
+                    }
+
+                    platformsPanelActionCreators.checkItem(panelItem.path, false);
+                    handle401(error, message, null, orientation);
+               });
+        });
     },
     removeFromChart: function(panelItem) {
 

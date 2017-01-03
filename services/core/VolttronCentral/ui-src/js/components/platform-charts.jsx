@@ -6,8 +6,6 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
 var NewChartForm = require('./new-chart-form');
 var chartStore = require('../stores/platform-chart-store');
-var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var PlatformCharts = React.createClass({
     getInitialState: function () {
@@ -52,7 +50,7 @@ var PlatformCharts = React.createClass({
 
         if (platformCharts.length === 0)
         {
-            var noCharts = <p className="empty-help">No charts have been loaded.</p>
+            var noCharts = <p key="no-charts" className="empty-help">No charts have been loaded.</p>
             platformCharts.push(noCharts);
         }
 

@@ -68,8 +68,6 @@ from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.vip.agent import Agent
 from volttron.platform.web import build_vip_address_string
 
-_log = logging.getLogger(__name__)
-
 __version__ = '1.0.3'
 __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 
@@ -82,13 +80,15 @@ class Connection(object):
     """
     def __init__(self, address, peer=None, publickey=None,
                  secretkey=None, serverkey=None, volttron_home=None, **kwargs):
-        _log.debug("Connection: {}, {}, {}, {}, {}"
+
+        self._log = logging.getLogger(__name__)
+        self._log.debug("Connection: {}, {}, {}, {}, {}"
                    .format(address, peer, publickey, secretkey, serverkey))
         self._address = address
         self._peer = peer
         self._serverkey = None
         if peer is None:
-            _log.warn('Peer is non so must be passed in call method.')
+            self._log.warn('Peer is non so must be passed in call method.')
         self.volttron_home = volttron_home
 
         if self.volttron_home is None:
@@ -100,7 +100,7 @@ class Connection(object):
             parsed = urlparse.urlparse(address)
             if parsed.scheme == 'tcp':
                 qs = urlparse.parse_qs(parsed.query)
-                _log.debug('QS IS: {}'.format(qs))
+                self._log.debug('QS IS: {}'.format(qs))
                 if 'serverkey' in qs:
                     self._serverkey = qs.get('serverkey')
                 else:
@@ -120,11 +120,17 @@ class Connection(object):
             else:
                 raise AttributeError(
                     'Invalid address type specified. ipc or tcp accepted.')
+
         self._server = Agent(address=full_address,
                              volttron_home=self.volttron_home,
                              enable_store=False,
                              reconnect_interval=1000,
                              **kwargs)
+        # TODO the following should work as well, but doesn't.  Not sure why!
+        # self._server = Agent(address=address, serverkey=serverkey,
+        #                      secretkey=secretkey, publickey=publickey,
+        #                      enable_store=False,
+        #                      volttron_home=self.volttron_home, **kwargs)
         self._greenlet = None
         self._connected_since = None
         self._last_publish = None
@@ -164,7 +170,6 @@ class Connection(object):
     @property
     def server(self):
         if self._greenlet is None:
-            _log.debug('Spawning greenlet')
             event = gevent.event.Event()
             self._greenlet = gevent.spawn(self._server.core.run, event)
 
@@ -177,25 +182,21 @@ class Connection(object):
                 raise
 
             self._connected_since = get_aware_utc_now()
-            if self.peer not in self._server.vip.peerlist().get(timeout=2):
-                _log.warn('Peer {} not found connected to router.'.format(
-                    self.peer
-                ))
+            if self.peer:
+                if self.peer not in self._server.vip.peerlist().get(timeout=2):
+                    self._log.warn('peer {} not found connected to router.'.format(
+                        self.peer
+                    ))
         return self._server
 
     def peers(self, timeout=DEFAULT_TIMEOUT):
         return self.server.vip.peerlist().get(timeout=timeout)
 
     def is_connected(self, timeout=DEFAULT_TIMEOUT):
-        return self.server.core.connected
-        # self.server.vip.ping('').get(timeout=timeout)
-        # try:
-        #     return True
-        # except gevent.Timeout:
-        #     _log.error('Timeout occured pinging server.')
-        #     return False
+        return self.server.core.connected and self.is_peer_connected(timeout)
 
     def is_peer_connected(self, timeout=DEFAULT_TIMEOUT):
+        self._log.debug('Checking for peer {}'.format(self.peer))
         return self.peer in self.peers()
 
     def publish(self, topic, headers=None, message=None, timeout=DEFAULT_TIMEOUT):
@@ -207,6 +208,9 @@ class Connection(object):
         self.server.vip.pubsub.publish(
             'pubsub', topic=topic, headers=headers, message=message
         ).get(timeout=timeout)
+
+    def subscribe(self, prefix, callback):
+        self.server.vip.pubsub.subscribe('pubsub', prefix, callback)
 
     def call(self, method, *args, **kwargs):
         timeout = kwargs.pop('timeout', DEFAULT_TIMEOUT)
@@ -238,3 +242,5 @@ class Connection(object):
     def kill(self, *args, **kwargs):
         if self._greenlet is not None:
             self._greenlet.kill(*args, **kwargs)
+            del(self._greenlet)
+            self._greenlet = None
