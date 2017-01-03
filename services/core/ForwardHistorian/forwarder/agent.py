@@ -261,7 +261,7 @@ def historian(config_path, **kwargs):
                             headers=headers,
                             message=payload['message']).get()
                     except gevent.Timeout:
-                        _log.debug("Timout occurred email should send!")
+                        _log.debug("Timeout occurred email should send!")
                         timeout_occurred = True
                         self._last_timeout = self.timestamp()
                         self._num_failures += 1
@@ -270,7 +270,7 @@ def historian(config_path, **kwargs):
                         self._target_platform.core.stop()
                         self._target_platform = None
                         self.vip.health.set_status(
-                            STATUS_BAD, "Timout occured")
+                            STATUS_BAD, "Timeout occured")
                     except Exception as e:
                         err = "Unhandled error publishing to target platfom."
                         _log.error(err)

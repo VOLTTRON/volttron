@@ -8,6 +8,7 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 PRINT_LOG_ON_SHUTDOWN = False
 
+
 def print_log(volttron_home):
     if PRINT_LOG_ON_SHUTDOWN:
         if os.environ.get('PRINT_LOGS', PRINT_LOG_ON_SHUTDOWN):
@@ -136,7 +137,8 @@ def volttron_instance2_web(request):
 # Generic fixtures. Ideally we want to use the below instead of
 # Use this fixture when you want a single instance of volttron platform for
 # test
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module",
+                params=['encrypted'])
 def volttron_instance(request):
     """Fixture that returns a single instance of volttron platform for testing
 
@@ -145,8 +147,6 @@ def volttron_instance(request):
     """
     wrapper = None
     address = get_rand_vip()
-
-    print("building instance (using encryption)")
     wrapper = build_wrapper(address)
 
 
@@ -162,7 +162,8 @@ def volttron_instance(request):
 # Usage example:
 # def test_function_that_uses_n_instances(request, get_volttron_instances):
 #     instances = get_volttron_instances(3)
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module",
+                params=['encrypted'])
 def get_volttron_instances(request):
     """ Fixture to get more than 1 volttron instance for test
     Use this fixture to get more than 1 volttron instance for test. This
@@ -182,14 +183,12 @@ def get_volttron_instances(request):
     all_instances = []
 
     def get_n_volttron_instances(n, should_start=True):
-        print('GETTING NEW INSTANCES!!!!!', n)
         get_n_volttron_instances.count = n
         instances = []
         for i in range(0, n):
             address = get_rand_vip()
             wrapper = None
             if should_start:
-                print("building instance  (using encryption)")
                 wrapper = build_wrapper(address)
             else:
                 wrapper = PlatformWrapper()

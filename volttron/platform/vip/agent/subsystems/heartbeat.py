@@ -131,7 +131,6 @@ class Heartbeat(SubsystemBase):
         self.stop()
         self.start()
 
-
     def set_period(self, period):
         """RPC method
 

@@ -407,9 +407,9 @@ class BasicCore(object):
 
 
 class Core(BasicCore):
-    #We want to delay the calling of "onstart" methods until we have confirmation
-    # from the server that we have a connection. We will fire the event when
-    # we hear the response to the hello message.
+    # We want to delay the calling of "onstart" methods until we have
+    # confirmation from the server that we have a connection. We will fire
+    # the event when we hear the response to the hello message.
     delay_onstart_signal = True
 
     # Agents started before the router can set this variable
@@ -443,7 +443,7 @@ class Core(BasicCore):
         _log.debug('address: %s', address)
         _log.debug('identity: %s', identity)
         _log.debug('agent_uuid: %s', agent_uuid)
-        _log.debug('severkey: %s', serverkey)
+        _log.debug('serverkey: %s', serverkey)
 
         self.socket = None
         self.subsystems = {'error': self.handle_error}
