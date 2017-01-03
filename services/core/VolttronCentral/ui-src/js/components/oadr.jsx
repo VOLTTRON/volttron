@@ -27,7 +27,6 @@ var DeregisterPlatformConfirmation = require('../components/deregister-platform-
 // platform-charg-action-createros.js has a clue as to how to do this.
 
 function oadr() {
-    console.log("oadring");
     var page = {};
     page.promise = new xhr.Request({
         method: 'GET',
@@ -43,7 +42,7 @@ function oadr() {
 	    page.response = response;
 	    const element = (
 		    <div>
-      <h1>Hello, OADR {response.content}</h1>
+      <h1>FLAME</h1> {response.content}
       <h2>It is {new Date().toLocaleTimeString()}.</h2>
     </div>
   );
