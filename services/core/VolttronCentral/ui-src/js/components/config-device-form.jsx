@@ -143,7 +143,15 @@ class ConfigDeviceForm extends BaseComponent {
             settings.config.driver_config = this.state.driver_config;
             settings.config.registry_config = "config://" + this.props.registryFile;
             
-            devicesActionCreators.saveConfig(this.props.device, this.state.configUpdate, config_name, settings);
+            var announce = true;
+
+            devicesActionCreators.saveConfig(
+                this.props.device, 
+                this.state.configUpdate, 
+                announce, 
+                config_name, 
+                settings
+            );
 
             if (!this.props.config)
             {
@@ -366,67 +374,71 @@ var initializeSettings = (type, savedConfig, settingsTemplate) => {
     switch (type)
     {
         case "bacnet":
-
+            
+            settings = {
+                driver_type: {
+                    value: "bacnet", 
+                    label: "Driver Type",
+                    type: "text"
+                },
+                interval: {
+                    value: "", 
+                    label: "Interval (seconds)",
+                    type: "number"
+                },
+                timezone: {
+                    value: "", 
+                    label: "Timezone",
+                    type: "text"
+                },
+                heartbeat_point: {
+                    value: "", 
+                    label: "Heartbeat Point",
+                    type: "text"
+                },
+                minimum_priority: {
+                    value: 8, 
+                    label: "Minimum Priority",
+                    type: "number"
+                },
+                max_objs_per_read: {
+                    value: "", 
+                    label: "Maximum Objects per Read",
+                    type: "number"
+                },
+                publish_depth_first: {
+                    value: true,
+                    label: "Publish Depth-First",
+                    type: "bool"
+                },
+                publish_breadth_first: {
+                    value: false,
+                    label: "Publish Breadth-First",
+                    type: "bool"
+                },
+                publish_breadth_first_all: {
+                    value: false,
+                    label: "Publish Breadth-First All",
+                    type: "bool"
+                }
+            }
+                
             if (settingsTemplate)
             {
-                settings = settingsTemplate.config;
-            }
-            else
-            {
-                settings = {
-                    driver_type: {
-                        value: "bacnet", 
-                        label: "Driver Type",
-                        type: "text"
-                    },
-                    interval: {
-                        value: "", 
-                        label: "Interval (seconds)",
-                        type: "number"
-                    },
-                    timezone: {
-                        value: "", 
-                        label: "Timezone",
-                        type: "text"
-                    },
-                    heartbeat_point: {
-                        value: "", 
-                        label: "Heartbeat Point",
-                        type: "text"
-                    },
-                    minimum_priority: {
-                        value: 8, 
-                        label: "Minimum Priority",
-                        type: "number"
-                    },
-                    max_objs_per_read: {
-                        value: "", 
-                        label: "Maximum Objects per Read",
-                        type: "number"
-                    },
-                    publish_depth_first: {
-                        value: true,
-                        label: "Publish Depth-First",
-                        type: "bool"
-                    },
-                    publish_breadth_first: {
-                        value: false,
-                        label: "Publish Breadth-First",
-                        type: "bool"
-                    },
-                    publish_breadth_first_all: {
-                        value: false,
-                        label: "Publish Breadth-First All",
-                        type: "bool"
-                    }
-                }
-
-                if (savedConfig)
+                for (var key in settings)
                 {
-                    for (var key in settings)
-                    {
-                        settings[key].value = savedConfig[key];
-                    }
+                    settings[key].value = (
+                        settingsTemplate.config[key].hasOwnProperty("value") ? 
+                            settingsTemplate.config[key].value : 
+                                settingsTemplate.config[key]);
+                }
+            }
+
+            if (savedConfig)
+            {
+                for (var key in settings)
+                {
+                    settings[key].value = savedConfig[key];
                 }
             }
 

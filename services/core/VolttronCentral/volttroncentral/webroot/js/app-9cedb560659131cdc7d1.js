@@ -186,7 +186,11 @@
 	
 	    devicesStore.addChangeListener(function () {
 	
-	        if (devicesStore.getNewScan()) {
+	        if (devicesStore.getClearConfig()) {
+	            if (!this.router.isActive('dashboard')) {
+	                this.router.push('/dashboard');
+	            }
+	        } else if (devicesStore.getNewScan()) {
 	            if (!this.router.isActive('configure-devices')) {
 	                this.router.push('/configure-devices');
 	            }
@@ -10633,7 +10637,7 @@
 	
 	        var _this = _possibleConstructorReturn(this, (PlatformsPanelItem.__proto__ || Object.getPrototypeOf(PlatformsPanelItem)).call(this, props));
 	
-	        _this._bind('_onStoresChange', '_expandAll', '_handleArrowClick', '_showCancel', '_resumeLoad', '_checkItem', '_showTooltip', '_hideTooltip', '_moveTooltip', '_onAddDevices', '_onDeviceMethodChange', '_onDeviceConfig');
+	        _this._bind('_onStoresChange', '_expandAll', '_handleArrowClick', '_showCancel', '_resumeLoad', '_checkItem', '_showTooltip', '_hideTooltip', '_moveTooltip', '_onAddDevices', '_onDeviceConfig');
 	
 	        _this.state = {};
 	
@@ -10653,21 +10657,9 @@
 	    }
 	
 	    _createClass(PlatformsPanelItem, [{
-	        key: 'managmentMessage',
-	        value: function managmentMessage(topic, message) {
-	
-	            console.log("WOOO HOOO!!!");
-	            console.log('TOPIC: ' + topic);
-	            console.log('MESSAGE: ' + message);
-	        }
-	    }, {
 	        key: 'componentDidMount',
 	        value: function componentDidMount() {
 	            var authorization = authorizationStore.getAuthorization();
-	
-	            // wspubsub.WsPubSub.set_authorization_key(authorization);       
-	            // wspubsub.WsPubSub.open_management_socket(this.managmentMessage);
-	
 	            platformsPanelItemsStore.addChangeListener(this._onStoresChange);
 	        }
 	    }, {
@@ -10810,19 +10802,6 @@
 	                devicesActionCreators.configureDevices(this.state.panelItem.toJS());
 	            } else {
 	                statusIndicatorActionCreators.openStatusIndicator("error", "To scan for devices, a BACNet proxy agent for the platform must be installed and running.", null, "left");
-	            }
-	        }
-	    }, {
-	        key: '_onDeviceMethodChange',
-	        value: function _onDeviceMethodChange(evt) {
-	
-	            var deviceMethod = evt.target.value;
-	
-	            this.setState({ deviceMethod: deviceMethod });
-	
-	            if (deviceMethod) {
-	                devicesActionCreators.addDevices(this.state.panelItem.toJS(), deviceMethod);
-	                controlButtonActionCreators.hideTaptip("addDevicesButton");
 	            }
 	        }
 	    }, {
@@ -11548,7 +11527,6 @@
 	var keyMirror = __webpack_require__(102);
 	
 	module.exports = keyMirror({
-	    HANDLE_KEY_DOWN: null,
 	    OPEN_MODAL: null,
 	    CLOSE_MODAL: null,
 	
@@ -11601,8 +11579,8 @@
 	    FILTER_ITEMS: null,
 	
 	    CONFIGURE_DEVICES: null,
+	    CLEAR_CONFIG: null,
 	    FOCUS_ON_DEVICE: null,
-	    ADD_DEVICES: null,
 	    LISTEN_FOR_IAMS: null,
 	    DEVICE_DETECTED: null,
 	    DEVICE_SCAN_FINISHED: null,
@@ -11612,15 +11590,12 @@
 	    CONFIGURE_DEVICE: null,
 	    REFRESH_DEVICE_POINTS: null,
 	    TOGGLE_SHOW_POINTS: null,
-	    EDIT_REGISTRY_CONFIG: null,
-	    EDIT_DEVICE_CONFIG: null,
 	    RECONFIGURE_DEVICE: null,
-	    UPDATE_REGISTRY: null,
+	    UPDATE_REGISTRY_ROW: null,
 	    LOAD_REGISTRY: null,
 	    LOAD_REGISTRY_FILES: null,
 	    UNLOAD_REGISTRY_FILES: null,
 	    CANCEL_REGISTRY: null,
-	    SAVE_REGISTRY: null,
 	    SAVE_CONFIG: null,
 	    UPDATE_DEVICES_LIST: null,
 	
@@ -37170,7 +37145,7 @@
 	        // will work correctly
 	        device_props = JSON.parse(device_props.replace(/'/g, '"'));
 	
-	        var platform = devicesStore.getState().platform;
+	        var platform = devicesStore.getPlatform();
 	
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
@@ -37399,9 +37374,6 @@
 	
 	var devicesStore = new Store();
 	
-	var _action = "get_scan_settings";
-	var _view = "Detect Devices";
-	var _device = null;
 	var _data = {};
 	var _updatedRow = {};
 	var _platform;
@@ -37410,6 +37382,7 @@
 	var _settingsTemplate = {};
 	var _savedRegistryFiles = {};
 	var _newScan = false;
+	var _clearConfig = false;
 	var _reconfiguringDevice = false;
 	var _reconfiguration = {};
 	var _scanningComplete = true;
@@ -38365,8 +38338,8 @@
 	    "999": "Reserved for ASHRAE"
 	};
 	
-	devicesStore.getState = function () {
-	    return { action: _action, view: _view, device: _device, platform: _platform };
+	devicesStore.getPlatform = function () {
+	    return _platform;
 	};
 	
 	devicesStore.getRegistryValues = function (deviceId, deviceAddress, deviceName) {
@@ -38390,18 +38363,8 @@
 	    return ObjectIsEmpty(_settingsTemplate) ? null : _settingsTemplate;
 	};
 	
-	devicesStore.getDataLoaded = function (device) {
-	    return _data.hasOwnProperty(device.deviceId) && _data.hasOwnProperty(device.deviceId) ? _data[device.deviceId].length : false;
-	};
-	
 	devicesStore.getSavedRegistryFiles = function () {
 	    return ObjectIsEmpty(_savedRegistryFiles) ? null : _savedRegistryFiles;
-	};
-	
-	devicesStore.getRegistryFileShared = function (registryFile, deviceId, deviceAddress, deviceName) {};
-	
-	devicesStore.getWarnings = function () {
-	    return _warnings;
 	};
 	
 	devicesStore.getDevices = function (platform, bacnetIdentity) {
@@ -38440,21 +38403,14 @@
 	    return typeof device === "undefined" ? null : device;
 	};
 	
-	devicesStore.getDevice = function (deviceId, deviceAddress) {
+	devicesStore.getDevice = function (deviceId, deviceAddress, deviceName) {
 	
-	    return JSON.parse(JSON.stringify(devicesStore.getDeviceRef(deviceId, deviceAddress)));
+	    return JSON.parse(JSON.stringify(devicesStore.getDeviceRef(deviceId, deviceAddress, deviceName)));
 	};
 	
 	devicesStore.getNewScan = function () {
 	
 	    return _newScan;
-	};
-	
-	devicesStore.getKeyboard = function (deviceId) {
-	
-	    var keyboard = deviceId === _keyboard.device ? JSON.parse(JSON.stringify(_keyboard)) : null;
-	
-	    return keyboard;
 	};
 	
 	devicesStore.deviceHasFocus = function (deviceId, deviceAddress) {
@@ -38481,14 +38437,6 @@
 	    return updatedRow;
 	};
 	
-	devicesStore.getBackupPoints = function (deviceId, deviceAddress) {
-	    var backup = _backupPoints.find(function (backups) {
-	        return backups.id === deviceId && backups.address === deviceAddress;
-	    });
-	
-	    return typeof backup === "undefined" ? [] : backup.points;
-	};
-	
 	devicesStore.enableBackupPoints = function (deviceId, deviceAddress) {
 	    var backup = _backupPoints.find(function (backups) {
 	        return backups.id === deviceId && backups.address === deviceAddress;
@@ -38505,11 +38453,16 @@
 	    return _reconfiguration;
 	};
 	
+	devicesStore.getClearConfig = function () {
+	    return _clearConfig;
+	};
+	
 	devicesStore.dispatchToken = dispatcher.register(function (action) {
 	    dispatcher.waitFor([authorizationStore.dispatchToken]);
 	
 	    _newScan = false;
 	    _reconfiguringDevice = false;
+	    _clearConfig = false;
 	
 	    switch (action.type) {
 	
@@ -38517,18 +38470,17 @@
 	            _platform = action.platform;
 	            _devices = [];
 	            _newScan = true;
+	            _backupPoints = [];
 	            _scanningComplete = false;
 	            devicesStore.emitChange();
 	            break;
-	        case ACTION_TYPES.ADD_DEVICES:
-	            _action = "get_scan_settings";
-	            _view = "Detect Devices";
-	            _device = null;
+	        case ACTION_TYPES.CLEAR_CONFIG:
+	            _clearConfig = true;
+	            _reconfiguration = {};
+	            _devices = [];
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.CANCEL_SCANNING:
-	            // _action = "get_scan_settings";
-	            // _view = "Detect Devices";
 	            // devicesWs.close();
 	            // devicesWs = null;
 	
@@ -38541,9 +38493,6 @@
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.DEVICE_DETECTED:
-	            _action = "device_detected";
-	            _view = "Devices Found";
-	
 	            loadDevice(action.device, action.platform, action.bacnet);
 	
 	            if (_devices.length) {
@@ -38569,14 +38518,9 @@
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.POINT_RECEIVED:
-	            _action = "point_received";
-	            _view = "Devices Found";
 	            loadPoint(action.data);
-	
 	            devicesStore.emitChange();
-	
 	            break;
-	
 	        case ACTION_TYPES.FOCUS_ON_DEVICE:
 	
 	            var focusedDevice = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
@@ -38611,11 +38555,7 @@
 	            break;
 	
 	        case ACTION_TYPES.CONFIGURE_DEVICE:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	            _device = action.device;
-	
-	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+	            var device = devicesStore.getDeviceRef(action.device.id, action.device.address);
 	
 	            if (device) {
 	                device.showPoints = action.device.showPoints;
@@ -38632,11 +38572,7 @@
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.TOGGLE_SHOW_POINTS:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	            _device = action.device;
-	
-	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+	            var device = devicesStore.getDeviceRef(action.device.id, action.device.address);
 	
 	            if (device) {
 	                device.showPoints = action.device.showPoints;
@@ -38645,11 +38581,7 @@
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.CANCEL_REGISTRY:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	            _device = action.device;
-	
-	            var device = devicesStore.getDeviceRef(_device.id, _device.address);
+	            var device = devicesStore.getDeviceRef(action.device.id, action.device.address);
 	
 	            if (device) {
 	                device.registryConfig = [];
@@ -38661,8 +38593,6 @@
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.LOAD_REGISTRY:
-	            _action = "configure_registry";
-	            _view = "Registry Configuration";
 	
 	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
 	
@@ -38676,8 +38606,6 @@
 	            break;
 	
 	        case ACTION_TYPES.LOAD_REGISTRY_FILES:
-	            _action = "configure_registry";
-	            _view = "Registry Configuration";
 	
 	            _savedRegistryFiles = {
 	                files: action.registryFiles,
@@ -38688,16 +38616,12 @@
 	            devicesStore.emitChange();
 	            break;
 	        case ACTION_TYPES.UNLOAD_REGISTRY_FILES:
-	            _action = "configure_registry";
-	            _view = "Registry Configuration";
 	
 	            _savedRegistryFiles = {};
 	
 	            devicesStore.emitChange();
 	            break;
-	        case ACTION_TYPES.UPDATE_REGISTRY:
-	            _action = "update_registry";
-	            _view = "Registry Configuration";
+	        case ACTION_TYPES.UPDATE_REGISTRY_ROW:
 	
 	            var i = -1;
 	            var keyProps = [];
@@ -38719,43 +38643,27 @@
 	                "uuid": action.platformUuid
 	            };
 	
-	            reconfigureRegistry(action.platformUuid, action.agentDriver, _reconfiguration.deviceName, _reconfiguration, action.data);
+	            var device = {
+	                id: _reconfiguration.driver_config.device_id,
+	                address: _reconfiguration.driver_config.device_address,
+	                name: _reconfiguration.deviceName,
+	                platformUuid: action.platformUuid,
+	                agentDriver: action.agentDriver
+	            };
+	
+	            reconfigureRegistry(device, _reconfiguration, action.data);
 	
 	            _reconfiguringDevice = true;
 	
 	            devicesStore.emitChange();
 	            break;
-	        case ACTION_TYPES.EDIT_REGISTRY:
-	            _action = "configure_registry";
-	            _view = "Registry Configuration";
-	            _device = action.device;
-	            devicesStore.emitChange();
-	            break;
-	        case ACTION_TYPES.SAVE_REGISTRY:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	
-	            var device = devicesStore.getDeviceRef(action.deviceId, action.deviceAddress);
-	
-	            if (device) {
-	                device.showPoints = false;
-	            }
-	
-	            devicesStore.emitChange();
-	            break;
 	        case ACTION_TYPES.SAVE_CONFIG:
-	            _action = "configure_device";
-	            _view = "Configure Device";
 	
 	            _settingsTemplate = action.settings;
 	
 	            break;
 	        case ACTION_TYPES.UPDATE_DEVICES_LIST:
-	            _action = "configure_device";
-	            _view = "Configure Device";
-	
 	            _devicesList[action.platformUuid] = action.devices;
-	
 	            break;
 	    }
 	
@@ -38902,11 +38810,6 @@
 	                    } else {
 	                        if (pointData.status === "COMPLETE") {
 	                            device.configuring = false;
-	
-	                            console.log("points complete");
-	                            console.log(pointData.device_id);
-	                            console.log(pointData.address);
-	                            console.log(device);
 	                            setBackupPoints(device);
 	                        }
 	                    }
@@ -38940,17 +38843,14 @@
 	        });
 	    }
 	
-	    function reconfigureRegistry(platformUuid, agentDriver, deviceName, configuration, data) {
-	
-	        var deviceId = configuration.driver_config.device_id;
-	        var deviceAddress = configuration.driver_config.device_address;
+	    function reconfigureRegistry(device, configuration, data) {
 	
 	        var preppedDevice = {
-	            id: deviceId,
-	            address: deviceAddress,
-	            name: deviceName,
-	            platformUuid: platformUuid,
-	            agentDriver: agentDriver,
+	            id: device.id,
+	            address: device.address,
+	            name: device.name,
+	            platformUuid: device.platformUuid,
+	            agentDriver: device.agentDriver,
 	            registryFile: configuration.registryFile,
 	            showPoints: true,
 	            configuring: false,
@@ -38962,7 +38862,7 @@
 	        var index = -1;
 	
 	        var deviceInList = _devices.find(function (dvc, i) {
-	            var match = dvc.id === deviceId && dvc.address === deviceAddress && dvc.name === deviceName;
+	            var match = dvc.id === device.deviceId && dvc.address === device.deviceAddress && dvc.name === deviceName;
 	
 	            if (match) {
 	                index = i;
@@ -58338,10 +58238,7 @@
 	function openConfigureWS(onmessage) {
 	    var endpoint = _buildEndpoint("configure");
 	    if (sockets[endpoint] == null) {
-	        console.log("Creating new SuperSocket for configure");
 	        sockets[endpoint] = new SuperSocket(endpoint);
-	    } else {
-	        console.log("Using existing socket.");
 	    }
 	    sockets[endpoint].addOnMessageCallback(onmessage);
 	}
@@ -58505,10 +58402,19 @@
 	        var authorization = authorizationStore.getAuthorization();
 	
 	        series.forEach(function (item) {
+	
+	            var topic = item.topic;
+	
+	            var index = item.topic.indexOf("devices/");
+	
+	            if (index === 0) {
+	                topic = item.topic.replace("devices/", "");
+	            }
+	
 	            new rpc.Exchange({
 	                method: 'historian.query',
 	                params: {
-	                    topic: item.topic,
+	                    topic: topic,
 	                    count: length > 0 ? length : 20,
 	                    order: 'LAST_TO_FIRST'
 	                },
@@ -58527,8 +58433,6 @@
 	                        type: ACTION_TYPES.REFRESH_CHART,
 	                        item: item
 	                    });
-	                } else {
-	                    console.log("chart " + item.name + " isn't being refreshed");
 	                }
 	            }).catch(rpc.Error, function (error) {
 	                handle401(error);
@@ -58539,10 +58443,18 @@
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
+	        var topic = panelItem.topic;
+	
+	        var index = panelItem.topic.indexOf("devices/");
+	
+	        if (index === 0) {
+	            topic = panelItem.topic.replace("devices/", "");
+	        }
+	
 	        new rpc.Exchange({
 	            method: 'historian.query',
 	            params: {
-	                topic: panelItem.topic,
+	                topic: topic,
 	                count: 20,
 	                order: 'LAST_TO_FIRST'
 	            },
@@ -58584,21 +58496,13 @@
 	                var error = {};
 	
 	                if (panelItem.path && panelItem.path.length > 1) {
-	                    var platformUuid = panelItem.path[1];
+	                    var platformPath = panelItem.path.slice(0, 1);
+	                    var uuid = panelItem.path[1];
 	
-	                    var vcInstance = platformsStore.getVcInstance();
+	                    var platform = platformsPanelItemsStore.getItem(platformPath);
 	
-	                    if (vcInstance.uuid === platformUuid) {
-	                        message = "Unable to load chart: The master driver agent is unavailable on the VOLTTRON Central platform.";
-	                        orientation = "left";
-	                    } else {
-	                        var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
-	
-	                        if (!forwarderRunning) {
-	                            message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
-	                            orientation = "left";
-	                        }
-	                    }
+	                    message = "Unable to load chart: No data was retrieved for " + topic + ". Check for proper configuration " + " of any forwarder, master driver, and platform agents on platform " + platform[uuid].name;
+	                    orientation = "left";
 	                }
 	
 	                platformsPanelActionCreators.checkItem(panelItem.path, false);
@@ -58640,10 +58544,18 @@
 	
 	        panelItems.forEach(function (panelItem) {
 	
+	            var topic = panelItem.topic;
+	
+	            var index = panelItem.topic.indexOf("devices/");
+	
+	            if (index === 0) {
+	                topic = panelItem.topic.replace("devices/", "");
+	            }
+	
 	            new rpc.Exchange({
 	                method: 'historian.query',
 	                params: {
-	                    topic: panelItem.topic,
+	                    topic: topic,
 	                    count: 20,
 	                    order: 'LAST_TO_FIRST'
 	                },
@@ -59238,12 +59150,6 @@
 	            platform: platform
 	        });
 	    },
-	    addDevices: function addDevices(platform) {
-	        dispatcher.dispatch({
-	            type: ACTION_TYPES.ADD_DEVICES,
-	            platform: platform
-	        });
-	    },
 	    scanForDevices: function scanForDevices(platformUuid, bacnetProxyIdentity, low, high, address, scan_length) {
 	
 	        var authorization = authorizationStore.getAuthorization();
@@ -59345,12 +59251,6 @@
 	        // Just a noop at this point
 	
 	    },
-	    handleKeyDown: function handleKeyDown(keydown) {
-	        dispatcher.dispatch({
-	            type: ACTION_TYPES.HANDLE_KEY_DOWN,
-	            keydown: keydown
-	        });
-	    },
 	    focusOnDevice: function focusOnDevice(deviceId, deviceAddress) {
 	        dispatcher.dispatch({
 	            type: ACTION_TYPES.FOCUS_ON_DEVICE,
@@ -59388,8 +59288,6 @@
 	                        type: ACTION_TYPES.POINT_SCAN_FINISHED,
 	                        device: this
 	                    });
-	
-	                    console.log("closing points socket");
 	                } else {
 	                    var platform = null;
 	                    devicesActionCreators.pointReceived(message);
@@ -59605,9 +59503,9 @@
 	            file: fileName
 	        });
 	    },
-	    updateRegistry: function updateRegistry(deviceId, deviceAddress, attributes) {
+	    updateRegistryRow: function updateRegistryRow(deviceId, deviceAddress, attributes) {
 	        dispatcher.dispatch({
-	            type: ACTION_TYPES.UPDATE_REGISTRY,
+	            type: ACTION_TYPES.UPDATE_REGISTRY_ROW,
 	            deviceId: deviceId,
 	            deviceAddress: deviceAddress,
 	            attributes: attributes
@@ -59617,9 +59515,11 @@
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
+	        var agentIdentity = "platform.driver";
+	
 	        var params = {
 	            platform_uuid: device.platformUuid,
-	            agent_identity: "platform.driver",
+	            agent_identity: agentIdentity,
 	            config_name: fileName,
 	            config_type: "csv",
 	            raw_contents: values
@@ -59638,7 +59538,9 @@
 	
 	            statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
 	
-	            if (!update) {
+	            if (update) {
+	                devicesActionCreators.clearConfig();
+	            } else {
 	                devicesActionCreators.updateDevicesList(device.platformUuid);
 	            }
 	        }).catch(rpc.Error, function (error) {
@@ -59648,7 +59550,7 @@
 	            handle401(error, error.message);
 	        });
 	    },
-	    saveConfig: function saveConfig(device, update, config_name, settings) {
+	    saveConfig: function saveConfig(device, update, announce, config_name, settings) {
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
@@ -59679,12 +59581,18 @@
 	                settings: settings
 	            });
 	
-	            var action = update ? "updated" : "created";
-	            var highlight = config_name.replace("devices/", "");
-	            var message = "The device configuration was successfully " + action + " for " + highlight + ".";
-	            var orientation = "center";
+	            if (update) {
+	                devicesActionCreators.clearConfig();
+	            }
 	
-	            statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
+	            if (announce) {
+	                var action = update ? "updated" : "created";
+	                var highlight = config_name.replace("devices/", "");
+	                var message = "The device configuration was successfully " + action + " for " + highlight + ".";
+	                var orientation = "center";
+	
+	                statusIndicatorActionCreators.openStatusIndicator("success", message, highlight, orientation);
+	            }
 	        }).catch(rpc.Error, function (error) {
 	
 	            error.message = "Unable to save device configuration. " + error.message + ".";
@@ -59707,6 +59615,11 @@
 	            });
 	        }).catch(rpc.Error, function (error) {
 	            handle401(error, "Unable to update devices list.");
+	        });
+	    },
+	    clearConfig: function clearConfig() {
+	        dispatcher.dispatch({
+	            type: ACTION_TYPES.CLEAR_CONFIG
 	        });
 	    }
 	};
@@ -61511,7 +61424,7 @@
 	                    platformsPanelActionCreators.addNewDevice(obj.data);
 	                    break;
 	                default:
-	                    console.log('UNKNOWN TYPE MESSAGE: ' + message);
+	                // console.log('UNKNOWN TYPE MESSAGE: '+message);
 	            }
 	        });
 	
@@ -62561,7 +62474,8 @@
 	
 	function getInitialState() {
 	
-	    var state = devicesStore.getState();
+	    var state = {};
+	    state.platform = devicesStore.getPlatform();
 	
 	    if (state.platform) {
 	        state.bacnetProxies = platformsStore.getRunningBacnetProxies(state.platform.uuid);
@@ -63184,11 +63098,6 @@
 	                // move the find-and-replace taptip to keep it on screen
 	                if (this.taptipTarget) {
 	                    var taptipRect = this.taptipTarget.getBoundingClientRect();
-	
-	                    // if (taptipRect.top < viewRect.top)
-	                    // {
-	                    //     this.taptipTarget.style.top = ((targetRect.top - tableRect.top - 200) + "px");
-	                    // }
 	
 	                    var windowHeight = window.innerHeight;
 	
@@ -64032,13 +63941,17 @@
 	
 	            devicesActionCreators.saveRegistry(this.props.device, fileName, this.state.configUpdate, csvData);
 	
-	            this.setState({ registryValues: newValues });
-	            this.setState({ allSelected: false });
-	
 	            if (!this.state.configUpdate) {
+	                this.setState({ registryValues: newValues });
+	                this.setState({ allSelected: false });
+	
 	                modalActionCreators.openModal(_react2.default.createElement(_configDeviceForm2.default, { device: this.props.device, registryFile: fileName }));
 	            } else {
 	                modalActionCreators.closeModal();
+	
+	                if (typeof this.props.onreconfigure === "function") {
+	                    this.props.onreconfigure(fileName);
+	                }
 	            }
 	        }
 	    }, {
@@ -64560,7 +64473,7 @@
 	        key: '_onSubmit',
 	        value: function _onSubmit(e) {
 	            e.preventDefault();
-	            devicesActionCreators.updateRegistry(this.props.deviceId, this.props.deviceAddress, this.state.attributes);
+	            devicesActionCreators.updateRegistryRow(this.props.deviceId, this.props.deviceAddress, this.state.attributes);
 	
 	            modalActionCreators.closeModal();
 	        }
@@ -65427,7 +65340,9 @@
 	                settings.config.driver_config = this.state.driver_config;
 	                settings.config.registry_config = "config://" + this.props.registryFile;
 	
-	                devicesActionCreators.saveConfig(this.props.device, this.state.configUpdate, config_name, settings);
+	                var announce = true;
+	
+	                devicesActionCreators.saveConfig(this.props.device, this.state.configUpdate, announce, config_name, settings);
 	
 	                if (!this.props.config) {
 	                    modalActionCreators.closeModal();
@@ -65724,61 +65639,63 @@
 	    switch (type) {
 	        case "bacnet":
 	
-	            if (settingsTemplate) {
-	                settings = settingsTemplate.config;
-	            } else {
-	                settings = {
-	                    driver_type: {
-	                        value: "bacnet",
-	                        label: "Driver Type",
-	                        type: "text"
-	                    },
-	                    interval: {
-	                        value: "",
-	                        label: "Interval (seconds)",
-	                        type: "number"
-	                    },
-	                    timezone: {
-	                        value: "",
-	                        label: "Timezone",
-	                        type: "text"
-	                    },
-	                    heartbeat_point: {
-	                        value: "",
-	                        label: "Heartbeat Point",
-	                        type: "text"
-	                    },
-	                    minimum_priority: {
-	                        value: 8,
-	                        label: "Minimum Priority",
-	                        type: "number"
-	                    },
-	                    max_objs_per_read: {
-	                        value: "",
-	                        label: "Maximum Objects per Read",
-	                        type: "number"
-	                    },
-	                    publish_depth_first: {
-	                        value: true,
-	                        label: "Publish Depth-First",
-	                        type: "bool"
-	                    },
-	                    publish_breadth_first: {
-	                        value: false,
-	                        label: "Publish Breadth-First",
-	                        type: "bool"
-	                    },
-	                    publish_breadth_first_all: {
-	                        value: false,
-	                        label: "Publish Breadth-First All",
-	                        type: "bool"
-	                    }
-	                };
+	            settings = {
+	                driver_type: {
+	                    value: "bacnet",
+	                    label: "Driver Type",
+	                    type: "text"
+	                },
+	                interval: {
+	                    value: "",
+	                    label: "Interval (seconds)",
+	                    type: "number"
+	                },
+	                timezone: {
+	                    value: "",
+	                    label: "Timezone",
+	                    type: "text"
+	                },
+	                heartbeat_point: {
+	                    value: "",
+	                    label: "Heartbeat Point",
+	                    type: "text"
+	                },
+	                minimum_priority: {
+	                    value: 8,
+	                    label: "Minimum Priority",
+	                    type: "number"
+	                },
+	                max_objs_per_read: {
+	                    value: "",
+	                    label: "Maximum Objects per Read",
+	                    type: "number"
+	                },
+	                publish_depth_first: {
+	                    value: true,
+	                    label: "Publish Depth-First",
+	                    type: "bool"
+	                },
+	                publish_breadth_first: {
+	                    value: false,
+	                    label: "Publish Breadth-First",
+	                    type: "bool"
+	                },
+	                publish_breadth_first_all: {
+	                    value: false,
+	                    label: "Publish Breadth-First All",
+	                    type: "bool"
+	                }
+	            };
 	
-	                if (savedConfig) {
-	                    for (var key in settings) {
-	                        settings[key].value = savedConfig[key];
-	                    }
+	            if (settingsTemplate) {
+	                for (var key in settings) {
+	                    settings[key].value = settingsTemplate.config[key].hasOwnProperty("value") ? settingsTemplate.config[key].value : settingsTemplate.config[key];
+	                }
+	            }
+	
+	            if (savedConfig) {
+	                for (var key in settings) {
+	                    settings[key].value = savedConfig[key];
 	                }
 	            }
 	
@@ -75002,7 +74919,7 @@
 	
 	        var _this = _possibleConstructorReturn(this, (ReconfigureDevice.__proto__ || Object.getPrototypeOf(ReconfigureDevice)).call(this, props));
 	
-	        _this._bind('_onStoresChange', '_onConfigChange', '_validateDataFile');
+	        _this._bind('_onStoresChange', '_onConfigChange', '_validateDataFile', '_updateDeviceConfig');
 	
 	        _this.state = getStateFromStore();
 	        return _this;
@@ -75030,7 +74947,7 @@
 	            } else {
 	                if (this.state.device) {
 	                    this.setState({
-	                        device: devicesStore.getDevice(this.state.device.id, this.state.device.address)
+	                        device: devicesStore.getDevice(this.state.device.id, this.state.device.address, this.state.device.name)
 	                    });
 	                }
 	            }
@@ -75038,10 +74955,6 @@
 	    }, {
 	        key: '_onConfigChange',
 	        value: function _onConfigChange(selection) {
-	
-	            if (selection.value === "registryConfig") {
-	                // TODO: get new registry points
-	            }
 	
 	            this.setState({ configFile: selection.value });
 	        }
@@ -75075,6 +74988,44 @@
 	            }
 	
 	            return valid;
+	        }
+	    }, {
+	        key: '_updateDeviceConfig',
+	        value: function _updateDeviceConfig(fileName) {
+	
+	            if (fileName !== this.state.configuration.registryFile) {
+	                var nameParts = this.state.device.name.split("/");
+	
+	                var campus = nameParts[0];
+	                var building = nameParts[1];
+	                var unit = nameParts[2];
+	                var path = "";
+	
+	                for (var i = 3; i < nameParts.length; i++) {
+	                    path = path + "/" + nameParts[i];
+	                }
+	
+	                var settings = {
+	                    config: this.state.configuration,
+	                    campus: campus,
+	                    building: building,
+	                    unit: unit,
+	                    path: path
+	                };
+	
+	                var informalName = settings.campus + "/" + settings.building + "/" + settings.unit + settings.path;
+	
+	                var config_name = "devices/" + informalName;
+	
+	                // settings.config.driver_config = this.state.driver_config;
+	                settings.config.registryFile = fileName;
+	                settings.config.registry_config = "config://" + fileName;
+	
+	                var configUpdate = true;
+	                var announce = false;
+	
+	                devicesActionCreators.saveConfig(this.state.device, configUpdate, announce, config_name, settings);
+	            }
 	        }
 	    }, {
 	        key: 'render',
@@ -75201,7 +75152,8 @@
 	                if (this.state.configFile === "registryConfig") {
 	                    registryConfig = _react2.default.createElement(_configureRegistry2.default, { device: this.state.device,
 	                        dataValidator: this._validateDataFile,
-	                        registryFile: this.state.configuration.registryFile });
+	                        registryFile: this.state.configuration.registryFile,
+	                        onreconfigure: this._updateDeviceConfig });
 	                } else {
 	                    deviceConfig = _react2.default.createElement(_configDeviceForm2.default, { device: this.state.device,
 	                        config: this.state.configuration,
@@ -116816,4 +116768,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-5ac0743e367c982a6d32.js.map
+//# sourceMappingURL=app-9cedb560659131cdc7d1.js.map

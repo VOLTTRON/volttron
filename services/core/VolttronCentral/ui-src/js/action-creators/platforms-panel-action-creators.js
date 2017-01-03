@@ -38,7 +38,7 @@ var platformsPanelActionCreators = {
         // will work correctly
         device_props = JSON.parse(device_props.replace(/'/g, '"'))
 
-        var platform = devicesStore.getState().platform;
+        var platform = devicesStore.getPlatform();
         
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
