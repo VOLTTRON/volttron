@@ -58402,10 +58402,19 @@
 	        var authorization = authorizationStore.getAuthorization();
 	
 	        series.forEach(function (item) {
+	
+	            var topic = item.topic;
+	
+	            var index = item.topic.indexOf("devices/");
+	
+	            if (index === 0) {
+	                topic = item.topic.replace("devices/", "");
+	            }
+	
 	            new rpc.Exchange({
 	                method: 'historian.query',
 	                params: {
-	                    topic: item.topic,
+	                    topic: topic,
 	                    count: length > 0 ? length : 20,
 	                    order: 'LAST_TO_FIRST'
 	                },
@@ -58434,10 +58443,18 @@
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
+	        var topic = panelItem.topic;
+	
+	        var index = panelItem.topic.indexOf("devices/");
+	
+	        if (index === 0) {
+	            topic = panelItem.topic.replace("devices/", "");
+	        }
+	
 	        new rpc.Exchange({
 	            method: 'historian.query',
 	            params: {
-	                topic: panelItem.topic,
+	                topic: topic,
 	                count: 20,
 	                order: 'LAST_TO_FIRST'
 	            },
@@ -58479,21 +58496,13 @@
 	                var error = {};
 	
 	                if (panelItem.path && panelItem.path.length > 1) {
-	                    var platformUuid = panelItem.path[1];
+	                    var platformPath = panelItem.path.slice(0, 1);
+	                    var uuid = panelItem.path[1];
 	
-	                    var vcInstance = platformsStore.getVcInstance();
+	                    var platform = platformsPanelItemsStore.getItem(platformPath);
 	
-	                    if (vcInstance.uuid === platformUuid) {
-	                        message = "Unable to load chart: The master driver agent is unavailable on the VOLTTRON Central platform.";
-	                        orientation = "left";
-	                    } else {
-	                        var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
-	
-	                        if (!forwarderRunning) {
-	                            message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
-	                            orientation = "left";
-	                        }
-	                    }
+	                    message = "Unable to load chart: No data was retrieved for " + topic + ". Check for proper configuration " + " of any forwarder, master driver, and platform agents on platform " + platform[uuid].name;
+	                    orientation = "left";
 	                }
 	
 	                platformsPanelActionCreators.checkItem(panelItem.path, false);
@@ -58535,10 +58544,18 @@
 	
 	        panelItems.forEach(function (panelItem) {
 	
+	            var topic = panelItem.topic;
+	
+	            var index = panelItem.topic.indexOf("devices/");
+	
+	            if (index === 0) {
+	                topic = panelItem.topic.replace("devices/", "");
+	            }
+	
 	            new rpc.Exchange({
 	                method: 'historian.query',
 	                params: {
-	                    topic: panelItem.topic,
+	                    topic: topic,
 	                    count: 20,
 	                    order: 'LAST_TO_FIRST'
 	                },
@@ -116751,4 +116768,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-edf7950c305267842d13.js.map
+//# sourceMappingURL=app-9cedb560659131cdc7d1.js.map
