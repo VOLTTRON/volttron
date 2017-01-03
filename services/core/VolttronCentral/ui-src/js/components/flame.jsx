@@ -48,7 +48,7 @@ function flame() {
   );
 	React.render(
     	element,
-    	document.getElementById('oadr')
+    	document.getElementById('flame')
   	);	
 
 	})
@@ -78,4 +78,4 @@ Test <span id="oadr" >TEST</span>
     }
 });
 
-module.exports = OADR;
+module.exports = FLAME;
