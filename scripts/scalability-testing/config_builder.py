@@ -67,12 +67,14 @@ from test_settings import (virtual_device_host, device_types, config_dir,
 
 class DeviceConfig(object):
     __metaclass__ = abc.ABCMeta
-    def __init__(self, host_address, instance_number, registry_config, interval=60):
+    def __init__(self, host_address, instance_number, registry_config, interval=60, heart_beat_point=None):
         self.configuration = {"registry_config": registry_config,
                               "driver_type": self.device_type(),
                               "timezone": 'US/Pacific',
-                              "interval": interval,
-                              "heart_beat_point": "Heartbeat"}
+                              "interval": interval}
+
+        if heart_beat_point is not None:
+            self.configuration["heart_beat_point"] = heart_beat_point
         
         self.configuration["driver_config"] = self.get_driver_config(host_address, instance_number)
         

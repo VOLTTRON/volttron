@@ -426,19 +426,6 @@ def test_schedule_announce(publish_agent, volttron_instance):
         delta = datetime2 - datetime1
         assert delta.seconds == 2
 
-        # Test message on schedule/result
-        assert publish_agent.callback.call_count == 1
-        print('call args ', publish_agent.callback.call_args[0][1])
-        assert publish_agent.callback.call_args[0][1] == alternate_actuator_vip_id
-        assert publish_agent.callback.call_args[0][3] == \
-            topics.ACTUATOR_SCHEDULE_RESULT
-        result_header = publish_agent.callback.call_args[0][4]
-        result_message = publish_agent.callback.call_args[0][5]
-        assert result_header['type'] == 'NEW_SCHEDULE'
-        assert result_header['taskID'] == 'task_schedule_announce'
-        # assert result_header['requesterID'] == TEST_AGENT
-        assert result_message['result'] == SUCCESS
-
     finally:
         # cancel so fakedriver0 can be used by other tests
         publish_agent.vip.rpc.call(
@@ -787,7 +774,7 @@ def test_schedule_error_duplicate_task(publish_agent, cancel_schedules):
 
     print('call args list:', publish_agent.callback.call_args_list)
     # once for rpc call and once for publish
-    assert publish_agent.callback.call_count == 2
+    assert publish_agent.callback.call_count == 1
     print(publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \

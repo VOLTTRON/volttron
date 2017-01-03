@@ -166,7 +166,7 @@ Note the name ``registry_configs/hvac.csv`` matches the configuration reference 
 
 To store the driver configuration run the command
 
-``volttron-ctl config store platform.driver devices/my_building/hvac1 modbus1.config``
+``volttron-ctl config store platform.driver devices/my_campus/my_building/hvac1 modbus1.config``
 
 
 Converting Old Style Configuration
