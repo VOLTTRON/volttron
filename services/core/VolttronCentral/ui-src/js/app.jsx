@@ -52,6 +52,7 @@ var routes = (
         <Router.Route name="platforms" path="platforms" handler={checkAuth(Platforms)} />
         <Router.Route name="platform" path="platforms/:uuid" handler={checkAuth(Platform)} />
         <Router.Route name="charts" path="platform-charts" handler={checkAuth(PlatformCharts)} />
+        <Router.Route name="flame" path="flame" handler={checkAuth(FLAME)} />
         
         <Router.NotFoundRoute handler={checkAuth(PageNotFound)} />
         <Router.DefaultRoute handler={AfterLogin} />
