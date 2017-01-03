@@ -26,7 +26,7 @@ var DeregisterPlatformConfirmation = require('../components/deregister-platform-
 // What is missing is enough React smarts to display it.
 // platform-charg-action-createros.js has a clue as to how to do this.
 
-function oadr() {
+function flame() {
     var page = {};
     page.promise = new xhr.Request({
         method: 'GET',
@@ -59,9 +59,9 @@ function oadr() {
     
 
 
-var OADR = React.createClass({
+var FLAME = React.createClass({
     render: function(){
-    oadr();
+    flame();
     return (
     <div className="view">
                 <div className="absolute_anchor">
