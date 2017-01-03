@@ -72,16 +72,18 @@ _log = logging.getLogger(__name__)
 
 ## Not implemented
 # get_network_info
+# list_network
 # get_message
 # confirm_message
 # get_history_data
 # reboot
-# set_schedule - multiple params
-# get_schedule - optional event enum argument
+# set_schedule
+# get_schedule
 
 auth = None
 macid = None
 address = None
+
 
 class NetworkStatus(BaseRegister):
     def __init__(self):
@@ -127,6 +129,25 @@ class InstantaneousDemand(BaseRegister):
         return demand * (multiplier / divisor)
 
 
+class PriceCluster(BaseRegister):
+    def __init__(self):
+        super(PriceCluster, self).__init__('byte', True, 'PriceCluster', 'float')
+
+    def value(self):
+        command = '<Command>\
+                     <Name>get_price</Name>\
+                     <MacId>{}</MacId>\
+                     <Format>JSON</Format>\
+                   </Command>'.format(macid)
+        result = requests.post(address, auth=auth, data=command)
+
+        result = result.json()['PriceCluster']
+        price = float(int(result['Price'], 16))
+        trailing_digits = int(result['TrailingDigits'], 16)
+
+        return price / (10 ** trailing_digits)
+
+
 def get_summation(key):
     command = '<Command>\
                  <Name>get_current_summation</Name>\
@@ -163,25 +184,6 @@ class SummationReceived(BaseRegister):
 
     def value(self):
         return get_summation(self.__class__.__name__)
-
-
-class PriceCluster(BaseRegister):
-    def __init__(self):
-        super(PriceCluster, self).__init__('byte', True, 'PriceCluster', 'float')
-
-    def value(self):
-        command = '<Command>\
-                     <Name>get_price</Name>\
-                     <MacId>{}</MacId>\
-                     <Format>JSON</Format>\
-                   </Command>'.format(macid)
-        result = requests.post(address, auth=auth, data=command)
-
-        result = result.json()['PriceCluster']
-        price = float(int(result['Price'], 16))
-        trailing_digits = int(result['TrailingDigits'], 16)
-
-        return price / (10 ** trailing_digits)
 
 
 def get_demand_peaks(key):
