@@ -59,7 +59,10 @@ from csv import DictReader
 import logging
 import requests
 
-from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
+from master_driver.interfaces import (BaseInterface,
+                                      BaseRegister,
+                                      BasicRevert,
+                                      DriverInterfaceError)
 
 _log = logging.getLogger(__name__)
 
@@ -213,11 +216,22 @@ class PeakReceived(BaseRegister):
         return get_demand_peaks(self.__class__.__name__)
 
 
+eagle_registers = {
+    'NetworkStatus': NetworkStatus,
+    'InstantaneousDemand': InstantaneousDemand,
+    'PriceCluster': PriceCluster,
+    'SummationDelivered': SummationDelivered,
+    'SummationReceived': SummationReceived,
+    'PeakDelivered': PeakDelivered,
+    'PeakReceived': PeakReceived
+}
+
+
 class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
 
-    def configure(self, config_dict, registry_config_str):
+    def configure(self, config_dict, register_config):
         global auth, macid, address
 
         username = config_dict['username']
@@ -227,35 +241,34 @@ class Interface(BasicRevert, BaseInterface):
         macid = config_dict['macid']
         address = config_dict['address']
 
-        self.insert_register(NetworkStatus())
-        self.insert_register(InstantaneousDemand())
-        self.insert_register(PriceCluster())
-        self.insert_register(SummationDelivered())
-        self.insert_register(SummationReceived())
-        self.insert_register(PeakDelivered())
-        self.insert_register(PeakReceived())
+        if register_config is None:
+            register_config = []
+
+        for name in register_config:
+            register = eagle_registers[name]
+            self.insert_register(register())
+
+        # Always add a network status register
+        try:
+            self.get_register_by_name('NetworkStatus')
+        except DriverInterfaceError:
+            self.insert_register(NetworkStatus())
 
     def get_point(self, point_name):
         register = self.get_register_by_name(point_name)
-
         return register.value()
 
     def _set_point(self, point_name, value):
-        register = self.get_register_by_name(point_name)
-        if register.read_only:
-            raise IOError(
-                "Trying to write to a point configured read only: " + point_name)
-
-        register.value = register.reg_type(value)
-        return register.value
+        pass
 
     def _scrape_all(self):
-        # Skip the scrape if there are anomalous network conditions
+        # skip the scrape if there are anomalous network conditions
         ns_register = self.get_register_by_name('NetworkStatus')
         network_status = ns_register.value()
         if network_status != 'Connected':
             return {ns_register.point_name: network_status}
 
+        # scrape points
         result = {}
         registers = self.get_registers_by_type('byte', True)
         for r in registers:
