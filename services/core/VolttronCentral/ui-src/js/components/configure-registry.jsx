@@ -142,11 +142,6 @@ class ConfigureRegistry extends BaseComponent {
             {
                 var taptipRect = this.taptipTarget.getBoundingClientRect();
 
-                // if (taptipRect.top < viewRect.top)
-                // {
-                //     this.taptipTarget.style.top = ((targetRect.top - tableRect.top - 200) + "px");
-                // }
-
                 var windowHeight = window.innerHeight;
 
                 if (taptipRect.top < 0 || taptipRect.top > windowHeight)
@@ -1055,16 +1050,21 @@ class ConfigureRegistry extends BaseComponent {
 
         devicesActionCreators.saveRegistry(this.props.device, fileName, this.state.configUpdate, csvData);
 
-        this.setState({ registryValues: newValues });
-        this.setState({ allSelected: false });
-
         if (!this.state.configUpdate)
         {
+            this.setState({ registryValues: newValues });
+            this.setState({ allSelected: false });
+
             modalActionCreators.openModal(<ConfigDeviceForm device={this.props.device} registryFile={fileName}/>);
         }
         else
         {
             modalActionCreators.closeModal();
+
+            if (typeof this.props.onreconfigure === "function")
+            {
+                this.props.onreconfigure(fileName);
+            }
         }
     }
     _getParentNode() {
