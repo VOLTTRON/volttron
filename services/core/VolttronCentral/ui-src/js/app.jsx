@@ -24,7 +24,6 @@ import ReconfigureDevice from './components/reconfigure-device';
 var PlatformCharts = require('./components/platform-charts');
 var FLAME = require('./components/flame');
 var GS = require('./components/gs');
-console.log("GS REQD")
 var Navigation = require('./components/navigation');
 var devicesActionCreators = require('./action-creators/devices-action-creators');
 
@@ -107,7 +106,7 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
         }
 
     }.bind(this));
-    console.log(this);
+
     devicesStore.addChangeListener(function () { 
 
         if (devicesStore.getClearConfig())

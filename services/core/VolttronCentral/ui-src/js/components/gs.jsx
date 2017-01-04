@@ -64,17 +64,22 @@ var GS = React.createClass({
 
     render: function(){
     console.log("GS");
-    
+    var result = "";
     var page = gs();
-    console.log("Done GS");
+    if (page.hasOwnProperty("response")) { 
+       result += JSON.stringify(page.response)
+    }   else { 
+        result = "GS Agent not up.";
+    }
+    console.log(page);
     return (
     <div className="view">
                 <div className="absolute_anchor">
     <h2>Global scheduler status</h2>
     This space for: Listing the last data received by
     the global sceduler and the last actions taken.
-     {new Date().toLocaleTimeString()}
-Test <span id="gs" >{page.toString()}</span>
+    Page refreshed at: {new Date().toLocaleTimeString()}
+<span id="gs" >{page.toString()}</span>
     
       </div>
       
