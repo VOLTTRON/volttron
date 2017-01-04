@@ -33,11 +33,7 @@ function openManagementWS(onmessage) {
 function openConfigureWS(onmessage) {
     let endpoint = _buildEndpoint("configure");
     if (sockets[endpoint] == null){
-        console.log("Creating new SuperSocket for configure")
         sockets[endpoint] = new SuperSocket(endpoint);
-    }
-    else {
-        console.log("Using existing socket.")
     }
     sockets[endpoint].addOnMessageCallback(onmessage);
 }

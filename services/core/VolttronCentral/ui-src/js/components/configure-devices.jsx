@@ -444,7 +444,8 @@ class ConfigureDevices extends BaseComponent {
 
 function getInitialState() {
 
-    var state = devicesStore.getState();
+    var state = {};
+    state.platform = devicesStore.getPlatform();
 
     if (state.platform)
     {

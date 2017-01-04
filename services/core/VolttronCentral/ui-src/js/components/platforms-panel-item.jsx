@@ -24,7 +24,7 @@ class PlatformsPanelItem extends BaseComponent {
         super(props);
         this._bind('_onStoresChange', '_expandAll', '_handleArrowClick', '_showCancel', 
             '_resumeLoad', '_checkItem', '_showTooltip', '_hideTooltip', '_moveTooltip',
-            '_onAddDevices', '_onDeviceMethodChange', '_onDeviceConfig');
+            '_onAddDevices', '_onDeviceConfig');
 
         this.state = {};
         
@@ -42,20 +42,8 @@ class PlatformsPanelItem extends BaseComponent {
             this.state.cancelButton = false;            
         }
     }
-
-    managmentMessage(topic, message) {
-
-        console.log("WOOO HOOO!!!");
-        console.log('TOPIC: '+topic);
-        console.log('MESSAGE: '+message);
-   }
-
     componentDidMount () {
         var authorization = authorizationStore.getAuthorization();
-        
-        // wspubsub.WsPubSub.set_authorization_key(authorization);       
-        // wspubsub.WsPubSub.open_management_socket(this.managmentMessage);
-
         platformsPanelItemsStore.addChangeListener(this._onStoresChange);
     }
     componentWillUnmount () {
@@ -217,18 +205,6 @@ class PlatformsPanelItem extends BaseComponent {
         {
             statusIndicatorActionCreators.openStatusIndicator("error", 
                 "To scan for devices, a BACNet proxy agent for the platform must be installed and running.", null, "left");
-        }
-    }
-    _onDeviceMethodChange (evt) {
-
-        var deviceMethod = evt.target.value;
-
-        this.setState({deviceMethod: deviceMethod});
-
-        if (deviceMethod)
-        {
-            devicesActionCreators.addDevices(this.state.panelItem.toJS(), deviceMethod);
-            controlButtonActionCreators.hideTaptip("addDevicesButton");
         }
     }
     _onDeviceConfig (panelItem) {
