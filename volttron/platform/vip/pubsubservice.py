@@ -107,8 +107,6 @@ class PubSubService(object):
         self._user_capabilities = {}
         self._protected_topics = ProtectedPubSubTopics()
         self._read_protected_topics_file()
-        # self._read_protected_greenlet = gevent.spawn(watch_file, self._protected_topics_file,
-        #                                              self._read_protected_topics_file)
 
     def _read_protected_topics_file(self):
         """ Reads the protected topics file and loads the topics and associated capabilities. AuthService shall provide
@@ -459,6 +457,36 @@ class PubSubService(object):
                 pass
             #self._logger.debug("PUBSUBSERVICE: user capabilities from auth after update: {}".format(self._user_capabilities))
 
+    def _update_protected_topics_file(self, frames):
+        """
+         Update the protected topics and capabilities as per message received from AuthService.
+        :peer frames list of frames
+        :type frames list
+        """
+        if len(frames) > 7:
+            data = frames[7].bytes
+            try:
+                json0 = data.find('{')
+                msg = jsonapi.loads(data[json0:])
+                try:
+                    write_protect = msg['write-protect']
+                except KeyError:
+                    write_protect = []
+
+                topics = ProtectedPubSubTopics()
+                try:
+                    for entry in write_protect:
+                        topics.add(entry['topic'], entry['capabilities'])
+                except KeyError:
+                    self._logger.exception('invalid format for protected topics '
+                                           'file {}'.format(self._protected_topics_file))
+                else:
+                    self._protected_topics = topics
+                    self._logger.info('protected-topics file %s loaded',
+                                      self._protected_topics_file)
+            except ValueError:
+                pass
+
     def handle_subsystem(self, frames, user_id):
         """
          Handler for incoming pubsub frames. It checks operation frame and directs it for appropriate action handler.
@@ -499,7 +527,7 @@ class PubSubService(object):
             elif op == b'auth_update':
                 self._update_caps_users(frames)
             elif op == b'protected_update':
-                self._read_protected_topics_file()
+                self._update_protected_topics_file(frames)
             else:
                 self._logger.error("Unknown pubsub request {}".format(bytes(op)))
                 pass

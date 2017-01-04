@@ -76,6 +76,7 @@ from zmq.utils import jsonapi
 from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
+from volttron.platform.vip.agent.errors import VIPError
 
 _log = logging.getLogger(__name__)
 
@@ -119,6 +120,7 @@ class AuthService(Agent):
         self._zap_greenlet = None
         self.auth_entries = []
         self._is_connected = False
+        self._protected_topics_file = protected_topics_file
         self._protected_topics_file_path = os.path.abspath(protected_topics_file)
 
     @Core.receiver('onsetup')
@@ -129,7 +131,7 @@ class AuthService(Agent):
             _log.warn('insecure permissive authentication enabled')
         self.read_auth_file()
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
-        self.core.spawn(watch_file, self._protected_topics_file_path, self._send_protected_update_to_pubsub)
+        self.core.spawn(watch_file, self._protected_topics_file_path, self._read_protected_topics_file)
 
     def read_auth_file(self):
         _log.info('loading auth file %s', self.auth_file_path)
@@ -141,6 +143,19 @@ class AuthService(Agent):
         _log.info('auth file %s loaded', self.auth_file_path)
         if self._is_connected:
             self._send_update()
+
+    def _read_protected_topics_file(self):
+        #Read protected topics file and send to router
+        try:
+            create_file_if_missing(self._protected_topics_file)
+            with open(self._protected_topics_file) as fil:
+                # Use gevent FileObject to avoid blocking the thread
+                data = FileObject(fil, close=False).read()
+                topics_data = jsonapi.loads(data) if data else {}
+                self._send_protected_update_to_pubsub(topics_data)
+        except Exception:
+            _log.exception('error loading %s', self._protected_topics_file)
+
 
     def _send_update(self):
         user_to_caps = self.get_user_to_capabilities()
@@ -160,11 +175,17 @@ class AuthService(Agent):
         # <recipient, subsystem, args, msg_id, flags>
         self.core.socket.send_vip(b'', 'pubsub', frames, copy=False)
 
-    def _send_protected_update_to_pubsub(self):
-        frames = [zmq.Frame(b'protected_update')]
+    def _send_protected_update_to_pubsub(self, contents):
+        protected_topics_msg = jsonapi.dumps(contents)
+
+        frames = [zmq.Frame(b'protected_update'), zmq.Frame(protected_topics_msg)]
         if self._is_connected:
-            # <recipient, subsystem, args, msg_id, flags>
-            self.core.socket.send_vip(b'', 'pubsub', frames, copy=False)
+            try:
+                # <recipient, subsystem, args, msg_id, flags>
+                self.core.socket.send_vip(b'', 'pubsub', frames, copy=False)
+            except VIPError as ex:
+                _log.error("Error in sending protected topics update to clear PubSub: " + str(ex))
+
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):
