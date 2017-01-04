@@ -25,7 +25,7 @@ var Navigation = React.createClass({
         var navItems;
 
         if (this.state.loggedIn) {
-            navItems = ['Dashboard', 'Platforms', 'Charts', 'Flame'].map(function (navItem) {
+            navItems = ['Dashboard', 'Platforms', 'Charts', 'Flame', 'GS'].map(function (navItem) {
                 var route = navItem.toLowerCase();
 
                 return (
