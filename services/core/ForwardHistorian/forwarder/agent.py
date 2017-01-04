@@ -322,9 +322,8 @@ def historian(config_path, **kwargs):
                 agent.core.onstart.connect(lambda *a, **kw: event.set(),
                                            event)
                 gevent.spawn(agent.core.run)
-                if event.wait(timeout=10):
-                    self._target_platform = agent
-                else:
+                self._target_platform = agent
+                if not event.wait(timeout=10):
                     raise gevent.Timeout()
             except gevent.Timeout:
                 self.vip.health.set_status(
