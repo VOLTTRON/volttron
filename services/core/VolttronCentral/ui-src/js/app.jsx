@@ -23,6 +23,7 @@ import ConfigureDevices from './components/configure-devices';
 import ReconfigureDevice from './components/reconfigure-device';
 var PlatformCharts = require('./components/platform-charts');
 var FLAME = require('./components/flame');
+var GS = require('./components/gs');
 var Navigation = require('./components/navigation');
 var devicesActionCreators = require('./action-creators/devices-action-creators');
 
@@ -72,6 +73,7 @@ var routes = (
             <Route path="reconfigure-device" component={checkAuth(ReconfigureDevice)} />
             <Route path="charts" component={checkAuth(PlatformCharts)} />
             <Route path="flame" handler={checkAuth(FLAME)} />
+            <Route path="gs" handler={checkAuth(GS)} />
         </Route>
         <Route path="/" component={checkAuth(PublicExterior)} > 
             <Route path="login" component={checkAuth(LoginForm)} />
