@@ -1927,6 +1927,7 @@ td.buffer_row {
 .fileExportTooltip {
     font-size: 12px;
     color: black;
+    text-align: center;
 }
 
 .file-export-button {
@@ -1981,4 +1982,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-5ac0743e367c982a6d32.css.map*/
+/*# sourceMappingURL=app-9cedb560659131cdc7d1.css.map*/

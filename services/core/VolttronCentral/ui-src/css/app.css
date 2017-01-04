@@ -1927,6 +1927,7 @@ td.buffer_row {
 .fileExportTooltip {
     font-size: 12px;
     color: black;
+    text-align: center;
 }
 
 .file-export-button {
