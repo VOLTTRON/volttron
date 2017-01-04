@@ -28,6 +28,7 @@ var DeregisterPlatformConfirmation = require('../components/deregister-platform-
 
 function gs() {
     var page = {};
+    console.log("gs");
     page.promise = new xhr.Request({
         method: 'GET',
         url: '/gs/status',
@@ -60,6 +61,7 @@ function gs() {
 var GS = React.createClass({
     render: function(){
     gs();
+    console.log("GS");
     return (
     <div className="view">
                 <div className="absolute_anchor">
