@@ -108,7 +108,14 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
 
     devicesStore.addChangeListener(function () { 
 
-        if (devicesStore.getNewScan())       
+        if (devicesStore.getClearConfig())
+        {
+            if (!this.router.isActive('dashboard'))
+            {
+                this.router.push('/dashboard');
+            }
+        }
+        else if (devicesStore.getNewScan())       
         {
             if (!this.router.isActive('configure-devices'))
             {

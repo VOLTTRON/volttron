@@ -494,7 +494,11 @@ class Core(BasicCore):
                 "not match known serverkey ({}).".format(self.serverkey,
                 self.address, known_serverkey))
 
-        self.serverkey = known_serverkey
+        # Until we have containers for agents we should not require all
+        # platforms that connect to be in the known host file.
+        # See issue https://github.com/VOLTTRON/volttron/issues/1117
+        if known_serverkey is not None:
+            self.serverkey = known_serverkey
 
 
     def _get_serverkey_from_known_hosts(self):

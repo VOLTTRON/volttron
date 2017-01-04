@@ -18,7 +18,7 @@ var devicesStore = require('../stores/devices-store');
 class ReconfigureDevice extends BaseComponent {    
     constructor(props) {
         super(props);
-        this._bind('_onStoresChange', '_onConfigChange', '_validateDataFile');
+        this._bind('_onStoresChange', '_onConfigChange', '_validateDataFile', '_updateDeviceConfig');
 
         this.state = getStateFromStore();
     }
@@ -43,20 +43,16 @@ class ReconfigureDevice extends BaseComponent {
             {
                 this.setState({ 
                     device: devicesStore.getDevice(
-                                this.state.device.id, 
-                                this.state.device.address
-                            )
+                        this.state.device.id, 
+                        this.state.device.address,
+                        this.state.device.name
+                    )
                 });
             }
         }
     }
     _onConfigChange(selection) {
 
-        if (selection.value === "registryConfig")
-        {
-            // TODO: get new registry points
-        }
-        
         this.setState({ configFile: selection.value });
     }
     _validateDataFile(data, callback) {
@@ -90,6 +86,52 @@ class ReconfigureDevice extends BaseComponent {
         }
 
         return valid;
+    }
+    _updateDeviceConfig(fileName) {
+
+        if (fileName !== this.state.configuration.registryFile)
+        {
+            var nameParts = this.state.device.name.split("/");
+
+            var campus = nameParts[0];
+            var building = nameParts[1];
+            var unit = nameParts[2];
+            var path = "";
+
+            for (var i = 3; i < nameParts.length; i++)
+            {
+                path = path + "/" + nameParts[i];
+            }
+        
+            var settings = {
+                config: this.state.configuration,
+                campus: campus,
+                building: building,
+                unit: unit,
+                path: path
+            };
+
+            var informalName = settings.campus + "/" + settings.building + "/" + 
+                                settings.unit + settings.path;
+
+            var config_name =  "devices/" + informalName;
+
+            // settings.config.driver_config = this.state.driver_config;
+            settings.config.registryFile = fileName;
+            settings.config.registry_config = "config://" + fileName;
+            
+            var configUpdate = true;
+            var announce = false;
+
+            devicesActionCreators.saveConfig(
+                this.state.device, 
+                configUpdate, 
+                announce,
+                config_name, 
+                settings
+            );
+        }
+
     }
     render() {        
         
@@ -179,7 +221,8 @@ class ReconfigureDevice extends BaseComponent {
                 registryConfig = (
                     <ConfigureRegistry device={this.state.device} 
                         dataValidator={this._validateDataFile}
-                        registryFile={this.state.configuration.registryFile}/>
+                        registryFile={this.state.configuration.registryFile}
+                        onreconfigure={this._updateDeviceConfig}/>
                 );
             }
             else

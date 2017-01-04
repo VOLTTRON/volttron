@@ -25,7 +25,7 @@ var platformManagerActionCreators = {
                     platformsPanelActionCreators.addNewDevice(obj.data);
                     break;
                 default:
-                    console.log('UNKNOWN TYPE MESSAGE: '+message);
+                    // console.log('UNKNOWN TYPE MESSAGE: '+message);
             }
             
         });

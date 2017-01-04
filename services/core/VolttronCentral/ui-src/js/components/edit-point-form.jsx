@@ -47,7 +47,7 @@ class EditPointForm extends BaseComponent {
     }
     _onSubmit(e) {
         e.preventDefault();
-        devicesActionCreators.updateRegistry(
+        devicesActionCreators.updateRegistryRow(
             this.props.deviceId, 
             this.props.deviceAddress,
             this.state.attributes
