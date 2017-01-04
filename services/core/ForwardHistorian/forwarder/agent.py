@@ -109,6 +109,7 @@ def historian(config_path, **kwargs):
             self._topic_replace_map = {}
             self._num_failures = 0
             self._last_timeout = 0
+            self._target_platform = None
             super(ForwardHistorian, self).__init__(**kwargs)
 
         @Core.receiver("onstart")
@@ -310,7 +311,7 @@ def historian(config_path, **kwargs):
             except gevent.Timeout:
                 self.vip.health.set_status(
                     STATUS_BAD, "Timeout in setup of agent")
-                status = Status.from_json(self.vip.health.get_status())
+                status = Status.from_json(self.vip.health.get_status_json())
                 self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                            status)
             else:
