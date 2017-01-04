@@ -24,6 +24,8 @@ import ReconfigureDevice from './components/reconfigure-device';
 var PlatformCharts = require('./components/platform-charts');
 var Navigation = require('./components/navigation');
 var devicesActionCreators = require('./action-creators/devices-action-creators');
+var StatusIndicator = require('./components/status-indicator');
+var statusIndicatorStore = require('./stores/status-indicator-store');
 
 var _afterLoginPath = '/dashboard';
 
@@ -47,11 +49,38 @@ const checkAuth = AuthComponent => class extends React.Component {
 };
 
 var PublicExterior = React.createClass({
+    getInitialState: function () {
+        var state = {
+            status: statusIndicatorStore.getStatus(),
+            statusMessage: statusIndicatorStore.getStatusMessage(),
+        };
+
+        return state;
+    },
+    componentDidMount: function () {
+        statusIndicatorStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function () {
+        statusIndicatorStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function () {
+        this.setState({status: statusIndicatorStore.getStatus()});
+        this.setState({statusMessage: statusIndicatorStore.getStatusMessage()});
+    },
     render: function() {
+
+        var statusIndicator;
+
+        if (this.state.status) {
+            statusIndicator = (
+                <StatusIndicator status={this.state.statusMessage}></StatusIndicator>
+            );
+        }
 
         return (
             <div className="public-exterior not-logged-in">
                 <div className="main">
+                    {statusIndicator}
                     <Navigation />
                     {this.props.children}
                 </div>

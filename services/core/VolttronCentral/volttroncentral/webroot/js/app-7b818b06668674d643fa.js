@@ -91,6 +91,8 @@
 	var PlatformCharts = __webpack_require__(547);
 	var Navigation = __webpack_require__(326);
 	var devicesActionCreators = __webpack_require__(309);
+	var StatusIndicator = __webpack_require__(328);
+	var statusIndicatorStore = __webpack_require__(329);
 	
 	var _afterLoginPath = '/dashboard';
 	
@@ -130,7 +132,31 @@
 	var PublicExterior = React.createClass({
 	    displayName: 'PublicExterior',
 	
+	    getInitialState: function getInitialState() {
+	        var state = {
+	            status: statusIndicatorStore.getStatus(),
+	            statusMessage: statusIndicatorStore.getStatusMessage()
+	        };
+	
+	        return state;
+	    },
+	    componentDidMount: function componentDidMount() {
+	        statusIndicatorStore.addChangeListener(this._onStoreChange);
+	    },
+	    componentWillUnmount: function componentWillUnmount() {
+	        statusIndicatorStore.removeChangeListener(this._onStoreChange);
+	    },
+	    _onStoreChange: function _onStoreChange() {
+	        this.setState({ status: statusIndicatorStore.getStatus() });
+	        this.setState({ statusMessage: statusIndicatorStore.getStatusMessage() });
+	    },
 	    render: function render() {
+	
+	        var statusIndicator;
+	
+	        if (this.state.status) {
+	            statusIndicator = React.createElement(StatusIndicator, { status: this.state.statusMessage });
+	        }
 	
 	        return React.createElement(
 	            'div',
@@ -138,6 +164,7 @@
 	            React.createElement(
 	                'div',
 	                { className: 'main' },
+	                statusIndicator,
 	                React.createElement(Navigation, null),
 	                this.props.children
 	            )
@@ -58403,13 +58430,7 @@
 	
 	        series.forEach(function (item) {
 	
-	            var topic = item.topic;
-	
-	            var index = item.topic.indexOf("devices/");
-	
-	            if (index === 0) {
-	                topic = item.topic.replace("devices/", "");
-	            }
+	            var topic = prepTopic(item.topic);
 	
 	            new rpc.Exchange({
 	                method: 'historian.query',
@@ -58443,194 +58464,15 @@
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
-	        var topic = panelItem.topic;
-	
-	        var index = panelItem.topic.indexOf("devices/");
-	
-	        if (index === 0) {
-	            topic = panelItem.topic.replace("devices/", "");
-	        }
-	
-	        new rpc.Exchange({
-	            method: 'historian.query',
-	            params: {
-	                topic: topic,
-	                count: 20,
-	                order: 'LAST_TO_FIRST'
-	            },
-	            authorization: authorization
-	        }).promise.then(function (result) {
-	
-	            if (result.hasOwnProperty("values")) {
-	                panelItem.data = result.values;
-	
-	                panelItem.data.forEach(function (datum) {
-	                    datum.name = panelItem.name;
-	                    datum.parent = panelItem.parentPath;
-	                    datum.uuid = panelItem.uuid;
-	                });
-	
-	                dispatcher.dispatch({
-	                    type: ACTION_TYPES.SHOW_CHARTS,
-	                    emitChange: emitChange === null || typeof emitChange === "undefined" ? true : emitChange
-	                });
-	
-	                dispatcher.dispatch({
-	                    type: ACTION_TYPES.ADD_TO_CHART,
-	                    panelItem: panelItem
-	                });
-	
-	                platformsPanelActionCreators.checkItem(panelItem.path, true);
-	
-	                var savedCharts = platformChartStore.getPinnedCharts();
-	                var inSavedChart = savedCharts.find(function (chart) {
-	                    return chart.chartKey === panelItem.name;
-	                });
-	
-	                if (inSavedChart) {
-	                    platformActionCreators.saveCharts(savedCharts);
-	                }
-	            } else {
-	                var message = "Unable to load chart: An unknown problem occurred.";
-	                var orientation = "center";
-	                var error = {};
-	
-	                if (panelItem.path && panelItem.path.length > 1) {
-	                    var platformPath = panelItem.path.slice(0, 1);
-	                    var uuid = panelItem.path[1];
-	
-	                    var platform = platformsPanelItemsStore.getItem(platformPath);
-	
-	                    message = "Unable to load chart: No data was retrieved for " + topic + ". Check for proper configuration " + " of any forwarder, master driver, and platform agents on platform " + platform[uuid].name;
-	                    orientation = "left";
-	                }
-	
-	                platformsPanelActionCreators.checkItem(panelItem.path, false);
-	                handle401(error, message, null, orientation);
-	            }
-	        }).catch(rpc.Error, function (error) {
-	
-	            var message = "Unable to load chart: " + error.message;
-	            var orientation;
-	
-	            if (error.code === -32602) {
-	                if (error.message === "historian unavailable") {
-	                    message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
-	                    orientation = "left";
-	                }
-	            } else {
-	                var vcInstance = platformsStore.getVcInstance();
-	
-	                if (vcInstance) {
-	                    var historianRunning = platformsStore.getVcHistorianRunning(vcInstance);
-	
-	                    if (!historianRunning) {
-	                        message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
-	                        orientation = "left";
-	                    }
-	                } else {
-	                    message = "Unable to load chart: An unknown problem occurred.";
-	                    orientation = "left";
-	                }
-	            }
-	
-	            platformsPanelActionCreators.checkItem(panelItem.path, false);
-	            handle401(error, message, null, orientation);
-	        });
+	        loadChart(panelItem, emitChange, authorization);
 	    },
 	    addToCharts: function addToCharts(panelItems) {
 	
 	        var authorization = authorizationStore.getAuthorization();
+	        var emitChange = false;
 	
 	        panelItems.forEach(function (panelItem) {
-	
-	            var topic = panelItem.topic;
-	
-	            var index = panelItem.topic.indexOf("devices/");
-	
-	            if (index === 0) {
-	                topic = panelItem.topic.replace("devices/", "");
-	            }
-	
-	            new rpc.Exchange({
-	                method: 'historian.query',
-	                params: {
-	                    topic: topic,
-	                    count: 20,
-	                    order: 'LAST_TO_FIRST'
-	                },
-	                authorization: authorization
-	            }).promise.then(function (result) {
-	
-	                if (result.hasOwnProperty("values")) {
-	                    panelItem.data = result.values;
-	
-	                    panelItem.data.forEach(function (datum) {
-	                        datum.name = panelItem.name;
-	                        datum.parent = panelItem.parentPath;
-	                        datum.uuid = panelItem.uuid;
-	                    });
-	
-	                    dispatcher.dispatch({
-	                        type: ACTION_TYPES.SHOW_CHARTS,
-	                        emitChange: false
-	                    });
-	
-	                    dispatcher.dispatch({
-	                        type: ACTION_TYPES.ADD_TO_CHART,
-	                        panelItem: panelItem
-	                    });
-	
-	                    platformsPanelActionCreators.checkItem(panelItem.path, true);
-	
-	                    var savedCharts = platformChartStore.getPinnedCharts();
-	                    var inSavedChart = savedCharts.find(function (chart) {
-	                        return chart.chartKey === panelItem.name;
-	                    });
-	
-	                    if (inSavedChart) {
-	                        platformActionCreators.saveCharts(savedCharts);
-	                    }
-	                } else {
-	                    var message = "Unable to load chart: An unknown problem occurred.";
-	                    var orientation = "center";
-	                    var error = {};
-	
-	                    if (panelItem.path && panelItem.path.length > 1) {
-	                        var platformUuid = panelItem.path[1];
-	                        var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
-	
-	                        if (!forwarderRunning) {
-	                            message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
-	                            orientation = "left";
-	                        }
-	                    }
-	
-	                    platformsPanelActionCreators.checkItem(panelItem.path, false);
-	                    handle401(error, message, null, orientation);
-	                }
-	            }).catch(rpc.Error, function (error) {
-	
-	                var message = "Unable to load chart: " + error.message;
-	                var orientation;
-	
-	                if (error.code === -32602) {
-	                    if (error.message === "historian unavailable") {
-	                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
-	                        orientation = "left";
-	                    }
-	                } else {
-	                    var historianRunning = platformsStore.getVcHistorianRunning();
-	
-	                    if (!historianRunning) {
-	                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
-	                        orientation = "left";
-	                    }
-	                }
-	
-	                platformsPanelActionCreators.checkItem(panelItem.path, false);
-	                handle401(error, message, null, orientation);
-	            });
+	            loadChart(panelItem, emitChange, authorization);
 	        });
 	    },
 	    removeFromChart: function removeFromChart(panelItem) {
@@ -58658,6 +58500,112 @@
 	            name: chartName
 	        });
 	    }
+	};
+	
+	function prepTopic(itemTopic) {
+	    var topic = itemTopic;
+	
+	    var index = itemTopic.indexOf("devices/");
+	
+	    if (index === 0) {
+	        topic = itemTopic.replace("devices/", "");
+	    }
+	
+	    return topic;
+	}
+	
+	function loadChart(panelItem, emitChange, authorization) {
+	
+	    var topic = prepTopic(panelItem.topic);
+	
+	    new rpc.Exchange({
+	        method: 'historian.query',
+	        params: {
+	            topic: topic,
+	            count: 20,
+	            order: 'LAST_TO_FIRST'
+	        },
+	        authorization: authorization
+	    }).promise.then(function (result) {
+	
+	        if (result.hasOwnProperty("values")) {
+	            panelItem.data = result.values;
+	
+	            panelItem.data.forEach(function (datum) {
+	                datum.name = panelItem.name;
+	                datum.parent = panelItem.parentPath;
+	                datum.uuid = panelItem.uuid;
+	            });
+	
+	            dispatcher.dispatch({
+	                type: ACTION_TYPES.SHOW_CHARTS,
+	                emitChange: emitChange === null || typeof emitChange === "undefined" ? true : emitChange
+	            });
+	
+	            dispatcher.dispatch({
+	                type: ACTION_TYPES.ADD_TO_CHART,
+	                panelItem: panelItem
+	            });
+	
+	            platformsPanelActionCreators.checkItem(panelItem.path, true);
+	
+	            var savedCharts = platformChartStore.getPinnedCharts();
+	            var inSavedChart = savedCharts.find(function (chart) {
+	                return chart.chartKey === panelItem.name;
+	            });
+	
+	            if (inSavedChart) {
+	                platformActionCreators.saveCharts(savedCharts);
+	            }
+	        } else {
+	            var message = "Unable to load chart: An unknown problem occurred.";
+	            var orientation = "center";
+	            var error = {};
+	            var highlight = null;
+	
+	            if (panelItem.path && panelItem.path.length > 1) {
+	                var platformPath = panelItem.path.slice(0, 1);
+	                var uuid = panelItem.path[1];
+	
+	                var platform = platformsPanelItemsStore.getItem(platformPath);
+	
+	                message = "Unable to load chart: No data was retrieved for " + topic + ". Check for proper configuration " + " of any forwarder, master driver, and platform agents on platform '" + platform[uuid].name + "'.";
+	                orientation = "left";
+	                highlight = topic;
+	            }
+	
+	            platformsPanelActionCreators.checkItem(panelItem.path, false);
+	            handle401(error, message, highlight, orientation);
+	        }
+	    }).catch(rpc.Error, function (error) {
+	
+	        var message = "Unable to load chart: " + error.message;
+	        var orientation;
+	
+	        if (error.code === -32602) {
+	            if (error.message === "historian unavailable") {
+	                message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
+	                orientation = "left";
+	            }
+	        } else {
+	            var vcInstance = platformsStore.getVcInstance();
+	
+	            if (vcInstance) {
+	                var historianRunning = platformsStore.getVcHistorianRunning(vcInstance);
+	
+	                if (!historianRunning) {
+	                    message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
+	                    orientation = "left";
+	                }
+	            } else {
+	                message = "Unable to load chart: An unknown problem occurred.";
+	                orientation = "left";
+	            }
+	        }
+	
+	        platformsPanelActionCreators.checkItem(panelItem.path, false);
+	        handle401(error, message, null, orientation);
+	    });
 	};
 	
 	function handle401(error, message, highlight, orientation) {
@@ -61645,6 +61593,8 @@
 	
 	            state.errors = state.status === "error";
 	            state.fadeOut = false;
+	
+	            this.setState(state);
 	        }
 	    },
 	    componentDidMount: function componentDidMount() {
@@ -116673,12 +116623,7 @@
 	                    min: '1',
 	                    step: '1',
 	                    placeholder: 'disabled'
-	                }),
-	                React.createElement(
-	                    'span',
-	                    { className: 'form__control-help' },
-	                    'Omit to disable'
-	                )
+	                })
 	            ),
 	            React.createElement(
 	                'div',
@@ -116768,4 +116713,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-9cedb560659131cdc7d1.js.map
+//# sourceMappingURL=app-7b818b06668674d643fa.js.map
