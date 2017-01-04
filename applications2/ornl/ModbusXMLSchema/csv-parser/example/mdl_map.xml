@@ -1,0 +1,84 @@
+<?xml version="1.0" ?>
+<device xmlns="http://www.ornl.gov/ModbusXMLSchema">
+	<name>TEMPCO Modbus device</name>
+	<description>This is a description of the TEMPCO modbus device</description>
+	<function>
+		<name>temperature</name>
+		<description>Spare</description>
+		<addresses>14</addresses>
+		<count>1</count>
+		<block_label>COMMON</block_label>
+	</function>
+	<function>
+		<name>fan_relay_on</name>
+		<description>Relay1 manual output value</description>
+		<addresses>255</addresses>
+		<length>Lower byte</length>
+		<count>1</count>
+		<format>INT8</format>
+		<block_label>OUTPUT</block_label>
+		<multiplier>1</multiplier>
+		<read_function_code>Enter read function code snippet here or adding a user defined csv column and add parsing logic</read_function_code>
+		<write_function_code>Enter write function code snippet here or adding a user defined csv column and add parsing logic</write_function_code>
+	</function>
+	<function>
+		<name>cooling_stage1_relay_on</name>
+		<description>Relay2 manual output value</description>
+		<addresses>256</addresses>
+		<length>Lower byte</length>
+		<count>1</count>
+		<format>INT8</format>
+		<block_label>OUTPUT</block_label>
+		<multiplier>1</multiplier>
+		<read_function_code>Enter read function code snippet here or adding a user defined csv column and add parsing logic</read_function_code>
+		<write_function_code>Enter write function code snippet here or adding a user defined csv column and add parsing logic</write_function_code>
+	</function>
+	<function>
+		<name>cooling_stage2_relay_on</name>
+		<description>Relay3 manual output value</description>
+		<addresses>257</addresses>
+		<length>Lower byte</length>
+		<count>1</count>
+		<format>INT8</format>
+		<block_label>OUTPUT</block_label>
+		<multiplier>1</multiplier>
+		<read_function_code>Enter read function code snippet here or adding a user defined csv column and add parsing logic</read_function_code>
+		<write_function_code>Enter write function code snippet here or adding a user defined csv column and add parsing logic</write_function_code>
+	</function>
+	<function>
+		<name>heating_stage1_relay_on</name>
+		<description>Relay4 manual output value</description>
+		<addresses>258</addresses>
+		<length>Lower byte</length>
+		<count>1</count>
+		<format>INT8</format>
+		<block_label>OUTPUT</block_label>
+		<multiplier>1</multiplier>
+		<read_function_code>Enter read function code snippet here or adding a user defined csv column and add parsing logic</read_function_code>
+		<write_function_code>Enter write function code snippet here or adding a user defined csv column and add parsing logic</write_function_code>
+	</function>
+	<function>
+		<name>heating_stage2_relay_on</name>
+		<description>Relay5 manual output value</description>
+		<addresses>259</addresses>
+		<length>Lower byte</length>
+		<count>1</count>
+		<format>INT8</format>
+		<block_label>OUTPUT</block_label>
+		<multiplier>1</multiplier>
+		<read_function_code>Enter read function code snippet here or adding a user defined csv column and add parsing logic</read_function_code>
+		<write_function_code>Enter write function code snippet here or adding a user defined csv column and add parsing logic</write_function_code>
+	</function>
+	<function>
+		<name>temperature_set_point</name>
+		<description>PID2 Occupied Setpoint</description>
+		<addresses>359</addresses>
+		<length>Full word</length>
+		<count>2</count>
+		<format>INT16</format>
+		<block_label>SETPOINT</block_label>
+		<multiplier>0.1</multiplier>
+		<read_function_code>Enter read function code snippet here or adding a user defined csv column and add parsing logic</read_function_code>
+		<write_function_code>Enter write function code snippet here or adding a user defined csv column and add parsing logic</write_function_code>
+	</function>
+</device>

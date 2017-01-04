@@ -1,0 +1,8 @@
+{
+    "driver_config_list": [
+        "/home/vdev/git/volttron/applications/pnnl/FakeDrivenMatlabAgent/tests/fake0.config"
+    ],
+    "scalability_test_iterations": 5,
+    "staggered_start": null,
+    "scalability_test": false
+}
