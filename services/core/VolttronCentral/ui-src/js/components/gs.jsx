@@ -1,16 +1,13 @@
 'use strict';
 
-var $ = require('jquery');
+//var $ = require('jquery');
 var React = require('react');
 //var Router = require('react-router');
 var xhr = require('../lib/xhr');
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
-var platformsStore = require('../stores/platforms-store');
-var RegisterPlatformForm = require('../components/register-platform-form');
 var StatusForm = require('../components/status-indicator');
-var DeregisterPlatformConfirmation = require('../components/deregister-platform-confirmation');
 //
 // TODO: 
 //
@@ -54,14 +51,15 @@ function gs() {
         .catch(xhr.Error, function (error) {
             page.error = error;
 	});
+	return page;
     }
     
 
 
 var GS = React.createClass({
     render: function(){
-    gs();
     console.log("GS");
+    var page = gs();
     return (
     <div className="view">
                 <div className="absolute_anchor">
@@ -69,7 +67,7 @@ var GS = React.createClass({
     This space for: Listing the last data received by
     the global sceduler and the last actions taken.
      {new Date().toLocaleTimeString()}
-Test <span id="gs" >TEST</span>
+Test <span id="gs" >{page}</span>
     
       </div>
       
