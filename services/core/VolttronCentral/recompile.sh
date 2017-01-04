@@ -5,13 +5,13 @@
 
   pushd /home/volttron/volttron/services/core/VolttronCentral
 git pull
-npm run build
+npm run build-development
 #  nodejs node_modules/gulp/bin/gulp.js & 
 #  FOO_PID=$!
-  volttron-ctl stop --tag vc
-  volttron-ctl remove --tag vc 
+  volttron-ctl stop --tag vc &&  volttron-ctl remove --tag vc &
 #  sleep 10 &&  kill -TERM $FOO_PID
   volttron-pkg package . && volttron-pkg configure /home/volttron/.volttron/packaged/volttroncentralagent-3.6.0-py2-none-any.whl config 
   volttron-ctl install /home/volttron/.volttron/packaged/volttroncentralagent-3.6.0-py2-none-any.whl --tag vc
   volttron-ctl start --tag vc
+  volttron-ctl restart --tag vcp
   popd

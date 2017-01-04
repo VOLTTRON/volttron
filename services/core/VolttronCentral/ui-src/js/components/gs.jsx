@@ -4,27 +4,15 @@
 var React = require('react');
 //var Router = require('react-router');
 var xhr = require('../lib/xhr');
+//var platformChartStore = require('../stores/platform-chart-store');
 
-var modalActionCreators = require('../action-creators/modal-action-creators');
-var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
-var StatusForm = require('../components/status-indicator');
-//
-// TODO: 
-//
-// The interface here should report as follows:
-//
-// 1. That the OpenADR agent is up.
-// 2. Each VEN and when it last had contact with it. 
-// 3. The latest oadrReports on from all parties.
-// 4. Whether any Events are active. 
-//
-// The entry point into the Oadr agent is with /oadr/.
-// IT already has a method there to return its state.
-// What is missing is enough React smarts to display it.
-// platform-charg-action-createros.js has a clue as to how to do this.
+//var modalActionCreators = require('../action-creators/modal-action-creators');
+//var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+//var StatusForm = require('../components/status-indicator');
 
 function gs() {
     var page = {};
+    var ret = {}
     console.log("gs");
     page.promise = new xhr.Request({
         method: 'GET',
@@ -35,11 +23,13 @@ function gs() {
 	page.completed = Date.now();
     }).
 	then(function(response) {
+	ret.response=response;
 	    page.response = response;
 	    const element = (
 		    <div>
       <h1>Global Scheduler</h1> {response.content}
       <h2>It is {new Date().toLocaleTimeString()}.</h2>
+      {response.toString()}
     </div>
   );
 	React.render(
@@ -50,16 +40,33 @@ function gs() {
 	})
         .catch(xhr.Error, function (error) {
             page.error = error;
+	    ret.error=error;
 	});
-	return page;
+	return ret;
     }
     
 
 
 var GS = React.createClass({
+/*    getInitialState: function () {
+        var state = getStateFromStores();
+        return state;
+    },
+    componentDidMount: function () {
+        platformChartStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function () {
+        platformChartStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function () {
+        this.setState(getStateFromStores());
+    },*/
+
     render: function(){
     console.log("GS");
+    
     var page = gs();
+    console.log("Done GS");
     return (
     <div className="view">
                 <div className="absolute_anchor">
@@ -67,7 +74,7 @@ var GS = React.createClass({
     This space for: Listing the last data received by
     the global sceduler and the last actions taken.
      {new Date().toLocaleTimeString()}
-Test <span id="gs" >{page}</span>
+Test <span id="gs" >{page.toString()}</span>
     
       </div>
       
@@ -75,5 +82,11 @@ Test <span id="gs" >{page}</span>
     );
     }
 });
+
+//function getStateFromStores() {
+//    return {
+//        platformCharts: platformChartStore.getPinnedCharts()
+//    };
+//}
 
 module.exports = GS;

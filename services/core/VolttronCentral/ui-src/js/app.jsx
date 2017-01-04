@@ -24,6 +24,7 @@ import ReconfigureDevice from './components/reconfigure-device';
 var PlatformCharts = require('./components/platform-charts');
 var FLAME = require('./components/flame');
 var GS = require('./components/gs');
+console.log("GS REQD")
 var Navigation = require('./components/navigation');
 var devicesActionCreators = require('./action-creators/devices-action-creators');
 
@@ -44,6 +45,7 @@ const checkAuth = AuthComponent => class extends React.Component {
     }
 
     render() {
+    
         return <AuthComponent {...this.props}/>;
     }
 };
@@ -72,8 +74,8 @@ var routes = (
             <Route path="configure-devices" component={checkAuth(ConfigureDevices)} />
             <Route path="reconfigure-device" component={checkAuth(ReconfigureDevice)} />
             <Route path="charts" component={checkAuth(PlatformCharts)} />
-            <Route path="flame" handler={checkAuth(FLAME)} />
-            <Route path="gs" handler={checkAuth(GS)} />
+            <Route path="flame" component={checkAuth(FLAME)} />
+            <Route path="gs" component={checkAuth(GS)} />
         </Route>
         <Route path="/" component={checkAuth(PublicExterior)} > 
             <Route path="login" component={checkAuth(LoginForm)} />
@@ -105,7 +107,7 @@ ReactDOM.render(routes, document.getElementById('app'), function (Handler) {
         }
 
     }.bind(this));
-
+    console.log(this);
     devicesStore.addChangeListener(function () { 
 
         if (devicesStore.getClearConfig())
