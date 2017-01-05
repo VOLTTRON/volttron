@@ -109,7 +109,7 @@ agent = None
 
 
 def read_props(address, parameters):
-    return agent.vip.rpc.call("platform.bacnet_proxy", "read_properties", address,
+    return agent.vip.rpc.call(agent.proxy_id, "read_properties", address,
                                 parameters).get(timeout=5)
 
 
