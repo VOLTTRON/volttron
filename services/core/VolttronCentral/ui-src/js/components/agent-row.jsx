@@ -96,6 +96,7 @@ var AgentRow = React.createClass({
         return (
             <tr>
                 <td>{agent.name}</td>
+                <td>{agent.identity}</td>
                 <td>{agent.uuid}</td>
                 <td>{status}</td>
                 <td>{action} {remove}</td>

@@ -1,6 +1,6 @@
 'use strict';
 
-var keyMirror = require('react/lib/keyMirror');
+var keyMirror = require('keymirror');
 
 module.exports = keyMirror({
     OPEN_MODAL: null,
@@ -21,6 +21,7 @@ module.exports = keyMirror({
     RECEIVE_UNAUTHORIZED: null,
     CLEAR_AUTHORIZATION: null,
 
+    WILL_INITIALIZE_PLATFORMS: null,
     RECEIVE_PLATFORMS: null,
     RECEIVE_PLATFORM: null,
 
@@ -42,6 +43,7 @@ module.exports = keyMirror({
     CHANGE_CHART_MIN: null,
     CHANGE_CHART_MAX: null,
     CHANGE_CHART_REFRESH: null,
+    CHANGE_CHART_LENGTH: null,
     REFRESH_CHART: null,
     REMOVE_CHART: null,
     LOAD_CHARTS: null,
@@ -52,10 +54,35 @@ module.exports = keyMirror({
     CHECK_ITEM: null,
     FILTER_ITEMS: null,
 
-    // ADD_CONTROL_BUTTON: null,
-    // REMOVE_CONTROL_BUTTON: null,
+    CONFIGURE_DEVICES: null,
+    CLEAR_CONFIG: null,
+    FOCUS_ON_DEVICE: null,
+    LISTEN_FOR_IAMS: null,
+    DEVICE_DETECTED: null,
+    DEVICE_SCAN_FINISHED: null,
+    POINT_SCAN_FINISHED: null,
+    POINT_RECEIVED: null,
+    CANCEL_SCANNING: null,
+    CONFIGURE_DEVICE: null,
+    REFRESH_DEVICE_POINTS: null,
+    TOGGLE_SHOW_POINTS: null,
+    RECONFIGURE_DEVICE: null,
+    UPDATE_REGISTRY_ROW: null,
+    LOAD_REGISTRY: null,
+    LOAD_REGISTRY_FILES: null,
+    UNLOAD_REGISTRY_FILES: null,
+    CANCEL_REGISTRY: null,
+    SAVE_CONFIG: null,
+    UPDATE_DEVICES_LIST: null, 
+
     TOGGLE_TAPTIP: null,
     HIDE_TAPTIP: null,
+    SHOW_TAPTIP: null,
+    CLEAR_BUTTON: null,
+
+    START_COLUMN_MOVEMENT: null,
+    END_COLUMN_MOVEMENT: null,
+    MOVE_COLUMN: null,
 
     RECEIVE_CHART_TOPICS: null
 });
