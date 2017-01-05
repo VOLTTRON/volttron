@@ -66,6 +66,9 @@ from master_driver.interfaces import (BaseInterface,
 
 _log = logging.getLogger(__name__)
 
+# This driver uses the Rainforest Eagle REST API available on
+# rainforestautomation.com/developer
+
 ## Accessible operations
 # get_network_status
 # get_instantaneous_demand
