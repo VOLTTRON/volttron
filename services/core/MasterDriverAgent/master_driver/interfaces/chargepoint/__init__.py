@@ -64,7 +64,6 @@ import async_service as async
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
 from suds.sudsobject import asdict
 
-
 _log = logging.getLogger(__name__)
 
 # Somewhere else, suds is set to level Debug. Setting to Info here to not deluge logs.
@@ -174,6 +173,7 @@ class ChargepointRegister(BaseRegister):
         """Gets correct register from API response.
 
         :param result: API result from which to grab register value.
+        :param method: Name of Chargepoint API call that was made.
         :param port_flag: Flag indicating whether or not Port-level parameters can be used. GetAlarms and
         GetChargingSessionData methods use ports in their queries, but have a different reply structure than other
         API method calls.
@@ -288,7 +288,7 @@ class LoadRegister(ChargepointRegister):
                 value = self.data_type(x)
             except ValueError:
                 _log.error("{0} cannot be cast to {1}".format(x, self.data_type))
-                return None
+                return
 
             kwargs = {'stationID': self.station_id}
             if self.attribute_name == 'shedState' and not value:
@@ -297,7 +297,7 @@ class LoadRegister(ChargepointRegister):
             elif self.attribute_name == 'shedState':
                 _log.error('shedState may only be written with value 0. If you want to shedLoad, write to '
                            'allowedLoad or percentShed')
-                return None
+                return
             else:
                 method = service[self.username].shedLoad
                 kwargs[self.attribute_name] = value
@@ -310,9 +310,6 @@ class LoadRegister(ChargepointRegister):
                 _log.error('{0} did not execute for station {1}. Parameters: {2}'
                            .format(method, self.station_id, kwargs))
                 _log.error('{0} : {1}'.format(result.value.responseCode, result.value.responseText))
-                return None
-            else:
-                return value
 
 
 class AlarmRegister(ChargepointRegister):
@@ -373,7 +370,7 @@ class AlarmRegister(ChargepointRegister):
                 value = self.data_type(x)
             except ValueError:
                 _log.error("{0} cannot be cast to {1}".format(x, self.data_type))
-                return None
+                return
 
             if self.attribute_name == 'clearAlarms' and value:
                 kwargs = {'stationID': self.station_id}
@@ -385,12 +382,8 @@ class AlarmRegister(ChargepointRegister):
                     _log.error('{0} did not execute for station {1}. Parameters: {2}'
                                .format(method, self.station_id, kwargs))
                     _log.error('{0} : {1}'.format(result.value.responseCode, result.value.responseText))
-                    return None
-                else:
-                    return value
             else:
                 _log.info('clearAlarms may only be given a value of 1. Instead, it was given a value of {0}.'.format(x))
-                return None
 
 
 class ChargingSessionRegister(ChargepointRegister):

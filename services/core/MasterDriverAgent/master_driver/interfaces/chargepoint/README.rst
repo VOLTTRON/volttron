@@ -5,6 +5,11 @@ Chargepoint Driver README
 
 Version 1.0
 
+Requirements
+------------
+Make sure to do a pip install of requirements.txt. The Chargepoint Driver has a requirement for:
+- suds-jurko==0.6
+
 Write Points
 ------------
 
