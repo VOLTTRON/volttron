@@ -24,6 +24,7 @@ function gs() {
 	page.completed = Date.now();
     }).
 	then(function(response) {
+	var enabled ="";
 	var last_time="";
 	var wattage = "";
 	var actions=[];
@@ -32,12 +33,14 @@ function gs() {
 	    if (response.content.SiteAnalysis.length>0){
         	    last_time = response.content.SiteAnalysis[0].TimeStamp;
 		    actions = response.content.Actions;
+		    enabled = response.content.Enabled;
 		    wattage =  response.content.SiteAnalysis[1]["analysis/Shirley-MA/PV/RealPower"];
 	    }
 	    const element = (
 		    <div>
       <h2>Global Scheduler</h2>      
       Last site update: {last_time} Power measured: {wattage} <br/>
+      Actions enabled: {enabled}<br/>
       Actions Taken: {actions}<br/>
       Page refreshed at  {new Date().toLocaleTimeString()}.
     </div>
