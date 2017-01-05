@@ -64,7 +64,7 @@ import logging
 import sys
 import syslog
 import traceback
-from datetime import datetime
+from datetime import datetime, tzinfo, timedelta
 
 import gevent
 import os
@@ -74,7 +74,7 @@ import stat
 import string
 from volttron.platform import get_home, get_address
 from dateutil.parser import parse
-from dateutil.tz import tzutc
+from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
 from zmq.utils import jsonapi
 
@@ -379,9 +379,42 @@ def parse_timestamp_string(time_stamp_str):
     Create a datetime object from the supplied date/time string.
     Uses dateutil.parse with no extra parameters.
 
+    For performance reasons we try
+    YYYY-MM-DDTHH:MM:SS.mmmmmm
+    or
+    YYYY-MM-DDTHH:MM:SS.mmmmmm+HH:MM
+    based on the string length before falling back to dateutil.parse.
+
     @param time_stamp_str:
     @return: value to convert
     """
+
+    if len(time_stamp_str) == 26:
+        try:
+            return datetime.strptime(time_stamp_str, "%Y-%m-%dT%H:%M:%S.%f")
+        except ValueError:
+            pass
+
+    elif len(time_stamp_str) == 32:
+        try:
+            base_time_stamp_str = time_stamp_str[:26]
+            time_zone_str = time_stamp_str[26:]
+            time_stamp = datetime.strptime(base_time_stamp_str, "%Y-%m-%dT%H:%M:%S.%f")
+            #Handle most common case.
+            if time_zone_str == "+00:00":
+                return time_stamp.replace(tzinfo=tzutc())
+
+            hours_offset = int(time_zone_str[1:3])
+            minutes_offset = int(time_zone_str[4:6])
+
+            seconds_offset = hours_offset * 3600 + minutes_offset * 60
+            if time_zone_str[0] == "-":
+                seconds_offset = -seconds_offset
+
+            return time_stamp.replace(tzinfo=tzoffset("", seconds_offset))
+
+        except ValueError:
+            pass
 
     return parse(time_stamp_str)
 
@@ -512,4 +545,5 @@ def fix_sqlite3_datetime(sql=None):
     """
     if sql is None:
         import sqlite3 as sql
-    sql.register_converter("timestamp", parse)
+    sql.register_adapter(datetime, format_timestamp)
+    sql.register_converter("timestamp", parse_timestamp_string)

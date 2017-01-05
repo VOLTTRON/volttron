@@ -17,4 +17,5 @@ simplejson==3.8.2
 six==1.10.0
 Twisted==16.4.1
 tzlocal==1.2.2
+ujson==1.35
 zope.interface==4.3.2
