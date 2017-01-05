@@ -60,6 +60,8 @@ from __future__ import absolute_import
 import os
 import logging as _log
 
+from volttron.platform.vip.agent.subsystems.web import WebSubSystem
+
 from .core import *
 from .errors import *
 from .decorators import *
@@ -71,7 +73,8 @@ from .... platform.agent.utils import is_valid_identity
 class Agent(object):
     class Subsystems(object):
         def __init__(self, owner, core, heartbeat_autostart,
-                     heartbeat_period, enable_store, enable_channel):
+                     heartbeat_period, enable_store, enable_web,
+                     enable_channel):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner)
@@ -84,13 +87,15 @@ class Agent(object):
                                        heartbeat_autostart, heartbeat_period)
             if enable_store:
                 self.config = ConfigStore(owner, core, self.rpc)
+            if enable_web:
+                self.web = WebSubSystem(owner, core, self.rpc)
             self.auth = Auth(owner, core, self.rpc)
 
     def __init__(self, identity=None, address=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
                  heartbeat_autostart=False, heartbeat_period=60,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, enable_store=True,
+                 agent_uuid=None, enable_store=True, enable_web=False,
                  enable_channel=False, reconnect_interval=None):
         if identity is not None and not is_valid_identity(identity):
             _log.warn('Deprecation warning')
@@ -104,7 +109,8 @@ class Agent(object):
                          volttron_home=volttron_home, agent_uuid=agent_uuid,
                          reconnect_interval=reconnect_interval)
         self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
-                                    heartbeat_period, enable_store, enable_channel)
+                                    heartbeat_period, enable_store, enable_web,
+                                    enable_channel)
         self.core.setup()
 
 

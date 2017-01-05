@@ -349,6 +349,19 @@ def test_agent_set_config(default_config_test_agent):
     first = results[0]
     assert first == ("config", "UPDATE",  {"value": 1})
 
+@pytest.mark.config_store
+def test_agent_set_config_no_update(default_config_test_agent):
+    json_config = {"value":1}
+
+    default_config_test_agent.vip.config.set("config", json_config, trigger_callback=True, send_update=False)
+
+    results = default_config_test_agent.callback_results
+    assert len(results) == 0
+
+    config_list = default_config_test_agent.vip.config.list()
+
+    assert config_list == []
+
 
 @pytest.mark.config_store
 def test_agent_delete_config(default_config_test_agent):

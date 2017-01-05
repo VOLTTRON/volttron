@@ -88,6 +88,10 @@ chartStore.getDataLength = function (chartKey) {
     return (_chartData.hasOwnProperty(chartKey) ? _chartData[chartKey].dataLength : null);
 }
 
+chartStore.getDataLength = function (chartKey) {
+    return (_chartData.hasOwnProperty(chartKey) ? _chartData[chartKey].dataLength : null);
+}
+
 chartStore.showCharts = function () {
 
     var showCharts = _showCharts;
@@ -181,7 +185,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                 {
                     var chartObj = {
                         refreshInterval: (action.panelItem.hasOwnProperty("refreshInterval") ? action.panelItem.refreshInterval :15000),
-                        dataLength: (action.panelItem.hasOwnProperty("refreshInterval") ? action.panelItem.dataLength : 20),
+                        dataLength: (action.panelItem.hasOwnProperty("dataLength") ? action.panelItem.dataLength : 20),
                         pinned: (action.panelItem.hasOwnProperty("pinned") ? action.panelItem.pinned : false),
                         type: (action.panelItem.hasOwnProperty("chartType") ? action.panelItem.chartType : "line"),
                         data: convertTimeToSeconds(action.panelItem.data),
@@ -247,6 +251,17 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             chartStore.emitChange();
 
             break;
+        case ACTION_TYPES.CHANGE_CHART_LENGTH:
+
+            if (_chartData[action.chartKey].hasOwnProperty("dataLength"))
+            {
+                _chartData[action.chartKey].dataLength = action.length;
+            }
+
+            chartStore.emitChange();
+
+            break;
+
         case ACTION_TYPES.CHANGE_CHART_LENGTH:
 
             if (_chartData[action.chartKey].hasOwnProperty("dataLength"))
