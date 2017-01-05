@@ -212,7 +212,7 @@ def handle(env, start_response):
 
 
 @pytest.fixture(scope='module')
-def agent(request, volttron_instance1):
+def agent(volttron_instance1):
     agent = volttron_instance1.build_agent()
     # Clean out master driver configurations.
     agent.vip.rpc.call(CONFIGURATION_STORE,
