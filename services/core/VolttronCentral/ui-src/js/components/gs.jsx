@@ -2,6 +2,7 @@
 
 //var $ = require('jquery');
 var React = require('react');
+var ReactDOM = require('react-dom');
 //var Router = require('react-router');
 var xhr = require('../lib/xhr');
 //var platformChartStore = require('../stores/platform-chart-store');
@@ -23,16 +24,25 @@ function gs() {
 	page.completed = Date.now();
     }).
 	then(function(response) {
+	var last_time="";
+	var wattage = "";
+	var actions=[];
 	ret.response=response;
 	    page.response = response;
+	    if (response.content.SiteAnalysis.length>0){
+        	    last_time = response.content.SiteAnalysis[0].TimeStamp;
+		    actions = response.content.Actions;
+		    wattage =  response.content.SiteAnalysis[1]["analysis/Shirley-MA/PV/RealPower"];
+	    }
 	    const element = (
 		    <div>
-      <h1>Global Scheduler</h1> {response.content}
-      <h2>It is {new Date().toLocaleTimeString()}.</h2>
-      {JSON.stringify(page)}
+      <h2>Global Scheduler</h2>      
+      Last site update: {last_time} Power measured: {wattage} <br/>
+      Actions Taken: {actions}<br/>
+      Page refreshed at  {new Date().toLocaleTimeString()}.
     </div>
   );
-	React.render(
+	ReactDOM.render(
     	element,
     	document.getElementById('gs')
   	);	
@@ -41,46 +51,34 @@ function gs() {
         .catch(xhr.Error, function (error) {
             page.error = error;
 	    ret.error=error;
+	    const element = (
+		    <div>Global Scheduler is not up.</div>);
+	    ReactDOM.render(
+		element,
+    	document.getElementById('gs')
+  	);	
+	    
 	});
-	return page;
     }
     
 
 
 var GS = React.createClass({
-/*    getInitialState: function () {
-        var state = getStateFromStores();
-        return state;
-    },
-    componentDidMount: function () {
-        platformChartStore.addChangeListener(this._onStoreChange);
-    },
-    componentWillUnmount: function () {
-        platformChartStore.removeChangeListener(this._onStoreChange);
-    },
-    _onStoreChange: function () {
-        this.setState(getStateFromStores());
-    },*/
 
     render: function(){
     var result = "";
-    var page = gs();
-    if (page.hasOwnProperty("response")) { 
-       result += JSON.stringify(page.response);
-    }   else { 
-        result = " GS Agent not up.";
-    }
-    console.log(page);
+    gs();
+    
     return (
     <div className="view">
                 <div className="absolute_anchor">
+		<span id="gs">
     <h2>Global scheduler status</h2>
     This space for: Listing the last data received by
     the global sceduler and the last actions taken.
+    <br/>
     Page refreshed at: {new Date().toLocaleTimeString()}
-    <br/><span id="gs"></span>
-<span id="gs_" >{result}</span>
-{JSON.stringify(page)}
+    </span>
     
       </div>
       
@@ -89,10 +87,5 @@ var GS = React.createClass({
     }
 });
 
-//function getStateFromStores() {
-//    return {
-//        platformCharts: platformChartStore.getPinnedCharts()
-//    };
-//}
 
 module.exports = GS;
