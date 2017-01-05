@@ -78,7 +78,8 @@ var GS = React.createClass({
     This space for: Listing the last data received by
     the global sceduler and the last actions taken.
     Page refreshed at: {new Date().toLocaleTimeString()}
-<span id="gs" >{result}</span>
+    <br/><span id="gs"></span>
+<span id="gs_" >{result}</span>
 {JSON.stringify(page)}
     
       </div>
