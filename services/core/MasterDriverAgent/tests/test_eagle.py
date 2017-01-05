@@ -244,13 +244,11 @@ def agent(request, volttron_instance1):
     server = pywsgi.WSGIServer((ip, int(port)), handle)
     server.start()
 
-    def stop():
-        volttron_instance1.stop_agent(master_uuid)
-        agent.core.stop()
-        server.stop()
+    yield agent
 
-    request.addfinalizer(stop)
-    return agent
+    volttron_instance1.stop_agent(master_uuid)
+    agent.core.stop()
+    server.stop()
 
 
 def test_NetworkStatus(agent):
