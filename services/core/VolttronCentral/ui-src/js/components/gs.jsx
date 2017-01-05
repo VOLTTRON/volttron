@@ -29,7 +29,7 @@ function gs() {
 		    <div>
       <h1>Global Scheduler</h1> {response.content}
       <h2>It is {new Date().toLocaleTimeString()}.</h2>
-      {response.toString()}
+      {JSON.stringify(page)}
     </div>
   );
 	React.render(
@@ -42,7 +42,7 @@ function gs() {
             page.error = error;
 	    ret.error=error;
 	});
-	return ret;
+	return page;
     }
     
 
@@ -63,13 +63,12 @@ var GS = React.createClass({
     },*/
 
     render: function(){
-    console.log("GS");
     var result = "";
     var page = gs();
     if (page.hasOwnProperty("response")) { 
-       result += JSON.stringify(page.response)
+       result += JSON.stringify(page.response);
     }   else { 
-        result = "GS Agent not up.";
+        result = " GS Agent not up.";
     }
     console.log(page);
     return (
@@ -79,7 +78,8 @@ var GS = React.createClass({
     This space for: Listing the last data received by
     the global sceduler and the last actions taken.
     Page refreshed at: {new Date().toLocaleTimeString()}
-<span id="gs" >{page.toString()}</span>
+<span id="gs" >{result}</span>
+{JSON.stringify(page)}
     
       </div>
       
