@@ -11364,6 +11364,16 @@
 	                tooltipShow = this._showTooltip;
 	                tooltipHide = this._hideTooltip;
 	
+	                var tooltipContent = this.props.tooltip.content;
+	
+	                if (this.props.tooltip.nobr) {
+	                    tooltipContent = _react2.default.createElement(
+	                        'nobr',
+	                        null,
+	                        this.props.tooltip.content
+	                    );
+	                }
+	
 	                tooltip = _react2.default.createElement(
 	                    'div',
 	                    { className: toolTipClasses.join(" "),
@@ -11374,7 +11384,7 @@
 	                        _react2.default.createElement(
 	                            'div',
 	                            { className: 'opaque_inner' },
-	                            this.props.tooltip.content
+	                            tooltipContent
 	                        )
 	                    )
 	                );
@@ -62208,6 +62218,19 @@
 	                                ),
 	                                _react2.default.createElement(
 	                                    'tr',
+	                                    null,
+	                                    _react2.default.createElement(
+	                                        'td',
+	                                        { className: 'plain advanced-toggle', colSpan: '5' },
+	                                        _react2.default.createElement(
+	                                            'a',
+	                                            { onClick: this._toggleAdvanced },
+	                                            'Advanced Options'
+	                                        )
+	                                    )
+	                                ),
+	                                _react2.default.createElement(
+	                                    'tr',
 	                                    { className: advancedClass },
 	                                    _react2.default.createElement(
 	                                        'td',
@@ -62231,12 +62254,6 @@
 	                                ),
 	                                scanLength
 	                            )
-	                        ),
-	                        _react2.default.createElement(
-	                            'div',
-	                            { className: 'advanced-toggle',
-	                                onClick: this._toggleAdvanced },
-	                            'X'
 	                        )
 	                    )
 	                );
@@ -65178,6 +65195,7 @@
 	                _this.state.path = _this.state.path + "/" + nameParts[i];
 	            }
 	
+	            _this.state.physicalDeviceName = _this.props.config.physicalDeviceName;
 	            _this.state.configUpdate = true;
 	        } else {
 	            var settingsTemplate = devicesStore.getSettingsTemplate();
@@ -65189,6 +65207,8 @@
 	
 	            _this.state.settings = initializeSettings(_this.props.device.type, null, settingsTemplate);
 	            _this.state.driver_config = initializeDriverConfig(_this.props.device.address, _this.props.device.id, _this.props.device.bacnetProxy);
+	
+	            _this.state.physicalDeviceName = _this.props.device.name;
 	
 	            _this.state.configUpdate = false;
 	        }
@@ -65289,6 +65309,7 @@
 	            if (allowDevice) {
 	                settings.config.driver_config = this.state.driver_config;
 	                settings.config.registry_config = "config://" + this.props.registryFile;
+	                settings.config.physicalDeviceName = this.state.physicalDeviceName;
 	
 	                var announce = true;
 	
@@ -74986,11 +75007,19 @@
 	            if (this.state.device) {
 	                var configOptions = [{ value: "registryConfig", label: "Registry Config" }, { value: "deviceConfig", label: "Device Config" }];
 	
-	                var configSelect = _react2.default.createElement(_reactSelectMe2.default, {
-	                    name: 'config-select',
-	                    options: configOptions,
-	                    value: this.state.configFile,
-	                    onChange: this._onConfigChange });
+	                var selectStyle = {
+	                    maxWidth: "130px"
+	                };
+	
+	                var configSelect = _react2.default.createElement(
+	                    'div',
+	                    { style: selectStyle },
+	                    _react2.default.createElement(_reactSelectMe2.default, {
+	                        name: 'config-select',
+	                        options: configOptions,
+	                        value: this.state.configFile,
+	                        onChange: this._onConfigChange })
+	                );
 	
 	                var containerWidth = {
 	                    width: "80px"
@@ -75042,6 +75071,28 @@
 	                                    _react2.default.createElement(
 	                                        'b',
 	                                        null,
+	                                        'Physical Device: '
+	                                    )
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    this.state.configuration.physicalDeviceName,
+	                                    ' /',
+	                                    this.state.configuration.driver_config.device_address,
+	                                    ' /',
+	                                    this.state.configuration.driver_config.device_id
+	                                )
+	                            ),
+	                            _react2.default.createElement(
+	                                'tr',
+	                                null,
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    _react2.default.createElement(
+	                                        'b',
+	                                        null,
 	                                        'Registry Config: '
 	                                    )
 	                                ),
@@ -75051,9 +75102,7 @@
 	                                    this.state.configuration.registryFile,
 	                                    ' ',
 	                                    fileSelectContainer
-	                                ),
-	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle }),
-	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle })
+	                                )
 	                            ),
 	                            _react2.default.createElement(
 	                                'tr',
@@ -75071,9 +75120,7 @@
 	                                    'td',
 	                                    { className: 'plain', style: cellStyle },
 	                                    this.state.device.name
-	                                ),
-	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle }),
-	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle })
+	                                )
 	                            ),
 	                            _react2.default.createElement(
 	                                'tr',
@@ -75091,9 +75138,7 @@
 	                                    'td',
 	                                    { className: 'plain', style: cellStyle },
 	                                    configSelect
-	                                ),
-	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle }),
-	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle })
+	                                )
 	                            )
 	                        )
 	                    )
@@ -75275,7 +75320,8 @@
 	                content: "Export " + this.props.fileName,
 	                tooltipClass: "fileExportTooltip",
 	                "x": this.props.tooltipX,
-	                "y": this.props.tooltipY
+	                "y": this.props.tooltipY,
+	                "nobr": true
 	            };
 	
 	            var exportIcon = _react2.default.createElement(
@@ -116713,4 +116759,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-7b818b06668674d643fa.js.map
+//# sourceMappingURL=app-0529013dfb21b8b2c70d.js.map

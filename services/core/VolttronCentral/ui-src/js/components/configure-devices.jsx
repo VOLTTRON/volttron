@@ -293,6 +293,11 @@ class ConfigureDevices extends BaseComponent {
                                             value={this.state.deviceEnd}></input>
                                     </td>
                                 </tr>
+                                <tr>
+                                    <td className="plain advanced-toggle" colSpan="5">
+                                        <a onClick={this._toggleAdvanced}>Advanced Options</a>
+                                    </td>
+                                </tr>
                                 <tr className={advancedClass}>
                                     <td><b>Address</b></td>
                                     <td className="plain"
@@ -307,10 +312,6 @@ class ConfigureDevices extends BaseComponent {
                                 {scanLength}
                             </tbody>
                         </table>
-                        <div className="advanced-toggle"
-                            onClick={this._toggleAdvanced}>
-                            X
-                        </div>
                     </div>                
                 </div>
             )

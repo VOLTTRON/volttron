@@ -144,13 +144,19 @@ class ReconfigureDevice extends BaseComponent {
                 { value: "deviceConfig", label: "Device Config"}
             ];
 
+            var selectStyle = {
+                maxWidth: "130px"
+            };
+
             var configSelect = (
-                <Select
-                    name="config-select"
-                    options={configOptions}
-                    value={this.state.configFile}
-                    onChange={this._onConfigChange}>
-                </Select>
+                <div style={selectStyle}>
+                    <Select
+                        name="config-select"
+                        options={configOptions}
+                        value={this.state.configFile}
+                        onChange={this._onConfigChange}>
+                    </Select>
+                </div>
             );
 
             var containerWidth = {
@@ -191,25 +197,29 @@ class ReconfigureDevice extends BaseComponent {
                         <tbody>
                             <tr>
                                 <td className="plain" style={cellStyle}>
+                                    <b>Physical Device: </b>
+                                </td>
+                                <td className="plain" style={cellStyle}>
+                                    {this.state.configuration.physicalDeviceName} / 
+                                    {this.state.configuration.driver_config.device_address} /
+                                    {this.state.configuration.driver_config.device_id}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="plain" style={cellStyle}>
                                     <b>Registry Config: </b>
                                 </td>
                                 <td className="plain" style={cellStyle}>{this.state.configuration.registryFile} {fileSelectContainer}</td>
-                                <td className="plain" style={cellStyle}></td>
-                                <td className="plain" style={cellStyle}></td>
                             </tr>
                             <tr>
                                 <td className="plain" style={cellStyle}>
                                     <b>Device Config: </b>
                                 </td>
                                 <td className="plain" style={cellStyle}>{this.state.device.name}</td>
-                                <td className="plain" style={cellStyle}></td>
-                                <td className="plain" style={cellStyle}></td>
                             </tr>
                             <tr>
                                 <td className="plain" style={cellStyle}><b>File to Edit: </b></td>
-                                <td className="plain" style={cellStyle}>{configSelect}</td>  
-                                <td className="plain" style={cellStyle}></td>
-                                <td className="plain" style={cellStyle}></td>
+                                <td className="plain" style={cellStyle}>{configSelect}</td>
                             </tr>
                         </tbody>
                     </table>
