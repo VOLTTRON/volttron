@@ -285,6 +285,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             onChange={this._updateCampus}
                                             value={this.state.campus}
                                             disabled={this.state.configUpdate}
+                                            autoFocus
                                         />
                                     </td>
                                 </tr>
@@ -307,8 +308,8 @@ class ConfigDeviceForm extends BaseComponent {
                                 <tr key="unit">
                                     <td style={firstStyle}>
                                         <span className="required-field">*</span>
-                                        Unit</
-                                    td>
+                                        Unit
+                                    </td>
                                     <td style={secondStyle}
                                         className="plain">
                                         <input

@@ -61266,7 +61266,9 @@
 	        authorizationStore.removeChangeListener(this._onStoreChange);
 	    },
 	    _onStoreChange: function _onStoreChange() {
-	        this.setState(getStateFromStores());
+	        if (this.componentDom) {
+	            this.setState(getStateFromStores());
+	        }
 	    },
 	    _onLogOutClick: function _onLogOutClick() {
 	        platformManagerActionCreators.clearAuthorization();
@@ -61304,7 +61306,10 @@
 	
 	        return React.createElement(
 	            'nav',
-	            { className: 'navigation' },
+	            { className: 'navigation',
+	                ref: function (nav) {
+	                    this.componentDom = nav;
+	                }.bind(this) },
 	            React.createElement(
 	                'h1',
 	                { className: 'logo' },
@@ -64603,6 +64608,12 @@
 	            reconfiguring: _this.props.fileName ? true : false
 	        };
 	
+	        if (_this.state.reconfiguring) {
+	            _this.state.deviceInfo = _this.props.deviceName;
+	        } else {
+	            _this.state.deviceInfo = _this.props.deviceName + " / " + _this.props.deviceAddress + " / " + _this.props.deviceId;
+	        }
+	
 	        _this.state.otherFileNames = getOtherRegistryFileNames();
 	        return _this;
 	    }
@@ -64817,11 +64828,7 @@
 	                _react2.default.createElement(
 	                    'h4',
 	                    null,
-	                    this.props.deviceName,
-	                    ' / ',
-	                    this.props.deviceAddress,
-	                    ' / ',
-	                    this.props.deviceId
+	                    this.state.deviceInfo
 	                ),
 	                layoutToggle,
 	                content,
@@ -65474,7 +65481,8 @@
 	                                            type: 'text',
 	                                            onChange: this._updateCampus,
 	                                            value: this.state.campus,
-	                                            disabled: this.state.configUpdate
+	                                            disabled: this.state.configUpdate,
+	                                            autoFocus: true
 	                                        })
 	                                    )
 	                                ),
@@ -74911,15 +74919,17 @@
 	        key: '_onStoresChange',
 	        value: function _onStoresChange() {
 	
-	            var reconfiguring = devicesStore.reconfiguringDevice();
+	            if (this.componentDom) {
+	                var reconfiguring = devicesStore.reconfiguringDevice();
 	
-	            if (reconfiguring) {
-	                this.setState(getStateFromStore);
-	            } else {
-	                if (this.state.device) {
-	                    this.setState({
-	                        device: devicesStore.getDevice(this.state.device.id, this.state.device.address, this.state.device.name)
-	                    });
+	                if (reconfiguring) {
+	                    this.setState(getStateFromStore);
+	                } else {
+	                    if (this.state.device) {
+	                        this.setState({
+	                            device: devicesStore.getDevice(this.state.device.id, this.state.device.address, this.state.device.name)
+	                        });
+	                    }
 	                }
 	            }
 	        }
@@ -75078,9 +75088,9 @@
 	                                    'td',
 	                                    { className: 'plain', style: cellStyle },
 	                                    this.state.configuration.physicalDeviceName,
-	                                    ' /',
+	                                    '\xA0/\xA0',
 	                                    this.state.configuration.driver_config.device_address,
-	                                    ' /',
+	                                    '\xA0/\xA0',
 	                                    this.state.configuration.driver_config.device_id
 	                                )
 	                            ),
@@ -75166,7 +75176,10 @@
 	
 	            return _react2.default.createElement(
 	                'div',
-	                { className: 'view reconfig-device' },
+	                { className: 'view reconfig-device',
+	                    ref: function (div) {
+	                        this.componentDom = div;
+	                    }.bind(this) },
 	                _react2.default.createElement(
 	                    'h2',
 	                    null,
@@ -116014,20 +116027,6 @@
 	                            { className: 'rowDiv' },
 	                            React.createElement(
 	                                'div',
-	                                { className: 'cellDiv firstCell' },
-	                                React.createElement(
-	                                    'div',
-	                                    { className: 'form__link',
-	                                        onClick: this._toggleMethod },
-	                                    React.createElement(
-	                                        'a',
-	                                        null,
-	                                        'Advanced'
-	                                    )
-	                                )
-	                            ),
-	                            React.createElement(
-	                                'div',
 	                                { className: 'cellDiv',
 	                                    width: '70%' },
 	                                React.createElement(
@@ -116759,4 +116758,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-0529013dfb21b8b2c70d.js.map
+//# sourceMappingURL=app-261317f3a2120daa785b.js.map

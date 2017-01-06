@@ -31,23 +31,26 @@ class ReconfigureDevice extends BaseComponent {
     }
     _onStoresChange() {
         
-        var reconfiguring = devicesStore.reconfiguringDevice();
+        if (this.componentDom)
+        {
+            var reconfiguring = devicesStore.reconfiguringDevice();
 
-        if (reconfiguring)
-        {
-            this.setState(getStateFromStore);
-        }
-        else
-        {
-            if (this.state.device)
+            if (reconfiguring)
             {
-                this.setState({ 
-                    device: devicesStore.getDevice(
-                        this.state.device.id, 
-                        this.state.device.address,
-                        this.state.device.name
-                    )
-                });
+                this.setState(getStateFromStore);
+            }
+            else
+            {
+                if (this.state.device)
+                {
+                    this.setState({ 
+                        device: devicesStore.getDevice(
+                            this.state.device.id, 
+                            this.state.device.address,
+                            this.state.device.name
+                        )
+                    });
+                }
             }
         }
     }
@@ -200,8 +203,8 @@ class ReconfigureDevice extends BaseComponent {
                                     <b>Physical Device: </b>
                                 </td>
                                 <td className="plain" style={cellStyle}>
-                                    {this.state.configuration.physicalDeviceName} / 
-                                    {this.state.configuration.driver_config.device_address} /
+                                    {this.state.configuration.physicalDeviceName}&nbsp;/&nbsp; 
+                                    {this.state.configuration.driver_config.device_address}&nbsp;/&nbsp;
                                     {this.state.configuration.driver_config.device_id}
                                 </td>
                             </tr>
@@ -252,7 +255,10 @@ class ReconfigureDevice extends BaseComponent {
         }
 
         return (
-            <div className="view reconfig-device">   
+            <div className="view reconfig-device"
+                ref={function(div) {
+                        this.componentDom = div;
+                    }.bind(this)}>   
                 <h2>Reconfigure Device</h2> 
                 {defaultMessage}      
                 {configuration} 
