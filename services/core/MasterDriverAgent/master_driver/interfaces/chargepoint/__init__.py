@@ -344,6 +344,9 @@ class AlarmRegister(ChargepointRegister):
     @property
     def value(self):
         global service
+
+        if self.attribute_name == 'clearAlarms':
+            return False
         method = service[self.username].getAlarms
         kwargs = {'stationID': self.station_id}
         if self.port:
