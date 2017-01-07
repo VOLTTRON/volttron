@@ -74,7 +74,7 @@ var GS = React.createClass({
 	    url: '/gs/enable',  
 	    contentType:'application/json',
 	    timeout:600000,
-	    data: setting
+	    data: JSON.stringify(setting)
 	}).finally(function() {
 	    console.log("SET")
 	});
