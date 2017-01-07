@@ -179,7 +179,14 @@ class ModbusByteRegister(ModbusRegisterBase):
     def set_state(self, client, value):
         if not self.read_only:   
             value_bytes = self.parse_struct.pack(value)
+            register_values = []
             register_values = PYMODBUS_REGISTER_STRUCT.unpack_from(value_bytes)
+            # talking with PNNL about this change to
+            # enable larger registers:
+            #register_values = []
+            #for i in range(0, len(value_bytes),2):
+            #    register_values += PYMODBUS_REGISTER_STRUCT.unpack_from(
+            #        value_bytes[1:1+1])
             client.write_registers(self.address, register_values, unit=self.slave_id)
             return self.get_state(client)
         return None
