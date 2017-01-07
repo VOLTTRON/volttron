@@ -11,6 +11,7 @@ var xhr = require('../lib/xhr');
 //var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 //var StatusForm = require('../components/status-indicator');
 
+
 function gs() {
     var page = {};
     var ret = {}
@@ -67,13 +68,24 @@ function gs() {
 
 
 var GS = React.createClass({
+    set_enabled :function ( setting ) {
+	promise = xhr.Request({
+	    method:'POST',
+	    url: '/gs/enable',  
+	    contentType:'application/json',
+	    timeout:600000,
+	    data: setting
+	}).finally(function() {
+	    console.log("SET")
+	});
+    },
 
     render: function(){
-    var result = "";
-    gs();
-    
-    return (
-    <div className="view">
+	var result = "";
+	gs();
+	
+	return (
+	<div className="view">
                 <div className="absolute_anchor">
 		<span id="gs">
     <h2>Global scheduler status</h2>
@@ -82,7 +94,11 @@ var GS = React.createClass({
     <br/>
     Page refreshed at: {new Date().toLocaleTimeString()}
     </span>
-    
+    <button className="button button--secondary"
+            type="button"
+            onClick={this.set_enabled(true)}
+                >Enable Actions</button>
+
       </div>
       
     </div>
