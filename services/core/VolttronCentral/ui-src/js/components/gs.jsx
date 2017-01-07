@@ -69,7 +69,7 @@ function gs() {
 
 var GS = React.createClass({
     set_enabled :function ( setting ) {
-	promise = xhr.Request({
+	var promise = xhr.Request({
 	    method:'POST',
 	    url: '/gs/enable',  
 	    contentType:'application/json',
