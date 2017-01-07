@@ -42,7 +42,7 @@ function gs() {
       <h2>Global Scheduler</h2>      
       Last site update: {last_time} Power measured: {wattage} <br/>
       Actions enabled: {(enabled)? "YES":"NO" }<br/>
-      Actions Taken: {actions}<br/>
+      Actions Taken: {JSON.stringify(actions)}<br/>
       Page refreshed at  {new Date().toLocaleTimeString()}.
     </div>
   );
@@ -96,7 +96,7 @@ var GS = React.createClass({
     </span>
     <button className="button button--secondary"
             type="button"
-            onClick={this.set_enabled(true)}
+            onClick={this.set_enabled.bind(this,true)}
                 >Enable Actions</button>
 
       </div>
