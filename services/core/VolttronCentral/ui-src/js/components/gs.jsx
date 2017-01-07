@@ -24,7 +24,7 @@ function gs() {
 	page.completed = Date.now();
     }).
 	then(function(response) {
-	var enabled ="";
+	var enabled =false;
 	var last_time="";
 	var wattage = "";
 	var actions=[];
@@ -40,7 +40,7 @@ function gs() {
 		    <div>
       <h2>Global Scheduler</h2>      
       Last site update: {last_time} Power measured: {wattage} <br/>
-      Actions enabled: {enabled}<br/>
+      Actions enabled: {(enabled)? "YES":"NO" }<br/>
       Actions Taken: {actions}<br/>
       Page refreshed at  {new Date().toLocaleTimeString()}.
     </div>
