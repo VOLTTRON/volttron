@@ -98,6 +98,10 @@ var GS = React.createClass({
             type="button"
             onClick={this.set_enabled.bind(this,true)}
                 >Enable Actions</button>
+    <button className="button button--secondary"
+            type="button"
+            onClick={this.set_enabled.bind(this,false)}
+                >Disable Actions</button>
 
       </div>
       
