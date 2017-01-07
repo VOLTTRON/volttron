@@ -180,7 +180,10 @@ class ModbusByteRegister(ModbusRegisterBase):
         if not self.read_only:   
             value_bytes = self.parse_struct.pack(value)
             register_values = []
-            register_values = PYMODBUS_REGISTER_STRUCT.unpack_from(value_bytes)
+            n=2
+            paired = [value_bytes[i:i+n] for i in range(0, len(value_bytes), n)]
+            register_values = [ PYMODBUS_REGISTER_STRUCT.unpack_from(pair)[0]
+                                for pair in paired]
             # talking with PNNL about this change to
             # enable larger registers:
             #register_values = []
