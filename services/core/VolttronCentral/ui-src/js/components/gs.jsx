@@ -41,7 +41,7 @@ function gs() {
 		    <div>
       <h2>Global Scheduler</h2>      
       Last site update: {last_time} Power measured: {wattage} <br/>
-      Actions enabled: {(enabled)? "YES":"NO" }<br/>
+      Actions enabled: <span id="gs_enabled">{(enabled)? "YES":"NO" }</span><br/>
       Actions Taken: {JSON.stringify(actions)}<br/>
       Page refreshed at  {new Date().toLocaleTimeString()}.
     </div>
@@ -75,8 +75,12 @@ var GS = React.createClass({
 	    contentType:'application/json',
 	    timeout:600000,
 	    data: JSON.stringify(setting)
-	}).finally(function() {
-	    console.log("SET")
+	}).finally(function(){
+	    this.enabled = setting;
+	    ReactDOM.render(
+		(setting)? "YES":"NO",
+    		document.getElementById('gs_enabled')
+  	    );	
 	});
     },
 
