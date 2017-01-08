@@ -76,9 +76,9 @@ var GS = React.createClass({
 	    timeout:600000,
 	    data: JSON.stringify(setting)
 	}).finally(function(){
-	    this.enabled = setting;
 	    ReactDOM.render(
-		(setting)? "YES":"NO",
+		(<span>{(setting)? "YES":"NO"}</span>),
+		
     		document.getElementById('gs_enabled')
   	    );	
 	});
