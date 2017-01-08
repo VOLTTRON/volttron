@@ -27,23 +27,32 @@ function gs() {
 	then(function(response) {
 	var enabled =false;
 	var last_time="";
+	var price = "";
+	var price_time = "";
 	var wattage = "";
 	var actions=[];
 	ret.response=response;
 	    page.response = response;
+	    started = response.content.Started;
 	    if (response.content.SiteAnalysis.length>0){
         	    last_time = response.content.SiteAnalysis[0].TimeStamp;
 		    actions = response.content.Actions;
 		    enabled = response.content.Enabled;
 		    wattage =  response.content.SiteAnalysis[1]["analysis/Shirley-MA/PV/RealPower"];
 	    }
+	    if (response.content.ISONE.hasOwnProperty("message")){
+	       price_time = responce.content.ISONE.message.LMP.Readings[0] ; 
+	       price = responce.content.ISONE.message.LMP.Readings[1] ; 
+	    }
 	    const element = (
 		    <div>
       <h2>Global Scheduler</h2>      
       Last site update: {last_time} Power measured: {wattage} <br/>
+      Pricing: {price} posted at {price_time} <br/>
       Actions enabled: <span id="gs_enabled">{(enabled)? "YES":"NO" }</span><br/>
       Actions Taken: {JSON.stringify(actions)}<br/>
-      Page refreshed at  {new Date().toLocaleTimeString()}.
+      Page refreshed at  {new Date().toLocaleTimeString()}. <br/>
+      GSAgent started at {started}      
     </div>
   );
 	ReactDOM.render(
@@ -78,7 +87,6 @@ var GS = React.createClass({
 	}).finally(function(){
 	    ReactDOM.render(
 		(<span>{(setting)? "YES":"NO"}</span>),
-		
     		document.getElementById('gs_enabled')
   	    );	
 	});
@@ -108,7 +116,6 @@ var GS = React.createClass({
                 >Disable Actions</button>
 
       </div>
-      
     </div>
     );
     }
