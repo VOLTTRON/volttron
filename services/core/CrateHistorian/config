@@ -1,0 +1,13 @@
+{
+    "connection": {
+        "type": "crate",
+        "params": {
+            "host": "localhost"
+            #,
+            #"port": 27017,
+            #"database": "test_historian",
+            #"user": "historian",
+            #"passwd": "historian"
+        }
+    }
+}
