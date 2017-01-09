@@ -52,7 +52,10 @@ function gs() {
       Actions enabled: <span id="gs_enabled">{(enabled)? "YES":"NO" }</span><br/>
       Actions Taken: {JSON.stringify(actions)}<br/>
       Page refreshed at  {new Date().toLocaleTimeString()}. <br/>
-      GSAgent started at {started}      
+      GSAgent started at {started}<br/>
+      ---<br/>
+      Config: {JSON.stringify(response.content.Config)}
+      
     </div>
   );
 	ReactDOM.render(
