@@ -33,7 +33,7 @@ function gs() {
 	var actions=[];
 	ret.response=response;
 	    page.response = response;
-	    started = response.content.Started;
+	    var started = response.content.Started;
 	    if (response.content.SiteAnalysis.length>0){
         	    last_time = response.content.SiteAnalysis[0].TimeStamp;
 		    actions = response.content.Actions;
@@ -41,8 +41,8 @@ function gs() {
 		    wattage =  response.content.SiteAnalysis[1]["analysis/Shirley-MA/PV/RealPower"];
 	    }
 	    if (response.content.ISONE.hasOwnProperty("message")){
-	       price_time = responce.content.ISONE.message.LMP.Readings[0] ; 
-	       price = responce.content.ISONE.message.LMP.Readings[1] ; 
+	       price_time = response.content.ISONE.message.LMP.Readings[0] ; 
+	       price = response.content.ISONE.message.LMP.Readings[1] ; 
 	    }
 	    const element = (
 		    <div>
