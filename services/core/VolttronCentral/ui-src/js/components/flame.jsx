@@ -30,20 +30,20 @@ function flame() {
     var page = {};
     page.promise = new xhr.Request({
         method: 'GET',
-        url: '/oadr/test',
+        url: '/flame/status',
 	contentType:'application/json',
 	timeout:600000,
     }).finally(function() {
-	console.log("oadring - finally");
+	console.log("Flaming - finally");
 	page.completed = Date.now();
     }).
 	then(function(response) {
-	    console.log("oadring then");
+	    console.log("Flaming then");
 	    page.response = response;
 	    const element = (
 		    <div>
       <h1>FLAME</h1> {response.content}
-      <h2>It is {new Date().toLocaleTimeString()}.</h2>
+      <h2>Page refreshed at {new Date().toLocaleTimeString()}.</h2>
     </div>
   );
 	React.render(
@@ -66,10 +66,10 @@ var FLAME = React.createClass({
     <div className="view">
                 <div className="absolute_anchor">
     <h2>Open ADR</h2>
-    This space for: listing each VEN, with time since last contact,
+    This space for: listing each Flame partner, with time since last contact,
     reports, and events.
      {new Date().toLocaleTimeString()}
-Test <span id="oadr" >TEST</span>
+ <span id="flame" >TEST</span>
     
       </div>
       
