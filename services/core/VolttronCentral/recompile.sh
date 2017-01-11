@@ -1,4 +1,4 @@
-#!/bin/bash
+1;2c#!/bin/bash
 # Script for recompiling the React UI for Voltron
 #
 # Needs to run on the host, as volttron.
@@ -6,8 +6,8 @@
   pushd /home/volttron/volttron/services/core/VolttronCentral
 git pull
   volttron-ctl stop --tag vc &&  volttron-ctl remove --tag vc &
-npm run build
-#-development
+  npm run build
+  #-development
 #  nodejs node_modules/gulp/bin/gulp.js & 
 #  FOO_PID=$!
 #  sleep 10 &&  kill -TERM $FOO_PID

@@ -14,6 +14,12 @@
                 "reader"
             ]
         },
+        "flame" : {
+            "password" : "1d06650d8a1896ca7f056d1784d01fc3a2251ea240d8136db71574e7371b73d6d93d270121ea3538987ed0f95b3701beb961d13813b824a10e043c3bc9e08117",
+            "groups" : [
+                "reader, writer"
+            ]
+        },
         "writer" : {
             "password" : "f7c31a682a838bbe0957cfa0bb060daff83c488fa5646eb541d334f241418af3611ff621b5a1b0d327f1ee80da25e04099376d3bc533a72d2280964b4fab2a32",
             "groups" : [
