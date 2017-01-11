@@ -58358,7 +58358,7 @@
 	    openConfigureWS: openConfigureWS,
 	    openIAmWS: openIAmWS,
 	    setAuthorization: setAuthorization
-	}; // let pubsub = ws; //let pubsub =  new WsPubSub(ws_root);
+	};
 
 /***/ },
 /* 306 */
@@ -116758,4 +116758,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-261317f3a2120daa785b.js.map
+//# sourceMappingURL=app-be07f3ca911e829993ef.js.map
