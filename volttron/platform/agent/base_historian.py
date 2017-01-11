@@ -255,9 +255,13 @@ from volttron.platform.vip.agent import compat
 
 
 try:
-    import ujson as jsonapi
-except:
-    from zmq.utils import jsonapi
+    import ujson
+    def dumps(data):
+        return ujson.dumps(data, double_precision=15)
+    def loads(data_string):
+        return ujson.loads(data_string, precise_float=True)
+except ImportError:
+    from zmq.utils.jsonapi import dumps, loads
 
 from volttron.platform.agent import utils
 
@@ -997,7 +1001,7 @@ class BackupDatabase:
                     c.execute(
                         '''INSERT INTO outstanding
                         values(NULL, ?, ?, ?, ?, ?)''',
-                        (timestamp, source, topic_id, jsonapi.dumps(value), jsonapi.dumps(headers)))
+                        (timestamp, source, topic_id, dumps(value), dumps(headers)))
                 except sqlite3.IntegrityError:
                     #In the case where we are upgrading an existing installed historian the
                     #unique constraint may still exist on the outstanding database.
@@ -1059,8 +1063,8 @@ class BackupDatabase:
             timestamp = row[1]
             source = row[2]
             topic_id = row[3]
-            value = jsonapi.loads(row[4])
-            headers = {} if row[5] is None else jsonapi.loads(row[5])
+            value = loads(row[4])
+            headers = {} if row[5] is None else loads(row[5])
             meta = self._meta_data[(source, topic_id)].copy()
             results.append({'_id': _id,
                             'timestamp': timestamp.replace(tzinfo=pytz.UTC),
