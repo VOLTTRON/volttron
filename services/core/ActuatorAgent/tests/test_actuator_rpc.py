@@ -1538,6 +1538,28 @@ def test_set_error_read_only_point(publish_agent, cancel_schedules):
                             "read only: OutsideAirTemperature1')"
 
 @pytest.mark.actuator
+def test_get_multiple_points(publish_agent, cancel_schedules):
+    results, errors = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'get_multiple_points',
+        ['fakedriver0/SampleWritableFloat1',
+         'fakedriver1/SampleWritableFloat1']).get(timeout=10)
+
+    assert results == {'fakedriver0/SampleWritableFloat1': 10.0,
+                       'fakedriver1/SampleWritableFloat1': 1.0}
+    assert errors == {}
+
+@pytest.mark.actuator
+def test_get_multiple_captures_errors(publish_agent, cancel_schedules):
+    results, errors = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'get_multiple_points',
+        ['fakedriver0/nonexistentpoint']).get(timeout=10)
+
+    assert results == {}
+    assert errors['fakedriver0/nonexistentpoint'] == "DriverInterfaceError('Point not configured on device: nonexistentpoint',)"
+
+@pytest.mark.actuator
 def test_set_multiple_points(publish_agent, cancel_schedules):
     agentid = TEST_AGENT
     taskid0 = 'task_point_on_device_0'

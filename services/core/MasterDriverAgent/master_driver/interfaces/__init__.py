@@ -396,6 +396,20 @@ class BaseInterface(object):
         :param kwargs: Any interface specific parameters.
         """
 
+    def get_multiple_points(self, path, point_names, **kwargs):
+        results = {}
+        errors = {}
+
+        for point_name in point_names:
+            return_key = path + '/' + point_name
+            try:
+                value = self.get_point(point_name, **kwargs)
+                results[return_key] = value
+            except Exception as e:
+                errors[return_key] = repr(e)
+
+        return results, errors
+
     def set_multiple_points(self, path, point_names_values, **kwargs):
         results = {}
 
