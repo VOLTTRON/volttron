@@ -63,14 +63,20 @@ from volttron.platform.agent import math_utils
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from driver import DriverAgent
 import resource
-from datetime import datetime
+from datetime import datetime, timedelta
 import bisect
-
+import fnmatch
+from zmq.utils import jsonapi
+from interfaces import DriverInterfaceError
 from driver_locks import configure_socket_lock, configure_publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '2.0'
+__version__ = '3.0'
+
+class OverrideError(DriverInterfaceError):
+    """Error raised when the user tries to set/revert point when global override is set."""
+    pass
 
 def master_driver_agent(config_path, **kwargs):
 
@@ -164,7 +170,9 @@ class MasterDriverAgent(Agent):
         self.publish_breadth_first_all = publish_breadth_first_all
         self.publish_depth_first = publish_depth_first
         self.publish_breadth_first = publish_breadth_first
-
+        self._override_devices = set()
+        self._override_patterns = None
+        self._override_interval_events = {}
 
         if scalability_test:
             self.waiting_to_finish = set()
@@ -253,6 +261,33 @@ class MasterDriverAgent(Agent):
             except ValueError:
                 pass
 
+        #update override patterns
+        if self._override_patterns is None:
+            try:
+                values = self.vip.config.get("override_patterns")
+                values = jsonapi.loads(values)
+
+                if isinstance(values, dict):
+                    self._override_patterns = set()
+                    for pattern, end_time in values.items():
+                        #check the end_time
+                        now = utils.get_aware_utc_now()
+                        #If end time is indefinite, set override with indefinite duration
+                        if end_time == "0.0":
+                            self._set_override_on(pattern, 0.0, from_config_store=True)
+                        else:
+                            end_time = utils.parse_timestamp_string(end_time)
+                            # If end time > current time, set override with new duration
+                            if end_time > now:
+                                delta = end_time - now
+                                self._set_override_on(pattern, delta.total_seconds(), from_config_store=True)
+                else:
+                    self._override_patterns = set()
+            except KeyError:
+                self._override_patterns = set()
+            except ValueError:
+                _log.error("Override patterns is not set correctly in config store")
+                self._override_patterns = set()
         try:
             driver_scrape_interval = float(config["driver_scrape_interval"])
         except ValueError as e:
@@ -328,13 +363,13 @@ class MasterDriverAgent(Agent):
         gevent.spawn(driver.core.run)
         self.instances[topic] = driver
         self._name_map[topic.lower()] = topic
-
+        self._update_override_state(topic, 'add')
 
     def remove_driver(self, config_name, action, contents):
         topic = self.derive_device_topic(config_name)
         self.stop_driver(topic)
-               
-    
+        self._update_override_state(topic, 'remove')
+
     # def device_startup_callback(self, topic, driver):
     #     _log.debug("Driver hooked up for "+topic)
     #     topic = topic.strip('/')
@@ -361,7 +396,7 @@ class MasterDriverAgent(Agent):
             self.waiting_to_finish.remove(topic)
         except KeyError:
             _log.warning(topic + " published twice before test finished, increase the length of scrape interval and rerun test")
-            
+
         if not self.waiting_to_finish:
             end = datetime.now()
             delta = end - self.current_test_start
@@ -382,29 +417,335 @@ class MasterDriverAgent(Agent):
         
     @RPC.export
     def get_point(self, path, point_name, **kwargs):
+        """RPC method
+
+        Return value of specified device set point
+        :param path: device path
+        :type path: str
+        :param point_name: set point
+        :type point_name: str
+        :param kwargs: additional arguments for the device
+        :type arguments pointer
+        """
         return self.instances[path].get_point(point_name, **kwargs)
 
     @RPC.export
     def set_point(self, path, point_name, value, **kwargs):
-        return self.instances[path].set_point(point_name, value, **kwargs)
+        """RPC method
+
+        Set value on specified device set point. If global override is condition is set, raise OverrideError exception.
+        :param path: device path
+        :type path: str
+        :param point_name: set point
+        :type point_name: str
+        :param value: value to set
+        :type int/float/bool
+        :param kwargs: additional arguments for the device
+        :type arguments pointer
+        """
+        if path in self._override_devices:
+            raise OverrideError(
+                "Cannot set point on device {} since global override is set".format(path))
+        else:
+            return self.instances[path].set_point(point_name, value, **kwargs)
 
     @RPC.export
     def set_multiple_points(self, path, point_names_values, **kwargs):
-        return self.instances[path].set_multiple_points(point_names_values, **kwargs)
+        """RPC method
+
+        Set values on multiple set points at once. If global override is condition is set,raise OverrideError exception.
+        :param path: device path
+        :type path: str
+        :param point_names_values: list of points and corresponding values
+        :type point_names_values: list of tuples
+        :param value: value to set
+        :param kwargs: additional arguments for the device
+        :type arguments pointer
+        """
+        if path in self._override_devices:
+            raise OverrideError(
+                "Cannot set point on device {} since global override is set".format(path))
+        else:
+            return self.instances[path].set_multiple_points(point_names_values, **kwargs)
     
     @RPC.export
     def heart_beat(self):
+        """RPC method
+
+        Sends heartbeat to all devices
+        """
         _log.debug("sending heartbeat")
         for device in self.instances.values():
             device.heart_beat()
             
     @RPC.export
     def revert_point(self, path, point_name, **kwargs):
-        self.instances[path].revert_point(point_name, **kwargs)
-    
+        """RPC method
+
+        Revert the set point to default state/value. If global override is condition is set, raise OverrideError
+        exception.
+        :param path: device path
+        :type path: str
+        :param point_name: set point to revert
+        :type point_name: str
+        :param kwargs: additional arguments for the device
+        :type arguments pointer
+        """
+        if path in self._override_devices:
+            raise OverrideError(
+                "Cannot revert point on device {} since global override is set".format(path))
+        else:
+            self.instances[path].revert_point(point_name, **kwargs)
+
     @RPC.export
     def revert_device(self, path, **kwargs):
-        self.instances[path].revert_all(**kwargs)
+        """RPC method
+
+        Revert all the set point values of the device to default state/values. If global override is condition is set,
+        raise OverrideError exception.
+        :param path: device path
+        :type path: str
+        :param kwargs: additional arguments for the device
+        :type arguments pointer
+        """
+        if path in self._override_devices:
+            raise OverrideError(
+                "Cannot revert device {} since global override is set".format(path))
+        else:
+            self.instances[path].revert_all(**kwargs)
+
+    @RPC.export
+    def set_override_on(self, pattern, duration=0.0, failsafe_revert=True, staggered_revert=False):
+        """RPC method
+
+        Turn on override condition on all the devices matching the pattern.
+        :param pattern: Override pattern to be applied. For example,
+            If pattern is campus/building1/* - Override condition is applied for all the devices under
+            campus/building1/.
+            If pattern is campus/building1/ahu1 - Override condition is applied for only campus/building1/ahu1
+            The pattern matching is based on bash style filename matching semantics.
+        :type pattern: str
+        :param duration: Time duration for the override in seconds. If duration <= 0.0, it implies as indefinite
+        duration.
+        :type duration: float
+        :param failsafe_revert: Flag to indicate if all the devices falling under the override condition has to be set
+         to its default state/value immediately.
+        :type failsafe_revert: boolean
+        :param staggered_revert: If this flag is set, reverting of devices will be staggered.
+        :type staggered_revert: boolean
+        """
+        self._set_override_on(pattern, duration, failsafe_revert, staggered_revert)
+
+    def _set_override_on(self, pattern, duration=0.0, failsafe_revert=True, staggered_revert=False,
+                         from_config_store=False):
+        """Turn on override condition on all devices matching the pattern. It schedules an event to keep track of
+        the duration over which override has to be applied. New override patterns and corresponnding end times are
+        stored in config store.
+        :param pattern: Override pattern to be applied. For example,
+        :type pattern: str
+        :param duration: Time duration for the override in seconds. If duration <= 0.0, it implies as indefinite
+        duration.
+        :type duration: float
+        :param failsafe_revert: Flag to indicate if revert is required
+        :type failsafe_revert: boolean
+        :param staggered_revert: Flag to indicate if staggering of reverts is needed.
+        :type staggered_revert: boolean
+        :param from_config_store: Flag to indicate if this function is called from config store callback
+        :type from_config_store: boolean
+        """
+        stagger_interval = 0.05 #sec
+        pattern = pattern.lower()
+
+        #Add to override patterns set
+        self._override_patterns.add(pattern)
+        device_topic_actual = self.instances.keys()
+        i = 0
+
+        for name in device_topic_actual:
+            name = name.lower()
+            i += 1
+            if fnmatch.fnmatch(name, pattern):
+                #If revert to default state is needed
+                if failsafe_revert:
+                    if staggered_revert:
+                        self.core.spawn_later(i*stagger_interval, self.instances[name].revert_all())
+                    else:
+                        self.core.spawn(self.instances[name].revert_all())
+                # Set override
+                self._override_devices.add(name)
+        config_update = False
+        # Set timer for interval of override condition
+        config_update = self._update_override_interval(duration, pattern)
+        if config_update and not from_config_store:
+            #Update config store
+            patterns = dict()
+            for pat in self._override_patterns:
+                if self._override_interval_events[pat] is None:
+                    patterns[pat] = str(0.0)
+                else:
+                    evt, end_time = self._override_interval_events[pat]
+                    patterns[pat] = utils.format_timestamp(end_time)
+
+            self.vip.config.set("override_patterns", jsonapi.dumps(patterns))
+
+    @RPC.export
+    def set_override_off(self, pattern):
+        """RPC method
+
+        Turn off override condition on all the devices matching the pattern. The pattern matching is based on bash style
+        filename matching semantics.
+        :param pattern: Pattern on which override condition has to be removed.
+        :type pattern: str
+        """
+        return self._set_override_off(pattern)
+
+    # Get a list of all the devices with override condition.
+    @RPC.export
+    def get_override_devices(self):
+        """RPC method
+
+        Get a list of all the devices with override condition.
+        """
+        return list(self._override_devices)
+
+    @RPC.export
+    def clear_overrides(self):
+        """RPC method
+
+        Clear all overrides.
+        """
+        # Cancel all pending override timer events
+        for pattern, evt in self._override_interval_events.items():
+            if evt is not None:
+                evt[0].cancel()
+        self._override_interval_events.clear()
+        self._override_devices.clear()
+        self._override_patterns.clear()
+        self.vip.config.set("override_patterns", {})
+
+    @RPC.export
+    def get_override_patterns(self):
+        """RPC method
+
+        Get a list of all the override patterns.
+        """
+        return list(self._override_patterns)
+
+    def _set_override_off(self, pattern):
+        """Turn off override condition on all devices matching the pattern. It removes the pattern from the override
+        patterns set, clears the list of overriden devices  and reevaluates the state of devices. It then cancels the
+        pending override event and removes pattern from the config store.
+        :param pattern: Override pattern to be removed.
+        :type pattern: str
+        """
+
+        pattern = pattern.lower()
+
+        # If pattern exactly matches
+        if pattern in self._override_patterns:
+            self._override_patterns.discard(pattern)
+            # Cancel any pending override events
+            self._cancel_override_events(pattern)
+            self._override_devices.clear()
+            patterns = dict()
+            # Build override devices list again
+            for pat in self._override_patterns:
+                for device in self.instances:
+                    device = device.lower()
+                    if fnmatch.fnmatch(device, pat):
+                        self._override_devices.add(device)
+
+                if self._override_interval_events[pat] is None:
+                    patterns[pat] = str(0.0)
+                else:
+                    evt, end_time = self._override_interval_events[pat]
+                    patterns[pat] = utils.format_timestamp(end_time)
+
+            self.vip.config.set("override_patterns", jsonapi.dumps(patterns))
+        else:
+            _log.error("Override Pattern did not match!")
+            raise OverrideError(
+                "Pattern {} does not exist in list of override patterns".format(pattern))
+
+    def _update_override_interval(self, interval, pattern):
+        """Schedules a new override event for the specified interval and pattern. If the pattern already exists and new
+        end time is greater than old one, the event is cancelled and new event is scheduled.
+
+        :param interval override duration. If interval is <= 0.0, implies indefinite duration
+        :type float
+        :param pattern: Override pattern.
+        :type pattern: str
+        :return Flag to indicate if update is done or not.
+        """
+        if interval <= 0.0: #indicative of indefinite duration
+            if pattern in self._override_interval_events:
+                #If override duration is indifinite, do nothing
+                if self._override_interval_events[pattern] == None:
+                    return False
+                else:
+                    #Cancel the old event
+                    evt = self._override_interval_events.pop(pattern)
+                    evt[0].cancel()
+            self._override_interval_events[pattern] = None
+            return True
+        else:
+            override_start = utils.get_aware_utc_now()
+            override_end = override_start + timedelta(seconds=interval)
+            if pattern in self._override_interval_events:
+                evt = self._override_interval_events[pattern]
+                #If event is indefinite or greater than new end time, do nothing
+                if evt is None or override_end < evt[1]:
+                    return False
+                else:
+                    evt = self._override_interval_events.pop(pattern)
+                    evt[0].cancel()
+            #Schedule new override event
+            event = self.core.schedule(override_end, self._cancel_override, pattern)
+            self._override_interval_events[pattern] = (event, override_end)
+            return True
+
+    def _cancel_override_events(self, pattern):
+        """
+        Cancel override event matching the pattern
+        :param pattern: override pattern
+        :type pattern: str
+        """
+        if pattern in self._override_interval_events:
+            # Cancel the override cancellation timer event
+            evt = self._override_interval_events.pop(pattern, None)
+            if evt is not None:
+                evt[0].cancel()
+
+    def _cancel_override(self, pattern):
+        """
+        Cancel the override
+        :param pattern: override pattern
+        :type: pattern: str
+        """
+        self._set_override_off(pattern)
+
+    def _update_override_state(self, device, state):
+        """
+        If a new device is added, it is checked to see if the device is part of the list of overriden patterns. If so,
+        it is added to the list of overriden devices. Similarly, if a device is being removed, it is also removed
+        from list of overriden devices (if exists).
+        :param device: device to be removed
+        :type device: str
+        :param state: 'add' or 'remove'
+        :type state: str
+        """
+        device = device.lower()
+
+        if state == 'add':
+            #If device falls under the existing overriden patterns, then add it to list of overriden devices.
+            for pattern in self._override_patterns:
+                if fnmatch.fnmatch(device, pattern):
+                    self._override_devices.add(device)
+                    return
+        else:
+            #If device is in list of overriden devices, remove it.
+            if device in self._override_devices:
+                self._override_devices.remove(device)
 
 
 def main(argv=sys.argv):
