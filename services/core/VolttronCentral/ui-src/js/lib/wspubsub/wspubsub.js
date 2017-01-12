@@ -110,4 +110,4 @@ module.exports = {
     openConfigureWS: openConfigureWS,
     openIAmWS: openIAmWS,
     setAuthorization: setAuthorization
-} // let pubsub = ws; //let pubsub =  new WsPubSub(ws_root);
+}
