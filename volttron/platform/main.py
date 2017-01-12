@@ -262,7 +262,7 @@ class Router(BaseRouter):
                  default_user_id=None, monitor=False, tracker=None,
                  volttron_central_address=None, instance_name=None,
                  bind_web_address=None, volttron_central_serverkey=None,
-                 protected_topics_file=None):
+                 protected_topics={}):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
@@ -286,7 +286,7 @@ class Router(BaseRouter):
         self._volttron_central_serverkey = volttron_central_serverkey
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address
-        self._protected_topics_file = protected_topics_file
+        self._protected_topics = protected_topics
         self._pubsub = None
 
     def setup(self):
@@ -320,7 +320,7 @@ class Router(BaseRouter):
                 address.domain = 'vip'
             address.bind(sock)
             _log.debug('Additional VIP router bound to %s' % address)
-        self._pubsub = PubSubService(self._protected_topics_file, self.socket)
+        self._pubsub = PubSubService(self.socket, self._protected_topics)
 
     def issue(self, topic, frames, extra=None):
         log = self.logger.debug
@@ -516,6 +516,7 @@ def start_volttron_process(opts):
     tracker = Tracker()
     protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
     _log.debug('protected topics file %s', protected_topics_file)
+    protected_topics = {}
     # Main loops
     def router(stop):
         try:
@@ -527,7 +528,7 @@ def start_volttron_process(opts):
                    volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
                    bind_web_address=opts.bind_web_address,
-                   protected_topics_file=protected_topics_file).run()
+                   protected_topics=protected_topics).run()
 
         except Exception:
             _log.exception('Unhandled exception in router loop')
@@ -556,6 +557,8 @@ def start_volttron_process(opts):
         auth_task = gevent.spawn(auth.core.run, event)
         event.wait()
         del event
+        protected_topics = auth.get_protected_topics()
+        _log.debug("MAIN: protected topics content {}".format(protected_topics))
 
         # Start router in separate thread to remain responsive
         thread = threading.Thread(target=router, args=(auth.core.stop,))

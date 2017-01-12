@@ -93,8 +93,7 @@ _ROUTE_ERRORS = {
 
 
 class PubSubService(object):
-    def __init__(self, protected_topics_file, socket, *args, **kwargs):
-        self._protected_topics_file = os.path.abspath(protected_topics_file)
+    def __init__(self, socket, protected_topics, *args, **kwargs):
         self._logger = logging.getLogger(__name__)
         # if self._logger.level == logging.NOTSET:
         #     self._logger.setLevel(logging.WARNING)
@@ -106,36 +105,8 @@ class PubSubService(object):
         self._vip_sock = socket
         self._user_capabilities = {}
         self._protected_topics = ProtectedPubSubTopics()
-        self._read_protected_topics_file()
+        self._load_protected_topics(protected_topics)
 
-    def _read_protected_topics_file(self):
-        """ Reads the protected topics file and loads the topics and associated capabilities. AuthService shall provide
-        list of agents and associated capabilities. If a topic is protected, then only authorized agents can publish
-        to that topic i.e, the agent's capabilities should match the capabilities associated with the topic.
-        """
-        self._logger.info('loading protected-topics file %s',
-                          self._protected_topics_file)
-        try:
-            create_file_if_missing(self._protected_topics_file)
-            with open(self._protected_topics_file) as fil:
-                # Use gevent FileObject to avoid blocking the thread
-                data = FileObject(fil, close=False).read()
-                topics_data = jsonapi.loads(data) if data else {}
-        except Exception:
-            self._logger.exception('error loading %s', self._protected_topics_file)
-        else:
-            write_protect = topics_data.get('write-protect', [])
-            topics = ProtectedPubSubTopics()
-            try:
-                for entry in write_protect:
-                    topics.add(entry['topic'], entry['capabilities'])
-            except KeyError:
-                self._logger.exception('invalid format for protected topics '
-                               'file {}'.format(self._protected_topics_file))
-            else:
-                self._protected_topics = topics
-                self._logger.info('protected-topics file %s loaded',
-                          self._protected_topics_file)
 
     def _add_peer_subscription(self, peer, bus, prefix):
         """
@@ -196,16 +167,13 @@ class PubSubService(object):
         """
         if len(frames) > 8:
             conn = frames[7].bytes
-            #self._logger.debug("PubSubService: peer_sync: {0}".format(conn))
             if conn == b'connected':
                 data = frames[8].bytes
-                json0 = data.find('{')
-                msg = jsonapi.loads(data[json0:])
+                msg = jsonapi.loads(data)
                 peer = frames[0].bytes
                 items = msg['subscriptions']
                 assert isinstance(items, dict)
                 self._sync(peer, items)
-            #self._logger.debug("PubSubService: peer_subscriptions: {0}".format(self._peer_subscriptions))
 
     def _peer_subscribe(self, frames):
         """It stores the subscription information sent by the agent. It unpacks the frames to get identity of the
@@ -217,8 +185,7 @@ class PubSubService(object):
             return False
         else:
             data = frames[7].bytes
-            json0 = data.find('{')
-            msg = jsonapi.loads(data[json0:])
+            msg = jsonapi.loads(data)
             peer = frames[0].bytes
             prefix = msg['prefix']
             bus = msg['bus']
@@ -241,8 +208,7 @@ class PubSubService(object):
             return False
         else:
             data = frames[7].bytes
-            json0 = data.find('{')
-            msg = jsonapi.loads(data[json0:])
+            msg = jsonapi.loads(data)
             peer = frames[0].bytes
             prefix = msg['prefix']
             bus = msg['bus']
@@ -258,14 +224,11 @@ class PubSubService(object):
                     del subscriptions[topic]
             else:
                 for prefix in prefix if isinstance(prefix, list) else [prefix]:
-                    #self._logger.debug("subscriptions: {}".format(subscriptions))
                     subscribers = subscriptions[prefix]
                     subscribers.discard(peer)
                     if not subscribers:
                         del subscriptions[prefix]
             return True
-
-            #self._logger.debug("Peer subscriptions: {}".format(self._peer_subscriptions))
 
     def _peer_publish(self, frames, user_id):
         """Publish the incoming message to all the subscribers subscribed to the specified topic.
@@ -312,8 +275,7 @@ class PubSubService(object):
         results = []
         if len(frames) > 7:
             data = frames[7].bytes
-            json0 = data.find('{')
-            msg = jsonapi.loads(data[json0:])
+            msg = jsonapi.loads(data)
             peer = frames[0].bytes
             prefix = msg['prefix']
             bus = msg['bus']
@@ -332,10 +294,8 @@ class PubSubService(object):
                 for topic, subscribers in subscriptions.iteritems():
                     if test(topic):
                         member = peer in subscribers
-                        self._logger.debug("PUBSUBSERVICE LIST: reached here {}".format(member))
                         if not subscribed or member:
                             results.append((bus, topic, member))
-        self._logger.debug("Peer list: {}".format(results))
         return results
 
     def _distribute(self, frames, peer, topic, headers, message=None, bus='', user_id=b''):
@@ -378,8 +338,7 @@ class PubSubService(object):
 
         subscriptions = self._peer_subscriptions[bus]
         subscribers = set()
-        # for f in frames:
-        #     self._logger.debug("PUBSUBSERVICE: sending frames: {}".format(f.bytes))
+
         publisher = frames[0]
         frames[3] = bytes(user_id)
         for prefix, subscription in subscriptions.iteritems():
@@ -387,7 +346,6 @@ class PubSubService(object):
                 subscribers |= subscription
         if subscribers:
             for subscriber in subscribers:
-                #self._logger.debug("Sending to subscriber: {}".format(subscriber))
                 frames[0] = zmq.Frame(subscriber)
                 try:
                     #Send the message to the subscriber
@@ -450,42 +408,41 @@ class PubSubService(object):
         if len(frames) > 7:
             data = frames[7].bytes
             try:
-                json0 = data.find('{')
-                msg = jsonapi.loads(data[json0:])
+                msg = jsonapi.loads(data)
                 self._user_capabilities = msg['capabilities']
             except ValueError:
                 pass
-            #self._logger.debug("PUBSUBSERVICE: user capabilities from auth after update: {}".format(self._user_capabilities))
 
-    def _update_protected_topics_file(self, frames):
+    def _update_protected_topics(self, frames):
         """
          Update the protected topics and capabilities as per message received from AuthService.
         :peer frames list of frames
         :type frames list
         """
+
         if len(frames) > 7:
             data = frames[7].bytes
             try:
-                json0 = data.find('{')
-                msg = jsonapi.loads(data[json0:])
-                try:
-                    write_protect = msg['write-protect']
-                except KeyError:
-                    write_protect = []
-
-                topics = ProtectedPubSubTopics()
-                try:
-                    for entry in write_protect:
-                        topics.add(entry['topic'], entry['capabilities'])
-                except KeyError:
-                    self._logger.exception('invalid format for protected topics '
-                                           'file {}'.format(self._protected_topics_file))
-                else:
-                    self._protected_topics = topics
-                    self._logger.info('protected-topics file %s loaded',
-                                      self._protected_topics_file)
+                msg = jsonapi.loads(data)
+                self._load_protected_topics(msg)
             except ValueError:
                 pass
+
+    def _load_protected_topics(self, topics_data):
+        try:
+            write_protect = topics_data['write-protect']
+        except KeyError:
+            write_protect = []
+
+        topics = ProtectedPubSubTopics()
+        try:
+            for entry in write_protect:
+                topics.add(entry['topic'], entry['capabilities'])
+        except KeyError:
+            self._logger.exception('invalid format for protected topics ')
+        else:
+            self._protected_topics = topics
+            self._logger.info('protected-topics loaded')
 
     def handle_subsystem(self, frames, user_id):
         """
@@ -527,7 +484,7 @@ class PubSubService(object):
             elif op == b'auth_update':
                 self._update_caps_users(frames)
             elif op == b'protected_update':
-                self._update_protected_topics_file(frames)
+                self._update_protected_topics(frames)
             else:
                 self._logger.error("Unknown pubsub request {}".format(bytes(op)))
                 pass

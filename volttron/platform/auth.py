@@ -122,6 +122,7 @@ class AuthService(Agent):
         self._is_connected = False
         self._protected_topics_file = protected_topics_file
         self._protected_topics_file_path = os.path.abspath(protected_topics_file)
+        self._protected_topics = {}
 
     @Core.receiver('onsetup')
     def setup_zap(self, sender, **kwargs):
@@ -130,6 +131,7 @@ class AuthService(Agent):
         if self.allow_any:
             _log.warn('insecure permissive authentication enabled')
         self.read_auth_file()
+        self._read_protected_topics_file()
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
         self.core.spawn(watch_file, self._protected_topics_file_path, self._read_protected_topics_file)
 
@@ -144,6 +146,10 @@ class AuthService(Agent):
         if self._is_connected:
             self._send_update()
 
+    def get_protected_topics(self):
+        protected = self._protected_topics
+        return protected
+
     def _read_protected_topics_file(self):
         #Read protected topics file and send to router
         try:
@@ -151,8 +157,8 @@ class AuthService(Agent):
             with open(self._protected_topics_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 data = FileObject(fil, close=False).read()
-                topics_data = jsonapi.loads(data) if data else {}
-                self._send_protected_update_to_pubsub(topics_data)
+                self._protected_topics = jsonapi.loads(data) if data else {}
+                self._send_protected_update_to_pubsub(self._protected_topics)
         except Exception:
             _log.exception('error loading %s', self._protected_topics_file)
 
