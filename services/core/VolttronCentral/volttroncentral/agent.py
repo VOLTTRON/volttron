@@ -1276,7 +1276,6 @@ class VolttronCentralAgent(Agent):
         """
         management_sockets = [s for s in self._websocket_endpoints
                               if s.endswith("management")]
-
         # Nothing to send if we don't have any management sockets open.
         if len(management_sockets) <= 0:
             return

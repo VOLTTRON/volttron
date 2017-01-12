@@ -135,6 +135,37 @@ class Platforms(object):
         return results
 
     def get_performance_list(self, session_user, params):
+        """
+        Retrieve a list of all of the platforms stats available.
+
+        This function returns a list of platform status such as the following::
+
+            [
+                {
+                    "topic": "datalogger/platforms/f6e675fb36989f97c3b0f25227aaf02e/status/cpu",
+                    "last_published_utc": "2017-01-12T18:58:47.894296+00:00",
+                    "points":
+                    [
+                        "times_percent/guest_nice",
+                        "times_percent/system",
+                        "percent",
+                        "times_percent/irq",
+                        "times_percent/steal",
+                        "times_percent/user",
+                        "times_percent/nice",
+                        "times_percent/iowait",
+                        "times_percent/idle",
+                        "times_percent/guest",
+                        "times_percent/softirq"
+                    ]
+                },
+            ...
+            ]
+
+        :param session_user:
+        :param params:
+        :return: dictionary containing lookup topic and last publish time.
+        """
         performances = []
         for p in self._platforms.values():
             performances.append(
@@ -173,14 +204,15 @@ class Platforms(object):
         that if the address has already been used then the same
         PlatformHandler object reference will be returned to the caller.
 
-        @param address:
+        :param address:
             An address or resolvable domain name with port.
-        @param address_type:
+        :param address_type:
             A string consisting of ipc or tcp.
-        @param: serverkey: str:
+        :param: serverkey: str:
             The router publickey for the vcp attempting to register.
-        @param: display_name: str:
+        :param: display_name: str:
             The name to be shown in volttron central.
+        :returns: platform_hash and platform object as a tuple.
         """
         self._log.info('Attempting registration of vcp at address: '
                   '{} display_name: {}, serverkey: {}'.format(address,
@@ -526,6 +558,17 @@ class PlatformHandler(object):
         self._log.debug("HEARTBEAT MESSAGE: {}".format(message))
 
     def _on_device_message(self, peer, sender, bus, topic, headers, message):
+        """
+        Handle device data coming from the platform represented by this
+        object.
+
+        :param peer:
+        :param sender:
+        :param bus:
+        :param topic:
+        :param headers:
+        :param message:
+        """
         # Update the devices store for get_devices function call.
         try:
             platform_store = self._vc.vip.config.get(self.config_store_name)
@@ -560,15 +603,26 @@ class PlatformHandler(object):
 
     def _on_platform_stats(self, peer, sender, bus, topic, headers, message):
 
-        prefix = "datalogger/platform/"
-        which_stats = topic[len(prefix):]
+        # This method publishes back to the message bus at
+        # datalogger/platforms/platform_hash so if it starts with platforms
+        # then ignore the publish.
+        if topic.startswith("datalogger/platforms"):
+            return
+
+        prefix = "datalogger/platform"
+        which_stats = topic[len(prefix)+1:]
+        self._log.debug("WHICH STATS: {}".format(which_stats))
         point_list = []
 
         for point, item in message.iteritems():
             point_list.append(point)
 
+        # Note adding the s to the end of the prefix.
+        platforms_topic = "{}/{}/{}".format(prefix+"s",
+                                            self.address_hash, which_stats)
+
         stat_dict = {
-            'topic': topic,
+            'topic': platforms_topic,
             'points': point_list,
             'last_published_utc': format_timestamp(get_aware_utc_now())
         }
@@ -581,10 +635,8 @@ class PlatformHandler(object):
         stats[which_stats] = stat_dict
 
         self._vc.vip.config.set(self.config_store_name, config)
-
-        self._log.debug('PLATFORM MESSAGE: {}'.format(peer))
-        self._log.debug('PLATFORM MESSAGE: {}'.format(topic))
-        self._log.debug('PLATFORM MESSAGE: {}'.format(message))
+        self._vc.vip.pubsub.publish('pubsub', topic=platforms_topic,
+                                    headers=headers, message=message)
 
     def _on_platform_message(self, peer, sender, bus, topic, headers, message):
 
@@ -602,10 +654,6 @@ class PlatformHandler(object):
         config = deepcopy(self._vc.vip.config.get(self.config_store_name))
         config['stats_point_list'] = stats
         self._vc.vip.config.set(self.config_store_name, config)
-
-        self._log.debug('PLATFORM MESSAGE: {}'.format(peer))
-        self._log.debug('PLATFORM MESSAGE: {}'.format(topic))
-        self._log.debug('PLATFORM MESSAGE: {}'.format(message))
 
     def _on_stats_published(self, peer, sender, bus, topic, headers, message):
         self._log.debug('STATS PUBLISHERD: {}'.format(message))
