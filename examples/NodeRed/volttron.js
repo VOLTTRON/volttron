@@ -22,7 +22,7 @@ module.exports = function(RED) {
             process.env['VOLTTRON_HOME'] = volttron_home;
             var options = {
                 mode: 'json',
-                pythonPath: volttron_home,
+                pythonPath: python_path,
                 scriptPath: __dirname,
             };
             var path = require('path');
