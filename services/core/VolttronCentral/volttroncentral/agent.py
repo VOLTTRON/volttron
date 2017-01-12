@@ -1255,7 +1255,25 @@ class VolttronCentralAgent(Agent):
         return ws_topic
 
     def send_management_message(self, type, data={}):
-        _log.debug("Sending to websockets management items.")
+        """
+        Send a message to any socket that has connected to the management
+        socket.
+
+        The payload sent to the client is like the following::
+
+            {
+                "type": "UPDATE_DEVICE_STATUS",
+                "data": "this is data that was passed"
+            }
+
+        :param type:
+            A string defining a unique type for sending to the websockets.
+        :param data:
+            An object that str can be called on.
+
+        :type type: str
+        :type data: serializable
+        """
         management_sockets = [s for s in self._websocket_endpoints
                               if s.endswith("management")]
 
