@@ -173,9 +173,6 @@ var NewChartForm = React.createClass({
                         step="1"
                         placeholder="disabled"
                     />
-                    <span className="form__control-help">
-                        Omit to disable
-                    </span>
                 </div>
                 <div className="form__control-group">
                     <label htmlFor="chartType">Chart type</label>

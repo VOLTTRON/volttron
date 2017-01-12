@@ -39,6 +39,7 @@ class ConfigDeviceForm extends BaseComponent {
                 this.state.path = this.state.path + "/" + nameParts[i];
             }
 
+            this.state.physicalDeviceName = this.props.config.physicalDeviceName;
             this.state.configUpdate = true;
         }
         else
@@ -56,6 +57,8 @@ class ConfigDeviceForm extends BaseComponent {
                 this.props.device.id, 
                 this.props.device.bacnetProxy
             );
+
+            this.state.physicalDeviceName = this.props.device.name;
 
             this.state.configUpdate = false;
         }
@@ -142,6 +145,7 @@ class ConfigDeviceForm extends BaseComponent {
         {
             settings.config.driver_config = this.state.driver_config;
             settings.config.registry_config = "config://" + this.props.registryFile;
+            settings.config.physicalDeviceName = this.state.physicalDeviceName;
             
             var announce = true;
 
@@ -281,6 +285,7 @@ class ConfigDeviceForm extends BaseComponent {
                                             onChange={this._updateCampus}
                                             value={this.state.campus}
                                             disabled={this.state.configUpdate}
+                                            autoFocus
                                         />
                                     </td>
                                 </tr>
@@ -303,8 +308,8 @@ class ConfigDeviceForm extends BaseComponent {
                                 <tr key="unit">
                                     <td style={firstStyle}>
                                         <span className="required-field">*</span>
-                                        Unit</
-                                    td>
+                                        Unit
+                                    </td>
                                     <td style={secondStyle}
                                         className="plain">
                                         <input
