@@ -7,8 +7,8 @@ Node Red is a visual programming wherein users connect small units of
 functionality "nodes" to create "flows".
 
 There are two example nodes that allow communication between Node Red and
-Volttron. One node reads subscribes to messages on the VOLTTRON message bus
-and the other
+VOLTTRON. One node reads subscribes to messages on the VOLTTRON message bus
+and the other publishes to it.
 
 Dependencies
 ------------
@@ -19,8 +19,9 @@ the Node Red environment.
 Installation
 ------------
 
-Copy all files from `volttron/examples/NodeRed` to your `.node-red/nodes`
-directory.
+Copy all files from `volttron/examples/NodeRed` to your `~/.node-red/nodes`
+directory. `~/.node-red` is the default directory for Node Red files. If you
+have set a different directory use that instead.
 
 Set the variables at the beginning of the `volttron.js` file to be a valid
 VOLTTRON environment, VOLTTRON home, and python path.
