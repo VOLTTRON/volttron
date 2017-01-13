@@ -197,23 +197,19 @@ class MongodbHistorian(BaseHistorian):
         # Find the records that needs to be processed from data table
         db = self._client.get_default_database()
         stat = db.rollup_status.find_one({})
+        find_condition = {'ts': {'$gt': self._initial_rollup_start_time}}
         if stat:
             _log.debug("ROLLING FROM last processed id {}, {}".format(
                 stat["last_data_into_daily"], stat["last_data_into_monthly"]))
 
             if stat["last_data_into_daily"] < stat["last_data_into_monthly"]:
-                cursor = db.data.find(
-                    {'_id': {'$gt': stat["last_data_into_daily"]}})
+                find_condition = {'_id': {'$gt': stat["last_data_into_daily"]}}
             else:
-                cursor = db.data.find(
-                    {'_id': {'$gt': stat["last_data_into_monthly"]}})
+                find_condition = {'_id':
+                                      {'$gt': stat["last_data_into_monthly"]}}
         else:
-            _log.debug(
-                "ROLLING FROM start date {}".format(
-                    self._initial_rollup_start_time))
-            cursor = db.data.find({
-                'ts': {'$gt': self._initial_rollup_start_time}
-            })
+            _log.debug("ROLLING FROM start date {}".format(
+                self._initial_rollup_start_time))
 
         # Iterate and append to a bulk_array. Insert in batches of 1000
         bulk_publish_day = []
@@ -222,10 +218,24 @@ class MongodbHistorian(BaseHistorian):
         month_ids = []
         d = 0
         m = 0
+        last_topic_id = ''
+        last_date = ''
+        last_month = ''
+        last_year = ''
+        cursor = db[self._data_collection].find(find_condition).sort(
+            [('topic_id', pymongo.ASCENDING), ('ts', pymongo.ASCENDING)])
+
+
         for row in cursor:
             if not stat or row['_id'] > stat["last_data_into_daily"] :
-                self.initialize_daily(topic_id=row['topic_id'],
-                                      ts=row['ts'])
+
+                if last_topic_id != row['topic_id'] \
+                        or last_date != row['ts'].date():
+                    self.initialize_daily(topic_id=row['topic_id'],
+                                          ts=row['ts'])
+                    last_topic_id = row['topic_id']
+                    last_date = row['ts'].date()
+
                 bulk_publish_day.append(
                     self.insert_to_daily(db, topic_id=row['topic_id'],
                                          ts=row['ts'], value=row['value']))
@@ -233,8 +243,15 @@ class MongodbHistorian(BaseHistorian):
                 d += 1
 
             if not stat or row['_id'] > stat["last_data_into_monthly"]:
-                self.initialize_monthly(topic_id=row['topic_id'],
-                                        ts=row['ts'])
+                if last_topic_id != row['topic_id']\
+                        or (last_month != row['ts'].month \
+                            and last_year != row['ts'].year):
+                    self.initialize_monthly(topic_id=row['topic_id'],
+                                            ts=row['ts'])
+                    last_topic_id = row['topic_id']
+                    last_month = row['ts'].month
+                    last_year = row['ts'].year
+
                 bulk_publish_month.append(
                     self.insert_to_monthly(db, topic_id=row['topic_id'],
                                            ts=row['ts'], value=row['value']))
@@ -243,12 +260,13 @@ class MongodbHistorian(BaseHistorian):
 
             #Perform insert if we have 1000 rows
             d_errors = m_errors = False
-            if d == 1000:
+            if d == 3:
+                _log.debug("In loop. bulk write")
                 bulk_publish_day, day_ids, d_errors = \
                     self.bulk_write_rolled_up_data(
                     'daily', bulk_publish_day, day_ids, db)
                 d = 0
-            if m == 1000:
+            if m == 3:
                 #gevent.sleep(20)
                 bulk_publish_month, month_ids, m_errors = \
                     self.bulk_write_rolled_up_data(
@@ -261,6 +279,7 @@ class MongodbHistorian(BaseHistorian):
 
         # Perform insert for any pending records
         if bulk_publish_day:
+            _log.debug("Outside loop. bulk write")
             self.bulk_write_rolled_up_data(
                 'daily', bulk_publish_day, day_ids, db)
         if bulk_publish_month:
@@ -297,8 +316,7 @@ class MongodbHistorian(BaseHistorian):
                 {},
                 {"$set": {"last_data_into_" + time_period: ids[-1]}},
                 upsert=True)
-            _log.debug("Inserting into rollup_status. result {}".format(
-                result))
+            _log.debug("Updated rollup_status")
             ids = []
             requests = []
         return requests, ids, errors
@@ -387,9 +405,7 @@ class MongodbHistorian(BaseHistorian):
             },
             {
                 '$push': {
-                    "data." + str(position): {
-                        '$each': [ts, value]
-                    }
+                    "data." + str(position): [ts, value]
                 },
                 '$inc': {
                     'count': 1,
@@ -410,9 +426,7 @@ class MongodbHistorian(BaseHistorian):
             },
             {
                 '$push':{
-                    "data." + str(position): {
-                        '$each': [ts, value]
-                    }
+                    "data." + str(position): [ts, value]
                 },
                 '$inc': {
                     'count': 1,
@@ -516,7 +530,7 @@ class MongodbHistorian(BaseHistorian):
                     },
                     {
                         '$push': {
-                            "data."+ str(ts.minute): {'$each': [ts, value]}
+                            "data."+ str(ts.minute): [ts, value]
                         },
                         '$inc':{
                             'count': 1,
