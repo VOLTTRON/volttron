@@ -63,7 +63,9 @@ from dateutil.relativedelta import relativedelta
 from calendar import monthrange
 from datetime import timedelta
 from dateutil.tz import tzutc
+import numbers
 
+import gevent
 import pymongo
 from bson.objectid import ObjectId
 from pymongo import ReplaceOne
@@ -72,7 +74,9 @@ from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.dbutils import mongoutils
+from volttron.platform.vip.agent import Core
 import re
 
 utils.setup_logging()
@@ -128,7 +132,8 @@ def historian(config_path, **kwargs):
 
     MongodbHistorian.__name__ = 'MongodbHistorian'
     return MongodbHistorian(config_dict, identity=identity,
-        topic_replace_list=topic_replacements, **kwargs)
+                            topic_replace_list=topic_replacements, **kwargs)
+
 
 class MongodbHistorian(BaseHistorian):
     """
@@ -168,8 +173,240 @@ class MongodbHistorian(BaseHistorian):
         _log.debug("version number is {}".format(__version__))
         self.version_nums = __version__.split(".")
 
+        # This event will be scheduled nightly to be rolled up from the daily
+        # information that was added to the daily queue.
+        self._daily_rollup_event = None
+        self._inserted_hour_topics = set()
+        self._periodic_rollup_event = None
+        self._initial_rollup_start_time = get_aware_utc_now()
+
+    @Core.periodic(10, wait=15)
+    def periodic_rollup(self):
+        _log.debug("periodic attempt to do daily and monthly rollup.")
+
+        # Find the records that needs to be processed from data table
+        db = self._client.get_default_database()
+        stat = db.rollup_status.find_one({})
+        if stat:
+            _log.debug("ROLLING FROM last processed id {}".format(
+                stat["last_data_into_daily"], stat["last_data_into_monthly"]))
+
+            if stat["last_data_into_daily"] < stat["last_data_into_monthly"]:
+                cursor = db.data.find(
+                    {'_id': {'$gt': stat["last_data_into_daily"]}})
+            else:
+                cursor = db.data.find(
+                    {'_id': {'$gt': stat["last_data_into_monthly"]}})
+        else:
+            _log.debug(
+                "ROLLING FROM start date {}".format(
+                    self._initial_rollup_start_time))
+            cursor = db.data.find({
+                'ts': {'$gt': self._initial_rollup_start_time}
+            })
+
+        # Iterate and append to a bulk_array. Insert in batches of 1000
+        bulk_publish_day = []
+        bulk_publish_month = []
+        day_ids = []
+        month_ids = []
+        d = 0
+        m = 0
+        for row in cursor:
+
+            if row['_id'] > stat["last_data_into_daily"] :
+                self.initialize_daily(topic_id=row['topic_id'],
+                                      ts=row['ts'],
+                                      value=row['value'])
+                bulk_publish_day.append(
+                    self.insert_to_daily(db, topic_id=row['topic_id'],
+                                         ts=row['ts'], value=row['value']))
+                day_ids.append(row['_id'])
+                d += 1
+
+            if row['_id'] > stat["last_data_into_monthly"]:
+                self.initialize_monthly(topic_id=row['topic_id'],
+                                        ts=row['ts'],
+                                        value=row['value'])
+                bulk_publish_month.append(
+                    self.insert_to_monthly(db, topic_id=row['topic_id'],
+                                           ts=row['ts'], value=row['value']))
+                month_ids.append(row['_id'])
+                m += 1
+
+            #Perform insert if we have 1000 rows
+            d_errors = m_errors = False
+            if d == 1000:
+                bulk_publish_day, day_ids, d_errors = \
+                    self.bulk_write_rolledup_data(
+                    'daily', bulk_publish_day, day_ids, db)
+                d = 0
+            if m == 1000:
+                bulk_publish_month, month_ids, m_errors = \
+                    self.bulk_write_rolledup_data(
+                    'monthly', bulk_publish_month, month_ids, db)
+                m = 0
+            if d_errors or m_errors:
+                # something failed in bulk write. try from last err
+                # row during the next periodic call
+                return
+
+        # Perform insert for any pending records
+        if bulk_publish_day:
+            self.bulk_write_rolledup_data(
+                'daily', bulk_publish_day, day_ids, db)
+        if bulk_publish_month:
+            self.bulk_write_rolledup_data(
+                'monthly', bulk_publish_month, month_ids, db)
+
+
+    def bulk_write_rolledup_data(self, time_period, requests, ids, db):
+        '''
+        Handle bulk inserts into daily or monthly roll up table. Find out
+        the last successfully processed record adn store that in the
+        rollup_status collection.
+        :param time_period: "daily" or "monthly"
+        :param requests: array of bulk write requests
+        :param ids: array of data collection _ids that are part of the bulk
+        write requests
+        :param db: handle to database
+        :return: emptied request array, ids array, and True if there were
+        errors during write operation or False if there was none
+        '''
+        errors = False
+        try:
+            db[time_period + '_data'].bulk_write(requests, ordered=True)
+        except BulkWriteError as ex:
+            _log.error(str(ex.details))
+            errors = True
+            error_index = ex.details['writeErrors'][0]['index']
+            if error_index > 0:
+                db.rollup_status.update_one({}, {"$set": {
+                    "last_data_into_" + time_period: ids[error_index - 1]}})
+        else:
+            # Record last data row that was rolled up
+            db.rollup_status.update_one({}, {
+                "$set": {"last_data_into_" + time_period: ids[-1]}})
+            ids = []
+            requests = []
+        return requests, ids, errors
+
     def version(self):
         return __version__
+
+
+    def initialize_hourly(self, topic_id, ts, value, callback):
+        ts_hour = ts.replace(minute=0, second=0, microsecond=0)
+
+        db = self._client.get_default_database()
+        needs_initializing = not db.hourly_data.find(
+            {'ts': ts_hour, 'topic_id': topic_id}).count() > 0
+
+        _log.debug("needs_intializing? {}".format(
+            needs_initializing
+        ))
+
+        if needs_initializing:
+            db['hourly_data'].update_one(
+                {'ts': ts_hour, 'topic_id': topic_id},
+                {"$setOnInsert": {'ts': ts_hour,
+                                  'topic_id': topic_id,
+                                  'count': 0,
+                                  'sum': 0,
+                                  'data': [[]] * 60}},
+                upsert=True)
+
+            _log.debug("CALLING INIT DAILY")
+
+            return True
+        return False
+
+    def initialize_daily(self, topic_id, ts, value):
+        ts_day = ts.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        db = self._client.get_default_database()
+        needs_initializing = not db.daily_data.find(
+            {'ts': ts_day, 'topic_id': topic_id}).count() > 0
+
+        if needs_initializing:
+            _log.debug("INITIALIZING DAILY DAATA")
+            _log.debug(db.daily_data.find(
+                {'ts': ts_day, 'topic_id': topic_id}).count())
+            db.daily_data.update_one(
+                {'ts': ts_day, 'topic_id': topic_id},
+                {"$setOnInsert": {'ts': ts_day,
+                                  'topic_id': topic_id,
+                                  'count': 0,
+                                  'sum': 0,
+                                  'data': [[]] * 24 * 60}},
+                upsert=True)
+
+
+    def initialize_monthly(self, topic_id, ts, value):
+        ts_month = ts.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        db = self._client.get_default_database()
+        needs_initializing = not db.monthly_data.find(
+            {'ts': ts_month, 'topic_id': topic_id}).count() > 0
+
+        if needs_initializing:
+            _log.debug("INITIALIZING MONTLHY DAATA")
+            weekday, num_days = monthrange(ts_month.year,
+                                           ts_month.month)
+            db['monthly_data'].update_one(
+                {'ts': ts_month, 'topic_id': topic_id},
+                {"$setOnInsert": {'ts': ts_month,
+                                  'topic_id': topic_id,
+                                  'count': 0,
+                                  'sum': 0,
+                                  'data': [[]] * num_days * 24 * 60}},
+                upsert=True)
+
+
+    def insert_to_daily(self, db, topic_id, ts, value):
+        rollup_day = ts.replace(hour=0, minute=0, second=0,
+                                         microsecond=0)
+        position = ts.hour * 60 + ts.minute
+        sum_value = MongodbHistorian.value_to_sumable(value)
+
+        return UpdateOne(
+            {
+                'ts': rollup_day, 'topic_id': topic_id
+            },
+            {
+                '$push': {
+                    "data." + str(position): {
+                        '$each': [ts, value]
+                    }
+                },
+                '$inc': {
+                    'count': 1,
+                    'sum': sum_value
+                }
+            }
+        )
+
+    def insert_to_monthly(self, db, topic_id, ts, value):
+        rollup_month = ts.replace(day=1, hour=0, minute=0, second=0,
+                                microsecond=0)
+        sum_value = MongodbHistorian.value_to_sumable(value)
+        position = (ts.day * 24 * 60) + (ts.hour * 60) + ts.minute
+
+        return UpdateOne(
+            {
+                'ts': rollup_month, 'topic_id': topic_id
+            },
+            {
+                '$push':{
+                    "data." + str(position): {
+                        '$each': [ts, value]
+                    }
+                },
+                '$inc': {
+                    'count': 1,
+                    'sum': sum_value}
+            }
+        )
 
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
@@ -184,10 +421,16 @@ class MongodbHistorian(BaseHistorian):
         bulk_publish_day = []
         bulk_publish_month = []
         for x in to_publish_list:
+            _log.debug("SOURCE IS: {}".format(x['source']))
             ts = x['timestamp']
             topic = x['topic']
             value = x['value']
             meta = x['meta']
+            source = x['source']
+
+            if source == 'scrape':
+                source = 'devices'
+
 
             # look at the topics that are stored in the database already
             # to see if this topic has a value
@@ -204,34 +447,13 @@ class MongodbHistorian(BaseHistorian):
                 topic_id = row.inserted_id
                 self._topic_id_map[topic_lower] = topic_id
                 self._topic_name_map[topic_lower] = topic
+
                 if int(self.version_nums[0]) >= 2:
-                    # initialize rollup collections
-                    db['hourly_data'].update_one(
-                        {'ts': rollup_hour, 'topic_id': topic_id},
-                        {"$setOnInsert": {'ts': rollup_hour,
-                                             'topic_id': topic_id,
-                                             'count': 0,
-                                             'sum': 0,
-                                             'data': [[]] * 60}},
-                        upsert=True)
-                    db['daily_data'].update_one(
-                        {'ts': rollup_day, 'topic_id': topic_id},
-                        {"$setOnInsert": {'ts': rollup_day,
-                                          'topic_id': topic_id,
-                                          'count': 0,
-                                          'sum': 0,
-                                          'data': [[]] * 24 * 60}},
-                        upsert=True)
-                    weekday, num_days = monthrange(rollup_month.year,
-                                                   rollup_month.month)
-                    db['monthly_data'].update_one(
-                        {'ts': rollup_month, 'topic_id': topic_id},
-                        {"$setOnInsert": {'ts': rollup_month,
-                                          'topic_id': topic_id,
-                                          'count': 0,
-                                          'sum': 0,
-                                          'data': [[]]*num_days*24*60}},
-                        upsert=True)
+                    # Since we know it's a new topic we can just initialize
+                    # straight away
+                    self.initialize_hourly(topic_id, ts, value, None)
+                    self.initialize_daily(topic_id, ts, value, None)
+                    self.initialize_monthly(topic_id, ts, value, None)
 
                     _log.debug("After init of rollup rows for new topic {} "
                                "hr-{} day-{} month-{}".format(db_topic_name,
@@ -259,30 +481,41 @@ class MongodbHistorian(BaseHistorian):
             # Reformat to a filter tha bulk inserter.
             bulk_publish.append(ReplaceOne(
                 {'ts': ts, 'topic_id': topic_id},
-                {'ts': ts, 'topic_id': topic_id, 'value': value},
+                {'ts': ts, 'topic_id': topic_id, 'source':source,
+                 'value': value},
                 upsert=True))
+
+            needed_intialization = False
             if int(self.version_nums[0]) >= 2:
+                def callback_done(type, topic_id, ts, value):
+                    _log.debug("DONE WITH INIT OF {}".format(type))
+                    if type == 'daily':
+                        self.insert_to_daily(db, topic_id, ts, value)
+                    else:
+                        self.insert_to_monthly(db, topic_id, ts, value)
+
+                needed_intialization = self.initialize_hourly(topic_id,
+                                                              ts,
+                                                              value,
+                                                              callback_done)
+
+                sum_value = MongodbHistorian.value_to_sumable(value)
+
                 bulk_publish_hour.append(UpdateOne(
-                    {'ts': rollup_hour, 'topic_id': topic_id},
-                    {'$push': {"data."+ str(ts.minute) :
-                                   {'$each': [ts, value]}},
-                      '$inc':{'count': 1, 'sum': value}}
+                    {
+                        'ts': rollup_hour,
+                        'topic_id': topic_id
+                    },
+                    {
+                        '$push': {
+                            "data."+ str(ts.minute): {'$each': [ts, value]}
+                        },
+                        '$inc':{
+                            'count': 1,
+                            'sum': sum_value
+                        }
+                    }
                 ))
-
-                position = ts.hour * 60 + ts.minute
-                bulk_publish_day.append(UpdateOne(
-                    {'ts': rollup_day, 'topic_id': topic_id},
-                    {'$push': {"data." + str(position):
-                                   {'$each': [ts, value]}},
-                     '$inc': {'count': 1, 'sum': value}}))
-
-                position = (ts.day * 24 * 60) + (ts.hour * 60) + ts.minute
-                bulk_publish_month.append(UpdateOne(
-                    {'ts': rollup_month, 'topic_id': topic_id},
-                    {'$push':{"data." + str(position):
-                                  {'$each': [ts, value]}},
-                     '$inc': {'count': 1, 'sum': value}}))
-
 
         # done going through all data and adding appropriate updates stmts
         # perform bulk write into data and roll up collections
@@ -293,6 +526,7 @@ class MongodbHistorian(BaseHistorian):
             # http://api.mongodb.org/python/current/api/pymongo
             # /collection.html#pymongo.collection.Collection.bulk_write
             result = db[self._data_collection].bulk_write(bulk_publish)
+            # insert into an "inserted hourly table"
         except BulkWriteError as bwe:
             _log.error("Error during bulk write to data: {}".format(
                 bwe.details))
@@ -313,21 +547,31 @@ class MongodbHistorian(BaseHistorian):
                 _log.error("Error during bulk write to hourly data:{}".format(
                     bwe.details))
 
-            try:
-                # http://api.mongodb.org/python/current/api/pymongo
-                # /collection.html#pymongo.collection.Collection.bulk_write
-                result = db['daily_data'].bulk_write(bulk_publish_day)
-            except BulkWriteError as bwe:
-                _log.error("Error during bulk write to daily data:{}".format(
-                    bwe.details))
+            # try:
+            #     # http://api.mongodb.org/python/current/api/pymongo
+            #     # /collection.html#pymongo.collection.Collection.bulk_write
+            #     result = db['daily_data'].bulk_write(bulk_publish_day)
+            # except BulkWriteError as bwe:
+            #     _log.error("Error during bulk write to daily data:{}".format(
+            #         bwe.details))
+            #
+            # try:
+            #     # http://api.mongodb.org/python/current/api/pymongo
+            #     # /collection.html#pymongo.collection.Collection.bulk_write
+            #     result = db['monthly_data'].bulk_write(bulk_publish_month)
+            # except BulkWriteError as bwe:
+            #     _log.error("Error during bulk write to monthly data:{}".format(
+            #         bwe.details))
 
-            try:
-                # http://api.mongodb.org/python/current/api/pymongo
-                # /collection.html#pymongo.collection.Collection.bulk_write
-                result = db['monthly_data'].bulk_write(bulk_publish_month)
-            except BulkWriteError as bwe:
-                _log.error("Error during bulk write to monthly data:{}".format(
-                    bwe.details))
+    @staticmethod
+    def value_to_sumable(value):
+        # Handle the case where value is not a number so we don't
+        # increment the sum for that instance.
+        if isinstance(value, numbers.Number) and not isinstance(value, bool):
+            sum_value = value
+        else:
+            sum_value = 0
+        return sum_value
 
     def query_historian(self, topic, start=None, end=None, agg_type=None,
                         agg_period=None, skip=0, count=None,
@@ -617,6 +861,15 @@ class MongodbHistorian(BaseHistorian):
             _log.debug("no agg topics to load")
             self._agg_topic_id_map = {}
 
+        self._inserted_hour_topics = set()
+        # try:
+        #     db.hourly_inserts.find()
+        #     hourly_inserts = self.vip.config.get("inserted_hourly")
+        # except KeyError:
+        #
+        # else:
+        #     self._inserted_hour_topics = set(hourly_inserts['inserted'])
+
     def record_table_definitions(self, meta_table_name):
         _log.debug("In record_table_def  table:{}".format(meta_table_name))
 
@@ -645,7 +898,7 @@ def main(argv=sys.argv):
     @param argv:
     """
     try:
-        utils.vip_main(historian)
+        utils.vip_main(historian, enable_store=True)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')
