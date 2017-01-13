@@ -58,9 +58,8 @@ function flame() {
     }
     
 
-
-var FLAME = React.createClass({
-    render: function(){
+class FLAME extends React.Component {
+    render(){
     flame();
     return (
     <div className="view">
@@ -76,6 +75,6 @@ var FLAME = React.createClass({
     </div>
     );
     }
-});
+}
 
 module.exports = FLAME;
