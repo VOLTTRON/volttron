@@ -247,7 +247,7 @@ import re
 from dateutil.parser import parse
 from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from volttron.platform.agent.utils import process_timestamp, \
-    fix_sqlite3_datetime, get_aware_utc_now
+    fix_sqlite3_datetime, get_aware_utc_now, parse_timestamp_string
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
@@ -1342,13 +1342,13 @@ class BaseQueryHistorianAgent(Agent):
                 agg_period)
         if start is not None:
             try:
-                start = parse(start)
+                start = parse_timestamp_string(start)
             except TypeError:
                 start = time_parser.parse(start)
 
         if end is not None:
             try:
-                end = parse(end)
+                end = parse_timestamp_string(end)
             except TypeError:
                 end = time_parser.parse(end)
 
