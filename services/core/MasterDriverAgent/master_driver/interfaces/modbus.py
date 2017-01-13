@@ -171,12 +171,13 @@ class ModbusByteRegister(ModbusRegisterBase):
         response_bytes = response.encode()
         #skip the result count
         return self.parse_struct.unpack(response_bytes[1:])[0]
-    
-    
+
     def set_state(self, client, value):
-        if not self.read_only:   
+        if not self.read_only:
             value_bytes = self.parse_struct.pack(value)
-            register_values = PYMODBUS_REGISTER_STRUCT.unpack_from(value_bytes)
+            register_values = []
+            for i in xrange(0, len(value_bytes), PYMODBUS_REGISTER_STRUCT.size):
+                register_values.extend(PYMODBUS_REGISTER_STRUCT.unpack_from(value_bytes, i))
             client.write_registers(self.address, register_values, unit=self.slave_id)
             return self.get_state(client)
         return None

@@ -31,23 +31,26 @@ class ReconfigureDevice extends BaseComponent {
     }
     _onStoresChange() {
         
-        var reconfiguring = devicesStore.reconfiguringDevice();
+        if (this.componentDom)
+        {
+            var reconfiguring = devicesStore.reconfiguringDevice();
 
-        if (reconfiguring)
-        {
-            this.setState(getStateFromStore);
-        }
-        else
-        {
-            if (this.state.device)
+            if (reconfiguring)
             {
-                this.setState({ 
-                    device: devicesStore.getDevice(
-                        this.state.device.id, 
-                        this.state.device.address,
-                        this.state.device.name
-                    )
-                });
+                this.setState(getStateFromStore);
+            }
+            else
+            {
+                if (this.state.device)
+                {
+                    this.setState({ 
+                        device: devicesStore.getDevice(
+                            this.state.device.id, 
+                            this.state.device.address,
+                            this.state.device.name
+                        )
+                    });
+                }
             }
         }
     }
@@ -144,13 +147,19 @@ class ReconfigureDevice extends BaseComponent {
                 { value: "deviceConfig", label: "Device Config"}
             ];
 
+            var selectStyle = {
+                maxWidth: "130px"
+            };
+
             var configSelect = (
-                <Select
-                    name="config-select"
-                    options={configOptions}
-                    value={this.state.configFile}
-                    onChange={this._onConfigChange}>
-                </Select>
+                <div style={selectStyle}>
+                    <Select
+                        name="config-select"
+                        options={configOptions}
+                        value={this.state.configFile}
+                        onChange={this._onConfigChange}>
+                    </Select>
+                </div>
             );
 
             var containerWidth = {
@@ -191,25 +200,29 @@ class ReconfigureDevice extends BaseComponent {
                         <tbody>
                             <tr>
                                 <td className="plain" style={cellStyle}>
+                                    <b>Physical Device: </b>
+                                </td>
+                                <td className="plain" style={cellStyle}>
+                                    {this.state.configuration.physicalDeviceName}&nbsp;/&nbsp; 
+                                    {this.state.configuration.driver_config.device_address}&nbsp;/&nbsp;
+                                    {this.state.configuration.driver_config.device_id}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td className="plain" style={cellStyle}>
                                     <b>Registry Config: </b>
                                 </td>
                                 <td className="plain" style={cellStyle}>{this.state.configuration.registryFile} {fileSelectContainer}</td>
-                                <td className="plain" style={cellStyle}></td>
-                                <td className="plain" style={cellStyle}></td>
                             </tr>
                             <tr>
                                 <td className="plain" style={cellStyle}>
                                     <b>Device Config: </b>
                                 </td>
                                 <td className="plain" style={cellStyle}>{this.state.device.name}</td>
-                                <td className="plain" style={cellStyle}></td>
-                                <td className="plain" style={cellStyle}></td>
                             </tr>
                             <tr>
                                 <td className="plain" style={cellStyle}><b>File to Edit: </b></td>
-                                <td className="plain" style={cellStyle}>{configSelect}</td>  
-                                <td className="plain" style={cellStyle}></td>
-                                <td className="plain" style={cellStyle}></td>
+                                <td className="plain" style={cellStyle}>{configSelect}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -242,7 +255,10 @@ class ReconfigureDevice extends BaseComponent {
         }
 
         return (
-            <div className="view reconfig-device">   
+            <div className="view reconfig-device"
+                ref={function(div) {
+                        this.componentDom = div;
+                    }.bind(this)}>   
                 <h2>Reconfigure Device</h2> 
                 {defaultMessage}      
                 {configuration} 

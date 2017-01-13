@@ -23,6 +23,8 @@ var StatusIndicator = React.createClass({
 
             state.errors = (state.status === "error");
             state.fadeOut = false;
+
+            this.setState(state);
         }
     },
     componentDidMount: function () {        

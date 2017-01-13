@@ -1528,15 +1528,7 @@ a.view__item:hover::before {
 } 
 
 .advanced-toggle {
-    cursor: pointer;
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    color: #50959C;
-    background-color: #50959C;
-    height: 30px;
-    width: 30px;
-    transform: rotate(45deg) translate(26px, 0px);
+    text-align: right;
 
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -1546,8 +1538,13 @@ a.view__item:hover::before {
     user-select: none;
 }
 
-.advanced-toggle:hover {
-    opacity: 0.8;
+.advanced-toggle > a {
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.advanced-toggle > a:hover {
+    opacity: .8;
 }
 
 /***react-select-me style overrides ***/
@@ -1808,6 +1805,10 @@ td.plain {
     width: auto;
 }
 
+.config-devices-table.reconfig td {
+    line-height: 26px;
+}
+
 .config-devices-table.reconfig .dd__list.dd__openTobottom {
     z-index: 300;
 }
@@ -1982,4 +1983,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-9cedb560659131cdc7d1.css.map*/
+/*# sourceMappingURL=app-be07f3ca911e829993ef.css.map*/
