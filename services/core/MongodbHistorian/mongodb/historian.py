@@ -78,6 +78,7 @@ from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.dbutils import mongoutils
 from volttron.platform.vip.agent import Core
 import re
+import pytz
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -178,7 +179,12 @@ class MongodbHistorian(BaseHistorian):
         self._daily_rollup_event = None
         self._inserted_hour_topics = set()
         self._periodic_rollup_event = None
-        self._initial_rollup_start_time = get_aware_utc_now()
+        if config.get('initial_rollup_start_time'):
+            self._initial_rollup_start_time = datetime.strptime(
+                    config.get('initial_rollup_start_time'),
+                    '%Y-%m-%dT%H:%M:%S.%f').replace(tzinfo=pytz.utc)
+        else:
+            self._initial_rollup_start_time = get_aware_utc_now()
         super(MongodbHistorian, self).__init__(**kwargs)
 
     @Core.periodic(10, wait=15)
@@ -239,13 +245,13 @@ class MongodbHistorian(BaseHistorian):
             d_errors = m_errors = False
             if d == 1000:
                 bulk_publish_day, day_ids, d_errors = \
-                    self.bulk_write_rolledup_data(
+                    self.bulk_write_rolled_up_data(
                     'daily', bulk_publish_day, day_ids, db)
                 d = 0
             if m == 1000:
                 #gevent.sleep(20)
                 bulk_publish_month, month_ids, m_errors = \
-                    self.bulk_write_rolledup_data(
+                    self.bulk_write_rolled_up_data(
                     'monthly', bulk_publish_month, month_ids, db)
                 m = 0
             if d_errors or m_errors:
@@ -255,14 +261,13 @@ class MongodbHistorian(BaseHistorian):
 
         # Perform insert for any pending records
         if bulk_publish_day:
-            self.bulk_write_rolledup_data(
+            self.bulk_write_rolled_up_data(
                 'daily', bulk_publish_day, day_ids, db)
         if bulk_publish_month:
-            self.bulk_write_rolledup_data(
+            self.bulk_write_rolled_up_data(
                 'monthly', bulk_publish_month, month_ids, db)
 
-
-    def bulk_write_rolledup_data(self, time_period, requests, ids, db):
+    def bulk_write_rolled_up_data(self, time_period, requests, ids, db):
         '''
         Handle bulk inserts into daily or monthly roll up table. Find out
         the last successfully processed record adn store that in the
