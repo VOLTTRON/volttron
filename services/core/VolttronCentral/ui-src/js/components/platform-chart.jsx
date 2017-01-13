@@ -184,7 +184,7 @@ var GraphLineChart = OutsideClick(React.createClass({
 
       var state = {};
 
-      state.chartName = this.props.name.replace(" / ", "_") + '_chart';
+      state.chartName = "vc_" + this.props.name.replace(" / ", "_") + '_chart';
       state.chartName = state.chartName.replace(pattern, "_");
       state.lineChart = null;
       state.pinned = this.props.pinned;
