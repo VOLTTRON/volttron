@@ -30,3 +30,6 @@ install:
   - python2 bootstrap.py
 
 script: ci-integration/run-tests.sh
+
+notifications:
+  slack: volttron-team:EgnBsUcQ98b75kU59tV8TnEa

@@ -1,19 +1,18 @@
-=====================================================================================
 How to integrate Matlab application with VOLTTRON to send control commands to devices
 =====================================================================================
 
 Overview:
 =========
 
-    Matlab-VOLTTRON integration allows Matlab application to receive
-    data from devices and send control commands to change points on
-    those devices.
+Matlab-VOLTTRON integration allows Matlab applications to receive
+data from devices and send control commands to change points on
+those devices.
 
-    DrivenMatlabAgent in VOLTTRON allows this interaction by using zmq
-    sockets to communicate with Matlab application.
+DrivenMatlabAgent in VOLTTRON allows this interaction by using ZeroMQ
+sockets to communicate with the Matlab application.
 
 Data Flow Architecture:
--------------
+-----------------------
 
 |Architecture|
 
@@ -21,33 +20,38 @@ Data Flow Architecture:
 Installation steps for system running Matlab:
 =============================================
 
-1. Install python. Suggested 3.4. Other supported versions 2.7, 3.3.
+1. Install python. Suggested 3.4. Other supported versions are 2.7, 3.3.
 
 2. Install pyzmq (tested with version 15.2.0)
+   Follow steps at: https://github.com/zeromq/pyzmq
 
-    Follow steps at: https://github.com/zeromq/pyzmq
+3. Install Matlab (tested with R2015b)
 
-1. Matlab (tested with R2015b)
+4. Start Matlab and set the python path.
+   In the Matlab command window set the python path with `pyversion`:
 
-2. Setup python path inside Matlab
+.. code-block:: console
 
-   Open Matlab command window and set python path as:
+   >> pyversion python.exe
 
-   pyversion [*path/to]*/python.exe
-
-3. To test if python path is setup correctly type following in Matlab
-   command window and it should show python.exe path with version
+5. To test that the python path has been set correctly type following in
+   the Matlab command window. Matlab shoud print the python path with version
    information.
 
-    pyversion
+.. code-block:: console
 
-1. To test if pyzmq library is installed correctly and is accessible
-   from python inside Matlab, type following in Matlab command window
+   >> pyversion
+
+6. To test that the pyzmq library is installed correctly and is accessible
+   from python inside Matlab, type the following in Matlab command window
    and it should show pyzmq version installed.
 
-   py.zmq.pyzmq\_version()
+.. code-block:: console
 
-2. Copy example.m from volttron/examples/MatlabControlApplication to your desired folder.
+   >> py.zmq.pyzmq_version()
+
+7. Copy `example.m` from `volttron/examples/ExampleMatlabApplication/matlab`
+   to your desired folder.
 
 Run and test Matlab VOLTTRON Integration:
 =========================================
@@ -65,27 +69,32 @@ Installation:
 
     Follow link: http://volttron.readthedocs.io/en/develop/install.html
 
-2. Add subtree volttron-applications under volttron/applications by using following command:
+2. Add subtree volttron-applications under volttron/applications by using
+   the following command:
+
+.. code-block:: console
 
     git subtree add --prefix applications https://github.com/VOLTTRON/volttron-applications.git develop --squash
 
 Configuration
 -------------
 
-1. Copy example configuration file applications/pnnl/DrivenMatlabAgent/config\_waterheater to volltron/config.
+1. Copy example configuration file `applications/pnnl/DrivenMatlabAgent/config_waterheater` to `volltron/config`.
 
 2. Change config\_url and data\_url in the new config file to the
    ipaddress of machine running Matlab. Keep the same port numbers.
 
 3. Change campus, building and unit (device) name in the config file.
 
-4. Open example.m change following line :
+4. Open example.m and change following line:
 
-   matlab\_result =
-   '{"commands":{"Zone1":[["temperature",27]],"Zone2":[["temperature",28]]}}';
+.. code-block:: matlab
 
-   Change it to include correct device name and point names in the
-   format:
+   matlab_result = '{"commands":{"Zone1":[["temperature",27]],"Zone2":[["temperature",28]]}}';
+
+Change it to include correct device name and point names in the format:
+
+.. code-block:: matlab
 
    '{"commands":{"device1":[["point1",value1]],"device2":[["point2",value2]]}}';
 
@@ -98,12 +107,12 @@ Steps to test integration:
 
 3. Run device driver agent
 
-4. Run DrivenMatlabAgent with the new config file.
+4. Run DrivenMatlabAgent with the new config file
 
-5. Run example.m
+5. Run example.m in Matlab
 
-Now whenever device driver publish state of devices listed in config
-file of DrivenMatlabAgent, DrivenMatlabAgent will send it to Matlab
+Now whenever the device driver publishes the state of devices listed in the
+config file of DrivenMatlabAgent, DrivenMatlabAgent will send it to Matlab
 application and receive commands to send to devices.
 
 Resources

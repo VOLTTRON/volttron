@@ -71,7 +71,7 @@ import os
 import pytz
 import re
 import stat
-import string
+import time
 from volttron.platform import get_home, get_address
 from dateutil.parser import parse
 from dateutil.tz import tzutc
@@ -251,7 +251,6 @@ def vip_main(agent_class, identity=None, **kwargs):
         Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt,)
 
         config = os.environ.get('AGENT_CONFIG')
-        developer_mode = '_DEVELOPER_MODE' in os.environ
         identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
         if identity is not None:
             if not is_valid_identity(identity):
@@ -267,7 +266,7 @@ def vip_main(agent_class, identity=None, **kwargs):
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
                             volttron_home=volttron_home,
-                            developer_mode=developer_mode, **kwargs)
+                            **kwargs)
         try:
             run = agent.run
         except AttributeError:

@@ -94,7 +94,7 @@ from .control import ControlService
 from .web import MasterWebService
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE
+from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 
@@ -260,8 +260,7 @@ class Router(BaseRouter):
                  context=None, secretkey=None, publickey=None,
                  default_user_id=None, monitor=False, tracker=None,
                  volttron_central_address=None, instance_name=None,
-                 bind_web_address=None, volttron_central_serverkey=None,
-                 developer_mode=False):
+                 bind_web_address=None, volttron_central_serverkey=None):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
@@ -285,7 +284,6 @@ class Router(BaseRouter):
         self._volttron_central_serverkey = volttron_central_serverkey
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address
-        self._developer_mode = developer_mode
 
     def setup(self):
         sock = self.socket
@@ -300,9 +298,10 @@ class Router(BaseRouter):
             addr.identity = identity
         if not addr.domain:
             addr.domain = 'vip'
-        if not self._developer_mode:
-            addr.server = 'CURVE'
-            addr.secretkey = self._secretkey
+
+        addr.server = 'CURVE'
+        addr.secretkey = self._secretkey
+
         addr.bind(sock)
         _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:
@@ -353,9 +352,8 @@ class Router(BaseRouter):
                     value = self.local_address.base
                 # Allow the agents to know the serverkey.
                 elif name == b'serverkey':
-                    if self._publickey is None:
-                        return None
-                    value = encode_key(self._publickey)
+                    keystore = KeyStore()
+                    value = keystore.public
                 elif name == b'volttron-central-address':
                     value = self._volttron_central_address
                 elif name == b'volttron-central-serverkey':
@@ -504,33 +502,27 @@ def start_volttron_process(opts):
     if mode & (stat.S_IWGRP | stat.S_IWOTH):
         _log.warning('insecure mode on directory: %s', opts.volttron_home)
     # Get or generate encryption key
-    if opts.developer_mode:
-        secretkey = None
-        publickey = None
-        _log.warning('developer mode enabled; '
-                     'authentication and encryption are disabled!')
-    else:
-        keystore = KeyStore()
-        _log.debug('using key-store file %s', keystore.filename)
-        if not keystore.isvalid():
-            _log.warning('key store is invalid; connections may fail')
-        st = os.stat(keystore.filename)
-        if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
-            _log.warning('insecure mode on key file')
-        publickey = decode_key(keystore.public)
-        if publickey:
-            _log.info('public key: %s', encode_key(publickey))
-            # Authorize the platform key:
-            entry = AuthEntry(credentials=encode_key(publickey),
-                        user_id='platform',
-                        comments='Automatically added by platform on start')
-            AuthFile().add(entry)
-            # Add platform key to known-hosts file:
-            known_hosts = KnownHostsStore()
-            known_hosts.add(opts.vip_local_address, encode_key(publickey))
-            for addr in opts.vip_address:
-                known_hosts.add(addr, encode_key(publickey))
-        secretkey = decode_key(keystore.secret)
+    keystore = KeyStore()
+    _log.debug('using key-store file %s', keystore.filename)
+    if not keystore.isvalid():
+        _log.warning('key store is invalid; connections may fail')
+    st = os.stat(keystore.filename)
+    if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+        _log.warning('insecure mode on key file')
+    publickey = decode_key(keystore.public)
+    if publickey:
+        _log.info('public key: %s', encode_key(publickey))
+        # Authorize the platform key:
+        entry = AuthEntry(credentials=encode_key(publickey),
+                    user_id='platform',
+                    comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
+        # Add platform key to known-hosts file:
+        known_hosts = KnownHostsStore()
+        known_hosts.add(opts.vip_local_address, encode_key(publickey))
+        for addr in opts.vip_address:
+            known_hosts.add(addr, encode_key(publickey))
+    secretkey = decode_key(keystore.secret)
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
@@ -547,8 +539,7 @@ def start_volttron_process(opts):
                    volttron_central_address=opts.volttron_central_address,
                    volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
-                   bind_web_address=opts.bind_web_address,
-                   developer_mode=opts.developer_mode).run()
+                   bind_web_address=opts.bind_web_address).run()
 
         except Exception:
             _log.exception('Unhandled exception in router loop')
@@ -570,8 +561,8 @@ def start_volttron_process(opts):
         # Ensure auth service is running before router
         auth_file = os.path.join(opts.volttron_home, 'auth.json')
         auth = AuthService(
-            auth_file, opts.aip, address=address, identity='auth',
-            allow_any=opts.developer_mode, enable_store=False)
+            auth_file, opts.aip, address=address, identity=AUTH,
+            enable_store=False)
 
         event = gevent.event.Event()
         auth_task = gevent.spawn(auth.core.run, event)
@@ -659,9 +650,6 @@ def main(argv=sys.argv):
         '-c', '--config', metavar='FILE', action='parse_config',
         ignore_unknown=True, sections=[None, 'volttron'],
         help='read configuration from FILE')
-    parser.add_argument(
-        '--developer-mode', action='store_true',
-        help='run in insecure developer mode')
     parser.add_argument(
         '-l', '--log', metavar='FILE', default=None,
         help='send log output to FILE instead of stderr')
@@ -803,9 +791,8 @@ def main(argv=sys.argv):
         # allow_users=None,
         # allow_groups=None,
         verify_agents=True,
-        resource_monitor=True,
+        resource_monitor=True
         # mobility=True,
-        developer_mode=False,
     )
 
     # Parse and expand options

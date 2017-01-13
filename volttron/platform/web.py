@@ -55,7 +55,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import logging
 import os
 import re
@@ -64,13 +64,23 @@ import sys
 from urlparse import urlparse, urljoin
 
 from gevent import pywsgi
+
+import gevent
+import gevent.pywsgi
+from ws4py.websocket import WebSocket
+
+from ws4py.server.geventserver import (WebSocketWSGIApplication,
+                                       WebSocketWSGIHandler,
+                                       WSGIServer)
+
+
 import mimetypes
 
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from zmq.utils import jsonapi
 
-from .auth import AuthEntry, AuthFile
+from .auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
 from .vip.agent import Agent, Core, RPC
 from .vip.agent.subsystems import query
 from .jsonrpc import (
@@ -81,6 +91,10 @@ _log = logging.getLogger(__name__)
 
 
 class CouldNotRegister(StandardError):
+    pass
+
+
+class DuplicateEndpointError(StandardError):
     pass
 
 
@@ -105,23 +119,23 @@ class DiscoveryInfo(object):
         assert len(kwargs) == 0
 
     @staticmethod
-    def request_discovery_info(discovery_address):
+    def request_discovery_info(web_address):
         """  Construct a `DiscoveryInfo` object.
 
         Requests a response from discovery_address and constructs a
         `DiscoveryInfo` object with the returned json.
 
-        :param discovery_address: An http(s) address with volttron running.
+        :param web_address: An http(s) address with volttron running.
         :return:
         """
 
         try:
-            parsed = urlparse(discovery_address)
+            parsed = urlparse(web_address)
 
             assert parsed.scheme
             assert not parsed.path
 
-            real_url = urljoin(discovery_address, "/discovery/")
+            real_url = urljoin(web_address, "/discovery/")
             _log.info('Connecting to: {}'.format(real_url))
             response = requests.get(real_url)
 
@@ -131,8 +145,8 @@ class DiscoveryInfo(object):
                 )
         except AttributeError as e:
             raise DiscoveryError(
-                "Invalid discovery_address passed {}"
-                .format(discovery_address)
+                "Invalid web_address passed {}"
+                .format(web_address)
             )
         except (ConnectionError, NewConnectionError) as e:
             raise DiscoveryError(
@@ -142,7 +156,7 @@ class DiscoveryInfo(object):
             raise DiscoveryError("Unhandled exception {}".format(e))
 
         return DiscoveryInfo(
-            discovery_address=discovery_address, **(response.json()))
+            discovery_address=web_address, **(response.json()))
 
     def __str__(self):
         dk = {
@@ -174,6 +188,162 @@ def is_ip_private(vip_address):
         ip) is not None
 
 
+class VolttronWebSocket(WebSocket):
+
+    def __init__(self, *args, **kwargs):
+        super(VolttronWebSocket, self).__init__(*args, **kwargs)
+        self._log = logging.getLogger(self.__class__.__name__)
+
+    def _get_identity_and_endpoint(self):
+        identity = self.environ['identity']
+        endpoint = self.environ['PATH_INFO']
+        return identity, endpoint
+
+    def opened(self):
+        self._log.info('Socket opened')
+        app = self.environ['ws4py.app']
+        identity, endpoint = self._get_identity_and_endpoint()
+        app.client_opened(self, endpoint, identity)
+
+    def received_message(self, m):
+        # self.clients is set from within the server
+        # and holds the list of all connected servers
+        # we can dispatch to
+        self._log.debug('Socket received message: {}'.format(m))
+        app = self.environ['ws4py.app']
+        identity, endpoint = self._get_identity_and_endpoint()
+        ip = self.environ['']
+        app.client_received(endpoint, m)
+
+    def closed(self, code, reason="A client left the room without a proper explanation."):
+        self._log.info('Socket closed!')
+        app = self.environ.pop('ws4py.app')
+        identity, endpoint = self._get_identity_and_endpoint()
+        app.client_closed(self, endpoint, identity, reason)
+
+        # if self in app.clients:
+        #     app.clients.remove(self)
+        #     for client in app.clients:
+        #         try:
+        #             client.send(reason)
+        #         except:
+        #             pass
+
+
+class WebApplicationWrapper(object):
+    """ A container class that will hold all of the applications registered
+    with it.  The class provides a contianer for managing the routing of
+    websocket, static content, and rpc function calls.
+    """
+    def __init__(self, masterweb, host, port):
+        self.masterweb = masterweb
+        self.port = port
+        self.host = host
+        self.ws = WebSocketWSGIApplication(handler_cls=VolttronWebSocket)
+        self.clients = []
+        self.endpoint_clients = {}
+        self._wsregistry = {}
+        self._log = logging.getLogger(self.__class__.__name__)
+
+    def favicon(self, environ, start_response):
+        """
+        Don't care about favicon, let's send nothing.
+        """
+        status = '200 OK'
+        headers = [('Content-type', 'text/plain')]
+        start_response(status, headers)
+        return ""
+
+    def client_opened(self, client, endpoint, identity):
+
+        ip = client.environ['REMOTE_ADDR']
+        should_open = self.masterweb.vip.rpc.call(identity, 'client.opened',
+                                                  ip, endpoint)
+        if not should_open:
+            self._log.error("Authentication failure, closing websocket.")
+            client.close(reason='Authentication failure!')
+            return
+
+        # In order to get into endpoint_clients create_ws must be called.
+        if endpoint not in self.endpoint_clients:
+            self._log.error('Unknown endpoint detected: {}'.format(endpoint))
+            client.close(reason="Unknown endpoint! {}".format(endpoint))
+            return
+
+        if (identity, client) in  self.endpoint_clients[endpoint]:
+            self._log.debug("IDENTITY,CLIENT: {} already in endpoint set".format(identity))
+        else:
+            self._log.debug("IDENTITY,CLIENT: {} added to endpoint set".format(identity))
+            self.endpoint_clients[endpoint].add((identity, client))
+
+    def client_received(self, endpoint, message):
+        clients = self.endpoint_clients.get(endpoint, [])
+        for identity, _ in clients:
+            self.masterweb.vip.rpc.call(identity, 'client.message',
+                                        str(endpoint), str(message))
+
+    def client_closed(self, client, endpoint, identity,
+                      reason="Client left without proper explaination"):
+
+        client_set = self.endpoint_clients.get(endpoint, set())
+
+        try:
+            key = (identity, client)
+            client_set.remove(key)
+        except KeyError:
+            pass
+        else:
+            self.masterweb.vip.rpc.call(identity, 'client.closed', endpoint)
+
+    def create_ws_endpoint(self, endpoint, identity):
+        #_log.debug()print(endpoint, identity)
+        # if endpoint in self.endpoint_clients:
+        #     peers = self.masterweb.vip.peerlist.get()
+        #     old_identity = self._wsregistry[endpoint]
+        #     if old_identity not in peers:
+        #         for client in self.endpoint_clients.values():
+        #             client.close()
+        #         r
+
+        if endpoint not in self.endpoint_clients:
+            self.endpoint_clients[endpoint] = set()
+        self._wsregistry[endpoint] = identity
+
+    def destroy_ws_endpoint(self, endpoint):
+        clients = self.endpoint_clients.get(endpoint, [])
+        for identity, client in clients:
+            client.close(reason="Endpoint closed.")
+        del self.endpoint_clients[endpoint]
+
+    def websocket_send(self, endpoint, message):
+        self._log.debug('Sending message to clients!')
+        clients = self.endpoint_clients.get(endpoint, [])
+        if not clients:
+            self._log.warn("There were no clients for endpoint {}".format(
+                endpoint))
+        for c in clients:
+            identity, client = c
+            self._log.debug('Sending endpoint&&message {}&&{}'.format(
+                endpoint, message))
+            client.send(message)
+
+    def __call__(self, environ, start_response):
+        """
+        Good ol' WSGI application. This is a simple demo
+        so I tried to stay away from dependencies.
+        """
+        if environ['PATH_INFO'] == '/favicon.ico':
+            return self.favicon(environ, start_response)
+
+        path = environ['PATH_INFO']
+        if path in self._wsregistry:
+            environ['ws4py.app'] = self
+            environ['identity'] = self._wsregistry[environ['PATH_INFO']]
+            return self.ws(environ, start_response)
+
+        return self.masterweb.app_routing(environ, start_response)
+
+
 class MasterWebService(Agent):
     """The service that is responsible for managing and serving registered pages
 
@@ -194,6 +364,9 @@ class MasterWebService(Agent):
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
         self.pathroutes = defaultdict(list)
+
+        # Maps from endpoint to peer.
+        self.endpoints = {}
         self.aip = aip
 
         self.volttron_central_address = volttron_central_address
@@ -203,9 +376,26 @@ class MasterWebService(Agent):
         if not self.volttron_central_address:
             self.volttron_central_address = bind_web_address
 
-
         if not mimetypes.inited:
             mimetypes.init()
+
+        self.appContainer = None
+        self._server_greenlet = None
+
+    def remove_unconnnected_routes(self):
+        peers = self.vip.peerlist().get()
+
+        for p in self.peerroutes:
+            if p not in peers:
+                del self.peerroutes[p]
+
+
+
+    @RPC.export
+    def websocket_send(self, endpoint, message):
+        _log.debug("Sending data to {} with message {}".format(endpoint,
+                                                               message))
+        self.appContainer.websocket_send(endpoint, message)
 
     @RPC.export
     def get_bind_web_address(self):
@@ -225,21 +415,52 @@ class MasterWebService(Agent):
         return self.volttron_central_address
 
     @RPC.export
-    def register_agent_route(self, regex, peer, fn):
+    def register_endpoint(self, endpoint):
+        """
+        RPC method to register a dynamic route.
+
+        :param endpoint:
+        :return:
+        """
+        _log.debug('Registering route with endpoint: {}'.format(endpoint))
+        # Get calling peer from the rpc context
+        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        _log.debug('Route is associated with peer: {}'.format(peer))
+
+        if endpoint in self.endpoints:
+            _log.error("Attempting to register an already existing endpoint.")
+            _log.error("Ignoring registration.")
+            raise DuplicateEndpointError(
+                "Endpoint {} is already an endpoint".format(endpoint))
+
+        self.endpoints[endpoint] = peer
+
+
+    @RPC.export
+    def register_agent_route(self, regex, fn):
         """ Register an agent route to an exported function.
 
         When a http request is executed and matches the passed regular
         expression then the function on peer is executed.
         """
+
+        # Get calling peer from the rpc context
+        peer = bytes(self.vip.rpc.context.vip_message.peer)
+
         _log.info(
             'Registering agent route expression: {} peer: {} function: {}'
-                .format(regex, peer, fn))
+            .format(regex, peer, fn))
+
         compiled = re.compile(regex)
         self.peerroutes[peer].append(compiled)
         self.registeredroutes.insert(0, (compiled, 'peer_route', (peer, fn)))
 
     @RPC.export
-    def unregister_all_agent_routes(self, peer):
+    def unregister_all_agent_routes(self):
+
+        # Get calling peer from the rpc context
+        peer = bytes(self.vip.rpc.context.vip_message.peer)
+
         _log.info('Unregistering agent routes for: {}'.format(peer))
         for regex in self.peerroutes[peer]:
             out = [cp for cp in self.registeredroutes if cp[0] != regex]
@@ -250,12 +471,33 @@ class MasterWebService(Agent):
             self.registeredroutes = out
         del self.pathroutes[peer]
 
+        endpoints = self.endpoints.copy()
+        endpoints = {i:endpoints[i] for i in endpoints if endpoints[i] != peer}
+        self.endpoints = endpoints
+
     @RPC.export
-    def register_path_route(self, peer, regex, root_dir):
+    def register_path_route(self, regex, root_dir):
         _log.info('Registiering path route: {}'.format(root_dir))
+
+        # Get calling peer from the rpc context
+        peer = bytes(self.vip.rpc.context.vip_message.peer)
+
         compiled = re.compile(regex)
         self.pathroutes[peer].append(compiled)
         self.registeredroutes.append((compiled, 'path', root_dir))
+
+    @RPC.export
+    def register_websocket(self, endpoint):
+        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        _log.debug('Caller identity: {}'.format(identity))
+        _log.debug('REGISTERING ENDPOINT: {}'.format(endpoint))
+        self.appContainer.create_ws_endpoint(endpoint, identity)
+
+    @RPC.export
+    def unregister_websocket(self, endpoint):
+        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        _log.debug('Caller identity: {}'.format(identity))
+        self.appContainer.destroy_ws_endpoint(endpoint)
 
     def _redirect_index(self, env, start_response, data=None):
         """ Redirect to the index page.
@@ -287,7 +529,11 @@ class MasterWebService(Agent):
         authfile = AuthFile()
         authentry = AuthEntry(credentials=vcpublickey)
 
-        authfile.add(authentry)
+        try:
+            authfile.add(authentry)
+        except AuthFileEntryAlreadyExists:
+            pass
+
         start_response('200 OK',
                        [('Content-Type', 'application/json')])
         return jsonapi.dumps(
@@ -334,6 +580,23 @@ class MasterWebService(Agent):
         data = env['wsgi.input'].read()
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
+
+        _log.debug('PATH IS: {}'.format(path_info))
+        # Get the peer responsible for dealing with the endpoint.  If there
+        # isn't a peer then fall back on the other methods of routing.
+        peer = self.endpoints.get(path_info)
+        _log.debug('Peer we path_info is associated with: {}'.format(peer))
+
+        # if we have a peer then we expect to call that peer's web subsystem
+        # callback to perform whatever is required of the method.
+        if peer:
+            _log.debug('Calling peer {} back with env={} data={}'.format(
+                peer, passenv, data
+            ))
+            res = self.vip.rpc.call(peer, 'route.callback',
+                                    passenv, data).get(timeout=60)
+            return self.create_response(res, start_response)
+
         for k, t, v in self.registeredroutes:
             if k.match(path_info):
                 _log.debug("MATCHED:\npattern: {}, path_info: {}\n v: {}"
@@ -347,20 +610,8 @@ class MasterWebService(Agent):
                     peer, fn = (v[0], v[1])
                     res = self.vip.rpc.call(peer, fn, passenv, data).get(
                         timeout=60)
-                    if isinstance(res, dict):
-                        _log.debug('res is a dictionary.')
-                        if 'error' in res.keys():
-                            if res['error']['code'] == UNAUTHORIZED:
-                                start_response('401 Unauthorized', [
-                                    ('Content-Type', 'text/html')])
-                                message = res['error']['message']
-                                code = res['error']['code']
-                                return [b'<h1>{}</h1>\n<h2>CODE:{}</h2>'
-                                            .format(message, code)]
-                    start_response('200 OK',
-                                   [('Content-Type', 'application/json')])
-                    _log.debug('RESPONSE WEB: {}'.format(res))
-                    return jsonapi.dumps(res)
+                    return self.create_response(res, start_response)
+
                 elif t == 'path':  # File service from agents on the platform.
                     server_path = v + path_info  # os.path.join(v, path_info)
                     _log.debug('Serverpath: {}'.format(server_path))
@@ -368,6 +619,22 @@ class MasterWebService(Agent):
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
         return [b'<h1>Not Found</h1>']
+
+    def create_response(self, res, start_response):
+        if isinstance(res, dict):
+            _log.debug('res is a dictionary.')
+            if 'error' in res.keys():
+                if res['error']['code'] == UNAUTHORIZED:
+                    start_response('401 Unauthorized', [
+                        ('Content-Type', 'text/html')])
+                    message = res['error']['message']
+                    code = res['error']['code']
+                    return [b'<h1>{}</h1>\n<h2>CODE:{}</h2>'
+                                .format(message, code)]
+        start_response('200 OK',
+                       [('Content-Type', 'application/json')])
+        _log.debug('RESPONSE WEB: {}'.format(res))
+        return jsonapi.dumps(res)
 
     def _sendfile(self, env, start_response, filename):
         from wsgiref.util import FileWrapper
@@ -415,18 +682,30 @@ class MasterWebService(Agent):
         logdir = os.path.join(vhome, "log")
         if not os.path.exists(logdir):
             os.makedirs(logdir)
-        with open(os.path.join(logdir, 'web.access.log'), 'wb') as accesslog:
-            with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
-                server = pywsgi.WSGIServer((hostname, port), self.app_routing,
-                                       log=accesslog, error_log=errlog)
-                try:
-                    server.serve_forever()
-                except Exception as e:
-                    message = 'bind-web-address {} is not available, stopping'
-                    message = message.format(self.bind_web_address)
-                    _log.error(message)
-                    print message
-                    sys.exit(1)
+
+        self.appContainer = WebApplicationWrapper(self, hostname, port)
+        svr = WSGIServer((hostname, port), self.appContainer)
+        self._server_greenlet = gevent.spawn(svr.serve_forever)
+
+        # with open(os.path.join(logdir, 'web.access.log'), 'wb') as accesslog:
+        #     with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
+        #         server = pywsgi.WSGIServer((hostname, port), self.app_routing,
+        #                                    log=accesslog, error_log=errlog)
+        #         try:
+        #             server.serve_forever()
+        #         except Exception as e:
+        #             message = 'bind-web-address {} is not available, stopping'
+        #             message = message.format(self.bind_web_address)
+        #             _log.error(message)
+        #             print message
+        #             sys.exit(1)
+
+                    # svr = WSGIServer((host, port))
+        # with open(os.path.join(logdir, 'web.access.log'), 'wb') as accesslog:
+        #     with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
+        #         server = pywsgi.WSGIServer((hostname, port), self.app_routing,
+        #                                log=accesslog, error_log=errlog)
+        #         server.serve_forever()
 
 
 def build_vip_address_string(vip_root, serverkey, publickey, secretkey):

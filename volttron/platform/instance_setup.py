@@ -186,7 +186,8 @@ volttron-cfg needs to be run from the volttron top level source directory.
 
 
 def _start_platform():
-    cmd = ['volttron', '-vv']
+    cmd = ['volttron', '-vv',
+           '-l', os.path.join(get_home(), 'volttron.cfg.log')]
     if verbose:
         print('Starting platform...')
     pid = Popen(cmd, env=os.environ.copy(), stdout=subprocess.PIPE,
@@ -465,7 +466,8 @@ def add_fake_device_to_configstore():
         _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
               'fake.csv', 'examples/configurations/drivers/fake.csv', '--csv'])
         _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
-              'devices/fake', 'examples/configurations/drivers/fake.config'])
+              'devices/fake-campus/fake-building/fake-device',
+              'examples/configurations/drivers/fake.config'])
 
 
 @installs('services/core/MasterDriverAgent', 'master_driver',

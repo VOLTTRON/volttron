@@ -172,12 +172,9 @@ def publish_agent(request, volttron_instance):
     """
     global actuator_uuid, publish_agent_v2
 
-    developer_mode = volttron_instance.opts.get('developer_mode', False);
 
     # Reset master driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
-    if developer_mode:
-        cmd.append('--developer-mode')
     process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -188,8 +185,6 @@ def publish_agent(request, volttron_instance):
     # Add master driver configuration files to config store.
     cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
            'fake.csv', 'fake_unit_testing.csv', '--csv']
-    if developer_mode:
-        cmd.append('--developer-mode')
     process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -201,8 +196,6 @@ def publish_agent(request, volttron_instance):
         config_name = "devices/fakedriver{}".format(i)
         cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
                config_name, 'fake_unit_testing.config', '--json']
-        if developer_mode:
-            cmd.append('--developer-mode')
         process = Popen(cmd, env=volttron_instance.env,
                         cwd='scripts/scalability-testing',
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -432,19 +425,6 @@ def test_schedule_announce(publish_agent, volttron_instance):
         datetime2 = utils.parse_timestamp_string(args_list2[4]['time'])
         delta = datetime2 - datetime1
         assert delta.seconds == 2
-
-        # Test message on schedule/result
-        assert publish_agent.callback.call_count == 1
-        print('call args ', publish_agent.callback.call_args[0][1])
-        assert publish_agent.callback.call_args[0][1] == alternate_actuator_vip_id
-        assert publish_agent.callback.call_args[0][3] == \
-            topics.ACTUATOR_SCHEDULE_RESULT
-        result_header = publish_agent.callback.call_args[0][4]
-        result_message = publish_agent.callback.call_args[0][5]
-        assert result_header['type'] == 'NEW_SCHEDULE'
-        assert result_header['taskID'] == 'task_schedule_announce'
-        # assert result_header['requesterID'] == TEST_AGENT
-        assert result_message['result'] == SUCCESS
 
     finally:
         # cancel so fakedriver0 can be used by other tests
@@ -794,7 +774,7 @@ def test_schedule_error_duplicate_task(publish_agent, cancel_schedules):
 
     print('call args list:', publish_agent.callback.call_args_list)
     # once for rpc call and once for publish
-    assert publish_agent.callback.call_count == 2
+    assert publish_agent.callback.call_count == 1
     print(publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == \

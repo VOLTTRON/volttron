@@ -4,10 +4,10 @@ VOLTTRON Quick Start Guide
 
 Note: the content of the user guide is being incorporated into the readthedocs site. Some quick links to get started are:
 
-`Install required software <../setup/VOLTTRON-Prerequisites.html>`_
+:ref:`Install required software <VOLTTRON-Prerequisites>`
 
-:doc:`Building the VOLTTRON project <../setup/Building-VOLTTRON>`
+:ref:`Building the VOLTTRON project <Building-VOLTTRON>`
 
-`Agent Development <../agent_development/Agent-Development.html>`_
+:ref:`Agent Development <Agent-Development>`
 
-`VOLTTRON Development in Eclipse <../eclipse/index.html>`_
+:ref:`VOLTTRON Development in Eclipse <Eclipse>`
