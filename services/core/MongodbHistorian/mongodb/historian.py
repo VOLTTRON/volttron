@@ -156,7 +156,7 @@ class MongodbHistorian(BaseHistorian):
                        topic_replace_list used by parent classes)
 
         """
-        super(MongodbHistorian, self).__init__(**kwargs)
+
         self.tables_def, table_names = self.parse_table_def(config)
         self._data_collection = table_names['data_table']
         self._meta_collection = table_names['meta_table']
@@ -179,16 +179,20 @@ class MongodbHistorian(BaseHistorian):
         self._inserted_hour_topics = set()
         self._periodic_rollup_event = None
         self._initial_rollup_start_time = get_aware_utc_now()
+        super(MongodbHistorian, self).__init__(**kwargs)
 
     @Core.periodic(10, wait=15)
     def periodic_rollup(self):
         _log.debug("periodic attempt to do daily and monthly rollup.")
-
+        if self._client is None:
+            _log.debug("historian setup not complete. "
+                       "wait for next periodic call")
+            return
         # Find the records that needs to be processed from data table
         db = self._client.get_default_database()
         stat = db.rollup_status.find_one({})
         if stat:
-            _log.debug("ROLLING FROM last processed id {}".format(
+            _log.debug("ROLLING FROM last processed id {}, {}".format(
                 stat["last_data_into_daily"], stat["last_data_into_monthly"]))
 
             if stat["last_data_into_daily"] < stat["last_data_into_monthly"]:
@@ -213,21 +217,18 @@ class MongodbHistorian(BaseHistorian):
         d = 0
         m = 0
         for row in cursor:
-
-            if row['_id'] > stat["last_data_into_daily"] :
+            if not stat or row['_id'] > stat["last_data_into_daily"] :
                 self.initialize_daily(topic_id=row['topic_id'],
-                                      ts=row['ts'],
-                                      value=row['value'])
+                                      ts=row['ts'])
                 bulk_publish_day.append(
                     self.insert_to_daily(db, topic_id=row['topic_id'],
                                          ts=row['ts'], value=row['value']))
                 day_ids.append(row['_id'])
                 d += 1
 
-            if row['_id'] > stat["last_data_into_monthly"]:
+            if not stat or row['_id'] > stat["last_data_into_monthly"]:
                 self.initialize_monthly(topic_id=row['topic_id'],
-                                        ts=row['ts'],
-                                        value=row['value'])
+                                        ts=row['ts'])
                 bulk_publish_month.append(
                     self.insert_to_monthly(db, topic_id=row['topic_id'],
                                            ts=row['ts'], value=row['value']))
@@ -242,6 +243,7 @@ class MongodbHistorian(BaseHistorian):
                     'daily', bulk_publish_day, day_ids, db)
                 d = 0
             if m == 1000:
+                #gevent.sleep(20)
                 bulk_publish_month, month_ids, m_errors = \
                     self.bulk_write_rolledup_data(
                     'monthly', bulk_publish_month, month_ids, db)
@@ -275,6 +277,7 @@ class MongodbHistorian(BaseHistorian):
         '''
         errors = False
         try:
+            _log.debug("Before bulk write to "+time_period)
             db[time_period + '_data'].bulk_write(requests, ordered=True)
         except BulkWriteError as ex:
             _log.error(str(ex.details))
@@ -285,8 +288,12 @@ class MongodbHistorian(BaseHistorian):
                     "last_data_into_" + time_period: ids[error_index - 1]}})
         else:
             # Record last data row that was rolled up
-            db.rollup_status.update_one({}, {
-                "$set": {"last_data_into_" + time_period: ids[-1]}})
+            result = db.rollup_status.update_one(
+                {},
+                {"$set": {"last_data_into_" + time_period: ids[-1]}},
+                upsert=True)
+            _log.debug("Inserting into rollup_status. result {}".format(
+                result))
             ids = []
             requests = []
         return requests, ids, errors
@@ -295,16 +302,16 @@ class MongodbHistorian(BaseHistorian):
         return __version__
 
 
-    def initialize_hourly(self, topic_id, ts, value, callback):
+    def initialize_hourly(self, topic_id, ts):
         ts_hour = ts.replace(minute=0, second=0, microsecond=0)
 
         db = self._client.get_default_database()
         needs_initializing = not db.hourly_data.find(
             {'ts': ts_hour, 'topic_id': topic_id}).count() > 0
 
-        _log.debug("needs_intializing? {}".format(
-            needs_initializing
-        ))
+        # _log.debug("needs_intializing? {}".format(
+        #     needs_initializing
+        # ))
 
         if needs_initializing:
             db['hourly_data'].update_one(
@@ -321,7 +328,7 @@ class MongodbHistorian(BaseHistorian):
             return True
         return False
 
-    def initialize_daily(self, topic_id, ts, value):
+    def initialize_daily(self, topic_id, ts):
         ts_day = ts.replace(hour=0, minute=0, second=0, microsecond=0)
 
         db = self._client.get_default_database()
@@ -342,7 +349,7 @@ class MongodbHistorian(BaseHistorian):
                 upsert=True)
 
 
-    def initialize_monthly(self, topic_id, ts, value):
+    def initialize_monthly(self, topic_id, ts):
         ts_month = ts.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         db = self._client.get_default_database()
@@ -421,7 +428,7 @@ class MongodbHistorian(BaseHistorian):
         bulk_publish_day = []
         bulk_publish_month = []
         for x in to_publish_list:
-            _log.debug("SOURCE IS: {}".format(x['source']))
+            #_log.debug("SOURCE IS: {}".format(x['source']))
             ts = x['timestamp']
             topic = x['topic']
             value = x['value']
@@ -451,9 +458,9 @@ class MongodbHistorian(BaseHistorian):
                 if int(self.version_nums[0]) >= 2:
                     # Since we know it's a new topic we can just initialize
                     # straight away
-                    self.initialize_hourly(topic_id, ts, value, None)
-                    self.initialize_daily(topic_id, ts, value, None)
-                    self.initialize_monthly(topic_id, ts, value, None)
+                    self.initialize_hourly(topic_id, ts)
+                    self.initialize_daily(topic_id, ts)
+                    self.initialize_monthly(topic_id, ts)
 
                     _log.debug("After init of rollup rows for new topic {} "
                                "hr-{} day-{} month-{}".format(db_topic_name,
@@ -485,7 +492,6 @@ class MongodbHistorian(BaseHistorian):
                  'value': value},
                 upsert=True))
 
-            needed_intialization = False
             if int(self.version_nums[0]) >= 2:
                 def callback_done(type, topic_id, ts, value):
                     _log.debug("DONE WITH INIT OF {}".format(type))
@@ -494,10 +500,7 @@ class MongodbHistorian(BaseHistorian):
                     else:
                         self.insert_to_monthly(db, topic_id, ts, value)
 
-                needed_intialization = self.initialize_hourly(topic_id,
-                                                              ts,
-                                                              value,
-                                                              callback_done)
+                self.initialize_hourly(topic_id, ts)
 
                 sum_value = MongodbHistorian.value_to_sumable(value)
 
@@ -519,9 +522,9 @@ class MongodbHistorian(BaseHistorian):
 
         # done going through all data and adding appropriate updates stmts
         # perform bulk write into data and roll up collections
-        _log.debug("bulk_publish_hour {}".format(bulk_publish_hour))
-        _log.debug("bulk_publish_day {}".format(bulk_publish_day))
-        _log.debug("bulk_publish_month {}".format(bulk_publish_month))
+        # _log.debug("bulk_publish_hour {}".format(bulk_publish_hour))
+        # _log.debug("bulk_publish_day {}".format(bulk_publish_day))
+        # _log.debug("bulk_publish_month {}".format(bulk_publish_month))
         try:
             # http://api.mongodb.org/python/current/api/pymongo
             # /collection.html#pymongo.collection.Collection.bulk_write
