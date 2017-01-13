@@ -1574,7 +1574,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         var index = -1;
 
         var deviceInList = _devices.find(function (dvc, i) {
-            var match = ((dvc.id === device.deviceId) && (dvc.address === device.deviceAddress) && (dvc.name === deviceName));
+            var match = ((dvc.id === device.id) && (dvc.address === device.address) && (dvc.name === device.name));
 
             if (match)
             {
