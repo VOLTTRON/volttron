@@ -402,7 +402,7 @@ def parse_timestamp_string(time_stamp_str):
             time_stamp = datetime.strptime(base_time_stamp_str, "%Y-%m-%dT%H:%M:%S.%f")
             #Handle most common case.
             if time_zone_str == "+00:00":
-                return time_stamp.replace(tzinfo=tzutc())
+                return time_stamp.replace(tzinfo=pytz.UTC)
 
             hours_offset = int(time_zone_str[1:3])
             minutes_offset = int(time_zone_str[4:6])
@@ -463,14 +463,14 @@ def process_timestamp(timestamp_string, topic=''):
         return
 
     try:
-        timestamp = parse(timestamp_string)
+        timestamp = parse_timestamp_string(timestamp_string)
     except (ValueError, TypeError):
         _log.error("message for {topic} bad timetamp string: {ts_string}"
                    .format(topic=topic, ts_string=timestamp_string))
         return
 
     if timestamp.tzinfo is None:
-        timestamp.replace(tzinfo=pytz.UTC)
+        timestamp = timestamp.replace(tzinfo=pytz.UTC)
         original_tz = None
     else:
         original_tz = timestamp.tzinfo
