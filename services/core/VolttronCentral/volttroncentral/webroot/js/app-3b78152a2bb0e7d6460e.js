@@ -38899,7 +38899,7 @@
 	        var index = -1;
 	
 	        var deviceInList = _devices.find(function (dvc, i) {
-	            var match = dvc.id === device.deviceId && dvc.address === device.deviceAddress && dvc.name === deviceName;
+	            var match = dvc.id === device.id && dvc.address === device.address && dvc.name === device.name;
 	
 	            if (match) {
 	                index = i;
@@ -76134,7 +76134,7 @@
 	
 	        var state = {};
 	
-	        state.chartName = this.props.name.replace(" / ", "_") + '_chart';
+	        state.chartName = "vc_" + this.props.name.replace(" / ", "_") + '_chart';
 	        state.chartName = state.chartName.replace(pattern, "_");
 	        state.lineChart = null;
 	        state.pinned = this.props.pinned;
@@ -116758,4 +116758,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-be07f3ca911e829993ef.js.map
+//# sourceMappingURL=app-3b78152a2bb0e7d6460e.js.map
