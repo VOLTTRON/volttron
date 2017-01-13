@@ -175,24 +175,16 @@ class ModbusByteRegister(ModbusRegisterBase):
         #skip the result count
         return self.parse_struct.unpack(response_bytes[1:])[0]
     
-    
     def set_state(self, client, value):
         if not self.read_only:   
             value_bytes = self.parse_struct.pack(value)
             register_values = []
-            n=2
-            paired = [value_bytes[i:i+n] for i in range(0, len(value_bytes), n)]
-            register_values = [ PYMODBUS_REGISTER_STRUCT.unpack_from(pair)[0]
-                                for pair in paired]
-            # talking with PNNL about this change to
-            # enable larger registers:
-            #register_values = []
-            #for i in range(0, len(value_bytes),2):
-            #    register_values += PYMODBUS_REGISTER_STRUCT.unpack_from(
-            #        value_bytes[1:1+1])
-            client.write_registers(self.address, register_values, unit=self.slave_id)
+            for i in xrange(0, len(value_bytes), PYMODBUS_REGISTER_STRUCT.size):
+                register_values.extend(PYMODBUS_REGISTER_STRUCT.unpack_from(value_bytes, i))
+                client.write_registers(self.address, register_values, unit=self.slave_id)
             return self.get_state(client)
         return None
+    
     
         
 class Interface(BasicRevert, BaseInterface):
