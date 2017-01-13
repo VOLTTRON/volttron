@@ -362,6 +362,11 @@ class DriverAgent(BasicAgent):
     def set_point(self, point_name, value, **kwargs):
         return self.interface.set_point(point_name, value, **kwargs)
 
+    def get_multiple_points(self, point_names, **kwargs):
+        return self.interface.get_multiple_points(self.device_name,
+                                                  point_names,
+                                                  **kwargs)
+
     def set_multiple_points(self, point_names_values, **kwargs):
         return self.interface.set_multiple_points(self.device_name,
                                                   point_names_values,

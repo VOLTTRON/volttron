@@ -13,29 +13,15 @@ var HtmlWebpackPlugin = require('html-webpack-plugin');
 // enforce same case as file system
 var CaseSensitivePathsPlugin = require('case-sensitive-paths-webpack-plugin');
 
-// specify certain files to live outside webpack's world
-// var CopyWebpackPlugin = require('copy-webpack-plugin');
 var argv = require('yargs').argv;
 var url = require('url');
-
-// used for globals if needed
-//
-// let serviceUrl = argv['service-url'];
-// serviceUrl = url.parse(serviceUrl);
-// const serviceHost = serviceUrl.host ? serviceUrl.protocol + '//' + serviceUrl.host : '/';
-// const servicePath = serviceUrl.path;
 
 // --p or --optimize-minimize
 const IS_PRODUCTION = argv.p || argv['optimize-minimize'];
 
 const BUILD_PATH = path.join(__dirname, './volttroncentral/webroot');
-// var APP_GLOB = '{css,fonts,js}/app-*';
-// var VENDOR_GLOB = '{css,js}/{normalize,vendor}-*';
 
 const HTML_FILE_NAME = 'index.html';
-
-// do sourcemaps for prod
-// var sourceMapOption = IS_PRODUCTION ? '' : '?sourceMap';
 
 // webpack will hash in square brackets for production builds
 var doHash = IS_PRODUCTION ? '.[hash]' : '';
@@ -43,8 +29,7 @@ var doHash = IS_PRODUCTION ? '.[hash]' : '';
 module.exports = {
     context: path.join(__dirname, '/ui-src'),
     entry: {
-        app: './js/app.jsx'/*,
-        css: './css/app.css'*/
+        app: './js/app.jsx'
     },
     output: {
         path: BUILD_PATH,
@@ -89,11 +74,6 @@ module.exports = {
                 loaders: ['babel'],
                 include: path.join(__dirname, 'ui-src')
             },
-            // {
-            //     test: /\.css$/,
-            //     loader: 'style!css',
-            //     include: path.join(__dirname, 'ui-src')
-            // },
             {
                 test: /\.css$/,
                 loader: ExtractTextPlugin.extract("style-loader", "css-loader"),
@@ -131,30 +111,12 @@ module.exports = {
             filename: HTML_FILE_NAME,
             template: HTML_FILE_NAME
         }),
-        
-        // useful for external libraries and their assets
-        // new CopyWebpackPlugin([
-        //     { 
-        //         from: path.join(__dirname, 'vendor/foo/assets'), 
-        //         to: 'foo/assets' 
-        //     },
-        // ]),
-        // For globals if needed
-        // new webpack.DefinePlugin({
-        //            SERVICE_HOST: JSON.stringify(serviceHost),
-        //            SERVICE_PATH: JSON.stringify(servicePath),
-        // }),
         new CaseSensitivePathsPlugin(),
         new CleanWebpackPlugin([
             BUILD_PATH + "/js", 
             BUILD_PATH + "/css", 
             BUILD_PATH + "/fonts"
         ]),
-        // Enable multi-pass compilation for enhanced performance
-        // in larger projects. Good default.
-        // new webpack.HotModuleReplacementPlugin({
-        //     multiStep: true
-        // }),
         
         new ExtractTextPlugin("css/[name]-[hash].css")
 

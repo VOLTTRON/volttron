@@ -73,7 +73,8 @@ class FileExportButton extends BaseComponent {
             content: "Export " + this.props.fileName,
             tooltipClass: "fileExportTooltip",
             "x": this.props.tooltipX,
-            "y": this.props.tooltipY
+            "y": this.props.tooltipY,
+            "nobr": true
         };
 
         var exportIcon = <span>&#x27A0;</span>;

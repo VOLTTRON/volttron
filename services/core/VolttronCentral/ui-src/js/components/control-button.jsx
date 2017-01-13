@@ -204,14 +204,27 @@ class ControlButton extends BaseComponent {
 	        tooltipShow = this._showTooltip;
 	        tooltipHide = this._hideTooltip;
 
-        	tooltip = (<div className={toolTipClasses.join(" ")}
-                            style={tooltipStyle}>
-                            <div className="tooltip_inner">
-                                <div className="opaque_inner">
-                                    {this.props.tooltip.content}
-                                </div>
-                            </div>
-                        </div>)
+            var tooltipContent = this.props.tooltip.content;
+            
+            if (this.props.tooltip.nobr)
+            {
+                tooltipContent = (
+                    <nobr>
+                        {this.props.tooltip.content}
+                    </nobr>
+                );
+            }
+
+            tooltip = (
+                <div className={toolTipClasses.join(" ")}
+                    style={tooltipStyle}>
+                    <div className="tooltip_inner">
+                        <div className="opaque_inner">
+                            {tooltipContent}
+                        </div>
+                    </div>
+                </div>
+            );
         }
         
 

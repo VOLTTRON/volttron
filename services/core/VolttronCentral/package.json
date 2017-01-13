@@ -1,13 +1,9 @@
 {
   "name": "volttron.platform-manager-agent.ui",
   "private": true,
-  "scripts": {
-    "eslint": "eslint --ignore-pattern node_modules --ext .js --ext .jsx mgrs-to-coordinates service src; exit 0",
-    "watch": "webpack-dev-server --watch --progress --colors --inline --hot --devtool inline-source-map",
-    "watch-production": "webpack-dev-server --watch --compress --progress --colors --inline --hot --optimize-minimize --optimize-occurence-order --optimize-dedupe",
-    "build": "webpack --progress --colors --optimize-minimize --optimize-occurence-order --optimize-dedupe",
-    "build-watch": "webpack --progress --watch --colors --devtool source-map",
-    "build-development": "webpack --progress --colors --devtool inline-source-map"
+  "scripts": {    
+    "build-prod": "webpack --progress --colors --optimize-minimize --optimize-occurence-order --optimize-dedupe",
+    "build-dev": "webpack --progress --watch --colors --devtool source-map"
   },
   "devDependencies": {
     "babel-core": "^6.17.0",

@@ -16,7 +16,10 @@ var Navigation = React.createClass({
         authorizationStore.removeChangeListener(this._onStoreChange);
     },
     _onStoreChange: function () {
-        this.setState(getStateFromStores());
+        if (this.componentDom)
+        {
+            this.setState(getStateFromStores());
+        }
     },
     _onLogOutClick: function () {
         platformManagerActionCreators.clearAuthorization();
@@ -53,8 +56,11 @@ var Navigation = React.createClass({
         }
 
         return (
+
 	<div >
-            <nav className="navigation">
+            <nav className="navigation"   ref={function(nav) {
+                        this.componentDom = nav;
+                    }.bind(this)} >
 	<span text-align="left">
                 <h1 className="logo" text-align="left" >
 	 <img src="/img/fraunhofer_square.gif" height="50" align="left" text-align="top" />
