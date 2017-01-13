@@ -58,6 +58,7 @@ import ast
 import errno
 import logging
 import sqlite3
+import pytz
 import threading
 from collections import defaultdict
 from datetime import datetime
@@ -249,27 +250,28 @@ class SqlLiteFuncts(DbDriver):
 
         where_clauses = ["WHERE topic_id = ?"]
         args = [topic_ids[0]]
-        start_str = ""
-        end_str = ""
+
         if start:
-            start_str = start.isoformat(' ')
-            if start_str[-6:] != "+00:00":
-                start_str += "+00:00"
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=pytz.UTC)
+            else:
+                start = start.astimezone(pytz.UTC)
 
         if end:
-            end_str = end.isoformat(' ')
-            if end_str[-6:] != "+00:00":
-                end_str += "+00:00"
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=pytz.UTC)
+            else:
+                end = end.astimezone(pytz.UTC)
 
         if start and end and start == end:
             where_clauses.append("ts = ?")
-            args.append(start_str)
+            args.append(start)
         elif start:
             where_clauses.append("ts >= ?")
-            args.append(start_str)
+            args.append(start)
         elif end:
             where_clauses.append("ts < ?")
-            args.append(end_str)
+            args.append(end)
 
 
         where_statement = ' AND '.join(where_clauses)
