@@ -46,7 +46,7 @@ function flame() {
       <h2>Page refreshed at {new Date().toLocaleTimeString()}.</h2>
     </div>
   );
-	React.render(
+	ReactDOM.render(
     	element,
     	document.getElementById('flame')
   	);	
@@ -65,7 +65,7 @@ var FLAME = React.createClass({
     return (
     <div className="view">
                 <div className="absolute_anchor">
-    <h2>Open ADR</h2>
+    <h2>FLAME</h2>
     This space for: listing each Flame partner, with time since last contact,
     reports, and events.
      {new Date().toLocaleTimeString()}
