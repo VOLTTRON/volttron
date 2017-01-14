@@ -101,6 +101,13 @@ def test_can_call_rpc_method(vcp_conn):
 
 
 @pytest.mark.vcp
+def test_can_get_version(vcp_conn):
+    version = vcp_conn.call('agent.version', timeout=2)
+    assert version is not None
+    assert version == '3.6.0'
+
+
+@pytest.mark.vcp
 def test_manager_required(vcp_conn):
 
     # These are the rpc methods that require management.  We can test

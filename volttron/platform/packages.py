@@ -440,6 +440,11 @@ class UnpackedPackage(object):
         name = metadata['name']
         version = metadata['version']
         return '-'.join([name, version])
+
+    @property
+    def version(self):
+        metadata = self.metadata
+        return metadata['version']
     
     @property
     def wheel_name(self):

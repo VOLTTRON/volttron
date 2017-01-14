@@ -154,7 +154,6 @@ def test_get_health(vcp_simulated_vc):
     assert health['status'] == STATUS_GOOD
     assert health['context'] == 'Let the good-times role'
 
-
 @pytest.mark.pa
 def test_listagents(vcp_simulated_vc):
     try:
