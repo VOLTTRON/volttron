@@ -363,7 +363,7 @@ def main(argv=sys.argv):
     """
 
     try:
-        utils.vip_main(historian)
+        utils.vip_main(historian, version=__version__)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')

@@ -1102,7 +1102,8 @@ def main(argv=sys.argv):
     :return:
     """
     # utils.vip_main(platform_agent)
-    utils.vip_main(VolttronCentralPlatform, identity=VOLTTRON_CENTRAL_PLATFORM)
+    utils.vip_main(VolttronCentralPlatform, identity=VOLTTRON_CENTRAL_PLATFORM,
+                   version=__version__)
 
 
 if __name__ == '__main__':

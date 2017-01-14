@@ -171,7 +171,8 @@ class ThresholdDetectionAgent(Agent):
 
 def main(argv=sys.argv):
     '''Main method called by the platform.'''
-    utils.vip_main(thresholddetection_agent, identity='platform.thresholddetection')
+    utils.vip_main(thresholddetection_agent,
+                   identity='platform.thresholddetection', version=__version__)
 
 if __name__ == '__main__':
     # Entry point for script
