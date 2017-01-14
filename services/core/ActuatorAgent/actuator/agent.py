@@ -961,6 +961,40 @@ class ActuatorAgent(Agent):
         return result
 
     @RPC.export
+    def get_multiple_points(self, topics, **kwargs):
+        """RPC method
+
+        Get multiple points on multiple devices. Makes a single
+        RPC call to the master driver per device.
+
+        :param topics: List of topics
+        :param \*\*kwargs: Any driver specific parameters
+
+        :returns: Dictionary of points to values and dictonary of points to errors
+
+        .. warning:: This method does not require that all points be returned
+                     successfully. Check that the error dictionary is empty.
+        """
+        devices = collections.defaultdict(list)
+        for topic in topics:
+            topic = topic.strip('/')
+            device, point_name = topic.rsplit('/', 1)
+            devices[device].append(point_name)
+
+        results = {}
+        errors = {}
+        for device, point_names in devices.iteritems():
+            r, e = self.vip.rpc.call(self.driver_vip_identity,
+                                     'get_multiple_points',
+                                     device,
+                                     point_names,
+                                     **kwargs).get()
+            results.update(r)
+            errors.update(e)
+
+        return results, errors
+
+    @RPC.export
     def set_multiple_points(self, requester_id, topics_values, **kwargs):
         """RPC method
 

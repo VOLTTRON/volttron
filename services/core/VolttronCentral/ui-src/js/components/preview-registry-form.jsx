@@ -19,6 +19,15 @@ class PreviewRegistryForm extends BaseComponent {
             reconfiguring: (this.props.fileName ? true : false)
         }
 
+        if (this.state.reconfiguring)
+        {
+            this.state.deviceInfo = this.props.deviceName;
+        }
+        else
+        {
+            this.state.deviceInfo = this.props.deviceName + " / " + this.props.deviceAddress + " / " + this.props.deviceId;
+        }
+
         this.state.otherFileNames = getOtherRegistryFileNames();
     }
     _toggleLayout(itemKey) {
@@ -196,7 +205,7 @@ class PreviewRegistryForm extends BaseComponent {
         return (
             <form className="preview-registry-form" onSubmit={this._onSubmit}>
                 <h1>Save this registry configuration?</h1>
-                <h4>{this.props.deviceName} / {this.props.deviceAddress} / {this.props.deviceId}</h4>
+                <h4>{this.state.deviceInfo}</h4>
                 { layoutToggle }
                 { content }
 

@@ -91,6 +91,8 @@
 	var PlatformCharts = __webpack_require__(547);
 	var Navigation = __webpack_require__(326);
 	var devicesActionCreators = __webpack_require__(309);
+	var StatusIndicator = __webpack_require__(328);
+	var statusIndicatorStore = __webpack_require__(329);
 	
 	var _afterLoginPath = '/dashboard';
 	
@@ -130,7 +132,31 @@
 	var PublicExterior = React.createClass({
 	    displayName: 'PublicExterior',
 	
+	    getInitialState: function getInitialState() {
+	        var state = {
+	            status: statusIndicatorStore.getStatus(),
+	            statusMessage: statusIndicatorStore.getStatusMessage()
+	        };
+	
+	        return state;
+	    },
+	    componentDidMount: function componentDidMount() {
+	        statusIndicatorStore.addChangeListener(this._onStoreChange);
+	    },
+	    componentWillUnmount: function componentWillUnmount() {
+	        statusIndicatorStore.removeChangeListener(this._onStoreChange);
+	    },
+	    _onStoreChange: function _onStoreChange() {
+	        this.setState({ status: statusIndicatorStore.getStatus() });
+	        this.setState({ statusMessage: statusIndicatorStore.getStatusMessage() });
+	    },
 	    render: function render() {
+	
+	        var statusIndicator;
+	
+	        if (this.state.status) {
+	            statusIndicator = React.createElement(StatusIndicator, { status: this.state.statusMessage });
+	        }
 	
 	        return React.createElement(
 	            'div',
@@ -138,6 +164,7 @@
 	            React.createElement(
 	                'div',
 	                { className: 'main' },
+	                statusIndicator,
 	                React.createElement(Navigation, null),
 	                this.props.children
 	            )
@@ -11337,6 +11364,16 @@
 	                tooltipShow = this._showTooltip;
 	                tooltipHide = this._hideTooltip;
 	
+	                var tooltipContent = this.props.tooltip.content;
+	
+	                if (this.props.tooltip.nobr) {
+	                    tooltipContent = _react2.default.createElement(
+	                        'nobr',
+	                        null,
+	                        this.props.tooltip.content
+	                    );
+	                }
+	
 	                tooltip = _react2.default.createElement(
 	                    'div',
 	                    { className: toolTipClasses.join(" "),
@@ -11347,7 +11384,7 @@
 	                        _react2.default.createElement(
 	                            'div',
 	                            { className: 'opaque_inner' },
-	                            this.props.tooltip.content
+	                            tooltipContent
 	                        )
 	                    )
 	                );
@@ -38862,7 +38899,7 @@
 	        var index = -1;
 	
 	        var deviceInList = _devices.find(function (dvc, i) {
-	            var match = dvc.id === device.deviceId && dvc.address === device.deviceAddress && dvc.name === deviceName;
+	            var match = dvc.id === device.id && dvc.address === device.address && dvc.name === device.name;
 	
 	            if (match) {
 	                index = i;
@@ -58321,7 +58358,7 @@
 	    openConfigureWS: openConfigureWS,
 	    openIAmWS: openIAmWS,
 	    setAuthorization: setAuthorization
-	}; // let pubsub = ws; //let pubsub =  new WsPubSub(ws_root);
+	};
 
 /***/ },
 /* 306 */
@@ -58403,13 +58440,7 @@
 	
 	        series.forEach(function (item) {
 	
-	            var topic = item.topic;
-	
-	            var index = item.topic.indexOf("devices/");
-	
-	            if (index === 0) {
-	                topic = item.topic.replace("devices/", "");
-	            }
+	            var topic = prepTopic(item.topic);
 	
 	            new rpc.Exchange({
 	                method: 'historian.query',
@@ -58443,194 +58474,15 @@
 	
 	        var authorization = authorizationStore.getAuthorization();
 	
-	        var topic = panelItem.topic;
-	
-	        var index = panelItem.topic.indexOf("devices/");
-	
-	        if (index === 0) {
-	            topic = panelItem.topic.replace("devices/", "");
-	        }
-	
-	        new rpc.Exchange({
-	            method: 'historian.query',
-	            params: {
-	                topic: topic,
-	                count: 20,
-	                order: 'LAST_TO_FIRST'
-	            },
-	            authorization: authorization
-	        }).promise.then(function (result) {
-	
-	            if (result.hasOwnProperty("values")) {
-	                panelItem.data = result.values;
-	
-	                panelItem.data.forEach(function (datum) {
-	                    datum.name = panelItem.name;
-	                    datum.parent = panelItem.parentPath;
-	                    datum.uuid = panelItem.uuid;
-	                });
-	
-	                dispatcher.dispatch({
-	                    type: ACTION_TYPES.SHOW_CHARTS,
-	                    emitChange: emitChange === null || typeof emitChange === "undefined" ? true : emitChange
-	                });
-	
-	                dispatcher.dispatch({
-	                    type: ACTION_TYPES.ADD_TO_CHART,
-	                    panelItem: panelItem
-	                });
-	
-	                platformsPanelActionCreators.checkItem(panelItem.path, true);
-	
-	                var savedCharts = platformChartStore.getPinnedCharts();
-	                var inSavedChart = savedCharts.find(function (chart) {
-	                    return chart.chartKey === panelItem.name;
-	                });
-	
-	                if (inSavedChart) {
-	                    platformActionCreators.saveCharts(savedCharts);
-	                }
-	            } else {
-	                var message = "Unable to load chart: An unknown problem occurred.";
-	                var orientation = "center";
-	                var error = {};
-	
-	                if (panelItem.path && panelItem.path.length > 1) {
-	                    var platformPath = panelItem.path.slice(0, 1);
-	                    var uuid = panelItem.path[1];
-	
-	                    var platform = platformsPanelItemsStore.getItem(platformPath);
-	
-	                    message = "Unable to load chart: No data was retrieved for " + topic + ". Check for proper configuration " + " of any forwarder, master driver, and platform agents on platform " + platform[uuid].name;
-	                    orientation = "left";
-	                }
-	
-	                platformsPanelActionCreators.checkItem(panelItem.path, false);
-	                handle401(error, message, null, orientation);
-	            }
-	        }).catch(rpc.Error, function (error) {
-	
-	            var message = "Unable to load chart: " + error.message;
-	            var orientation;
-	
-	            if (error.code === -32602) {
-	                if (error.message === "historian unavailable") {
-	                    message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
-	                    orientation = "left";
-	                }
-	            } else {
-	                var vcInstance = platformsStore.getVcInstance();
-	
-	                if (vcInstance) {
-	                    var historianRunning = platformsStore.getVcHistorianRunning(vcInstance);
-	
-	                    if (!historianRunning) {
-	                        message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
-	                        orientation = "left";
-	                    }
-	                } else {
-	                    message = "Unable to load chart: An unknown problem occurred.";
-	                    orientation = "left";
-	                }
-	            }
-	
-	            platformsPanelActionCreators.checkItem(panelItem.path, false);
-	            handle401(error, message, null, orientation);
-	        });
+	        loadChart(panelItem, emitChange, authorization);
 	    },
 	    addToCharts: function addToCharts(panelItems) {
 	
 	        var authorization = authorizationStore.getAuthorization();
+	        var emitChange = false;
 	
 	        panelItems.forEach(function (panelItem) {
-	
-	            var topic = panelItem.topic;
-	
-	            var index = panelItem.topic.indexOf("devices/");
-	
-	            if (index === 0) {
-	                topic = panelItem.topic.replace("devices/", "");
-	            }
-	
-	            new rpc.Exchange({
-	                method: 'historian.query',
-	                params: {
-	                    topic: topic,
-	                    count: 20,
-	                    order: 'LAST_TO_FIRST'
-	                },
-	                authorization: authorization
-	            }).promise.then(function (result) {
-	
-	                if (result.hasOwnProperty("values")) {
-	                    panelItem.data = result.values;
-	
-	                    panelItem.data.forEach(function (datum) {
-	                        datum.name = panelItem.name;
-	                        datum.parent = panelItem.parentPath;
-	                        datum.uuid = panelItem.uuid;
-	                    });
-	
-	                    dispatcher.dispatch({
-	                        type: ACTION_TYPES.SHOW_CHARTS,
-	                        emitChange: false
-	                    });
-	
-	                    dispatcher.dispatch({
-	                        type: ACTION_TYPES.ADD_TO_CHART,
-	                        panelItem: panelItem
-	                    });
-	
-	                    platformsPanelActionCreators.checkItem(panelItem.path, true);
-	
-	                    var savedCharts = platformChartStore.getPinnedCharts();
-	                    var inSavedChart = savedCharts.find(function (chart) {
-	                        return chart.chartKey === panelItem.name;
-	                    });
-	
-	                    if (inSavedChart) {
-	                        platformActionCreators.saveCharts(savedCharts);
-	                    }
-	                } else {
-	                    var message = "Unable to load chart: An unknown problem occurred.";
-	                    var orientation = "center";
-	                    var error = {};
-	
-	                    if (panelItem.path && panelItem.path.length > 1) {
-	                        var platformUuid = panelItem.path[1];
-	                        var forwarderRunning = platformsStore.getForwarderRunning(platformUuid);
-	
-	                        if (!forwarderRunning) {
-	                            message = "Unable to load chart: The forwarder agent for the device's platform isn't available.";
-	                            orientation = "left";
-	                        }
-	                    }
-	
-	                    platformsPanelActionCreators.checkItem(panelItem.path, false);
-	                    handle401(error, message, null, orientation);
-	                }
-	            }).catch(rpc.Error, function (error) {
-	
-	                var message = "Unable to load chart: " + error.message;
-	                var orientation;
-	
-	                if (error.code === -32602) {
-	                    if (error.message === "historian unavailable") {
-	                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
-	                        orientation = "left";
-	                    }
-	                } else {
-	                    var historianRunning = platformsStore.getVcHistorianRunning();
-	
-	                    if (!historianRunning) {
-	                        message = "Unable to load chart: The VOLTTRON Central platform's historian is unavailable.";
-	                        orientation = "left";
-	                    }
-	                }
-	
-	                platformsPanelActionCreators.checkItem(panelItem.path, false);
-	                handle401(error, message, null, orientation);
-	            });
+	            loadChart(panelItem, emitChange, authorization);
 	        });
 	    },
 	    removeFromChart: function removeFromChart(panelItem) {
@@ -58658,6 +58510,112 @@
 	            name: chartName
 	        });
 	    }
+	};
+	
+	function prepTopic(itemTopic) {
+	    var topic = itemTopic;
+	
+	    var index = itemTopic.indexOf("devices/");
+	
+	    if (index === 0) {
+	        topic = itemTopic.replace("devices/", "");
+	    }
+	
+	    return topic;
+	}
+	
+	function loadChart(panelItem, emitChange, authorization) {
+	
+	    var topic = prepTopic(panelItem.topic);
+	
+	    new rpc.Exchange({
+	        method: 'historian.query',
+	        params: {
+	            topic: topic,
+	            count: 20,
+	            order: 'LAST_TO_FIRST'
+	        },
+	        authorization: authorization
+	    }).promise.then(function (result) {
+	
+	        if (result.hasOwnProperty("values")) {
+	            panelItem.data = result.values;
+	
+	            panelItem.data.forEach(function (datum) {
+	                datum.name = panelItem.name;
+	                datum.parent = panelItem.parentPath;
+	                datum.uuid = panelItem.uuid;
+	            });
+	
+	            dispatcher.dispatch({
+	                type: ACTION_TYPES.SHOW_CHARTS,
+	                emitChange: emitChange === null || typeof emitChange === "undefined" ? true : emitChange
+	            });
+	
+	            dispatcher.dispatch({
+	                type: ACTION_TYPES.ADD_TO_CHART,
+	                panelItem: panelItem
+	            });
+	
+	            platformsPanelActionCreators.checkItem(panelItem.path, true);
+	
+	            var savedCharts = platformChartStore.getPinnedCharts();
+	            var inSavedChart = savedCharts.find(function (chart) {
+	                return chart.chartKey === panelItem.name;
+	            });
+	
+	            if (inSavedChart) {
+	                platformActionCreators.saveCharts(savedCharts);
+	            }
+	        } else {
+	            var message = "Unable to load chart: An unknown problem occurred.";
+	            var orientation = "center";
+	            var error = {};
+	            var highlight = null;
+	
+	            if (panelItem.path && panelItem.path.length > 1) {
+	                var platformPath = panelItem.path.slice(0, 1);
+	                var uuid = panelItem.path[1];
+	
+	                var platform = platformsPanelItemsStore.getItem(platformPath);
+	
+	                message = "Unable to load chart: No data was retrieved for " + topic + ". Check for proper configuration " + " of any forwarder, master driver, and platform agents on platform '" + platform[uuid].name + "'.";
+	                orientation = "left";
+	                highlight = topic;
+	            }
+	
+	            platformsPanelActionCreators.checkItem(panelItem.path, false);
+	            handle401(error, message, highlight, orientation);
+	        }
+	    }).catch(rpc.Error, function (error) {
+	
+	        var message = "Unable to load chart: " + error.message;
+	        var orientation;
+	
+	        if (error.code === -32602) {
+	            if (error.message === "historian unavailable") {
+	                message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
+	                orientation = "left";
+	            }
+	        } else {
+	            var vcInstance = platformsStore.getVcInstance();
+	
+	            if (vcInstance) {
+	                var historianRunning = platformsStore.getVcHistorianRunning(vcInstance);
+	
+	                if (!historianRunning) {
+	                    message = "Unable to load chart: The platform historian is unavailable on the VOLTTRON Central platform.";
+	                    orientation = "left";
+	                }
+	            } else {
+	                message = "Unable to load chart: An unknown problem occurred.";
+	                orientation = "left";
+	            }
+	        }
+	
+	        platformsPanelActionCreators.checkItem(panelItem.path, false);
+	        handle401(error, message, null, orientation);
+	    });
 	};
 	
 	function handle401(error, message, highlight, orientation) {
@@ -61308,7 +61266,9 @@
 	        authorizationStore.removeChangeListener(this._onStoreChange);
 	    },
 	    _onStoreChange: function _onStoreChange() {
-	        this.setState(getStateFromStores());
+	        if (this.componentDom) {
+	            this.setState(getStateFromStores());
+	        }
 	    },
 	    _onLogOutClick: function _onLogOutClick() {
 	        platformManagerActionCreators.clearAuthorization();
@@ -61346,7 +61306,10 @@
 	
 	        return React.createElement(
 	            'nav',
-	            { className: 'navigation' },
+	            { className: 'navigation',
+	                ref: function (nav) {
+	                    this.componentDom = nav;
+	                }.bind(this) },
 	            React.createElement(
 	                'h1',
 	                { className: 'logo' },
@@ -61645,6 +61608,8 @@
 	
 	            state.errors = state.status === "error";
 	            state.fadeOut = false;
+	
+	            this.setState(state);
 	        }
 	    },
 	    componentDidMount: function componentDidMount() {
@@ -62258,6 +62223,19 @@
 	                                ),
 	                                _react2.default.createElement(
 	                                    'tr',
+	                                    null,
+	                                    _react2.default.createElement(
+	                                        'td',
+	                                        { className: 'plain advanced-toggle', colSpan: '5' },
+	                                        _react2.default.createElement(
+	                                            'a',
+	                                            { onClick: this._toggleAdvanced },
+	                                            'Advanced Options'
+	                                        )
+	                                    )
+	                                ),
+	                                _react2.default.createElement(
+	                                    'tr',
 	                                    { className: advancedClass },
 	                                    _react2.default.createElement(
 	                                        'td',
@@ -62281,12 +62259,6 @@
 	                                ),
 	                                scanLength
 	                            )
-	                        ),
-	                        _react2.default.createElement(
-	                            'div',
-	                            { className: 'advanced-toggle',
-	                                onClick: this._toggleAdvanced },
-	                            'X'
 	                        )
 	                    )
 	                );
@@ -64636,6 +64608,12 @@
 	            reconfiguring: _this.props.fileName ? true : false
 	        };
 	
+	        if (_this.state.reconfiguring) {
+	            _this.state.deviceInfo = _this.props.deviceName;
+	        } else {
+	            _this.state.deviceInfo = _this.props.deviceName + " / " + _this.props.deviceAddress + " / " + _this.props.deviceId;
+	        }
+	
 	        _this.state.otherFileNames = getOtherRegistryFileNames();
 	        return _this;
 	    }
@@ -64850,11 +64828,7 @@
 	                _react2.default.createElement(
 	                    'h4',
 	                    null,
-	                    this.props.deviceName,
-	                    ' / ',
-	                    this.props.deviceAddress,
-	                    ' / ',
-	                    this.props.deviceId
+	                    this.state.deviceInfo
 	                ),
 	                layoutToggle,
 	                content,
@@ -65228,6 +65202,7 @@
 	                _this.state.path = _this.state.path + "/" + nameParts[i];
 	            }
 	
+	            _this.state.physicalDeviceName = _this.props.config.physicalDeviceName;
 	            _this.state.configUpdate = true;
 	        } else {
 	            var settingsTemplate = devicesStore.getSettingsTemplate();
@@ -65239,6 +65214,8 @@
 	
 	            _this.state.settings = initializeSettings(_this.props.device.type, null, settingsTemplate);
 	            _this.state.driver_config = initializeDriverConfig(_this.props.device.address, _this.props.device.id, _this.props.device.bacnetProxy);
+	
+	            _this.state.physicalDeviceName = _this.props.device.name;
 	
 	            _this.state.configUpdate = false;
 	        }
@@ -65339,6 +65316,7 @@
 	            if (allowDevice) {
 	                settings.config.driver_config = this.state.driver_config;
 	                settings.config.registry_config = "config://" + this.props.registryFile;
+	                settings.config.physicalDeviceName = this.state.physicalDeviceName;
 	
 	                var announce = true;
 	
@@ -65503,7 +65481,8 @@
 	                                            type: 'text',
 	                                            onChange: this._updateCampus,
 	                                            value: this.state.campus,
-	                                            disabled: this.state.configUpdate
+	                                            disabled: this.state.configUpdate,
+	                                            autoFocus: true
 	                                        })
 	                                    )
 	                                ),
@@ -74940,15 +74919,17 @@
 	        key: '_onStoresChange',
 	        value: function _onStoresChange() {
 	
-	            var reconfiguring = devicesStore.reconfiguringDevice();
+	            if (this.componentDom) {
+	                var reconfiguring = devicesStore.reconfiguringDevice();
 	
-	            if (reconfiguring) {
-	                this.setState(getStateFromStore);
-	            } else {
-	                if (this.state.device) {
-	                    this.setState({
-	                        device: devicesStore.getDevice(this.state.device.id, this.state.device.address, this.state.device.name)
-	                    });
+	                if (reconfiguring) {
+	                    this.setState(getStateFromStore);
+	                } else {
+	                    if (this.state.device) {
+	                        this.setState({
+	                            device: devicesStore.getDevice(this.state.device.id, this.state.device.address, this.state.device.name)
+	                        });
+	                    }
 	                }
 	            }
 	        }
@@ -75036,11 +75017,19 @@
 	            if (this.state.device) {
 	                var configOptions = [{ value: "registryConfig", label: "Registry Config" }, { value: "deviceConfig", label: "Device Config" }];
 	
-	                var configSelect = _react2.default.createElement(_reactSelectMe2.default, {
-	                    name: 'config-select',
-	                    options: configOptions,
-	                    value: this.state.configFile,
-	                    onChange: this._onConfigChange });
+	                var selectStyle = {
+	                    maxWidth: "130px"
+	                };
+	
+	                var configSelect = _react2.default.createElement(
+	                    'div',
+	                    { style: selectStyle },
+	                    _react2.default.createElement(_reactSelectMe2.default, {
+	                        name: 'config-select',
+	                        options: configOptions,
+	                        value: this.state.configFile,
+	                        onChange: this._onConfigChange })
+	                );
 	
 	                var containerWidth = {
 	                    width: "80px"
@@ -75092,6 +75081,28 @@
 	                                    _react2.default.createElement(
 	                                        'b',
 	                                        null,
+	                                        'Physical Device: '
+	                                    )
+	                                ),
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    this.state.configuration.physicalDeviceName,
+	                                    '\xA0/\xA0',
+	                                    this.state.configuration.driver_config.device_address,
+	                                    '\xA0/\xA0',
+	                                    this.state.configuration.driver_config.device_id
+	                                )
+	                            ),
+	                            _react2.default.createElement(
+	                                'tr',
+	                                null,
+	                                _react2.default.createElement(
+	                                    'td',
+	                                    { className: 'plain', style: cellStyle },
+	                                    _react2.default.createElement(
+	                                        'b',
+	                                        null,
 	                                        'Registry Config: '
 	                                    )
 	                                ),
@@ -75101,9 +75112,7 @@
 	                                    this.state.configuration.registryFile,
 	                                    ' ',
 	                                    fileSelectContainer
-	                                ),
-	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle }),
-	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle })
+	                                )
 	                            ),
 	                            _react2.default.createElement(
 	                                'tr',
@@ -75121,9 +75130,7 @@
 	                                    'td',
 	                                    { className: 'plain', style: cellStyle },
 	                                    this.state.device.name
-	                                ),
-	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle }),
-	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle })
+	                                )
 	                            ),
 	                            _react2.default.createElement(
 	                                'tr',
@@ -75141,9 +75148,7 @@
 	                                    'td',
 	                                    { className: 'plain', style: cellStyle },
 	                                    configSelect
-	                                ),
-	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle }),
-	                                _react2.default.createElement('td', { className: 'plain', style: cellStyle })
+	                                )
 	                            )
 	                        )
 	                    )
@@ -75171,7 +75176,10 @@
 	
 	            return _react2.default.createElement(
 	                'div',
-	                { className: 'view reconfig-device' },
+	                { className: 'view reconfig-device',
+	                    ref: function (div) {
+	                        this.componentDom = div;
+	                    }.bind(this) },
 	                _react2.default.createElement(
 	                    'h2',
 	                    null,
@@ -75325,7 +75333,8 @@
 	                content: "Export " + this.props.fileName,
 	                tooltipClass: "fileExportTooltip",
 	                "x": this.props.tooltipX,
-	                "y": this.props.tooltipY
+	                "y": this.props.tooltipY,
+	                "nobr": true
 	            };
 	
 	            var exportIcon = _react2.default.createElement(
@@ -76125,7 +76134,7 @@
 	
 	        var state = {};
 	
-	        state.chartName = this.props.name.replace(" / ", "_") + '_chart';
+	        state.chartName = "vc_" + this.props.name.replace(" / ", "_") + '_chart';
 	        state.chartName = state.chartName.replace(pattern, "_");
 	        state.lineChart = null;
 	        state.pinned = this.props.pinned;
@@ -116018,20 +116027,6 @@
 	                            { className: 'rowDiv' },
 	                            React.createElement(
 	                                'div',
-	                                { className: 'cellDiv firstCell' },
-	                                React.createElement(
-	                                    'div',
-	                                    { className: 'form__link',
-	                                        onClick: this._toggleMethod },
-	                                    React.createElement(
-	                                        'a',
-	                                        null,
-	                                        'Advanced'
-	                                    )
-	                                )
-	                            ),
-	                            React.createElement(
-	                                'div',
 	                                { className: 'cellDiv',
 	                                    width: '70%' },
 	                                React.createElement(
@@ -116673,12 +116668,7 @@
 	                    min: '1',
 	                    step: '1',
 	                    placeholder: 'disabled'
-	                }),
-	                React.createElement(
-	                    'span',
-	                    { className: 'form__control-help' },
-	                    'Omit to disable'
-	                )
+	                })
 	            ),
 	            React.createElement(
 	                'div',
@@ -116768,4 +116758,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-9cedb560659131cdc7d1.js.map
+//# sourceMappingURL=app-3b78152a2bb0e7d6460e.js.map
