@@ -269,7 +269,7 @@ class MySqlFuncts(DbDriver):
             count = 100
 
         limit_statement = 'LIMIT %s'
-        args.append(count)
+        args.append(int(count))
 
         offset_statement = ''
         if skip > 0:
