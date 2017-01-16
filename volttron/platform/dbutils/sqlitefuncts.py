@@ -72,7 +72,9 @@ from zmq.utils import jsonapi
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-
+from volttron.platform.agent.utils import fix_sqlite3_datetime
+#Make sure sqlite3 datetime adapters are updated.
+fix_sqlite3_datetime()
 
 """
 Implementation of SQLite3 database operation for
