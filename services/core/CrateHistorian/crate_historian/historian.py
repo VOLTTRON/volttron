@@ -61,12 +61,15 @@ import sys
 import pytz
 from collections import defaultdict
 from datetime import datetime
+
+from crate.client.exceptions import ConnectionError
 from dateutil.relativedelta import relativedelta
 from calendar import monthrange
 from datetime import timedelta
 from dateutil.tz import tzutc
 
 from crate import client
+from zmq.utils import jsonapi
 
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
@@ -145,67 +148,90 @@ class CrateHistorian(BaseHistorian):
         self._topic_name_map = {}
         self._topic_meta = {}
         self._agg_topic_id_map = {}
-        _log.debug("version number is {}".format(__version__))
-        self.version_nums = __version__.split(".")
-
-    def version(self):
-        return __version__
 
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
             len(to_publish_list)))
 
         def insert_data(cursor, table_name, topic_id, ts, data):
-            insert_query = """INSERT INTO {} (topic_id, ts, data)
-                              VALUES(?, ?, ?)""".format(table_name)
-            _log.debug("TS: {}".format(utils.format_timestamp(ts)))
+            insert_query = """INSERT INTO {} (topic_id, ts, result)
+                              VALUES(?, ?, ?)
+                              ON DUPLICATE KEY UPDATE result=result
+                            """.format(table_name)
+            _log.debug("QUERY: {}".format(insert_query))
+            _log.debug("PARAMS: {}".format(topic_id, ts, data))
             ts_formatted = utils.format_timestamp(ts)
 
-            _log.debug("BEFORE: {}".format(str(ts)))
-            tsunaware = ts.replace(tzinfo=None)
-            tsunaware = ts_formatted.split("+")[0]
-            tsunaware = tsunaware.replace('-', '/')
-            # unaware = utils.get_aware_utc_now()
-            # tsunaware = unaware.replace(tzinfo=None)
+            cursor.execute(insert_query, (topic_id, ts_formatted,
+                                          data, data))
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
 
-            _log.debug("AFTER: {}".format(str(tsunaware)))
-            cursor.execute(insert_query, (topic_id, str(tsunaware),
-                                          data))
+            for x in to_publish_list:
+                ts = x['timestamp']
+                source = x['source']
+                topic = x['topic']
+                value = x['value']
+                meta = x['meta']
 
-        cursor = self._connection.cursor()
+                _log.debug("SOURCE BEFORE!")
+                if source == 'scrape':
+                    source = 'device'
+                if source == 'log':
+                    source = 'datalogger'
 
-        for x in to_publish_list:
-            ts = x['timestamp']
-            topic = x['topic']
-            value = x['value']
-            meta = x['meta']
+                meta_type = meta.get('type', None)
+                if meta_type is not None:
+                    if meta_type == 'integer':
+                        value = int(value)
+                    elif meta_type == 'float':
+                        value = float(value)
 
-            # look at the topics that are stored in the database already
-            # to see if this topic has a value
-            topic_lower = topic.lower()
-            topic_id = hashlib.md5(topic_lower).hexdigest()
-            #topic_id = self._topic_id_map.get(topic_lower, None)
-            db_topic_name = self._topic_name_map.get(topic_lower, None)
+                _log.debug('META IS: {}'.format(meta))
+                # look at the topics that are stored in the database already
+                # to see if this topic has a value
+                topic_lower = topic.lower()
+                topic_id = hashlib.md5(topic_lower).hexdigest()
+                db_topic_name = self._topic_name_map.get(topic_lower, None)
 
-            if db_topic_name is None:
-                cursor.execute("INSERT INTO topic(id, name) VALUES(?,?)",
-                                     (topic_id, topic))
+                if db_topic_name is None:
+                    cursor.execute("""INSERT INTO topic(id, name)
+                                      VALUES(?,?)
+                                      ON DUPLICATE KEY UPDATE name=name""",
+                                         (topic_id, topic))
 
-                self._topic_name_map[topic_lower] = topic
+                    self._topic_name_map[topic_lower] = topic
 
-            elif db_topic_name != topic:
-                _log.debug('Updating topic: {}'.format(topic))
+                elif db_topic_name != topic:
+                    _log.debug('Updating topic: {}'.format(topic))
 
-                result = cursor.execute(
-                    'UPDATE topic set name=? WHERE id=?', (topic, topic_id))
-                self._topic_name_map[topic_lower] = topic
+                    result = cursor.execute(
+                        'UPDATE topic set name=? WHERE id=?', (topic, topic_id))
+                    self._topic_name_map[topic_lower] = topic
 
-            topic_prefix = topic.split("/")[0]
-            insert_data(cursor, topic_prefix, topic_id, ts, value)
+                insert_data(cursor, source, topic_id, ts, value)
 
-        self.report_all_handled()
+                old_meta = self._topic_meta.get(topic_id, {})
 
-        cursor.close()
+                if old_meta.get(topic_id) is None or \
+                                str(old_meta.get(topic_id)) != str(meta):
+                    _log.debug(
+                        'Updating meta for topic: {} {}'.format(topic, meta))
+                    meta_insert = """INSERT INTO meta(topic_id, meta_data)
+                                     VALUES(?,?)
+                                     ON DUPLICATE KEY UPDATE meta_data=meta_data"""
+                    cursor.execute(meta_insert, (topic_id, jsonapi.dumps(meta)))
+                    self._topic_meta[topic_id] = meta
+
+            self.report_all_handled()
+        except ConnectionError:
+            _log.error("Cannot connect to crate service.")
+            self._connection = None
+        finally:
+            if cursor is not None:
+                cursor.close()
+                cursor = None
 
         #     old_meta = self._topic_meta.get(topic_id, {})
         #     if set(old_meta.items()) != set(meta.items()):
@@ -367,63 +393,91 @@ class CrateHistorian(BaseHistorian):
         :py:meth:`volttron.platform.agent.base_historian.BaseQueryHistorianAgent.query_historian`
         for input parameters and return value details
         """
-        pass
-        # start_time = datetime.utcnow()
-        # collection_name = self._data_collection
-        # use_rolled_up_data = False
-        # if agg_type and agg_period:
-        #     # query aggregate data collection instead
-        #     collection_name = agg_type + "_" + agg_period
-        # else:
-        #     # See if we can use rolled up data
-        #     if int(self.version_nums[0]) >= 2 and start and end \
-        #             and start != end:
-        #         diff = (end - start).total_seconds()
-        #         _log.debug("total seconds between end and start {}".format(
-        #             diff))
-        #         if diff > 30 * 24 * 3600:
-        #             collection_name = "monthly_data"
-        #             use_rolled_up_data = True
-        #             query_start = start.replace(days=1,
-        #                                         hour=0,
-        #                                         minute=0,
-        #                                         second=0,
-        #                                         microsecond=0)
-        #             query_end = (end + relativedelta(months=1)).replace(
-        #                 days=1,
-        #                 hour=0,
-        #                 minute=0,
-        #                 second=0, microsecond=0)
-        #         elif diff >= 24 * 3600:
-        #             collection_name = "daily_data"
-        #             use_rolled_up_data = True
-        #             query_start = start.replace(hour=0,
-        #                                         minute=0,
-        #                                         second=0,
-        #                                         microsecond=0)
-        #             query_end = (end + timedelta(days=1)).replace(
-        #                 hour=0,
-        #                 minute=0,
-        #                 second=0,
-        #                 microsecond=0)
-        #         elif diff >= 3600*3: #more than 3 hours of data
-        #             collection_name = "hourly_data"
-        #             use_rolled_up_data = True
-        #             query_start = start.replace(minute=0, second=0,
-        #                                         microsecond=0)
-        #             query_end = (end+timedelta(hours=1)).replace(
-        #                 minute=0,
-        #                 second=0,
-        #                 microsecond=0)
-        #
-        #
-        #
+        #try:
+        # TODO make sure to handle data
+        table_name = topic.split('/')[0]
+        results = []
+
+        if not table_name in ('analysis', 'device', 'record', 'datalogger'):
+            _log.error("Invalid topic {}".format(topic))
+            return dict(values=results, metadata={})
+
+        if table_name in ('analysis', 'device'):
+            topic = topic[len(table_name)+1:]
+
+        if topic not in self._topic_id_map:
+            _log.error('Invalid topic {}')
+            return dict(values=results, metadata={})
+
+        topic_id = self._topic_id_map[topic]
+
+        #  start_time = datetime.utcnow()
+        if start is not None:
+            start_time = start
+
+        query = """SELECT topic_id, ts, result
+                    FROM """ + table_name + """
+                        {where}
+                        {order_by}
+                        {limit}
+                        {offset}"""
         # topics_list = []
         # if isinstance(topic, str):
         #     topics_list.append(topic)
         # elif isinstance(topic, list):
         #     topics_list = topic
         #
+        #
+
+        start_time = start
+        if start is not None:
+            start_time = utils.parse_timestamp_string(start)
+        else:
+            start_time = utils.get_aware_utc_now()
+
+        start_time = start_time.isoformat('T')
+
+        if end is not None:
+            end_time = utils.parse_timestamp_string(end)
+
+        args = dict(where='', order_by='', limit=20, offset='')
+        values = []
+
+        args['where'] = " WHERE topic_id = ?"
+        values.append(topic_id)
+
+        if start is not None and end is not None:
+            args['where'] = " AND ts BETWEEN ? and ?"
+            values.append(start_time, end_time)
+
+        if order == "FIRST_TO_LAST":
+            args['order_by'] = " ORDER BY ts ASC"
+        else:
+            args['order_by'] = " ORDER BY ts DESC"
+
+        if skip > 0:
+            args['offset'] = " SKIP {}".format(int(skip))
+
+        if count > 0:
+            args['limit'] = " LIMIT {}".format(int(count))
+
+        _log.debug("QUERY iS: {}".format(query))
+        real_query = query.format(**args)
+
+        _log.debug("REAL QUERY: {}".format(real_query))
+        _log.debug("PARAMS: {}".format(values))
+
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(real_query, values)
+
+        results = []
+
+        for row in cursor.fetchall():
+            results.append((row[1], row[2]))
+
+        return dict(values=results, metadata={})
+
         # topic_ids = []
         # id_name_map = {}
         # for topic in topics_list:
@@ -628,15 +682,20 @@ class CrateHistorian(BaseHistorian):
         """)
 
         for row in cursor.fetchall():
-            self._topic_meta[row[0]] = row[1]
+            self._topic_meta[row[0]] = jsonapi.loads(row[1])
 
         cursor.close()
+
+    def get_connection(self):
+        if self._connection is None:
+            self._connection = client.connect(self._connection_params['host'],
+                                              error_trace=True)
+        return self._connection
 
     def historian_setup(self):
         _log.debug("HISTORIAN SETUP")
 
-        self._connection = client.connect(self._connection_params['host'],
-                                          error_trace=True)
+        self._connection = self.get_connection()
 
         create_schema(self._connection)
 

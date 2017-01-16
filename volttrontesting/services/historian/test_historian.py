@@ -103,6 +103,14 @@ from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
 
 try:
+    from crate import client
+    from crate.client.exceptions import ProgrammingError
+    from volttron.platform.dbutils import cratedriver
+    HAS_CRATE_CONNECTOR = True
+except:
+    HAS_CRATE_CONNECTOR = False
+
+try:
     import mysql.connector as mysql
     from mysql.connector import errorcode
 
@@ -121,7 +129,8 @@ mysql_skipif = pytest.mark.skipif(not HAS_MYSQL_CONNECTOR,
                                   reason='No mysql connector available')
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
                                     reason='No pymongo client available.')
-
+crate_skipif = pytest.mark.skipif(not HAS_CRATE_CONNECTOR,
+                                  reason='No crate client available.')
 # Module level variables
 DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 MICROSECOND_PRECISION = 0
@@ -175,6 +184,17 @@ sqlite_platform3 = {
         "data_table": "data_table",
         "topics_table": "topics_table",
         "meta_table": "meta_table",
+    }
+}
+
+crate_platform1 = {
+    "source_historian": "services/core/CrateHistorian",
+    "connection": {
+        "type": "crate",
+        "params": {
+            "host": "http://localhost:4200",
+            "debug": False
+        }
     }
 }
 
@@ -264,6 +284,21 @@ data_table = 'data'
 topics_table = 'topics'
 meta_table = 'meta'
 
+def setup_crate(connection_params, table_names):
+    print("setup crate")
+    conn = client.connect(connection_params['host'],
+                          error_trace=True)
+    cursor = conn.cursor()
+    for tbl in ('analysis', 'datalogger','device', 'meta', 'record', 'topic'):
+        try:
+            cursor.execute('DELETE FROM {}'.format(tbl))
+        except ProgrammingError:
+            pass
+
+    cratedriver.create_schema(conn)
+    MICROSECOND_PRECISION = 6
+    return conn, MICROSECOND_PRECISION
+
 def setup_mysql(connection_params, table_names):
     print ("setup mysql")
     db_connection = mysql.connect(**connection_params)
@@ -324,7 +359,6 @@ def cleanup_sql(db_connection, truncate_tables):
 
 def cleanup_sqlite(db_connection, truncate_tables):
     cleanup_sql(db_connection, truncate_tables)
-    pass
 
 
 def cleanup_mysql(db_connection, truncate_tables):
@@ -334,6 +368,16 @@ def cleanup_mysql(db_connection, truncate_tables):
 def cleanup_mongodb(db_connection, truncate_tables):
     for collection in truncate_tables:
         db_connection[collection].remove()
+
+def cleanup_crate(db_connection, truncate_tables):
+    # cursor = db_connection.cursor()
+    # for tbl in ('analysis', 'datalogger','device', 'meta', 'record', 'topic'):
+    #     try:
+    #         cursor.execute('DELETE FROM {}'.format(tbl))
+    #     except ProgrammingError:
+    #         pass
+    # cursor.close()
+    db_connection.close()
 
 
 def get_table_names(config):
@@ -404,13 +448,14 @@ def query_agent(request, volttron_instance):
 # Fixtures for setup and teardown of historian agent
 @pytest.fixture(scope="module",
                 params=[
-                    mysql_skipif(mysql_platform1),
-                    mysql_skipif(mysql_platform2),
-                    mysql_skipif(mysql_platform3),
-                    sqlite_platform1,
-                    sqlite_platform2,
-                    sqlite_platform3,
-                    pymongo_skipif(mongo_aggregator)
+                    # mysql_skipif(mysql_platform1),
+                    # mysql_skipif(mysql_platform2),
+                    # mysql_skipif(mysql_platform3),
+                    # sqlite_platform1,
+                    # sqlite_platform2,
+                    # sqlite_platform3,
+                    # pymongo_skipif(mongo_aggregator),
+                    crate_skipif(crate_platform1)
                 ])
 def historian(request, volttron_instance, query_agent):
     global db_connection, MICROSECOND_PRECISION, table_names, \
@@ -431,6 +476,7 @@ def historian(request, volttron_instance, query_agent):
     function_name = "setup_" + connection_type
     try:
         setup_function = globals()[function_name]
+        print(table_names)
         db_connection, MICROSECOND_PRECISION = \
             setup_function(request.param['connection']['params'], table_names)
     except NameError:
