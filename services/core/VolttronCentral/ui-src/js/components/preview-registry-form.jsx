@@ -2,6 +2,7 @@
 
 import React from 'react';
 import BaseComponent from './base-component';
+import PreviewRegistryTable from './preview-registry-table';
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var devicesActionCreators = require('../action-creators/devices-action-creators');
@@ -99,8 +100,6 @@ class PreviewRegistryForm extends BaseComponent {
     }
     render() {
 
-        var content;
-
         var layoutToggle;
 
         if (this.state.csvlayout)
@@ -115,33 +114,6 @@ class PreviewRegistryForm extends BaseComponent {
                             &nbsp;/&nbsp;
                             <div className="inlineBlock">csv</div>
                         </div>);
-
-            var attributes = [];
-
-            var headerRow = [];
-
-            this.props.attributes[0].forEach(function (item, index) {
-                headerRow.push(item.label);
-            });
-
-            attributes.push(<span key={"header-" + this.props.deviceId}>{headerRow.join()}</span>);
-            attributes.push(<br key={"br-header-" + this.props.deviceId}/>)
-
-            this.props.attributes.forEach(function (attributeRow, rowIndex) {
-
-                var newRow = [];
-
-                attributeRow.forEach(function (columnCell, columnIndex) {
-                    newRow.push(columnCell.value);
-                });
-
-                attributes.push(<span key={"row-" + rowIndex + "-" + this.props.deviceId}>{newRow.join()}</span>);
-                attributes.push(<br key={"br-" + rowIndex + "-" + this.props.deviceId}/>);
-            }, this);
-
-            content = (<div>
-                            {attributes}
-                        </div>);
         }
         else
         {
@@ -155,51 +127,6 @@ class PreviewRegistryForm extends BaseComponent {
                     </div>
                 </div>
             );
-
-            var headerRow = this.props.attributes[0].map(function (item, index) {
-
-                return (
-                    <th key={item.key + "-header-" + index}>
-                        {item.label}
-                    </th>
-                );
-
-            });
-
-            var attributes = this.props.attributes.map(function (attributeRow, rowIndex) {
-
-                var attributeCells = attributeRow.map(function (columnCell, columnIndex) {
-
-                    var cellWidth = {
-                        minWidth: (columnCell.value.toString().length * 5) + "px"
-                    }
-
-                    return (<td key={columnCell.key + "-cell-" + rowIndex + "-" + columnIndex}
-                                style={cellWidth}>
-                                {columnCell.value}
-                            </td>);
-                });
-
-                var registryRow = (
-                    <tr key={this.props.deviceId + "-row-" + rowIndex}>
-                        {attributeCells}
-                    </tr>
-                );
-
-                return registryRow;
-            }, this);
-
-
-            content = (<table className="preview-registry-table">
-                            <thead>
-                                <tr>
-                                    {headerRow}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {attributes}
-                            </tbody>
-                        </table>);
         }
 
         return (
@@ -207,10 +134,8 @@ class PreviewRegistryForm extends BaseComponent {
                 <h1>Save this registry configuration?</h1>
                 <h4>{this.state.deviceInfo}</h4>
                 { layoutToggle }
-                { content }
-
                 <br/>
-                <div className="displayBlock">
+                <div className="displayBlock floatLeft">
                     <div className="inlineBlock">CSV File Name: </div>
                     &nbsp;
                     <div className="inlineBlock">
@@ -235,6 +160,10 @@ class PreviewRegistryForm extends BaseComponent {
                         Save
                     </button>
                 </div>
+                <PreviewRegistryTable 
+                    csvlayout={this.state.csvlayout} 
+                    attributes={this.props.attributes}
+                    deviceId={this.props.deviceId}/>
             </form>
         );
     }

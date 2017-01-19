@@ -178,6 +178,12 @@ br + .form__control-help {
     margin-left: 1em;
 }
 
+.preview-registry-form .form__actions {
+    float: right;
+    margin-top: 0;
+    margin-bottom: 1.5em;
+}
+
 .platform-manager, .public-exterior {
     position: absolute;
     top: 0;
@@ -603,7 +609,7 @@ br + .form__control-help {
 } 
 
 .noRotate:active {
-    animation: vibrate 0.1s infinite;
+    animation: vibrate 0.1s 2;
 }
 
 @keyframes vibrate {
@@ -842,6 +848,10 @@ br + .form__control-help {
 
 .displayBlock {
     display: block;
+}
+
+.clearBoth {
+    clear: both;
 }
 
 .control_button {
@@ -1983,4 +1993,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-3b78152a2bb0e7d6460e.css.map*/
+/*# sourceMappingURL=app-654e422a7df56baad5f6.css.map*/
