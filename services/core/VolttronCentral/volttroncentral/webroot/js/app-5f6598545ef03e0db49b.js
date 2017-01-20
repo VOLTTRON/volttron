@@ -59510,6 +59510,14 @@
 	            config[key] = settings.config[key].hasOwnProperty("value") ? settings.config[key].value : settings.config[key];
 	        }
 	
+	        if (config.hasOwnProperty("max_per_request")) {
+	            if (config.max_per_request === "") {
+	                config.max_per_request = 10000;
+	            }
+	        } else {
+	            config.max_per_request = 10000;
+	        }
+	
 	        config.publish_depth_first = true;
 	
 	        var params = {
@@ -65288,7 +65296,14 @@
 	        value: function _updateSetting(evt) {
 	            var key = evt.currentTarget.dataset.setting;
 	
-	            this.state.settings[key].value = evt.target.value;
+	            if (this.state.settings[key].type === "number") {
+	                if (evt.target.value > 0 || evt.target.value === "") {
+	                    this.state.settings[key].value = evt.target.value;
+	                }
+	            } else {
+	                this.state.settings[key].value = evt.target.value;
+	            }
+	
 	            this.setState({ settings: this.state.settings });
 	        }
 	    }, {
@@ -65702,6 +65717,11 @@
 	                minimum_priority: {
 	                    value: 8,
 	                    label: "Minimum Priority",
+	                    type: "number"
+	                },
+	                max_per_request: {
+	                    value: "",
+	                    label: "Maximum Objects per Request",
 	                    type: "number"
 	                },
 	                max_objs_per_read: {
@@ -118142,4 +118162,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-654e422a7df56baad5f6.js.map
+//# sourceMappingURL=app-5f6598545ef03e0db49b.js.map
