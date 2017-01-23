@@ -609,7 +609,7 @@ br + .form__control-help {
 } 
 
 .noRotate:active {
-    animation: vibrate 0.1s 2;
+    animation: vibrate 0.1s 5;
 }
 
 @keyframes vibrate {
@@ -1993,4 +1993,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-5f6598545ef03e0db49b.css.map*/
+/*# sourceMappingURL=app-d1a24d0038acec5b97b2.css.map*/

@@ -609,7 +609,7 @@ br + .form__control-help {
 } 
 
 .noRotate:active {
-    animation: vibrate 0.1s 2;
+    animation: vibrate 0.1s 5;
 }
 
 @keyframes vibrate {
