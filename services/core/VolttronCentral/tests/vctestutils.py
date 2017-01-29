@@ -3,10 +3,6 @@ import requests
 from zmq.utils import jsonapi
 
 
-class FailedToGetAuthorization(Exception):
-    pass
-
-
 class APITester(object):
     def __init__(self, url, username='admin', password='admin'):
         """
@@ -18,34 +14,30 @@ class APITester(object):
         self._url = url
         self._username = username
         self._password = password
+
+        self._auth_token = None
         self._auth_token = self.get_auth_token()
 
-    def do_rpc(self, method, use_auth_token=True, **params):
+    def do_rpc(self, method, **params):
         data = {
             'jsonrpc': '2.0',
             'method': method,
             'params': params,
+            'authorization': self._auth_token,
             'id': '1'
         }
 
-        if use_auth_token:
-            data['authorization'] = self._auth_token
-
         print('Posting: {}'.format(data))
-        return requests.post(self._url, json=data)
 
-    @staticmethod
-    def get_result(cb, *args, **kwargs):
-        return cb(*args, **kwargs).json()['result']
+        r = requests.post(self._url, json=data)
+        validate_response(r)
+
+        return r.json()['result']
 
     def get_auth_token(self):
-        response = self.do_rpc(
-            'get_authorization', use_auth_token=False,
-            username=self._username, password=self._password)
-        if not response:
-            raise FailedToGetAuthorization
-        validate_response(response)
-        return jsonapi.loads(response.content)['result']
+        return self.do_rpc('get_authorization',
+                               username=self._username,
+                               password=self._password)
 
     def inspect(self, platform_uuid, agent_uuid):
         return self.do_rpc('platforms.uuid.{}.agents.uuid.{}.'
@@ -77,7 +69,8 @@ class APITester(object):
                            raw_contents, config_type="json"):
         params = dict(platform_uuid=platform_uuid,
                       agent_identity=agent_identity,
-                      config_name=config_name, raw_contents=raw_contents,
+                      config_name=config_name,
+                      raw_contents=raw_contents,
                       config_type=config_type)
         return self.do_rpc("store_agent_config", **params)
 
@@ -89,9 +82,19 @@ class APITester(object):
     def get_agent_config(self, platform_uuid, agent_identity, config_name,
                          raw=True):
         params = dict(platform_uuid=platform_uuid,
-                      agent_identity=agent_identity, config_name=config_name,
+                      agent_identity=agent_identity,
+                      config_name=config_name,
                       raw=raw)
         return self.do_rpc("get_agent_config", **params)
+
+    def set_setting(self, **params):
+        return self.do_rpc("set_setting", **params)
+
+    def get_setting(self, **params):
+        return self.do_rpc("get_setting", **params)
+
+    def get_setting_keys(self):
+        return self.do_rpc("get_setting_keys")
 
 
 def check_multiple_platforms(platformwrapper1, platformwrapper2):

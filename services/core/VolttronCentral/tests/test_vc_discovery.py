@@ -79,7 +79,7 @@ def test_autoregister_external(vc_vcp_platforms):
 
     api = APITester(vc.jsonrpc_endpoint)
 
-    platforms = api.get_result(api.list_platforms)
+    platforms = api.list_platforms()
     assert len(platforms) == 1
     p = platforms[0]
     assert p['uuid']
@@ -96,7 +96,7 @@ def test_autoregister_local(both_with_vc_vcp):
 
     api = APITester(both_with_vc_vcp.jsonrpc_endpoint)
 
-    platforms = api.get_result(api.list_platforms)
+    platforms = api.list_platforms()
     assert len(platforms) == 1
     p = platforms[0]
     assert p['uuid']
