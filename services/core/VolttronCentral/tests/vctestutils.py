@@ -94,72 +94,11 @@ class APITester(object):
         return self.do_rpc("get_agent_config", **params)
 
 
-def do_rpc(method, params=None, auth_token=None, rpc_root=None):
-    """ A utility method for calling json rpc based funnctions.
-
-    :param method: The method to call
-    :param params: the parameters to the method
-    :param auth_token: A token if the user has one.
-    :param rpc_root: Root of jsonrpc api.
-    :return: The result of the rpc method.
-    """
-
-    assert rpc_root, "Must pass a jsonrpc url in to the function."
-
-    json_package = {
-        'jsonrpc': '2.0',
-        'id': '2503402',
-        'method': method,
-    }
-
-    if auth_token:
-        json_package['authorization'] = auth_token
-
-    if params:
-        json_package['params'] = params
-
-    data = jsonapi.dumps(json_package)
-
-    return requests.post(rpc_root, data=data)
-
-
-def authenticate(jsonrpcaddr, username, password):
-    """ Authenticate a user with a username and password.
-
-    :param jsonrpcaddr:
-    :param username:
-    :param password:
-    :return a tuple with username and auth token
-    """
-
-    print('RPCADDR: ', jsonrpcaddr)
-    response = do_rpc("get_authorization", {'username': username,
-                                            'password': password},
-                      rpc_root=jsonrpcaddr)
-
-    validate_response(response)
-    jsonres = response.json()
-
-    return username, jsonres['result']
-
-
 def check_multiple_platforms(platformwrapper1, platformwrapper2):
     assert platformwrapper1.bind_web_address
     assert platformwrapper2.bind_web_address
     assert platformwrapper1.bind_web_address != \
         platformwrapper2.bind_web_address
-
-
-def each_result_contains(result_list, fields):
-    for result in result_list:
-        assert all(field in result.keys() for field in fields)
-
-
-def validate_at_least_one(response):
-    validate_response(response)
-    result = response.json()['result']
-    assert len(result) > 0
-    return result
 
 
 def validate_response(response):

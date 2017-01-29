@@ -15,9 +15,7 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper, \
 from volttrontesting.utils.utils import poll_gevent_sleep
 from zmq.utils import jsonapi
 from vctestutils import (APITester, FailedToGetAuthorization,
-                         check_multiple_platforms, validate_response,
-                         authenticate, do_rpc, validate_at_least_one,
-                         each_result_contains)
+                         check_multiple_platforms, validate_response)
 
 
 @pytest.fixture(scope="module")
