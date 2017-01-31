@@ -13,50 +13,57 @@ def create_schema(connection):
 
     create_queries = [
         """
-        CREATE TABLE IF NOT EXISTS topic(
+        CREATE TABLE IF NOT EXISTS historian.topic(
             id string,
             name string,
+            data_table string,
             primary key (id)
         )
+        CLUSTERED INTO 6 SHARDS
         """,
         """
-        CREATE TABLE IF NOT EXISTS meta(
+        CREATE TABLE IF NOT EXISTS historian.meta(
             topic_id string,
             meta_data string,
             primary key (topic_id)
         )
+        CLUSTERED INTO 6 SHARDS
         """,
         """
-        CREATE TABLE IF NOT EXISTS analysis(
+        CREATE TABLE IF NOT EXISTS historian.analysis(
             topic_id string,
             ts timestamp NOT NULL,
             result float,
             primary key (topic_id, ts)
         )
+        CLUSTERED INTO 6 SHARDS
         """,
         """
-        CREATE TABLE IF NOT EXISTS datalogger(
+        CREATE TABLE IF NOT EXISTS historian.datalogger(
             topic_id string,
             ts timestamp NOT NULL,
             result float,
             primary key (topic_id, ts)
         )
+        CLUSTERED INTO 6 SHARDS
         """,
         """
-        CREATE TABLE IF NOT EXISTS device(
+        CREATE TABLE IF NOT EXISTS historian.device(
             topic_id string,
             ts timestamp NOT NULL,
             result float,
             primary key (topic_id, ts)
         )
+        CLUSTERED INTO 6 SHARDS
         """,
         """
-        CREATE TABLE IF NOT EXISTS record(
+        CREATE TABLE IF NOT EXISTS historian.record(
             topic_id string,
             ts timestamp NOT NULL,
             result string,
             primary key (topic_id, ts)
         )
+        CLUSTERED INTO 6 SHARDS
         """
     ]
     try:
