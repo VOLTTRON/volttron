@@ -26,15 +26,12 @@ logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
 
 root = os.path.dirname(os.path.abspath(__file__))
 with open('{}/crate_config'.format(root), 'r') as fp:
-    data = jsonapi.loads(fp.read())
-
-crate_params = data['connection']['params']['host']
+    crate_params = jsonapi.loads(fp.read())
 
 root = os.path.dirname(os.path.abspath(__file__))
 with open('{}/mongo_config'.format(root), 'r') as fp:
-    data = jsonapi.loads(fp.read())
+    mongo_params = jsonapi.loads(fp.read())
 
-mongo_params = data['connection']['params']['host']
 
 class TableQueue(Queue.Queue, object):
     def __init__(self, table_name):

@@ -2,7 +2,7 @@
     "connection": {
         "type": "crate",
         "params": {
-            "host": "localhost"
+            "host": "localhost:8125"
         }
     }
 }
