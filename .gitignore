@@ -5,8 +5,10 @@
 .svn
 .metadata
 parser.out
-/.cache
-/.idea
+node_modules
+applications
+.cache
+.idea
 /env/
 /Agents/*/{build,dist}/
 /Agents/*.egg

@@ -6,3 +6,4 @@ zmq
 ply
 psutil
 pymongo
+mysql-connector-python-rf

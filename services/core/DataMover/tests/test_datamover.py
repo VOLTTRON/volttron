@@ -346,6 +346,7 @@ def test_record_topic_no_header(publish_agent, query_agent):
     gevent.sleep(1)  # so that there is no side effect from last test case
 
     now = datetime.utcnow().isoformat() + 'Z'
+    print("now is ", now)
     # Publish messages
     publish(publish_agent, topics.RECORD, None, 1)
     # sleep so that records gets inserted with unique timestamp
