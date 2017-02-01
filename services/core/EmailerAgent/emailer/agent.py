@@ -366,7 +366,8 @@ class EmailerAgent(Agent):
 def main(argv=sys.argv):
     """Main method called by the aip."""
     try:
-        utils.vip_main(EmailerAgent, identity="platform.emailer")
+        utils.vip_main(EmailerAgent, identity="platform.emailer",
+                       version = __version__)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')

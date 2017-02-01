@@ -732,6 +732,7 @@ class VolttronCentralPlatform(Agent):
         """
 
         agents = self.vip.rpc.call(CONTROL, "list_agents").get(timeout=5)
+        versions = self.vip.rpc.call(CONTROL, "agent_versions").get(timeout=5)
         status_running = self.status_agents()
         uuid_to_status = {}
         # proc_info has a list of [startproc, endprox]
@@ -746,6 +747,7 @@ class VolttronCentralPlatform(Agent):
 
             uuid_to_status[a['uuid']] = {
                 'is_running': is_running,
+                'version': versions[a['uuid']][1],
                 'process_id': None,
                 'error_code': None,
                 'permissions': {
@@ -1102,7 +1104,8 @@ def main(argv=sys.argv):
     :return:
     """
     # utils.vip_main(platform_agent)
-    utils.vip_main(VolttronCentralPlatform, identity=VOLTTRON_CENTRAL_PLATFORM)
+    utils.vip_main(VolttronCentralPlatform, identity=VOLTTRON_CENTRAL_PLATFORM,
+                   version=__version__)
 
 
 if __name__ == '__main__':
