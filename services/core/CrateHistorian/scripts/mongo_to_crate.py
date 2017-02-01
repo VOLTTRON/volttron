@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.DEBUG)
 _log = logging.getLogger(__name__)
 
 for key in logging.Logger.manager.loggerDict:
-    print(key)
+    _log.debug(key)
 
 logging.getLogger('crate.client.http').setLevel(logging.INFO)
 logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
@@ -149,7 +149,7 @@ def insert_topics_to_crate():
         insert_topic(cursor, obj["hash"], obj["name"], obj['table'])
         inserted += 1
         if inserted % 1000 == 0:
-            print("Inserted topic {} in {}ms".format(inserted, total_time))
+            _log.debug("Inserted topic {} in {}ms".format(inserted, total_time))
 
     if len(batch) > 0:
         cursor.executemany(INSERT_TOPIC_QUERY, batch)
@@ -159,7 +159,7 @@ def insert_topics_to_crate():
 def insert_from_queue(insertion_queue, inserted_metrics_queue, logging_queue):
     internal = []
     insert_query = INSERT_DATA_QUERY.format(insertion_queue.table_name)
-    print('Starting queue for: {}'.format(insertion_queue.table_name))
+    _log.debug('Starting queue for: {}'.format(insertion_queue.table_name))
 
     while True:
         item = insertion_queue.get(block=True)
@@ -190,7 +190,7 @@ def insert_from_queue(insertion_queue, inserted_metrics_queue, logging_queue):
             cursor.close()
         except Exception as ex:
             sys.stderr.write('Exception 2: {}'.format(ex.message))
-    print('Ending queue for: {}'.format(insertion_queue.table_name))
+    _log.debug('Ending queue for: {}'.format(insertion_queue.table_name))
 
 insert_threads = []
 metric_queue = Queue.Queue()
