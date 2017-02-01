@@ -230,11 +230,11 @@ def start_transfer_data():
 
     try:
         total_data = mongo_db.data.count()
-        print('Total data: {}'.format(total_data))
+        _log.debug('Total data: {}'.format(total_data))
         result = mongo_db.data.find({}).sort([('ts', pymongo.ASCENDING)]).limit(1).next()
-        print('Before: {}'.format(result['ts']))
+        _log.debug('Before: {}'.format(result['ts']))
         last_timestamp = result['ts'] - timedelta(days=1)
-        print('After: {}'.format(result['ts']))
+        _log.debug('After: {}'.format(result['ts']))
 
         for obj in mongo_db.data.find({'ts': {"$gt": last_timestamp}}, no_cursor_timeout=True).sort([
             ('ts', pymongo.ASCENDING)
@@ -245,7 +245,7 @@ def start_transfer_data():
 
             current_topic_id = obj['topic_id']
             if last_timestamp is None or current_topic_id is None or obj['value'] is None:
-                print('ITS NONE for: id: {} ts {} tid: {} data: {}'.format(
+                _log.debug('ITS NONE for: id: {} ts {} tid: {} data: {}'.format(
                     obj['_id'], obj['ts'], current_topic_id, obj['value']))
                 continue
             last_timestamp = obj['ts']
@@ -260,7 +260,7 @@ def start_transfer_data():
             if table_queues[topic_obj['table']].qsize() > MAX_QUEUE_SIZE:
                 while table_queues[topic_obj['table']].qsize() > int(MAX_QUEUE_SIZE / 2):
                     sleep(1)
-                # print("qsize > 10000 its: {}".format(
+                # _log.debug("qsize > 10000 its: {}".format(
                 #     table_queues[topic_obj['table']].qsize()))
                 # sleep(5)
 
@@ -276,7 +276,7 @@ def start_transfer_data():
             added_to_queue += 1
             if written_records % MAX_QUEUE_SIZE == 0 and total_time > 0 and \
                     written_records != last_shown:
-                print("Added to queue data {} {} records: {} total: {}ms avg: {}ms avg(s): {}".format(
+                _log.debug("Added to queue data {} {} records: {} total: {}ms avg: {}ms avg(s): {}".format(
                     topic_obj['table'],
                     added_to_queue,
                     written_records,
@@ -297,13 +297,13 @@ start_transfer_data()
 
 for q in table_queues.values():
     q.put("done")
-print('Total data insertion time: {}ms'.format(total_time))
+_log.debug('Total data insertion time: {}ms'.format(total_time))
 
 while len(insert_threads) > 0:
     try:
         for i in range(len(insert_threads) - 1, -1, -1):
             if not insert_threads[i].is_alive():
-                print('Removing thread: {}'.format(i))
+                _log.debug('Removing thread: {}'.format(i))
                 insert_threads.remove(i)
 
     except ValueError:
