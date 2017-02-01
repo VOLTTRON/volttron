@@ -32,6 +32,9 @@ root = os.path.dirname(os.path.abspath(__file__))
 with open('{}/mongo_config'.format(root), 'r') as fp:
     mongo_params = jsonapi.loads(fp.read())
 
+MAX_QUEUE_SIZE = 50000
+QUEUE_BATCH_SIZE = 5000
+
 
 class TableQueue(Queue.Queue, object):
     def __init__(self, table_name):
@@ -163,7 +166,7 @@ def insert_from_queue(insertion_queue, inserted_metrics_queue, logging_queue):
         if item == "done":
             break
         internal.append(item)
-        if len(internal) >= 1000:
+        if len(internal) >= QUEUE_BATCH_SIZE:
             try:
                 conn = get_crate_db()
                 cursor = conn.cursor()
@@ -212,6 +215,8 @@ def log_write(queue):
             sys.stderr.write("Logger exception: {}".format(str(ex)))
 
 logger_thread = Thread(target=log_write, args=[logger_queue])
+logger_thread.daemon = True
+logger_thread.start()
 
 
 def start_transfer_data():
@@ -220,6 +225,8 @@ def start_transfer_data():
     added_to_queue = 0
     current_topic_id = None
     last_timestamp = None
+    written_records = 0
+    last_shown = 0
 
     try:
         total_data = mongo_db.data.count()
@@ -250,25 +257,39 @@ def start_transfer_data():
                             topic_obj['table'], obj['topic_id'], obj['ts'], obj['value']))
                         continue
 
+            if table_queues[topic_obj['table']].qsize() > MAX_QUEUE_SIZE:
+                while table_queues[topic_obj['table']].qsize() > int(MAX_QUEUE_SIZE / 2):
+                    sleep(1)
+                # print("qsize > 10000 its: {}".format(
+                #     table_queues[topic_obj['table']].qsize()))
+                # sleep(5)
+
             table_queues[topic_obj['table']].put((topic_obj['hash'],
                                                  utils.format_timestamp(obj['ts']),
                                                  obj['value']))
 
-            # insert_crate_data(cursor, topic_obj['table'], topic_obj['hash'],
-            # obj['ts'], obj['value'])
+            while not metric_queue.empty():
+                elements, duration = metric_queue.get(block=True)
+                written_records += elements
+                total_time += duration
+
             added_to_queue += 1
-            if added_to_queue % 5000 == 0:
-                print("Added to queue data {} {} in {}ms".format(
+            if written_records % MAX_QUEUE_SIZE == 0 and total_time > 0 and \
+                    written_records != last_shown:
+                print("Added to queue data {} {} records: {} total: {}ms avg: {}ms avg(s): {}".format(
                     topic_obj['table'],
                     added_to_queue,
-                    total_time))
+                    written_records,
+                    total_time,
+                    written_records / total_time,
+                    written_records / total_time / 1000
+                ))
+                last_shown = written_records
+
     except Exception as ex:
         logger_queue.put(ex.message)
         with open('last_data.txt', 'w') as lf:
             lf.write("{},{}".format(current_topic_id, last_timestamp))
-
-
-
 
 build_topics_mapping()
 insert_topics_to_crate()
@@ -280,7 +301,7 @@ print('Total data insertion time: {}ms'.format(total_time))
 
 while len(insert_threads) > 0:
     try:
-        for i in range(len(insert_threads) - 1, 0, -1):
+        for i in range(len(insert_threads) - 1, -1, -1):
             if not insert_threads[i].is_alive():
                 print('Removing thread: {}'.format(i))
                 insert_threads.remove(i)
