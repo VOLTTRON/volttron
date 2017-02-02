@@ -4,8 +4,20 @@
 Components
 ==========
 
-The components of the Transactional Network are illustrated in the figure below. The Device Interface communicates to the HVAC Controller using Modbus. It periodically scrapes data off the controller and both pushes to the sMAP historian and publishes it to the Message Bus on a topic for each device. The Device Interface also responds to lock and control commands published on the requests topic. Agents must first request and receive a lock on a device for a certain time period. During this time, they have exclusive control of the device and may issues commands. The sMAP agent in the figure represents the Archiver Agent that allows agents to request data from sMAP over the Message Bus. The
-Archiver Agent isolates agents from the details of the Historian and would allow the platform to use a different or multiple historian solutions (sMAP, a database, and a some other site).
+An overview of the VOLTTRON platform components is illustrated in the figure below. The platform
+comprises several components
+and agents that provide services to other agents. Of these components, the Information Exchange Bus (IEB),
+or :ref:`Message Bus <messagebus>` is central to the
+platform. All other VOLTTRON components communicate through it using the publish/subscribe paradigm over a variety of
+topics.
+
+:ref:`Drivers <VOLTTRON-Driver-Framework>` communicate with devices allowing their data to be published on the IEB.
+Agents can control devices by interacting with the :ref:`Actuator Agent <ActuatorAgent>` to schedule and send commands.
+The :ref:`Historian <Historian Index>` framework takes data published on the messages bus and stores it to a database,
+file, or sends it to another location.
+
+The agent lifecycle is controlled by the Agent Instantiation and Packaging (AIP) component which launches agents in an
+Agent Execution Environment. This isolates agents from the platform while allowing them to interact with the IEB.
 
 
 |Overview of the VOLTTRON platform|

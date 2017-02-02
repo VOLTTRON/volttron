@@ -67,7 +67,7 @@ import gevent
 
 from volttron.platform.vip.agent import Agent, Core, compat, Unreachable
 from volttron.platform.vip.agent.utils import build_agent
-from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.agent.base_historian import BaseHistorian, add_timing_data_to_header
 from volttron.platform.agent import utils
 from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.messaging import topics, headers as headers_mod
@@ -86,6 +86,8 @@ def historian(config_path, **kwargs):
     custom_topic_list = config.get('custom_topic_list', [])
     topic_replace_list = config.get('topic_replace_list', [])
     destination_vip = config.get('destination-vip')
+
+    gather_timing_data = config.get('gather_timing_data', False)
 
     hosts = KnownHostsStore()
     destination_serverkey = hosts.serverkey(destination_vip)
@@ -109,6 +111,7 @@ def historian(config_path, **kwargs):
             self._topic_replace_map = {}
             self._num_failures = 0
             self._last_timeout = 0
+            self._target_platform = None
             super(ForwardHistorian, self).__init__(**kwargs)
 
         @Core.receiver("onstart")
@@ -183,7 +186,11 @@ def historian(config_path, **kwargs):
                         self._topic_replace_map[k] = v
                     topic = self._topic_replace_map[topic]
 
+            if gather_timing_data:
+                add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
+
             payload = {'headers': headers, 'message': data}
+
 
             self._event_queue.put({'source': "forwarded",
                                    'topic': topic,
@@ -223,7 +230,7 @@ def historian(config_path, **kwargs):
                         STATUS_BAD, skip)
                     return
                 except Exception as e:
-                    err = "Unhandled error publishing to target platfom."
+                    err = "Unhandled error publishing to target platform."
                     _log.error(err)
                     _log.error(traceback.format_exc())
                     self.vip.health.set_status(
@@ -246,9 +253,12 @@ def historian(config_path, **kwargs):
                 except KeyError:
                     pass
 
+                if gather_timing_data:
+                    add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity,"forwarded")
+
                 if timeout_occurred:
                     _log.error(
-                        'A timeout has occured so breaking out of publishing')
+                        'A timeout has occurred so breaking out of publishing')
                     break
                 with gevent.Timeout(30):
                     try:
@@ -261,7 +271,7 @@ def historian(config_path, **kwargs):
                             headers=headers,
                             message=payload['message']).get()
                     except gevent.Timeout:
-                        _log.debug("Timout occurred email should send!")
+                        _log.debug("Timeout occurred email should send!")
                         timeout_occurred = True
                         self._last_timeout = self.timestamp()
                         self._num_failures += 1
@@ -270,7 +280,7 @@ def historian(config_path, **kwargs):
                         self._target_platform.core.stop()
                         self._target_platform = None
                         self.vip.health.set_status(
-                            STATUS_BAD, "Timout occured")
+                            STATUS_BAD, "Timeout occured")
                     except Exception as e:
                         err = "Unhandled error publishing to target platfom."
                         _log.error(err)
@@ -310,7 +320,7 @@ def historian(config_path, **kwargs):
             except gevent.Timeout:
                 self.vip.health.set_status(
                     STATUS_BAD, "Timeout in setup of agent")
-                status = Status.from_json(self.vip.health.get_status())
+                status = Status.from_json(self.vip.health.get_status_json())
                 self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                            status)
             else:

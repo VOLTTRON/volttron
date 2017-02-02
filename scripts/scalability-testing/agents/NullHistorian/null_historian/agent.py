@@ -57,8 +57,9 @@ import logging
 import sys
 
 from volttron.platform.vip.agent import *
-from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.agent.base_historian import BaseHistorian, add_timing_data_to_header
 from volttron.platform.agent import utils
+from volttron.platform.agent import math_utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -66,10 +67,18 @@ _log = logging.getLogger(__name__)
 def historian(config_path, **kwargs):
 
     config = utils.load_config(config_path)
+
+    gather_timing_data = config.get("gather_timing_data", False)
             
     class NullHistorian(BaseHistorian):
         '''This historian forwards data to another platform.
         '''
+
+        def __init__(self, **kwargs):
+            super(NullHistorian, self).__init__(**kwargs)
+
+            if self._gather_timing_data:
+                self._turnaround_times = []
 
         @Core.receiver("onstart")
         def starting(self, sender, **kwargs):
@@ -77,6 +86,22 @@ def historian(config_path, **kwargs):
             _log.debug('Null historian started.')
 
         def publish_to_historian(self, to_publish_list):
+
+            for item in to_publish_list:
+                if self._gather_timing_data:
+                    turnaround_time = add_timing_data_to_header(item["headers"],
+                                                                self.core.agent_uuid or self.core.identity,
+                                                                "published")
+                    self._turnaround_times.append(turnaround_time)
+                    if len(self._turnaround_times) > 10000:
+                        # Test is now over. Button it up and shutdown.
+                        mean = math_utils.mean(self._turnaround_times)
+                        stdev = math_utils.stdev(self._turnaround_times)
+                        _log.info("Mean time from collection to publish: " + str(mean))
+                        _log.info("Std dev time from collection to publish: " + str(stdev))
+                        self._turnaround_times = []
+                #_log.debug("publishing {}".format(item))
+
             _log.debug("recieved {} items to publish"
                        .format(len(to_publish_list)))
 
@@ -88,14 +113,14 @@ def historian(config_path, **kwargs):
             """
             raise NotImplemented("query_historian not implimented for null historian")
 
-    return NullHistorian(**kwargs)
+    return NullHistorian(gather_timing_data=gather_timing_data, **kwargs)
 
 
 
 def main(argv=sys.argv):
     '''Main method called by the aip.'''
     try:
-        utils.vip_main(historian)
+        utils.vip_main(historian, identity="nullhistorian")
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')

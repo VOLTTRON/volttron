@@ -407,9 +407,9 @@ class BasicCore(object):
 
 
 class Core(BasicCore):
-    #We want to delay the calling of "onstart" methods until we have confirmation
-    # from the server that we have a connection. We will fire the event when
-    # we hear the response to the hello message.
+    # We want to delay the calling of "onstart" methods until we have
+    # confirmation from the server that we have a connection. We will fire
+    # the event when we hear the response to the hello message.
     delay_onstart_signal = True
 
     # Agents started before the router can set this variable
@@ -443,7 +443,7 @@ class Core(BasicCore):
         _log.debug('address: %s', address)
         _log.debug('identity: %s', identity)
         _log.debug('agent_uuid: %s', agent_uuid)
-        _log.debug('severkey: %s', serverkey)
+        _log.debug('serverkey: %s', serverkey)
 
         self.socket = None
         self.subsystems = {'error': self.handle_error}
@@ -494,7 +494,11 @@ class Core(BasicCore):
                 "not match known serverkey ({}).".format(self.serverkey,
                 self.address, known_serverkey))
 
-        self.serverkey = known_serverkey
+        # Until we have containers for agents we should not require all
+        # platforms that connect to be in the known host file.
+        # See issue https://github.com/VOLTTRON/volttron/issues/1117
+        if known_serverkey is not None:
+            self.serverkey = known_serverkey
 
 
     def _get_serverkey_from_known_hosts(self):

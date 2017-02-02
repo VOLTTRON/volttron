@@ -366,9 +366,8 @@ class Router(BaseRouter):
                     value = self.local_address.base
                 # Allow the agents to know the serverkey.
                 elif name == b'serverkey':
-                    if self._publickey is None:
-                        return None
-                    value = encode_key(self._publickey)
+                    keystore = KeyStore()
+                    value = keystore.public
                 elif name == b'volttron-central-address':
                     value = self._volttron_central_address
                 elif name == b'volttron-central-serverkey':
