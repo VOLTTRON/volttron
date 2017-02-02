@@ -1,0 +1,41 @@
+{
+    #Interval at which to scrape the sources.
+    "interval":300,
+
+    #Global topic prefix for all publishes.
+    "global_topic_prefix": "record",
+
+    #Default user name and password if all sources require the same
+    #credentials. Can be overridden in individual sources.
+    #"default_user":"my_user_name",
+    #"default_password" : "my_password",
+
+    "sources":[
+     {
+        #Source URL for JSON data.
+        "url": "https://example.com/api/example1",
+
+        #URL parameters for data query (optional)
+        # See https://en.wikipedia.org/wiki/Query_string
+        "params": {"format": "json"},
+
+        #Topic to publish on. (optional)
+        "topic": "example/exampledata1",
+
+        #Path to desired data withing the JSON. Optional.
+        #Elements in a path may be either a string or an integer.
+        #Useful for peeling off unneeded layers around the wanted data.
+        "path": ["parentobject", "0"],
+
+        #After resolving the path above if the resulting data is a list
+        # the key is the path to a value in a list item. Each item in the list
+        # is published separately with the key appended to the end of the topic.
+        # Elements in a key may be a string or an integer. (optional)
+        "key": ["Location", "$"],
+
+        #Source specific authentication.
+        "user":"username",
+        "password" : "password"
+     }
+    ]
+}
