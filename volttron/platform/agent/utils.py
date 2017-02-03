@@ -430,7 +430,7 @@ def get_aware_utc_now():
     return utcnow
 
 
-def get_utc_seconds_from_epoch(timestamp=datetime.now(tz=tzutc())):
+def get_utc_seconds_from_epoch(timestamp=None):
     """
     convert a given time stamp to seconds from epoch based on utc time. If
     given time is naive datetime it is considered be local to where this
@@ -438,6 +438,10 @@ def get_utc_seconds_from_epoch(timestamp=datetime.now(tz=tzutc())):
     @param timestamp: datetime object
     @return: seconds from epoch
     """
+
+    if timestamp is None:
+        timestamp = datetime.now(tz=tzutc())
+
     if timestamp.tzinfo is None:
         local_tz = get_localzone()
         # Do not use datetime.replace(tzinfo=local_tz) instead use localize()
