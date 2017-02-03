@@ -12,13 +12,9 @@ https://github.com/VOLTTRON/volttron/releases These are purely source
 code and are not tied to the git repository. To update them will require
 downloading the newest source code and re-installing.
 
-For most stable but still pulling from the git repository use the 3.x
-branch (git clone –b 3.x https://github.com/VOLTTRON/volttron.git)
-
 The master branch is now the default branch for VOLTTRON (meaning this
 is what you clone if you do not use the “-b” option). This branch will
-get the latest stable features are they are pushed. Master and 3.x will
-remain in sync until 4.x is released. At this point, 3.x will stop being
+get the latest stable features are they are pushed. 3.x has stopped being
 updated (except for fixes) and 4.x will track master.
 
 The “develop” branch contains the latest features as they are developed.
