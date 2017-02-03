@@ -3,10 +3,6 @@ import requests
 from zmq.utils import jsonapi
 
 
-class FailedToGetAuthorization(Exception):
-    pass
-
-
 class APITester(object):
     def __init__(self, url, username='admin', password='admin'):
         """
@@ -18,34 +14,30 @@ class APITester(object):
         self._url = url
         self._username = username
         self._password = password
+
+        self._auth_token = None
         self._auth_token = self.get_auth_token()
 
-    def do_rpc(self, method, use_auth_token=True, **params):
+    def do_rpc(self, method, **params):
         data = {
             'jsonrpc': '2.0',
             'method': method,
             'params': params,
+            'authorization': self._auth_token,
             'id': '1'
         }
 
-        if use_auth_token:
-            data['authorization'] = self._auth_token
-
         print('Posting: {}'.format(data))
-        return requests.post(self._url, json=data)
 
-    @staticmethod
-    def get_result(cb, *args, **kwargs):
-        return cb(*args, **kwargs).json()['result']
+        r = requests.post(self._url, json=data)
+        validate_response(r)
+
+        return r.json()['result']
 
     def get_auth_token(self):
-        response = self.do_rpc(
-            'get_authorization', use_auth_token=False,
-            username=self._username, password=self._password)
-        if not response:
-            raise FailedToGetAuthorization
-        validate_response(response)
-        return jsonapi.loads(response.content)['result']
+        return self.do_rpc('get_authorization',
+                               username=self._username,
+                               password=self._password)
 
     def inspect(self, platform_uuid, agent_uuid):
         return self.do_rpc('platforms.uuid.{}.agents.uuid.{}.'
@@ -77,7 +69,8 @@ class APITester(object):
                            raw_contents, config_type="json"):
         params = dict(platform_uuid=platform_uuid,
                       agent_identity=agent_identity,
-                      config_name=config_name, raw_contents=raw_contents,
+                      config_name=config_name,
+                      raw_contents=raw_contents,
                       config_type=config_type)
         return self.do_rpc("store_agent_config", **params)
 
@@ -89,58 +82,19 @@ class APITester(object):
     def get_agent_config(self, platform_uuid, agent_identity, config_name,
                          raw=True):
         params = dict(platform_uuid=platform_uuid,
-                      agent_identity=agent_identity, config_name=config_name,
+                      agent_identity=agent_identity,
+                      config_name=config_name,
                       raw=raw)
         return self.do_rpc("get_agent_config", **params)
 
+    def set_setting(self, **params):
+        return self.do_rpc("set_setting", **params)
 
-def do_rpc(method, params=None, auth_token=None, rpc_root=None):
-    """ A utility method for calling json rpc based funnctions.
+    def get_setting(self, **params):
+        return self.do_rpc("get_setting", **params)
 
-    :param method: The method to call
-    :param params: the parameters to the method
-    :param auth_token: A token if the user has one.
-    :param rpc_root: Root of jsonrpc api.
-    :return: The result of the rpc method.
-    """
-
-    assert rpc_root, "Must pass a jsonrpc url in to the function."
-
-    json_package = {
-        'jsonrpc': '2.0',
-        'id': '2503402',
-        'method': method,
-    }
-
-    if auth_token:
-        json_package['authorization'] = auth_token
-
-    if params:
-        json_package['params'] = params
-
-    data = jsonapi.dumps(json_package)
-
-    return requests.post(rpc_root, data=data)
-
-
-def authenticate(jsonrpcaddr, username, password):
-    """ Authenticate a user with a username and password.
-
-    :param jsonrpcaddr:
-    :param username:
-    :param password:
-    :return a tuple with username and auth token
-    """
-
-    print('RPCADDR: ', jsonrpcaddr)
-    response = do_rpc("get_authorization", {'username': username,
-                                            'password': password},
-                      rpc_root=jsonrpcaddr)
-
-    validate_response(response)
-    jsonres = response.json()
-
-    return username, jsonres['result']
+    def get_setting_keys(self):
+        return self.do_rpc("get_setting_keys")
 
 
 def check_multiple_platforms(platformwrapper1, platformwrapper2):
@@ -148,18 +102,6 @@ def check_multiple_platforms(platformwrapper1, platformwrapper2):
     assert platformwrapper2.bind_web_address
     assert platformwrapper1.bind_web_address != \
         platformwrapper2.bind_web_address
-
-
-def each_result_contains(result_list, fields):
-    for result in result_list:
-        assert all(field in result.keys() for field in fields)
-
-
-def validate_at_least_one(response):
-    validate_response(response)
-    result = response.json()['result']
-    assert len(result) > 0
-    return result
 
 
 def validate_response(response):
