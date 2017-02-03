@@ -396,7 +396,47 @@ class BaseInterface(object):
         :param kwargs: Any interface specific parameters.
         """
 
+    def get_multiple_points(self, path, point_names, **kwargs):
+        """
+        Read multiple points from the interface.
+
+        :param path: Device path
+        :param point_names: Names of points to retrieve
+        :param kwargs: Any interface specific parameters
+        :type path: str
+        :type point_names: [str]
+        :type kwargs: dict
+
+        :returns: Tuple of dictionaries to results and any errors
+        :rtype: (dict, dict)
+        """
+        results = {}
+        errors = {}
+
+        for point_name in point_names:
+            return_key = path + '/' + point_name
+            try:
+                value = self.get_point(point_name, **kwargs)
+                results[return_key] = value
+            except Exception as e:
+                errors[return_key] = repr(e)
+
+        return results, errors
+
     def set_multiple_points(self, path, point_names_values, **kwargs):
+        """
+        Set multiple points on the interface.
+
+        :param path: Device path
+        :param point_names_values: Point names and values to be set to.
+        :param kwargs: Any interface specific parameters
+        :type path: str
+        :type point_names: [(str, k)] where k is the new value
+        :type kwargs: dict
+
+        :returns: Dictionary of points to any exceptions raised
+        :rtype: dict
+        """
         results = {}
 
         for point_name, value in point_names_values:

@@ -97,6 +97,7 @@ class PubSub(SubsystemBase):
         self.core = weakref.ref(core)
         self.rpc = weakref.ref(rpc_subsys)
         self.peerlist = weakref.ref(peerlist_subsys)
+        self._owner = owner
         self._peer_subscriptions = {}
         self._my_subscriptions = {}
         self.protected_topics = ProtectedPubSubTopics()
@@ -313,7 +314,7 @@ class PubSub(SubsystemBase):
         '''
         self.add_subscription(peer, prefix, callback, bus)
         return self.rpc().call(peer, 'pubsub.subscribe', prefix, bus=bus)
-    
+
     @subscribe.classmethod
     def subscribe(cls, peer, prefix, bus=''):
         def decorate(method):
@@ -399,8 +400,7 @@ class PubSub(SubsystemBase):
         required_caps = self.protected_topics.get(topic)
         if required_caps:
             user = str(self.rpc().context.vip_message.user)
-            caps = self.rpc().call('auth', 'get_capabilities',
-                                   user_id=user).get(timeout=5)
+            caps = self._owner.vip.auth.get_capabilities(user)
             if not set(required_caps) <= set(caps):
                 msg = ('to publish to topic "{}" requires capabilities {},'
                       ' but capability list {} was'

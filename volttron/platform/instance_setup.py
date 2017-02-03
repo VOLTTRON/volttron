@@ -67,6 +67,8 @@ from gevent.subprocess import Popen
 from zmq.utils import jsonapi
 from zmq import green as zmq
 
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
+
 from . import get_home
 
 # Global configuration options.  Must be key=value strings.  No cascading
@@ -184,7 +186,8 @@ volttron-cfg needs to be run from the volttron top level source directory.
 
 
 def _start_platform():
-    cmd = ['volttron', '-vv']
+    cmd = ['volttron', '-vv',
+           '-l', os.path.join(get_home(), 'volttron.cfg.log')]
     if verbose:
         print('Starting platform...')
     pid = Popen(cmd, env=os.environ.copy(), stdout=subprocess.PIPE,
@@ -460,10 +463,11 @@ def add_fake_device_to_configstore():
     prompt = 'Install a fake device on the master driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
-        _cmd(['volttron-ctl', 'config', 'store', 'platform.driver',
+        _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
               'fake.csv', 'examples/configurations/drivers/fake.csv', '--csv'])
-        _cmd(['volttron-ctl', 'config', 'store', 'platform.driver',
-              'devices/fake', 'examples/configurations/drivers/fake.config'])
+        _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
+              'devices/fake-campus/fake-building/fake-device',
+              'examples/configurations/drivers/fake.config'])
 
 
 @installs('services/core/MasterDriverAgent', 'master_driver',

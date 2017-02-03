@@ -148,6 +148,54 @@ platformsPanelItemsStore.getItem = function (itemPath)
     return item;
 }  
 
+platformsPanelItemsStore.findDevice = function (targetUuid, platformUuid)
+{
+    var foundDevice = null;
+
+    if (platformUuid)
+    {
+        var platform = _items.platforms[platformUuid];
+
+        if (platform)
+        {
+            var deviceParts = targetUuid.split("/");
+            
+            if (platform.hasOwnProperty("buildings") && deviceParts.length > 2)
+            {
+                var buildingUuid = deviceParts[1] + "_" + deviceParts[2];
+                if (platform.buildings.hasOwnProperty(buildingUuid))
+                {
+                    var parent = platform.buildings[buildingUuid];
+
+                    var deviceUuid = deviceParts[0] + "/" + deviceParts[1] + "/" + deviceParts[2];
+
+                    var depth;
+
+                    for (var i = 3; i < deviceParts.length; i++)
+                    {
+                        if (parent.hasOwnProperty("devices"))
+                        {
+                            deviceUuid = deviceUuid.concat("/" + deviceParts[i]);
+
+                            if (parent.devices.hasOwnProperty(deviceUuid))
+                            {                        
+                                parent = parent.devices[deviceUuid];
+                            }
+                        }
+                    }
+
+                    if (parent.uuid === targetUuid)
+                    {
+                        foundDevice = parent;
+                    }
+                }
+            }    
+        }   
+    }
+
+    return foundDevice;
+}  
+
 platformsPanelItemsStore.getChildren = function (parent, parentPath) {
 
     var itemsList = [];
@@ -422,7 +470,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             for (var key in _items.platforms)
             {
-                var match = platforms.find(function (platform) {
+                var match = platforms.find(function findPlatform(platform) {
                     return key === platform.uuid;
                 });
 
@@ -456,7 +504,16 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             if (action.devices.length > 0)
             {
-                insertDevices(platform, action.devices);
+                var treeHasExpanded = (_items.platforms.hasOwnProperty(platform.uuid) && 
+                    _items.platforms[platform.uuid].children.length > 0);
+
+                if (!action.fromWebsocket || treeHasExpanded)
+                {    
+                    insertDevices(platform, action.devices, action.fromWebsocket);
+                    if (action.fromWebsocket === true) {
+                        platformsPanelItemsStore.emitChange();
+                    }
+                }
             }
 
             break;
@@ -580,6 +637,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             agentsHealth = checkStatuses(agentsHealth, agentProps);
         });
 
+        platform.expanded = (platform.agents.children.length > 0);
+
         platform.agents.status = agentsHealth;
         platform.agents.statusLabel = getStatusLabel(agentsHealth);
     }
@@ -634,7 +693,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         return platform.buildings[uuid];
     }
 
-    function insertDevices(platform, devices)
+    function insertDevices(platform, devices, shouldUpdate)
     {
         var devicesToInsert = JSON.parse(JSON.stringify(devices));
 
@@ -675,18 +734,18 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         //Now we can add each row of devices, confident
         // that any parent devices will be added to the tree
         // before their subdevices
-        nestedDevices.forEach(function (level, row) {
+        nestedDevices.forEach(function (nestedDevice) {
 
-            level.forEach(function (device) {
+            nestedDevice.forEach(function (device) {
                 
                 var pathParts = device.path.split("/");
-                var buildingUuid = pathParts[0] + "_" + pathParts[1];
-                var buildingName = pathParts[1];
-                var legendInfo = pathParts[0] + " > " + buildingName;                
+                var buildingUuid = pathParts[1] + "_" + pathParts[2];
+                var buildingName = pathParts[1] + ": " + pathParts[2];
+                var legendInfo = pathParts[1] + " > " + pathParts[2];                
 
                 var building = insertBuilding(platform, buildingUuid, buildingName);                
 
-                insertDevice(device, building, legendInfo, row);
+                insertDevice(device, building, legendInfo, platform, shouldUpdate);
 
                 var alreadyInTree = buildings.find(function (building) {
                     return building.uuid === buildingUuid;
@@ -721,60 +780,66 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             buildingsHealth = checkStatuses(buildingsHealth, blg);            
         });
 
+        if (platform.buildings.children.length > 0)
+        {
+            platform.expanded = true;
+        }
+        
         platform.buildings.status = buildingsHealth;
         platform.buildings.statusLabel = getStatusLabel(buildingsHealth);
     }
 
-    function insertDevice(device, building, legendInfo, row)
-    {        
-        switch (row)
+    function insertDevice(device, building, legendInfo, platform, shouldUpdate)
+    {   
+        var foundDevice = platformsPanelItemsStore.findDevice(device.path, platform.uuid);
+
+        if (foundDevice)
         {
-            case 0:
-                //top-level devices
+            foundDevice.status = device.health.status.toUpperCase();
+            foundDevice.statusLabel = getStatusLabel(foundDevice.status);
+            foundDevice.context = device.health.context;
+            checkForPoints(foundDevice, device);
+        }
+        else
+        {
+            var deviceParts = device.path.split("/");
 
-                var deviceParts = device.path.split("/");
+            switch (deviceParts.length)
+            {
+                case 4:
+                    //top-level devices
 
-                var deviceProps = {};
-                deviceProps.name = deviceParts[deviceParts.length - 1];
-                deviceProps.uuid = device.path.replace(/\//g, '_');
-                deviceProps.expanded = false;
-                deviceProps.visible = true;
-                deviceProps.path = JSON.parse(JSON.stringify(building.devices.path));
-                deviceProps.path.push(deviceProps.uuid);
-                deviceProps.status = device.health.status.toUpperCase();
-                deviceProps.statusLabel = getStatusLabel(deviceProps.status);
-                deviceProps.context = device.health.context;
-                deviceProps.children = [];
-                deviceProps.type = "device";
-                deviceProps.sortOrder = 0;
+                    var deviceProps = {};
+                    deviceProps.name = deviceParts[deviceParts.length - 1];
+                    deviceProps.uuid = device.path;
+                    deviceProps.expanded = false;
+                    deviceProps.visible = true;
+                    deviceProps.path = JSON.parse(JSON.stringify(building.devices.path));
+                    deviceProps.path.push(deviceProps.uuid);
+                    deviceProps.status = device.health.status.toUpperCase();
+                    deviceProps.statusLabel = getStatusLabel(deviceProps.status);
+                    deviceProps.context = device.health.context;
+                    deviceProps.children = [];
+                    deviceProps.type = "device";
+                    deviceProps.sortOrder = 0;
 
-                deviceProps.legendInfo = legendInfo + " > " + deviceProps.name;
+                    deviceProps.legendInfo = legendInfo + " > " + deviceProps.name;
 
-                checkForPoints(deviceProps, device);
+                    checkForPoints(deviceProps, device);
 
-                building.devices.children.push(deviceProps.uuid);
-                building.devices[deviceProps.uuid] = deviceProps;
+                    building.devices.children.push(deviceProps.uuid);
+                    building.devices[deviceProps.uuid] = deviceProps;
 
-                break;
-            default:
-                //subdevices:
-                var deviceParts = device.path.split("/");
+                    break;
+                default:
+                    //subdevices:
+                    var subDeviceLevel = deviceParts.length - 1;
 
-                var subDeviceLevel = deviceParts.length - 1;
-
-                // the top two spots in the device path are the campus and building,
-                // so add 2 to the row and that should equal the subdevice's level
-                if (subDeviceLevel !== row + 2)
-                {
-                    console.log("wrong level number");
-                }
-                else
-                {
                     //Now find the subdevice's parent device by using the parts of its path
                     // to walk the tree
                     var parentPath = JSON.parse(JSON.stringify(building.path));
                     var parentDevice = building; // start at the building
-                    var currentLevel = 2; // the level of the top-level devices
+                    var currentLevel = 3; // the level of the top-level devices
 
                     while (currentLevel < subDeviceLevel)
                     {
@@ -782,7 +847,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                         for (var i = 1; i <= currentLevel; i++)
                         {
-                            parentDeviceUuid = parentDeviceUuid + "_" + deviceParts[i];
+                            parentDeviceUuid = parentDeviceUuid + "/" + deviceParts[i];
                         }
 
                         parentDevice = parentDevice.devices;
@@ -792,7 +857,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                     var deviceProps = {};
                     deviceProps.name = deviceParts[subDeviceLevel];
-                    deviceProps.uuid = device.path.replace(/ \/ /g, '_');
+                    deviceProps.uuid = device.path;
                     deviceProps.expanded = false;
                     deviceProps.visible = true;
                     deviceProps.path = JSON.parse(JSON.stringify(parentDevice.path));
@@ -819,7 +884,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                         parentDevice.devices.path = JSON.parse(JSON.stringify(parentDevice.path));
                         parentDevice.devices.path.push("devices");
                         parentDevice.devices.name = "Devices";
-                        parentDevice.devices.expanded = false;
+                        parentDevice.devices.expanded = (shouldUpdate ? shouldUpdate : false);
                         parentDevice.devices.visible = true;
                         parentDevice.devices.children = [];
                         parentDevice.devices.type = "type";
@@ -836,9 +901,9 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                     {
                         updateDeviceGroupStatus(parentDevice);
                     }
-                }
-              
-                break;
+                  
+                    break;
+            }
         }
     }
 
@@ -861,6 +926,18 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 item.points.children = [];
                 item.points.type = "type";
                 item.points.sortOrder = _pointsOrder;
+            }
+            else
+            {
+                // There already were points, but the list may have changed, so rebuild it
+
+                var pointsToDelete = JSON.parse(JSON.stringify(item.points.children));
+
+                pointsToDelete.forEach(function (pointName) {
+                    delete item.points[pointName];
+                });
+
+                item.points.children = [];
             }
 
             data.points.forEach(function (pointName) {
@@ -891,7 +968,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                 item.points.children.push(pointProps.uuid);
                 item.points[pointProps.uuid] = pointProps;
-
             });
         }
     }

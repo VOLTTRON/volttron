@@ -79,7 +79,7 @@ from volttron.platform.vip.agent import Agent
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '1.1'
+__version__ = '1.3'
 
 """
 The `pyclass:EmailAgent` is responsible for sending emails for an instance.  It
@@ -106,7 +106,6 @@ to capture that data.
 class EmailerAgent(Agent):
 
     def __init__(self, config_path, **kwargs):
-        kwargs.pop("identity", None)
         super(EmailerAgent, self).__init__(**kwargs)
 
         config = utils.load_config(config_path)
@@ -130,6 +129,9 @@ class EmailerAgent(Agent):
 
         self.vip.config.subscribe(self.configure_main,
                                   actions=["NEW", "UPDATE"], pattern="config")
+
+        # Keep track of keys that have been added to send with.
+        self.tosend = {}
 
         def onstart(sender, **kwargs):
             self.vip.pubsub.subscribe('pubsub', topics.PLATFORM_SEND_EMAIL,
@@ -313,7 +315,6 @@ class EmailerAgent(Agent):
         :param headers:
         :param message:
         """
-        _log.info('Alert message captured for topic: {}'.format(topic))
         if not self.current_config.get('send_alerts_enabled'):
             _log.warn('Alert message found but not sent enable alerts '
                       'enable by setting send_alerts_enabled to True')
@@ -327,6 +328,11 @@ class EmailerAgent(Agent):
             return
 
         last_sent_key = tuple([mailkey, topic])
+        if last_sent_key in self.tosend:
+            return
+
+        self.tosend[last_sent_key] = 1
+
         last_sent_time = self.sent_alert_emails[last_sent_key]
 
         should_send = False
@@ -341,7 +347,12 @@ class EmailerAgent(Agent):
 
         if not should_send:
             _log.debug('Waiting for time to pass for email.')
+            if last_sent_key in self.tosend:
+                del self.tosend[last_sent_key]
             return
+
+        # we assume the email will go through.
+        self.sent_alert_emails[last_sent_key] = get_utc_seconds_from_epoch()
 
         from_address = self.current_config['alert_from_address']
         recipients = self.current_config['alert_to_addresses']
@@ -358,9 +369,8 @@ class EmailerAgent(Agent):
         msg['FROM'] = from_address
         msg['Subject'] = subject
         self.send_email(from_address, recipients, subject, msg)
-
-        # we assume the email will go through.
-        self.sent_alert_emails[last_sent_key] = get_utc_seconds_from_epoch()
+        if last_sent_key in self.tosend:
+            del self.tosend[last_sent_key]
 
 
 def main(argv=sys.argv):
