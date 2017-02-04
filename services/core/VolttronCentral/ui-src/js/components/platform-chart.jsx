@@ -53,7 +53,6 @@ var PlatformChart = React.createClass({
                 this._refreshChartTimeout = setTimeout(this._refreshChart, refreshInterval);
             }
         }
-        
     },
     _refreshChart: function () {
         
@@ -168,7 +167,9 @@ var PlatformChart = React.createClass({
         }
 
         return (
-            <div>
+            <div ref={function (div) {
+                this.container = div;
+            }.bind(this)}>
                 {platformChart}
             </div>
         );
@@ -200,11 +201,11 @@ var GraphLineChart = OutsideClick(React.createClass({
       platformChartStore.addChangeListener(this._onStoresChange);
 
       var lineChart = this._drawLineChart(
-                          this.state.chartName, 
-                          this.state.chartType, 
-                          this._lineData(this._getNested(this.props.data)),
-                          this.state.min, this.state.max
-                      );
+          this.state.chartName, 
+          this.state.chartType, 
+          this._lineData(this._getNested(this.props.data)),
+          this.state.min, this.state.max
+      );
 
       this.setState({lineChart: lineChart});
 
@@ -228,6 +229,10 @@ var GraphLineChart = OutsideClick(React.createClass({
           );
       }
   },
+  // componentWillReceiveProps: function (nextProps)
+  // {
+  //     this._rebuildLineChart(nextProps.data);
+  // },
   _onStoresChange: function () {
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
       this.setState({chartType: platformChartStore.getType(this.props.name)});
@@ -236,7 +241,7 @@ var GraphLineChart = OutsideClick(React.createClass({
       var max = platformChartStore.getMax(this.props.name);
 
       this.setState({min: (min ? min : d3.min(this.props.data, function (d) {return d["1"]}))});
-      this.setState({max: (max ? max : d3.max(this.props.data, function (d) {return d["1"]}))});
+      this.setState({max: (max ? max : d3.max(this.props.data, function (d) {return d["1"]}))});      
   },
   handleClickOutside: function () {      
       
@@ -312,10 +317,12 @@ var GraphLineChart = OutsideClick(React.createClass({
   },
   _onMaxChange: function (e) {
       var max = e.target.value;
-      var lineChart = this._drawLineChart(this.state.chartName, 
-                                      this.state.chartType, 
-                                      this._lineData(this._getNested(this.props.data)),
-                                      this.state.min, max);
+      var lineChart = this._drawLineChart(
+          this.state.chartName, 
+          this.state.chartType, 
+          this._lineData(this._getNested(this.props.data)),
+          this.state.min, max
+      );
 
       this.setState({lineChart: lineChart});
 
@@ -596,6 +603,27 @@ var GraphLineChart = OutsideClick(React.createClass({
       </div>
     );
   },
+  _rebuildLineChart: function (data)
+  {
+      // d3.select('#' + this.state.chartName).remove();
+      d3.selectAll('#' + this.state.chartName + ' > *').remove();
+
+      nv.charts = {};
+      nv.graphs = [];
+      nv.logs = {};
+
+      var lineChart = this._drawLineChart(
+          this.state.chartName, 
+          this.state.chartType, 
+          this._lineData(this._getNested(data)),
+          this.state.min, 
+          this.state.max
+      );
+
+      this.setState({lineChart: lineChart});
+
+      // this.chart = ReactDOM.findDOMNode(this.refs[this.state.chartName]);
+  },
   _drawLineChart: function (elementParent, chartType, data, yMin, yMax) {
       
       var tickCount = 0;
@@ -681,9 +709,22 @@ var GraphLineChart = OutsideClick(React.createClass({
       return lineChart;
     },
     _updateLineChart: function (lineChart, elementParent, data) {
+      // d3.selectAll('#' + elementParent + ' > *').remove();
+
+      // var svg = document.getElementById(elementParent);
+
+      // for (var i = svg.children.length - 1; i >= 0; i--)
+      // {
+      //     svg.removeChild(svg.children[i]);
+      // }
+
       d3.select('#' + elementParent)
         .datum(data)
         .call(lineChart);
+
+      // nv.utils.windowResize(function() {
+      //     lineChart.update();
+      // });
     },
     _getNested: function (data) {
       var keyYearMonth = d3.nest()
