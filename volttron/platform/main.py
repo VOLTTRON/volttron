@@ -589,6 +589,7 @@ def start_volttron_process(opts):
         # note vip_address is a list
         this_instance['vip-address'] = opts.vip_address
         this_instance['volttron-home'] = opts.volttron_home
+        this_instance['volttron-root'] = os.path.abspath('../..')
         this_instance['start-args'] = sys.argv[1:]
         instances[opts.volttron_home] = this_instance
         instances.async_sync()
