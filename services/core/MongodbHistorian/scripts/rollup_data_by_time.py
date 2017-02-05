@@ -287,8 +287,7 @@ if __name__ == '__main__':
         #                   "^record/"]
         source_db = connect_mongodb(local_source_params)
         source_tables = get_table_names(local_source_params)
-        cursor = source_db[source_tables['topics_table']].find({
-            'topic_name':{"$regex":"^PNNL"}}).sort(
+        cursor = source_db[source_tables['topics_table']].find({}).sort(
             "_id", pymongo.ASCENDING)
 
         pool = ThreadPool(maxsize=10)
