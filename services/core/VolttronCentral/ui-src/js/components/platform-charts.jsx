@@ -16,7 +16,7 @@ var PlatformCharts = React.createClass({
             chartData: chartStore.getData()
         };
 
-        this._reloadPageTimeout = setTimeout(this._reloadPage, reloadPageInterval);
+        // this._reloadPageTimeout = setTimeout(this._reloadPage, reloadPageInterval);
 
         return state;
     },
@@ -24,7 +24,7 @@ var PlatformCharts = React.createClass({
         chartStore.addChangeListener(this._onChartStoreChange);
     },
     componentWillUnmount: function () {
-        clearTimeout(this._reloadPageTimeout);
+        // clearTimeout(this._reloadPageTimeout);
         chartStore.removeChangeListener(this._onChartStoreChange);
     },
     _onChartStoreChange: function () {
@@ -39,7 +39,7 @@ var PlatformCharts = React.createClass({
         }
         else
         {
-            this._reloadPageTimeout = setTimeout(this._reloadPage, reloadPageInterval);
+            // this._reloadPageTimeout = setTimeout(this._reloadPage, reloadPageInterval);
         }
     },
     _onAddChartClick: function () {

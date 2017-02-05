@@ -1410,12 +1410,6 @@ a.view__item:hover::before {
     background-color: #90C3D4;
 }
 
-/* our nvd3-related styles */
-
-.platform-line-chart {
-    /*height: 60vh;*/
-}
-
 .platform-chart {
     text-align: center;
 }
@@ -1444,10 +1438,6 @@ a.view__item:hover::before {
     color: #7D7D7D;
 }
 
-.pinned-chart {
-    /*transform: rotate(0deg);*/
-}
-
 .remove-chart {
     position: absolute;
     right: 0px;
@@ -1465,8 +1455,6 @@ a.view__item:hover::before {
     border: solid 1px #7D7D7D;
     border-radius: 2px;
 }
-
-/* end nvd3-related styles */
 
 .displayNone {
     display: none;

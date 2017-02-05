@@ -12,7 +12,7 @@ var Dashboard = React.createClass({
     getInitialState: function () {
         var state = getStateFromStores();
 
-        this._reloadPageTimeout = setTimeout(this._reloadPage, reloadPageInterval);
+        // this._reloadPageTimeout = setTimeout(this._reloadPage, reloadPageInterval);
 
         return state;
     },
@@ -20,7 +20,7 @@ var Dashboard = React.createClass({
         platformChartStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
-        clearTimeout(this._reloadPageTimeout);
+        // clearTimeout(this._reloadPageTimeout);
         platformChartStore.removeChangeListener(this._onStoreChange);
     },
     _onStoreChange: function () {

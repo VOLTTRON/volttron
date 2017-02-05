@@ -3,11 +3,11 @@
 var React = require('react');
 var ReactDOM = require('react-dom');
 var d3 = require('d3');
-var nv = require('nvd3');
 var moment = require('moment');
 var OutsideClick = require('react-click-outside');
 
 import ControlButton from './control-button';
+import {LineChart, AreaChart} from 'react-easy-chart';
 
 var chartStore = require('../stores/platform-chart-store');
 var platformChartStore = require('../stores/platform-chart-store');
@@ -159,7 +159,6 @@ var PlatformChart = React.createClass({
                                         pinned={this.props.chart.pinned}
                                         chartType={this.props.chart.type} /> : null }
                           </div>
-
                           <br/>
                       </div>
                   </div>)
@@ -176,7 +175,6 @@ var PlatformChart = React.createClass({
     },
 });
 
-
 var GraphLineChart = OutsideClick(React.createClass({
   getInitialState: function () {
       
@@ -186,12 +184,14 @@ var GraphLineChart = OutsideClick(React.createClass({
 
       state.chartName = "vc_" + this.props.name.replace(" / ", "_") + '_chart';
       state.chartName = state.chartName.replace(pattern, "_");
-      state.lineChart = null;
       state.pinned = this.props.pinned;
       state.chartType = this.props.chartType;
       state.showTaptip = false;
       state.taptipX = 0;
       state.taptipY = 0;
+      state.tooltipX = 0;
+      state.tooltipY = 0;
+      state.tooltipContent = "";
       state.min = (this.props.min ? this.props.min : d3.min(this.props.data, function (d) {return d["1"]}));
       state.max = (this.props.max ? this.props.max : d3.max(this.props.data, function (d) {return d["1"]}));
 
@@ -200,39 +200,16 @@ var GraphLineChart = OutsideClick(React.createClass({
   componentDidMount: function() {
       platformChartStore.addChangeListener(this._onStoresChange);
 
-      var lineChart = this._drawLineChart(
-          this.state.chartName, 
-          this.state.chartType, 
-          this._lineData(this._getNested(this.props.data)),
-          this.state.min, this.state.max
-      );
-
-      this.setState({lineChart: lineChart});
-
-      this.chart = ReactDOM.findDOMNode(this.refs[this.state.chartName]);
+      // this.chart = ReactDOM.findDOMNode(this.refs[this.state.chartName]);
   },
   componentWillUnmount: function () {
       platformChartStore.removeChangeListener(this._onStoresChange);
       
-      if (this.chart)
-      {
-          delete this.chart;
-      }
+      // if (this.chart)
+      // {
+      //     delete this.chart;
+      // }
   },
-  componentDidUpdate: function() {
-      if (this.state.lineChart)
-      {
-          this._updateLineChart(
-              this.state.lineChart, 
-              this.state.chartName, 
-              this._lineData(this._getNested(this.props.data))
-          );
-      }
-  },
-  // componentWillReceiveProps: function (nextProps)
-  // {
-  //     this._rebuildLineChart(nextProps.data);
-  // },
   _onStoresChange: function () {
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
       this.setState({chartType: platformChartStore.getType(this.props.name)});
@@ -245,27 +222,12 @@ var GraphLineChart = OutsideClick(React.createClass({
   },
   handleClickOutside: function () {      
       
-      if (this.chart)
-      {
-          this.nvtooltip = this.chart.querySelector(".nvtooltip");
-
-          if (this.nvtooltip)
-          {
-              this.nvtooltip.style.opacity = 0;
-          }
-      }
+      this.setState({ showTooltip: false });
   },
   _onChartChange: function (e) {
-      var chartType = e.target.value;
-      
-      var lineChart = this._drawLineChart(
-                          this.state.chartName, 
-                          chartType, 
-                          this._lineData(this._getNested(this.props.data)),
-                          this.state.min, this.state.max
-                      );
 
-      this.setState({lineChart: lineChart});
+      var chartType = e.target.value;
+
       this.setState({showTaptip: false});
 
       platformChartActionCreators.setType(this.props.name, chartType);
@@ -301,13 +263,7 @@ var GraphLineChart = OutsideClick(React.createClass({
   },
   _onMinChange: function (e) {
       var min = e.target.value;
-      var lineChart = this._drawLineChart(this.state.chartName, 
-                                      this.state.chartType, 
-                                      this._lineData(this._getNested(this.props.data)),
-                                      min, this.state.max);
-
-      this.setState({lineChart: lineChart});
-
+      
       platformChartActionCreators.setMin(min, this.props.name);
 
       if (this.state.pinned)
@@ -317,21 +273,27 @@ var GraphLineChart = OutsideClick(React.createClass({
   },
   _onMaxChange: function (e) {
       var max = e.target.value;
-      var lineChart = this._drawLineChart(
-          this.state.chartName, 
-          this.state.chartType, 
-          this._lineData(this._getNested(this.props.data)),
-          this.state.min, max
-      );
-
-      this.setState({lineChart: lineChart});
-
+      
       platformChartActionCreators.setMax(max, this.props.name);
 
       if (this.state.pinned)
       {
           platformActionCreators.saveCharts();
       }
+  },
+  _showTooltip: function (d, e) {
+      // var content = JSON.stringify(e);
+      var content = JSON.stringify(d);
+      this.setState({ tooltipContent: content });
+      this.setState({ showTooltip: true });
+  },
+  _hideTooltip: function (e) {
+
+      this.setState({ showTooltip: false });
+  },
+  mouseMoveHandler: function (e) {
+
+      // this.setState({ showTooltip: false });
   },
   render: function() {
 
@@ -589,175 +551,81 @@ var GraphLineChart = OutsideClick(React.createClass({
                 {chartMinControlButton}
                 {chartMaxControlButton}
                 <div className="inlineBlock"
-                      style={spaceStyle}></div>
+                    style={spaceStyle}></div>
             </div>
         );
     }
 
+    var graphData = this.props.data.map(function (item) {
+      return {x: item[0], y: item[1]};
+    });
+
+    var tooltip;
+
+    if (this.state.showTooltip)
+    {
+      var tooltipStyle = {
+          position: "absolute",
+          top: this.state.tooltipY + "px",
+          left: this.state.tooltipX + "px"
+      };
+
+      tooltip = (
+          <div className="tooltip_outer"
+              style={tooltipStyle}>
+              <div className="tooltip_inner">
+                  <div className="opaque_inner">
+                      {this.state.tooltipContent}
+                  </div>
+              </div>
+          </div>
+      );
+    }
+
+    var easyChart;
+
+    switch(this.state.chartType)
+    {
+      case "stackedArea":
+        easyChart = (
+          <AreaChart 
+            axes
+            verticalGrid
+            dataPoints
+            mouseOverHandler={function (d, e) { this._showTooltip(d, e);}.bind(this) }
+            mouseOutHandler={function (e) { this._hideTooltip(e);}.bind(this) }
+            areaColors={['orange', 'green', 'cyan', 'pink']}
+            height={200} 
+            width={700} 
+            data={[graphData]}/>
+        );
+        break;
+      default:
+        easyChart = (
+          <LineChart 
+            axes
+            verticalGrid
+            dataPoints
+            mouseOverHandler={function (d, e) { this._showTooltip(d, e);}.bind(this) }
+            mouseOutHandler={function (e) { this._hideTooltip(e);}.bind(this) }
+            lineColors={['orange', 'green', 'cyan', 'pink']}
+            height={200} 
+            width={700} 
+            data={[graphData]}/>
+        );
+        break;
+    }
+
     return (
-      <div className='platform-line-chart'
+      <div className='absolute_anchor'
           style={chartStyle}
           ref={this.state.chartName}>
-          <svg id={this.state.chartName} style={svgStyle}></svg>
+          {tooltip}
+          {easyChart}
           {controlButtons}
       </div>
     );
-  },
-  _rebuildLineChart: function (data)
-  {
-      // d3.select('#' + this.state.chartName).remove();
-      d3.selectAll('#' + this.state.chartName + ' > *').remove();
-
-      nv.charts = {};
-      nv.graphs = [];
-      nv.logs = {};
-
-      var lineChart = this._drawLineChart(
-          this.state.chartName, 
-          this.state.chartType, 
-          this._lineData(this._getNested(data)),
-          this.state.min, 
-          this.state.max
-      );
-
-      this.setState({lineChart: lineChart});
-
-      // this.chart = ReactDOM.findDOMNode(this.refs[this.state.chartName]);
-  },
-  _drawLineChart: function (elementParent, chartType, data, yMin, yMax) {
-      
-      var tickCount = 0;
-      var lineChart;
-
-      switch (chartType)
-      {
-          case "line":
-              lineChart = nv.models.lineChart();
-              break;
-          case "lineWithFocus":
-              lineChart = nv.models.lineWithFocusChart();
-              break;
-          case "stackedArea":
-              lineChart = nv.models.stackedAreaChart();
-              break;
-          case "cumulativeLine":
-              lineChart = nv.models.cumulativeLineChart();
-              break;
-      }
-
-      lineChart.margin({left: 25, right: 25})
-          .x(function(d) {return d.x})
-          .y(function(d) {return d.y})
-          .useInteractiveGuideline(true)
-          .showYAxis(true)
-          .showXAxis(true);
-      lineChart.xAxis
-        .tickFormat(function (d, i) {
-
-            var tickValue;
-
-            if (typeof i === "undefined")
-            {
-                if (tickCount === 0)
-                {
-                    tickValue = moment(d).fromNow();
-                    tickCount++;
-                }
-                else if (tickCount === 1)
-                {
-                    tickValue = moment(d).fromNow();
-                    tickCount = 0;
-                }
-            }
-            else
-            {
-                tickValue = "";
-            }
-
-            return tickValue;
-        })
-        .staggerLabels(false);
-      lineChart.yAxis
-        .tickFormat(d3.format('.1f'));
-      lineChart.forceY([yMin, yMax]);
-
-      switch (chartType)
-      {        
-          case "lineWithFocus":            
-              lineChart.x2Axis
-                .tickFormat(function (d) {
-                    return d3.time.format('%X')(new Date(d));
-                });
-              break;
-      }
-
-      d3.selectAll('#' + elementParent + ' > *').remove();
-      d3.select('#' + elementParent)
-        .datum(data)
-        .call(lineChart);
-      nv.utils.windowResize(function() {
-        if (lineChart)
-        {
-           lineChart.update();
-        }
-      });
-
-      nv.addGraph(function() {
-        return lineChart;
-      });
-
-      return lineChart;
-    },
-    _updateLineChart: function (lineChart, elementParent, data) {
-      // d3.selectAll('#' + elementParent + ' > *').remove();
-
-      // var svg = document.getElementById(elementParent);
-
-      // for (var i = svg.children.length - 1; i >= 0; i--)
-      // {
-      //     svg.removeChild(svg.children[i]);
-      // }
-
-      d3.select('#' + elementParent)
-        .datum(data)
-        .call(lineChart);
-
-      // nv.utils.windowResize(function() {
-      //     lineChart.update();
-      // });
-    },
-    _getNested: function (data) {
-      var keyYearMonth = d3.nest()
-        .key(function(d){return d.parent; })
-        .key(function(d){return d["0"]; });
-      var keyedData = keyYearMonth.entries(
-        data.map(function(d) {
-          return d;
-        })
-      );
-      return keyedData;
-    },
-    _lineData: function (data) {
-      var colors = ['DarkOrange', 'ForestGreen', 'DeepPink', 'DarkViolet', 'Teal', 'Maroon', 'RoyalBlue', 'Silver', 'MediumPurple', 'Red', 'Lime', 'Tan', 'LightGoldenrodYellow', 'Turquoise', 'Pink', 'DeepSkyBlue', 'OrangeRed', 'LightGrey', 'Olive'];
-      data = data.sort(function(a,b){ return a.key > b.key; });
-      var lineDataArr = [];
-      for (var i = 0; i <= data.length-1; i++) {
-        var lineDataElement = [];
-        var currentValues = data[i].values.sort(function(a,b){ return +a.key - +b.key; });
-        for (var j = 0; j <= currentValues.length-1; j++) {
-          lineDataElement.push({
-            'x': +currentValues[j].key,
-            'y': +currentValues[j].values[0][1]
-          });
-        }
-        lineDataArr.push({
-          key: data[i].key,
-          color: colors[i],
-          values: lineDataElement
-        });
-      }
-      return lineDataArr;
-    }
+  }
   
 }));
 
