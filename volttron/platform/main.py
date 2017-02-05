@@ -585,6 +585,7 @@ def start_volttron_process(opts):
         instances = load_create_store(instance_file)
         this_instance = instances.get(opts.volttron_home, {})
         this_instance['pid'] = os.getpid()
+        this_instance['version'] = __version__
         # note vip_address is a list
         this_instance['vip-address'] = opts.vip_address
         this_instance['volttron-home'] = opts.volttron_home
