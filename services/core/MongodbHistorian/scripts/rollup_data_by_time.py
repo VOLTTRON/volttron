@@ -15,16 +15,17 @@ import gevent
 from gevent.threadpool import ThreadPool
 
 local_source_params = {"host": "localhost", "port": 27017,
-    "database": "performance_test", "user": "test", "passwd": "test",
-    "authSource": "mongo_test"}
+    "database": "historian", "user": "historian", "passwd": "volttron"}
 
 local_dest_params = {"host": "localhost", "port": 27017,
-    "database": "performance_test", "user": "test", "passwd": "test",
-    "authSource": "mongo_test"}
+    "database": "historian", "user": "historian", "passwd": "volttron"}
 
-DAILY_COLLECTION = "daily_data2"
-HOURLY_COLLECTION = "hourly_data2"
-
+DAILY_COLLECTION = "daily_data"
+HOURLY_COLLECTION = "hourly_data"
+import sys
+log = open('/home/volttrondev/myworkspace/volttron/services/core/MongodbHistorian/scripts/script_out', 'w', buffering=1) 
+sys.stdout = log
+sys.stderr = log
 
 def connect_mongodb(connection_params):
     #print ("setup mongodb")
@@ -63,7 +64,7 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
     source_db = None
     dest_db = None
     start = datetime.utcnow()
-    match_count = 0
+    #match_count = 0
     try:
 
         source_db = connect_mongodb(source_params)
@@ -121,7 +122,8 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             match_condition).sort("_id", pymongo.ASCENDING)
 
         #print ("match condition: {}".format(match_condition))
-        match_count = cursor.count()
+        print("Before looping through results for {}".format(topic_id))
+        #imatch_count = cursor.count()
         # print (
         # "Record count for topic {} {} is {}".format(topic_id, topic_name,
         #     match_count))
@@ -139,6 +141,7 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
                 insert_to_hourly(bulk_hourly, row['_id'],
                     topic_id=row['topic_id'], ts=row['ts'], value=row['value'])
                 h += 1
+                print("Insert bulk op to hourly. h= {}".format(h))
 
             if not stat or row['_id'] > stat["last_data_into_daily"]:
                 initialize_daily(topic_id=row['topic_id'], ts=row['ts'],
@@ -147,17 +150,18 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
                                 topic_id=row['topic_id'], ts=row['ts'],
                                 value=row['value'])
                 d += 1
+                print("Insert bulk op to daily  d= {}".format(d))
 
             # Perform insert if we have 3000 rows
             d_errors = h_errors = False
-            if h == 5000:
-                # print("In loop. bulk write hour")
+            if h == 10000:
+                print("In loop. bulk write hour")
                 h_errors = bulk_write_rolled_up_data(bulk_hourly)
                 bulk_hourly = dest_db[
                     HOURLY_COLLECTION].initialize_ordered_bulk_op()
                 h = 0
-            if d == 5000:
-                # print("In loop. bulk write day")
+            if d == 10000:
+                print("In loop. bulk write day")
                 d_errors = bulk_write_rolled_up_data(bulk_daily)
                 bulk_daily = dest_db[
                     DAILY_COLLECTION].initialize_ordered_bulk_op()
@@ -181,9 +185,9 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             source_db.client.close()
         if dest_db:
             dest_db.client.close()
-        # if match_count > 0:
-        #     print ("Total time for roll up of data in topics {}: {}".format(
-        #         topic_name, datetime.utcnow() - start))
+        #if match_count > 0:
+        print ("Total time for roll up of data in topics {}: {}".format(
+            topic_name, datetime.utcnow() - start))
 
 
 def get_last_back_filled_data(db, collection, topic_id, topic_name):
@@ -193,8 +197,8 @@ def get_last_back_filled_data(db, collection, topic_id, topic_name):
         pymongo.DESCENDING).limit(1)
     for row in cursor:
         id = row.get('last_back_filled_data')
-        print ("last processed data for topic_pattern {} in {} is {}".format(
-            topic_name, collection, id))
+        #print ("last processed data for topic_pattern {} in {} is {}".format(
+        #    topic_name, collection, id))
     return id
 
 
@@ -216,16 +220,18 @@ def bulk_write_rolled_up_data(bulk):
 
 
 def initialize_hourly(topic_id, ts, db):
+    print ("In intt hourly of {}".format(topic_id))
     ts_hour = ts.replace(minute=0, second=0, microsecond=0)
 
     needs_initializing = not db[HOURLY_COLLECTION].find(
         {'ts': ts_hour, 'topic_id': topic_id}).count() > 0
-
+    print ("after check needs init={}".format(needs_initializing))
     if needs_initializing:
         db[HOURLY_COLLECTION].update_one({'ts': ts_hour, 'topic_id': topic_id},
             {"$setOnInsert": {'ts': ts_hour, 'topic_id': topic_id, 'count': 0,
                               'sum': 0, 'data': [[]] * 60,
                               'last_back_filled_data': ''}}, upsert=True)
+        print("needs init. done init")
 
         return True
     return False
@@ -276,6 +282,10 @@ def value_to_sumable(value):
 
 if __name__ == '__main__':
     start = datetime.utcnow()
+    start_date = '01May2016T00:00:00.000'
+    end_date = '01Sep2016T00:00:00.000'
+    print ("Starting rollup of data from {} to {}. current time: {}".format(
+        start_date, end_date, start))
     try:
         #threads = []
         # topic_patterns = ["^datalogger/",
@@ -293,19 +303,18 @@ if __name__ == '__main__':
         pool = ThreadPool(maxsize=10)
         topics = list(cursor)
         max = len(topics)
-        # for i in xrange(0, max, 10):
-        #     rows = topics[i:(i+9)]
-        #     topic_ids = [x['_id'] for x in rows]
         for i in xrange(0, max):
             print ("Processing topic: {} {}".format(topics[i]['_id'],
                                                     topics[i]['topic_name']))
             pool.spawn(rollup_data, local_source_params, local_dest_params,
-                datetime.strptime('02May2016T00:00:00.000', '%d%b%YT%H:%M:%S.%f'),
-                datetime.strptime('03May2016T00:00:00.000', '%d%b%YT%H:%M:%S.%f'),
+                datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f'),
+                datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f'),
                 topics[i]['_id'], topics[i]['topic_name'])
 
         pool.join()
     finally:
         print ("Total time for roll up of data : {}".format(
                datetime.utcnow() - start))
+        if log:
+          log.close()
 
