@@ -961,6 +961,21 @@ class ActuatorAgent(Agent):
         return result
 
     @RPC.export
+    def scrape_all(self, topic):
+        """RPC method
+
+        Get all points from a device.
+
+        :param topic: Device topic
+
+        :returns: Dictionary of points to values
+        """
+        topic = topic.strip('/')
+        return self.vip.rpc.call(self.driver_vip_identity,
+                                 'scrape_all',
+                                 topic).get()
+
+    @RPC.export
     def get_multiple_points(self, topics, **kwargs):
         """RPC method
 
