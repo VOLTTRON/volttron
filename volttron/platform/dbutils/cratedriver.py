@@ -17,6 +17,7 @@ def create_schema(connection):
             id string,
             name string,
             data_table string,
+            data_type string, -- crate.io datatype
             primary key (id)
         )
         CLUSTERED INTO 6 SHARDS
@@ -30,10 +31,19 @@ def create_schema(connection):
         CLUSTERED INTO 6 SHARDS
         """,
         """
-        CREATE TABLE IF NOT EXISTS historian.analysis(
+            CREATE TABLE IF NOT EXISTS historian.analysis(
+                topic_id string,
+                ts timestamp NOT NULL,
+                result string,
+                primary key (topic_id, ts)
+            )
+            CLUSTERED INTO 6 SHARDS
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS historian.analysis_double(
             topic_id string,
             ts timestamp NOT NULL,
-            result float,
+            result double,
             primary key (topic_id, ts)
         )
         CLUSTERED INTO 6 SHARDS
@@ -42,19 +52,37 @@ def create_schema(connection):
         CREATE TABLE IF NOT EXISTS historian.datalogger(
             topic_id string,
             ts timestamp NOT NULL,
-            result float,
+            result string,
             primary key (topic_id, ts)
         )
         CLUSTERED INTO 6 SHARDS
         """,
         """
+            CREATE TABLE IF NOT EXISTS historian.datalogger_double(
+                topic_id string,
+                ts timestamp NOT NULL,
+                result string,
+                primary key (topic_id, ts)
+            )
+            CLUSTERED INTO 6 SHARDS
+        """,
+        """
         CREATE TABLE IF NOT EXISTS historian.device(
             topic_id string,
             ts timestamp NOT NULL,
-            result float,
+            result string,
             primary key (topic_id, ts)
         )
         CLUSTERED INTO 6 SHARDS
+        """,
+        """
+            CREATE TABLE IF NOT EXISTS historian.device_double(
+                topic_id string,
+                ts timestamp NOT NULL,
+                result double,
+                primary key (topic_id, ts)
+            )
+            CLUSTERED INTO 6 SHARDS
         """,
         """
         CREATE TABLE IF NOT EXISTS historian.record(

@@ -145,19 +145,47 @@ class CrateHistorian(BaseHistorian):
         self._connection = None
 
         self._topic_id_map = {}
+        self._topic_to_table_map = {}
+        self._topic_to_datatype_map = {}
         self._topic_name_map = {}
         self._topic_meta = {}
         self._agg_topic_id_map = {}
+
+    def _get_topic_table(self, source, db_datatype):
+        table = None
+
+        if source == 'device':
+            if db_datatype == 'string':
+                table = 'historian.device'
+            else:
+                table = 'historian.device_double'
+
+        if source == 'log':
+            if db_datatype == 'string':
+                table = 'historian.datalogger'
+            else:
+                table = 'historian.datalogger_double'
+
+        if source == 'analysis':
+            if db_datatype == 'string':
+                table = 'historian.analysis'
+            else:
+                table = 'historian.analysis_double'
+
+        if source == 'record':
+            table = 'historian.record'
+
+        return table
 
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
             len(to_publish_list)))
 
-        def insert_data(cursor, table_name, topic_id, ts, data):
+        def insert_data(cursor, topic_id, ts, data):
             insert_query = """INSERT INTO {} (topic_id, ts, result)
                               VALUES(?, ?, ?)
                               ON DUPLICATE KEY UPDATE result=result
-                            """.format(table_name)
+                            """.format(self._topic_to_table_map[topic_id])
             _log.debug("QUERY: {}".format(insert_query))
             _log.debug("PARAMS: {}".format(topic_id, ts, data))
             ts_formatted = utils.format_timestamp(ts)
@@ -169,24 +197,43 @@ class CrateHistorian(BaseHistorian):
             cursor = conn.cursor()
 
             for x in to_publish_list:
+                _id = x['_id']  # A base_historian reference to internal id.
                 ts = x['timestamp']
                 source = x['source']
                 topic = x['topic']
                 value = x['value']
                 meta = x['meta']
 
-                _log.debug("SOURCE BEFORE!")
                 if source == 'scrape':
                     source = 'device'
                 if source == 'log':
                     source = 'datalogger'
 
                 meta_type = meta.get('type', None)
-                if meta_type is not None:
+                db_datatype = None
+                try:
                     if meta_type == 'integer':
                         value = int(value)
+                        db_datatype = 'numeric'
                     elif meta_type == 'float':
                         value = float(value)
+                        db_datatype = 'numeric'
+                    else:
+                        try:
+                            value = float(value)
+                            db_datatype = 'numeric'
+                        except ValueError:
+                            db_datatype = 'string'
+                except ValueError:
+                    _log.error(
+                        "Topic: {} "
+                        "Couldn't cast value {} to {}".format(topic,
+                                                              value,
+                                                              meta_type))
+                    # since this isn't going to be fixed we mark it as
+                    # handled
+                    self.report_handled(_id)
+                    continue
 
                 _log.debug('META IS: {}'.format(meta))
                 # look at the topics that are stored in the database already
@@ -196,21 +243,36 @@ class CrateHistorian(BaseHistorian):
                 db_topic_name = self._topic_name_map.get(topic_lower, None)
 
                 if db_topic_name is None:
-                    cursor.execute("""INSERT INTO topic(id, name)
-                                      VALUES(?,?)
-                                      ON DUPLICATE KEY UPDATE name=name""",
-                                         (topic_id, topic))
+                    topic_table = self._get_topic_table(source, db_datatype)
 
+                    if not topic_table:
+                        _log.error(
+                            "Invalid topic table for topic: {} source: {} invalid".format(
+                                topic, source)
+                        )
+                        continue
+
+                    cursor.execute(
+                        """ INSERT INTO historian.topic(
+                              id, name, data_table, data_type)
+                            VALUES(?, ?, ?, ?)
+                            ON DUPLICATE KEY UPDATE name=name""",
+                        (topic_id, topic, topic_table, db_datatype))
+                    self._topic_to_table_map[topic_id] = topic_table
+                    self._topic_to_table_map[topic_lower] = topic_table
+                    self._topic_to_datatype_map[topic_id] = db_datatype
+                    self._topic_to_datatype_map[topic_lower] = db_datatype
                     self._topic_name_map[topic_lower] = topic
+                    self._topic_id_map[topic_lower] = topic_id
 
                 elif db_topic_name != topic:
                     _log.debug('Updating topic: {}'.format(topic))
 
                     result = cursor.execute(
-                        'UPDATE topic set name=? WHERE id=?', (topic, topic_id))
+                        'UPDATE historian.topic set name=? WHERE id=?', (topic, topic_id))
                     self._topic_name_map[topic_lower] = topic
 
-                insert_data(cursor, source, topic_id, ts, value)
+                insert_data(cursor, topic_id, ts, value)
 
                 old_meta = self._topic_meta.get(topic_id, {})
 
@@ -218,7 +280,7 @@ class CrateHistorian(BaseHistorian):
                                 str(old_meta.get(topic_id)) != str(meta):
                     _log.debug(
                         'Updating meta for topic: {} {}'.format(topic, meta))
-                    meta_insert = """INSERT INTO meta(topic_id, meta_data)
+                    meta_insert = """INSERT INTO historian.meta(topic_id, meta_data)
                                      VALUES(?,?)
                                      ON DUPLICATE KEY UPDATE meta_data=meta_data"""
                     cursor.execute(meta_insert, (topic_id, jsonapi.dumps(meta)))
@@ -394,28 +456,36 @@ class CrateHistorian(BaseHistorian):
         for input parameters and return value details
         """
         #try:
-        # TODO make sure to handle data
-        table_name = topic.split('/')[0]
+
+        # if not isinstance(topic, list):
+        #     topic = [topic]
+
+        topic_lower = topic.lower()
+
+        _log.error(self._topic_to_table_map.get(topic_lower))
+        if not self._topic_to_table_map.get(topic_lower):
+            self._load_topic_map()
+
+        table_name = self._topic_to_table_map.get(topic_lower)
+
+        if not table_name:
+            table_name = self._topic_to_table_map.get(topic.split('/')[1:])
+
         results = []
-
-        if not table_name in ('analysis', 'device', 'record', 'datalogger'):
-            _log.error("Invalid topic {}".format(topic))
+        if not table_name:
+            _log.error('Could not find table name for topic {}'.format(
+                topic)
+            )
             return dict(values=results, metadata={})
 
-        if table_name in ('analysis', 'device'):
-            topic = topic[len(table_name)+1:]
+        _log.debug("TOPICMAP")
+        _log.debug(self._topic_id_map)
 
-        if topic not in self._topic_id_map:
-            _log.error('Invalid topic {}')
-            return dict(values=results, metadata={})
+        topic_id = self._topic_id_map[topic_lower]
 
-        topic_id = self._topic_id_map[topic]
-
-        #  start_time = datetime.utcnow()
-        if start is not None:
-            start_time = start
-
-        query = """SELECT topic_id, ts, result
+        query = """SELECT topic_id,
+                    date_format('%Y-%m-%dT%H:%i:%s.%f+00:00', ts),
+                    result
                     FROM """ + table_name + """
                         {where}
                         {order_by}
@@ -476,7 +546,8 @@ class CrateHistorian(BaseHistorian):
         for row in cursor.fetchall():
             results.append((row[1], row[2]))
 
-        return dict(values=results, metadata={})
+        return dict(values=results,
+                    metadata=self._topic_meta.get(topic_id, {}))
 
         # topic_ids = []
         # id_name_map = {}
@@ -624,16 +695,18 @@ class CrateHistorian(BaseHistorian):
         #     return {}
 
     def query_topic_list(self):
-        pass
-        #
-        # db = self._client.get_default_database()
-        # cursor = db[self._topic_collection].find()
-        #
-        # res = []
-        # for document in cursor:
-        #     res.append(document['topic_name'])
-        #
-        # return res
+        _log.debug("Querying topic list")
+        cursor = self.get_connection().cursor()
+        sql = """
+            SELECT name, lower(name)
+            FROM historian.topic
+        """
+
+        cursor.execute(sql)
+
+        results = [x for x in cursor.fetchall()]
+        return results
+
 
     def query_topics_metadata(self, topics):
         pass
@@ -662,11 +735,17 @@ class CrateHistorian(BaseHistorian):
         cursor = self._connection.cursor()
 
         cursor.execute("""
-            SELECT _id, name, lower(name) AS lower_name
-            FROM topic
+            SELECT id, name, lower(name) AS lower_name, data_table, data_type
+            FROM historian.topic
+            ORDER BY lower(name)
         """)
 
         for row in cursor.fetchall():
+            _log.debug('loading: {}'.format(row[2]))
+            self._topic_to_datatype_map[row[2]] = row[4]
+            self._topic_to_datatype_map[row[0]] = row[4]
+            self._topic_to_table_map[row[2]] = row[3]
+            self._topic_to_table_map[row[0]] = row[3]
             self._topic_id_map[row[2]] = row[0]
             self._topic_name_map[row[2]] = row[1]
 
@@ -678,7 +757,7 @@ class CrateHistorian(BaseHistorian):
 
         cursor.execute("""
             SELECT topic_id, meta_data
-            FROM meta
+            FROM historian.meta
         """)
 
         for row in cursor.fetchall():

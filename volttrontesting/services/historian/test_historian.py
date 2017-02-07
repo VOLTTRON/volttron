@@ -188,6 +188,7 @@ sqlite_platform3 = {
 }
 
 crate_platform1 = {
+    "agentid": "crate-historian",
     "source_historian": "services/core/CrateHistorian",
     "connection": {
         "type": "crate",
@@ -284,6 +285,7 @@ data_table = 'data'
 topics_table = 'topics'
 meta_table = 'meta'
 
+
 def setup_crate(connection_params, table_names):
     print("setup crate")
     conn = client.connect(connection_params['host'],
@@ -296,8 +298,9 @@ def setup_crate(connection_params, table_names):
             pass
 
     cratedriver.create_schema(conn)
-    MICROSECOND_PRECISION = 6
+    MICROSECOND_PRECISION = 3
     return conn, MICROSECOND_PRECISION
+
 
 def setup_mysql(connection_params, table_names):
     print ("setup mysql")
@@ -337,6 +340,7 @@ def setup_sqlite(connection_params, table_names):
     db_connection.commit()
     return db_connection, 6
 
+
 def setup_mongodb(connection_params, table_names):
     print ("setup mongodb")
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
@@ -369,15 +373,17 @@ def cleanup_mongodb(db_connection, truncate_tables):
     for collection in truncate_tables:
         db_connection[collection].remove()
 
+
 def cleanup_crate(db_connection, truncate_tables):
-    # cursor = db_connection.cursor()
-    # for tbl in ('analysis', 'datalogger','device', 'meta', 'record', 'topic'):
-    #     try:
-    #         cursor.execute('DELETE FROM {}'.format(tbl))
-    #     except ProgrammingError:
-    #         pass
-    # cursor.close()
-    db_connection.close()
+    cursor = db_connection.cursor()
+    for tbl in ('analysis', 'analysis_double', 'datalogger',
+                'datalogger_double', 'device', 'device_double',
+                'meta', 'record', 'topic'):
+        try:
+            cursor.execute('DELETE FROM historian.{}'.format(tbl))
+        except ProgrammingError:
+            pass
+    cursor.close()
 
 
 def get_table_names(config):

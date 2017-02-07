@@ -11,7 +11,11 @@ conn = client.connect(host, error_trace=True)
 
 cursor = conn.cursor()
 
-tables = ['analysis', 'datalogger', 'device', 'meta', 'record', 'topic']
+tables = ['analysis', 'analysis_double',
+          'datalogger', 'datalogger_double',
+          'device', 'device_double',
+          'meta', 'topic',
+          'meta', 'record']
 
 for t in tables:
     try:
