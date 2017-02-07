@@ -91,12 +91,9 @@ def external_data_agent(config_path, **kwargs):
     default_user = config.get('default_user')
     default_password = config.get('default_password')
     global_topic_prefix = config.get('global_topic_prefix', "")
-    topic = PUBLISH_TOPIC(base=global_topic_prefix,
-                          source=None,
-                          key=None)
     sources = config.get("sources", [])
 
-    return ExternalData(interval, default_user, default_password, sources=sources, topic=topic, **kwargs)
+    return ExternalData(interval, default_user, default_password, sources, global_topic_prefix, **kwargs)
 
 
 class ExternalData(Agent):
@@ -149,7 +146,7 @@ class ExternalData(Agent):
         config = self.default_config.copy()
         config.update(contents)
 
-        _log.debug("Configuring CSV agent")
+        _log.debug("Configuring External Data agent")
 
         global_topic_prefix = config.get('global_topic_prefix', "")
 
@@ -198,16 +195,19 @@ class ExternalData(Agent):
             try:
                 r = requests.get(url, **kwargs)
                 r.raise_for_status()
-            except requests.exceptions.HTTPError as e:
+            except StandardError as e:
                 _log.error("Failure to read from source {url} {reason}".format(url=url, reason=str(e)))
                 continue
 
-            if source_type.lower() == "json":
-                self._handle_json(headers, r, url, source_topic, source)
-            elif source_type.lower() == "csv":
-                self._handle_csv(headers, r, url, source_topic, source)
-            elif source_type.lower() == "raw":
-                self._handle_raw(headers, r, url, source_topic, source)
+            try:
+                if source_type.lower() == "json":
+                    self._handle_json(headers, r, url, source_topic, source)
+                elif source_type.lower() == "csv":
+                    self._handle_csv(headers, r, url, source_topic, source)
+                elif source_type.lower() == "raw":
+                    self._handle_raw(headers, r, url, source_topic, source)
+            except StandardError as e:
+                _log.error("General failure during processing of source {url} {reason}".format(url=url, reason=str(e)))
 
 
     def _handle_json(self, headers, request, url, source_topic, source_params):
