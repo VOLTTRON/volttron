@@ -138,26 +138,16 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
         daily_needs_init = False
         for row in cursor:
             if not stat or row['_id'] > stat["last_data_into_hourly"]:
-                result = initialize_hourly(
-                    bulk_init_hourly,
-                    topic_id=row['topic_id'],
-                    ts=row['ts'],
+                initialize_hourly(topic_id=row['topic_id'], ts=row['ts'],
                     db=dest_db)
-                if result:
-                    hourly_needs_init = True
                 insert_to_hourly(bulk_hourly, row['_id'],
                     topic_id=row['topic_id'], ts=row['ts'], value=row['value'])
                 h += 1
                 #print("Insert bulk op to hourly. h= {}".format(h))
 
             if not stat or row['_id'] > stat["last_data_into_daily"]:
-                result = initialize_daily(
-                    bulk_init_daily,
-                    topic_id=row['topic_id'],
-                    ts=row['ts'],
-                    db=dest_db)
-                if result:
-                    daily_needs_init = True
+                initialize_daily(topic_id=row['topic_id'], ts=row['ts'],
+                                  db=dest_db)
                 insert_to_daily(bulk_daily, row['_id'],
                                 topic_id=row['topic_id'], ts=row['ts'],
                                 value=row['value'])
@@ -166,33 +156,21 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
 
             # Perform insert if we have 3000 rows
             d_errors = h_errors = False
-            if h == 5000:
+            if h == 10000:
                 #print("In loop. bulk write hour")
-                if hourly_needs_init:
-                    h_errors = execute_batch(bulk_init_hourly)
-                #print ("After bulk init hourly")
+                h_errors = execute_batch(bulk_hourly)
                 if not h_errors:
-                    h_errors = execute_batch(bulk_hourly)
-                if not h_errors:
-                    bulk_init_hourly = dest_db[
-                        HOURLY_COLLECTION].initialize_ordered_bulk_op()
                     bulk_hourly = dest_db[
                         HOURLY_COLLECTION].initialize_ordered_bulk_op()
                     h = 0
-                    hourly_needs_init = False
-            if d == 5000:
+
+            if d == 10000:
                 #print("In loop. bulk write day")
-                if daily_needs_init:
-                    d_errors = execute_batch(bulk_init_daily)
+                d_errors = execute_batch(bulk_daily)
                 if not d_errors:
-                    d_errors = execute_batch(bulk_daily)
-                if not d_errors:
-                    bulk_init_daily = dest_db[
-                        DAILY_COLLECTION].initialize_ordered_bulk_op()
                     bulk_daily = dest_db[
                         DAILY_COLLECTION].initialize_ordered_bulk_op()
                     d = 0
-                    daily_needs_init = False
 
             if d_errors or h_errors:
                 # something failed in bulk write. try from last err
@@ -203,17 +181,9 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
 
         # Perform insert for any pending records
         if h > 0:
-            h_errors = False
-            if hourly_needs_init:
-                h_errors = execute_batch(bulk_init_hourly)
-            if not h_errors:
-                execute_batch(bulk_hourly)
+            execute_batch(bulk_hourly)
         if d > 0:
-            d_errors = False
-            if daily_needs_init:
-                d_errors = execute_batch(bulk_init_daily)
-            if not d_errors:
-                execute_batch(bulk_daily)
+            execute_batch(bulk_daily)
 
     finally:
         if source_db:
@@ -254,32 +224,39 @@ def execute_batch(bulk):
     return errors
 
 
-def initialize_hourly(bulk_init, topic_id, ts, db):
-    print ("In int hourly of {}".format(topic_id))
+def initialize_hourly(topic_id, ts, db):
     ts_hour = ts.replace(minute=0, second=0, microsecond=0)
+    print ("In int hourly of {} {} . Hour is {}".format(topic_id, ts, ts_hour))
 
-    needs_initializing = not db[HOURLY_COLLECTION].find(
-        {'ts': ts_hour, 'topic_id': topic_id}).count() > 0
-    print ("after check needs init={}".format(needs_initializing))
+    count = db[HOURLY_COLLECTION].find(
+        {'ts': ts_hour, 'topic_id': topic_id}).count()
+    if count > 0:
+        needs_initializing = False
+    else:
+        needs_initializing = True
+
+    print ("after check needs init={} count={}".format(needs_initializing,
+                                                       count))
     if needs_initializing:
         if running_historian:
             # use update since historian could have initialized for the
             # same topic and ts sometime between when we checked and when we
             # do an insert
-            bulk_init.find(
-                {'ts': ts_hour, 'topic_id': topic_id}).upsert().update(
+            db[HOURLY_COLLECTION].update(
+                {'ts': ts_hour, 'topic_id': topic_id},
                 {"$setOnInsert": {'ts': ts_hour, 'topic_id': topic_id,
                                   'count': 0, 'sum': 0, 'data': [[]] * 60,
-                                  'last_back_filled_data': ''}})
+                                  'last_back_filled_data': ''}},
+                upsert=True)
         else:
             # else do insert since that is faster than update
-            bulk_init.insert({'ts': ts_hour, 'topic_id': topic_id, 'count': 0,
-                              'sum': 0, 'data': [[]] * 60,
-                              'last_back_filled_data': ''})
+            db[HOURLY_COLLECTION].insert(
+                {'ts': ts_hour, 'topic_id': topic_id, 'count': 0,
+                 'sum': 0, 'data': [[]] * 60, 'last_back_filled_data': ''})
     return needs_initializing
 
 
-def initialize_daily(bulk_init, topic_id, ts, db):
+def initialize_daily(topic_id, ts, db):
     ts_day = ts.replace(hour=0, minute=0, second=0, microsecond=0)
     count = db[DAILY_COLLECTION].find(
         {'ts': ts_day, 'topic_id': topic_id}).count()
@@ -289,15 +266,16 @@ def initialize_daily(bulk_init, topic_id, ts, db):
             # use update since historian could have initialized for the
             # same topic and ts sometime between when we checked and when we
             # do an insert
-            bulk_init.find(
-                {'ts': ts_day, 'topic_id': topic_id}).upsert().update(
+            db[DAILY_COLLECTION].update(
+                {'ts': ts_day, 'topic_id': topic_id},
                 {"$setOnInsert": {'ts': ts_day, 'topic_id': topic_id,
                                   'count': 0, 'sum': 0,
                                   'data': [[]] * 24 * 60,
-                                  'last_back_filled_data': ''}})
+                                  'last_back_filled_data': ''}},
+                upsert=True)
         else:
             # else do insert since that is faster than update
-            bulk_init.insert({'ts': ts_day, 'topic_id': topic_id,
+            db[DAILY_COLLECTION].insert({'ts': ts_day, 'topic_id': topic_id,
                               'count': 0, 'sum': 0, 'data': [[]] * 24 * 60,
                               'last_back_filled_data': ''})
 
