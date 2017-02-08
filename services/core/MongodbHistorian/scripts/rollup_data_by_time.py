@@ -30,9 +30,9 @@ local_dest_params = {"host": "localhost",
 
 DAILY_COLLECTION = "daily_data2"
 HOURLY_COLLECTION = "hourly_data2"
+running_historian = True
 import sys
-log = open('/home/velo/workspace/myvolttron/services/core/MongodbHistorian'
-           '/scripts/script_out', 'w', buffering=1)
+log = open('./script_out', 'w', buffering=1)
 sys.stdout = log
 sys.stderr = log
 
@@ -85,20 +85,12 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
         dest_db[HOURLY_COLLECTION].create_index(
             [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
             unique=True, background=False)
-        dest_db[HOURLY_COLLECTION].create_index([('ts', pymongo.ASCENDING)],
-            background=False)
-        dest_db[HOURLY_COLLECTION].create_index(
-            [('last_updated_data', pymongo.ASCENDING)], background=False)
         dest_db[HOURLY_COLLECTION].create_index(
             [('last_back_filled_data', pymongo.ASCENDING)], background=False)
 
         dest_db[DAILY_COLLECTION].create_index(
             [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
             unique=True, background=False)
-        dest_db[DAILY_COLLECTION].create_index([('ts', pymongo.ASCENDING)],
-            background=False)
-        dest_db[DAILY_COLLECTION].create_index(
-            [('last_updated_data', pymongo.ASCENDING)], background=False)
         dest_db[DAILY_COLLECTION].create_index(
             [('last_back_filled_data', pymongo.ASCENDING)], background=False)
 
@@ -146,22 +138,26 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
         daily_needs_init = False
         for row in cursor:
             if not stat or row['_id'] > stat["last_data_into_hourly"]:
-                initialize_hourly(
+                result = initialize_hourly(
                     bulk_init_hourly,
                     topic_id=row['topic_id'],
                     ts=row['ts'],
                     db=dest_db)
+                if result:
+                    hourly_needs_init = True
                 insert_to_hourly(bulk_hourly, row['_id'],
                     topic_id=row['topic_id'], ts=row['ts'], value=row['value'])
                 h += 1
                 #print("Insert bulk op to hourly. h= {}".format(h))
 
             if not stat or row['_id'] > stat["last_data_into_daily"]:
-                initialize_daily(
+                result = initialize_daily(
                     bulk_init_daily,
                     topic_id=row['topic_id'],
                     ts=row['ts'],
                     db=dest_db)
+                if result:
+                    daily_needs_init = True
                 insert_to_daily(bulk_daily, row['_id'],
                                 topic_id=row['topic_id'], ts=row['ts'],
                                 value=row['value'])
@@ -170,9 +166,10 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
 
             # Perform insert if we have 3000 rows
             d_errors = h_errors = False
-            if h == 10000:
+            if h == 5000:
                 #print("In loop. bulk write hour")
-                h_errors = execute_batch(bulk_init_hourly)
+                if hourly_needs_init:
+                    h_errors = execute_batch(bulk_init_hourly)
                 #print ("After bulk init hourly")
                 if not h_errors:
                     h_errors = execute_batch(bulk_hourly)
@@ -182,10 +179,11 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
                     bulk_hourly = dest_db[
                         HOURLY_COLLECTION].initialize_ordered_bulk_op()
                     h = 0
-            if d == 10000:
+                    hourly_needs_init = False
+            if d == 5000:
                 #print("In loop. bulk write day")
-                d_errors = execute_batch(bulk_init_daily)
-                #gevent.sleep(5)
+                if daily_needs_init:
+                    d_errors = execute_batch(bulk_init_daily)
                 if not d_errors:
                     d_errors = execute_batch(bulk_daily)
                 if not d_errors:
@@ -194,6 +192,7 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
                     bulk_daily = dest_db[
                         DAILY_COLLECTION].initialize_ordered_bulk_op()
                     d = 0
+                    daily_needs_init = False
 
             if d_errors or h_errors:
                 # something failed in bulk write. try from last err
@@ -204,11 +203,15 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
 
         # Perform insert for any pending records
         if h > 0:
-            h_errors = execute_batch(bulk_init_hourly)
+            h_errors = False
+            if hourly_needs_init:
+                h_errors = execute_batch(bulk_init_hourly)
             if not h_errors:
                 execute_batch(bulk_hourly)
         if d > 0:
-            d_errors = execute_batch(bulk_init_daily)
+            d_errors = False
+            if daily_needs_init:
+                d_errors = execute_batch(bulk_init_daily)
             if not d_errors:
                 execute_batch(bulk_daily)
 
@@ -252,23 +255,53 @@ def execute_batch(bulk):
 
 
 def initialize_hourly(bulk_init, topic_id, ts, db):
-    #print ("In int hourly of {}".format(topic_id))
+    print ("In int hourly of {}".format(topic_id))
     ts_hour = ts.replace(minute=0, second=0, microsecond=0)
 
-    bulk_init.find(
-        {'ts': ts_hour, 'topic_id': topic_id}).upsert().update(
-        {"$setOnInsert": {'ts': ts_hour, 'topic_id': topic_id, 'count': 0,
-                          'sum': 0, 'data': [[]] * 60,
-                          'last_back_filled_data': ''}})
+    needs_initializing = not db[HOURLY_COLLECTION].find(
+        {'ts': ts_hour, 'topic_id': topic_id}).count() > 0
+    print ("after check needs init={}".format(needs_initializing))
+    if needs_initializing:
+        if running_historian:
+            # use update since historian could have initialized for the
+            # same topic and ts sometime between when we checked and when we
+            # do an insert
+            bulk_init.find(
+                {'ts': ts_hour, 'topic_id': topic_id}).upsert().update(
+                {"$setOnInsert": {'ts': ts_hour, 'topic_id': topic_id,
+                                  'count': 0, 'sum': 0, 'data': [[]] * 60,
+                                  'last_back_filled_data': ''}})
+        else:
+            # else do insert since that is faster than update
+            bulk_init.insert({'ts': ts_hour, 'topic_id': topic_id, 'count': 0,
+                              'sum': 0, 'data': [[]] * 60,
+                              'last_back_filled_data': ''})
+    return needs_initializing
 
 
 def initialize_daily(bulk_init, topic_id, ts, db):
     ts_day = ts.replace(hour=0, minute=0, second=0, microsecond=0)
-    bulk_init.find(
-            {'ts': ts_day, 'topic_id': topic_id}).upsert().update(
-            {"$setOnInsert": {'ts': ts_day, 'topic_id': topic_id, 'count': 0,
-                             'sum': 0, 'data': [[]] * 24 * 60,
-                             'last_back_filled_data': ''}})
+    count = db[DAILY_COLLECTION].find(
+        {'ts': ts_day, 'topic_id': topic_id}).count()
+    needs_initializing = not count > 0
+    if needs_initializing:
+        if running_historian:
+            # use update since historian could have initialized for the
+            # same topic and ts sometime between when we checked and when we
+            # do an insert
+            bulk_init.find(
+                {'ts': ts_day, 'topic_id': topic_id}).upsert().update(
+                {"$setOnInsert": {'ts': ts_day, 'topic_id': topic_id,
+                                  'count': 0, 'sum': 0,
+                                  'data': [[]] * 24 * 60,
+                                  'last_back_filled_data': ''}})
+        else:
+            # else do insert since that is faster than update
+            bulk_init.insert({'ts': ts_day, 'topic_id': topic_id,
+                              'count': 0, 'sum': 0, 'data': [[]] * 24 * 60,
+                              'last_back_filled_data': ''})
+
+    return needs_initializing
 
 
 def insert_to_hourly(bulk_hourly, data_id, topic_id, ts, value):
@@ -313,7 +346,8 @@ if __name__ == '__main__':
         cursor = source_db[source_tables['topics_table']].find({}).sort(
             "_id", pymongo.ASCENDING)
 
-        pool = ThreadPool(maxsize=10)
+        pool = ThreadPool(maxsize=5)
+        running_historian = False
         topics = list(cursor)
         max = len(topics)
         for i in xrange(0, max):
