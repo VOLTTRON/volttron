@@ -295,6 +295,59 @@ class CrateHistorian(BaseHistorian):
                 cursor.close()
                 cursor = None
 
+    def _build_single_topic_query(self, start, end, agg_type, agg_period, skip,
+                                  count, order, table_name, topic_id):
+        query = '''SELECT topic_id,
+                    date_format(%Y-%m-%dT%h:%i:%s.%H+00:00', ts) as ts, result
+                        FROM ''' + table_name + '''
+                        {where}
+                        {order_by}
+                        {limit}
+                        {offset}'''
+
+        where_clauses = ["WHERE topic_id =?"]
+        args = [topic_id]
+        if start and end and start == end:
+            where_clauses.append("ts = ?")
+            args.append(start)
+        elif start:
+            where_clauses.append("ts >= ?")
+            args.append(start)
+        elif end:
+            where_clauses.append("ts < ?")
+            args.append(end)
+
+        where_statement = ' AND '.join(where_clauses)
+
+        order_by = 'ORDER BY ts ASC'
+        if order == 'LAST_TO_FIRST':
+            order_by = ' ORDER BY topic_id DESC, ts DESC'
+
+        # can't have an offset without a limit
+        # -1 = no limit and allows the user to
+        # provide just an offset
+        if count is None:
+            count = 100
+
+        if count > 1000:
+            _log.warn("Limiting count to <= 1000")
+            count = 1000
+
+        limit_statement = 'LIMIT ?'
+        args.append(int(count))
+
+        offset_statement = ''
+        if skip > 0:
+            offset_statement = 'OFFSET ?'
+            args.append(skip)
+
+        real_query = query.format(where=where_statement,
+                                  limit=limit_statement,
+                                  offset=offset_statement,
+                                  order_by=order_by)
+
+        _log.debug("Real Query: " + real_query)
+        return real_query, args
 
     def query_historian(self, topic, start=None, end=None, agg_type=None,
                         agg_period=None, skip=0, count=None,
@@ -310,98 +363,96 @@ class CrateHistorian(BaseHistorian):
         """
         #try:
 
-        # if not isinstance(topic, list):
-        #     topic = [topic]
+        # Final results that are sent back to the client.
+        results = {}
 
-        topic_lower = topic.lower()
-
-        _log.error(self._topic_to_table_map.get(topic_lower))
-        if not self._topic_to_table_map.get(topic_lower):
-            self._load_topic_map()
-
-        table_name = self._topic_to_table_map.get(topic_lower)
-
-        if not table_name:
-            table_name = self._topic_to_table_map.get(topic.split('/')[1:])
-
-        results = []
-        if not table_name:
-            _log.error('Could not find table name for topic {}'.format(
-                topic)
-            )
-            return dict(values=results, metadata={})
-
-        _log.debug("TOPICMAP")
-        _log.debug(self._topic_id_map)
-
-        topic_id = self._topic_id_map[topic_lower]
-
-        query = """SELECT topic_id,
-                    date_format('%Y-%m-%dT%H:%i:%s.%f+00:00', ts),
-                    result
-                    FROM """ + table_name + """
-                        {where}
-                        {order_by}
-                        {limit}
-                        {offset}"""
-        # topics_list = []
-        # if isinstance(topic, str):
-        #     topics_list.append(topic)
-        # elif isinstance(topic, list):
-        #     topics_list = topic
-        #
-        #
-
-        start_time = start
-        if start is not None:
-            start_time = utils.parse_timestamp_string(start)
+        # A list or a single topic is now accepted for the topic parameter.
+        if not isinstance(topic, list):
+            topics = [topic]
         else:
-            start_time = utils.get_aware_utc_now()
+            # Copy elements into topic list
+            topics = [x for x in topic]
 
-        start_time = start_time.isoformat('T')
+        # topic_list is what will query against the database.
+        topic_list = [x.lower() for x in topics]
 
-        if end is not None:
-            end_time = utils.parse_timestamp_string(end)
+        # The following could have None items in it so we must prepare for that
+        # below.
+        table_names = [self._topic_to_table_map.get(x) for x in topic_list]
+        topic_ids = [self._topic_id_map.get(x) for x in topic_list]
 
-        args = dict(where='', order_by='', limit=20, offset='')
-        values = []
+        values = defaultdict(list)
 
-        args['where'] = " WHERE topic_id = ?"
-        values.append(topic_id)
+        multi_topic_query = len(topics) > 1
+        metadata = {}
 
-        if start is not None and end is not None:
-            args['where'] = " AND ts BETWEEN ? and ?"
-            values.append(start_time, end_time)
+        cursor = self.get_connection().cursor()
+        # Log that one of the topics is not valid.
+        for i in xrange(len(table_names)):
 
-        if order == "FIRST_TO_LAST":
-            args['order_by'] = " ORDER BY ts ASC"
-        else:
-            args['order_by'] = " ORDER BY ts DESC"
+            topic_lower = topic_list[i]
+            table_name = table_names[i]
+            topic_id = topic_ids[i]
+            original_topic = topics[i]
 
-        if skip > 0:
-            args['offset'] = " SKIP {}".format(int(skip))
+            if table_names[i] is None:
+                _log.warn("Invalid topic presented to query: {}".format(
+                    topics[i]
+                ))
 
-        if count > 0:
-            args['limit'] = " LIMIT {}".format(int(count))
+                # Handle when a query doesn't have a presence in the database
+                # by returning empty values and possible empty metadata.
+                if not multi_topic_query:
+                    results['values'] = []
+                    results['metadata'] = self._topic_meta.get(topic_id, {})
 
-        _log.debug("QUERY iS: {}".format(query))
-        real_query = query.format(**args)
+                continue
 
-        _log.debug("REAL QUERY: {}".format(real_query))
-        _log.debug("PARAMS: {}".format(values))
+            query, args = self._build_single_topic_query(
+                start, end, agg_type, agg_period, skip, count, order,
+                table_name, topic_id)
 
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(real_query, values)
+            cursor.execute(query, args)
 
-        results = []
+            for _id, ts, value in cursor.fetchall():
+                values[original_topic].append(
+                    (
+                        utils.format_timestamp(ts),
+                        ts.replace(tzinfo=pytz.UTC),
+                        value
+                    )
+                )
+            _log.debug("query result values {}".format(values))
 
-        for row in cursor.fetchall():
-            results.append((row[1], row[2]))
+            # If there are results add metadata if it is a query on a
+            # single topic
+            if not multi_topic_query:
+                values = values.values()[0]
+                if agg_type:
+                    # if aggregation is on single topic find the topic id
+                    # in the topics table that corresponds to agg_topic_id
+                    # so that we can grab the correct metadata
+                    _log.debug("Single topic aggregate query. Try to get "
+                               "metadata")
+                    if topic_id:
+                        _log.debug("aggregation of a single topic, "
+                                   "found topic id in topic map. "
+                                   "topic_id={}".format(topic_id))
+                        metadata = self.topic_meta.get(topic_id, {})
+                    else:
+                        # if topic name does not have entry in topic_id_map
+                        # it is a user configured aggregation_topic_name
+                        # which denotes aggregation across multiple points
+                        metadata = {}
+                else:
+                    # this is a query on raw data, get metadata for
+                    # topic from topic_meta map
+                    metadata = self.topic_meta.get(topic_id, {})
 
-        return dict(values=results,
-                    metadata=self._topic_meta.get(topic_id, {}))
+                results['values'] = values
+                results['metadata'] = metadata
 
+        return results
 
     def query_topic_list(self):
         _log.debug("Querying topic list")
@@ -415,7 +466,6 @@ class CrateHistorian(BaseHistorian):
 
         results = [x for x in cursor.fetchall()]
         return results
-
 
     def query_topics_metadata(self, topics):
         pass
