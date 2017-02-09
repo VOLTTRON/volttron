@@ -409,7 +409,6 @@ def get_table_names(config):
     return table_names
 
 
-
 @pytest.fixture(scope="module",
                 params=[ 'volttron_2', 'volttron_3'])
 def publish_agent(request, volttron_instance):
@@ -510,6 +509,7 @@ def historian(request, volttron_instance, query_agent):
     request.addfinalizer(stop_agent)
     return request.param
 
+
 @pytest.fixture()
 def clean(request):
     global db_connection, connection_type, table_names
@@ -557,6 +557,7 @@ def skip_custom_tables(historian):
         print "agent id ends with something other than -1"
         pytest.skip(msg="Need not repeat all test cases for custom table "
                         "names")
+
 
 @pytest.mark.historian
 def test_basic_function(request, historian, publish_agent, query_agent,
@@ -650,6 +651,7 @@ def test_basic_function(request, historian, publish_agent, query_agent,
     assert (result['values'][0][1] == damper_reading)
     assert set(result['metadata'].items()) == set(percent_meta.items())
 
+
 @pytest.mark.historian
 def test_exact_timestamp(request, historian, publish_agent, query_agent,
                          clean):
@@ -694,6 +696,7 @@ def test_exact_timestamp(request, historian, publish_agent, query_agent,
         now_time = now_time[:-1]
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == reading)
+
 
 @pytest.mark.historian
 def test_exact_timestamp_with_z(request, historian, publish_agent,
@@ -789,6 +792,7 @@ def test_query_start_time(request, historian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], time2_date, time2_time)
     assert (result['values'][0][1] == reading)
 
+
 @pytest.mark.historian
 def test_query_start_time_with_z(request, historian, publish_agent,
                                  query_agent,
@@ -836,6 +840,7 @@ def test_query_start_time_with_z(request, historian, publish_agent,
     time2_time = time2_time.split("+")[0]
     assert_timestamp(result['values'][0][0], time2_date, time2_time)
     assert (result['values'][0][1] == reading)
+
 
 @pytest.mark.historian
 def test_query_end_time(request, historian, publish_agent, query_agent,
@@ -891,6 +896,7 @@ def test_query_end_time(request, historian, publish_agent, query_agent,
     # index 0
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == reading1)
+
 
 @pytest.mark.historian
 def test_query_end_time_with_z(request, historian, publish_agent,
@@ -1009,6 +1015,7 @@ def test_zero_timestamp(request, historian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == reading)
 
+
 @pytest.mark.historian
 def test_topic_name_case_change(request, historian, publish_agent,
                                 query_agent,
@@ -1090,6 +1097,7 @@ def test_topic_name_case_change(request, historian, publish_agent,
     time1_time = time1_time[:-1]
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == oat_reading)
+
 
 @pytest.mark.historian
 def test_invalid_query(request, historian, publish_agent, query_agent,
@@ -1176,6 +1184,7 @@ def test_invalid_time(request, historian, publish_agent, query_agent,
         print ("exception: {}".format(error))
         assert 'hour must be in 0..23' == error.message
 
+
 @pytest.mark.historian
 def test_analysis_topic(request, historian, publish_agent, query_agent,
                         clean):
@@ -1250,6 +1259,7 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.historian
 def test_record_topic_query(request, historian, publish_agent, query_agent,
                             clean):
@@ -1305,6 +1315,7 @@ def test_record_topic_query(request, historian, publish_agent, query_agent,
     assert (result['values'][0][1] == 1)
     assert (result['values'][1][1] == 'value0')
     assert (result['values'][2][1] == {'key': 'value'})
+
 
 @pytest.mark.historian
 def test_log_topic(request, historian, publish_agent, query_agent, clean):
@@ -1412,6 +1423,7 @@ def test_log_topic_no_header(request, historian, publish_agent, query_agent,
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.historian
 def test_log_topic_timestamped_readings(request, historian, publish_agent,
                                         query_agent, clean):
@@ -1468,6 +1480,7 @@ def test_log_topic_timestamped_readings(request, historian, publish_agent,
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
     assert_timestamp(result['values'][0][0], '2015-12-02', '00:00:00.000000')
+
 
 @pytest.mark.historian
 def test_get_topic_metadata(request, historian, publish_agent,
@@ -1688,7 +1701,7 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
         topic_list = query_agent.vip.rpc.call('topic_list.historian',
                                           'get_topic_list').get(timeout=100)
         print('Query Result', topic_list)
-        assert (len(topic_list) == 2)
+        assert len(topic_list) == 2
         expected = [query_points['oat_point'], query_points['mixed_point']]
         assert set(topic_list) ==  set(expected)
     finally:
@@ -1698,11 +1711,6 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
                                              'topic_list_test1234_topics',
                                              'topic_list_test1234_meta'])
             volttron_instance.remove_agent(agent_uuid)
-
-
-
-
-
 
 
 def publish_devices_fake_data(publish_agent, time=None):
