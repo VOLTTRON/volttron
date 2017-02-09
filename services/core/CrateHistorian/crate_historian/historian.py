@@ -469,7 +469,7 @@ class CrateHistorian(BaseHistorian):
 
         cursor.execute(sql)
 
-        results = [x for x in cursor.fetchall()]
+        results = [x[0] for x in cursor.fetchall()]
         return results
 
     def query_topics_metadata(self, topics):
