@@ -190,6 +190,7 @@ sqlite_platform3 = {
 crate_platform1 = {
     "agentid": "crate-historian",
     "source_historian": "services/core/CrateHistorian",
+    "table_prefix": "test_historian",
     "connection": {
         "type": "crate",
         "params": {
@@ -384,6 +385,22 @@ def cleanup_crate(db_connection, truncate_tables):
         except ProgrammingError:
             pass
     cursor.close()
+
+
+def random_uniform(a, b):
+    """
+    Creates a random uniform value for using within our tests.  This function
+    will chop a float off at a specific uniform number of decimals.
+
+    :param a: lower bound of range for return value
+    :param b: upper bound of range for return value
+    :return: A psuedo random uniform float.
+    :type a: int
+    :type b: int
+    :rtype: float
+    """
+    format_spec = "{0:.13f}"
+    return float(format_spec.format(random.uniform(a, b)))
 
 
 def get_table_names(config):
@@ -582,10 +599,12 @@ def test_basic_function(request, historian, publish_agent, query_agent,
         request.keywords.node.name))
 
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-    # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
-    damper_reading = random.uniform(0, 100)
+    # Make some random readings.  Randome readings are going to be
+    # within the tolerance here.
+    format_spec = "{0:.13f}"
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
+    damper_reading = random_uniform(0, 100)
 
     float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
     percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
@@ -1040,8 +1059,8 @@ def test_topic_name_case_change(request, historian, publish_agent,
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
 
     # Create a message for all points.
     all_message = [{'OutsideAirTemperature': oat_reading,
@@ -1209,9 +1228,9 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
-    damper_reading = random.uniform(0, 100)
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
+    damper_reading = random_uniform(0, 100)
 
     # Create a message for all points.
     all_message = [{'OutsideAirTemperature': oat_reading,
@@ -1340,8 +1359,8 @@ def test_log_topic(request, historian, publish_agent, query_agent, clean):
     print("\n** test_log_topic for {}**".format(request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
 
     # Create a message for all points.
     message = {'MixedAirTemperature': {'Readings': mixed_reading, 'Units': 'F',
@@ -1397,8 +1416,8 @@ def test_log_topic_no_header(request, historian, publish_agent, query_agent,
     print("\n** test_log_topic for {}**".format(request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
 
     # Create a message for all points.
     message = {'MixedAirTemperature': {'Readings': mixed_reading, 'Units': 'F',
@@ -1448,8 +1467,8 @@ def test_log_topic_timestamped_readings(request, historian, publish_agent,
     print("\n** test_log_topic for {}**".format(request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
 
     # Create a message for all points.
     message = {'MixedAirTemperature': {'Readings': ['2015-12-02T00:00:00',
@@ -1510,8 +1529,8 @@ def test_get_topic_metadata(request, historian, publish_agent,
             request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
 
     # Create a message for all points.
     message = {'temp1': {'Readings': ['2015-12-02T00:00:00',
@@ -1671,9 +1690,9 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
 
         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
         # Make some random readings
-        oat_reading = random.uniform(30, 100)
-        mixed_reading = oat_reading + random.uniform(-5, 5)
-        damper_reading = random.uniform(0, 100)
+        oat_reading = random_uniform(30, 100)
+        mixed_reading = oat_reading + random_uniform(-5, 5)
+        damper_reading = random_uniform(0, 100)
 
         float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
         percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
@@ -1717,7 +1736,7 @@ def publish_devices_fake_data(publish_agent, time=None):
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
     global DEVICES_ALL_TOPIC
-    reading = random.uniform(30, 100)
+    reading = random_uniform(30, 100)
     meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
     # Create a message for all points.
     all_message = [{'OutsideAirTemperature': reading,
