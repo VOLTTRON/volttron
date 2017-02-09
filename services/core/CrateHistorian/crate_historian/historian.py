@@ -547,7 +547,7 @@ class CrateHistorian(BaseHistorian):
 
         self._connection = self.get_connection()
 
-        create_schema(self._connection)
+        create_schema(self._connection, self._schema)
 
         self._load_topic_map()
         self._load_meta_map()

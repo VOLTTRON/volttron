@@ -190,7 +190,7 @@ sqlite_platform3 = {
 crate_platform1 = {
     "agentid": "crate-historian",
     "source_historian": "services/core/CrateHistorian",
-    "table_prefix": "test_historian",
+    "schema": "test_historian",
     "connection": {
         "type": "crate",
         "params": {
@@ -292,13 +292,16 @@ def setup_crate(connection_params, table_names):
     conn = client.connect(connection_params['host'],
                           error_trace=True)
     cursor = conn.cursor()
+    schema = crate_platform1.get("schema", 'test_historian')
     for tbl in ('analysis', 'datalogger','device', 'meta', 'record', 'topic'):
         try:
-            cursor.execute('DELETE FROM {}'.format(tbl))
+            cursor.execute(
+                'DELETE FROM {schema}.{table}'.format(
+                    schema=schema, table=tbl))
         except ProgrammingError:
             pass
 
-    cratedriver.create_schema(conn)
+    cratedriver.create_schema(conn, schema)
     MICROSECOND_PRECISION = 3
     return conn, MICROSECOND_PRECISION
 
@@ -377,11 +380,14 @@ def cleanup_mongodb(db_connection, truncate_tables):
 
 def cleanup_crate(db_connection, truncate_tables):
     cursor = db_connection.cursor()
+    schema = crate_platform1.get("schema", "test_historian")
     for tbl in ('analysis', 'analysis_double', 'datalogger',
                 'datalogger_double', 'device', 'device_double',
                 'meta', 'record', 'topic'):
         try:
-            cursor.execute('DELETE FROM historian.{}'.format(tbl))
+            cursor.execute(
+                'DELETE FROM {schema}.{table}'.format(
+                    schema=schema, table=tbl))
         except ProgrammingError:
             pass
     cursor.close()
