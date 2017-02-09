@@ -417,40 +417,45 @@ class CrateHistorian(BaseHistorian):
             for _id, ts, value in cursor.fetchall():
                 values[original_topic].append(
                     (
-                        utils.format_timestamp(ts),
-                        ts.replace(tzinfo=pytz.UTC),
+                        utils.format_timestamp(
+                            utils.parse_timestamp_string(ts)),
                         value
                     )
                 )
             _log.debug("query result values {}".format(values))
 
-            # If there are results add metadata if it is a query on a
-            # single topic
-            if not multi_topic_query:
-                values = values.values()[0]
-                if agg_type:
-                    # if aggregation is on single topic find the topic id
-                    # in the topics table that corresponds to agg_topic_id
-                    # so that we can grab the correct metadata
-                    _log.debug("Single topic aggregate query. Try to get "
-                               "metadata")
-                    if topic_id:
-                        _log.debug("aggregation of a single topic, "
-                                   "found topic id in topic map. "
-                                   "topic_id={}".format(topic_id))
-                        metadata = self.topic_meta.get(topic_id, {})
+            if len(values) > 0:
+                # If there are results add metadata if it is a query on a
+                # single topic
+                if not multi_topic_query:
+                    values = values.values()[0]
+                    if agg_type:
+                        # if aggregation is on single topic find the topic id
+                        # in the topics table that corresponds to agg_topic_id
+                        # so that we can grab the correct metadata
+                        _log.debug("Single topic aggregate query. Try to get "
+                                   "metadata")
+                        if topic_id:
+                            _log.debug("aggregation of a single topic, "
+                                       "found topic id in topic map. "
+                                       "topic_id={}".format(topic_id))
+                            metadata = self._topic_meta.get(topic_id, {})
+                        else:
+                            # if topic name does not have entry in topic_id_map
+                            # it is a user configured aggregation_topic_name
+                            # which denotes aggregation across multiple points
+                            metadata = {}
                     else:
-                        # if topic name does not have entry in topic_id_map
-                        # it is a user configured aggregation_topic_name
-                        # which denotes aggregation across multiple points
-                        metadata = {}
-                else:
-                    # this is a query on raw data, get metadata for
-                    # topic from topic_meta map
-                    metadata = self.topic_meta.get(topic_id, {})
+                        # this is a query on raw data, get metadata for
+                        # topic from topic_meta map
+                        metadata = self._topic_meta.get(topic_id, {})
 
-                results['values'] = values
-                results['metadata'] = metadata
+                    return dict(values=values, metadata=metadata)
+            else:
+                results=dict()
+
+        results['values'] = values
+        results['metadata'] = metadata
 
         return results
 
