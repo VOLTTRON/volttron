@@ -7,6 +7,10 @@
         "help": "Installs testing infrastructure dependencies",
         "packages": ["pytest", "pytest-timeout", "mock", "websocket-client"]
     },
+    "--crate": {
+        "help": "Installs requirements for crate databases",
+        "packages": ["crate"]
+    },
     "--mysql": {
         "help": "Installs requirements for mysql databases",
         "packages": ["mysql-connector-python-rf"]
