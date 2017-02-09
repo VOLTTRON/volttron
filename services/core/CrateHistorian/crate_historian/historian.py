@@ -298,7 +298,7 @@ class CrateHistorian(BaseHistorian):
     def _build_single_topic_query(self, start, end, agg_type, agg_period, skip,
                                   count, order, table_name, topic_id):
         query = '''SELECT topic_id,
-                    date_format(%Y-%m-%dT%h:%i:%s.%H+00:00', ts) as ts, result
+                    date_format('%Y-%m-%dT%h:%i:%s.%f+00:00', ts) as ts, result
                         FROM ''' + table_name + '''
                         {where}
                         {order_by}
