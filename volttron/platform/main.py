@@ -98,6 +98,7 @@ from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
+from .vip.pubsubwrapper import PubSubWrapper
 
 try:
     import volttron.restricted
@@ -585,7 +586,10 @@ def start_volttron_process(opts):
                 address=address,
                 bind_web_address=opts.bind_web_address,
                 volttron_central_address=opts.volttron_central_address,
-                aip=opts.aip, enable_store=False)
+                aip=opts.aip, enable_store=False),
+            PubSubWrapper(address=address,
+                          identity='pubsub', heartbeat_autostart=True,
+                          enable_store=False)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
