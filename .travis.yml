@@ -31,7 +31,7 @@ before_install:
 install:
   - python2 bootstrap.py
   # Installs testing toolkit
-  - python2 boolstrap.py --crate
+  - python2 bootstrap.py --crate
   - python2 bootstrap.py --testing
   - python2 bootstrap.py --upgrade
 
