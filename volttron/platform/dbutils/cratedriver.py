@@ -7,13 +7,13 @@ import re
 from basedb import DbDriver
 
 
-def create_schema(connection):
+def create_schema(connection, schema="historian"):
     _log = logging.getLogger(__name__)
     _log.debug("Creating crate tables if necessary.")
 
     create_queries = [
         """
-        CREATE TABLE IF NOT EXISTS historian.topic(
+        CREATE TABLE IF NOT EXISTS {schema}.topic(
             id string,
             name string,
             data_table string,
@@ -21,78 +21,78 @@ def create_schema(connection):
             primary key (id)
         )
         CLUSTERED INTO 6 SHARDS
-        """,
+        """.format(schema=schema),
         """
-        CREATE TABLE IF NOT EXISTS historian.meta(
+        CREATE TABLE IF NOT EXISTS {schema}.meta(
             topic_id string,
             meta_data string,
             primary key (topic_id)
         )
         CLUSTERED INTO 6 SHARDS
-        """,
+        """.format(schema=schema),
         """
-            CREATE TABLE IF NOT EXISTS historian.analysis(
+            CREATE TABLE IF NOT EXISTS {schema}.analysis(
                 topic_id string,
                 ts timestamp NOT NULL,
                 result string,
                 primary key (topic_id, ts)
             )
             CLUSTERED INTO 6 SHARDS
-        """,
+        """.format(schema=schema),
         """
-        CREATE TABLE IF NOT EXISTS historian.analysis_double(
+        CREATE TABLE IF NOT EXISTS {schema}.analysis_double(
             topic_id string,
             ts timestamp NOT NULL,
             result double,
             primary key (topic_id, ts)
         )
         CLUSTERED INTO 6 SHARDS
-        """,
+        """.format(schema=schema),
         """
-        CREATE TABLE IF NOT EXISTS historian.datalogger(
+        CREATE TABLE IF NOT EXISTS {schema}.datalogger(
             topic_id string,
             ts timestamp NOT NULL,
             result string,
             primary key (topic_id, ts)
         )
         CLUSTERED INTO 6 SHARDS
-        """,
+        """.format(schema=schema),
         """
-            CREATE TABLE IF NOT EXISTS historian.datalogger_double(
+            CREATE TABLE IF NOT EXISTS {schema}.datalogger_double(
                 topic_id string,
                 ts timestamp NOT NULL,
                 result string,
                 primary key (topic_id, ts)
             )
             CLUSTERED INTO 6 SHARDS
-        """,
+        """.format(schema=schema),
         """
-        CREATE TABLE IF NOT EXISTS historian.device(
+        CREATE TABLE IF NOT EXISTS {schema}.device(
             topic_id string,
             ts timestamp NOT NULL,
             result string,
             primary key (topic_id, ts)
         )
         CLUSTERED INTO 6 SHARDS
-        """,
+        """.format(schema=schema),
         """
-            CREATE TABLE IF NOT EXISTS historian.device_double(
+            CREATE TABLE IF NOT EXISTS {schema}.device_double(
                 topic_id string,
                 ts timestamp NOT NULL,
                 result double,
                 primary key (topic_id, ts)
             )
             CLUSTERED INTO 6 SHARDS
-        """,
+        """.format(schema=schema),
         """
-        CREATE TABLE IF NOT EXISTS historian.record(
+        CREATE TABLE IF NOT EXISTS {schema}.record(
             topic_id string,
             ts timestamp NOT NULL,
             result string,
             primary key (topic_id, ts)
         )
         CLUSTERED INTO 6 SHARDS
-        """
+        """.format(schema=schema)
     ]
     try:
         cursor = connection.cursor()

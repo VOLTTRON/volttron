@@ -11,15 +11,21 @@ conn = client.connect(host, error_trace=True)
 
 cursor = conn.cursor()
 
+schema = ''
 tables = ['analysis', 'analysis_double',
           'datalogger', 'datalogger_double',
-          'device', 'device_double',
-          'meta', 'topic',
+          'device', 'device_double', 'topic',
           'meta', 'record']
 
 for t in tables:
     try:
-        cursor.execute("DROP TABLE historian.{}".format(t))
+        if schema:
+            full_table_name = "{schema}.{table}".format(schema=schema,
+                                                        table=t)
+        else:
+            full_table_name = t
+
+        cursor.execute("DROP TABLE {}".format(full_table_name))
     except Exception as ex:
         print(ex.message)
 

@@ -141,6 +141,7 @@ class CrateHistorian(BaseHistorian):
         self._agg_topic_collection = table_names['agg_topics_table']
         self._agg_meta_collection = table_names['agg_meta_table']
         self._connection_params = config['connection']['params']
+        self._schema = config.get('schema', 'historian')
         self._client = None
         self._connection = None
 
@@ -156,26 +157,28 @@ class CrateHistorian(BaseHistorian):
 
         if source == 'device':
             if db_datatype == 'string':
-                table = 'historian.device'
+                table = 'device'
             else:
-                table = 'historian.device_double'
+                table = 'device_double'
 
         if source == 'log':
             if db_datatype == 'string':
-                table = 'historian.datalogger'
+                table = 'datalogger'
             else:
-                table = 'historian.datalogger_double'
+                table = 'datalogger_double'
 
         if source == 'analysis':
             if db_datatype == 'string':
-                table = 'historian.analysis'
+                table = 'analysis'
             else:
-                table = 'historian.analysis_double'
+                table = 'analysis_double'
 
         if source == 'record':
-            table = 'historian.record'
+            table = 'record'
 
-        return table
+        assert source
+
+        return "{schema}.{table}".format(schema=self._schema, table=table)
 
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
@@ -253,10 +256,11 @@ class CrateHistorian(BaseHistorian):
                         continue
 
                     cursor.execute(
-                        """ INSERT INTO historian.topic(
+                        """ INSERT INTO {schema}.topic(
                               id, name, data_table, data_type)
                             VALUES(?, ?, ?, ?)
-                            ON DUPLICATE KEY UPDATE name=name""",
+                            ON DUPLICATE KEY UPDATE name=name
+                        """.format(schema=self._schema),
                         (topic_id, topic, topic_table, db_datatype))
                     self._topic_to_table_map[topic_id] = topic_table
                     self._topic_to_table_map[topic_lower] = topic_table
@@ -269,7 +273,9 @@ class CrateHistorian(BaseHistorian):
                     _log.debug('Updating topic: {}'.format(topic))
 
                     result = cursor.execute(
-                        'UPDATE historian.topic set name=? WHERE id=?', (topic, topic_id))
+                        """
+                          UPDATE {schema}.topic set name=? WHERE id=?
+                        """.format(schema=self._schema), (topic, topic_id))
                     self._topic_name_map[topic_lower] = topic
 
                 insert_data(cursor, topic_id, ts, value)
@@ -280,9 +286,10 @@ class CrateHistorian(BaseHistorian):
                                 str(old_meta.get(topic_id)) != str(meta):
                     _log.debug(
                         'Updating meta for topic: {} {}'.format(topic, meta))
-                    meta_insert = """INSERT INTO historian.meta(topic_id, meta_data)
+                    meta_insert = """INSERT INTO {schema}.meta(topic_id, meta_data)
                                      VALUES(?,?)
-                                     ON DUPLICATE KEY UPDATE meta_data=meta_data"""
+                                     ON DUPLICATE KEY UPDATE meta_data=meta_data
+                                  """.format(schema=self._schema)
                     cursor.execute(meta_insert, (topic_id, jsonapi.dumps(meta)))
                     self._topic_meta[topic_id] = meta
 
@@ -464,8 +471,8 @@ class CrateHistorian(BaseHistorian):
         cursor = self.get_connection().cursor()
         sql = """
             SELECT name, lower(name)
-            FROM historian.topic
-        """
+            FROM {schema}.topic
+        """.format(schema=self._schema)
 
         cursor.execute(sql)
 
@@ -500,9 +507,9 @@ class CrateHistorian(BaseHistorian):
 
         cursor.execute("""
             SELECT id, name, lower(name) AS lower_name, data_table, data_type
-            FROM historian.topic
+            FROM {schema}.topic
             ORDER BY lower(name)
-        """)
+        """.format(schema=self._schema))
 
         for row in cursor.fetchall():
             _log.debug('loading: {}'.format(row[2]))
@@ -521,8 +528,8 @@ class CrateHistorian(BaseHistorian):
 
         cursor.execute("""
             SELECT topic_id, meta_data
-            FROM historian.meta
-        """)
+            FROM {schema}.meta
+        """.format(schema=self._schema))
 
         for row in cursor.fetchall():
             self._topic_meta[row[0]] = jsonapi.loads(row[1])
