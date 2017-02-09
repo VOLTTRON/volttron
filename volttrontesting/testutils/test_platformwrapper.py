@@ -59,9 +59,33 @@ import requests
 import gevent
 import pytest
 import time
+import os
+from zmq.utils import jsonapi
 
 from volttrontesting.utils.platformwrapper import start_wrapper_platform, \
     PlatformWrapper
+
+
+@pytest.mark.wrapper
+def test_instance_writes_to_instances_file(volttron_instance):
+    vi = volttron_instance
+    assert vi is not None
+    assert vi.is_running()
+
+    instances_file = os.path.expanduser("~/.volttron_instances")
+
+    with open(instances_file, 'r') as fp:
+        result = jsonapi.loads(fp.read())
+
+    assert result.get(vi.volttron_home)
+    the_instance_entry = result.get(vi.volttron_home)
+    for key in ('pid', 'vip-address', 'volttron-home', 'start-args'):
+        assert the_instance_entry.get(key)
+
+    assert the_instance_entry['pid'] == vi.p_process.pid
+
+    assert the_instance_entry['vip-address'][0] == vi.vip_address
+    assert the_instance_entry['volttron-home'] == vi.volttron_home
 
 
 @pytest.mark.wrapper

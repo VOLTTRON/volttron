@@ -450,6 +450,10 @@ class MasterDriverAgent(Agent):
             return self.instances[path].set_point(point_name, value, **kwargs)
 
     @RPC.export
+    def scrape_all(self, path):
+        return self.instances[path].scrape_all()
+
+    @RPC.export
     def get_multiple_points(self, path, point_names, **kwargs):
         return self.instances[path].get_multiple_points(point_names, **kwargs)
 
