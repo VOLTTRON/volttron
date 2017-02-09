@@ -454,13 +454,13 @@ def query_agent(request, volttron_instance):
 # Fixtures for setup and teardown of historian agent
 @pytest.fixture(scope="module",
                 params=[
-                    # mysql_skipif(mysql_platform1),
-                    # mysql_skipif(mysql_platform2),
-                    # mysql_skipif(mysql_platform3),
-                    # sqlite_platform1,
-                    # sqlite_platform2,
-                    # sqlite_platform3,
-                    # pymongo_skipif(mongo_aggregator),
+                    mysql_skipif(mysql_platform1),
+                    mysql_skipif(mysql_platform2),
+                    mysql_skipif(mysql_platform3),
+                    sqlite_platform1,
+                    sqlite_platform2,
+                    sqlite_platform3,
+                    pymongo_skipif(mongo_aggregator),
                     crate_skipif(crate_platform1)
                 ])
 def historian(request, volttron_instance, query_agent):
