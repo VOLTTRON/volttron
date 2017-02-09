@@ -33,7 +33,6 @@ install:
   # Installs testing toolkit
   - python2 bootstrap.py --crate
   - python2 bootstrap.py --testing
-  - python2 bootstrap.py --upgrade
 
 script: ci-integration/run-tests.sh
 
