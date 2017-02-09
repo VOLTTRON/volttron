@@ -1,0 +1,182 @@
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+
+# Copyright (c) 2015, Battelle Memorial Institute
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation
+# are those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD
+# Project.
+#
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization that
+# has cooperated in the development of these materials, makes any
+# warranty, express or implied, or assumes any legal liability or
+# responsibility for the accuracy, completeness, or usefulness or any
+# information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does not
+# necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+#}}}
+
+
+import errno
+import logging
+
+import gevent
+from zmq import green as zmq
+from zmq.utils import jsonapi
+from base64 import b64encode, b64decode
+from zmq import SNDMORE
+from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.vip.agent.errors import VIPError
+from volttron.platform import jsonrpc
+
+_log = logging.getLogger(__name__)
+
+def encode_peer(peer):
+    if peer.startswith('\x00'):
+        return peer[:1] + b64encode(peer[1:])
+    return peer
+
+def decode_peer(peer):
+    if peer.startswith('\x00'):
+        return peer[:1] + b64decode(peer[1:])
+    return peer
+
+# PubSubWrapper Agent acts as a wrapper agent for PubSub subsystem when connected to remote platform that which is using
+# old pubsub (RPC based implementation).
+# When it receives PubSub requests from remote platform,
+# - calls the appropriate method of new platform.
+# - returns the result back
+class PubSubWrapper(Agent):
+    def __init__(self, identity, **kwargs):
+        super(PubSubWrapper, self).__init__(identity, **kwargs)
+        self._peer_subscriptions = {}
+        self.add_bus('')
+
+    @Core.receiver('onsetup')
+    def onsetup(self, sender, **kwargs):
+        # pylint: disable=unused-argument
+        self.vip.rpc.export(self._peer_publish, 'pubsub.publish')
+        self.vip.rpc.export(self._peer_subscribe, 'pubsub.subscribe')
+        self.vip.rpc.export(self._peer_unsubscribe, 'pubsub.unsubscribe')
+        self.vip.rpc.export(self._peer_list, 'pubsub.list')
+
+    def _peer_publish(self, topic, headers, message=None, bus=''):
+        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        self.vip.pubsub.publish(peer, topic, headers, message=message, bus=bus)
+
+    def add_bus(self, name):
+        self._peer_subscriptions.setdefault(name, {})
+
+    def _add_peer_subscription(self, peer, bus, prefix):
+        subscriptions = self._peer_subscriptions[bus]
+        try:
+            subscribers = subscriptions[prefix]
+        except KeyError:
+            subscriptions[prefix] = subscribers = set()
+        subscribers.add(peer)
+
+    def _peer_subscribe(self, prefix, bus=''):
+        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        for prefix in prefix if isinstance(prefix, list) else [prefix]:
+            self._add_peer_subscription(peer, bus, prefix)
+        self.vip.pubsub.subscribe(peer, prefix, self._collector, bus=bus)
+
+    def _distribute(self, peer, topic, headers, message=None, bus=''):
+        #self._check_if_protected_topic(topic)
+        subscriptions = self._peer_subscriptions[bus]
+        subscribers = set()
+        for prefix, subscription in subscriptions.iteritems():
+            if subscription and topic.startswith(prefix):
+                subscribers |= subscription
+        if subscribers:
+            sender = encode_peer(peer)
+            json_msg = jsonapi.dumps(jsonrpc.json_method(
+                None, 'pubsub.push',
+                [sender, bus, topic, headers, message], None))
+            frames = [zmq.Frame(b''), zmq.Frame(b''),
+                      zmq.Frame(b'RPC'), zmq.Frame(json_msg)]
+            socket = self.core.socket
+            for subscriber in subscribers:
+                socket.send(subscriber, flags=SNDMORE)
+                socket.send_multipart(frames, copy=False)
+        return len(subscribers)
+
+    def _collector(self, peer, sender, bus,  topic, headers, message):
+        self._distribute(peer, topic, headers, message, bus)
+
+    def _peer_list(self, prefix='', bus='', subscribed=True, reverse=False):
+        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        if bus is None:
+            buses = self._peer_subscriptions.iteritems()
+        else:
+            buses = [(bus, self._peer_subscriptions[bus])]
+        if reverse:
+            test = prefix.startswith
+        else:
+            test = lambda t: t.startswith(prefix)
+        results = []
+        for bus, subscriptions in buses:
+            for topic, subscribers in subscriptions.iteritems():
+                if test(topic):
+                    member = peer in subscribers
+                    if not subscribed or member:
+                        results.append((bus, topic, member))
+        return results
+
+    def _peer_unsubscribe(self, prefix, bus=''):
+        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        subscriptions = self._peer_subscriptions[bus]
+        if prefix is None:
+            remove = []
+            for topic, subscribers in subscriptions.iteritems():
+                subscribers.discard(peer)
+                if not subscribers:
+                    remove.append(topic)
+            for topic in remove:
+                del subscriptions[topic]
+        else:
+            for prefix in prefix if isinstance(prefix, list) else [prefix]:
+                subscribers = subscriptions[prefix]
+                subscribers.discard(peer)
+                if not subscribers:
+                    del subscriptions[prefix]
+        self.vip.pubsub.unsubscribe(peer, prefix, self._collector, bus=bus)
