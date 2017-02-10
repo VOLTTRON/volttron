@@ -52,7 +52,7 @@
 # under Contract DE-AC05-76RL01830
 
 #}}}
-
+import traceback
 import datetime
 from volttron.platform.vip.agent import BasicAgent, Core
 from volttron.platform.agent import utils
@@ -220,17 +220,17 @@ class DriverAgent(BasicAgent):
                                      'type': ts_type,
                                      'tz': config['timezone']}
             
-        self.base_topic = DEVICES_VALUE(campus='',
-                                        building='',
-                                        unit='',
+        self.base_topic = DEVICES_VALUE(campus=config.get('campus',''),
+                                        building=config.get('building',''),
+                                        unit=config.get('unit',''),
                                         path=self.device_path,
                                         point=None)
         
-        self.device_name = DEVICES_PATH(base='',
+        self.device_name = DEVICES_PATH(campus=config.get('campus',''),
+                                        building=config.get('building',''),
+                                        unit=config.get('unit',''),
+                                        base='',
                                         node='',
-                                        campus='',
-                                        building='',
-                                        unit='',
                                         path=self.device_path,
                                         point='')
         
@@ -261,6 +261,10 @@ class DriverAgent(BasicAgent):
         try:
             results = self.interface.scrape_all()
         except Exception as ex:
+            I = sys.exc_info()
+            for l in traceback.format_tb(I[-1]):
+                _log.error(l)
+            _log.error(traceback.format_exception(*I))
             _log.error('Failed to scrape ' + self.device_name + ': ' + str(ex))
             return
         
@@ -376,4 +380,3 @@ class DriverAgent(BasicAgent):
     
     def revert_all(self, **kwargs):
         self.interface.revert_all(**kwargs)
-        

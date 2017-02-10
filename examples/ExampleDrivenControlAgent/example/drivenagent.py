@@ -72,7 +72,8 @@ __license__ = 'FreeBSD'
 __version__ = '0.1'
 
 def DrivenAgent(config_path, **kwargs):
-    '''Driven harness for deployment of OpenEIS applications in VOLTTRON.'''
+    '''Driven harness for deployment an external
+    OpenADR VTN server answerable to VOLTTRON.'''
     config = utils.load_config(config_path)
     mode = True if config.get('mode', 'PASSIVE') == 'ACTIVE' else False
     validation_error = ''
@@ -106,7 +107,9 @@ def DrivenAgent(config_path, **kwargs):
     app_instance = klass(**config)
 
     class Agent(PublishMixin, BaseAgent):
-        '''Agent listens to message bus device and runs when data is published.
+        '''Agent listens to message bus device 
+
+        and runs when data is published.
         '''
         def __init__(self, **kwargs):
             super(Agent, self).__init__(**kwargs)

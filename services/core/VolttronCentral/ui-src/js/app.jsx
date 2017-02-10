@@ -22,6 +22,8 @@ var Platforms = require('./components/platforms');
 import ConfigureDevices from './components/configure-devices';
 import ReconfigureDevice from './components/reconfigure-device';
 var PlatformCharts = require('./components/platform-charts');
+var FLAME = require('./components/flame');
+var GS = require('./components/gs');
 var Navigation = require('./components/navigation');
 var devicesActionCreators = require('./action-creators/devices-action-creators');
 var StatusIndicator = require('./components/status-indicator');
@@ -44,6 +46,7 @@ const checkAuth = AuthComponent => class extends React.Component {
     }
 
     render() {
+    
         return <AuthComponent {...this.props}/>;
     }
 };
@@ -99,6 +102,8 @@ var routes = (
             <Route path="configure-devices" component={checkAuth(ConfigureDevices)} />
             <Route path="reconfigure-device" component={checkAuth(ReconfigureDevice)} />
             <Route path="charts" component={checkAuth(PlatformCharts)} />
+            <Route path="flame" component={checkAuth(FLAME)} />
+            <Route path="gs" component={checkAuth(GS)} />
         </Route>
         <Route path="/" component={checkAuth(PublicExterior)} > 
             <Route path="login" component={checkAuth(LoginForm)} />

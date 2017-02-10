@@ -62,6 +62,7 @@ import re
 import requests
 import sys
 from urlparse import urlparse, urljoin
+import traceback
 
 from gevent import pywsgi
 
@@ -670,6 +671,7 @@ class MasterWebService(Agent):
 
         _log.info('Starting web server binding to {}:{}.' \
                    .format(hostname, port))
+        _log.info(traceback.format_stack())
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
                                       self._get_discovery))
         self.registeredroutes.append((re.compile('^/discovery/allow$'),

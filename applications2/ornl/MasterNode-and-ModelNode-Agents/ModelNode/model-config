@@ -1,0 +1,5 @@
+{
+    "setPoint" : 70,
+    "modelnodeplatform" : "modelnode0",
+    "master-vip-address": "tcp://127.0.0.1:22916"
+}

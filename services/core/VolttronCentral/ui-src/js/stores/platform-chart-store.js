@@ -84,6 +84,9 @@ chartStore.getMax = function (chartKey) {
 chartStore.getRefreshRate = function (chartKey) {
     return (_chartData.hasOwnProperty(chartKey) ? _chartData[chartKey].refreshInterval : null);
 }
+chartStore.getDataLength = function (chartKey) {
+    return (_chartData.hasOwnProperty(chartKey) ? _chartData[chartKey].dataLength : null);
+}
 
 chartStore.getDataLength = function (chartKey) {
     return (_chartData.hasOwnProperty(chartKey) ? _chartData[chartKey].dataLength : null);
@@ -243,6 +246,16 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             if (_chartData[action.chartKey].hasOwnProperty("refreshInterval"))
             {
                 _chartData[action.chartKey].refreshInterval = action.rate;
+            }
+
+            chartStore.emitChange();
+
+            break;
+        case ACTION_TYPES.CHANGE_CHART_LENGTH:
+
+            if (_chartData[action.chartKey].hasOwnProperty("dataLength"))
+            {
+                _chartData[action.chartKey].dataLength = action.length;
             }
 
             chartStore.emitChange();

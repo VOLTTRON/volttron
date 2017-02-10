@@ -245,7 +245,7 @@ def weather_service(config_path, **kwargs):
 
             return weather_dict
 
-        def publish_all(self, observation, topic_prefix="weather", headers={}):
+        def publish_all(self, observation, topic_prefix="datalogger/weather", headers={}):
             utcnow = utils.get_aware_utc_now()
             utcnow_string = utils.format_timestamp(utcnow)
             headers.update({HEADER_NAME_DATE: utcnow_string,

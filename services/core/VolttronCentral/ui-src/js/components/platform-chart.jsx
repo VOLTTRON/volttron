@@ -24,7 +24,7 @@ var PlatformChart = React.createClass({
 
         state.refreshInterval = this.props.chart.refreshInterval;
         state.pinned = this.props.chart.pinned;
-
+	state.dataLength = this.props.chart.dataLength;
         state.refreshing = false;
 
         return state;
@@ -60,8 +60,7 @@ var PlatformChart = React.createClass({
         
         if (this.props.hasOwnProperty("chart"))
         {
-            this.setState({refreshing: true});
-
+            this.setState({refreshing: true});	    
             platformChartActionCreators.refreshChart(
                 this.props.chart.series,
                 this.props.chart.dataLength
@@ -192,6 +191,7 @@ var GraphLineChart = OutsideClick(React.createClass({
       state.showTaptip = false;
       state.taptipX = 0;
       state.taptipY = 0;
+      state.dataLength = 20;
       state.min = (this.props.min ? this.props.min : d3.min(this.props.data, function (d) {return d["1"]}));
       state.max = (this.props.max ? this.props.max : d3.max(this.props.data, function (d) {return d["1"]}));
 
@@ -419,6 +419,22 @@ var GraphLineChart = OutsideClick(React.createClass({
                 </span>
             </div>
         );
+        var lengthChart = (
+            <div>
+                <input
+                    type="number"
+                    onChange={this._onLengthChange}
+                    value={this.props.dataLength}
+                    min="1"
+                    step="1"
+                    placeholder="disabled"
+                /> (ms)
+                <br/>
+                <span>
+                    Omit to disable
+                </span>
+            </div>
+        );
 
         var refreshChartTaptip = { 
             "title": "Refresh Rate", 
@@ -428,6 +444,9 @@ var GraphLineChart = OutsideClick(React.createClass({
         };
         var refreshChartIcon = (
             <i className="fa fa-hourglass"></i>
+        );
+        var lengthIcon = (
+            <i className="fa fa-arrows-h"></i>
         );
         var refreshChartTooltip = {
             "content": "Refresh Rate",

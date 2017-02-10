@@ -21,3 +21,4 @@ applications
 /config/
 /docs/build/*
 /docs/source/apidocs
+*.bak

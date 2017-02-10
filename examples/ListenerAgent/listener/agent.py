@@ -83,7 +83,7 @@ class ListenerAgent(Agent):
     heartbeat period specified in the settings module.
     """
 
-    def __init__(self, config_path, **kwargs):
+    def __init__(self, config_path, rpc=None, **kwargs):
         super(ListenerAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
         self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
@@ -104,6 +104,7 @@ class ListenerAgent(Agent):
             self._logfn = _log.debug
         else:
             self._logfn = _log.info
+        
 
     @Core.receiver('onsetup')
     def onsetup(self, sender, **kwargs):

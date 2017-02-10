@@ -155,7 +155,10 @@ class ModbusByteRegister(ModbusRegisterBase):
         
         target_bytes = byte_stream[index:index+width]
         if len(target_bytes) < width:
-            raise ValueError('Not enough data to parse')
+            raise ValueError(
+                'Not enough data to parse: width %s, bytes %s address %s'%(
+                    width, target_bytes, self.address
+                ))
         
         return self.parse_struct.unpack(target_bytes)[0]
     
@@ -171,7 +174,6 @@ class ModbusByteRegister(ModbusRegisterBase):
         response_bytes = response.encode()
         #skip the result count
         return self.parse_struct.unpack(response_bytes[1:])[0]
-
     def set_state(self, client, value):
         if not self.read_only:
             value_bytes = self.parse_struct.pack(value)
@@ -181,6 +183,7 @@ class ModbusByteRegister(ModbusRegisterBase):
             client.write_registers(self.address, register_values, unit=self.slave_id)
             return self.get_state(client)
         return None
+    
     
         
 class Interface(BasicRevert, BaseInterface):
@@ -367,8 +370,8 @@ class Interface(BasicRevert, BaseInterface):
                             
                 else:
                     _log.info("No default value supplied for point {}. Using default revert method.".format(point_path))
-
-         #Merge adjacent ranges for efficiency.
-         self.merge_register_ranges()
+        
+        #Merge adjacent ranges for efficiency.
+        self.merge_register_ranges()
                 
             
