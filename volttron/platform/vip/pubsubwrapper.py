@@ -67,6 +67,7 @@ from zmq import SNDMORE
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform import jsonrpc
+from collections import defaultdict
 
 _log = logging.getLogger(__name__)
 
@@ -80,26 +81,60 @@ def decode_peer(peer):
         return peer[:1] + b64decode(peer[1:])
     return peer
 
-# PubSubWrapper Agent acts as a wrapper agent for PubSub subsystem when connected to remote platform that which is using
-# old pubsub (RPC based implementation).
-# When it receives PubSub requests from remote platform,
-# - calls the appropriate method of new platform.
-# - returns the result back
 class PubSubWrapper(Agent):
+    """PubSubWrapper Agent acts as a wrapper agent for PubSub subsystem when connected to remote platform that which is using
+       old pubsub (RPC based implementation).
+       When it receives PubSub requests from remote platform,
+       - calls the appropriate method of new platform.
+       - returns the result back"""
     def __init__(self, identity, **kwargs):
         super(PubSubWrapper, self).__init__(identity, **kwargs)
-        self._peer_subscriptions = {}
-        self.add_bus('')
+
+        def subscriptions():
+            return defaultdict(set)
+
+        self._peer_subscriptions = defaultdict(subscriptions)
 
     @Core.receiver('onsetup')
     def onsetup(self, sender, **kwargs):
         # pylint: disable=unused-argument
+        self.vip.rpc.export(self._peer_sync, 'pubsub.sync')
         self.vip.rpc.export(self._peer_publish, 'pubsub.publish')
         self.vip.rpc.export(self._peer_subscribe, 'pubsub.subscribe')
         self.vip.rpc.export(self._peer_unsubscribe, 'pubsub.unsubscribe')
         self.vip.rpc.export(self._peer_list, 'pubsub.list')
 
+    def _sync(self, peer, items):
+        _log.debug("Im here???????????")
+        items = {(bus, prefix) for bus, topics in items.iteritems()
+                 for prefix in topics}
+        remove = []
+        for bus, subscriptions in self._peer_subscriptions.iteritems():
+            for prefix, subscribers in subscriptions.iteritems():
+                item = bus, prefix
+                try:
+                    items.remove(item)
+                except KeyError:
+                    subscribers.discard(peer)
+                    if not subscribers:
+                        remove.append(item)
+                else:
+                    subscribers.add(peer)
+        for bus, prefix in remove:
+            subscriptions = self._peer_subscriptions[bus]
+            assert not subscriptions.pop(prefix)
+        for bus, prefix in items:
+            self._add_peer_subscription(peer, bus, prefix)
+            _log.debug("PUBSUBWRAPPER subscribing again")
+            self.vip.pubsub.subscribe(peer, prefix, self._collector, bus=bus)
+
+    def _peer_sync(self, items):
+        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        assert isinstance(items, dict)
+        self._sync(peer, items)
+
     def _peer_publish(self, topic, headers, message=None, bus=''):
+        _log.debug("PUBSUBWRAPPER::perr_publish")
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         self.vip.pubsub.publish(peer, topic, headers, message=message, bus=bus)
 
@@ -107,14 +142,10 @@ class PubSubWrapper(Agent):
         self._peer_subscriptions.setdefault(name, {})
 
     def _add_peer_subscription(self, peer, bus, prefix):
-        subscriptions = self._peer_subscriptions[bus]
-        try:
-            subscribers = subscriptions[prefix]
-        except KeyError:
-            subscriptions[prefix] = subscribers = set()
-        subscribers.add(peer)
+        self._peer_subscriptions[bus][prefix].add(peer)
 
     def _peer_subscribe(self, prefix, bus=''):
+        _log.debug("PUBSUBWRAPPER::perr_subscribe")
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         for prefix in prefix if isinstance(prefix, list) else [prefix]:
             self._add_peer_subscription(peer, bus, prefix)
@@ -163,6 +194,7 @@ class PubSubWrapper(Agent):
         return results
 
     def _peer_unsubscribe(self, prefix, bus=''):
+        _log.debug("PUBSUBWRAPPER::perr_unsubscribe")
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         subscriptions = self._peer_subscriptions[bus]
         if prefix is None:
@@ -179,4 +211,4 @@ class PubSubWrapper(Agent):
                 subscribers.discard(peer)
                 if not subscribers:
                     del subscriptions[prefix]
-        self.vip.pubsub.unsubscribe(peer, prefix, self._collector, bus=bus)
+                    self.vip.pubsub.unsubscribe(peer, prefix, self._collector, bus=bus)

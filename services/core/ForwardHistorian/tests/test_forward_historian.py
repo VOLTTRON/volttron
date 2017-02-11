@@ -88,7 +88,6 @@ def onmessage(peer, sender, bus, topic, headers, message):
 
 
 @pytest.mark.historian
-@pytest.mark.xfail(reason='need to see about auth stuff for this to work')
 def test_reconnect_forwarder(get_volttron_instances):
     from_instance, to_instance = get_volttron_instances(2, True)
     to_instance.allow_all_connections()
@@ -99,7 +98,8 @@ def test_reconnect_forwarder(get_volttron_instances):
     forwarder_config = deepcopy(BASE_FORWARD_CONFIG)
     forwardtoaddr = build_vip_address(to_instance, receiver)
     print("FORWARD ADDR: {}".format(forwardtoaddr))
-    forwarder_config['destination-vip'] = forwardtoaddr
+    forwarder_config['destination-vip'] = to_instance.vip_address
+    forwarder_config['destination-serverkey'] = to_instance.keystore.public
 
     fuuid = from_instance.install_agent(
         agent_dir="services/core/ForwardHistorian",start=True,
