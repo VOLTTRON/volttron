@@ -1,0 +1,12 @@
+{
+    "connection": {
+        "type": "mongo",
+        "params": {
+            "host": "volttrondev.pnl.gov",
+            "port": 27017,
+            "database": "historian",
+            "user": "historian",
+            "passwd": "volttron"
+        }
+    }
+}

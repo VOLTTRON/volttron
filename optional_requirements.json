@@ -5,7 +5,11 @@
     },
     "--testing": {
         "help": "Installs testing infrastructure dependencies",
-        "packages": ["pytest", "pytest-timeout", "mock", "websocket-client"]
+        "packages": ["pytest>3", "pytest-timeout", "mock", "websocket-client"]
+    },
+    "--crate": {
+        "help": "Installs requirements for crate databases",
+        "packages": ["crate"]
     },
     "--mysql": {
         "help": "Installs requirements for mysql databases",

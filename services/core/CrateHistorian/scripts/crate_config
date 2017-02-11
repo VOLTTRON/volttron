@@ -1,0 +1,8 @@
+{
+    "connection": {
+        "type": "crate",
+        "params": {
+            "host": "localhost:4200"
+        }
+    }
+}
