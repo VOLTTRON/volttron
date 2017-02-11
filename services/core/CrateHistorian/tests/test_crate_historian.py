@@ -57,6 +57,7 @@
 # }}}
 
 
+import gevent
 import pytest
 
 try:
@@ -158,6 +159,7 @@ def test_creates_default_table_prefixes(volttron_instance, crate_connection1):
         agent_uuid = vi.install_agent(agent_dir="services/core/CrateHistorian",
                                       config_file=crate_config_no_schema)
 
+        gevent.sleep(0.5)
         tables = retrieve_tables_from_schema(crate_connection1, "historian")
 
         assert len(expected_table_list) == len(tables)
