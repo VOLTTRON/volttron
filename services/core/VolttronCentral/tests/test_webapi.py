@@ -74,7 +74,7 @@ def web_api_tester(request, vc_instance, pa_instance):
 
 
 @pytest.mark.vc
-@pytest.mark.xfail(reason="Fix before 4.1 out")
+@pytest.mark.skip(reason="4.1 fixing tests")
 def test_vc_settings_store(vc_instance):
     """ Test the reading and writing of data through the get_setting,
         set_setting and get_all_key json-rpc calls.
@@ -123,7 +123,7 @@ def test_vc_settings_store(vc_instance):
 
 
 @pytest.mark.vc
-@pytest.mark.skipif("True", reason="4.1 to fix!")
+@pytest.mark.skip(reason="4.1 fixing tests")
 def test_unregister_platform(web_api_tester):
     platforms = web_api_tester.list_platforms().json()['result']
     orig_platform_count = len(platforms)
@@ -188,7 +188,7 @@ def test_listagent(vc_vcp_platforms):
 
 
 @pytest.mark.vc
-@pytest.mark.skipif("True", reason="4.1 to fix!")
+@pytest.mark.skip(reason="4.1 fixing tests")
 def test_installagent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
