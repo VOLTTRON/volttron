@@ -91,6 +91,7 @@ def test_autoregister_external(vc_vcp_platforms):
 
 @pytest.mark.vc
 @pytest.mark.timeout(300)
+@pytest.mark.skipif("True", reason="4.1 to fix!")
 def test_autoregister_local(both_with_vc_vcp):
     gevent.sleep(15)
 
