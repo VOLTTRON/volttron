@@ -18,6 +18,8 @@ from vctestutils import (APITester,
                          check_multiple_platforms,
                          validate_response)
 
+pytestmark = pytest.mark.skipif("True", reason="4.1 fixing tests")
+
 
 @pytest.fixture(scope="module")
 def vc_vcp_platforms():
