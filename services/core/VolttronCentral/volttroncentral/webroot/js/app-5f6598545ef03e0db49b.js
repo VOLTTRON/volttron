@@ -58,7 +58,7 @@
 	
 	var _configureDevices2 = _interopRequireDefault(_configureDevices);
 	
-	var _reconfigureDevice = __webpack_require__(397);
+	var _reconfigureDevice = __webpack_require__(398);
 	
 	var _reconfigureDevice2 = _interopRequireDefault(_reconfigureDevice);
 	
@@ -70,10 +70,10 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	__webpack_require__(399);
-	__webpack_require__(403);
-	__webpack_require__(405);
-	__webpack_require__(413);
+	__webpack_require__(400);
+	__webpack_require__(404);
+	__webpack_require__(406);
+	__webpack_require__(414);
 	
 	var React = __webpack_require__(3);
 	var ReactDOM = __webpack_require__(112);
@@ -81,14 +81,14 @@
 	var authorizationStore = __webpack_require__(103);
 	var platformsPanelItemsStore = __webpack_require__(266);
 	var devicesStore = __webpack_require__(270);
-	var Dashboard = __webpack_require__(415);
-	var LoginForm = __webpack_require__(531);
-	var PageNotFound = __webpack_require__(540);
-	var Platform = __webpack_require__(541);
+	var Dashboard = __webpack_require__(416);
+	var LoginForm = __webpack_require__(532);
+	var PageNotFound = __webpack_require__(541);
+	var Platform = __webpack_require__(542);
 	
-	var Platforms = __webpack_require__(544);
+	var Platforms = __webpack_require__(545);
 	
-	var PlatformCharts = __webpack_require__(547);
+	var PlatformCharts = __webpack_require__(548);
 	var Navigation = __webpack_require__(326);
 	var devicesActionCreators = __webpack_require__(309);
 	var StatusIndicator = __webpack_require__(328);
@@ -1260,12 +1260,18 @@
 	 * will remain to ensure logic does not differ in production.
 	 */
 	
-	function invariant(condition, format, a, b, c, d, e, f) {
-	  if (process.env.NODE_ENV !== 'production') {
+	var validateFormat = function validateFormat(format) {};
+	
+	if (process.env.NODE_ENV !== 'production') {
+	  validateFormat = function validateFormat(format) {
 	    if (format === undefined) {
 	      throw new Error('invariant requires an error message argument');
 	    }
-	  }
+	  };
+	}
+	
+	function invariant(condition, format, a, b, c, d, e, f) {
+	  validateFormat(format);
 	
 	  if (!condition) {
 	    var error;
@@ -3637,38 +3643,30 @@
 	// Set.prototype.keys
 	Set.prototype != null && typeof Set.prototype.keys === 'function' && isNative(Set.prototype.keys);
 	
-	var setItem;
-	var getItem;
-	var removeItem;
-	var getItemIDs;
-	var addRoot;
-	var removeRoot;
-	var getRootIDs;
-	
 	if (canUseCollections) {
 	  var itemMap = new Map();
 	  var rootIDSet = new Set();
 	
-	  setItem = function (id, item) {
+	  var setItem = function (id, item) {
 	    itemMap.set(id, item);
 	  };
-	  getItem = function (id) {
+	  var getItem = function (id) {
 	    return itemMap.get(id);
 	  };
-	  removeItem = function (id) {
+	  var removeItem = function (id) {
 	    itemMap['delete'](id);
 	  };
-	  getItemIDs = function () {
+	  var getItemIDs = function () {
 	    return Array.from(itemMap.keys());
 	  };
 	
-	  addRoot = function (id) {
+	  var addRoot = function (id) {
 	    rootIDSet.add(id);
 	  };
-	  removeRoot = function (id) {
+	  var removeRoot = function (id) {
 	    rootIDSet['delete'](id);
 	  };
-	  getRootIDs = function () {
+	  var getRootIDs = function () {
 	    return Array.from(rootIDSet.keys());
 	  };
 	} else {
@@ -3684,31 +3682,31 @@
 	    return parseInt(key.substr(1), 10);
 	  };
 	
-	  setItem = function (id, item) {
+	  var setItem = function (id, item) {
 	    var key = getKeyFromID(id);
 	    itemByKey[key] = item;
 	  };
-	  getItem = function (id) {
+	  var getItem = function (id) {
 	    var key = getKeyFromID(id);
 	    return itemByKey[key];
 	  };
-	  removeItem = function (id) {
+	  var removeItem = function (id) {
 	    var key = getKeyFromID(id);
 	    delete itemByKey[key];
 	  };
-	  getItemIDs = function () {
+	  var getItemIDs = function () {
 	    return Object.keys(itemByKey).map(getIDFromKey);
 	  };
 	
-	  addRoot = function (id) {
+	  var addRoot = function (id) {
 	    var key = getKeyFromID(id);
 	    rootByKey[key] = true;
 	  };
-	  removeRoot = function (id) {
+	  var removeRoot = function (id) {
 	    var key = getKeyFromID(id);
 	    delete rootByKey[key];
 	  };
-	  getRootIDs = function () {
+	  var getRootIDs = function () {
 	    return Object.keys(rootByKey).map(getIDFromKey);
 	  };
 	}
@@ -4489,7 +4487,7 @@
 	
 	'use strict';
 	
-	module.exports = '15.4.1';
+	module.exports = '15.4.0';
 
 /***/ },
 /* 33 */
@@ -13092,12 +13090,18 @@
 	 * will remain to ensure logic does not differ in production.
 	 */
 	
-	function invariant(condition, format, a, b, c, d, e, f) {
-	  if (process.env.NODE_ENV !== 'production') {
+	var validateFormat = function validateFormat(format) {};
+	
+	if (process.env.NODE_ENV !== 'production') {
+	  validateFormat = function validateFormat(format) {
 	    if (format === undefined) {
 	      throw new Error('invariant requires an error message argument');
 	    }
-	  }
+	  };
+	}
+	
+	function invariant(condition, format, a, b, c, d, e, f) {
+	  validateFormat(format);
 	
 	  if (!condition) {
 	    var error;
@@ -13904,28 +13908,6 @@
 	  return '.' + inst._rootNodeID;
 	};
 	
-	function isInteractive(tag) {
-	  return tag === 'button' || tag === 'input' || tag === 'select' || tag === 'textarea';
-	}
-	
-	function shouldPreventMouseEvent(name, type, props) {
-	  switch (name) {
-	    case 'onClick':
-	    case 'onClickCapture':
-	    case 'onDoubleClick':
-	    case 'onDoubleClickCapture':
-	    case 'onMouseDown':
-	    case 'onMouseDownCapture':
-	    case 'onMouseMove':
-	    case 'onMouseMoveCapture':
-	    case 'onMouseUp':
-	    case 'onMouseUpCapture':
-	      return !!(props.disabled && isInteractive(type));
-	    default:
-	      return false;
-	  }
-	}
-	
 	/**
 	 * This is a unified interface for event plugins to be installed and configured.
 	 *
@@ -13994,12 +13976,7 @@
 	   * @return {?function} The stored callback.
 	   */
 	  getListener: function (inst, registrationName) {
-	    // TODO: shouldPreventMouseEvent is DOM-specific and definitely should not
-	    // live here; needs to be moved to a better place soon
 	    var bankForRegistrationName = listenerBank[registrationName];
-	    if (shouldPreventMouseEvent(registrationName, inst._currentElement.type, inst._currentElement.props)) {
-	      return null;
-	    }
 	    var key = getDictionaryKey(inst);
 	    return bankForRegistrationName && bankForRegistrationName[key];
 	  },
@@ -28229,6 +28206,18 @@
 	  return tag === 'button' || tag === 'input' || tag === 'select' || tag === 'textarea';
 	}
 	
+	function shouldPreventMouseEvent(inst) {
+	  if (inst) {
+	    var disabled = inst._currentElement && inst._currentElement.props.disabled;
+	
+	    if (disabled) {
+	      return isInteractive(inst._tag);
+	    }
+	  }
+	
+	  return false;
+	}
+	
 	var SimpleEventPlugin = {
 	
 	  eventTypes: eventTypes,
@@ -28299,7 +28288,10 @@
 	      case 'topMouseDown':
 	      case 'topMouseMove':
 	      case 'topMouseUp':
-	      // TODO: Disabled elements should not respond to mouse events
+	        // Disabled elements should not respond to mouse events
+	        if (shouldPreventMouseEvent(targetInst)) {
+	          return null;
+	        }
 	      /* falls through */
 	      case 'topMouseOut':
 	      case 'topMouseOver':
@@ -29661,7 +29653,7 @@
 	
 	'use strict';
 	
-	module.exports = '15.4.1';
+	module.exports = '15.4.0';
 
 /***/ },
 /* 256 */
@@ -59518,6 +59510,14 @@
 	            config[key] = settings.config[key].hasOwnProperty("value") ? settings.config[key].value : settings.config[key];
 	        }
 	
+	        if (config.hasOwnProperty("max_per_request")) {
+	            if (config.max_per_request === "") {
+	                config.max_per_request = 10000;
+	            }
+	        } else {
+	            config.max_per_request = 10000;
+	        }
+	
 	        config.publish_depth_first = true;
 	
 	        var params = {
@@ -61870,7 +61870,7 @@
 	
 	var _devicesFound2 = _interopRequireDefault(_devicesFound);
 	
-	var _reactSelectMe = __webpack_require__(345);
+	var _reactSelectMe = __webpack_require__(346);
 	
 	var _reactSelectMe2 = _interopRequireDefault(_reactSelectMe);
 	
@@ -62516,11 +62516,11 @@
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
-	var _fileUploadButton = __webpack_require__(342);
+	var _fileUploadButton = __webpack_require__(343);
 	
 	var _fileUploadButton2 = _interopRequireDefault(_fileUploadButton);
 	
-	var _fileSelectButton = __webpack_require__(343);
+	var _fileSelectButton = __webpack_require__(344);
 	
 	var _fileSelectButton2 = _interopRequireDefault(_fileSelectButton);
 	
@@ -62532,7 +62532,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var ConfirmForm = __webpack_require__(335);
+	var ConfirmForm = __webpack_require__(336);
 	var devicesActionCreators = __webpack_require__(309);
 	var modalActionCreators = __webpack_require__(324);
 	var devicesStore = __webpack_require__(270);
@@ -62902,11 +62902,11 @@
 	
 	var _previewRegistryForm2 = _interopRequireDefault(_previewRegistryForm);
 	
-	var _newColumnForm = __webpack_require__(336);
+	var _newColumnForm = __webpack_require__(337);
 	
 	var _newColumnForm2 = _interopRequireDefault(_newColumnForm);
 	
-	var _configDeviceForm = __webpack_require__(337);
+	var _configDeviceForm = __webpack_require__(338);
 	
 	var _configDeviceForm2 = _interopRequireDefault(_configDeviceForm);
 	
@@ -62918,11 +62918,11 @@
 	
 	var _editColumnsButton2 = _interopRequireDefault(_editColumnsButton);
 	
-	var _keyboardHelpButton = __webpack_require__(338);
+	var _keyboardHelpButton = __webpack_require__(339);
 	
 	var _keyboardHelpButton2 = _interopRequireDefault(_keyboardHelpButton);
 	
-	var _registryRow = __webpack_require__(339);
+	var _registryRow = __webpack_require__(340);
 	
 	var _registryRow2 = _interopRequireDefault(_registryRow);
 	
@@ -62930,7 +62930,7 @@
 	
 	var _controlButton2 = _interopRequireDefault(_controlButton);
 	
-	var _filterPointsButton = __webpack_require__(341);
+	var _filterPointsButton = __webpack_require__(342);
 	
 	var _filterPointsButton2 = _interopRequireDefault(_filterPointsButton);
 	
@@ -62952,7 +62952,7 @@
 	
 	var devicesActionCreators = __webpack_require__(309);
 	var devicesStore = __webpack_require__(270);
-	var ConfirmForm = __webpack_require__(335);
+	var ConfirmForm = __webpack_require__(336);
 	var modalActionCreators = __webpack_require__(324);
 	var controlButtonActionCreators = __webpack_require__(110);
 	
@@ -64579,6 +64579,10 @@
 	
 	var _baseComponent2 = _interopRequireDefault(_baseComponent);
 	
+	var _previewRegistryTable = __webpack_require__(335);
+	
+	var _previewRegistryTable2 = _interopRequireDefault(_previewRegistryTable);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -64590,7 +64594,7 @@
 	var modalActionCreators = __webpack_require__(324);
 	var devicesActionCreators = __webpack_require__(309);
 	var devicesStore = __webpack_require__(270);
-	var ConfirmForm = __webpack_require__(335);
+	var ConfirmForm = __webpack_require__(336);
 	
 	var PreviewRegistryForm = function (_BaseComponent) {
 	    _inherits(PreviewRegistryForm, _BaseComponent);
@@ -64679,8 +64683,6 @@
 	        key: 'render',
 	        value: function render() {
 	
-	            var content;
-	
 	            var layoutToggle;
 	
 	            if (this.state.csvlayout) {
@@ -64704,7 +64706,152 @@
 	                        'csv'
 	                    )
 	                );
+	            } else {
+	                layoutToggle = _react2.default.createElement(
+	                    'div',
+	                    { className: 'displayBlock' },
+	                    _react2.default.createElement(
+	                        'div',
+	                        { className: 'inlineBlock' },
+	                        'table'
+	                    ),
+	                    '\xA0/\xA0',
+	                    _react2.default.createElement(
+	                        'div',
+	                        { className: 'form__link inlineBlock',
+	                            onClick: this._toggleLayout },
+	                        _react2.default.createElement(
+	                            'a',
+	                            null,
+	                            'csv'
+	                        )
+	                    )
+	                );
+	            }
 	
+	            return _react2.default.createElement(
+	                'form',
+	                { className: 'preview-registry-form', onSubmit: this._onSubmit },
+	                _react2.default.createElement(
+	                    'h1',
+	                    null,
+	                    'Save this registry configuration?'
+	                ),
+	                _react2.default.createElement(
+	                    'h4',
+	                    null,
+	                    this.state.deviceInfo
+	                ),
+	                layoutToggle,
+	                _react2.default.createElement('br', null),
+	                _react2.default.createElement(
+	                    'div',
+	                    { className: 'displayBlock floatLeft' },
+	                    _react2.default.createElement(
+	                        'div',
+	                        { className: 'inlineBlock' },
+	                        'CSV File Name: '
+	                    ),
+	                    '\xA0',
+	                    _react2.default.createElement(
+	                        'div',
+	                        { className: 'inlineBlock' },
+	                        _react2.default.createElement('input', {
+	                            onChange: this._updateFileName,
+	                            value: this.state.fileName,
+	                            type: 'text' })
+	                    )
+	                ),
+	                _react2.default.createElement(
+	                    'div',
+	                    { className: 'form__actions' },
+	                    _react2.default.createElement(
+	                        'button',
+	                        {
+	                            className: 'button button--secondary',
+	                            type: 'button',
+	                            onClick: this._onCancelClick
+	                        },
+	                        'Cancel'
+	                    ),
+	                    _react2.default.createElement(
+	                        'button',
+	                        {
+	                            className: 'button',
+	                            disabled: this.state.fileName === "" },
+	                        'Save'
+	                    )
+	                ),
+	                _react2.default.createElement(_previewRegistryTable2.default, {
+	                    csvlayout: this.state.csvlayout,
+	                    attributes: this.props.attributes,
+	                    deviceId: this.props.deviceId })
+	            );
+	        }
+	    }]);
+	
+	    return PreviewRegistryForm;
+	}(_baseComponent2.default);
+	
+	;
+	
+	function getOtherRegistryFileNames() {
+	    var registryFiles = devicesStore.getSavedRegistryFiles();
+	
+	    return registryFiles ? registryFiles.files : [];
+	}
+	
+	exports.default = PreviewRegistryForm;
+
+/***/ },
+/* 335 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+	
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+	
+	var _react = __webpack_require__(3);
+	
+	var _react2 = _interopRequireDefault(_react);
+	
+	var _baseComponent = __webpack_require__(97);
+	
+	var _baseComponent2 = _interopRequireDefault(_baseComponent);
+	
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+	
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+	
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+	
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+	
+	var PreviewRegistryTable = function (_BaseComponent) {
+	    _inherits(PreviewRegistryTable, _BaseComponent);
+	
+	    function PreviewRegistryTable(props) {
+	        _classCallCheck(this, PreviewRegistryTable);
+	
+	        return _possibleConstructorReturn(this, (PreviewRegistryTable.__proto__ || Object.getPrototypeOf(PreviewRegistryTable)).call(this, props));
+	    }
+	
+	    _createClass(PreviewRegistryTable, [{
+	        key: 'shouldComponentUpdate',
+	        value: function shouldComponentUpdate(nextProps, nextState) {
+	            return this.props.csvlayout !== nextProps.csvlayout;
+	        }
+	    }, {
+	        key: 'render',
+	        value: function render() {
+	
+	            var content;
+	
+	            if (this.props.csvlayout) {
 	                var attributes = [];
 	
 	                var headerRow = [];
@@ -64738,33 +64885,11 @@
 	
 	                content = _react2.default.createElement(
 	                    'div',
-	                    null,
+	                    { className: 'clearBoth' },
 	                    attributes
 	                );
 	            } else {
-	                layoutToggle = _react2.default.createElement(
-	                    'div',
-	                    { className: 'displayBlock' },
-	                    _react2.default.createElement(
-	                        'div',
-	                        { className: 'inlineBlock' },
-	                        'table'
-	                    ),
-	                    '\xA0/\xA0',
-	                    _react2.default.createElement(
-	                        'div',
-	                        { className: 'form__link inlineBlock',
-	                            onClick: this._toggleLayout },
-	                        _react2.default.createElement(
-	                            'a',
-	                            null,
-	                            'csv'
-	                        )
-	                    )
-	                );
-	
 	                var headerRow = this.props.attributes[0].map(function (item, index) {
-	
 	                    return _react2.default.createElement(
 	                        'th',
 	                        { key: item.key + "-header-" + index },
@@ -64773,7 +64898,6 @@
 	                });
 	
 	                var attributes = this.props.attributes.map(function (attributeRow, rowIndex) {
-	
 	                    var attributeCells = attributeRow.map(function (columnCell, columnIndex) {
 	
 	                        var cellWidth = {
@@ -64818,78 +64942,22 @@
 	            }
 	
 	            return _react2.default.createElement(
-	                'form',
-	                { className: 'preview-registry-form', onSubmit: this._onSubmit },
-	                _react2.default.createElement(
-	                    'h1',
-	                    null,
-	                    'Save this registry configuration?'
-	                ),
-	                _react2.default.createElement(
-	                    'h4',
-	                    null,
-	                    this.state.deviceInfo
-	                ),
-	                layoutToggle,
-	                content,
-	                _react2.default.createElement('br', null),
-	                _react2.default.createElement(
-	                    'div',
-	                    { className: 'displayBlock' },
-	                    _react2.default.createElement(
-	                        'div',
-	                        { className: 'inlineBlock' },
-	                        'CSV File Name: '
-	                    ),
-	                    '\xA0',
-	                    _react2.default.createElement(
-	                        'div',
-	                        { className: 'inlineBlock' },
-	                        _react2.default.createElement('input', {
-	                            onChange: this._updateFileName,
-	                            value: this.state.fileName,
-	                            type: 'text' })
-	                    )
-	                ),
-	                _react2.default.createElement(
-	                    'div',
-	                    { className: 'form__actions' },
-	                    _react2.default.createElement(
-	                        'button',
-	                        {
-	                            className: 'button button--secondary',
-	                            type: 'button',
-	                            onClick: this._onCancelClick
-	                        },
-	                        'Cancel'
-	                    ),
-	                    _react2.default.createElement(
-	                        'button',
-	                        {
-	                            className: 'button',
-	                            disabled: this.state.fileName === "" },
-	                        'Save'
-	                    )
-	                )
+	                'div',
+	                null,
+	                content
 	            );
 	        }
 	    }]);
 	
-	    return PreviewRegistryForm;
+	    return PreviewRegistryTable;
 	}(_baseComponent2.default);
 	
 	;
 	
-	function getOtherRegistryFileNames() {
-	    var registryFiles = devicesStore.getSavedRegistryFiles();
-	
-	    return registryFiles ? registryFiles.files : [];
-	}
-	
-	exports.default = PreviewRegistryForm;
+	exports.default = PreviewRegistryTable;
 
 /***/ },
-/* 335 */
+/* 336 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -64973,7 +65041,7 @@
 	module.exports = ConfirmForm;
 
 /***/ },
-/* 336 */
+/* 337 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -65133,7 +65201,7 @@
 	exports.default = NewColumnForm;
 
 /***/ },
-/* 337 */
+/* 338 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -65228,7 +65296,14 @@
 	        value: function _updateSetting(evt) {
 	            var key = evt.currentTarget.dataset.setting;
 	
-	            this.state.settings[key].value = evt.target.value;
+	            if (this.state.settings[key].type === "number") {
+	                if (evt.target.value > 0 || evt.target.value === "") {
+	                    this.state.settings[key].value = evt.target.value;
+	                }
+	            } else {
+	                this.state.settings[key].value = evt.target.value;
+	            }
+	
 	            this.setState({ settings: this.state.settings });
 	        }
 	    }, {
@@ -65644,6 +65719,11 @@
 	                    label: "Minimum Priority",
 	                    type: "number"
 	                },
+	                max_per_request: {
+	                    value: "",
+	                    label: "Maximum Objects per Request",
+	                    type: "number"
+	                },
 	                max_objs_per_read: {
 	                    value: "",
 	                    label: "Maximum Objects per Read",
@@ -65687,7 +65767,7 @@
 	exports.default = ConfigDeviceForm;
 
 /***/ },
-/* 338 */
+/* 339 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -66014,7 +66094,7 @@
 	exports.default = KeyboardHelpButton;
 
 /***/ },
-/* 339 */
+/* 340 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -66055,7 +66135,7 @@
 	
 	var devicesActionCreators = __webpack_require__(309);
 	var modalActionCreators = __webpack_require__(324);
-	var columnMoverActionCreators = __webpack_require__(340);
+	var columnMoverActionCreators = __webpack_require__(341);
 	var statusIndicatorActionCreators = __webpack_require__(271);
 	var devicesStore = __webpack_require__(270);
 	
@@ -66303,7 +66383,7 @@
 	exports.default = RegistryRow;
 
 /***/ },
-/* 340 */
+/* 341 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -66336,7 +66416,7 @@
 	module.exports = columnMoverActionCreators;
 
 /***/ },
-/* 341 */
+/* 342 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -66498,7 +66578,7 @@
 	exports.default = FilterPointsButton;
 
 /***/ },
-/* 342 */
+/* 343 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -66702,7 +66782,7 @@
 	exports.default = FileUploadButton;
 
 /***/ },
-/* 343 */
+/* 344 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -66735,7 +66815,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var RegistryFilesSelector = __webpack_require__(344);
+	var RegistryFilesSelector = __webpack_require__(345);
 	
 	var devicesActionCreators = __webpack_require__(309);
 	var modalActionCreators = __webpack_require__(324);
@@ -66803,7 +66883,7 @@
 	exports.default = FileSelectButton;
 
 /***/ },
-/* 344 */
+/* 345 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -66991,7 +67071,7 @@
 	module.exports = RegistryFilesSelector;
 
 /***/ },
-/* 345 */
+/* 346 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -67008,15 +67088,15 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _reactVirtualized = __webpack_require__(349);
+	var _reactVirtualized = __webpack_require__(350);
 	
 	var _immutable = __webpack_require__(265);
 	
-	var _classnames = __webpack_require__(361);
+	var _classnames = __webpack_require__(362);
 	
 	var _classnames2 = _interopRequireDefault(_classnames);
 	
@@ -68010,13 +68090,13 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 346 */
+/* 347 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__(347);
+	module.exports = __webpack_require__(348);
 
 /***/ },
-/* 347 */
+/* 348 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/**
@@ -68031,7 +68111,7 @@
 	
 	'use strict';
 	
-	var shallowEqual = __webpack_require__(348);
+	var shallowEqual = __webpack_require__(349);
 	
 	/**
 	 * Does a shallow comparison for props and state.
@@ -68045,7 +68125,7 @@
 	module.exports = shallowCompare;
 
 /***/ },
-/* 348 */
+/* 349 */
 /***/ function(module, exports) {
 
 	/**
@@ -68117,7 +68197,7 @@
 	module.exports = shallowEqual;
 
 /***/ },
-/* 349 */
+/* 350 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -68126,7 +68206,7 @@
 	  value: true
 	});
 	
-	var _ArrowKeyStepper = __webpack_require__(350);
+	var _ArrowKeyStepper = __webpack_require__(351);
 	
 	Object.defineProperty(exports, 'ArrowKeyStepper', {
 	  enumerable: true,
@@ -68135,7 +68215,7 @@
 	  }
 	});
 	
-	var _AutoSizer = __webpack_require__(352);
+	var _AutoSizer = __webpack_require__(353);
 	
 	Object.defineProperty(exports, 'AutoSizer', {
 	  enumerable: true,
@@ -68144,7 +68224,7 @@
 	  }
 	});
 	
-	var _CellMeasurer = __webpack_require__(355);
+	var _CellMeasurer = __webpack_require__(356);
 	
 	Object.defineProperty(exports, 'CellMeasurer', {
 	  enumerable: true,
@@ -68165,7 +68245,7 @@
 	  }
 	});
 	
-	var _Collection = __webpack_require__(358);
+	var _Collection = __webpack_require__(359);
 	
 	Object.defineProperty(exports, 'Collection', {
 	  enumerable: true,
@@ -68174,7 +68254,7 @@
 	  }
 	});
 	
-	var _ColumnSizer = __webpack_require__(369);
+	var _ColumnSizer = __webpack_require__(370);
 	
 	Object.defineProperty(exports, 'ColumnSizer', {
 	  enumerable: true,
@@ -68183,7 +68263,7 @@
 	  }
 	});
 	
-	var _Table = __webpack_require__(379);
+	var _Table = __webpack_require__(380);
 	
 	Object.defineProperty(exports, 'defaultTableCellDataGetter', {
 	  enumerable: true,
@@ -68234,7 +68314,7 @@
 	  }
 	});
 	
-	var _Grid = __webpack_require__(371);
+	var _Grid = __webpack_require__(372);
 	
 	Object.defineProperty(exports, 'defaultCellRangeRenderer', {
 	  enumerable: true,
@@ -68249,7 +68329,7 @@
 	  }
 	});
 	
-	var _InfiniteLoader = __webpack_require__(388);
+	var _InfiniteLoader = __webpack_require__(389);
 	
 	Object.defineProperty(exports, 'InfiniteLoader', {
 	  enumerable: true,
@@ -68258,7 +68338,7 @@
 	  }
 	});
 	
-	var _ScrollSync = __webpack_require__(390);
+	var _ScrollSync = __webpack_require__(391);
 	
 	Object.defineProperty(exports, 'ScrollSync', {
 	  enumerable: true,
@@ -68267,7 +68347,7 @@
 	  }
 	});
 	
-	var _List = __webpack_require__(392);
+	var _List = __webpack_require__(393);
 	
 	Object.defineProperty(exports, 'List', {
 	  enumerable: true,
@@ -68276,7 +68356,7 @@
 	  }
 	});
 	
-	var _WindowScroller = __webpack_require__(394);
+	var _WindowScroller = __webpack_require__(395);
 	
 	Object.defineProperty(exports, 'WindowScroller', {
 	  enumerable: true,
@@ -68286,7 +68366,7 @@
 	});
 
 /***/ },
-/* 350 */
+/* 351 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -68296,7 +68376,7 @@
 	});
 	exports.ArrowKeyStepper = exports.default = undefined;
 	
-	var _ArrowKeyStepper2 = __webpack_require__(351);
+	var _ArrowKeyStepper2 = __webpack_require__(352);
 	
 	var _ArrowKeyStepper3 = _interopRequireDefault(_ArrowKeyStepper2);
 	
@@ -68306,7 +68386,7 @@
 	exports.ArrowKeyStepper = _ArrowKeyStepper3.default;
 
 /***/ },
-/* 351 */
+/* 352 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -68321,7 +68401,7 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
@@ -68486,7 +68566,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 352 */
+/* 353 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -68496,7 +68576,7 @@
 	});
 	exports.AutoSizer = exports.default = undefined;
 	
-	var _AutoSizer2 = __webpack_require__(353);
+	var _AutoSizer2 = __webpack_require__(354);
 	
 	var _AutoSizer3 = _interopRequireDefault(_AutoSizer2);
 	
@@ -68506,7 +68586,7 @@
 	exports.AutoSizer = _AutoSizer3.default;
 
 /***/ },
-/* 353 */
+/* 354 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -68521,11 +68601,11 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _detectElementResize = __webpack_require__(354);
+	var _detectElementResize = __webpack_require__(355);
 	
 	var _detectElementResize2 = _interopRequireDefault(_detectElementResize);
 	
@@ -68681,7 +68761,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 354 */
+/* 355 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -68870,7 +68950,7 @@
 	}
 
 /***/ },
-/* 355 */
+/* 356 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -68880,11 +68960,11 @@
 	});
 	exports.defaultCellSizeCache = exports.CellMeasurer = exports.default = undefined;
 	
-	var _CellMeasurer2 = __webpack_require__(356);
+	var _CellMeasurer2 = __webpack_require__(357);
 	
 	var _CellMeasurer3 = _interopRequireDefault(_CellMeasurer2);
 	
-	var _defaultCellSizeCache2 = __webpack_require__(357);
+	var _defaultCellSizeCache2 = __webpack_require__(358);
 	
 	var _defaultCellSizeCache3 = _interopRequireDefault(_defaultCellSizeCache2);
 	
@@ -68895,7 +68975,7 @@
 	exports.defaultCellSizeCache = _defaultCellSizeCache3.default;
 
 /***/ },
-/* 356 */
+/* 357 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -68910,7 +68990,7 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
@@ -68918,7 +68998,7 @@
 	
 	var _reactDom2 = _interopRequireDefault(_reactDom);
 	
-	var _defaultCellSizeCache = __webpack_require__(357);
+	var _defaultCellSizeCache = __webpack_require__(358);
 	
 	var _defaultCellSizeCache2 = _interopRequireDefault(_defaultCellSizeCache);
 	
@@ -69214,7 +69294,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 357 */
+/* 358 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -69316,7 +69396,7 @@
 	exports.default = CellSizeCache;
 
 /***/ },
-/* 358 */
+/* 359 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -69326,7 +69406,7 @@
 	});
 	exports.Collection = exports.default = undefined;
 	
-	var _Collection2 = __webpack_require__(359);
+	var _Collection2 = __webpack_require__(360);
 	
 	var _Collection3 = _interopRequireDefault(_Collection2);
 	
@@ -69336,7 +69416,7 @@
 	exports.Collection = _Collection3.default;
 
 /***/ },
-/* 359 */
+/* 360 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -69353,19 +69433,19 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _CollectionView = __webpack_require__(360);
+	var _CollectionView = __webpack_require__(361);
 	
 	var _CollectionView2 = _interopRequireDefault(_CollectionView);
 	
-	var _calculateSizeAndPositionData2 = __webpack_require__(365);
+	var _calculateSizeAndPositionData2 = __webpack_require__(366);
 	
 	var _calculateSizeAndPositionData3 = _interopRequireDefault(_calculateSizeAndPositionData2);
 	
-	var _getUpdatedOffsetForIndex = __webpack_require__(368);
+	var _getUpdatedOffsetForIndex = __webpack_require__(369);
 	
 	var _getUpdatedOffsetForIndex2 = _interopRequireDefault(_getUpdatedOffsetForIndex);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
@@ -69649,7 +69729,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 360 */
+/* 361 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -69666,19 +69746,19 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _classnames = __webpack_require__(361);
+	var _classnames = __webpack_require__(362);
 	
 	var _classnames2 = _interopRequireDefault(_classnames);
 	
-	var _createCallbackMemoizer = __webpack_require__(362);
+	var _createCallbackMemoizer = __webpack_require__(363);
 	
 	var _createCallbackMemoizer2 = _interopRequireDefault(_createCallbackMemoizer);
 	
-	var _scrollbarSize = __webpack_require__(363);
+	var _scrollbarSize = __webpack_require__(364);
 	
 	var _scrollbarSize2 = _interopRequireDefault(_scrollbarSize);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
@@ -70311,7 +70391,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 361 */
+/* 362 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -70365,7 +70445,7 @@
 
 
 /***/ },
-/* 362 */
+/* 363 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -70407,12 +70487,12 @@
 	}
 
 /***/ },
-/* 363 */
+/* 364 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
-	var canUseDOM = __webpack_require__(364);
+	var canUseDOM = __webpack_require__(365);
 	
 	var size;
 	
@@ -70437,14 +70517,14 @@
 	};
 
 /***/ },
-/* 364 */
+/* 365 */
 /***/ function(module, exports) {
 
 	'use strict';
 	module.exports = !!(typeof window !== 'undefined' && window.document && window.document.createElement);
 
 /***/ },
-/* 365 */
+/* 366 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -70454,7 +70534,7 @@
 	});
 	exports.default = calculateSizeAndPositionData;
 	
-	var _SectionManager = __webpack_require__(366);
+	var _SectionManager = __webpack_require__(367);
 	
 	var _SectionManager2 = _interopRequireDefault(_SectionManager);
 	
@@ -70496,7 +70576,7 @@
 	}
 
 /***/ },
-/* 366 */
+/* 367 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -70512,7 +70592,7 @@
 	                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      */
 	
 	
-	var _Section = __webpack_require__(367);
+	var _Section = __webpack_require__(368);
 	
 	var _Section2 = _interopRequireDefault(_Section);
 	
@@ -70656,7 +70736,7 @@
 	exports.default = SectionManager;
 
 /***/ },
-/* 367 */
+/* 368 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -70731,7 +70811,7 @@
 	exports.default = Section;
 
 /***/ },
-/* 368 */
+/* 369 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -70776,7 +70856,7 @@
 	}
 
 /***/ },
-/* 369 */
+/* 370 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -70786,7 +70866,7 @@
 	});
 	exports.ColumnSizer = exports.default = undefined;
 	
-	var _ColumnSizer2 = __webpack_require__(370);
+	var _ColumnSizer2 = __webpack_require__(371);
 	
 	var _ColumnSizer3 = _interopRequireDefault(_ColumnSizer2);
 	
@@ -70796,7 +70876,7 @@
 	exports.ColumnSizer = _ColumnSizer3.default;
 
 /***/ },
-/* 370 */
+/* 371 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -70809,11 +70889,11 @@
 	
 	var _react = __webpack_require__(3);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _Grid = __webpack_require__(371);
+	var _Grid = __webpack_require__(372);
 	
 	var _Grid2 = _interopRequireDefault(_Grid);
 	
@@ -70937,7 +71017,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 371 */
+/* 372 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -70947,11 +71027,11 @@
 	});
 	exports.defaultCellRangeRenderer = exports.Grid = exports.default = undefined;
 	
-	var _Grid2 = __webpack_require__(372);
+	var _Grid2 = __webpack_require__(373);
 	
 	var _Grid3 = _interopRequireDefault(_Grid2);
 	
-	var _defaultCellRangeRenderer2 = __webpack_require__(378);
+	var _defaultCellRangeRenderer2 = __webpack_require__(379);
 	
 	var _defaultCellRangeRenderer3 = _interopRequireDefault(_defaultCellRangeRenderer2);
 	
@@ -70962,7 +71042,7 @@
 	exports.defaultCellRangeRenderer = _defaultCellRangeRenderer3.default;
 
 /***/ },
-/* 372 */
+/* 373 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -70980,39 +71060,39 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _classnames = __webpack_require__(361);
+	var _classnames = __webpack_require__(362);
 	
 	var _classnames2 = _interopRequireDefault(_classnames);
 	
-	var _calculateSizeAndPositionDataAndUpdateScrollOffset = __webpack_require__(373);
+	var _calculateSizeAndPositionDataAndUpdateScrollOffset = __webpack_require__(374);
 	
 	var _calculateSizeAndPositionDataAndUpdateScrollOffset2 = _interopRequireDefault(_calculateSizeAndPositionDataAndUpdateScrollOffset);
 	
-	var _ScalingCellSizeAndPositionManager = __webpack_require__(374);
+	var _ScalingCellSizeAndPositionManager = __webpack_require__(375);
 	
 	var _ScalingCellSizeAndPositionManager2 = _interopRequireDefault(_ScalingCellSizeAndPositionManager);
 	
-	var _createCallbackMemoizer = __webpack_require__(362);
+	var _createCallbackMemoizer = __webpack_require__(363);
 	
 	var _createCallbackMemoizer2 = _interopRequireDefault(_createCallbackMemoizer);
 	
-	var _getOverscanIndices = __webpack_require__(376);
+	var _getOverscanIndices = __webpack_require__(377);
 	
 	var _getOverscanIndices2 = _interopRequireDefault(_getOverscanIndices);
 	
-	var _scrollbarSize = __webpack_require__(363);
+	var _scrollbarSize = __webpack_require__(364);
 	
 	var _scrollbarSize2 = _interopRequireDefault(_scrollbarSize);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _updateScrollIndexHelper = __webpack_require__(377);
+	var _updateScrollIndexHelper = __webpack_require__(378);
 	
 	var _updateScrollIndexHelper2 = _interopRequireDefault(_updateScrollIndexHelper);
 	
-	var _defaultCellRangeRenderer = __webpack_require__(378);
+	var _defaultCellRangeRenderer = __webpack_require__(379);
 	
 	var _defaultCellRangeRenderer2 = _interopRequireDefault(_defaultCellRangeRenderer);
 	
@@ -71966,7 +72046,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 373 */
+/* 374 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -72013,7 +72093,7 @@
 	}
 
 /***/ },
-/* 374 */
+/* 375 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -72025,7 +72105,7 @@
 	
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 	
-	var _CellSizeAndPositionManager = __webpack_require__(375);
+	var _CellSizeAndPositionManager = __webpack_require__(376);
 	
 	var _CellSizeAndPositionManager2 = _interopRequireDefault(_CellSizeAndPositionManager);
 	
@@ -72234,7 +72314,7 @@
 	exports.default = ScalingCellSizeAndPositionManager;
 
 /***/ },
-/* 375 */
+/* 376 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -72540,7 +72620,7 @@
 	exports.default = CellSizeAndPositionManager;
 
 /***/ },
-/* 376 */
+/* 377 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -72590,7 +72670,7 @@
 	}
 
 /***/ },
-/* 377 */
+/* 378 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -72651,7 +72731,7 @@
 	}
 
 /***/ },
-/* 378 */
+/* 379 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -72740,7 +72820,7 @@
 	}
 
 /***/ },
-/* 379 */
+/* 380 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -72750,35 +72830,35 @@
 	});
 	exports.SortIndicator = exports.SortDirection = exports.Column = exports.Table = exports.defaultRowRenderer = exports.defaultHeaderRenderer = exports.defaultCellRenderer = exports.defaultCellDataGetter = exports.default = undefined;
 	
-	var _Table2 = __webpack_require__(380);
+	var _Table2 = __webpack_require__(381);
 	
 	var _Table3 = _interopRequireDefault(_Table2);
 	
-	var _defaultCellDataGetter2 = __webpack_require__(386);
+	var _defaultCellDataGetter2 = __webpack_require__(387);
 	
 	var _defaultCellDataGetter3 = _interopRequireDefault(_defaultCellDataGetter2);
 	
-	var _defaultCellRenderer2 = __webpack_require__(385);
+	var _defaultCellRenderer2 = __webpack_require__(386);
 	
 	var _defaultCellRenderer3 = _interopRequireDefault(_defaultCellRenderer2);
 	
-	var _defaultHeaderRenderer2 = __webpack_require__(382);
+	var _defaultHeaderRenderer2 = __webpack_require__(383);
 	
 	var _defaultHeaderRenderer3 = _interopRequireDefault(_defaultHeaderRenderer2);
 	
-	var _defaultRowRenderer2 = __webpack_require__(387);
+	var _defaultRowRenderer2 = __webpack_require__(388);
 	
 	var _defaultRowRenderer3 = _interopRequireDefault(_defaultRowRenderer2);
 	
-	var _Column2 = __webpack_require__(381);
+	var _Column2 = __webpack_require__(382);
 	
 	var _Column3 = _interopRequireDefault(_Column2);
 	
-	var _SortDirection2 = __webpack_require__(384);
+	var _SortDirection2 = __webpack_require__(385);
 	
 	var _SortDirection3 = _interopRequireDefault(_SortDirection2);
 	
-	var _SortIndicator2 = __webpack_require__(383);
+	var _SortIndicator2 = __webpack_require__(384);
 	
 	var _SortIndicator3 = _interopRequireDefault(_SortIndicator2);
 	
@@ -72795,7 +72875,7 @@
 	exports.SortIndicator = _SortIndicator3.default;
 
 /***/ },
-/* 380 */
+/* 381 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -72808,11 +72888,11 @@
 	
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 	
-	var _classnames = __webpack_require__(361);
+	var _classnames = __webpack_require__(362);
 	
 	var _classnames2 = _interopRequireDefault(_classnames);
 	
-	var _Column = __webpack_require__(381);
+	var _Column = __webpack_require__(382);
 	
 	var _Column2 = _interopRequireDefault(_Column);
 	
@@ -72822,19 +72902,19 @@
 	
 	var _reactDom = __webpack_require__(112);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _Grid = __webpack_require__(371);
+	var _Grid = __webpack_require__(372);
 	
 	var _Grid2 = _interopRequireDefault(_Grid);
 	
-	var _defaultRowRenderer = __webpack_require__(387);
+	var _defaultRowRenderer = __webpack_require__(388);
 	
 	var _defaultRowRenderer2 = _interopRequireDefault(_defaultRowRenderer);
 	
-	var _SortDirection = __webpack_require__(384);
+	var _SortDirection = __webpack_require__(385);
 	
 	var _SortDirection2 = _interopRequireDefault(_SortDirection);
 	
@@ -73453,7 +73533,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 381 */
+/* 382 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -73464,15 +73544,15 @@
 	
 	var _react = __webpack_require__(3);
 	
-	var _defaultHeaderRenderer = __webpack_require__(382);
+	var _defaultHeaderRenderer = __webpack_require__(383);
 	
 	var _defaultHeaderRenderer2 = _interopRequireDefault(_defaultHeaderRenderer);
 	
-	var _defaultCellRenderer = __webpack_require__(385);
+	var _defaultCellRenderer = __webpack_require__(386);
 	
 	var _defaultCellRenderer2 = _interopRequireDefault(_defaultCellRenderer);
 	
-	var _defaultCellDataGetter = __webpack_require__(386);
+	var _defaultCellDataGetter = __webpack_require__(387);
 	
 	var _defaultCellDataGetter2 = _interopRequireDefault(_defaultCellDataGetter);
 	
@@ -73569,7 +73649,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 382 */
+/* 383 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -73583,7 +73663,7 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _SortIndicator = __webpack_require__(383);
+	var _SortIndicator = __webpack_require__(384);
 	
 	var _SortIndicator2 = _interopRequireDefault(_SortIndicator);
 	
@@ -73622,7 +73702,7 @@
 	}
 
 /***/ },
-/* 383 */
+/* 384 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -73636,11 +73716,11 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _classnames = __webpack_require__(361);
+	var _classnames = __webpack_require__(362);
 	
 	var _classnames2 = _interopRequireDefault(_classnames);
 	
-	var _SortDirection = __webpack_require__(384);
+	var _SortDirection = __webpack_require__(385);
 	
 	var _SortDirection2 = _interopRequireDefault(_SortDirection);
 	
@@ -73676,7 +73756,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 384 */
+/* 385 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -73701,7 +73781,7 @@
 	exports.default = SortDirection;
 
 /***/ },
-/* 385 */
+/* 386 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -73731,7 +73811,7 @@
 	}
 
 /***/ },
-/* 386 */
+/* 387 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -73760,7 +73840,7 @@
 	}
 
 /***/ },
-/* 387 */
+/* 388 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -73836,7 +73916,7 @@
 	}
 
 /***/ },
-/* 388 */
+/* 389 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -73846,7 +73926,7 @@
 	});
 	exports.InfiniteLoader = exports.default = undefined;
 	
-	var _InfiniteLoader2 = __webpack_require__(389);
+	var _InfiniteLoader2 = __webpack_require__(390);
 	
 	var _InfiniteLoader3 = _interopRequireDefault(_InfiniteLoader2);
 	
@@ -73856,7 +73936,7 @@
 	exports.InfiniteLoader = _InfiniteLoader3.default;
 
 /***/ },
-/* 389 */
+/* 390 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -73873,11 +73953,11 @@
 	
 	var _react = __webpack_require__(3);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _createCallbackMemoizer = __webpack_require__(362);
+	var _createCallbackMemoizer = __webpack_require__(363);
 	
 	var _createCallbackMemoizer2 = _interopRequireDefault(_createCallbackMemoizer);
 	
@@ -74148,7 +74228,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 390 */
+/* 391 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -74158,7 +74238,7 @@
 	});
 	exports.ScrollSync = exports.default = undefined;
 	
-	var _ScrollSync2 = __webpack_require__(391);
+	var _ScrollSync2 = __webpack_require__(392);
 	
 	var _ScrollSync3 = _interopRequireDefault(_ScrollSync2);
 	
@@ -74168,7 +74248,7 @@
 	exports.ScrollSync = _ScrollSync3.default;
 
 /***/ },
-/* 391 */
+/* 392 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -74181,7 +74261,7 @@
 	
 	var _react = __webpack_require__(3);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
@@ -74274,7 +74354,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 392 */
+/* 393 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -74284,7 +74364,7 @@
 	});
 	exports.List = exports.default = undefined;
 	
-	var _List2 = __webpack_require__(393);
+	var _List2 = __webpack_require__(394);
 	
 	var _List3 = _interopRequireDefault(_List2);
 	
@@ -74294,7 +74374,7 @@
 	exports.List = _List3.default;
 
 /***/ },
-/* 393 */
+/* 394 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -74307,7 +74387,7 @@
 	
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 	
-	var _Grid = __webpack_require__(371);
+	var _Grid = __webpack_require__(372);
 	
 	var _Grid2 = _interopRequireDefault(_Grid);
 	
@@ -74315,11 +74395,11 @@
 	
 	var _react2 = _interopRequireDefault(_react);
 	
-	var _classnames = __webpack_require__(361);
+	var _classnames = __webpack_require__(362);
 	
 	var _classnames2 = _interopRequireDefault(_classnames);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
@@ -74560,7 +74640,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 394 */
+/* 395 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -74570,7 +74650,7 @@
 	});
 	exports.IS_SCROLLING_TIMEOUT = exports.WindowScroller = exports.default = undefined;
 	
-	var _onScroll = __webpack_require__(395);
+	var _onScroll = __webpack_require__(396);
 	
 	Object.defineProperty(exports, 'IS_SCROLLING_TIMEOUT', {
 	  enumerable: true,
@@ -74579,7 +74659,7 @@
 	  }
 	});
 	
-	var _WindowScroller2 = __webpack_require__(396);
+	var _WindowScroller2 = __webpack_require__(397);
 	
 	var _WindowScroller3 = _interopRequireDefault(_WindowScroller2);
 	
@@ -74589,7 +74669,7 @@
 	exports.WindowScroller = _WindowScroller3.default;
 
 /***/ },
-/* 395 */
+/* 396 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -74668,7 +74748,7 @@
 	}
 
 /***/ },
-/* 396 */
+/* 397 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {'use strict';
@@ -74685,11 +74765,11 @@
 	
 	var _reactDom2 = _interopRequireDefault(_reactDom);
 	
-	var _reactAddonsShallowCompare = __webpack_require__(346);
+	var _reactAddonsShallowCompare = __webpack_require__(347);
 	
 	var _reactAddonsShallowCompare2 = _interopRequireDefault(_reactAddonsShallowCompare);
 	
-	var _onScroll = __webpack_require__(395);
+	var _onScroll = __webpack_require__(396);
 	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
@@ -74832,7 +74912,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5)))
 
 /***/ },
-/* 397 */
+/* 398 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -74859,23 +74939,23 @@
 	
 	var _configureRegistry2 = _interopRequireDefault(_configureRegistry);
 	
-	var _configDeviceForm = __webpack_require__(337);
+	var _configDeviceForm = __webpack_require__(338);
 	
 	var _configDeviceForm2 = _interopRequireDefault(_configDeviceForm);
 	
-	var _fileUploadButton = __webpack_require__(342);
+	var _fileUploadButton = __webpack_require__(343);
 	
 	var _fileUploadButton2 = _interopRequireDefault(_fileUploadButton);
 	
-	var _fileSelectButton = __webpack_require__(343);
+	var _fileSelectButton = __webpack_require__(344);
 	
 	var _fileSelectButton2 = _interopRequireDefault(_fileSelectButton);
 	
-	var _fileExportButton = __webpack_require__(398);
+	var _fileExportButton = __webpack_require__(399);
 	
 	var _fileExportButton2 = _interopRequireDefault(_fileExportButton);
 	
-	var _reactSelectMe = __webpack_require__(345);
+	var _reactSelectMe = __webpack_require__(346);
 	
 	var _reactSelectMe2 = _interopRequireDefault(_reactSelectMe);
 	
@@ -75228,7 +75308,7 @@
 	exports.default = ReconfigureDevice;
 
 /***/ },
-/* 398 */
+/* 399 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -75261,7 +75341,7 @@
 	
 	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 	
-	var RegistryFilesSelector = __webpack_require__(344);
+	var RegistryFilesSelector = __webpack_require__(345);
 	var devicesActionCreators = __webpack_require__(309);
 	var modalActionCreators = __webpack_require__(324);
 	var devicesStore = __webpack_require__(270);
@@ -75364,16 +75444,16 @@
 	exports.default = FileExportButton;
 
 /***/ },
-/* 399 */
+/* 400 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// style-loader: Adds some css to the DOM by adding a <style> tag
 	
 	// load the styles
-	var content = __webpack_require__(400);
+	var content = __webpack_require__(401);
 	if(typeof content === 'string') content = [[module.id, content, '']];
 	// add the styles to the DOM
-	var update = __webpack_require__(402)(content, {});
+	var update = __webpack_require__(403)(content, {});
 	if(content.locals) module.exports = content.locals;
 	// Hot Module Replacement
 	if(false) {
@@ -75390,10 +75470,10 @@
 	}
 
 /***/ },
-/* 400 */
+/* 401 */
 /***/ function(module, exports, __webpack_require__) {
 
-	exports = module.exports = __webpack_require__(401)();
+	exports = module.exports = __webpack_require__(402)();
 	// imports
 	
 	
@@ -75404,7 +75484,7 @@
 
 
 /***/ },
-/* 401 */
+/* 402 */
 /***/ function(module, exports) {
 
 	/*
@@ -75460,7 +75540,7 @@
 
 
 /***/ },
-/* 402 */
+/* 403 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/*
@@ -75712,16 +75792,16 @@
 
 
 /***/ },
-/* 403 */
+/* 404 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// style-loader: Adds some css to the DOM by adding a <style> tag
 	
 	// load the styles
-	var content = __webpack_require__(404);
+	var content = __webpack_require__(405);
 	if(typeof content === 'string') content = [[module.id, content, '']];
 	// add the styles to the DOM
-	var update = __webpack_require__(402)(content, {});
+	var update = __webpack_require__(403)(content, {});
 	if(content.locals) module.exports = content.locals;
 	// Hot Module Replacement
 	if(false) {
@@ -75738,30 +75818,30 @@
 	}
 
 /***/ },
-/* 404 */
+/* 405 */
 /***/ function(module, exports, __webpack_require__) {
 
-	exports = module.exports = __webpack_require__(401)();
+	exports = module.exports = __webpack_require__(402)();
 	// imports
 	
 	
 	// module
-	exports.push([module.id, "/* nvd3 version 1.8.2-dev (https://github.com/novus/nvd3) 2016-01-26 */\n.nvd3 .nv-axis {\r\n    pointer-events:none;\r\n    opacity: 1;\r\n}\r\n\r\n.nvd3 .nv-axis path {\r\n    fill: none;\r\n    stroke: #000;\r\n    stroke-opacity: .75;\r\n    shape-rendering: crispEdges;\r\n}\r\n\r\n.nvd3 .nv-axis path.domain {\r\n    stroke-opacity: .75;\r\n}\r\n\r\n.nvd3 .nv-axis.nv-x path.domain {\r\n    stroke-opacity: 0;\r\n}\r\n\r\n.nvd3 .nv-axis line {\r\n    fill: none;\r\n    stroke: #e5e5e5;\r\n    shape-rendering: crispEdges;\r\n}\r\n\r\n.nvd3 .nv-axis .zero line,\r\n    /*this selector may not be necessary*/ .nvd3 .nv-axis line.zero {\r\n    stroke-opacity: .75;\r\n}\r\n\r\n.nvd3 .nv-axis .nv-axisMaxMin text {\r\n    font-weight: bold;\r\n}\r\n\r\n.nvd3 .x  .nv-axis .nv-axisMaxMin text,\r\n.nvd3 .x2 .nv-axis .nv-axisMaxMin text,\r\n.nvd3 .x3 .nv-axis .nv-axisMaxMin text {\r\n    text-anchor: middle\r\n}\r\n\r\n.nvd3 .nv-axis.nv-disabled {\r\n    opacity: 0;\r\n}\r\n\n.nvd3 .nv-bars rect {\r\n    fill-opacity: .75;\r\n\r\n    transition: fill-opacity 250ms linear;\r\n    -moz-transition: fill-opacity 250ms linear;\r\n    -webkit-transition: fill-opacity 250ms linear;\r\n}\r\n\r\n.nvd3 .nv-bars rect.hover {\r\n    fill-opacity: 1;\r\n}\r\n\r\n.nvd3 .nv-bars .hover rect {\r\n    fill: lightblue;\r\n}\r\n\r\n.nvd3 .nv-bars text {\r\n    fill: rgba(0,0,0,0);\r\n}\r\n\r\n.nvd3 .nv-bars .hover text {\r\n    fill: rgba(0,0,0,1);\r\n}\r\n\r\n.nvd3 .nv-multibar .nv-groups rect,\r\n.nvd3 .nv-multibarHorizontal .nv-groups rect,\r\n.nvd3 .nv-discretebar .nv-groups rect {\r\n    stroke-opacity: 0;\r\n\r\n    transition: fill-opacity 250ms linear;\r\n    -moz-transition: fill-opacity 250ms linear;\r\n    -webkit-transition: fill-opacity 250ms linear;\r\n}\r\n\r\n.nvd3 .nv-multibar .nv-groups rect:hover,\r\n.nvd3 .nv-multibarHorizontal .nv-groups rect:hover,\r\n.nvd3 .nv-candlestickBar .nv-ticks rect:hover,\r\n.nvd3 .nv-discretebar .nv-groups rect:hover {\r\n    fill-opacity: 1;\r\n}\r\n\r\n.nvd3 .nv-discretebar .nv-groups text,\r\n.nvd3 .nv-multibarHorizontal .nv-groups text {\r\n    font-weight: bold;\r\n    fill: rgba(0,0,0,1);\r\n    stroke: rgba(0,0,0,0);\r\n}\r\n\n/* boxplot CSS */\n.nvd3 .nv-boxplot circle {\n  fill-opacity: 0.5;\n}\n\n.nvd3 .nv-boxplot circle:hover {\n  fill-opacity: 1;\n}\n\n.nvd3 .nv-boxplot rect:hover {\n  fill-opacity: 1;\n}\n\n.nvd3 line.nv-boxplot-median {\n  stroke: black;\n}\n\n.nv-boxplot-tick:hover {\n  stroke-width: 2.5px;\n}\n/* bullet */\r\n.nvd3.nv-bullet { font: 10px sans-serif; }\r\n.nvd3.nv-bullet .nv-measure { fill-opacity: .8; }\r\n.nvd3.nv-bullet .nv-measure:hover { fill-opacity: 1; }\r\n.nvd3.nv-bullet .nv-marker { stroke: #000; stroke-width: 2px; }\r\n.nvd3.nv-bullet .nv-markerTriangle { stroke: #000; fill: #fff; stroke-width: 1.5px; }\r\n.nvd3.nv-bullet .nv-tick line { stroke: #666; stroke-width: .5px; }\r\n.nvd3.nv-bullet .nv-range.nv-s0 { fill: #eee; }\r\n.nvd3.nv-bullet .nv-range.nv-s1 { fill: #ddd; }\r\n.nvd3.nv-bullet .nv-range.nv-s2 { fill: #ccc; }\r\n.nvd3.nv-bullet .nv-title { font-size: 14px; font-weight: bold; }\r\n.nvd3.nv-bullet .nv-subtitle { fill: #999; }\r\n\r\n\r\n.nvd3.nv-bullet .nv-range {\r\n    fill: #bababa;\r\n    fill-opacity: .4;\r\n}\r\n.nvd3.nv-bullet .nv-range:hover {\r\n    fill-opacity: .7;\r\n}\r\n\n.nvd3.nv-candlestickBar .nv-ticks .nv-tick {\r\n    stroke-width: 1px;\r\n}\r\n\r\n.nvd3.nv-candlestickBar .nv-ticks .nv-tick.hover {\r\n    stroke-width: 2px;\r\n}\r\n\r\n.nvd3.nv-candlestickBar .nv-ticks .nv-tick.positive rect {\r\n    stroke: #2ca02c;\r\n    fill: #2ca02c;\r\n}\r\n\r\n.nvd3.nv-candlestickBar .nv-ticks .nv-tick.negative rect {\r\n    stroke: #d62728;\r\n    fill: #d62728;\r\n}\r\n\r\n.with-transitions .nv-candlestickBar .nv-ticks .nv-tick {\r\n    transition: stroke-width 250ms linear, stroke-opacity 250ms linear;\r\n    -moz-transition: stroke-width 250ms linear, stroke-opacity 250ms linear;\r\n    -webkit-transition: stroke-width 250ms linear, stroke-opacity 250ms linear;\r\n\r\n}\r\n\r\n.nvd3.nv-candlestickBar .nv-ticks line {\r\n    stroke: #333;\r\n}\r\n\r\n\n.nvd3 .nv-legend .nv-disabled rect {\n    /*fill-opacity: 0;*/\n}\n\n.nvd3 .nv-check-box .nv-box {\n    fill-opacity:0;\n    stroke-width:2;\n}\n\n.nvd3 .nv-check-box .nv-check {\n    fill-opacity:0;\n    stroke-width:4;\n}\n\n.nvd3 .nv-series.nv-disabled .nv-check-box .nv-check {\n    fill-opacity:0;\n    stroke-opacity:0;\n}\n\n.nvd3 .nv-controlsWrap .nv-legend .nv-check-box .nv-check {\n    opacity: 0;\n}\n\n/* line plus bar */\r\n.nvd3.nv-linePlusBar .nv-bar rect {\r\n    fill-opacity: .75;\r\n}\r\n\r\n.nvd3.nv-linePlusBar .nv-bar rect:hover {\r\n    fill-opacity: 1;\r\n}\n.nvd3 .nv-groups path.nv-line {\r\n    fill: none;\r\n}\r\n\r\n.nvd3 .nv-groups path.nv-area {\r\n    stroke: none;\r\n}\r\n\r\n.nvd3.nv-line .nvd3.nv-scatter .nv-groups .nv-point {\r\n    fill-opacity: 0;\r\n    stroke-opacity: 0;\r\n}\r\n\r\n.nvd3.nv-scatter.nv-single-point .nv-groups .nv-point {\r\n    fill-opacity: .5 !important;\r\n    stroke-opacity: .5 !important;\r\n}\r\n\r\n\r\n.with-transitions .nvd3 .nv-groups .nv-point {\r\n    transition: stroke-width 250ms linear, stroke-opacity 250ms linear;\r\n    -moz-transition: stroke-width 250ms linear, stroke-opacity 250ms linear;\r\n    -webkit-transition: stroke-width 250ms linear, stroke-opacity 250ms linear;\r\n\r\n}\r\n\r\n.nvd3.nv-scatter .nv-groups .nv-point.hover,\r\n.nvd3 .nv-groups .nv-point.hover {\r\n    stroke-width: 7px;\r\n    fill-opacity: .95 !important;\r\n    stroke-opacity: .95 !important;\r\n}\r\n\r\n\r\n.nvd3 .nv-point-paths path {\r\n    stroke: #aaa;\r\n    stroke-opacity: 0;\r\n    fill: #eee;\r\n    fill-opacity: 0;\r\n}\r\n\r\n\r\n\r\n.nvd3 .nv-indexLine {\r\n    cursor: ew-resize;\r\n}\r\n\n/********************\r\n * SVG CSS\r\n */\r\n\r\n/********************\r\n  Default CSS for an svg element nvd3 used\r\n*/\r\nsvg.nvd3-svg {\r\n    -webkit-touch-callout: none;\r\n    -webkit-user-select: none;\r\n    -khtml-user-select: none;\r\n    -ms-user-select: none;\r\n    -moz-user-select: none;\r\n    user-select: none;\r\n    display: block;\r\n    width:100%;\r\n    height:100%;\r\n}\r\n\r\n/********************\r\n  Box shadow and border radius styling\r\n*/\r\n.nvtooltip.with-3d-shadow, .with-3d-shadow .nvtooltip {\r\n    -moz-box-shadow: 0 5px 10px rgba(0,0,0,.2);\r\n    -webkit-box-shadow: 0 5px 10px rgba(0,0,0,.2);\r\n    box-shadow: 0 5px 10px rgba(0,0,0,.2);\r\n\r\n    -webkit-border-radius: 5px;\r\n    -moz-border-radius: 5px;\r\n    border-radius: 5px;\r\n}\r\n\r\n\r\n.nvd3 text {\r\n    font: normal 12px Arial;\r\n}\r\n\r\n.nvd3 .title {\r\n    font: bold 14px Arial;\r\n}\r\n\r\n.nvd3 .nv-background {\r\n    fill: white;\r\n    fill-opacity: 0;\r\n}\r\n\r\n.nvd3.nv-noData {\r\n    font-size: 18px;\r\n    font-weight: bold;\r\n}\r\n\r\n\r\n/**********\r\n*  Brush\r\n*/\r\n\r\n.nv-brush .extent {\r\n    fill-opacity: .125;\r\n    shape-rendering: crispEdges;\r\n}\r\n\r\n.nv-brush .resize path {\r\n    fill: #eee;\r\n    stroke: #666;\r\n}\r\n\r\n\r\n/**********\r\n*  Legend\r\n*/\r\n\r\n.nvd3 .nv-legend .nv-series {\r\n    cursor: pointer;\r\n}\r\n\r\n.nvd3 .nv-legend .nv-disabled circle {\r\n    fill-opacity: 0;\r\n}\r\n\r\n/* focus */\r\n.nvd3 .nv-brush .extent {\r\n    fill-opacity: 0 !important;\r\n}\r\n\r\n.nvd3 .nv-brushBackground rect {\r\n    stroke: #000;\r\n    stroke-width: .4;\r\n    fill: #fff;\r\n    fill-opacity: .7;\r\n}\r\n\r\n\n.nvd3.nv-ohlcBar .nv-ticks .nv-tick {\r\n    stroke-width: 1px;\r\n}\r\n\r\n.nvd3.nv-ohlcBar .nv-ticks .nv-tick.hover {\r\n    stroke-width: 2px;\r\n}\r\n\r\n.nvd3.nv-ohlcBar .nv-ticks .nv-tick.positive {\r\n    stroke: #2ca02c;\r\n}\r\n\r\n.nvd3.nv-ohlcBar .nv-ticks .nv-tick.negative {\r\n    stroke: #d62728;\r\n}\r\n\r\n\n.nvd3 .background path {\r\n    fill: none;\r\n    stroke: #EEE;\r\n    stroke-opacity: .4;\r\n    shape-rendering: crispEdges;\r\n}\r\n\r\n.nvd3 .foreground path {\r\n    fill: none;\r\n    stroke-opacity: .7;\r\n}\r\n\r\n.nvd3 .nv-parallelCoordinates-brush .extent \r\n{\r\n    fill: #fff;\r\n    fill-opacity: .6;\r\n    stroke: gray;\r\n    shape-rendering: crispEdges;\r\n}\r\n\r\n.nvd3 .nv-parallelCoordinates .hover  {\r\n    fill-opacity: 1;\r\n\tstroke-width: 3px;\r\n}\r\n\r\n\r\n.nvd3 .missingValuesline line {\r\n  fill: none;\r\n  stroke: black;\r\n  stroke-width: 1;\r\n  stroke-opacity: 1;\r\n  stroke-dasharray: 5, 5; \r\n}\n.nvd3.nv-pie path {\r\n    stroke-opacity: 0;\r\n    transition: fill-opacity 250ms linear, stroke-width 250ms linear, stroke-opacity 250ms linear;\r\n    -moz-transition: fill-opacity 250ms linear, stroke-width 250ms linear, stroke-opacity 250ms linear;\r\n    -webkit-transition: fill-opacity 250ms linear, stroke-width 250ms linear, stroke-opacity 250ms linear;\r\n\r\n}\r\n\r\n.nvd3.nv-pie .nv-pie-title {\r\n    font-size: 24px;\r\n    fill: rgba(19, 196, 249, 0.59);\r\n}\r\n\r\n.nvd3.nv-pie .nv-slice text {\r\n    stroke: #000;\r\n    stroke-width: 0;\r\n}\r\n\r\n.nvd3.nv-pie path {\r\n    stroke: #fff;\r\n    stroke-width: 1px;\r\n    stroke-opacity: 1;\r\n}\r\n\r\n.nvd3.nv-pie path {\r\n    fill-opacity: .7;\r\n}\r\n.nvd3.nv-pie .hover path {\r\n    fill-opacity: 1;\r\n}\r\n.nvd3.nv-pie .nv-label {\r\n    pointer-events: none;\r\n}\r\n.nvd3.nv-pie .nv-label rect {\r\n    fill-opacity: 0;\r\n    stroke-opacity: 0;\r\n}\r\n\n/* scatter */\r\n.nvd3 .nv-groups .nv-point.hover {\r\n    stroke-width: 20px;\r\n    stroke-opacity: .5;\r\n}\r\n\r\n.nvd3 .nv-scatter .nv-point.hover {\r\n    fill-opacity: 1;\r\n}\r\n.nv-noninteractive {\r\n    pointer-events: none;\r\n}\r\n\r\n.nv-distx, .nv-disty {\r\n    pointer-events: none;\r\n}\r\n\n/* sparkline */\r\n.nvd3.nv-sparkline path {\r\n    fill: none;\r\n}\r\n\r\n.nvd3.nv-sparklineplus g.nv-hoverValue {\r\n    pointer-events: none;\r\n}\r\n\r\n.nvd3.nv-sparklineplus .nv-hoverValue line {\r\n    stroke: #333;\r\n    stroke-width: 1.5px;\r\n}\r\n\r\n.nvd3.nv-sparklineplus,\r\n.nvd3.nv-sparklineplus g {\r\n    pointer-events: all;\r\n}\r\n\r\n.nvd3 .nv-hoverArea {\r\n    fill-opacity: 0;\r\n    stroke-opacity: 0;\r\n}\r\n\r\n.nvd3.nv-sparklineplus .nv-xValue,\r\n.nvd3.nv-sparklineplus .nv-yValue {\r\n    stroke-width: 0;\r\n    font-size: .9em;\r\n    font-weight: normal;\r\n}\r\n\r\n.nvd3.nv-sparklineplus .nv-yValue {\r\n    stroke: #f66;\r\n}\r\n\r\n.nvd3.nv-sparklineplus .nv-maxValue {\r\n    stroke: #2ca02c;\r\n    fill: #2ca02c;\r\n}\r\n\r\n.nvd3.nv-sparklineplus .nv-minValue {\r\n    stroke: #d62728;\r\n    fill: #d62728;\r\n}\r\n\r\n.nvd3.nv-sparklineplus .nv-currentValue {\r\n    font-weight: bold;\r\n    font-size: 1.1em;\r\n}\n/* stacked area */\r\n.nvd3.nv-stackedarea path.nv-area {\r\n    fill-opacity: .7;\r\n    stroke-opacity: 0;\r\n    transition: fill-opacity 250ms linear, stroke-opacity 250ms linear;\r\n    -moz-transition: fill-opacity 250ms linear, stroke-opacity 250ms linear;\r\n    -webkit-transition: fill-opacity 250ms linear, stroke-opacity 250ms linear;\r\n}\r\n\r\n.nvd3.nv-stackedarea path.nv-area.hover {\r\n    fill-opacity: .9;\r\n}\r\n\r\n\r\n.nvd3.nv-stackedarea .nv-groups .nv-point {\r\n    stroke-opacity: 0;\r\n    fill-opacity: 0;\r\n}\n\r\n\r\n.nvtooltip {\r\n    position: absolute;\r\n    background-color: rgba(255,255,255,1.0);\r\n    color: rgba(0,0,0,1.0);\r\n    padding: 1px;\r\n    border: 1px solid rgba(0,0,0,.2);\r\n    z-index: 10000;\r\n    display: block;\r\n\r\n    font-family: Arial;\r\n    font-size: 13px;\r\n    text-align: left;\r\n    pointer-events: none;\r\n\r\n    white-space: nowrap;\r\n\r\n    -webkit-touch-callout: none;\r\n    -webkit-user-select: none;\r\n    -khtml-user-select: none;\r\n    -moz-user-select: none;\r\n    -ms-user-select: none;\r\n    user-select: none;\r\n}\r\n\r\n.nvtooltip {\r\n    background: rgba(255,255,255, 0.8);\r\n    border: 1px solid rgba(0,0,0,0.5);\r\n    border-radius: 4px;\r\n}\r\n\r\n/*Give tooltips that old fade in transition by\r\n    putting a \"with-transitions\" class on the container div.\r\n*/\r\n.nvtooltip.with-transitions, .with-transitions .nvtooltip {\r\n    transition: opacity 50ms linear;\r\n    -moz-transition: opacity 50ms linear;\r\n    -webkit-transition: opacity 50ms linear;\r\n\r\n    transition-delay: 200ms;\r\n    -moz-transition-delay: 200ms;\r\n    -webkit-transition-delay: 200ms;\r\n}\r\n\r\n.nvtooltip.x-nvtooltip,\r\n.nvtooltip.y-nvtooltip {\r\n    padding: 8px;\r\n}\r\n\r\n.nvtooltip h3 {\r\n    margin: 0;\r\n    padding: 4px 14px;\r\n    line-height: 18px;\r\n    font-weight: normal;\r\n    background-color: rgba(247,247,247,0.75);\r\n    color: rgba(0,0,0,1.0);\r\n    text-align: center;\r\n\r\n    border-bottom: 1px solid #ebebeb;\r\n\r\n    -webkit-border-radius: 5px 5px 0 0;\r\n    -moz-border-radius: 5px 5px 0 0;\r\n    border-radius: 5px 5px 0 0;\r\n}\r\n\r\n.nvtooltip p {\r\n    margin: 0;\r\n    padding: 5px 14px;\r\n    text-align: center;\r\n}\r\n\r\n.nvtooltip span {\r\n    display: inline-block;\r\n    margin: 2px 0;\r\n}\r\n\r\n.nvtooltip table {\r\n    margin: 6px;\r\n    border-spacing:0;\r\n}\r\n\r\n\r\n.nvtooltip table td {\r\n    padding: 2px 9px 2px 0;\r\n    vertical-align: middle;\r\n}\r\n\r\n.nvtooltip table td.key {\r\n    font-weight: normal;\r\n}\r\n.nvtooltip table td.key.total {\r\n    font-weight: bold;\r\n}\r\n.nvtooltip table td.value {\r\n    text-align: right;\r\n    font-weight: bold;\r\n}\r\n\r\n.nvtooltip table tr.highlight td {\r\n    padding: 1px 9px 1px 0;\r\n    border-bottom-style: solid;\r\n    border-bottom-width: 1px;\r\n    border-top-style: solid;\r\n    border-top-width: 1px;\r\n}\r\n\r\n.nvtooltip table td.legend-color-guide div {\r\n    width: 8px;\r\n    height: 8px;\r\n    vertical-align: middle;\r\n}\r\n\r\n.nvtooltip table td.legend-color-guide div {\r\n    width: 12px;\r\n    height: 12px;\r\n    border: 1px solid #999;\r\n}\r\n\r\n.nvtooltip .footer {\r\n    padding: 3px;\r\n    text-align: center;\r\n}\r\n\r\n.nvtooltip-pending-removal {\r\n    pointer-events: none;\r\n    display: none;\r\n}\r\n\r\n\r\n/****\r\nInteractive Layer\r\n*/\r\n.nvd3 .nv-interactiveGuideLine {\r\n    pointer-events:none;\r\n}\r\n.nvd3 line.nv-guideline {\r\n    stroke: #ccc;\r\n}\r\n", ""]);
+	exports.push([module.id, "/* nvd3 version 1.8.5 (https://github.com/novus/nvd3) 2016-12-01 */\n.nvd3 .nv-axis {\r\n    pointer-events:none;\r\n    opacity: 1;\r\n}\r\n\r\n.nvd3 .nv-axis path {\r\n    fill: none;\r\n    stroke: #000;\r\n    stroke-opacity: .75;\r\n    shape-rendering: crispEdges;\r\n}\r\n\r\n.nvd3 .nv-axis path.domain {\r\n    stroke-opacity: .75;\r\n}\r\n\r\n.nvd3 .nv-axis.nv-x path.domain {\r\n    stroke-opacity: 0;\r\n}\r\n\r\n.nvd3 .nv-axis line {\r\n    fill: none;\r\n    stroke: #e5e5e5;\r\n    shape-rendering: crispEdges;\r\n}\r\n\r\n.nvd3 .nv-axis .zero line,\r\n    /*this selector may not be necessary*/ .nvd3 .nv-axis line.zero {\r\n    stroke-opacity: .75;\r\n}\r\n\r\n.nvd3 .nv-axis .nv-axisMaxMin text {\r\n    font-weight: bold;\r\n}\r\n\r\n.nvd3 .x  .nv-axis .nv-axisMaxMin text,\r\n.nvd3 .x2 .nv-axis .nv-axisMaxMin text,\r\n.nvd3 .x3 .nv-axis .nv-axisMaxMin text {\r\n    text-anchor: middle;\r\n}\r\n\r\n.nvd3 .nv-axis.nv-disabled {\r\n    opacity: 0;\r\n}\r\n\n.nvd3 .nv-bars rect {\r\n    fill-opacity: .75;\r\n\r\n    transition: fill-opacity 250ms linear;\r\n}\n\r\n.nvd3 .nv-bars rect.hover {\r\n    fill-opacity: 1;\r\n}\r\n\r\n.nvd3 .nv-bars .hover rect {\r\n    fill: lightblue;\r\n}\r\n\r\n.nvd3 .nv-bars text {\r\n    fill: rgba(0,0,0,0);\r\n}\r\n\r\n.nvd3 .nv-bars .hover text {\r\n    fill: rgba(0,0,0,1);\r\n}\r\n\r\n.nvd3 .nv-multibar .nv-groups rect,\r\n.nvd3 .nv-multibarHorizontal .nv-groups rect,\r\n.nvd3 .nv-discretebar .nv-groups rect {\r\n    stroke-opacity: 0;\r\n\r\n    transition: fill-opacity 250ms linear;\r\n}\n\r\n.nvd3 .nv-multibar .nv-groups rect:hover,\r\n.nvd3 .nv-multibarHorizontal .nv-groups rect:hover,\r\n.nvd3 .nv-candlestickBar .nv-ticks rect:hover,\r\n.nvd3 .nv-discretebar .nv-groups rect:hover {\r\n    fill-opacity: 1;\r\n}\r\n\r\n.nvd3 .nv-discretebar .nv-groups text,\r\n.nvd3 .nv-multibarHorizontal .nv-groups text {\r\n    font-weight: bold;\r\n    fill: rgba(0,0,0,1);\r\n    stroke: rgba(0,0,0,0);\r\n}\r\n\n/* boxplot CSS */\n.nvd3 .nv-boxplot circle {\n  fill-opacity: 0.5;\n}\n\n.nvd3 .nv-boxplot circle:hover {\n  fill-opacity: 1;\n}\n\n.nvd3 .nv-boxplot rect:hover {\n  fill-opacity: 1;\n}\n\n.nvd3 line.nv-boxplot-median {\n  stroke: black;\n}\n\n.nv-boxplot-tick:hover {\n  stroke-width: 2.5px;\n}\n/* bullet */\r\n.nvd3.nv-bullet { font: 10px sans-serif; }\r\n.nvd3.nv-bullet .nv-measure { fill-opacity: .8; }\r\n.nvd3.nv-bullet .nv-measure:hover { fill-opacity: 1; }\r\n.nvd3.nv-bullet .nv-marker { stroke: #000; stroke-width: 2px; }\r\n.nvd3.nv-bullet .nv-markerTriangle { stroke: #000; fill: #fff; stroke-width: 1.5px; }\r\n.nvd3.nv-bullet .nv-markerLine { stroke: #000; stroke-width: 1.5px; }\r\n.nvd3.nv-bullet .nv-tick line { stroke: #666; stroke-width: .5px; }\r\n.nvd3.nv-bullet .nv-range.nv-s0 { fill: #eee; }\r\n.nvd3.nv-bullet .nv-range.nv-s1 { fill: #ddd; }\r\n.nvd3.nv-bullet .nv-range.nv-s2 { fill: #ccc; }\r\n.nvd3.nv-bullet .nv-title { font-size: 14px; font-weight: bold; }\r\n.nvd3.nv-bullet .nv-subtitle { fill: #999; }\r\n\r\n.nvd3.nv-bullet .nv-range {\n    fill: #bababa;\r\n    fill-opacity: .4;\r\n}\n\n.nvd3.nv-bullet .nv-range:hover {\r\n    fill-opacity: .7;\r\n}\r\n\n.nvd3.nv-candlestickBar .nv-ticks .nv-tick {\r\n    stroke-width: 1px;\r\n}\r\n\r\n.nvd3.nv-candlestickBar .nv-ticks .nv-tick.hover {\r\n    stroke-width: 2px;\r\n}\r\n\r\n.nvd3.nv-candlestickBar .nv-ticks .nv-tick.positive rect {\r\n    stroke: #2ca02c;\r\n    fill: #2ca02c;\r\n}\r\n\r\n.nvd3.nv-candlestickBar .nv-ticks .nv-tick.negative rect {\r\n    stroke: #d62728;\r\n    fill: #d62728;\r\n}\r\n\r\n.with-transitions .nv-candlestickBar .nv-ticks .nv-tick {\r\n    transition: stroke-width 250ms linear, stroke-opacity 250ms linear;\r\n}\n\r\n.nvd3.nv-candlestickBar .nv-ticks line {\r\n    stroke: #333;\r\n}\r\n\n.nv-force-node {\n    stroke: #fff;\n    stroke-width: 1.5px;\n}\n\n.nv-force-link {\n    stroke: #999;\n    stroke-opacity: .6;\n}\n\n.nv-force-node text {\n    stroke-width: 0px;\n}\n\n.nvd3 .nv-legend .nv-disabled rect {\n    /*fill-opacity: 0;*/\n}\n\n.nvd3 .nv-check-box .nv-box {\n    fill-opacity:0;\n    stroke-width:2;\n}\n\n.nvd3 .nv-check-box .nv-check {\n    fill-opacity:0;\n    stroke-width:4;\n}\n\n.nvd3 .nv-series.nv-disabled .nv-check-box .nv-check {\n    fill-opacity:0;\n    stroke-opacity:0;\n}\n\n.nvd3 .nv-controlsWrap .nv-legend .nv-check-box .nv-check {\n    opacity: 0;\n}\n\n/* line plus bar */\r\n.nvd3.nv-linePlusBar .nv-bar rect {\r\n    fill-opacity: .75;\r\n}\r\n\r\n.nvd3.nv-linePlusBar .nv-bar rect:hover {\r\n    fill-opacity: 1;\r\n}\n.nvd3 .nv-groups path.nv-line {\r\n    fill: none;\r\n}\r\n\r\n.nvd3 .nv-groups path.nv-area {\r\n    stroke: none;\r\n}\r\n\r\n.nvd3.nv-line .nvd3.nv-scatter .nv-groups .nv-point {\r\n    fill-opacity: 0;\r\n    stroke-opacity: 0;\r\n}\r\n\r\n.nvd3.nv-scatter.nv-single-point .nv-groups .nv-point {\r\n    fill-opacity: .5 !important;\r\n    stroke-opacity: .5 !important;\r\n}\r\n\r\n\r\n.with-transitions .nvd3 .nv-groups .nv-point {\r\n    transition: stroke-width 250ms linear, stroke-opacity 250ms linear;\r\n}\n\r\n.nvd3.nv-scatter .nv-groups .nv-point.hover,\r\n.nvd3 .nv-groups .nv-point.hover {\r\n    stroke-width: 7px;\r\n    fill-opacity: .95 !important;\r\n    stroke-opacity: .95 !important;\r\n}\r\n\r\n\r\n.nvd3 .nv-point-paths path {\r\n    stroke: #aaa;\r\n    stroke-opacity: 0;\r\n    fill: #eee;\r\n    fill-opacity: 0;\r\n}\r\n\r\n\r\n.nvd3 .nv-indexLine {\n    cursor: ew-resize;\r\n}\r\n\n/********************\r\n * SVG CSS\r\n */\r\n\r\n/********************\r\n  Default CSS for an svg element nvd3 used\r\n*/\r\nsvg.nvd3-svg {\r\n    -webkit-user-select: none;\r\n       -moz-user-select: none;\r\n        -ms-user-select: none;\r\n            user-select: none;\n    display: block;\r\n    width:100%;\r\n    height:100%;\r\n}\r\n\r\n/********************\r\n  Box shadow and border radius styling\r\n*/\r\n.nvtooltip.with-3d-shadow, .with-3d-shadow .nvtooltip {\r\n    box-shadow: 0 5px 10px rgba(0,0,0,.2);\n    border-radius: 5px;\n}\r\n\r\n\r\n.nvd3 text {\r\n    font: normal 12px Arial, sans-serif;\r\n}\r\n\r\n.nvd3 .title {\r\n    font: bold 14px Arial, sans-serif;\r\n}\r\n\r\n.nvd3 .nv-background {\r\n    fill: white;\r\n    fill-opacity: 0;\r\n}\r\n\r\n.nvd3.nv-noData {\r\n    font-size: 18px;\r\n    font-weight: bold;\r\n}\r\n\r\n\r\n/**********\r\n*  Brush\r\n*/\r\n\r\n.nv-brush .extent {\r\n    fill-opacity: .125;\r\n    shape-rendering: crispEdges;\r\n}\r\n\r\n.nv-brush .resize path {\r\n    fill: #eee;\r\n    stroke: #666;\r\n}\r\n\r\n\r\n/**********\r\n*  Legend\r\n*/\r\n\r\n.nvd3 .nv-legend .nv-series {\r\n    cursor: pointer;\r\n}\r\n\r\n.nvd3 .nv-legend .nv-disabled circle {\r\n    fill-opacity: 0;\r\n}\r\n\r\n/* focus */\r\n.nvd3 .nv-brush .extent {\r\n    fill-opacity: 0 !important;\r\n}\r\n\r\n.nvd3 .nv-brushBackground rect {\r\n    stroke: #000;\r\n    stroke-width: .4;\r\n    fill: #fff;\r\n    fill-opacity: .7;\r\n}\r\n\r\n/**********\r\n*  Print\r\n*/\r\n\r\n@media print {\r\n    .nvd3 text {\n        stroke-width: 0;\n        fill-opacity: 1;\n    }\n}\r\n\n.nvd3.nv-ohlcBar .nv-ticks .nv-tick {\r\n    stroke-width: 1px;\r\n}\r\n\r\n.nvd3.nv-ohlcBar .nv-ticks .nv-tick.hover {\r\n    stroke-width: 2px;\r\n}\r\n\r\n.nvd3.nv-ohlcBar .nv-ticks .nv-tick.positive {\r\n    stroke: #2ca02c;\r\n}\r\n\r\n.nvd3.nv-ohlcBar .nv-ticks .nv-tick.negative {\r\n    stroke: #d62728;\r\n}\r\n\r\n\n.nvd3 .background path {\r\n    fill: none;\r\n    stroke: #EEE;\r\n    stroke-opacity: .4;\r\n    shape-rendering: crispEdges;\r\n}\r\n\r\n.nvd3 .foreground path {\r\n    fill: none;\r\n    stroke-opacity: .7;\r\n}\r\n\r\n.nvd3 .nv-parallelCoordinates-brush .extent {\n    fill: #fff;\r\n    fill-opacity: .6;\r\n    stroke: gray;\r\n    shape-rendering: crispEdges;\r\n}\r\n\r\n.nvd3 .nv-parallelCoordinates .hover  {\r\n    fill-opacity: 1;\r\n\tstroke-width: 3px;\r\n}\r\n\r\n\r\n.nvd3 .missingValuesline line {\r\n  fill: none;\r\n  stroke: black;\r\n  stroke-width: 1;\r\n  stroke-opacity: 1;\r\n  stroke-dasharray: 5, 5;\n}\n\n.nvd3.nv-pie path {\r\n    stroke-opacity: 0;\r\n    transition: fill-opacity 250ms linear, stroke-width 250ms linear, stroke-opacity 250ms linear;\r\n}\n\r\n.nvd3.nv-pie .nv-pie-title {\r\n    font-size: 24px;\r\n    fill: rgba(19, 196, 249, 0.59);\r\n}\r\n\r\n.nvd3.nv-pie .nv-slice text {\r\n    stroke: #000;\r\n    stroke-width: 0;\r\n}\r\n\r\n.nvd3.nv-pie path {\r\n    stroke: #fff;\r\n    stroke-width: 1px;\r\n    stroke-opacity: 1;\r\n}\r\n\r\n.nvd3.nv-pie path {\r\n    fill-opacity: .7;\r\n}\n\n.nvd3.nv-pie .hover path {\r\n    fill-opacity: 1;\r\n}\r\n\n.nvd3.nv-pie .nv-label {\n    pointer-events: none;\r\n}\r\n\n.nvd3.nv-pie .nv-label rect {\n    fill-opacity: 0;\r\n    stroke-opacity: 0;\r\n}\r\n\n/* scatter */\r\n.nvd3 .nv-groups .nv-point.hover {\r\n    stroke-width: 20px;\r\n    stroke-opacity: .5;\r\n}\r\n\r\n.nvd3 .nv-scatter .nv-point.hover {\r\n    fill-opacity: 1;\r\n}\n\n.nv-noninteractive {\r\n    pointer-events: none;\r\n}\r\n\r\n.nv-distx, .nv-disty {\r\n    pointer-events: none;\r\n}\r\n\n/* sparkline */\r\n.nvd3.nv-sparkline path {\r\n    fill: none;\r\n}\r\n\r\n.nvd3.nv-sparklineplus g.nv-hoverValue {\r\n    pointer-events: none;\r\n}\r\n\r\n.nvd3.nv-sparklineplus .nv-hoverValue line {\r\n    stroke: #333;\r\n    stroke-width: 1.5px;\r\n}\r\n\r\n.nvd3.nv-sparklineplus,\r\n.nvd3.nv-sparklineplus g {\r\n    pointer-events: all;\r\n}\r\n\r\n.nvd3 .nv-hoverArea {\r\n    fill-opacity: 0;\r\n    stroke-opacity: 0;\r\n}\r\n\r\n.nvd3.nv-sparklineplus .nv-xValue,\r\n.nvd3.nv-sparklineplus .nv-yValue {\r\n    stroke-width: 0;\r\n    font-size: .9em;\r\n    font-weight: normal;\r\n}\r\n\r\n.nvd3.nv-sparklineplus .nv-yValue {\r\n    stroke: #f66;\r\n}\r\n\r\n.nvd3.nv-sparklineplus .nv-maxValue {\r\n    stroke: #2ca02c;\r\n    fill: #2ca02c;\r\n}\r\n\r\n.nvd3.nv-sparklineplus .nv-minValue {\r\n    stroke: #d62728;\r\n    fill: #d62728;\r\n}\r\n\r\n.nvd3.nv-sparklineplus .nv-currentValue {\r\n    font-weight: bold;\r\n    font-size: 1.1em;\r\n}\n/* stacked area */\r\n.nvd3.nv-stackedarea path.nv-area {\r\n    fill-opacity: .7;\r\n    stroke-opacity: 0;\r\n    transition: fill-opacity 250ms linear, stroke-opacity 250ms linear;\r\n}\n\r\n.nvd3.nv-stackedarea path.nv-area.hover {\r\n    fill-opacity: .9;\r\n}\r\n\r\n\r\n.nvd3.nv-stackedarea .nv-groups .nv-point {\r\n    stroke-opacity: 0;\r\n    fill-opacity: 0;\r\n}\n\n.nvtooltip {\n    position: absolute;\r\n    background-color: rgba(255,255,255,1.0);\r\n    color: rgba(0,0,0,1.0);\r\n    padding: 1px;\r\n    border: 1px solid rgba(0,0,0,.2);\r\n    z-index: 10000;\r\n    display: block;\r\n\r\n    font-family: Arial, sans-serif;\r\n    font-size: 13px;\r\n    text-align: left;\r\n    pointer-events: none;\r\n\r\n    white-space: nowrap;\r\n\r\n    -webkit-user-select: none;\r\n\r\n       -moz-user-select: none;\r\n\r\n        -ms-user-select: none;\r\n\r\n            user-select: none;\n}\n\r\n.nvtooltip {\r\n    background: rgba(255,255,255, 0.8);\r\n    border: 1px solid rgba(0,0,0,0.5);\r\n    border-radius: 4px;\r\n}\r\n\r\n/*Give tooltips that old fade in transition by\r\n    putting a \"with-transitions\" class on the container div.\r\n*/\r\n.nvtooltip.with-transitions, .with-transitions .nvtooltip {\r\n    transition: opacity 50ms linear;\r\n\n    transition-delay: 200ms;\n}\n\r\n.nvtooltip.x-nvtooltip,\r\n.nvtooltip.y-nvtooltip {\r\n    padding: 8px;\r\n}\r\n\r\n.nvtooltip h3 {\r\n    margin: 0;\r\n    padding: 4px 14px;\r\n    line-height: 18px;\r\n    font-weight: normal;\r\n    background-color: rgba(247,247,247,0.75);\r\n    color: rgba(0,0,0,1.0);\r\n    text-align: center;\r\n\r\n    border-bottom: 1px solid #ebebeb;\r\n\r\n    border-radius: 5px 5px 0 0;\n}\r\n\r\n.nvtooltip p {\r\n    margin: 0;\r\n    padding: 5px 14px;\r\n    text-align: center;\r\n}\r\n\r\n.nvtooltip span {\r\n    display: inline-block;\r\n    margin: 2px 0;\r\n}\r\n\r\n.nvtooltip table {\r\n    margin: 6px;\r\n    border-spacing:0;\r\n}\r\n\r\n\r\n.nvtooltip table td {\r\n    padding: 2px 9px 2px 0;\r\n    vertical-align: middle;\r\n}\r\n\r\n.nvtooltip table td.key {\r\n    font-weight: normal;\r\n}\n\n.nvtooltip table td.key.total {\r\n    font-weight: bold;\r\n}\r\n\n.nvtooltip table td.value {\n    text-align: right;\r\n    font-weight: bold;\r\n}\r\n\r\n.nvtooltip table td.percent {\r\n    color: darkgray;\r\n}\r\n\r\n.nvtooltip table tr.highlight td {\r\n    padding: 1px 9px 1px 0;\r\n    border-bottom-style: solid;\r\n    border-bottom-width: 1px;\r\n    border-top-style: solid;\r\n    border-top-width: 1px;\r\n}\r\n\r\n.nvtooltip table td.legend-color-guide div {\r\n    width: 8px;\r\n    height: 8px;\r\n    vertical-align: middle;\r\n}\r\n\r\n.nvtooltip table td.legend-color-guide div {\r\n    width: 12px;\r\n    height: 12px;\r\n    border: 1px solid #999;\r\n}\r\n\r\n.nvtooltip .footer {\r\n    padding: 3px;\r\n    text-align: center;\r\n}\r\n\r\n.nvtooltip-pending-removal {\r\n    pointer-events: none;\r\n    display: none;\r\n}\r\n\r\n\r\n/****\r\nInteractive Layer\r\n*/\r\n.nvd3 .nv-interactiveGuideLine {\r\n    pointer-events:none;\r\n}\n\n.nvd3 line.nv-guideline {\r\n    stroke: #ccc;\r\n}\r\n", ""]);
 	
 	// exports
 
 
 /***/ },
-/* 405 */
+/* 406 */
 /***/ function(module, exports, __webpack_require__) {
 
 	// style-loader: Adds some css to the DOM by adding a <style> tag
 	
 	// load the styles
-	var content = __webpack_require__(406);
+	var content = __webpack_require__(407);
 	if(typeof content === 'string') content = [[module.id, content, '']];
 	// add the styles to the DOM
-	var update = __webpack_require__(402)(content, {});
+	var update = __webpack_require__(403)(content, {});
 	if(content.locals) module.exports = content.locals;
 	// Hot Module Replacement
 	if(false) {
@@ -75778,24 +75858,18 @@
 	}
 
 /***/ },
-/* 406 */
+/* 407 */
 /***/ function(module, exports, __webpack_require__) {
 
-	exports = module.exports = __webpack_require__(401)();
+	exports = module.exports = __webpack_require__(402)();
 	// imports
 	
 	
 	// module
-	exports.push([module.id, "/*!\n *  Font Awesome 4.7.0 by @davegandy - http://fontawesome.io - @fontawesome\n *  License - http://fontawesome.io/license (Font: SIL OFL 1.1, CSS: MIT License)\n */\n/* FONT PATH\n * -------------------------- */\n@font-face {\n  font-family: 'FontAwesome';\n  src: url(" + __webpack_require__(407) + ");\n  src: url(" + __webpack_require__(408) + "?#iefix&v=4.7.0) format('embedded-opentype'), url(" + __webpack_require__(409) + ") format('woff2'), url(" + __webpack_require__(410) + ") format('woff'), url(" + __webpack_require__(411) + ") format('truetype'), url(" + __webpack_require__(412) + "#fontawesomeregular) format('svg');\n  font-weight: normal;\n  font-style: normal;\n}\n.fa {\n  display: inline-block;\n  font: normal normal normal 14px/1 FontAwesome;\n  font-size: inherit;\n  text-rendering: auto;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n}\n/* makes the font 33% larger relative to the icon container */\n.fa-lg {\n  font-size: 1.33333333em;\n  line-height: 0.75em;\n  vertical-align: -15%;\n}\n.fa-2x {\n  font-size: 2em;\n}\n.fa-3x {\n  font-size: 3em;\n}\n.fa-4x {\n  font-size: 4em;\n}\n.fa-5x {\n  font-size: 5em;\n}\n.fa-fw {\n  width: 1.28571429em;\n  text-align: center;\n}\n.fa-ul {\n  padding-left: 0;\n  margin-left: 2.14285714em;\n  list-style-type: none;\n}\n.fa-ul > li {\n  position: relative;\n}\n.fa-li {\n  position: absolute;\n  left: -2.14285714em;\n  width: 2.14285714em;\n  top: 0.14285714em;\n  text-align: center;\n}\n.fa-li.fa-lg {\n  left: -1.85714286em;\n}\n.fa-border {\n  padding: .2em .25em .15em;\n  border: solid 0.08em #eeeeee;\n  border-radius: .1em;\n}\n.fa-pull-left {\n  float: left;\n}\n.fa-pull-right {\n  float: right;\n}\n.fa.fa-pull-left {\n  margin-right: .3em;\n}\n.fa.fa-pull-right {\n  margin-left: .3em;\n}\n/* Deprecated as of 4.4.0 */\n.pull-right {\n  float: right;\n}\n.pull-left {\n  float: left;\n}\n.fa.pull-left {\n  margin-right: .3em;\n}\n.fa.pull-right {\n  margin-left: .3em;\n}\n.fa-spin {\n  -webkit-animation: fa-spin 2s infinite linear;\n  animation: fa-spin 2s infinite linear;\n}\n.fa-pulse {\n  -webkit-animation: fa-spin 1s infinite steps(8);\n  animation: fa-spin 1s infinite steps(8);\n}\n@-webkit-keyframes fa-spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n    transform: rotate(0deg);\n  }\n  100% {\n    -webkit-transform: rotate(359deg);\n    transform: rotate(359deg);\n  }\n}\n@keyframes fa-spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n    transform: rotate(0deg);\n  }\n  100% {\n    -webkit-transform: rotate(359deg);\n    transform: rotate(359deg);\n  }\n}\n.fa-rotate-90 {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=1)\";\n  -webkit-transform: rotate(90deg);\n  -ms-transform: rotate(90deg);\n  transform: rotate(90deg);\n}\n.fa-rotate-180 {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=2)\";\n  -webkit-transform: rotate(180deg);\n  -ms-transform: rotate(180deg);\n  transform: rotate(180deg);\n}\n.fa-rotate-270 {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=3)\";\n  -webkit-transform: rotate(270deg);\n  -ms-transform: rotate(270deg);\n  transform: rotate(270deg);\n}\n.fa-flip-horizontal {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=0, mirror=1)\";\n  -webkit-transform: scale(-1, 1);\n  -ms-transform: scale(-1, 1);\n  transform: scale(-1, 1);\n}\n.fa-flip-vertical {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=2, mirror=1)\";\n  -webkit-transform: scale(1, -1);\n  -ms-transform: scale(1, -1);\n  transform: scale(1, -1);\n}\n:root .fa-rotate-90,\n:root .fa-rotate-180,\n:root .fa-rotate-270,\n:root .fa-flip-horizontal,\n:root .fa-flip-vertical {\n  filter: none;\n}\n.fa-stack {\n  position: relative;\n  display: inline-block;\n  width: 2em;\n  height: 2em;\n  line-height: 2em;\n  vertical-align: middle;\n}\n.fa-stack-1x,\n.fa-stack-2x {\n  position: absolute;\n  left: 0;\n  width: 100%;\n  text-align: center;\n}\n.fa-stack-1x {\n  line-height: inherit;\n}\n.fa-stack-2x {\n  font-size: 2em;\n}\n.fa-inverse {\n  color: #ffffff;\n}\n/* Font Awesome uses the Unicode Private Use Area (PUA) to ensure screen\n   readers do not read off random characters that represent icons */\n.fa-glass:before {\n  content: \"\\F000\";\n}\n.fa-music:before {\n  content: \"\\F001\";\n}\n.fa-search:before {\n  content: \"\\F002\";\n}\n.fa-envelope-o:before {\n  content: \"\\F003\";\n}\n.fa-heart:before {\n  content: \"\\F004\";\n}\n.fa-star:before {\n  content: \"\\F005\";\n}\n.fa-star-o:before {\n  content: \"\\F006\";\n}\n.fa-user:before {\n  content: \"\\F007\";\n}\n.fa-film:before {\n  content: \"\\F008\";\n}\n.fa-th-large:before {\n  content: \"\\F009\";\n}\n.fa-th:before {\n  content: \"\\F00A\";\n}\n.fa-th-list:before {\n  content: \"\\F00B\";\n}\n.fa-check:before {\n  content: \"\\F00C\";\n}\n.fa-remove:before,\n.fa-close:before,\n.fa-times:before {\n  content: \"\\F00D\";\n}\n.fa-search-plus:before {\n  content: \"\\F00E\";\n}\n.fa-search-minus:before {\n  content: \"\\F010\";\n}\n.fa-power-off:before {\n  content: \"\\F011\";\n}\n.fa-signal:before {\n  content: \"\\F012\";\n}\n.fa-gear:before,\n.fa-cog:before {\n  content: \"\\F013\";\n}\n.fa-trash-o:before {\n  content: \"\\F014\";\n}\n.fa-home:before {\n  content: \"\\F015\";\n}\n.fa-file-o:before {\n  content: \"\\F016\";\n}\n.fa-clock-o:before {\n  content: \"\\F017\";\n}\n.fa-road:before {\n  content: \"\\F018\";\n}\n.fa-download:before {\n  content: \"\\F019\";\n}\n.fa-arrow-circle-o-down:before {\n  content: \"\\F01A\";\n}\n.fa-arrow-circle-o-up:before {\n  content: \"\\F01B\";\n}\n.fa-inbox:before {\n  content: \"\\F01C\";\n}\n.fa-play-circle-o:before {\n  content: \"\\F01D\";\n}\n.fa-rotate-right:before,\n.fa-repeat:before {\n  content: \"\\F01E\";\n}\n.fa-refresh:before {\n  content: \"\\F021\";\n}\n.fa-list-alt:before {\n  content: \"\\F022\";\n}\n.fa-lock:before {\n  content: \"\\F023\";\n}\n.fa-flag:before {\n  content: \"\\F024\";\n}\n.fa-headphones:before {\n  content: \"\\F025\";\n}\n.fa-volume-off:before {\n  content: \"\\F026\";\n}\n.fa-volume-down:before {\n  content: \"\\F027\";\n}\n.fa-volume-up:before {\n  content: \"\\F028\";\n}\n.fa-qrcode:before {\n  content: \"\\F029\";\n}\n.fa-barcode:before {\n  content: \"\\F02A\";\n}\n.fa-tag:before {\n  content: \"\\F02B\";\n}\n.fa-tags:before {\n  content: \"\\F02C\";\n}\n.fa-book:before {\n  content: \"\\F02D\";\n}\n.fa-bookmark:before {\n  content: \"\\F02E\";\n}\n.fa-print:before {\n  content: \"\\F02F\";\n}\n.fa-camera:before {\n  content: \"\\F030\";\n}\n.fa-font:before {\n  content: \"\\F031\";\n}\n.fa-bold:before {\n  content: \"\\F032\";\n}\n.fa-italic:before {\n  content: \"\\F033\";\n}\n.fa-text-height:before {\n  content: \"\\F034\";\n}\n.fa-text-width:before {\n  content: \"\\F035\";\n}\n.fa-align-left:before {\n  content: \"\\F036\";\n}\n.fa-align-center:before {\n  content: \"\\F037\";\n}\n.fa-align-right:before {\n  content: \"\\F038\";\n}\n.fa-align-justify:before {\n  content: \"\\F039\";\n}\n.fa-list:before {\n  content: \"\\F03A\";\n}\n.fa-dedent:before,\n.fa-outdent:before {\n  content: \"\\F03B\";\n}\n.fa-indent:before {\n  content: \"\\F03C\";\n}\n.fa-video-camera:before {\n  content: \"\\F03D\";\n}\n.fa-photo:before,\n.fa-image:before,\n.fa-picture-o:before {\n  content: \"\\F03E\";\n}\n.fa-pencil:before {\n  content: \"\\F040\";\n}\n.fa-map-marker:before {\n  content: \"\\F041\";\n}\n.fa-adjust:before {\n  content: \"\\F042\";\n}\n.fa-tint:before {\n  content: \"\\F043\";\n}\n.fa-edit:before,\n.fa-pencil-square-o:before {\n  content: \"\\F044\";\n}\n.fa-share-square-o:before {\n  content: \"\\F045\";\n}\n.fa-check-square-o:before {\n  content: \"\\F046\";\n}\n.fa-arrows:before {\n  content: \"\\F047\";\n}\n.fa-step-backward:before {\n  content: \"\\F048\";\n}\n.fa-fast-backward:before {\n  content: \"\\F049\";\n}\n.fa-backward:before {\n  content: \"\\F04A\";\n}\n.fa-play:before {\n  content: \"\\F04B\";\n}\n.fa-pause:before {\n  content: \"\\F04C\";\n}\n.fa-stop:before {\n  content: \"\\F04D\";\n}\n.fa-forward:before {\n  content: \"\\F04E\";\n}\n.fa-fast-forward:before {\n  content: \"\\F050\";\n}\n.fa-step-forward:before {\n  content: \"\\F051\";\n}\n.fa-eject:before {\n  content: \"\\F052\";\n}\n.fa-chevron-left:before {\n  content: \"\\F053\";\n}\n.fa-chevron-right:before {\n  content: \"\\F054\";\n}\n.fa-plus-circle:before {\n  content: \"\\F055\";\n}\n.fa-minus-circle:before {\n  content: \"\\F056\";\n}\n.fa-times-circle:before {\n  content: \"\\F057\";\n}\n.fa-check-circle:before {\n  content: \"\\F058\";\n}\n.fa-question-circle:before {\n  content: \"\\F059\";\n}\n.fa-info-circle:before {\n  content: \"\\F05A\";\n}\n.fa-crosshairs:before {\n  content: \"\\F05B\";\n}\n.fa-times-circle-o:before {\n  content: \"\\F05C\";\n}\n.fa-check-circle-o:before {\n  content: \"\\F05D\";\n}\n.fa-ban:before {\n  content: \"\\F05E\";\n}\n.fa-arrow-left:before {\n  content: \"\\F060\";\n}\n.fa-arrow-right:before {\n  content: \"\\F061\";\n}\n.fa-arrow-up:before {\n  content: \"\\F062\";\n}\n.fa-arrow-down:before {\n  content: \"\\F063\";\n}\n.fa-mail-forward:before,\n.fa-share:before {\n  content: \"\\F064\";\n}\n.fa-expand:before {\n  content: \"\\F065\";\n}\n.fa-compress:before {\n  content: \"\\F066\";\n}\n.fa-plus:before {\n  content: \"\\F067\";\n}\n.fa-minus:before {\n  content: \"\\F068\";\n}\n.fa-asterisk:before {\n  content: \"\\F069\";\n}\n.fa-exclamation-circle:before {\n  content: \"\\F06A\";\n}\n.fa-gift:before {\n  content: \"\\F06B\";\n}\n.fa-leaf:before {\n  content: \"\\F06C\";\n}\n.fa-fire:before {\n  content: \"\\F06D\";\n}\n.fa-eye:before {\n  content: \"\\F06E\";\n}\n.fa-eye-slash:before {\n  content: \"\\F070\";\n}\n.fa-warning:before,\n.fa-exclamation-triangle:before {\n  content: \"\\F071\";\n}\n.fa-plane:before {\n  content: \"\\F072\";\n}\n.fa-calendar:before {\n  content: \"\\F073\";\n}\n.fa-random:before {\n  content: \"\\F074\";\n}\n.fa-comment:before {\n  content: \"\\F075\";\n}\n.fa-magnet:before {\n  content: \"\\F076\";\n}\n.fa-chevron-up:before {\n  content: \"\\F077\";\n}\n.fa-chevron-down:before {\n  content: \"\\F078\";\n}\n.fa-retweet:before {\n  content: \"\\F079\";\n}\n.fa-shopping-cart:before {\n  content: \"\\F07A\";\n}\n.fa-folder:before {\n  content: \"\\F07B\";\n}\n.fa-folder-open:before {\n  content: \"\\F07C\";\n}\n.fa-arrows-v:before {\n  content: \"\\F07D\";\n}\n.fa-arrows-h:before {\n  content: \"\\F07E\";\n}\n.fa-bar-chart-o:before,\n.fa-bar-chart:before {\n  content: \"\\F080\";\n}\n.fa-twitter-square:before {\n  content: \"\\F081\";\n}\n.fa-facebook-square:before {\n  content: \"\\F082\";\n}\n.fa-camera-retro:before {\n  content: \"\\F083\";\n}\n.fa-key:before {\n  content: \"\\F084\";\n}\n.fa-gears:before,\n.fa-cogs:before {\n  content: \"\\F085\";\n}\n.fa-comments:before {\n  content: \"\\F086\";\n}\n.fa-thumbs-o-up:before {\n  content: \"\\F087\";\n}\n.fa-thumbs-o-down:before {\n  content: \"\\F088\";\n}\n.fa-star-half:before {\n  content: \"\\F089\";\n}\n.fa-heart-o:before {\n  content: \"\\F08A\";\n}\n.fa-sign-out:before {\n  content: \"\\F08B\";\n}\n.fa-linkedin-square:before {\n  content: \"\\F08C\";\n}\n.fa-thumb-tack:before {\n  content: \"\\F08D\";\n}\n.fa-external-link:before {\n  content: \"\\F08E\";\n}\n.fa-sign-in:before {\n  content: \"\\F090\";\n}\n.fa-trophy:before {\n  content: \"\\F091\";\n}\n.fa-github-square:before {\n  content: \"\\F092\";\n}\n.fa-upload:before {\n  content: \"\\F093\";\n}\n.fa-lemon-o:before {\n  content: \"\\F094\";\n}\n.fa-phone:before {\n  content: \"\\F095\";\n}\n.fa-square-o:before {\n  content: \"\\F096\";\n}\n.fa-bookmark-o:before {\n  content: \"\\F097\";\n}\n.fa-phone-square:before {\n  content: \"\\F098\";\n}\n.fa-twitter:before {\n  content: \"\\F099\";\n}\n.fa-facebook-f:before,\n.fa-facebook:before {\n  content: \"\\F09A\";\n}\n.fa-github:before {\n  content: \"\\F09B\";\n}\n.fa-unlock:before {\n  content: \"\\F09C\";\n}\n.fa-credit-card:before {\n  content: \"\\F09D\";\n}\n.fa-feed:before,\n.fa-rss:before {\n  content: \"\\F09E\";\n}\n.fa-hdd-o:before {\n  content: \"\\F0A0\";\n}\n.fa-bullhorn:before {\n  content: \"\\F0A1\";\n}\n.fa-bell:before {\n  content: \"\\F0F3\";\n}\n.fa-certificate:before {\n  content: \"\\F0A3\";\n}\n.fa-hand-o-right:before {\n  content: \"\\F0A4\";\n}\n.fa-hand-o-left:before {\n  content: \"\\F0A5\";\n}\n.fa-hand-o-up:before {\n  content: \"\\F0A6\";\n}\n.fa-hand-o-down:before {\n  content: \"\\F0A7\";\n}\n.fa-arrow-circle-left:before {\n  content: \"\\F0A8\";\n}\n.fa-arrow-circle-right:before {\n  content: \"\\F0A9\";\n}\n.fa-arrow-circle-up:before {\n  content: \"\\F0AA\";\n}\n.fa-arrow-circle-down:before {\n  content: \"\\F0AB\";\n}\n.fa-globe:before {\n  content: \"\\F0AC\";\n}\n.fa-wrench:before {\n  content: \"\\F0AD\";\n}\n.fa-tasks:before {\n  content: \"\\F0AE\";\n}\n.fa-filter:before {\n  content: \"\\F0B0\";\n}\n.fa-briefcase:before {\n  content: \"\\F0B1\";\n}\n.fa-arrows-alt:before {\n  content: \"\\F0B2\";\n}\n.fa-group:before,\n.fa-users:before {\n  content: \"\\F0C0\";\n}\n.fa-chain:before,\n.fa-link:before {\n  content: \"\\F0C1\";\n}\n.fa-cloud:before {\n  content: \"\\F0C2\";\n}\n.fa-flask:before {\n  content: \"\\F0C3\";\n}\n.fa-cut:before,\n.fa-scissors:before {\n  content: \"\\F0C4\";\n}\n.fa-copy:before,\n.fa-files-o:before {\n  content: \"\\F0C5\";\n}\n.fa-paperclip:before {\n  content: \"\\F0C6\";\n}\n.fa-save:before,\n.fa-floppy-o:before {\n  content: \"\\F0C7\";\n}\n.fa-square:before {\n  content: \"\\F0C8\";\n}\n.fa-navicon:before,\n.fa-reorder:before,\n.fa-bars:before {\n  content: \"\\F0C9\";\n}\n.fa-list-ul:before {\n  content: \"\\F0CA\";\n}\n.fa-list-ol:before {\n  content: \"\\F0CB\";\n}\n.fa-strikethrough:before {\n  content: \"\\F0CC\";\n}\n.fa-underline:before {\n  content: \"\\F0CD\";\n}\n.fa-table:before {\n  content: \"\\F0CE\";\n}\n.fa-magic:before {\n  content: \"\\F0D0\";\n}\n.fa-truck:before {\n  content: \"\\F0D1\";\n}\n.fa-pinterest:before {\n  content: \"\\F0D2\";\n}\n.fa-pinterest-square:before {\n  content: \"\\F0D3\";\n}\n.fa-google-plus-square:before {\n  content: \"\\F0D4\";\n}\n.fa-google-plus:before {\n  content: \"\\F0D5\";\n}\n.fa-money:before {\n  content: \"\\F0D6\";\n}\n.fa-caret-down:before {\n  content: \"\\F0D7\";\n}\n.fa-caret-up:before {\n  content: \"\\F0D8\";\n}\n.fa-caret-left:before {\n  content: \"\\F0D9\";\n}\n.fa-caret-right:before {\n  content: \"\\F0DA\";\n}\n.fa-columns:before {\n  content: \"\\F0DB\";\n}\n.fa-unsorted:before,\n.fa-sort:before {\n  content: \"\\F0DC\";\n}\n.fa-sort-down:before,\n.fa-sort-desc:before {\n  content: \"\\F0DD\";\n}\n.fa-sort-up:before,\n.fa-sort-asc:before {\n  content: \"\\F0DE\";\n}\n.fa-envelope:before {\n  content: \"\\F0E0\";\n}\n.fa-linkedin:before {\n  content: \"\\F0E1\";\n}\n.fa-rotate-left:before,\n.fa-undo:before {\n  content: \"\\F0E2\";\n}\n.fa-legal:before,\n.fa-gavel:before {\n  content: \"\\F0E3\";\n}\n.fa-dashboard:before,\n.fa-tachometer:before {\n  content: \"\\F0E4\";\n}\n.fa-comment-o:before {\n  content: \"\\F0E5\";\n}\n.fa-comments-o:before {\n  content: \"\\F0E6\";\n}\n.fa-flash:before,\n.fa-bolt:before {\n  content: \"\\F0E7\";\n}\n.fa-sitemap:before {\n  content: \"\\F0E8\";\n}\n.fa-umbrella:before {\n  content: \"\\F0E9\";\n}\n.fa-paste:before,\n.fa-clipboard:before {\n  content: \"\\F0EA\";\n}\n.fa-lightbulb-o:before {\n  content: \"\\F0EB\";\n}\n.fa-exchange:before {\n  content: \"\\F0EC\";\n}\n.fa-cloud-download:before {\n  content: \"\\F0ED\";\n}\n.fa-cloud-upload:before {\n  content: \"\\F0EE\";\n}\n.fa-user-md:before {\n  content: \"\\F0F0\";\n}\n.fa-stethoscope:before {\n  content: \"\\F0F1\";\n}\n.fa-suitcase:before {\n  content: \"\\F0F2\";\n}\n.fa-bell-o:before {\n  content: \"\\F0A2\";\n}\n.fa-coffee:before {\n  content: \"\\F0F4\";\n}\n.fa-cutlery:before {\n  content: \"\\F0F5\";\n}\n.fa-file-text-o:before {\n  content: \"\\F0F6\";\n}\n.fa-building-o:before {\n  content: \"\\F0F7\";\n}\n.fa-hospital-o:before {\n  content: \"\\F0F8\";\n}\n.fa-ambulance:before {\n  content: \"\\F0F9\";\n}\n.fa-medkit:before {\n  content: \"\\F0FA\";\n}\n.fa-fighter-jet:before {\n  content: \"\\F0FB\";\n}\n.fa-beer:before {\n  content: \"\\F0FC\";\n}\n.fa-h-square:before {\n  content: \"\\F0FD\";\n}\n.fa-plus-square:before {\n  content: \"\\F0FE\";\n}\n.fa-angle-double-left:before {\n  content: \"\\F100\";\n}\n.fa-angle-double-right:before {\n  content: \"\\F101\";\n}\n.fa-angle-double-up:before {\n  content: \"\\F102\";\n}\n.fa-angle-double-down:before {\n  content: \"\\F103\";\n}\n.fa-angle-left:before {\n  content: \"\\F104\";\n}\n.fa-angle-right:before {\n  content: \"\\F105\";\n}\n.fa-angle-up:before {\n  content: \"\\F106\";\n}\n.fa-angle-down:before {\n  content: \"\\F107\";\n}\n.fa-desktop:before {\n  content: \"\\F108\";\n}\n.fa-laptop:before {\n  content: \"\\F109\";\n}\n.fa-tablet:before {\n  content: \"\\F10A\";\n}\n.fa-mobile-phone:before,\n.fa-mobile:before {\n  content: \"\\F10B\";\n}\n.fa-circle-o:before {\n  content: \"\\F10C\";\n}\n.fa-quote-left:before {\n  content: \"\\F10D\";\n}\n.fa-quote-right:before {\n  content: \"\\F10E\";\n}\n.fa-spinner:before {\n  content: \"\\F110\";\n}\n.fa-circle:before {\n  content: \"\\F111\";\n}\n.fa-mail-reply:before,\n.fa-reply:before {\n  content: \"\\F112\";\n}\n.fa-github-alt:before {\n  content: \"\\F113\";\n}\n.fa-folder-o:before {\n  content: \"\\F114\";\n}\n.fa-folder-open-o:before {\n  content: \"\\F115\";\n}\n.fa-smile-o:before {\n  content: \"\\F118\";\n}\n.fa-frown-o:before {\n  content: \"\\F119\";\n}\n.fa-meh-o:before {\n  content: \"\\F11A\";\n}\n.fa-gamepad:before {\n  content: \"\\F11B\";\n}\n.fa-keyboard-o:before {\n  content: \"\\F11C\";\n}\n.fa-flag-o:before {\n  content: \"\\F11D\";\n}\n.fa-flag-checkered:before {\n  content: \"\\F11E\";\n}\n.fa-terminal:before {\n  content: \"\\F120\";\n}\n.fa-code:before {\n  content: \"\\F121\";\n}\n.fa-mail-reply-all:before,\n.fa-reply-all:before {\n  content: \"\\F122\";\n}\n.fa-star-half-empty:before,\n.fa-star-half-full:before,\n.fa-star-half-o:before {\n  content: \"\\F123\";\n}\n.fa-location-arrow:before {\n  content: \"\\F124\";\n}\n.fa-crop:before {\n  content: \"\\F125\";\n}\n.fa-code-fork:before {\n  content: \"\\F126\";\n}\n.fa-unlink:before,\n.fa-chain-broken:before {\n  content: \"\\F127\";\n}\n.fa-question:before {\n  content: \"\\F128\";\n}\n.fa-info:before {\n  content: \"\\F129\";\n}\n.fa-exclamation:before {\n  content: \"\\F12A\";\n}\n.fa-superscript:before {\n  content: \"\\F12B\";\n}\n.fa-subscript:before {\n  content: \"\\F12C\";\n}\n.fa-eraser:before {\n  content: \"\\F12D\";\n}\n.fa-puzzle-piece:before {\n  content: \"\\F12E\";\n}\n.fa-microphone:before {\n  content: \"\\F130\";\n}\n.fa-microphone-slash:before {\n  content: \"\\F131\";\n}\n.fa-shield:before {\n  content: \"\\F132\";\n}\n.fa-calendar-o:before {\n  content: \"\\F133\";\n}\n.fa-fire-extinguisher:before {\n  content: \"\\F134\";\n}\n.fa-rocket:before {\n  content: \"\\F135\";\n}\n.fa-maxcdn:before {\n  content: \"\\F136\";\n}\n.fa-chevron-circle-left:before {\n  content: \"\\F137\";\n}\n.fa-chevron-circle-right:before {\n  content: \"\\F138\";\n}\n.fa-chevron-circle-up:before {\n  content: \"\\F139\";\n}\n.fa-chevron-circle-down:before {\n  content: \"\\F13A\";\n}\n.fa-html5:before {\n  content: \"\\F13B\";\n}\n.fa-css3:before {\n  content: \"\\F13C\";\n}\n.fa-anchor:before {\n  content: \"\\F13D\";\n}\n.fa-unlock-alt:before {\n  content: \"\\F13E\";\n}\n.fa-bullseye:before {\n  content: \"\\F140\";\n}\n.fa-ellipsis-h:before {\n  content: \"\\F141\";\n}\n.fa-ellipsis-v:before {\n  content: \"\\F142\";\n}\n.fa-rss-square:before {\n  content: \"\\F143\";\n}\n.fa-play-circle:before {\n  content: \"\\F144\";\n}\n.fa-ticket:before {\n  content: \"\\F145\";\n}\n.fa-minus-square:before {\n  content: \"\\F146\";\n}\n.fa-minus-square-o:before {\n  content: \"\\F147\";\n}\n.fa-level-up:before {\n  content: \"\\F148\";\n}\n.fa-level-down:before {\n  content: \"\\F149\";\n}\n.fa-check-square:before {\n  content: \"\\F14A\";\n}\n.fa-pencil-square:before {\n  content: \"\\F14B\";\n}\n.fa-external-link-square:before {\n  content: \"\\F14C\";\n}\n.fa-share-square:before {\n  content: \"\\F14D\";\n}\n.fa-compass:before {\n  content: \"\\F14E\";\n}\n.fa-toggle-down:before,\n.fa-caret-square-o-down:before {\n  content: \"\\F150\";\n}\n.fa-toggle-up:before,\n.fa-caret-square-o-up:before {\n  content: \"\\F151\";\n}\n.fa-toggle-right:before,\n.fa-caret-square-o-right:before {\n  content: \"\\F152\";\n}\n.fa-euro:before,\n.fa-eur:before {\n  content: \"\\F153\";\n}\n.fa-gbp:before {\n  content: \"\\F154\";\n}\n.fa-dollar:before,\n.fa-usd:before {\n  content: \"\\F155\";\n}\n.fa-rupee:before,\n.fa-inr:before {\n  content: \"\\F156\";\n}\n.fa-cny:before,\n.fa-rmb:before,\n.fa-yen:before,\n.fa-jpy:before {\n  content: \"\\F157\";\n}\n.fa-ruble:before,\n.fa-rouble:before,\n.fa-rub:before {\n  content: \"\\F158\";\n}\n.fa-won:before,\n.fa-krw:before {\n  content: \"\\F159\";\n}\n.fa-bitcoin:before,\n.fa-btc:before {\n  content: \"\\F15A\";\n}\n.fa-file:before {\n  content: \"\\F15B\";\n}\n.fa-file-text:before {\n  content: \"\\F15C\";\n}\n.fa-sort-alpha-asc:before {\n  content: \"\\F15D\";\n}\n.fa-sort-alpha-desc:before {\n  content: \"\\F15E\";\n}\n.fa-sort-amount-asc:before {\n  content: \"\\F160\";\n}\n.fa-sort-amount-desc:before {\n  content: \"\\F161\";\n}\n.fa-sort-numeric-asc:before {\n  content: \"\\F162\";\n}\n.fa-sort-numeric-desc:before {\n  content: \"\\F163\";\n}\n.fa-thumbs-up:before {\n  content: \"\\F164\";\n}\n.fa-thumbs-down:before {\n  content: \"\\F165\";\n}\n.fa-youtube-square:before {\n  content: \"\\F166\";\n}\n.fa-youtube:before {\n  content: \"\\F167\";\n}\n.fa-xing:before {\n  content: \"\\F168\";\n}\n.fa-xing-square:before {\n  content: \"\\F169\";\n}\n.fa-youtube-play:before {\n  content: \"\\F16A\";\n}\n.fa-dropbox:before {\n  content: \"\\F16B\";\n}\n.fa-stack-overflow:before {\n  content: \"\\F16C\";\n}\n.fa-instagram:before {\n  content: \"\\F16D\";\n}\n.fa-flickr:before {\n  content: \"\\F16E\";\n}\n.fa-adn:before {\n  content: \"\\F170\";\n}\n.fa-bitbucket:before {\n  content: \"\\F171\";\n}\n.fa-bitbucket-square:before {\n  content: \"\\F172\";\n}\n.fa-tumblr:before {\n  content: \"\\F173\";\n}\n.fa-tumblr-square:before {\n  content: \"\\F174\";\n}\n.fa-long-arrow-down:before {\n  content: \"\\F175\";\n}\n.fa-long-arrow-up:before {\n  content: \"\\F176\";\n}\n.fa-long-arrow-left:before {\n  content: \"\\F177\";\n}\n.fa-long-arrow-right:before {\n  content: \"\\F178\";\n}\n.fa-apple:before {\n  content: \"\\F179\";\n}\n.fa-windows:before {\n  content: \"\\F17A\";\n}\n.fa-android:before {\n  content: \"\\F17B\";\n}\n.fa-linux:before {\n  content: \"\\F17C\";\n}\n.fa-dribbble:before {\n  content: \"\\F17D\";\n}\n.fa-skype:before {\n  content: \"\\F17E\";\n}\n.fa-foursquare:before {\n  content: \"\\F180\";\n}\n.fa-trello:before {\n  content: \"\\F181\";\n}\n.fa-female:before {\n  content: \"\\F182\";\n}\n.fa-male:before {\n  content: \"\\F183\";\n}\n.fa-gittip:before,\n.fa-gratipay:before {\n  content: \"\\F184\";\n}\n.fa-sun-o:before {\n  content: \"\\F185\";\n}\n.fa-moon-o:before {\n  content: \"\\F186\";\n}\n.fa-archive:before {\n  content: \"\\F187\";\n}\n.fa-bug:before {\n  content: \"\\F188\";\n}\n.fa-vk:before {\n  content: \"\\F189\";\n}\n.fa-weibo:before {\n  content: \"\\F18A\";\n}\n.fa-renren:before {\n  content: \"\\F18B\";\n}\n.fa-pagelines:before {\n  content: \"\\F18C\";\n}\n.fa-stack-exchange:before {\n  content: \"\\F18D\";\n}\n.fa-arrow-circle-o-right:before {\n  content: \"\\F18E\";\n}\n.fa-arrow-circle-o-left:before {\n  content: \"\\F190\";\n}\n.fa-toggle-left:before,\n.fa-caret-square-o-left:before {\n  content: \"\\F191\";\n}\n.fa-dot-circle-o:before {\n  content: \"\\F192\";\n}\n.fa-wheelchair:before {\n  content: \"\\F193\";\n}\n.fa-vimeo-square:before {\n  content: \"\\F194\";\n}\n.fa-turkish-lira:before,\n.fa-try:before {\n  content: \"\\F195\";\n}\n.fa-plus-square-o:before {\n  content: \"\\F196\";\n}\n.fa-space-shuttle:before {\n  content: \"\\F197\";\n}\n.fa-slack:before {\n  content: \"\\F198\";\n}\n.fa-envelope-square:before {\n  content: \"\\F199\";\n}\n.fa-wordpress:before {\n  content: \"\\F19A\";\n}\n.fa-openid:before {\n  content: \"\\F19B\";\n}\n.fa-institution:before,\n.fa-bank:before,\n.fa-university:before {\n  content: \"\\F19C\";\n}\n.fa-mortar-board:before,\n.fa-graduation-cap:before {\n  content: \"\\F19D\";\n}\n.fa-yahoo:before {\n  content: \"\\F19E\";\n}\n.fa-google:before {\n  content: \"\\F1A0\";\n}\n.fa-reddit:before {\n  content: \"\\F1A1\";\n}\n.fa-reddit-square:before {\n  content: \"\\F1A2\";\n}\n.fa-stumbleupon-circle:before {\n  content: \"\\F1A3\";\n}\n.fa-stumbleupon:before {\n  content: \"\\F1A4\";\n}\n.fa-delicious:before {\n  content: \"\\F1A5\";\n}\n.fa-digg:before {\n  content: \"\\F1A6\";\n}\n.fa-pied-piper-pp:before {\n  content: \"\\F1A7\";\n}\n.fa-pied-piper-alt:before {\n  content: \"\\F1A8\";\n}\n.fa-drupal:before {\n  content: \"\\F1A9\";\n}\n.fa-joomla:before {\n  content: \"\\F1AA\";\n}\n.fa-language:before {\n  content: \"\\F1AB\";\n}\n.fa-fax:before {\n  content: \"\\F1AC\";\n}\n.fa-building:before {\n  content: \"\\F1AD\";\n}\n.fa-child:before {\n  content: \"\\F1AE\";\n}\n.fa-paw:before {\n  content: \"\\F1B0\";\n}\n.fa-spoon:before {\n  content: \"\\F1B1\";\n}\n.fa-cube:before {\n  content: \"\\F1B2\";\n}\n.fa-cubes:before {\n  content: \"\\F1B3\";\n}\n.fa-behance:before {\n  content: \"\\F1B4\";\n}\n.fa-behance-square:before {\n  content: \"\\F1B5\";\n}\n.fa-steam:before {\n  content: \"\\F1B6\";\n}\n.fa-steam-square:before {\n  content: \"\\F1B7\";\n}\n.fa-recycle:before {\n  content: \"\\F1B8\";\n}\n.fa-automobile:before,\n.fa-car:before {\n  content: \"\\F1B9\";\n}\n.fa-cab:before,\n.fa-taxi:before {\n  content: \"\\F1BA\";\n}\n.fa-tree:before {\n  content: \"\\F1BB\";\n}\n.fa-spotify:before {\n  content: \"\\F1BC\";\n}\n.fa-deviantart:before {\n  content: \"\\F1BD\";\n}\n.fa-soundcloud:before {\n  content: \"\\F1BE\";\n}\n.fa-database:before {\n  content: \"\\F1C0\";\n}\n.fa-file-pdf-o:before {\n  content: \"\\F1C1\";\n}\n.fa-file-word-o:before {\n  content: \"\\F1C2\";\n}\n.fa-file-excel-o:before {\n  content: \"\\F1C3\";\n}\n.fa-file-powerpoint-o:before {\n  content: \"\\F1C4\";\n}\n.fa-file-photo-o:before,\n.fa-file-picture-o:before,\n.fa-file-image-o:before {\n  content: \"\\F1C5\";\n}\n.fa-file-zip-o:before,\n.fa-file-archive-o:before {\n  content: \"\\F1C6\";\n}\n.fa-file-sound-o:before,\n.fa-file-audio-o:before {\n  content: \"\\F1C7\";\n}\n.fa-file-movie-o:before,\n.fa-file-video-o:before {\n  content: \"\\F1C8\";\n}\n.fa-file-code-o:before {\n  content: \"\\F1C9\";\n}\n.fa-vine:before {\n  content: \"\\F1CA\";\n}\n.fa-codepen:before {\n  content: \"\\F1CB\";\n}\n.fa-jsfiddle:before {\n  content: \"\\F1CC\";\n}\n.fa-life-bouy:before,\n.fa-life-buoy:before,\n.fa-life-saver:before,\n.fa-support:before,\n.fa-life-ring:before {\n  content: \"\\F1CD\";\n}\n.fa-circle-o-notch:before {\n  content: \"\\F1CE\";\n}\n.fa-ra:before,\n.fa-resistance:before,\n.fa-rebel:before {\n  content: \"\\F1D0\";\n}\n.fa-ge:before,\n.fa-empire:before {\n  content: \"\\F1D1\";\n}\n.fa-git-square:before {\n  content: \"\\F1D2\";\n}\n.fa-git:before {\n  content: \"\\F1D3\";\n}\n.fa-y-combinator-square:before,\n.fa-yc-square:before,\n.fa-hacker-news:before {\n  content: \"\\F1D4\";\n}\n.fa-tencent-weibo:before {\n  content: \"\\F1D5\";\n}\n.fa-qq:before {\n  content: \"\\F1D6\";\n}\n.fa-wechat:before,\n.fa-weixin:before {\n  content: \"\\F1D7\";\n}\n.fa-send:before,\n.fa-paper-plane:before {\n  content: \"\\F1D8\";\n}\n.fa-send-o:before,\n.fa-paper-plane-o:before {\n  content: \"\\F1D9\";\n}\n.fa-history:before {\n  content: \"\\F1DA\";\n}\n.fa-circle-thin:before {\n  content: \"\\F1DB\";\n}\n.fa-header:before {\n  content: \"\\F1DC\";\n}\n.fa-paragraph:before {\n  content: \"\\F1DD\";\n}\n.fa-sliders:before {\n  content: \"\\F1DE\";\n}\n.fa-share-alt:before {\n  content: \"\\F1E0\";\n}\n.fa-share-alt-square:before {\n  content: \"\\F1E1\";\n}\n.fa-bomb:before {\n  content: \"\\F1E2\";\n}\n.fa-soccer-ball-o:before,\n.fa-futbol-o:before {\n  content: \"\\F1E3\";\n}\n.fa-tty:before {\n  content: \"\\F1E4\";\n}\n.fa-binoculars:before {\n  content: \"\\F1E5\";\n}\n.fa-plug:before {\n  content: \"\\F1E6\";\n}\n.fa-slideshare:before {\n  content: \"\\F1E7\";\n}\n.fa-twitch:before {\n  content: \"\\F1E8\";\n}\n.fa-yelp:before {\n  content: \"\\F1E9\";\n}\n.fa-newspaper-o:before {\n  content: \"\\F1EA\";\n}\n.fa-wifi:before {\n  content: \"\\F1EB\";\n}\n.fa-calculator:before {\n  content: \"\\F1EC\";\n}\n.fa-paypal:before {\n  content: \"\\F1ED\";\n}\n.fa-google-wallet:before {\n  content: \"\\F1EE\";\n}\n.fa-cc-visa:before {\n  content: \"\\F1F0\";\n}\n.fa-cc-mastercard:before {\n  content: \"\\F1F1\";\n}\n.fa-cc-discover:before {\n  content: \"\\F1F2\";\n}\n.fa-cc-amex:before {\n  content: \"\\F1F3\";\n}\n.fa-cc-paypal:before {\n  content: \"\\F1F4\";\n}\n.fa-cc-stripe:before {\n  content: \"\\F1F5\";\n}\n.fa-bell-slash:before {\n  content: \"\\F1F6\";\n}\n.fa-bell-slash-o:before {\n  content: \"\\F1F7\";\n}\n.fa-trash:before {\n  content: \"\\F1F8\";\n}\n.fa-copyright:before {\n  content: \"\\F1F9\";\n}\n.fa-at:before {\n  content: \"\\F1FA\";\n}\n.fa-eyedropper:before {\n  content: \"\\F1FB\";\n}\n.fa-paint-brush:before {\n  content: \"\\F1FC\";\n}\n.fa-birthday-cake:before {\n  content: \"\\F1FD\";\n}\n.fa-area-chart:before {\n  content: \"\\F1FE\";\n}\n.fa-pie-chart:before {\n  content: \"\\F200\";\n}\n.fa-line-chart:before {\n  content: \"\\F201\";\n}\n.fa-lastfm:before {\n  content: \"\\F202\";\n}\n.fa-lastfm-square:before {\n  content: \"\\F203\";\n}\n.fa-toggle-off:before {\n  content: \"\\F204\";\n}\n.fa-toggle-on:before {\n  content: \"\\F205\";\n}\n.fa-bicycle:before {\n  content: \"\\F206\";\n}\n.fa-bus:before {\n  content: \"\\F207\";\n}\n.fa-ioxhost:before {\n  content: \"\\F208\";\n}\n.fa-angellist:before {\n  content: \"\\F209\";\n}\n.fa-cc:before {\n  content: \"\\F20A\";\n}\n.fa-shekel:before,\n.fa-sheqel:before,\n.fa-ils:before {\n  content: \"\\F20B\";\n}\n.fa-meanpath:before {\n  content: \"\\F20C\";\n}\n.fa-buysellads:before {\n  content: \"\\F20D\";\n}\n.fa-connectdevelop:before {\n  content: \"\\F20E\";\n}\n.fa-dashcube:before {\n  content: \"\\F210\";\n}\n.fa-forumbee:before {\n  content: \"\\F211\";\n}\n.fa-leanpub:before {\n  content: \"\\F212\";\n}\n.fa-sellsy:before {\n  content: \"\\F213\";\n}\n.fa-shirtsinbulk:before {\n  content: \"\\F214\";\n}\n.fa-simplybuilt:before {\n  content: \"\\F215\";\n}\n.fa-skyatlas:before {\n  content: \"\\F216\";\n}\n.fa-cart-plus:before {\n  content: \"\\F217\";\n}\n.fa-cart-arrow-down:before {\n  content: \"\\F218\";\n}\n.fa-diamond:before {\n  content: \"\\F219\";\n}\n.fa-ship:before {\n  content: \"\\F21A\";\n}\n.fa-user-secret:before {\n  content: \"\\F21B\";\n}\n.fa-motorcycle:before {\n  content: \"\\F21C\";\n}\n.fa-street-view:before {\n  content: \"\\F21D\";\n}\n.fa-heartbeat:before {\n  content: \"\\F21E\";\n}\n.fa-venus:before {\n  content: \"\\F221\";\n}\n.fa-mars:before {\n  content: \"\\F222\";\n}\n.fa-mercury:before {\n  content: \"\\F223\";\n}\n.fa-intersex:before,\n.fa-transgender:before {\n  content: \"\\F224\";\n}\n.fa-transgender-alt:before {\n  content: \"\\F225\";\n}\n.fa-venus-double:before {\n  content: \"\\F226\";\n}\n.fa-mars-double:before {\n  content: \"\\F227\";\n}\n.fa-venus-mars:before {\n  content: \"\\F228\";\n}\n.fa-mars-stroke:before {\n  content: \"\\F229\";\n}\n.fa-mars-stroke-v:before {\n  content: \"\\F22A\";\n}\n.fa-mars-stroke-h:before {\n  content: \"\\F22B\";\n}\n.fa-neuter:before {\n  content: \"\\F22C\";\n}\n.fa-genderless:before {\n  content: \"\\F22D\";\n}\n.fa-facebook-official:before {\n  content: \"\\F230\";\n}\n.fa-pinterest-p:before {\n  content: \"\\F231\";\n}\n.fa-whatsapp:before {\n  content: \"\\F232\";\n}\n.fa-server:before {\n  content: \"\\F233\";\n}\n.fa-user-plus:before {\n  content: \"\\F234\";\n}\n.fa-user-times:before {\n  content: \"\\F235\";\n}\n.fa-hotel:before,\n.fa-bed:before {\n  content: \"\\F236\";\n}\n.fa-viacoin:before {\n  content: \"\\F237\";\n}\n.fa-train:before {\n  content: \"\\F238\";\n}\n.fa-subway:before {\n  content: \"\\F239\";\n}\n.fa-medium:before {\n  content: \"\\F23A\";\n}\n.fa-yc:before,\n.fa-y-combinator:before {\n  content: \"\\F23B\";\n}\n.fa-optin-monster:before {\n  content: \"\\F23C\";\n}\n.fa-opencart:before {\n  content: \"\\F23D\";\n}\n.fa-expeditedssl:before {\n  content: \"\\F23E\";\n}\n.fa-battery-4:before,\n.fa-battery:before,\n.fa-battery-full:before {\n  content: \"\\F240\";\n}\n.fa-battery-3:before,\n.fa-battery-three-quarters:before {\n  content: \"\\F241\";\n}\n.fa-battery-2:before,\n.fa-battery-half:before {\n  content: \"\\F242\";\n}\n.fa-battery-1:before,\n.fa-battery-quarter:before {\n  content: \"\\F243\";\n}\n.fa-battery-0:before,\n.fa-battery-empty:before {\n  content: \"\\F244\";\n}\n.fa-mouse-pointer:before {\n  content: \"\\F245\";\n}\n.fa-i-cursor:before {\n  content: \"\\F246\";\n}\n.fa-object-group:before {\n  content: \"\\F247\";\n}\n.fa-object-ungroup:before {\n  content: \"\\F248\";\n}\n.fa-sticky-note:before {\n  content: \"\\F249\";\n}\n.fa-sticky-note-o:before {\n  content: \"\\F24A\";\n}\n.fa-cc-jcb:before {\n  content: \"\\F24B\";\n}\n.fa-cc-diners-club:before {\n  content: \"\\F24C\";\n}\n.fa-clone:before {\n  content: \"\\F24D\";\n}\n.fa-balance-scale:before {\n  content: \"\\F24E\";\n}\n.fa-hourglass-o:before {\n  content: \"\\F250\";\n}\n.fa-hourglass-1:before,\n.fa-hourglass-start:before {\n  content: \"\\F251\";\n}\n.fa-hourglass-2:before,\n.fa-hourglass-half:before {\n  content: \"\\F252\";\n}\n.fa-hourglass-3:before,\n.fa-hourglass-end:before {\n  content: \"\\F253\";\n}\n.fa-hourglass:before {\n  content: \"\\F254\";\n}\n.fa-hand-grab-o:before,\n.fa-hand-rock-o:before {\n  content: \"\\F255\";\n}\n.fa-hand-stop-o:before,\n.fa-hand-paper-o:before {\n  content: \"\\F256\";\n}\n.fa-hand-scissors-o:before {\n  content: \"\\F257\";\n}\n.fa-hand-lizard-o:before {\n  content: \"\\F258\";\n}\n.fa-hand-spock-o:before {\n  content: \"\\F259\";\n}\n.fa-hand-pointer-o:before {\n  content: \"\\F25A\";\n}\n.fa-hand-peace-o:before {\n  content: \"\\F25B\";\n}\n.fa-trademark:before {\n  content: \"\\F25C\";\n}\n.fa-registered:before {\n  content: \"\\F25D\";\n}\n.fa-creative-commons:before {\n  content: \"\\F25E\";\n}\n.fa-gg:before {\n  content: \"\\F260\";\n}\n.fa-gg-circle:before {\n  content: \"\\F261\";\n}\n.fa-tripadvisor:before {\n  content: \"\\F262\";\n}\n.fa-odnoklassniki:before {\n  content: \"\\F263\";\n}\n.fa-odnoklassniki-square:before {\n  content: \"\\F264\";\n}\n.fa-get-pocket:before {\n  content: \"\\F265\";\n}\n.fa-wikipedia-w:before {\n  content: \"\\F266\";\n}\n.fa-safari:before {\n  content: \"\\F267\";\n}\n.fa-chrome:before {\n  content: \"\\F268\";\n}\n.fa-firefox:before {\n  content: \"\\F269\";\n}\n.fa-opera:before {\n  content: \"\\F26A\";\n}\n.fa-internet-explorer:before {\n  content: \"\\F26B\";\n}\n.fa-tv:before,\n.fa-television:before {\n  content: \"\\F26C\";\n}\n.fa-contao:before {\n  content: \"\\F26D\";\n}\n.fa-500px:before {\n  content: \"\\F26E\";\n}\n.fa-amazon:before {\n  content: \"\\F270\";\n}\n.fa-calendar-plus-o:before {\n  content: \"\\F271\";\n}\n.fa-calendar-minus-o:before {\n  content: \"\\F272\";\n}\n.fa-calendar-times-o:before {\n  content: \"\\F273\";\n}\n.fa-calendar-check-o:before {\n  content: \"\\F274\";\n}\n.fa-industry:before {\n  content: \"\\F275\";\n}\n.fa-map-pin:before {\n  content: \"\\F276\";\n}\n.fa-map-signs:before {\n  content: \"\\F277\";\n}\n.fa-map-o:before {\n  content: \"\\F278\";\n}\n.fa-map:before {\n  content: \"\\F279\";\n}\n.fa-commenting:before {\n  content: \"\\F27A\";\n}\n.fa-commenting-o:before {\n  content: \"\\F27B\";\n}\n.fa-houzz:before {\n  content: \"\\F27C\";\n}\n.fa-vimeo:before {\n  content: \"\\F27D\";\n}\n.fa-black-tie:before {\n  content: \"\\F27E\";\n}\n.fa-fonticons:before {\n  content: \"\\F280\";\n}\n.fa-reddit-alien:before {\n  content: \"\\F281\";\n}\n.fa-edge:before {\n  content: \"\\F282\";\n}\n.fa-credit-card-alt:before {\n  content: \"\\F283\";\n}\n.fa-codiepie:before {\n  content: \"\\F284\";\n}\n.fa-modx:before {\n  content: \"\\F285\";\n}\n.fa-fort-awesome:before {\n  content: \"\\F286\";\n}\n.fa-usb:before {\n  content: \"\\F287\";\n}\n.fa-product-hunt:before {\n  content: \"\\F288\";\n}\n.fa-mixcloud:before {\n  content: \"\\F289\";\n}\n.fa-scribd:before {\n  content: \"\\F28A\";\n}\n.fa-pause-circle:before {\n  content: \"\\F28B\";\n}\n.fa-pause-circle-o:before {\n  content: \"\\F28C\";\n}\n.fa-stop-circle:before {\n  content: \"\\F28D\";\n}\n.fa-stop-circle-o:before {\n  content: \"\\F28E\";\n}\n.fa-shopping-bag:before {\n  content: \"\\F290\";\n}\n.fa-shopping-basket:before {\n  content: \"\\F291\";\n}\n.fa-hashtag:before {\n  content: \"\\F292\";\n}\n.fa-bluetooth:before {\n  content: \"\\F293\";\n}\n.fa-bluetooth-b:before {\n  content: \"\\F294\";\n}\n.fa-percent:before {\n  content: \"\\F295\";\n}\n.fa-gitlab:before {\n  content: \"\\F296\";\n}\n.fa-wpbeginner:before {\n  content: \"\\F297\";\n}\n.fa-wpforms:before {\n  content: \"\\F298\";\n}\n.fa-envira:before {\n  content: \"\\F299\";\n}\n.fa-universal-access:before {\n  content: \"\\F29A\";\n}\n.fa-wheelchair-alt:before {\n  content: \"\\F29B\";\n}\n.fa-question-circle-o:before {\n  content: \"\\F29C\";\n}\n.fa-blind:before {\n  content: \"\\F29D\";\n}\n.fa-audio-description:before {\n  content: \"\\F29E\";\n}\n.fa-volume-control-phone:before {\n  content: \"\\F2A0\";\n}\n.fa-braille:before {\n  content: \"\\F2A1\";\n}\n.fa-assistive-listening-systems:before {\n  content: \"\\F2A2\";\n}\n.fa-asl-interpreting:before,\n.fa-american-sign-language-interpreting:before {\n  content: \"\\F2A3\";\n}\n.fa-deafness:before,\n.fa-hard-of-hearing:before,\n.fa-deaf:before {\n  content: \"\\F2A4\";\n}\n.fa-glide:before {\n  content: \"\\F2A5\";\n}\n.fa-glide-g:before {\n  content: \"\\F2A6\";\n}\n.fa-signing:before,\n.fa-sign-language:before {\n  content: \"\\F2A7\";\n}\n.fa-low-vision:before {\n  content: \"\\F2A8\";\n}\n.fa-viadeo:before {\n  content: \"\\F2A9\";\n}\n.fa-viadeo-square:before {\n  content: \"\\F2AA\";\n}\n.fa-snapchat:before {\n  content: \"\\F2AB\";\n}\n.fa-snapchat-ghost:before {\n  content: \"\\F2AC\";\n}\n.fa-snapchat-square:before {\n  content: \"\\F2AD\";\n}\n.fa-pied-piper:before {\n  content: \"\\F2AE\";\n}\n.fa-first-order:before {\n  content: \"\\F2B0\";\n}\n.fa-yoast:before {\n  content: \"\\F2B1\";\n}\n.fa-themeisle:before {\n  content: \"\\F2B2\";\n}\n.fa-google-plus-circle:before,\n.fa-google-plus-official:before {\n  content: \"\\F2B3\";\n}\n.fa-fa:before,\n.fa-font-awesome:before {\n  content: \"\\F2B4\";\n}\n.fa-handshake-o:before {\n  content: \"\\F2B5\";\n}\n.fa-envelope-open:before {\n  content: \"\\F2B6\";\n}\n.fa-envelope-open-o:before {\n  content: \"\\F2B7\";\n}\n.fa-linode:before {\n  content: \"\\F2B8\";\n}\n.fa-address-book:before {\n  content: \"\\F2B9\";\n}\n.fa-address-book-o:before {\n  content: \"\\F2BA\";\n}\n.fa-vcard:before,\n.fa-address-card:before {\n  content: \"\\F2BB\";\n}\n.fa-vcard-o:before,\n.fa-address-card-o:before {\n  content: \"\\F2BC\";\n}\n.fa-user-circle:before {\n  content: \"\\F2BD\";\n}\n.fa-user-circle-o:before {\n  content: \"\\F2BE\";\n}\n.fa-user-o:before {\n  content: \"\\F2C0\";\n}\n.fa-id-badge:before {\n  content: \"\\F2C1\";\n}\n.fa-drivers-license:before,\n.fa-id-card:before {\n  content: \"\\F2C2\";\n}\n.fa-drivers-license-o:before,\n.fa-id-card-o:before {\n  content: \"\\F2C3\";\n}\n.fa-quora:before {\n  content: \"\\F2C4\";\n}\n.fa-free-code-camp:before {\n  content: \"\\F2C5\";\n}\n.fa-telegram:before {\n  content: \"\\F2C6\";\n}\n.fa-thermometer-4:before,\n.fa-thermometer:before,\n.fa-thermometer-full:before {\n  content: \"\\F2C7\";\n}\n.fa-thermometer-3:before,\n.fa-thermometer-three-quarters:before {\n  content: \"\\F2C8\";\n}\n.fa-thermometer-2:before,\n.fa-thermometer-half:before {\n  content: \"\\F2C9\";\n}\n.fa-thermometer-1:before,\n.fa-thermometer-quarter:before {\n  content: \"\\F2CA\";\n}\n.fa-thermometer-0:before,\n.fa-thermometer-empty:before {\n  content: \"\\F2CB\";\n}\n.fa-shower:before {\n  content: \"\\F2CC\";\n}\n.fa-bathtub:before,\n.fa-s15:before,\n.fa-bath:before {\n  content: \"\\F2CD\";\n}\n.fa-podcast:before {\n  content: \"\\F2CE\";\n}\n.fa-window-maximize:before {\n  content: \"\\F2D0\";\n}\n.fa-window-minimize:before {\n  content: \"\\F2D1\";\n}\n.fa-window-restore:before {\n  content: \"\\F2D2\";\n}\n.fa-times-rectangle:before,\n.fa-window-close:before {\n  content: \"\\F2D3\";\n}\n.fa-times-rectangle-o:before,\n.fa-window-close-o:before {\n  content: \"\\F2D4\";\n}\n.fa-bandcamp:before {\n  content: \"\\F2D5\";\n}\n.fa-grav:before {\n  content: \"\\F2D6\";\n}\n.fa-etsy:before {\n  content: \"\\F2D7\";\n}\n.fa-imdb:before {\n  content: \"\\F2D8\";\n}\n.fa-ravelry:before {\n  content: \"\\F2D9\";\n}\n.fa-eercast:before {\n  content: \"\\F2DA\";\n}\n.fa-microchip:before {\n  content: \"\\F2DB\";\n}\n.fa-snowflake-o:before {\n  content: \"\\F2DC\";\n}\n.fa-superpowers:before {\n  content: \"\\F2DD\";\n}\n.fa-wpexplorer:before {\n  content: \"\\F2DE\";\n}\n.fa-meetup:before {\n  content: \"\\F2E0\";\n}\n.sr-only {\n  position: absolute;\n  width: 1px;\n  height: 1px;\n  padding: 0;\n  margin: -1px;\n  overflow: hidden;\n  clip: rect(0, 0, 0, 0);\n  border: 0;\n}\n.sr-only-focusable:active,\n.sr-only-focusable:focus {\n  position: static;\n  width: auto;\n  height: auto;\n  margin: 0;\n  overflow: visible;\n  clip: auto;\n}\n", ""]);
+	exports.push([module.id, "/*!\n *  Font Awesome 4.7.0 by @davegandy - http://fontawesome.io - @fontawesome\n *  License - http://fontawesome.io/license (Font: SIL OFL 1.1, CSS: MIT License)\n */\n/* FONT PATH\n * -------------------------- */\n@font-face {\n  font-family: 'FontAwesome';\n  src: url(" + __webpack_require__(408) + ");\n  src: url(" + __webpack_require__(409) + "?#iefix&v=4.7.0) format('embedded-opentype'), url(" + __webpack_require__(410) + ") format('woff2'), url(" + __webpack_require__(411) + ") format('woff'), url(" + __webpack_require__(412) + ") format('truetype'), url(" + __webpack_require__(413) + "#fontawesomeregular) format('svg');\n  font-weight: normal;\n  font-style: normal;\n}\n.fa {\n  display: inline-block;\n  font: normal normal normal 14px/1 FontAwesome;\n  font-size: inherit;\n  text-rendering: auto;\n  -webkit-font-smoothing: antialiased;\n  -moz-osx-font-smoothing: grayscale;\n}\n/* makes the font 33% larger relative to the icon container */\n.fa-lg {\n  font-size: 1.33333333em;\n  line-height: 0.75em;\n  vertical-align: -15%;\n}\n.fa-2x {\n  font-size: 2em;\n}\n.fa-3x {\n  font-size: 3em;\n}\n.fa-4x {\n  font-size: 4em;\n}\n.fa-5x {\n  font-size: 5em;\n}\n.fa-fw {\n  width: 1.28571429em;\n  text-align: center;\n}\n.fa-ul {\n  padding-left: 0;\n  margin-left: 2.14285714em;\n  list-style-type: none;\n}\n.fa-ul > li {\n  position: relative;\n}\n.fa-li {\n  position: absolute;\n  left: -2.14285714em;\n  width: 2.14285714em;\n  top: 0.14285714em;\n  text-align: center;\n}\n.fa-li.fa-lg {\n  left: -1.85714286em;\n}\n.fa-border {\n  padding: .2em .25em .15em;\n  border: solid 0.08em #eeeeee;\n  border-radius: .1em;\n}\n.fa-pull-left {\n  float: left;\n}\n.fa-pull-right {\n  float: right;\n}\n.fa.fa-pull-left {\n  margin-right: .3em;\n}\n.fa.fa-pull-right {\n  margin-left: .3em;\n}\n/* Deprecated as of 4.4.0 */\n.pull-right {\n  float: right;\n}\n.pull-left {\n  float: left;\n}\n.fa.pull-left {\n  margin-right: .3em;\n}\n.fa.pull-right {\n  margin-left: .3em;\n}\n.fa-spin {\n  -webkit-animation: fa-spin 2s infinite linear;\n  animation: fa-spin 2s infinite linear;\n}\n.fa-pulse {\n  -webkit-animation: fa-spin 1s infinite steps(8);\n  animation: fa-spin 1s infinite steps(8);\n}\n@-webkit-keyframes fa-spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n    transform: rotate(0deg);\n  }\n  100% {\n    -webkit-transform: rotate(359deg);\n    transform: rotate(359deg);\n  }\n}\n@keyframes fa-spin {\n  0% {\n    -webkit-transform: rotate(0deg);\n    transform: rotate(0deg);\n  }\n  100% {\n    -webkit-transform: rotate(359deg);\n    transform: rotate(359deg);\n  }\n}\n.fa-rotate-90 {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=1)\";\n  -webkit-transform: rotate(90deg);\n  -ms-transform: rotate(90deg);\n  transform: rotate(90deg);\n}\n.fa-rotate-180 {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=2)\";\n  -webkit-transform: rotate(180deg);\n  -ms-transform: rotate(180deg);\n  transform: rotate(180deg);\n}\n.fa-rotate-270 {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=3)\";\n  -webkit-transform: rotate(270deg);\n  -ms-transform: rotate(270deg);\n  transform: rotate(270deg);\n}\n.fa-flip-horizontal {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=0, mirror=1)\";\n  -webkit-transform: scale(-1, 1);\n  -ms-transform: scale(-1, 1);\n  transform: scale(-1, 1);\n}\n.fa-flip-vertical {\n  -ms-filter: \"progid:DXImageTransform.Microsoft.BasicImage(rotation=2, mirror=1)\";\n  -webkit-transform: scale(1, -1);\n  -ms-transform: scale(1, -1);\n  transform: scale(1, -1);\n}\n:root .fa-rotate-90,\n:root .fa-rotate-180,\n:root .fa-rotate-270,\n:root .fa-flip-horizontal,\n:root .fa-flip-vertical {\n  filter: none;\n}\n.fa-stack {\n  position: relative;\n  display: inline-block;\n  width: 2em;\n  height: 2em;\n  line-height: 2em;\n  vertical-align: middle;\n}\n.fa-stack-1x,\n.fa-stack-2x {\n  position: absolute;\n  left: 0;\n  width: 100%;\n  text-align: center;\n}\n.fa-stack-1x {\n  line-height: inherit;\n}\n.fa-stack-2x {\n  font-size: 2em;\n}\n.fa-inverse {\n  color: #ffffff;\n}\n/* Font Awesome uses the Unicode Private Use Area (PUA) to ensure screen\n   readers do not read off random characters that represent icons */\n.fa-glass:before {\n  content: \"\\F000\";\n}\n.fa-music:before {\n  content: \"\\F001\";\n}\n.fa-search:before {\n  content: \"\\F002\";\n}\n.fa-envelope-o:before {\n  content: \"\\F003\";\n}\n.fa-heart:before {\n  content: \"\\F004\";\n}\n.fa-star:before {\n  content: \"\\F005\";\n}\n.fa-star-o:before {\n  content: \"\\F006\";\n}\n.fa-user:before {\n  content: \"\\F007\";\n}\n.fa-film:before {\n  content: \"\\F008\";\n}\n.fa-th-large:before {\n  content: \"\\F009\";\n}\n.fa-th:before {\n  content: \"\\F00A\";\n}\n.fa-th-list:before {\n  content: \"\\F00B\";\n}\n.fa-check:before {\n  content: \"\\F00C\";\n}\n.fa-remove:before,\n.fa-close:before,\n.fa-times:before {\n  content: \"\\F00D\";\n}\n.fa-search-plus:before {\n  content: \"\\F00E\";\n}\n.fa-search-minus:before {\n  content: \"\\F010\";\n}\n.fa-power-off:before {\n  content: \"\\F011\";\n}\n.fa-signal:before {\n  content: \"\\F012\";\n}\n.fa-gear:before,\n.fa-cog:before {\n  content: \"\\F013\";\n}\n.fa-trash-o:before {\n  content: \"\\F014\";\n}\n.fa-home:before {\n  content: \"\\F015\";\n}\n.fa-file-o:before {\n  content: \"\\F016\";\n}\n.fa-clock-o:before {\n  content: \"\\F017\";\n}\n.fa-road:before {\n  content: \"\\F018\";\n}\n.fa-download:before {\n  content: \"\\F019\";\n}\n.fa-arrow-circle-o-down:before {\n  content: \"\\F01A\";\n}\n.fa-arrow-circle-o-up:before {\n  content: \"\\F01B\";\n}\n.fa-inbox:before {\n  content: \"\\F01C\";\n}\n.fa-play-circle-o:before {\n  content: \"\\F01D\";\n}\n.fa-rotate-right:before,\n.fa-repeat:before {\n  content: \"\\F01E\";\n}\n.fa-refresh:before {\n  content: \"\\F021\";\n}\n.fa-list-alt:before {\n  content: \"\\F022\";\n}\n.fa-lock:before {\n  content: \"\\F023\";\n}\n.fa-flag:before {\n  content: \"\\F024\";\n}\n.fa-headphones:before {\n  content: \"\\F025\";\n}\n.fa-volume-off:before {\n  content: \"\\F026\";\n}\n.fa-volume-down:before {\n  content: \"\\F027\";\n}\n.fa-volume-up:before {\n  content: \"\\F028\";\n}\n.fa-qrcode:before {\n  content: \"\\F029\";\n}\n.fa-barcode:before {\n  content: \"\\F02A\";\n}\n.fa-tag:before {\n  content: \"\\F02B\";\n}\n.fa-tags:before {\n  content: \"\\F02C\";\n}\n.fa-book:before {\n  content: \"\\F02D\";\n}\n.fa-bookmark:before {\n  content: \"\\F02E\";\n}\n.fa-print:before {\n  content: \"\\F02F\";\n}\n.fa-camera:before {\n  content: \"\\F030\";\n}\n.fa-font:before {\n  content: \"\\F031\";\n}\n.fa-bold:before {\n  content: \"\\F032\";\n}\n.fa-italic:before {\n  content: \"\\F033\";\n}\n.fa-text-height:before {\n  content: \"\\F034\";\n}\n.fa-text-width:before {\n  content: \"\\F035\";\n}\n.fa-align-left:before {\n  content: \"\\F036\";\n}\n.fa-align-center:before {\n  content: \"\\F037\";\n}\n.fa-align-right:before {\n  content: \"\\F038\";\n}\n.fa-align-justify:before {\n  content: \"\\F039\";\n}\n.fa-list:before {\n  content: \"\\F03A\";\n}\n.fa-dedent:before,\n.fa-outdent:before {\n  content: \"\\F03B\";\n}\n.fa-indent:before {\n  content: \"\\F03C\";\n}\n.fa-video-camera:before {\n  content: \"\\F03D\";\n}\n.fa-photo:before,\n.fa-image:before,\n.fa-picture-o:before {\n  content: \"\\F03E\";\n}\n.fa-pencil:before {\n  content: \"\\F040\";\n}\n.fa-map-marker:before {\n  content: \"\\F041\";\n}\n.fa-adjust:before {\n  content: \"\\F042\";\n}\n.fa-tint:before {\n  content: \"\\F043\";\n}\n.fa-edit:before,\n.fa-pencil-square-o:before {\n  content: \"\\F044\";\n}\n.fa-share-square-o:before {\n  content: \"\\F045\";\n}\n.fa-check-square-o:before {\n  content: \"\\F046\";\n}\n.fa-arrows:before {\n  content: \"\\F047\";\n}\n.fa-step-backward:before {\n  content: \"\\F048\";\n}\n.fa-fast-backward:before {\n  content: \"\\F049\";\n}\n.fa-backward:before {\n  content: \"\\F04A\";\n}\n.fa-play:before {\n  content: \"\\F04B\";\n}\n.fa-pause:before {\n  content: \"\\F04C\";\n}\n.fa-stop:before {\n  content: \"\\F04D\";\n}\n.fa-forward:before {\n  content: \"\\F04E\";\n}\n.fa-fast-forward:before {\n  content: \"\\F050\";\n}\n.fa-step-forward:before {\n  content: \"\\F051\";\n}\n.fa-eject:before {\n  content: \"\\F052\";\n}\n.fa-chevron-left:before {\n  content: \"\\F053\";\n}\n.fa-chevron-right:before {\n  content: \"\\F054\";\n}\n.fa-plus-circle:before {\n  content: \"\\F055\";\n}\n.fa-minus-circle:before {\n  content: \"\\F056\";\n}\n.fa-times-circle:before {\n  content: \"\\F057\";\n}\n.fa-check-circle:before {\n  content: \"\\F058\";\n}\n.fa-question-circle:before {\n  content: \"\\F059\";\n}\n.fa-info-circle:before {\n  content: \"\\F05A\";\n}\n.fa-crosshairs:before {\n  content: \"\\F05B\";\n}\n.fa-times-circle-o:before {\n  content: \"\\F05C\";\n}\n.fa-check-circle-o:before {\n  content: \"\\F05D\";\n}\n.fa-ban:before {\n  content: \"\\F05E\";\n}\n.fa-arrow-left:before {\n  content: \"\\F060\";\n}\n.fa-arrow-right:before {\n  content: \"\\F061\";\n}\n.fa-arrow-up:before {\n  content: \"\\F062\";\n}\n.fa-arrow-down:before {\n  content: \"\\F063\";\n}\n.fa-mail-forward:before,\n.fa-share:before {\n  content: \"\\F064\";\n}\n.fa-expand:before {\n  content: \"\\F065\";\n}\n.fa-compress:before {\n  content: \"\\F066\";\n}\n.fa-plus:before {\n  content: \"\\F067\";\n}\n.fa-minus:before {\n  content: \"\\F068\";\n}\n.fa-asterisk:before {\n  content: \"\\F069\";\n}\n.fa-exclamation-circle:before {\n  content: \"\\F06A\";\n}\n.fa-gift:before {\n  content: \"\\F06B\";\n}\n.fa-leaf:before {\n  content: \"\\F06C\";\n}\n.fa-fire:before {\n  content: \"\\F06D\";\n}\n.fa-eye:before {\n  content: \"\\F06E\";\n}\n.fa-eye-slash:before {\n  content: \"\\F070\";\n}\n.fa-warning:before,\n.fa-exclamation-triangle:before {\n  content: \"\\F071\";\n}\n.fa-plane:before {\n  content: \"\\F072\";\n}\n.fa-calendar:before {\n  content: \"\\F073\";\n}\n.fa-random:before {\n  content: \"\\F074\";\n}\n.fa-comment:before {\n  content: \"\\F075\";\n}\n.fa-magnet:before {\n  content: \"\\F076\";\n}\n.fa-chevron-up:before {\n  content: \"\\F077\";\n}\n.fa-chevron-down:before {\n  content: \"\\F078\";\n}\n.fa-retweet:before {\n  content: \"\\F079\";\n}\n.fa-shopping-cart:before {\n  content: \"\\F07A\";\n}\n.fa-folder:before {\n  content: \"\\F07B\";\n}\n.fa-folder-open:before {\n  content: \"\\F07C\";\n}\n.fa-arrows-v:before {\n  content: \"\\F07D\";\n}\n.fa-arrows-h:before {\n  content: \"\\F07E\";\n}\n.fa-bar-chart-o:before,\n.fa-bar-chart:before {\n  content: \"\\F080\";\n}\n.fa-twitter-square:before {\n  content: \"\\F081\";\n}\n.fa-facebook-square:before {\n  content: \"\\F082\";\n}\n.fa-camera-retro:before {\n  content: \"\\F083\";\n}\n.fa-key:before {\n  content: \"\\F084\";\n}\n.fa-gears:before,\n.fa-cogs:before {\n  content: \"\\F085\";\n}\n.fa-comments:before {\n  content: \"\\F086\";\n}\n.fa-thumbs-o-up:before {\n  content: \"\\F087\";\n}\n.fa-thumbs-o-down:before {\n  content: \"\\F088\";\n}\n.fa-star-half:before {\n  content: \"\\F089\";\n}\n.fa-heart-o:before {\n  content: \"\\F08A\";\n}\n.fa-sign-out:before {\n  content: \"\\F08B\";\n}\n.fa-linkedin-square:before {\n  content: \"\\F08C\";\n}\n.fa-thumb-tack:before {\n  content: \"\\F08D\";\n}\n.fa-external-link:before {\n  content: \"\\F08E\";\n}\n.fa-sign-in:before {\n  content: \"\\F090\";\n}\n.fa-trophy:before {\n  content: \"\\F091\";\n}\n.fa-github-square:before {\n  content: \"\\F092\";\n}\n.fa-upload:before {\n  content: \"\\F093\";\n}\n.fa-lemon-o:before {\n  content: \"\\F094\";\n}\n.fa-phone:before {\n  content: \"\\F095\";\n}\n.fa-square-o:before {\n  content: \"\\F096\";\n}\n.fa-bookmark-o:before {\n  content: \"\\F097\";\n}\n.fa-phone-square:before {\n  content: \"\\F098\";\n}\n.fa-twitter:before {\n  content: \"\\F099\";\n}\n.fa-facebook-f:before,\n.fa-facebook:before {\n  content: \"\\F09A\";\n}\n.fa-github:before {\n  content: \"\\F09B\";\n}\n.fa-unlock:before {\n  content: \"\\F09C\";\n}\n.fa-credit-card:before {\n  content: \"\\F09D\";\n}\n.fa-feed:before,\n.fa-rss:before {\n  content: \"\\F09E\";\n}\n.fa-hdd-o:before {\n  content: \"\\F0A0\";\n}\n.fa-bullhorn:before {\n  content: \"\\F0A1\";\n}\n.fa-bell:before {\n  content: \"\\F0F3\";\n}\n.fa-certificate:before {\n  content: \"\\F0A3\";\n}\n.fa-hand-o-right:before {\n  content: \"\\F0A4\";\n}\n.fa-hand-o-left:before {\n  content: \"\\F0A5\";\n}\n.fa-hand-o-up:before {\n  content: \"\\F0A6\";\n}\n.fa-hand-o-down:before {\n  content: \"\\F0A7\";\n}\n.fa-arrow-circle-left:before {\n  content: \"\\F0A8\";\n}\n.fa-arrow-circle-right:before {\n  content: \"\\F0A9\";\n}\n.fa-arrow-circle-up:before {\n  content: \"\\F0AA\";\n}\n.fa-arrow-circle-down:before {\n  content: \"\\F0AB\";\n}\n.fa-globe:before {\n  content: \"\\F0AC\";\n}\n.fa-wrench:before {\n  content: \"\\F0AD\";\n}\n.fa-tasks:before {\n  content: \"\\F0AE\";\n}\n.fa-filter:before {\n  content: \"\\F0B0\";\n}\n.fa-briefcase:before {\n  content: \"\\F0B1\";\n}\n.fa-arrows-alt:before {\n  content: \"\\F0B2\";\n}\n.fa-group:before,\n.fa-users:before {\n  content: \"\\F0C0\";\n}\n.fa-chain:before,\n.fa-link:before {\n  content: \"\\F0C1\";\n}\n.fa-cloud:before {\n  content: \"\\F0C2\";\n}\n.fa-flask:before {\n  content: \"\\F0C3\";\n}\n.fa-cut:before,\n.fa-scissors:before {\n  content: \"\\F0C4\";\n}\n.fa-copy:before,\n.fa-files-o:before {\n  content: \"\\F0C5\";\n}\n.fa-paperclip:before {\n  content: \"\\F0C6\";\n}\n.fa-save:before,\n.fa-floppy-o:before {\n  content: \"\\F0C7\";\n}\n.fa-square:before {\n  content: \"\\F0C8\";\n}\n.fa-navicon:before,\n.fa-reorder:before,\n.fa-bars:before {\n  content: \"\\F0C9\";\n}\n.fa-list-ul:before {\n  content: \"\\F0CA\";\n}\n.fa-list-ol:before {\n  content: \"\\F0CB\";\n}\n.fa-strikethrough:before {\n  content: \"\\F0CC\";\n}\n.fa-underline:before {\n  content: \"\\F0CD\";\n}\n.fa-table:before {\n  content: \"\\F0CE\";\n}\n.fa-magic:before {\n  content: \"\\F0D0\";\n}\n.fa-truck:before {\n  content: \"\\F0D1\";\n}\n.fa-pinterest:before {\n  content: \"\\F0D2\";\n}\n.fa-pinterest-square:before {\n  content: \"\\F0D3\";\n}\n.fa-google-plus-square:before {\n  content: \"\\F0D4\";\n}\n.fa-google-plus:before {\n  content: \"\\F0D5\";\n}\n.fa-money:before {\n  content: \"\\F0D6\";\n}\n.fa-caret-down:before {\n  content: \"\\F0D7\";\n}\n.fa-caret-up:before {\n  content: \"\\F0D8\";\n}\n.fa-caret-left:before {\n  content: \"\\F0D9\";\n}\n.fa-caret-right:before {\n  content: \"\\F0DA\";\n}\n.fa-columns:before {\n  content: \"\\F0DB\";\n}\n.fa-unsorted:before,\n.fa-sort:before {\n  content: \"\\F0DC\";\n}\n.fa-sort-down:before,\n.fa-sort-desc:before {\n  content: \"\\F0DD\";\n}\n.fa-sort-up:before,\n.fa-sort-asc:before {\n  content: \"\\F0DE\";\n}\n.fa-envelope:before {\n  content: \"\\F0E0\";\n}\n.fa-linkedin:before {\n  content: \"\\F0E1\";\n}\n.fa-rotate-left:before,\n.fa-undo:before {\n  content: \"\\F0E2\";\n}\n.fa-legal:before,\n.fa-gavel:before {\n  content: \"\\F0E3\";\n}\n.fa-dashboard:before,\n.fa-tachometer:before {\n  content: \"\\F0E4\";\n}\n.fa-comment-o:before {\n  content: \"\\F0E5\";\n}\n.fa-comments-o:before {\n  content: \"\\F0E6\";\n}\n.fa-flash:before,\n.fa-bolt:before {\n  content: \"\\F0E7\";\n}\n.fa-sitemap:before {\n  content: \"\\F0E8\";\n}\n.fa-umbrella:before {\n  content: \"\\F0E9\";\n}\n.fa-paste:before,\n.fa-clipboard:before {\n  content: \"\\F0EA\";\n}\n.fa-lightbulb-o:before {\n  content: \"\\F0EB\";\n}\n.fa-exchange:before {\n  content: \"\\F0EC\";\n}\n.fa-cloud-download:before {\n  content: \"\\F0ED\";\n}\n.fa-cloud-upload:before {\n  content: \"\\F0EE\";\n}\n.fa-user-md:before {\n  content: \"\\F0F0\";\n}\n.fa-stethoscope:before {\n  content: \"\\F0F1\";\n}\n.fa-suitcase:before {\n  content: \"\\F0F2\";\n}\n.fa-bell-o:before {\n  content: \"\\F0A2\";\n}\n.fa-coffee:before {\n  content: \"\\F0F4\";\n}\n.fa-cutlery:before {\n  content: \"\\F0F5\";\n}\n.fa-file-text-o:before {\n  content: \"\\F0F6\";\n}\n.fa-building-o:before {\n  content: \"\\F0F7\";\n}\n.fa-hospital-o:before {\n  content: \"\\F0F8\";\n}\n.fa-ambulance:before {\n  content: \"\\F0F9\";\n}\n.fa-medkit:before {\n  content: \"\\F0FA\";\n}\n.fa-fighter-jet:before {\n  content: \"\\F0FB\";\n}\n.fa-beer:before {\n  content: \"\\F0FC\";\n}\n.fa-h-square:before {\n  content: \"\\F0FD\";\n}\n.fa-plus-square:before {\n  content: \"\\F0FE\";\n}\n.fa-angle-double-left:before {\n  content: \"\\F100\";\n}\n.fa-angle-double-right:before {\n  content: \"\\F101\";\n}\n.fa-angle-double-up:before {\n  content: \"\\F102\";\n}\n.fa-angle-double-down:before {\n  content: \"\\F103\";\n}\n.fa-angle-left:before {\n  content: \"\\F104\";\n}\n.fa-angle-right:before {\n  content: \"\\F105\";\n}\n.fa-angle-up:before {\n  content: \"\\F106\";\n}\n.fa-angle-down:before {\n  content: \"\\F107\";\n}\n.fa-desktop:before {\n  content: \"\\F108\";\n}\n.fa-laptop:before {\n  content: \"\\F109\";\n}\n.fa-tablet:before {\n  content: \"\\F10A\";\n}\n.fa-mobile-phone:before,\n.fa-mobile:before {\n  content: \"\\F10B\";\n}\n.fa-circle-o:before {\n  content: \"\\F10C\";\n}\n.fa-quote-left:before {\n  content: \"\\F10D\";\n}\n.fa-quote-right:before {\n  content: \"\\F10E\";\n}\n.fa-spinner:before {\n  content: \"\\F110\";\n}\n.fa-circle:before {\n  content: \"\\F111\";\n}\n.fa-mail-reply:before,\n.fa-reply:before {\n  content: \"\\F112\";\n}\n.fa-github-alt:before {\n  content: \"\\F113\";\n}\n.fa-folder-o:before {\n  content: \"\\F114\";\n}\n.fa-folder-open-o:before {\n  content: \"\\F115\";\n}\n.fa-smile-o:before {\n  content: \"\\F118\";\n}\n.fa-frown-o:before {\n  content: \"\\F119\";\n}\n.fa-meh-o:before {\n  content: \"\\F11A\";\n}\n.fa-gamepad:before {\n  content: \"\\F11B\";\n}\n.fa-keyboard-o:before {\n  content: \"\\F11C\";\n}\n.fa-flag-o:before {\n  content: \"\\F11D\";\n}\n.fa-flag-checkered:before {\n  content: \"\\F11E\";\n}\n.fa-terminal:before {\n  content: \"\\F120\";\n}\n.fa-code:before {\n  content: \"\\F121\";\n}\n.fa-mail-reply-all:before,\n.fa-reply-all:before {\n  content: \"\\F122\";\n}\n.fa-star-half-empty:before,\n.fa-star-half-full:before,\n.fa-star-half-o:before {\n  content: \"\\F123\";\n}\n.fa-location-arrow:before {\n  content: \"\\F124\";\n}\n.fa-crop:before {\n  content: \"\\F125\";\n}\n.fa-code-fork:before {\n  content: \"\\F126\";\n}\n.fa-unlink:before,\n.fa-chain-broken:before {\n  content: \"\\F127\";\n}\n.fa-question:before {\n  content: \"\\F128\";\n}\n.fa-info:before {\n  content: \"\\F129\";\n}\n.fa-exclamation:before {\n  content: \"\\F12A\";\n}\n.fa-superscript:before {\n  content: \"\\F12B\";\n}\n.fa-subscript:before {\n  content: \"\\F12C\";\n}\n.fa-eraser:before {\n  content: \"\\F12D\";\n}\n.fa-puzzle-piece:before {\n  content: \"\\F12E\";\n}\n.fa-microphone:before {\n  content: \"\\F130\";\n}\n.fa-microphone-slash:before {\n  content: \"\\F131\";\n}\n.fa-shield:before {\n  content: \"\\F132\";\n}\n.fa-calendar-o:before {\n  content: \"\\F133\";\n}\n.fa-fire-extinguisher:before {\n  content: \"\\F134\";\n}\n.fa-rocket:before {\n  content: \"\\F135\";\n}\n.fa-maxcdn:before {\n  content: \"\\F136\";\n}\n.fa-chevron-circle-left:before {\n  content: \"\\F137\";\n}\n.fa-chevron-circle-right:before {\n  content: \"\\F138\";\n}\n.fa-chevron-circle-up:before {\n  content: \"\\F139\";\n}\n.fa-chevron-circle-down:before {\n  content: \"\\F13A\";\n}\n.fa-html5:before {\n  content: \"\\F13B\";\n}\n.fa-css3:before {\n  content: \"\\F13C\";\n}\n.fa-anchor:before {\n  content: \"\\F13D\";\n}\n.fa-unlock-alt:before {\n  content: \"\\F13E\";\n}\n.fa-bullseye:before {\n  content: \"\\F140\";\n}\n.fa-ellipsis-h:before {\n  content: \"\\F141\";\n}\n.fa-ellipsis-v:before {\n  content: \"\\F142\";\n}\n.fa-rss-square:before {\n  content: \"\\F143\";\n}\n.fa-play-circle:before {\n  content: \"\\F144\";\n}\n.fa-ticket:before {\n  content: \"\\F145\";\n}\n.fa-minus-square:before {\n  content: \"\\F146\";\n}\n.fa-minus-square-o:before {\n  content: \"\\F147\";\n}\n.fa-level-up:before {\n  content: \"\\F148\";\n}\n.fa-level-down:before {\n  content: \"\\F149\";\n}\n.fa-check-square:before {\n  content: \"\\F14A\";\n}\n.fa-pencil-square:before {\n  content: \"\\F14B\";\n}\n.fa-external-link-square:before {\n  content: \"\\F14C\";\n}\n.fa-share-square:before {\n  content: \"\\F14D\";\n}\n.fa-compass:before {\n  content: \"\\F14E\";\n}\n.fa-toggle-down:before,\n.fa-caret-square-o-down:before {\n  content: \"\\F150\";\n}\n.fa-toggle-up:before,\n.fa-caret-square-o-up:before {\n  content: \"\\F151\";\n}\n.fa-toggle-right:before,\n.fa-caret-square-o-right:before {\n  content: \"\\F152\";\n}\n.fa-euro:before,\n.fa-eur:before {\n  content: \"\\F153\";\n}\n.fa-gbp:before {\n  content: \"\\F154\";\n}\n.fa-dollar:before,\n.fa-usd:before {\n  content: \"\\F155\";\n}\n.fa-rupee:before,\n.fa-inr:before {\n  content: \"\\F156\";\n}\n.fa-cny:before,\n.fa-rmb:before,\n.fa-yen:before,\n.fa-jpy:before {\n  content: \"\\F157\";\n}\n.fa-ruble:before,\n.fa-rouble:before,\n.fa-rub:before {\n  content: \"\\F158\";\n}\n.fa-won:before,\n.fa-krw:before {\n  content: \"\\F159\";\n}\n.fa-bitcoin:before,\n.fa-btc:before {\n  content: \"\\F15A\";\n}\n.fa-file:before {\n  content: \"\\F15B\";\n}\n.fa-file-text:before {\n  content: \"\\F15C\";\n}\n.fa-sort-alpha-asc:before {\n  content: \"\\F15D\";\n}\n.fa-sort-alpha-desc:before {\n  content: \"\\F15E\";\n}\n.fa-sort-amount-asc:before {\n  content: \"\\F160\";\n}\n.fa-sort-amount-desc:before {\n  content: \"\\F161\";\n}\n.fa-sort-numeric-asc:before {\n  content: \"\\F162\";\n}\n.fa-sort-numeric-desc:before {\n  content: \"\\F163\";\n}\n.fa-thumbs-up:before {\n  content: \"\\F164\";\n}\n.fa-thumbs-down:before {\n  content: \"\\F165\";\n}\n.fa-youtube-square:before {\n  content: \"\\F166\";\n}\n.fa-youtube:before {\n  content: \"\\F167\";\n}\n.fa-xing:before {\n  content: \"\\F168\";\n}\n.fa-xing-square:before {\n  content: \"\\F169\";\n}\n.fa-youtube-play:before {\n  content: \"\\F16A\";\n}\n.fa-dropbox:before {\n  content: \"\\F16B\";\n}\n.fa-stack-overflow:before {\n  content: \"\\F16C\";\n}\n.fa-instagram:before {\n  content: \"\\F16D\";\n}\n.fa-flickr:before {\n  content: \"\\F16E\";\n}\n.fa-adn:before {\n  content: \"\\F170\";\n}\n.fa-bitbucket:before {\n  content: \"\\F171\";\n}\n.fa-bitbucket-square:before {\n  content: \"\\F172\";\n}\n.fa-tumblr:before {\n  content: \"\\F173\";\n}\n.fa-tumblr-square:before {\n  content: \"\\F174\";\n}\n.fa-long-arrow-down:before {\n  content: \"\\F175\";\n}\n.fa-long-arrow-up:before {\n  content: \"\\F176\";\n}\n.fa-long-arrow-left:before {\n  content: \"\\F177\";\n}\n.fa-long-arrow-right:before {\n  content: \"\\F178\";\n}\n.fa-apple:before {\n  content: \"\\F179\";\n}\n.fa-windows:before {\n  content: \"\\F17A\";\n}\n.fa-android:before {\n  content: \"\\F17B\";\n}\n.fa-linux:before {\n  content: \"\\F17C\";\n}\n.fa-dribbble:before {\n  content: \"\\F17D\";\n}\n.fa-skype:before {\n  content: \"\\F17E\";\n}\n.fa-foursquare:before {\n  content: \"\\F180\";\n}\n.fa-trello:before {\n  content: \"\\F181\";\n}\n.fa-female:before {\n  content: \"\\F182\";\n}\n.fa-male:before {\n  content: \"\\F183\";\n}\n.fa-gittip:before,\n.fa-gratipay:before {\n  content: \"\\F184\";\n}\n.fa-sun-o:before {\n  content: \"\\F185\";\n}\n.fa-moon-o:before {\n  content: \"\\F186\";\n}\n.fa-archive:before {\n  content: \"\\F187\";\n}\n.fa-bug:before {\n  content: \"\\F188\";\n}\n.fa-vk:before {\n  content: \"\\F189\";\n}\n.fa-weibo:before {\n  content: \"\\F18A\";\n}\n.fa-renren:before {\n  content: \"\\F18B\";\n}\n.fa-pagelines:before {\n  content: \"\\F18C\";\n}\n.fa-stack-exchange:before {\n  content: \"\\F18D\";\n}\n.fa-arrow-circle-o-right:before {\n  content: \"\\F18E\";\n}\n.fa-arrow-circle-o-left:before {\n  content: \"\\F190\";\n}\n.fa-toggle-left:before,\n.fa-caret-square-o-left:before {\n  content: \"\\F191\";\n}\n.fa-dot-circle-o:before {\n  content: \"\\F192\";\n}\n.fa-wheelchair:before {\n  content: \"\\F193\";\n}\n.fa-vimeo-square:before {\n  content: \"\\F194\";\n}\n.fa-turkish-lira:before,\n.fa-try:before {\n  content: \"\\F195\";\n}\n.fa-plus-square-o:before {\n  content: \"\\F196\";\n}\n.fa-space-shuttle:before {\n  content: \"\\F197\";\n}\n.fa-slack:before {\n  content: \"\\F198\";\n}\n.fa-envelope-square:before {\n  content: \"\\F199\";\n}\n.fa-wordpress:before {\n  content: \"\\F19A\";\n}\n.fa-openid:before {\n  content: \"\\F19B\";\n}\n.fa-institution:before,\n.fa-bank:before,\n.fa-university:before {\n  content: \"\\F19C\";\n}\n.fa-mortar-board:before,\n.fa-graduation-cap:before {\n  content: \"\\F19D\";\n}\n.fa-yahoo:before {\n  content: \"\\F19E\";\n}\n.fa-google:before {\n  content: \"\\F1A0\";\n}\n.fa-reddit:before {\n  content: \"\\F1A1\";\n}\n.fa-reddit-square:before {\n  content: \"\\F1A2\";\n}\n.fa-stumbleupon-circle:before {\n  content: \"\\F1A3\";\n}\n.fa-stumbleupon:before {\n  content: \"\\F1A4\";\n}\n.fa-delicious:before {\n  content: \"\\F1A5\";\n}\n.fa-digg:before {\n  content: \"\\F1A6\";\n}\n.fa-pied-piper-pp:before {\n  content: \"\\F1A7\";\n}\n.fa-pied-piper-alt:before {\n  content: \"\\F1A8\";\n}\n.fa-drupal:before {\n  content: \"\\F1A9\";\n}\n.fa-joomla:before {\n  content: \"\\F1AA\";\n}\n.fa-language:before {\n  content: \"\\F1AB\";\n}\n.fa-fax:before {\n  content: \"\\F1AC\";\n}\n.fa-building:before {\n  content: \"\\F1AD\";\n}\n.fa-child:before {\n  content: \"\\F1AE\";\n}\n.fa-paw:before {\n  content: \"\\F1B0\";\n}\n.fa-spoon:before {\n  content: \"\\F1B1\";\n}\n.fa-cube:before {\n  content: \"\\F1B2\";\n}\n.fa-cubes:before {\n  content: \"\\F1B3\";\n}\n.fa-behance:before {\n  content: \"\\F1B4\";\n}\n.fa-behance-square:before {\n  content: \"\\F1B5\";\n}\n.fa-steam:before {\n  content: \"\\F1B6\";\n}\n.fa-steam-square:before {\n  content: \"\\F1B7\";\n}\n.fa-recycle:before {\n  content: \"\\F1B8\";\n}\n.fa-automobile:before,\n.fa-car:before {\n  content: \"\\F1B9\";\n}\n.fa-cab:before,\n.fa-taxi:before {\n  content: \"\\F1BA\";\n}\n.fa-tree:before {\n  content: \"\\F1BB\";\n}\n.fa-spotify:before {\n  content: \"\\F1BC\";\n}\n.fa-deviantart:before {\n  content: \"\\F1BD\";\n}\n.fa-soundcloud:before {\n  content: \"\\F1BE\";\n}\n.fa-database:before {\n  content: \"\\F1C0\";\n}\n.fa-file-pdf-o:before {\n  content: \"\\F1C1\";\n}\n.fa-file-word-o:before {\n  content: \"\\F1C2\";\n}\n.fa-file-excel-o:before {\n  content: \"\\F1C3\";\n}\n.fa-file-powerpoint-o:before {\n  content: \"\\F1C4\";\n}\n.fa-file-photo-o:before,\n.fa-file-picture-o:before,\n.fa-file-image-o:before {\n  content: \"\\F1C5\";\n}\n.fa-file-zip-o:before,\n.fa-file-archive-o:before {\n  content: \"\\F1C6\";\n}\n.fa-file-sound-o:before,\n.fa-file-audio-o:before {\n  content: \"\\F1C7\";\n}\n.fa-file-movie-o:before,\n.fa-file-video-o:before {\n  content: \"\\F1C8\";\n}\n.fa-file-code-o:before {\n  content: \"\\F1C9\";\n}\n.fa-vine:before {\n  content: \"\\F1CA\";\n}\n.fa-codepen:before {\n  content: \"\\F1CB\";\n}\n.fa-jsfiddle:before {\n  content: \"\\F1CC\";\n}\n.fa-life-bouy:before,\n.fa-life-buoy:before,\n.fa-life-saver:before,\n.fa-support:before,\n.fa-life-ring:before {\n  content: \"\\F1CD\";\n}\n.fa-circle-o-notch:before {\n  content: \"\\F1CE\";\n}\n.fa-ra:before,\n.fa-resistance:before,\n.fa-rebel:before {\n  content: \"\\F1D0\";\n}\n.fa-ge:before,\n.fa-empire:before {\n  content: \"\\F1D1\";\n}\n.fa-git-square:before {\n  content: \"\\F1D2\";\n}\n.fa-git:before {\n  content: \"\\F1D3\";\n}\n.fa-y-combinator-square:before,\n.fa-yc-square:before,\n.fa-hacker-news:before {\n  content: \"\\F1D4\";\n}\n.fa-tencent-weibo:before {\n  content: \"\\F1D5\";\n}\n.fa-qq:before {\n  content: \"\\F1D6\";\n}\n.fa-wechat:before,\n.fa-weixin:before {\n  content: \"\\F1D7\";\n}\n.fa-send:before,\n.fa-paper-plane:before {\n  content: \"\\F1D8\";\n}\n.fa-send-o:before,\n.fa-paper-plane-o:before {\n  content: \"\\F1D9\";\n}\n.fa-history:before {\n  content: \"\\F1DA\";\n}\n.fa-circle-thin:before {\n  content: \"\\F1DB\";\n}\n.fa-header:before {\n  content: \"\\F1DC\";\n}\n.fa-paragraph:before {\n  content: \"\\F1DD\";\n}\n.fa-sliders:before {\n  content: \"\\F1DE\";\n}\n.fa-share-alt:before {\n  content: \"\\F1E0\";\n}\n.fa-share-alt-square:before {\n  content: \"\\F1E1\";\n}\n.fa-bomb:before {\n  content: \"\\F1E2\";\n}\n.fa-soccer-ball-o:before,\n.fa-futbol-o:before {\n  content: \"\\F1E3\";\n}\n.fa-tty:before {\n  content: \"\\F1E4\";\n}\n.fa-binoculars:before {\n  content: \"\\F1E5\";\n}\n.fa-plug:before {\n  content: \"\\F1E6\";\n}\n.fa-slideshare:before {\n  content: \"\\F1E7\";\n}\n.fa-twitch:before {\n  content: \"\\F1E8\";\n}\n.fa-yelp:before {\n  content: \"\\F1E9\";\n}\n.fa-newspaper-o:before {\n  content: \"\\F1EA\";\n}\n.fa-wifi:before {\n  content: \"\\F1EB\";\n}\n.fa-calculator:before {\n  content: \"\\F1EC\";\n}\n.fa-paypal:before {\n  content: \"\\F1ED\";\n}\n.fa-google-wallet:before {\n  content: \"\\F1EE\";\n}\n.fa-cc-visa:before {\n  content: \"\\F1F0\";\n}\n.fa-cc-mastercard:before {\n  content: \"\\F1F1\";\n}\n.fa-cc-discover:before {\n  content: \"\\F1F2\";\n}\n.fa-cc-amex:before {\n  content: \"\\F1F3\";\n}\n.fa-cc-paypal:before {\n  content: \"\\F1F4\";\n}\n.fa-cc-stripe:before {\n  content: \"\\F1F5\";\n}\n.fa-bell-slash:before {\n  content: \"\\F1F6\";\n}\n.fa-bell-slash-o:before {\n  content: \"\\F1F7\";\n}\n.fa-trash:before {\n  content: \"\\F1F8\";\n}\n.fa-copyright:before {\n  content: \"\\F1F9\";\n}\n.fa-at:before {\n  content: \"\\F1FA\";\n}\n.fa-eyedropper:before {\n  content: \"\\F1FB\";\n}\n.fa-paint-brush:before {\n  content: \"\\F1FC\";\n}\n.fa-birthday-cake:before {\n  content: \"\\F1FD\";\n}\n.fa-area-chart:before {\n  content: \"\\F1FE\";\n}\n.fa-pie-chart:before {\n  content: \"\\F200\";\n}\n.fa-line-chart:before {\n  content: \"\\F201\";\n}\n.fa-lastfm:before {\n  content: \"\\F202\";\n}\n.fa-lastfm-square:before {\n  content: \"\\F203\";\n}\n.fa-toggle-off:before {\n  content: \"\\F204\";\n}\n.fa-toggle-on:before {\n  content: \"\\F205\";\n}\n.fa-bicycle:before {\n  content: \"\\F206\";\n}\n.fa-bus:before {\n  content: \"\\F207\";\n}\n.fa-ioxhost:before {\n  content: \"\\F208\";\n}\n.fa-angellist:before {\n  content: \"\\F209\";\n}\n.fa-cc:before {\n  content: \"\\F20A\";\n}\n.fa-shekel:before,\n.fa-sheqel:before,\n.fa-ils:before {\n  content: \"\\F20B\";\n}\n.fa-meanpath:before {\n  content: \"\\F20C\";\n}\n.fa-buysellads:before {\n  content: \"\\F20D\";\n}\n.fa-connectdevelop:before {\n  content: \"\\F20E\";\n}\n.fa-dashcube:before {\n  content: \"\\F210\";\n}\n.fa-forumbee:before {\n  content: \"\\F211\";\n}\n.fa-leanpub:before {\n  content: \"\\F212\";\n}\n.fa-sellsy:before {\n  content: \"\\F213\";\n}\n.fa-shirtsinbulk:before {\n  content: \"\\F214\";\n}\n.fa-simplybuilt:before {\n  content: \"\\F215\";\n}\n.fa-skyatlas:before {\n  content: \"\\F216\";\n}\n.fa-cart-plus:before {\n  content: \"\\F217\";\n}\n.fa-cart-arrow-down:before {\n  content: \"\\F218\";\n}\n.fa-diamond:before {\n  content: \"\\F219\";\n}\n.fa-ship:before {\n  content: \"\\F21A\";\n}\n.fa-user-secret:before {\n  content: \"\\F21B\";\n}\n.fa-motorcycle:before {\n  content: \"\\F21C\";\n}\n.fa-street-view:before {\n  content: \"\\F21D\";\n}\n.fa-heartbeat:before {\n  content: \"\\F21E\";\n}\n.fa-venus:before {\n  content: \"\\F221\";\n}\n.fa-mars:before {\n  content: \"\\F222\";\n}\n.fa-mercury:before {\n  content: \"\\F223\";\n}\n.fa-intersex:before,\n.fa-transgender:before {\n  content: \"\\F224\";\n}\n.fa-transgender-alt:before {\n  content: \"\\F225\";\n}\n.fa-venus-double:before {\n  content: \"\\F226\";\n}\n.fa-mars-double:before {\n  content: \"\\F227\";\n}\n.fa-venus-mars:before {\n  content: \"\\F228\";\n}\n.fa-mars-stroke:before {\n  content: \"\\F229\";\n}\n.fa-mars-stroke-v:before {\n  content: \"\\F22A\";\n}\n.fa-mars-stroke-h:before {\n  content: \"\\F22B\";\n}\n.fa-neuter:before {\n  content: \"\\F22C\";\n}\n.fa-genderless:before {\n  content: \"\\F22D\";\n}\n.fa-facebook-official:before {\n  content: \"\\F230\";\n}\n.fa-pinterest-p:before {\n  content: \"\\F231\";\n}\n.fa-whatsapp:before {\n  content: \"\\F232\";\n}\n.fa-server:before {\n  content: \"\\F233\";\n}\n.fa-user-plus:before {\n  content: \"\\F234\";\n}\n.fa-user-times:before {\n  content: \"\\F235\";\n}\n.fa-hotel:before,\n.fa-bed:before {\n  content: \"\\F236\";\n}\n.fa-viacoin:before {\n  content: \"\\F237\";\n}\n.fa-train:before {\n  content: \"\\F238\";\n}\n.fa-subway:before {\n  content: \"\\F239\";\n}\n.fa-medium:before {\n  content: \"\\F23A\";\n}\n.fa-yc:before,\n.fa-y-combinator:before {\n  content: \"\\F23B\";\n}\n.fa-optin-monster:before {\n  content: \"\\F23C\";\n}\n.fa-opencart:before {\n  content: \"\\F23D\";\n}\n.fa-expeditedssl:before {\n  content: \"\\F23E\";\n}\n.fa-battery-4:before,\n.fa-battery:before,\n.fa-battery-full:before {\n  content: \"\\F240\";\n}\n.fa-battery-3:before,\n.fa-battery-three-quarters:before {\n  content: \"\\F241\";\n}\n.fa-battery-2:before,\n.fa-battery-half:before {\n  content: \"\\F242\";\n}\n.fa-battery-1:before,\n.fa-battery-quarter:before {\n  content: \"\\F243\";\n}\n.fa-battery-0:before,\n.fa-battery-empty:before {\n  content: \"\\F244\";\n}\n.fa-mouse-pointer:before {\n  content: \"\\F245\";\n}\n.fa-i-cursor:before {\n  content: \"\\F246\";\n}\n.fa-object-group:before {\n  content: \"\\F247\";\n}\n.fa-object-ungroup:before {\n  content: \"\\F248\";\n}\n.fa-sticky-note:before {\n  content: \"\\F249\";\n}\n.fa-sticky-note-o:before {\n  content: \"\\F24A\";\n}\n.fa-cc-jcb:before {\n  content: \"\\F24B\";\n}\n.fa-cc-diners-club:before {\n  content: \"\\F24C\";\n}\n.fa-clone:before {\n  content: \"\\F24D\";\n}\n.fa-balance-scale:before {\n  content: \"\\F24E\";\n}\n.fa-hourglass-o:before {\n  content: \"\\F250\";\n}\n.fa-hourglass-1:before,\n.fa-hourglass-start:before {\n  content: \"\\F251\";\n}\n.fa-hourglass-2:before,\n.fa-hourglass-half:before {\n  content: \"\\F252\";\n}\n.fa-hourglass-3:before,\n.fa-hourglass-end:before {\n  content: \"\\F253\";\n}\n.fa-hourglass:before {\n  content: \"\\F254\";\n}\n.fa-hand-grab-o:before,\n.fa-hand-rock-o:before {\n  content: \"\\F255\";\n}\n.fa-hand-stop-o:before,\n.fa-hand-paper-o:before {\n  content: \"\\F256\";\n}\n.fa-hand-scissors-o:before {\n  content: \"\\F257\";\n}\n.fa-hand-lizard-o:before {\n  content: \"\\F258\";\n}\n.fa-hand-spock-o:before {\n  content: \"\\F259\";\n}\n.fa-hand-pointer-o:before {\n  content: \"\\F25A\";\n}\n.fa-hand-peace-o:before {\n  content: \"\\F25B\";\n}\n.fa-trademark:before {\n  content: \"\\F25C\";\n}\n.fa-registered:before {\n  content: \"\\F25D\";\n}\n.fa-creative-commons:before {\n  content: \"\\F25E\";\n}\n.fa-gg:before {\n  content: \"\\F260\";\n}\n.fa-gg-circle:before {\n  content: \"\\F261\";\n}\n.fa-tripadvisor:before {\n  content: \"\\F262\";\n}\n.fa-odnoklassniki:before {\n  content: \"\\F263\";\n}\n.fa-odnoklassniki-square:before {\n  content: \"\\F264\";\n}\n.fa-get-pocket:before {\n  content: \"\\F265\";\n}\n.fa-wikipedia-w:before {\n  content: \"\\F266\";\n}\n.fa-safari:before {\n  content: \"\\F267\";\n}\n.fa-chrome:before {\n  content: \"\\F268\";\n}\n.fa-firefox:before {\n  content: \"\\F269\";\n}\n.fa-opera:before {\n  content: \"\\F26A\";\n}\n.fa-internet-explorer:before {\n  content: \"\\F26B\";\n}\n.fa-tv:before,\n.fa-television:before {\n  content: \"\\F26C\";\n}\n.fa-contao:before {\n  content: \"\\F26D\";\n}\n.fa-500px:before {\n  content: \"\\F26E\";\n}\n.fa-amazon:before {\n  content: \"\\F270\";\n}\n.fa-calendar-plus-o:before {\n  content: \"\\F271\";\n}\n.fa-calendar-minus-o:before {\n  content: \"\\F272\";\n}\n.fa-calendar-times-o:before {\n  content: \"\\F273\";\n}\n.fa-calendar-check-o:before {\n  content: \"\\F274\";\n}\n.fa-industry:before {\n  content: \"\\F275\";\n}\n.fa-map-pin:before {\n  content: \"\\F276\";\n}\n.fa-map-signs:before {\n  content: \"\\F277\";\n}\n.fa-map-o:before {\n  content: \"\\F278\";\n}\n.fa-map:before {\n  content: \"\\F279\";\n}\n.fa-commenting:before {\n  content: \"\\F27A\";\n}\n.fa-commenting-o:before {\n  content: \"\\F27B\";\n}\n.fa-houzz:before {\n  content: \"\\F27C\";\n}\n.fa-vimeo:before {\n  content: \"\\F27D\";\n}\n.fa-black-tie:before {\n  content: \"\\F27E\";\n}\n.fa-fonticons:before {\n  content: \"\\F280\";\n}\n.fa-reddit-alien:before {\n  content: \"\\F281\";\n}\n.fa-edge:before {\n  content: \"\\F282\";\n}\n.fa-credit-card-alt:before {\n  content: \"\\F283\";\n}\n.fa-codiepie:before {\n  content: \"\\F284\";\n}\n.fa-modx:before {\n  content: \"\\F285\";\n}\n.fa-fort-awesome:before {\n  content: \"\\F286\";\n}\n.fa-usb:before {\n  content: \"\\F287\";\n}\n.fa-product-hunt:before {\n  content: \"\\F288\";\n}\n.fa-mixcloud:before {\n  content: \"\\F289\";\n}\n.fa-scribd:before {\n  content: \"\\F28A\";\n}\n.fa-pause-circle:before {\n  content: \"\\F28B\";\n}\n.fa-pause-circle-o:before {\n  content: \"\\F28C\";\n}\n.fa-stop-circle:before {\n  content: \"\\F28D\";\n}\n.fa-stop-circle-o:before {\n  content: \"\\F28E\";\n}\n.fa-shopping-bag:before {\n  content: \"\\F290\";\n}\n.fa-shopping-basket:before {\n  content: \"\\F291\";\n}\n.fa-hashtag:before {\n  content: \"\\F292\";\n}\n.fa-bluetooth:before {\n  content: \"\\F293\";\n}\n.fa-bluetooth-b:before {\n  content: \"\\F294\";\n}\n.fa-percent:before {\n  content: \"\\F295\";\n}\n.fa-gitlab:before {\n  content: \"\\F296\";\n}\n.fa-wpbeginner:before {\n  content: \"\\F297\";\n}\n.fa-wpforms:before {\n  content: \"\\F298\";\n}\n.fa-envira:before {\n  content: \"\\F299\";\n}\n.fa-universal-access:before {\n  content: \"\\F29A\";\n}\n.fa-wheelchair-alt:before {\n  content: \"\\F29B\";\n}\n.fa-question-circle-o:before {\n  content: \"\\F29C\";\n}\n.fa-blind:before {\n  content: \"\\F29D\";\n}\n.fa-audio-description:before {\n  content: \"\\F29E\";\n}\n.fa-volume-control-phone:before {\n  content: \"\\F2A0\";\n}\n.fa-braille:before {\n  content: \"\\F2A1\";\n}\n.fa-assistive-listening-systems:before {\n  content: \"\\F2A2\";\n}\n.fa-asl-interpreting:before,\n.fa-american-sign-language-interpreting:before {\n  content: \"\\F2A3\";\n}\n.fa-deafness:before,\n.fa-hard-of-hearing:before,\n.fa-deaf:before {\n  content: \"\\F2A4\";\n}\n.fa-glide:before {\n  content: \"\\F2A5\";\n}\n.fa-glide-g:before {\n  content: \"\\F2A6\";\n}\n.fa-signing:before,\n.fa-sign-language:before {\n  content: \"\\F2A7\";\n}\n.fa-low-vision:before {\n  content: \"\\F2A8\";\n}\n.fa-viadeo:before {\n  content: \"\\F2A9\";\n}\n.fa-viadeo-square:before {\n  content: \"\\F2AA\";\n}\n.fa-snapchat:before {\n  content: \"\\F2AB\";\n}\n.fa-snapchat-ghost:before {\n  content: \"\\F2AC\";\n}\n.fa-snapchat-square:before {\n  content: \"\\F2AD\";\n}\n.fa-pied-piper:before {\n  content: \"\\F2AE\";\n}\n.fa-first-order:before {\n  content: \"\\F2B0\";\n}\n.fa-yoast:before {\n  content: \"\\F2B1\";\n}\n.fa-themeisle:before {\n  content: \"\\F2B2\";\n}\n.fa-google-plus-circle:before,\n.fa-google-plus-official:before {\n  content: \"\\F2B3\";\n}\n.fa-fa:before,\n.fa-font-awesome:before {\n  content: \"\\F2B4\";\n}\n.fa-handshake-o:before {\n  content: \"\\F2B5\";\n}\n.fa-envelope-open:before {\n  content: \"\\F2B6\";\n}\n.fa-envelope-open-o:before {\n  content: \"\\F2B7\";\n}\n.fa-linode:before {\n  content: \"\\F2B8\";\n}\n.fa-address-book:before {\n  content: \"\\F2B9\";\n}\n.fa-address-book-o:before {\n  content: \"\\F2BA\";\n}\n.fa-vcard:before,\n.fa-address-card:before {\n  content: \"\\F2BB\";\n}\n.fa-vcard-o:before,\n.fa-address-card-o:before {\n  content: \"\\F2BC\";\n}\n.fa-user-circle:before {\n  content: \"\\F2BD\";\n}\n.fa-user-circle-o:before {\n  content: \"\\F2BE\";\n}\n.fa-user-o:before {\n  content: \"\\F2C0\";\n}\n.fa-id-badge:before {\n  content: \"\\F2C1\";\n}\n.fa-drivers-license:before,\n.fa-id-card:before {\n  content: \"\\F2C2\";\n}\n.fa-drivers-license-o:before,\n.fa-id-card-o:before {\n  content: \"\\F2C3\";\n}\n.fa-quora:before {\n  content: \"\\F2C4\";\n}\n.fa-free-code-camp:before {\n  content: \"\\F2C5\";\n}\n.fa-telegram:before {\n  content: \"\\F2C6\";\n}\n.fa-thermometer-4:before,\n.fa-thermometer:before,\n.fa-thermometer-full:before {\n  content: \"\\F2C7\";\n}\n.fa-thermometer-3:before,\n.fa-thermometer-three-quarters:before {\n  content: \"\\F2C8\";\n}\n.fa-thermometer-2:before,\n.fa-thermometer-half:before {\n  content: \"\\F2C9\";\n}\n.fa-thermometer-1:before,\n.fa-thermometer-quarter:before {\n  content: \"\\F2CA\";\n}\n.fa-thermometer-0:before,\n.fa-thermometer-empty:before {\n  content: \"\\F2CB\";\n}\n.fa-shower:before {\n  content: \"\\F2CC\";\n}\n.fa-bathtub:before,\n.fa-s15:before,\n.fa-bath:before {\n  content: \"\\F2CD\";\n}\n.fa-podcast:before {\n  content: \"\\F2CE\";\n}\n.fa-window-maximize:before {\n  content: \"\\F2D0\";\n}\n.fa-window-minimize:before {\n  content: \"\\F2D1\";\n}\n.fa-window-restore:before {\n  content: \"\\F2D2\";\n}\n.fa-times-rectangle:before,\n.fa-window-close:before {\n  content: \"\\F2D3\";\n}\n.fa-times-rectangle-o:before,\n.fa-window-close-o:before {\n  content: \"\\F2D4\";\n}\n.fa-bandcamp:before {\n  content: \"\\F2D5\";\n}\n.fa-grav:before {\n  content: \"\\F2D6\";\n}\n.fa-etsy:before {\n  content: \"\\F2D7\";\n}\n.fa-imdb:before {\n  content: \"\\F2D8\";\n}\n.fa-ravelry:before {\n  content: \"\\F2D9\";\n}\n.fa-eercast:before {\n  content: \"\\F2DA\";\n}\n.fa-microchip:before {\n  content: \"\\F2DB\";\n}\n.fa-snowflake-o:before {\n  content: \"\\F2DC\";\n}\n.fa-superpowers:before {\n  content: \"\\F2DD\";\n}\n.fa-wpexplorer:before {\n  content: \"\\F2DE\";\n}\n.fa-meetup:before {\n  content: \"\\F2E0\";\n}\n.sr-only {\n  position: absolute;\n  width: 1px;\n  height: 1px;\n  padding: 0;\n  margin: -1px;\n  overflow: hidden;\n  clip: rect(0, 0, 0, 0);\n  border: 0;\n}\n.sr-only-focusable:active,\n.sr-only-focusable:focus {\n  position: static;\n  width: auto;\n  height: auto;\n  margin: 0;\n  overflow: visible;\n  clip: auto;\n}\n", ""]);
 	
 	// exports
 
-
-/***/ },
-/* 407 */
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-eot";
 
 /***/ },
 /* 408 */
@@ -75807,37 +75881,43 @@
 /* 409 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-woff2";
+	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-eot";
 
 /***/ },
 /* 410 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-woff";
+	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-woff2";
 
 /***/ },
 /* 411 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-ttf";
+	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-woff";
 
 /***/ },
 /* 412 */
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-svg";
+	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-ttf";
 
 /***/ },
 /* 413 */
 /***/ function(module, exports, __webpack_require__) {
 
+	module.exports = __webpack_require__.p + "fonts/fontawesome-webfont-svg";
+
+/***/ },
+/* 414 */
+/***/ function(module, exports, __webpack_require__) {
+
 	// style-loader: Adds some css to the DOM by adding a <style> tag
 	
 	// load the styles
-	var content = __webpack_require__(414);
+	var content = __webpack_require__(415);
 	if(typeof content === 'string') content = [[module.id, content, '']];
 	// add the styles to the DOM
-	var update = __webpack_require__(402)(content, {});
+	var update = __webpack_require__(403)(content, {});
 	if(content.locals) module.exports = content.locals;
 	// Hot Module Replacement
 	if(false) {
@@ -75854,10 +75934,10 @@
 	}
 
 /***/ },
-/* 414 */
+/* 415 */
 /***/ function(module, exports, __webpack_require__) {
 
-	exports = module.exports = __webpack_require__(401)();
+	exports = module.exports = __webpack_require__(402)();
 	// imports
 	
 	
@@ -75868,7 +75948,7 @@
 
 
 /***/ },
-/* 415 */
+/* 416 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -75877,7 +75957,7 @@
 	var Router = __webpack_require__(1);
 	var platformChartStore = __webpack_require__(267);
 	
-	var PlatformChart = __webpack_require__(416);
+	var PlatformChart = __webpack_require__(417);
 	
 	var Dashboard = React.createClass({
 	    displayName: 'Dashboard',
@@ -75938,7 +76018,7 @@
 	module.exports = Dashboard;
 
 /***/ },
-/* 416 */
+/* 417 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -75951,10 +76031,9 @@
 	
 	var React = __webpack_require__(3);
 	var ReactDOM = __webpack_require__(112);
-	var Router = __webpack_require__(1);
-	var d3 = __webpack_require__(417);
-	var nv = __webpack_require__(418);
-	var moment = __webpack_require__(419);
+	var d3 = __webpack_require__(418);
+	var nv = __webpack_require__(419);
+	var moment = __webpack_require__(420);
 	var OutsideClick = __webpack_require__(111);
 	
 	var chartStore = __webpack_require__(267);
@@ -75963,7 +76042,7 @@
 	var platformActionCreators = __webpack_require__(308);
 	var platformsPanelActionCreators = __webpack_require__(269);
 	var modalActionCreators = __webpack_require__(324);
-	var ConfirmForm = __webpack_require__(335);
+	var ConfirmForm = __webpack_require__(336);
 	
 	var PlatformChart = React.createClass({
 	    displayName: 'PlatformChart',
@@ -76153,15 +76232,18 @@
 	    },
 	    componentDidMount: function componentDidMount() {
 	        platformChartStore.addChangeListener(this._onStoresChange);
+	
 	        var lineChart = this._drawLineChart(this.state.chartName, this.state.chartType, this._lineData(this._getNested(this.props.data)), this.state.min, this.state.max);
+	
 	        this.setState({ lineChart: lineChart });
 	
 	        this.chart = ReactDOM.findDOMNode(this.refs[this.state.chartName]);
 	    },
 	    componentWillUnmount: function componentWillUnmount() {
 	        platformChartStore.removeChangeListener(this._onStoresChange);
-	        if (this.lineChart) {
-	            delete this.lineChart;
+	
+	        if (this.chart) {
+	            delete this.chart;
 	        }
 	    },
 	    componentDidUpdate: function componentDidUpdate() {
@@ -76533,29 +76615,29 @@
 	    _drawLineChart: function _drawLineChart(elementParent, chartType, data, yMin, yMax) {
 	
 	        var tickCount = 0;
-	        // var lineChart;
+	        var lineChart;
 	
 	        switch (chartType) {
 	            case "line":
-	                this.lineChart = nv.models.lineChart();
+	                lineChart = nv.models.lineChart();
 	                break;
 	            case "lineWithFocus":
-	                this.lineChart = nv.models.lineWithFocusChart();
+	                lineChart = nv.models.lineWithFocusChart();
 	                break;
 	            case "stackedArea":
-	                this.lineChart = nv.models.stackedAreaChart();
+	                lineChart = nv.models.stackedAreaChart();
 	                break;
 	            case "cumulativeLine":
-	                this.lineChart = nv.models.cumulativeLineChart();
+	                lineChart = nv.models.cumulativeLineChart();
 	                break;
 	        }
 	
-	        this.lineChart.margin({ left: 25, right: 25 }).x(function (d) {
+	        lineChart.margin({ left: 25, right: 25 }).x(function (d) {
 	            return d.x;
 	        }).y(function (d) {
 	            return d.y;
 	        }).useInteractiveGuideline(true).showYAxis(true).showXAxis(true);
-	        this.lineChart.xAxis.tickFormat(function (d, i) {
+	        lineChart.xAxis.tickFormat(function (d, i) {
 	
 	            var tickValue;
 	
@@ -76573,30 +76655,30 @@
 	
 	            return tickValue;
 	        }).staggerLabels(false);
-	        this.lineChart.yAxis.tickFormat(d3.format('.1f'));
-	        this.lineChart.forceY([yMin, yMax]);
+	        lineChart.yAxis.tickFormat(d3.format('.1f'));
+	        lineChart.forceY([yMin, yMax]);
 	
 	        switch (chartType) {
 	            case "lineWithFocus":
-	                this.lineChart.x2Axis.tickFormat(function (d) {
+	                lineChart.x2Axis.tickFormat(function (d) {
 	                    return d3.time.format('%X')(new Date(d));
 	                });
 	                break;
 	        }
 	
 	        d3.selectAll('#' + elementParent + ' > *').remove();
-	        d3.select('#' + elementParent).datum(data).call(this.lineChart);
+	        d3.select('#' + elementParent).datum(data).call(lineChart);
 	        nv.utils.windowResize(function () {
-	            if (this.lineChart) {
-	                this.lineChart.update();
+	            if (lineChart) {
+	                lineChart.update();
 	            }
 	        });
 	
 	        nv.addGraph(function () {
-	            return this.lineChart;
+	            return lineChart;
 	        });
 	
-	        return this.lineChart;
+	        return lineChart;
 	    },
 	    _updateLineChart: function _updateLineChart(lineChart, elementParent, data) {
 	        d3.select('#' + elementParent).datum(data).call(lineChart);
@@ -76643,7 +76725,7 @@
 	module.exports = PlatformChart;
 
 /***/ },
-/* 417 */
+/* 418 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;!function() {
@@ -86202,10 +86284,10 @@
 	}();
 
 /***/ },
-/* 418 */
+/* 419 */
 /***/ function(module, exports, __webpack_require__) {
 
-	/* nvd3 version 1.8.2-dev (https://github.com/novus/nvd3) 2016-01-26 */
+	/* nvd3 version 1.8.5 (https://github.com/novus/nvd3) 2016-12-01 */
 	(function(){
 	
 	// set up main nv object
@@ -86222,7 +86304,7 @@
 	
 	// Node/CommonJS - require D3
 	if (typeof(module) !== 'undefined' && typeof(exports) !== 'undefined' && typeof(d3) == 'undefined') {
-	    d3 = __webpack_require__(417);
+	    d3 = __webpack_require__(418);
 	}
 	
 	nv.dispatch = d3.dispatch('render_start', 'render_end');
@@ -86369,7 +86451,7 @@
 	 */
 	nv.dom.write = function(callback) {
 		if (window.fastdom !== undefined) {
-			return fastdom.write(callback);
+			return fastdom.mutate(callback);
 		}
 		return callback();
 	};
@@ -86382,10 +86464,11 @@
 	 */
 	nv.dom.read = function(callback) {
 		if (window.fastdom !== undefined) {
-			return fastdom.read(callback);
+			return fastdom.measure(callback);
 		}
 		return callback();
-	};/* Utility class to handle creation of an interactive layer.
+	};
+	/* Utility class to handle creation of an interactive layer.
 	 This places a rectangle on top of the chart. When you mouse move over it, it sends a dispatch
 	 containing the X-coordinate. It can also render a vertical line where the mouse is located.
 	
@@ -86404,7 +86487,7 @@
 	        ,   showGuideLine = true
 	        ,   svgContainer = null // Must pass the chart's svg, we'll use its mousemove event.
 	        ,   tooltip = nv.models.tooltip()
-	        ,   isMSIE = "ActiveXObject" in window // Checkt if IE by looking for activeX.
+	        ,   isMSIE =  window.ActiveXObject// Checkt if IE by looking for activeX. (excludes IE11)
 	    ;
 	
 	    tooltip
@@ -86751,7 +86834,6 @@
 	        ,   distance = 25 // Distance to offset tooltip from the mouse location.
 	        ,   snapDistance = 0   // Tolerance allowed before tooltip is moved from its current position (creates 'snapping' effect)
 	        ,   classes = null  // Attaches additional CSS classes to the tooltip DIV that is created.
-	        ,   chartContainer = null // Parent dom element of the SVG that holds the chart.
 	        ,   hidden = true  // Start off hidden, toggle with hide/show functions below.
 	        ,   hideDelay = 200  // Delay (in ms) before the tooltip hides after calling hide().
 	        ,   tooltip = null // d3 select of the tooltip div.
@@ -86761,20 +86843,6 @@
 	        ,   headerEnabled = true // If is to show the tooltip header.
 	        ,   nvPointerEventsClass = "nv-pointer-events-none" // CSS class to specify whether element should not have mouse events.
 	    ;
-	
-	    /*
-	     Function that returns the position (relative to the viewport) the tooltip should be placed in.
-	     Should return: {
-	        left: <leftPos>,
-	        top: <topPos>
-	     }
-	     */
-	    var position = function() {
-	        return {
-	            left: d3.event !== null ? d3.event.clientX : 0,
-	            top: d3.event !== null ? d3.event.clientY : 0
-	        };
-	    };
 	
 	    // Format function for the tooltip values column.
 	    var valueFormatter = function(d, i) {
@@ -86835,6 +86903,10 @@
 	            .classed("value",true)
 	            .html(function(p, i) { return valueFormatter(p.value, i) });
 	
+	        trowEnter.filter(function (p,i) { return p.percent !== undefined }).append("td")
+	            .classed("percent", true)
+	            .html(function(p, i) { return "(" + d3.format('%')(p.percent) + ")" });
+	
 	        trowEnter.selectAll("td").each(function(p) {
 	            if (p.highlight) {
 	                var opacityScale = d3.scale.linear().domain([0,1]).range(["#fff",p.color]);
@@ -86851,6 +86923,31 @@
 	            html += "<div class='footer'>" + d.footer + "</div>";
 	        return html;
 	
+	    };
+	
+	    /*
+	     Function that returns the position (relative to the viewport/document.body)
+	     the tooltip should be placed in.
+	     Should return: {
+	        left: <leftPos>,
+	        top: <topPos>
+	     }
+	     */
+	    var position = function() {
+	        var pos = {
+	            left: d3.event !== null ? d3.event.clientX : 0,
+	            top: d3.event !== null ? d3.event.clientY : 0
+	        };
+	
+	        if(getComputedStyle(document.body).transform != 'none') {
+	            // Take the offset into account, as now the tooltip is relative
+	            // to document.body.
+	            var client = document.body.getBoundingClientRect();
+	            pos.left -= client.left;
+	            pos.top -= client.top;
+	        }
+	
+	        return pos;
 	    };
 	
 	    var dataSeriesExists = function(d) {
@@ -86940,7 +87037,7 @@
 	            } else {
 	                // using tooltip.style('transform') returns values un-usable for tween
 	                var old_translate = 'translate(' + lastPosition.left + 'px, ' + lastPosition.top + 'px)';
-	                var new_translate = 'translate(' + left + 'px, ' + top + 'px)';
+	                var new_translate = 'translate(' + Math.round(left) + 'px, ' + Math.round(top) + 'px)';
 	                var translateInterpolator = d3.interpolateString(old_translate, new_translate);
 	                var is_hidden = tooltip.style('opacity') < 0.1;
 	
@@ -86968,11 +87065,10 @@
 	    // Creates new tooltip container, or uses existing one on DOM.
 	    function initTooltip() {
 	        if (!tooltip || !tooltip.node()) {
-	            var container = chartContainer ? chartContainer : document.body;
 	            // Create new tooltip div if it doesn't exist on DOM.
 	
 	            var data = [1];
-	            tooltip = d3.select(container).selectAll('.nvtooltip').data(data);
+	            tooltip = d3.select(document.body).select('#'+id).data(data);
 	
 	            tooltip.enter().append('div')
 	                   .attr("class", "nvtooltip " + (classes ? classes : "xy-tooltip"))
@@ -87018,7 +87114,6 @@
 	        distance: {get: function(){return distance;}, set: function(_){distance=_;}},
 	        snapDistance: {get: function(){return snapDistance;}, set: function(_){snapDistance=_;}},
 	        classes: {get: function(){return classes;}, set: function(_){classes=_;}},
-	        chartContainer: {get: function(){return chartContainer;}, set: function(_){chartContainer=_;}},
 	        enabled: {get: function(){return enabled;}, set: function(_){enabled=_;}},
 	        hideDelay: {get: function(){return hideDelay;}, set: function(_){hideDelay=_;}},
 	        contentGenerator: {get: function(){return contentGenerator;}, set: function(_){contentGenerator=_;}},
@@ -87029,6 +87124,10 @@
 	        position: {get: function(){return position;}, set: function(_){position=_;}},
 	
 	        // Deprecated options
+	        chartContainer: {get: function(){return document.body;}, set: function(_){
+	            // deprecated after 1.8.3
+	            nv.deprecated('chartContainer', 'feature removed after 1.8.3');
+	        }},
 	        fixedTop: {get: function(){return null;}, set: function(_){
 	            // deprecated after 1.8.1
 	            nv.deprecated('fixedTop', 'feature removed after 1.8.1');
@@ -87249,7 +87348,7 @@
 	    if (nv.utils.isFunction(svgTextElem.style) && nv.utils.isFunction(svgTextElem.text)) {
 	        var fontSize = parseInt(svgTextElem.style("font-size").replace("px",""), 10);
 	        var textLength = svgTextElem.text().length;
-	        return textLength * fontSize * 0.5;
+	        return nv.utils.NaNtoZero(textLength * fontSize * 0.5);
 	    }
 	    return 0;
 	};
@@ -87756,7 +87855,7 @@
 	    if (!array1 || !array2)
 	        return false;
 	
-	    // compare lengths - can save a lot of time 
+	    // compare lengths - can save a lot of time
 	    if (array1.length != array2.length)
 	        return false;
 	
@@ -87773,7 +87872,8 @@
 	        }
 	    }
 	    return true;
-	};nv.models.axis = function() {
+	};
+	nv.models.axis = function() {
 	    "use strict";
 	
 	    //============================================================
@@ -87794,6 +87894,7 @@
 	        , isOrdinal = false
 	        , ticks = null
 	        , axisLabelDistance = 0
+	        , fontSize = undefined
 	        , duration = 250
 	        , dispatch = d3.dispatch('renderEnd')
 	        ;
@@ -87840,6 +87941,11 @@
 	            var axisLabel = g.selectAll('text.nv-axislabel')
 	                .data([axisLabelText || null]);
 	            axisLabel.exit().remove();
+	
+	            //only skip when fontSize is undefined so it can be cleared with a null or blank string
+	            if (fontSize !== undefined) {
+	                g.selectAll('g').select("text").style('font-size', fontSize);
+	            }
 	
 	            var xLabelMargin;
 	            var axisMaxMin;
@@ -87891,6 +87997,8 @@
 	                    var xTicks = g.selectAll('g').select("text");
 	                    var rotateLabelsRule = '';
 	                    if (rotateLabels%360) {
+	                        //Reset transform on ticks so textHeight can be calculated correctly
+	                        xTicks.attr('transform', ''); 
 	                        //Calculate the longest xTick width
 	                        xTicks.each(function(d,i){
 	                            var box = this.getBoundingClientRect();
@@ -87963,7 +88071,7 @@
 	                    axisLabel
 	                        .style('text-anchor', rotateYLabel ? 'middle' : 'begin')
 	                        .attr('transform', rotateYLabel ? 'rotate(90)' : '')
-	                        .attr('y', rotateYLabel ? (-Math.max(margin.right, width) + 12) : -10) //TODO: consider calculating this based on largest tick width... OR at least expose this on chart
+	                        .attr('y', rotateYLabel ? (-Math.max(margin.right, width) + 12 - (axisLabelDistance || 0)) : -10) //TODO: consider calculating this based on largest tick width... OR at least expose this on chart
 	                        .attr('x', rotateYLabel ? (d3.max(scale.range()) / 2) : axis.tickPadding());
 	                    if (showMaxMin) {
 	                        axisMaxMin = wrap.selectAll('g.nv-axisMaxMin')
@@ -88130,6 +88238,7 @@
 	        height:            {get: function(){return height;}, set: function(_){height=_;}},
 	        ticks:             {get: function(){return ticks;}, set: function(_){ticks=_;}},
 	        width:             {get: function(){return width;}, set: function(_){width=_;}},
+	        fontSize:          {get: function(){return fontSize;}, set: function(_){fontSize=_;}},
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
@@ -88163,30 +88272,36 @@
 	    // Public Variables with Default Settings
 	    //------------------------------------------------------------
 	
-	    var margin = {top: 0, right: 0, bottom: 0, left: 0}
-	        , width = 960
-	        , height = 500
-	        , id = Math.floor(Math.random() * 10000) //Create semi-unique ID in case user doesn't select one
-	        , x = d3.scale.ordinal()
-	        , y = d3.scale.linear()
-	        , getX = function(d) { return d.x }
-	        , getY = function(d) { return d.y }
-	        , color = nv.utils.defaultColor()
-	        , container = null
-	        , xDomain
-	        , yDomain
-	        , xRange
-	        , yRange
-	        , dispatch = d3.dispatch('elementMouseover', 'elementMouseout', 'elementMousemove', 'renderEnd')
-	        , duration = 250
-	        , maxBoxWidth = null
-	        ;
+	    var margin = {top: 0, right: 0, bottom: 0, left: 0},
+	        width = 960,
+	        height = 500,
+	        id = Math.floor(Math.random() * 10000), // Create semi-unique ID in case user doesn't select one
+	        xScale = d3.scale.ordinal(),
+	        yScale = d3.scale.linear(),
+	        getX  = function(d) { return d.label }, // Default data model selectors.
+	        getQ1 = function(d) { return d.values.Q1 },
+	        getQ2 = function(d) { return d.values.Q2 },
+	        getQ3 = function(d) { return d.values.Q3 },
+	        getWl = function(d) { return d.values.whisker_low },
+	        getWh = function(d) { return d.values.whisker_high },
+	        getColor = function(d) { return d.color },
+	        getOlItems  = function(d) { return d.values.outliers },
+	        getOlValue = function(d, i, j) { return d },
+	        getOlLabel = function(d, i, j) { return d },
+	        getOlColor = function(d, i, j) { return undefined },
+	        color = nv.utils.defaultColor(),
+	        container = null,
+	        xDomain, xRange,
+	        yDomain, yRange,
+	        dispatch = d3.dispatch('elementMouseover', 'elementMouseout', 'elementMousemove', 'renderEnd'),
+	        duration = 250,
+	        maxBoxWidth = null;
 	
 	    //============================================================
 	    // Private Variables
 	    //------------------------------------------------------------
 	
-	    var x0, y0;
+	    var xScale0, yScale0;
 	    var renderWatch = nv.utils.renderWatch(dispatch, duration);
 	
 	    function chart(selection) {
@@ -88199,45 +88314,38 @@
 	            nv.utils.initSVG(container);
 	
 	            // Setup Scales
-	            x   .domain(xDomain || data.map(function(d,i) { return getX(d,i); }))
-	                .rangeBands(xRange || [0, availableWidth], .1);
+	            xScale.domain(xDomain || data.map(function(d,i) { return getX(d,i); }))
+	                .rangeBands(xRange || [0, availableWidth], 0.1);
 	
 	            // if we know yDomain, no need to calculate
 	            var yData = []
 	            if (!yDomain) {
 	                // (y-range is based on quartiles, whiskers and outliers)
-	
-	                // lower values
-	                var yMin = d3.min(data.map(function(d) {
-	                    var min_arr = [];
-	
-	                    min_arr.push(d.values.Q1);
-	                    if (d.values.hasOwnProperty('whisker_low') && d.values.whisker_low !== null) { min_arr.push(d.values.whisker_low); }
-	                    if (d.values.hasOwnProperty('outliers') && d.values.outliers !== null) { min_arr = min_arr.concat(d.values.outliers); }
-	
-	                    return d3.min(min_arr);
-	                }));
-	
-	                // upper values
-	                var yMax = d3.max(data.map(function(d) {
-	                    var max_arr = [];
-	
-	                    max_arr.push(d.values.Q3);
-	                    if (d.values.hasOwnProperty('whisker_high') && d.values.whisker_high !== null) { max_arr.push(d.values.whisker_high); }
-	                    if (d.values.hasOwnProperty('outliers') && d.values.outliers !== null) { max_arr = max_arr.concat(d.values.outliers); }
-	
-	                    return d3.max(max_arr);
-	                }));
-	
+	                var values = [], yMin, yMax;
+	                data.forEach(function (d, i) {
+	                    var q1 = getQ1(d), q3 = getQ3(d), wl = getWl(d), wh = getWh(d);
+	                    var olItems = getOlItems(d);
+	                    if (olItems) {
+	                        olItems.forEach(function (e, i) {
+	                            values.push(getOlValue(e, i, undefined));
+	                        });
+	                    }
+	                    if (wl) { values.push(wl) }
+	                    if (q1) { values.push(q1) }
+	                    if (q3) { values.push(q3) }
+	                    if (wh) { values.push(wh) }
+	                });
+	                yMin = d3.min(values);
+	                yMax = d3.max(values);
 	                yData = [ yMin, yMax ] ;
 	            }
 	
-	            y.domain(yDomain || yData);
-	            y.range(yRange || [availableHeight, 0]);
+	            yScale.domain(yDomain || yData);
+	            yScale.range(yRange || [availableHeight, 0]);
 	
 	            //store old scales if they exist
-	            x0 = x0 || x;
-	            y0 = y0 || y.copy().range([y(0),y(0)]);
+	            xScale0 = xScale0 || xScale;
+	            yScale0 = yScale0 || yScale.copy().range([yScale(0),yScale(0)]);
 	
 	            // Setup containers and skeleton of chart
 	            var wrap = container.selectAll('g.nv-wrap').data([data]);
@@ -88248,15 +88356,15 @@
 	            var boxEnter = boxplots.enter().append('g').style('stroke-opacity', 1e-6).style('fill-opacity', 1e-6);
 	            boxplots
 	                .attr('class', 'nv-boxplot')
-	                .attr('transform', function(d,i,j) { return 'translate(' + (x(getX(d,i)) + x.rangeBand() * .05) + ', 0)'; })
+	                .attr('transform', function(d,i,j) { return 'translate(' + (xScale(getX(d,i)) + xScale.rangeBand() * 0.05) + ', 0)'; })
 	                .classed('hover', function(d) { return d.hover });
 	            boxplots
 	                .watchTransition(renderWatch, 'nv-boxplot: boxplots')
 	                .style('stroke-opacity', 1)
-	                .style('fill-opacity', .75)
+	                .style('fill-opacity', 0.75)
 	                .delay(function(d,i) { return i * duration / data.length })
 	                .attr('transform', function(d,i) {
-	                    return 'translate(' + (x(getX(d,i)) + x.rangeBand() * .05) + ', 0)';
+	                    return 'translate(' + (xScale(getX(d,i)) + xScale.rangeBand() * 0.05) + ', 0)';
 	                });
 	            boxplots.exit().remove();
 	
@@ -88264,97 +88372,62 @@
 	
 	            // conditionally append whisker lines
 	            boxEnter.each(function(d,i) {
-	              var box = d3.select(this);
-	
-	              ['low', 'high'].forEach(function(key) {
-	                if (d.values.hasOwnProperty('whisker_' + key) && d.values['whisker_' + key] !== null) {
-	                  box.append('line')
-	                    .style('stroke', (d.color) ? d.color : color(d,i))
-	                    .attr('class', 'nv-boxplot-whisker nv-boxplot-' + key);
-	
-	                  box.append('line')
-	                    .style('stroke', (d.color) ? d.color : color(d,i))
-	                    .attr('class', 'nv-boxplot-tick nv-boxplot-' + key);
-	                }
-	              });
-	            });
-	
-	            // outliers
-	            // TODO: support custom colors here
-	            var outliers = boxplots.selectAll('.nv-boxplot-outlier').data(function(d) {
-	                if (d.values.hasOwnProperty('outliers') && d.values.outliers !== null) { return d.values.outliers; }
-	                else { return []; }
-	            });
-	            outliers.enter().append('circle')
-	                .style('fill', function(d,i,j) { return color(d,j) }).style('stroke', function(d,i,j) { return color(d,j) })
-	                .on('mouseover', function(d,i,j) {
-	                    d3.select(this).classed('hover', true);
-	                    dispatch.elementMouseover({
-	                        series: { key: d, color: color(d,j) },
-	                        e: d3.event
-	                    });
-	                })
-	                .on('mouseout', function(d,i,j) {
-	                    d3.select(this).classed('hover', false);
-	                    dispatch.elementMouseout({
-	                        series: { key: d, color: color(d,j) },
-	                        e: d3.event
-	                    });
-	                })
-	                .on('mousemove', function(d,i) {
-	                    dispatch.elementMousemove({e: d3.event});
+	                var box = d3.select(this);
+	                [getWl, getWh].forEach(function (f) {
+	                    if (f(d) !== undefined && f(d) !== null) {
+	                        var key = (f === getWl) ? 'low' : 'high';
+	                        box.append('line')
+	                          .style('stroke', getColor(d) || color(d,i))
+	                          .attr('class', 'nv-boxplot-whisker nv-boxplot-' + key);
+	                        box.append('line')
+	                          .style('stroke', getColor(d) || color(d,i))
+	                          .attr('class', 'nv-boxplot-tick nv-boxplot-' + key);
+	                    }
 	                });
+	            });
 	
-	            outliers.attr('class', 'nv-boxplot-outlier');
-	            outliers
-	              .watchTransition(renderWatch, 'nv-boxplot: nv-boxplot-outlier')
-	                .attr('cx', x.rangeBand() * .45)
-	                .attr('cy', function(d,i,j) { return y(d); })
-	                .attr('r', '3');
-	            outliers.exit().remove();
-	
-	            var box_width = function() { return (maxBoxWidth === null ? x.rangeBand() * .9 : Math.min(75, x.rangeBand() * .9)); };
-	            var box_left  = function() { return x.rangeBand() * .45 - box_width()/2; };
-	            var box_right = function() { return x.rangeBand() * .45 + box_width()/2; };
+	            var box_width = function() { return (maxBoxWidth === null ? xScale.rangeBand() * 0.9 : Math.min(75, xScale.rangeBand() * 0.9)); };
+	            var box_left  = function() { return xScale.rangeBand() * 0.45 - box_width()/2; };
+	            var box_right = function() { return xScale.rangeBand() * 0.45 + box_width()/2; };
 	
 	            // update whisker lines and ticks
-	            ['low', 'high'].forEach(function(key) {
-	              var endpoint = (key === 'low') ? 'Q1' : 'Q3';
-	
-	              boxplots.select('line.nv-boxplot-whisker.nv-boxplot-' + key)
-	                .watchTransition(renderWatch, 'nv-boxplot: boxplots')
-	                  .attr('x1', x.rangeBand() * .45 )
-	                  .attr('y1', function(d,i) { return y(d.values['whisker_' + key]); })
-	                  .attr('x2', x.rangeBand() * .45 )
-	                  .attr('y2', function(d,i) { return y(d.values[endpoint]); });
-	
-	              boxplots.select('line.nv-boxplot-tick.nv-boxplot-' + key)
-	                .watchTransition(renderWatch, 'nv-boxplot: boxplots')
-	                  .attr('x1', box_left )
-	                  .attr('y1', function(d,i) { return y(d.values['whisker_' + key]); })
-	                  .attr('x2', box_right )
-	                  .attr('y2', function(d,i) { return y(d.values['whisker_' + key]); });
+	            [getWl, getWh].forEach(function (f) {
+	                var key = (f === getWl) ? 'low' : 'high';
+	                var endpoint = (f === getWl) ? getQ1 : getQ3;
+	                boxplots.select('line.nv-boxplot-whisker.nv-boxplot-' + key)
+	                  .watchTransition(renderWatch, 'nv-boxplot: boxplots')
+	                    .attr('x1', xScale.rangeBand() * 0.45 )
+	                    .attr('y1', function(d,i) { return yScale(f(d)); })
+	                    .attr('x2', xScale.rangeBand() * 0.45 )
+	                    .attr('y2', function(d,i) { return yScale(endpoint(d)); });
+	                boxplots.select('line.nv-boxplot-tick.nv-boxplot-' + key)
+	                  .watchTransition(renderWatch, 'nv-boxplot: boxplots')
+	                    .attr('x1', box_left )
+	                    .attr('y1', function(d,i) { return yScale(f(d)); })
+	                    .attr('x2', box_right )
+	                    .attr('y2', function(d,i) { return yScale(f(d)); });
 	            });
 	
-	            ['low', 'high'].forEach(function(key) {
-	              boxEnter.selectAll('.nv-boxplot-' + key)
-	                .on('mouseover', function(d,i,j) {
-	                    d3.select(this).classed('hover', true);
-	                    dispatch.elementMouseover({
-	                        series: { key: d.values['whisker_' + key], color: color(d,j) },
-	                        e: d3.event
-	                    });
-	                })
-	                .on('mouseout', function(d,i,j) {
-	                    d3.select(this).classed('hover', false);
-	                    dispatch.elementMouseout({
-	                        series: { key: d.values['whisker_' + key], color: color(d,j) },
-	                        e: d3.event
-	                    });
-	                })
-	                .on('mousemove', function(d,i) {
-	                    dispatch.elementMousemove({e: d3.event});
-	                });
+	            [getWl, getWh].forEach(function (f) {
+	                var key = (f === getWl) ? 'low' : 'high';
+	                boxEnter.selectAll('.nv-boxplot-' + key)
+	                  .on('mouseover', function(d,i,j) {
+	                      d3.select(this).classed('hover', true);
+	                      dispatch.elementMouseover({
+	                          series: { key: f(d), color: getColor(d) || color(d,j) },
+	                          e: d3.event
+	                      });
+	                  })
+	                  .on('mouseout', function(d,i,j) {
+	                      d3.select(this).classed('hover', false);
+	                      dispatch.elementMouseout({
+	                          series: { key: f(d), color: getColor(d) || color(d,j) },
+	                          e: d3.event
+	                      });
+	                  })
+	                  .on('mousemove', function(d,i) {
+	                      dispatch.elementMousemove({e: d3.event});
+	                  });
 	            });
 	
 	            // boxes
@@ -88364,12 +88437,12 @@
 	                .on('mouseover', function(d,i) {
 	                    d3.select(this).classed('hover', true);
 	                    dispatch.elementMouseover({
-	                        key: d.label,
-	                        value: d.label,
+	                        key: getX(d),
+	                        value: getX(d),
 	                        series: [
-	                            { key: 'Q3', value: d.values.Q3, color: d.color || color(d,i) },
-	                            { key: 'Q2', value: d.values.Q2, color: d.color || color(d,i) },
-	                            { key: 'Q1', value: d.values.Q1, color: d.color || color(d,i) }
+	                            { key: 'Q3', value: getQ3(d), color: getColor(d) || color(d,i) },
+	                            { key: 'Q2', value: getQ2(d), color: getColor(d) || color(d,i) },
+	                            { key: 'Q1', value: getQ1(d), color: getColor(d) || color(d,i) }
 	                        ],
 	                        data: d,
 	                        index: i,
@@ -88379,12 +88452,12 @@
 	                .on('mouseout', function(d,i) {
 	                    d3.select(this).classed('hover', false);
 	                    dispatch.elementMouseout({
-	                        key: d.label,
-	                        value: d.label,
+	                        key: getX(d),
+	                        value: getX(d),
 	                        series: [
-	                            { key: 'Q3', value: d.values.Q3, color: d.color || color(d,i) },
-	                            { key: 'Q2', value: d.values.Q2, color: d.color || color(d,i) },
-	                            { key: 'Q1', value: d.values.Q1, color: d.color || color(d,i) }
+	                            { key: 'Q3', value: getQ3(d), color: getColor(d) || color(d,i) },
+	                            { key: 'Q2', value: getQ2(d), color: getColor(d) || color(d,i) },
+	                            { key: 'Q1', value: getQ1(d), color: getColor(d) || color(d,i) }
 	                        ],
 	                        data: d,
 	                        index: i,
@@ -88398,13 +88471,12 @@
 	            // box transitions
 	            boxplots.select('rect.nv-boxplot-box')
 	              .watchTransition(renderWatch, 'nv-boxplot: boxes')
-	                .attr('y', function(d,i) { return y(d.values.Q3); })
+	                .attr('y', function(d,i) { return yScale(getQ3(d)); })
 	                .attr('width', box_width)
 	                .attr('x', box_left )
-	
-	                .attr('height', function(d,i) { return Math.abs(y(d.values.Q3) - y(d.values.Q1)) || 1 })
-	                .style('fill', function(d,i) { return d.color || color(d,i) })
-	                .style('stroke', function(d,i) { return d.color || color(d,i) });
+	                .attr('height', function(d,i) { return Math.abs(yScale(getQ3(d)) - yScale(getQ1(d))) || 1 })
+	                .style('fill', function(d,i) { return getColor(d) || color(d,i) })
+	                .style('stroke', function(d,i) { return getColor(d) || color(d,i) });
 	
 	            // median line
 	            boxEnter.append('line').attr('class', 'nv-boxplot-median');
@@ -88412,13 +88484,46 @@
 	            boxplots.select('line.nv-boxplot-median')
 	              .watchTransition(renderWatch, 'nv-boxplot: boxplots line')
 	                .attr('x1', box_left)
-	                .attr('y1', function(d,i) { return y(d.values.Q2); })
+	                .attr('y1', function(d,i) { return yScale(getQ2(d)); })
 	                .attr('x2', box_right)
-	                .attr('y2', function(d,i) { return y(d.values.Q2); });
+	                .attr('y2', function(d,i) { return yScale(getQ2(d)); });
+	
+	            // outliers
+	            var outliers = boxplots.selectAll('.nv-boxplot-outlier').data(function(d) {
+	                return getOlItems(d) || [];
+	            });
+	            outliers.enter().append('circle')
+	                .style('fill', function(d,i,j) { return getOlColor(d,i,j) || color(d,j) })
+	                .style('stroke', function(d,i,j) { return getOlColor(d,i,j) || color(d,j) })
+	                .style('z-index', 9000)
+	                .on('mouseover', function(d,i,j) {
+	                    d3.select(this).classed('hover', true);
+	                    dispatch.elementMouseover({
+	                        series: { key: getOlLabel(d,i,j), color: getOlColor(d,i,j) || color(d,j) },
+	                        e: d3.event
+	                    });
+	                })
+	                .on('mouseout', function(d,i,j) {
+	                    d3.select(this).classed('hover', false);
+	                    dispatch.elementMouseout({
+	                        series: { key: getOlLabel(d,i,j), color: getOlColor(d,i,j) || color(d,j) },
+	                        e: d3.event
+	                    });
+	                })
+	                .on('mousemove', function(d,i) {
+	                    dispatch.elementMousemove({e: d3.event});
+	                });
+	            outliers.attr('class', 'nv-boxplot-outlier');
+	            outliers
+	              .watchTransition(renderWatch, 'nv-boxplot: nv-boxplot-outlier')
+	                .attr('cx', xScale.rangeBand() * 0.45)
+	                .attr('cy', function(d,i,j) { return yScale(getOlValue(d,i,j)); })
+	                .attr('r', '3');
+	            outliers.exit().remove();
 	
 	            //store old scales for use in transitions on update
-	            x0 = x.copy();
-	            y0 = y.copy();
+	            xScale0 = xScale.copy();
+	            yScale0 = yScale.copy();
 	        });
 	
 	        renderWatch.renderEnd('nv-boxplot immediate');
@@ -88434,20 +88539,37 @@
 	
 	    chart._options = Object.create({}, {
 	        // simple options, just get/set the necessary values
-	        width:   {get: function(){return width;}, set: function(_){width=_;}},
-	        height:  {get: function(){return height;}, set: function(_){height=_;}},
+	        width:       {get: function(){return width;}, set: function(_){width=_;}},
+	        height:      {get: function(){return height;}, set: function(_){height=_;}},
 	        maxBoxWidth: {get: function(){return maxBoxWidth;}, set: function(_){maxBoxWidth=_;}},
-	        x:       {get: function(){return getX;}, set: function(_){getX=_;}},
-	        y:       {get: function(){return getY;}, set: function(_){getY=_;}},
-	        xScale:  {get: function(){return x;}, set: function(_){x=_;}},
-	        yScale:  {get: function(){return y;}, set: function(_){y=_;}},
+	        x:           {get: function(){return getX;}, set: function(_){getX=_;}},
+	        q1: {get: function(){return getQ1;}, set: function(_){getQ1=_;}},
+	        q2: {get: function(){return getQ2;}, set: function(_){getQ2=_;}},
+	        q3: {get: function(){return getQ3;}, set: function(_){getQ3=_;}},
+	        wl: {get: function(){return getWl;}, set: function(_){getWl=_;}},
+	        wh: {get: function(){return getWh;}, set: function(_){getWh=_;}},
+	        itemColor:    {get: function(){return getColor;}, set: function(_){getColor=_;}},
+	        outliers:     {get: function(){return getOlItems;}, set: function(_){getOlItems=_;}},
+	        outlierValue: {get: function(){return getOlValue;}, set: function(_){getOlValue=_;}},
+	        outlierLabel: {get: function(){return getOlLabel;}, set: function(_){getOlLabel=_;}},
+	        outlierColor: {get: function(){return getOlColor;}, set: function(_){getOlColor=_;}},
+	        xScale:  {get: function(){return xScale;}, set: function(_){xScale=_;}},
+	        yScale:  {get: function(){return yScale;}, set: function(_){yScale=_;}},
 	        xDomain: {get: function(){return xDomain;}, set: function(_){xDomain=_;}},
 	        yDomain: {get: function(){return yDomain;}, set: function(_){yDomain=_;}},
 	        xRange:  {get: function(){return xRange;}, set: function(_){xRange=_;}},
 	        yRange:  {get: function(){return yRange;}, set: function(_){yRange=_;}},
 	        id:          {get: function(){return id;}, set: function(_){id=_;}},
 	        // rectClass: {get: function(){return rectClass;}, set: function(_){rectClass=_;}},
-	
+	        y: {
+	            get: function() {
+	                console.warn('BoxPlot \'y\' chart option is deprecated. Please use model overrides instead.');
+	                return {};
+	            },
+	            set: function(_) {
+	                console.warn('BoxPlot \'y\' chart option is deprecated. Please use model overrides instead.');
+	            }
+	        },
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
 	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
@@ -88475,26 +88597,23 @@
 	    // Public Variables with Default Settings
 	    //------------------------------------------------------------
 	
-	    var boxplot = nv.models.boxPlot()
-	        , xAxis = nv.models.axis()
-	        , yAxis = nv.models.axis()
-	        ;
+	    var boxplot = nv.models.boxPlot(),
+	        xAxis = nv.models.axis(),
+	        yAxis = nv.models.axis();
 	
-	    var margin = {top: 15, right: 10, bottom: 50, left: 60}
-	        , width = null
-	        , height = null
-	        , color = nv.utils.getColor()
-	        , showXAxis = true
-	        , showYAxis = true
-	        , rightAlignYAxis = false
-	        , staggerLabels = false
-	        , tooltip = nv.models.tooltip()
-	        , x
-	        , y
-	        , noData = "No Data Available."
-	        , dispatch = d3.dispatch('beforeUpdate', 'renderEnd')
-	        , duration = 250
-	        ;
+	    var margin = {top: 15, right: 10, bottom: 50, left: 60},
+	        width = null,
+	        height = null,
+	        color = nv.utils.getColor(),
+	        showXAxis = true,
+	        showYAxis = true,
+	        rightAlignYAxis = false,
+	        staggerLabels = false,
+	        tooltip = nv.models.tooltip(),
+	        x, y,
+	        noData = 'No Data Available.',
+	        dispatch = d3.dispatch('beforeUpdate', 'renderEnd'),
+	        duration = 250;
 	
 	    xAxis
 	        .orient('bottom')
@@ -88521,13 +88640,10 @@
 	        if (showYAxis) renderWatch.models(yAxis);
 	
 	        selection.each(function(data) {
-	            var container = d3.select(this),
-	                that = this;
+	            var container = d3.select(this), that = this;
 	            nv.utils.initSVG(container);
-	            var availableWidth = (width  || parseInt(container.style('width')) || 960)
-	                    - margin.left - margin.right,
-	                availableHeight = (height || parseInt(container.style('height')) || 400)
-	                    - margin.top - margin.bottom;
+	            var availableWidth = (width  || parseInt(container.style('width')) || 960) - margin.left - margin.right;
+	            var availableHeight = (height || parseInt(container.style('height')) || 400) - margin.top - margin.bottom;
 	
 	            chart.update = function() {
 	                dispatch.beforeUpdate();
@@ -88535,9 +88651,9 @@
 	            };
 	            chart.container = this;
 	
-	            // Display No Data message if there's nothing to show. (quartiles required at minimum)
-	            if (!data || !data.length ||
-	                    !data.filter(function(d) { return d.values.hasOwnProperty("Q1") && d.values.hasOwnProperty("Q2") && d.values.hasOwnProperty("Q3"); }).length) {
+	            // TODO still need to find a way to validate quartile data presence using boxPlot callbacks.
+	            // Display No Data message if there's nothing to show. (quartiles required at minimum).
+	            if (!data || !data.length) {
 	                var noDataText = container.selectAll('.nv-noData').data([noData]);
 	
 	                noDataText.enter().append('text')
@@ -88571,24 +88687,20 @@
 	                .append('line');
 	
 	            gEnter.append('g').attr('class', 'nv-barsWrap');
-	
 	            g.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 	
 	            if (rightAlignYAxis) {
-	                g.select(".nv-y.nv-axis")
-	                    .attr("transform", "translate(" + availableWidth + ",0)");
+	                g.select('.nv-y.nv-axis')
+	                    .attr('transform', 'translate(' + availableWidth + ',0)');
 	            }
 	
 	            // Main Chart Component(s)
-	            boxplot
-	                .width(availableWidth)
-	                .height(availableHeight);
+	            boxplot.width(availableWidth).height(availableHeight);
 	
 	            var barsWrap = g.select('.nv-barsWrap')
 	                .datum(data.filter(function(d) { return !d.disabled }))
 	
 	            barsWrap.transition().call(boxplot);
-	
 	
 	            defsEnter.append('clipPath')
 	                .attr('id', 'nv-x-label-clip-' + boxplot.id())
@@ -88613,7 +88725,7 @@
 	                if (staggerLabels) {
 	                    xTicks
 	                        .selectAll('text')
-	                        .attr('transform', function(d,i,j) { return 'translate(0,' + (j % 2 == 0 ? '5' : '17') + ')' })
+	                        .attr('transform', function(d,i,j) { return 'translate(0,' + (j % 2 === 0 ? '5' : '17') + ')' })
 	                }
 	            }
 	
@@ -88627,11 +88739,11 @@
 	            }
 	
 	            // Zero line
-	            g.select(".nv-zeroLine line")
-	                .attr("x1",0)
-	                .attr("x2",availableWidth)
-	                .attr("y1", y(0))
-	                .attr("y2", y(0))
+	            g.select('.nv-zeroLine line')
+	                .attr('x1',0)
+	                .attr('x2',availableWidth)
+	                .attr('y1', y(0))
+	                .attr('y2', y(0))
 	            ;
 	
 	            //============================================================
@@ -88727,9 +88839,11 @@
 	        , reverse = false
 	        , ranges = function(d) { return d.ranges }
 	        , markers = function(d) { return d.markers ? d.markers : [] }
+	        , markerLines = function(d) { return d.markerLines ? d.markerLines : [0] }
 	        , measures = function(d) { return d.measures }
 	        , rangeLabels = function(d) { return d.rangeLabels ? d.rangeLabels : [] }
 	        , markerLabels = function(d) { return d.markerLabels ? d.markerLabels : []  }
+	        , markerLineLabels = function(d) { return d.markerLineLabels ? d.markerLineLabels : []  }
 	        , measureLabels = function(d) { return d.measureLabels ? d.measureLabels : []  }
 	        , forceX = [0] // List of numbers to Force into the X scale (ie. 0, or a max / min, etc.)
 	        , width = 380
@@ -88740,6 +88854,7 @@
 	        , dispatch = d3.dispatch('elementMouseover', 'elementMouseout', 'elementMousemove')
 	        , defaultRangeLabels = ["Maximum", "Mean", "Minimum"]
 	        , legacyRangeClassNames = ["Max", "Avg", "Min"]
+	        , duration = 1000
 	        ;
 	
 	    function sortLabels(labels, values){
@@ -88761,19 +88876,23 @@
 	
 	            var rangez = ranges.call(this, d, i).slice(),
 	                markerz = markers.call(this, d, i).slice(),
+	                markerLinez = markerLines.call(this, d, i).slice(),
 	                measurez = measures.call(this, d, i).slice(),
 	                rangeLabelz = rangeLabels.call(this, d, i).slice(),
 	                markerLabelz = markerLabels.call(this, d, i).slice(),
+	                markerLineLabelz = markerLineLabels.call(this, d, i).slice(),
 	                measureLabelz = measureLabels.call(this, d, i).slice();
 	
 	            // Sort labels according to their sorted values
 	            sortLabels(rangeLabelz, rangez);
 	            sortLabels(markerLabelz, markerz);
+	            sortLabels(markerLineLabelz, markerLinez);
 	            sortLabels(measureLabelz, measurez);
 	
 	            // sort values descending
 	            rangez.sort(d3.descending);
 	            markerz.sort(d3.descending);
+	            markerLinez.sort(d3.descending);
 	            measurez.sort(d3.descending);
 	
 	            // Setup Scales
@@ -88820,20 +88939,18 @@
 	            for(var i=0,il=rangez.length; i<il; i++){
 	                var range = rangez[i];
 	                g.select('rect.nv-range'+i)
+	                    .datum(range)
 	                    .attr('height', availableHeight)
+	                    .transition()
+	                    .duration(duration)
 	                    .attr('width', w1(range))
 	                    .attr('x', xp1(range))
-	                    .datum(range)
 	            }
 	
 	            g.select('rect.nv-measure')
 	                .style('fill', color)
 	                .attr('height', availableHeight / 3)
 	                .attr('y', availableHeight / 3)
-	                .attr('width', measurez < 0 ?
-	                    x1(0) - x1(measurez[0])
-	                    : x1(measurez[0]) - x1(0))
-	                .attr('x', xp1(measurez))
 	                .on('mouseover', function() {
 	                    dispatch.elementMouseover({
 	                        value: measurez[0],
@@ -88854,7 +88971,13 @@
 	                        label: measureLabelz[0] || 'Current',
 	                        color: d3.select(this).style("fill")
 	                    })
-	                });
+	                })
+	                .transition()
+	                .duration(duration)
+	                .attr('width', measurez < 0 ?
+	                    x1(0) - x1(measurez[0])
+	                    : x1(measurez[0]) - x1(0))
+	                .attr('x', xp1(measurez));
 	
 	            var h3 =  availableHeight / 6;
 	
@@ -88894,7 +89017,54 @@
 	
 	            g.selectAll("path.nv-markerTriangle")
 	              .data(markerData)
+	              .transition()
+	              .duration(duration)
 	              .attr('transform', function(d) { return 'translate(' + x1(d.value) + ',' + (availableHeight / 2) + ')' });
+	
+	            var markerLinesData = markerLinez.map( function(marker, index) {
+	                return {value: marker, label: markerLineLabelz[index]}
+	            });
+	            gEnter
+	              .selectAll("line.nv-markerLine")
+	              .data(markerLinesData)
+	              .enter()
+	              .append('line')
+	              .attr('cursor', '')
+	              .attr('class', 'nv-markerLine')
+	              .attr('x1', function(d) { return x1(d.value) })
+	              .attr('y1', '2')
+	              .attr('x2', function(d) { return x1(d.value) })
+	              .attr('y2', availableHeight - 2)
+	              .on('mouseover', function(d) {
+	                dispatch.elementMouseover({
+	                  value: d.value,
+	                  label: d.label || 'Previous',
+	                  color: d3.select(this).style("fill"),
+	                  pos: [x1(d.value), availableHeight/2]
+	                })
+	
+	              })
+	              .on('mousemove', function(d) {
+	                  dispatch.elementMousemove({
+	                      value: d.value,
+	                      label: d.label || 'Previous',
+	                      color: d3.select(this).style("fill")
+	                  })
+	              })
+	              .on('mouseout', function(d, i) {
+	                  dispatch.elementMouseout({
+	                      value: d.value,
+	                      label: d.label || 'Previous',
+	                      color: d3.select(this).style("fill")
+	                  })
+	              });
+	
+	            g.selectAll("line.nv-markerLine")
+	              .data(markerLinesData)
+	              .transition()
+	              .duration(duration)
+	              .attr('x1', function(d) { return x1(d.value) })
+	              .attr('x2', function(d) { return x1(d.value) });
 	
 	            wrap.selectAll('.nv-range')
 	                .on('mouseover', function(d,i) {
@@ -88941,6 +89111,7 @@
 	        width:    {get: function(){return width;}, set: function(_){width=_;}},
 	        height:    {get: function(){return height;}, set: function(_){height=_;}},
 	        tickFormat:    {get: function(){return tickFormat;}, set: function(_){tickFormat=_;}},
+	        duration:    {get: function(){return duration;}, set: function(_){duration=_;}},
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
@@ -88986,7 +89157,7 @@
 	        , width = null
 	        , height = 55
 	        , tickFormat = null
-		, ticks = null
+	        , ticks = null
 	        , noData = null
 	        , dispatch = d3.dispatch()
 	        ;
@@ -89060,7 +89231,7 @@
 	
 	            bullet
 	                .width(availableWidth)
-	                .height(availableHeight)
+	                .height(availableHeight);
 	
 	            var bulletWrap = g.select('.nv-bulletWrap');
 	            d3.transition(bulletWrap).call(bullet);
@@ -89092,6 +89263,8 @@
 	
 	            // Transition the updating ticks to the new scale, x1.
 	            var tickUpdate = d3.transition(tick)
+	                .transition()
+	                .duration(bullet.duration())
 	                .attr('transform', function(d) { return 'translate(' + x1(d) + ',0)' })
 	                .style('opacity', 1);
 	
@@ -89104,6 +89277,8 @@
 	
 	            // Transition the exiting ticks to the new scale, x1.
 	            d3.transition(tick.exit())
+	                .transition()
+	                .duration(bullet.duration())
 	                .attr('transform', function(d) { return 'translate(' + x1(d) + ',0)' })
 	                .style('opacity', 1e-6)
 	                .remove();
@@ -89419,6 +89594,7 @@
 	        ;
 	
 	    var margin = {top: 30, right: 30, bottom: 50, left: 60}
+	        , marginTop = null
 	        , color = nv.utils.defaultColor()
 	        , width = null
 	        , height = null
@@ -89623,7 +89799,7 @@
 	                    .datum(data)
 	                    .call(legend);
 	
-	                if ( margin.top != legend.height()) {
+	                if (!marginTop && legend.height() !== margin.top) {
 	                    margin.top = legend.height();
 	                    availableHeight = nv.utils.availableHeight(height, container, margin);
 	                }
@@ -89878,7 +90054,6 @@
 	
 	                var xValue = xAxis.tickFormat()(chart.x()(singlePoint,pointIndex), pointIndex);
 	                interactiveLayer.tooltip
-	                    .chartContainer(that.parentNode)
 	                    .valueFormatter(function(d,i) {
 	                        return yAxis.tickFormat()(d);
 	                    })
@@ -90018,7 +90193,10 @@
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
-	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            if (_.top !== undefined) {
+	                margin.top = _.top;
+	                marginTop = _.top;
+	            }
 	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
 	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
 	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
@@ -90322,6 +90500,7 @@
 	        ;
 	
 	    var margin = {top: 15, right: 10, bottom: 50, left: 60}
+	        , marginTop = null
 	        , width = null
 	        , height = null
 	        , color = nv.utils.getColor()
@@ -90422,7 +90601,7 @@
 	                    .datum(data)
 	                    .call(legend);
 	
-	                if ( margin.top != legend.height()) {
+	                if (!marginTop && legend.height() !== margin.top) {
 	                    margin.top = legend.height();
 	                    availableHeight = nv.utils.availableHeight(height, container, margin);
 	                }
@@ -90430,11 +90609,6 @@
 	                wrap.select('.nv-legendWrap')
 	                    .attr('transform', 'translate(0,' + (-margin.top) +')')
 	            }
-	            
-	            if (rightAlignYAxis) {
-	                g.select(".nv-y.nv-axis")
-	                    .attr("transform", "translate(" + availableWidth + ",0)");
-	            }	    
 	
 	            if (rightAlignYAxis) {
 	                g.select(".nv-y.nv-axis")
@@ -90562,7 +90736,10 @@
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
-	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            if (_.top !== undefined) {
+	                margin.top = _.top;
+	                marginTop = _.top;
+	            }
 	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
 	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
 	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
@@ -90750,6 +90927,489 @@
 	
 	    return chart;
 	}
+	nv.models.focus = function(content) {
+	    "use strict";
+	
+	    //============================================================
+	    // Public Variables with Default Settings
+	    //------------------------------------------------------------
+	
+	    var content = content || nv.models.line()
+	        , xAxis = nv.models.axis()
+	        , yAxis = nv.models.axis()
+	        , brush = d3.svg.brush()
+	        ;
+	
+	    var margin = {top: 10, right: 0, bottom: 30, left: 0}
+	        , color = nv.utils.defaultColor()
+	        , width = null
+	        , height = 70
+	        , showXAxis = true
+	        , showYAxis = false
+	        , rightAlignYAxis = false
+	        , ticks = null
+	        , x
+	        , y
+	        , brushExtent = null
+	        , duration = 250
+	        , dispatch = d3.dispatch('brush', 'onBrush', 'renderEnd')
+	        , syncBrushing = true
+	        ;
+	
+	    content.interactive(false);
+	    content.pointActive(function(d) { return false; });
+	
+	    //============================================================
+	    // Private Variables
+	    //------------------------------------------------------------
+	
+	    var renderWatch = nv.utils.renderWatch(dispatch, duration);
+	
+	    function chart(selection) {
+	        renderWatch.reset();
+	        renderWatch.models(content);
+	        if (showXAxis) renderWatch.models(xAxis);
+	        if (showYAxis) renderWatch.models(yAxis);
+	
+	        selection.each(function(data) {
+	            var container = d3.select(this);
+	            nv.utils.initSVG(container);
+	            var availableWidth = nv.utils.availableWidth(width, container, margin),
+	                availableHeight = height - margin.top - margin.bottom;
+	
+	            chart.update = function() { 
+	                if( duration === 0 ) {
+	                    container.call( chart );
+	                } else {
+	                    container.transition().duration(duration).call(chart);
+	                }
+	            };
+	            chart.container = this;
+	
+	            // Setup Scales
+	            x = content.xScale();
+	            y = content.yScale();
+	
+	            // Setup containers and skeleton of chart
+	            var wrap = container.selectAll('g.nv-focus').data([data]);
+	            var gEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-focus').append('g');
+	            var g = wrap.select('g');
+	
+	            wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+	
+	            gEnter.append('g').attr('class', 'nv-background').append('rect');
+	            gEnter.append('g').attr('class', 'nv-x nv-axis');
+	            gEnter.append('g').attr('class', 'nv-y nv-axis');
+	            gEnter.append('g').attr('class', 'nv-contentWrap');
+	            gEnter.append('g').attr('class', 'nv-brushBackground');
+	            gEnter.append('g').attr('class', 'nv-x nv-brush');
+	
+	            if (rightAlignYAxis) {
+	                g.select(".nv-y.nv-axis")
+	                    .attr("transform", "translate(" + availableWidth + ",0)");
+	            }
+	
+	            g.select('.nv-background rect')
+	                .attr('width', availableWidth)
+	                .attr('height', availableHeight);
+	                
+	            content
+	                .width(availableWidth)
+	                .height(availableHeight)
+	                .color(data.map(function(d,i) {
+	                    return d.color || color(d, i);
+	                }).filter(function(d,i) { return !data[i].disabled; }));
+	
+	            var contentWrap = g.select('.nv-contentWrap')
+	                .datum(data.filter(function(d) { return !d.disabled; }));
+	
+	            d3.transition(contentWrap).call(content);
+	            
+	            // Setup Brush
+	            brush
+	                .x(x)
+	                .on('brush', function() {
+	                    onBrush(syncBrushing);
+	                });
+	
+	            brush.on('brushend', function () {
+	                if (!syncBrushing) {
+	                    dispatch.onBrush(brush.empty() ? x.domain() : brush.extent());
+	                }
+	            });
+	
+	            if (brushExtent) brush.extent(brushExtent);
+	
+	            var brushBG = g.select('.nv-brushBackground').selectAll('g')
+	                .data([brushExtent || brush.extent()]);
+	    
+	            var brushBGenter = brushBG.enter()
+	                .append('g');
+	
+	            brushBGenter.append('rect')
+	                .attr('class', 'left')
+	                .attr('x', 0)
+	                .attr('y', 0)
+	                .attr('height', availableHeight);
+	
+	            brushBGenter.append('rect')
+	                .attr('class', 'right')
+	                .attr('x', 0)
+	                .attr('y', 0)
+	                .attr('height', availableHeight);
+	
+	            var gBrush = g.select('.nv-x.nv-brush')
+	                .call(brush);
+	            gBrush.selectAll('rect')
+	                .attr('height', availableHeight);
+	            gBrush.selectAll('.resize').append('path').attr('d', resizePath);
+	
+	            onBrush(true);
+	
+	            g.select('.nv-background rect')
+	                .attr('width', availableWidth)
+	                .attr('height', availableHeight);
+	
+	            if (showXAxis) {
+	                xAxis.scale(x)
+	                    ._ticks( nv.utils.calcTicksX(availableWidth/100, data) )
+	                    .tickSize(-availableHeight, 0);
+	  
+	                g.select('.nv-x.nv-axis')
+	                    .attr('transform', 'translate(0,' + y.range()[0] + ')');
+	                d3.transition(g.select('.nv-x.nv-axis'))
+	                    .call(xAxis);
+	            }
+	
+	            if (showYAxis) {
+	                yAxis
+	                    .scale(y)
+	                    ._ticks( nv.utils.calcTicksY(availableHeight/36, data) )
+	                    .tickSize( -availableWidth, 0);
+	
+	                d3.transition(g.select('.nv-y.nv-axis'))
+	                    .call(yAxis);
+	            }
+	            
+	            g.select('.nv-x.nv-axis')
+	                .attr('transform', 'translate(0,' + y.range()[0] + ')');
+	
+	            //============================================================
+	            // Event Handling/Dispatching (in chart's scope)
+	            //------------------------------------------------------------
+	
+	            //============================================================
+	            // Functions
+	            //------------------------------------------------------------
+	    
+	            // Taken from crossfilter (http://square.github.com/crossfilter/)
+	            function resizePath(d) {
+	                var e = +(d == 'e'),
+	                    x = e ? 1 : -1,
+	                    y = availableHeight / 3;
+	                return 'M' + (0.5 * x) + ',' + y
+	                    + 'A6,6 0 0 ' + e + ' ' + (6.5 * x) + ',' + (y + 6)
+	                    + 'V' + (2 * y - 6)
+	                    + 'A6,6 0 0 ' + e + ' ' + (0.5 * x) + ',' + (2 * y)
+	                    + 'Z'
+	                    + 'M' + (2.5 * x) + ',' + (y + 8)
+	                    + 'V' + (2 * y - 8)
+	                    + 'M' + (4.5 * x) + ',' + (y + 8)
+	                    + 'V' + (2 * y - 8);
+	            }
+	    
+	    
+	            function updateBrushBG() {
+	                if (!brush.empty()) brush.extent(brushExtent);
+	                brushBG
+	                    .data([brush.empty() ? x.domain() : brushExtent])
+	                    .each(function(d,i) {
+	                        var leftWidth = x(d[0]) - x.range()[0],
+	                            rightWidth = availableWidth - x(d[1]);
+	                        d3.select(this).select('.left')
+	                            .attr('width',  leftWidth < 0 ? 0 : leftWidth);
+	    
+	                        d3.select(this).select('.right')
+	                            .attr('x', x(d[1]))
+	                            .attr('width', rightWidth < 0 ? 0 : rightWidth);
+	                    });
+	            }
+	
+	
+	            function onBrush(shouldDispatch) {
+	                brushExtent = brush.empty() ? null : brush.extent();
+	                var extent = brush.empty() ? x.domain() : brush.extent();
+	                dispatch.brush({extent: extent, brush: brush});
+	                updateBrushBG();
+	                if (shouldDispatch) {
+	                    dispatch.onBrush(extent);
+	                }
+	            }
+	        });
+	
+	        renderWatch.renderEnd('focus immediate');
+	        return chart;
+	    }
+	
+	
+	    //============================================================
+	    // Event Handling/Dispatching (out of chart's scope)
+	    //------------------------------------------------------------
+	
+	    //============================================================
+	    // Expose Public Variables
+	    //------------------------------------------------------------
+	
+	    // expose chart's sub-components
+	    chart.dispatch = dispatch;
+	    chart.content = content;
+	    chart.brush = brush;
+	    chart.xAxis = xAxis;
+	    chart.yAxis = yAxis;
+	    chart.options = nv.utils.optionsFunc.bind(chart);
+	
+	    chart._options = Object.create({}, {
+	        // simple options, just get/set the necessary values
+	        width:      {get: function(){return width;}, set: function(_){width=_;}},
+	        height:     {get: function(){return height;}, set: function(_){height=_;}},
+	        showXAxis:      {get: function(){return showXAxis;}, set: function(_){showXAxis=_;}},
+	        showYAxis:    {get: function(){return showYAxis;}, set: function(_){showYAxis=_;}},
+	        brushExtent: {get: function(){return brushExtent;}, set: function(_){brushExtent=_;}},
+	        syncBrushing: {get: function(){return syncBrushing;}, set: function(_){syncBrushing=_;}},
+	
+	        // options that require extra logic in the setter
+	        margin: {get: function(){return margin;}, set: function(_){
+	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
+	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
+	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
+	        }},
+	        duration: {get: function(){return duration;}, set: function(_){
+	            duration = _;
+	            renderWatch.reset(duration);
+	            content.duration(duration);
+	            xAxis.duration(duration);
+	            yAxis.duration(duration);
+	        }},
+	        color:  {get: function(){return color;}, set: function(_){
+	            color = nv.utils.getColor(_);
+	            content.color(color);
+	        }},
+	        interpolate: {get: function(){return content.interpolate();}, set: function(_){
+	            content.interpolate(_);
+	        }},
+	        xTickFormat: {get: function(){return xAxis.tickFormat();}, set: function(_){
+	            xAxis.tickFormat(_);
+	        }},
+	        yTickFormat: {get: function(){return yAxis.tickFormat();}, set: function(_){
+	            yAxis.tickFormat(_);
+	        }},
+	        x: {get: function(){return content.x();}, set: function(_){
+	            content.x(_);
+	        }},
+	        y: {get: function(){return content.y();}, set: function(_){
+	            content.y(_);
+	        }},
+	        rightAlignYAxis: {get: function(){return rightAlignYAxis;}, set: function(_){
+	            rightAlignYAxis = _;
+	            yAxis.orient( rightAlignYAxis ? 'right' : 'left');
+	        }}
+	    });
+	
+	    nv.utils.inheritOptions(chart, content);
+	    nv.utils.initOptions(chart);
+	
+	    return chart;
+	};
+	nv.models.forceDirectedGraph = function() {
+	    "use strict";
+	
+	    //============================================================
+	    // Public Variables with Default Settings
+	    //------------------------------------------------------------
+	    var margin = {top: 2, right: 0, bottom: 2, left: 0}
+	        , width = 400
+	        , height = 32
+	        , container = null
+	        , dispatch = d3.dispatch('renderEnd')
+	        , color = nv.utils.getColor(['#000'])
+	        , tooltip      = nv.models.tooltip()
+	        , noData = null
+	        // Force directed graph specific parameters [default values]
+	        , linkStrength = 0.1
+	        , friction = 0.9
+	        , linkDist = 30
+	        , charge = -120
+	        , gravity = 0.1
+	        , theta = 0.8
+	        , alpha = 0.1
+	        , radius = 5
+	        // These functions allow to add extra attributes to ndes and links
+	        ,nodeExtras = function(nodes) { /* Do nothing */ }
+	        ,linkExtras = function(links) { /* Do nothing */ }
+	        ;
+	
+	
+	    //============================================================
+	    // Private Variables
+	    //------------------------------------------------------------
+	
+	    var renderWatch = nv.utils.renderWatch(dispatch);
+	
+	    function chart(selection) {
+	        renderWatch.reset();
+	
+	        selection.each(function(data) {
+	          container = d3.select(this);
+	          nv.utils.initSVG(container);
+	
+	          var availableWidth = nv.utils.availableWidth(width, container, margin),
+	              availableHeight = nv.utils.availableHeight(height, container, margin);
+	
+	          container
+	                  .attr("width", availableWidth)
+	                  .attr("height", availableHeight);
+	
+	          // Display No Data message if there's nothing to show.
+	          if (!data || !data.links || !data.nodes) {
+	              nv.utils.noData(chart, container)
+	              return chart;
+	          } else {
+	              container.selectAll('.nv-noData').remove();
+	          }
+	          container.selectAll('*').remove();
+	
+	          // Collect names of all fields in the nodes
+	          var nodeFieldSet = new Set();
+	          data.nodes.forEach(function(node) {
+	            var keys = Object.keys(node);
+	            keys.forEach(function(key) {
+	              nodeFieldSet.add(key);
+	            });
+	          });
+	
+	          var force = d3.layout.force()
+	                .nodes(data.nodes)
+	                .links(data.links)
+	                .size([availableWidth, availableHeight])
+	                .linkStrength(linkStrength)
+	                .friction(friction)
+	                .linkDistance(linkDist)
+	                .charge(charge)
+	                .gravity(gravity)
+	                .theta(theta)
+	                .alpha(alpha)
+	                .start();
+	
+	          var link = container.selectAll(".link")
+	                .data(data.links)
+	                .enter().append("line")
+	                .attr("class", "nv-force-link")
+	                .style("stroke-width", function(d) { return Math.sqrt(d.value); });
+	
+	          var node = container.selectAll(".node")
+	                .data(data.nodes)
+	                .enter()
+	                .append("g")
+	                .attr("class", "nv-force-node")
+	                .call(force.drag);
+	
+	          node
+	            .append("circle")
+	            .attr("r", radius)
+	            .style("fill", function(d) { return color(d) } )
+	            .on("mouseover", function(evt) {
+	              container.select('.nv-series-' + evt.seriesIndex + ' .nv-distx-' + evt.pointIndex)
+	                  .attr('y1', evt.py);
+	              container.select('.nv-series-' + evt.seriesIndex + ' .nv-disty-' + evt.pointIndex)
+	                  .attr('x2', evt.px);
+	
+	              // Add 'series' object to
+	              var nodeColor = color(evt);
+	              evt.series = [];
+	              nodeFieldSet.forEach(function(field) {
+	                evt.series.push({
+	                  color: nodeColor,
+	                  key:   field,
+	                  value: evt[field]
+	                });
+	              });
+	              tooltip.data(evt).hidden(false);
+	            })
+	            .on("mouseout",  function(d) {
+	              tooltip.hidden(true);
+	            });
+	
+	          tooltip.headerFormatter(function(d) {return "Node";});
+	
+	          // Apply extra attributes to nodes and links (if any)
+	          linkExtras(link);
+	          nodeExtras(node);
+	
+	          force.on("tick", function() {
+	              link.attr("x1", function(d) { return d.source.x; })
+	                  .attr("y1", function(d) { return d.source.y; })
+	                  .attr("x2", function(d) { return d.target.x; })
+	                  .attr("y2", function(d) { return d.target.y; });
+	
+	              node.attr("transform", function(d) {
+	                return "translate(" + d.x + ", " + d.y + ")";
+	              });
+	            });
+	        });
+	
+	        return chart;
+	    }
+	
+	    //============================================================
+	    // Expose Public Variables
+	    //------------------------------------------------------------
+	
+	    chart.options = nv.utils.optionsFunc.bind(chart);
+	
+	    chart._options = Object.create({}, {
+	        // simple options, just get/set the necessary values
+	        width:     {get: function(){return width;}, set: function(_){width=_;}},
+	        height:    {get: function(){return height;}, set: function(_){height=_;}},
+	
+	        // Force directed graph specific parameters
+	        linkStrength:{get: function(){return linkStrength;}, set: function(_){linkStrength=_;}},
+	        friction:    {get: function(){return friction;}, set: function(_){friction=_;}},
+	        linkDist:    {get: function(){return linkDist;}, set: function(_){linkDist=_;}},
+	        charge:      {get: function(){return charge;}, set: function(_){charge=_;}},
+	        gravity:     {get: function(){return gravity;}, set: function(_){gravity=_;}},
+	        theta:       {get: function(){return theta;}, set: function(_){theta=_;}},
+	        alpha:       {get: function(){return alpha;}, set: function(_){alpha=_;}},
+	        radius:      {get: function(){return radius;}, set: function(_){radius=_;}},
+	
+	        //functor options
+	        x: {get: function(){return getX;}, set: function(_){getX=d3.functor(_);}},
+	        y: {get: function(){return getY;}, set: function(_){getY=d3.functor(_);}},
+	
+	        // options that require extra logic in the setter
+	        margin: {get: function(){return margin;}, set: function(_){
+	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
+	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
+	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
+	        }},
+	        color:  {get: function(){return color;}, set: function(_){
+	            color = nv.utils.getColor(_);
+	        }},
+	        noData:    {get: function(){return noData;}, set: function(_){noData=_;}},
+	        nodeExtras: {get: function(){return nodeExtras;}, set: function(_){
+	            nodeExtras = _;
+	        }},
+	        linkExtras: {get: function(){return linkExtras;}, set: function(_){
+	            linkExtras = _;
+	        }}
+	    });
+	
+	    chart.dispatch = dispatch;
+	    chart.tooltip = tooltip;
+	    nv.utils.initOptions(chart);
+	    return chart;
+	};
 	nv.models.furiousLegend = function() {
 	    "use strict";
 	
@@ -90761,6 +91421,7 @@
 	        , width = 400
 	        , height = 20
 	        , getKey = function(d) { return d.key }
+	        , keyFormatter = function (d) { return d }
 	        , color = nv.utils.getColor()
 	        , maxKeyLength = 20 //default value for key lengths
 	        , align = true
@@ -90912,7 +91573,7 @@
 	
 	            seriesText
 	                .attr('fill', setTextColor)
-	                .text(getKey);
+	                .text(function (d) { return keyFormatter(getKey(d)) });
 	
 	            //TODO: implement fixed-width and max-width options (max-width is especially useful with the align option)
 	            // NEW ALIGNING CODE, TODO: clean up
@@ -90931,13 +91592,13 @@
 	                var seriesWidths = [];
 	                series.each(function(d,i) {
 	                    var legendText;
-	                    if (getKey(d).length > maxKeyLength) { 
-	                        var trimmedKey = getKey(d).substring(0, maxKeyLength);
+	                    if (keyFormatter(getKey(d)) && keyFormatter(getKey(d)).length > maxKeyLength) {
+	                        var trimmedKey = keyFormatter(getKey(d)).substring(0, maxKeyLength);
 	                        legendText = d3.select(this).select('text').text(trimmedKey + "...");
-	                        d3.select(this).append("svg:title").text(getKey(d));
+	                        d3.select(this).append("svg:title").text(keyFormatter(getKey(d)));
 	                    } else {
 	                        legendText = d3.select(this).select('text');
-	                    } 
+	                    }
 	                    var nodeTextLength;
 	                    try {
 	                        nodeTextLength = legendText.node().getComputedTextLength();
@@ -91069,17 +91730,18 @@
 	
 	    chart._options = Object.create({}, {
 	        // simple options, just get/set the necessary values
-	        width:      {get: function(){return width;}, set: function(_){width=_;}},
-	        height:     {get: function(){return height;}, set: function(_){height=_;}},
-	        key:        {get: function(){return getKey;}, set: function(_){getKey=_;}},
-	        align:      {get: function(){return align;}, set: function(_){align=_;}},
-	        rightAlign:    {get: function(){return rightAlign;}, set: function(_){rightAlign=_;}},
-	        maxKeyLength:  {get: function(){return maxKeyLength;}, set: function(_){maxKeyLength=_;}},
-	        padding:       {get: function(){return padding;}, set: function(_){padding=_;}},
-	        updateState:   {get: function(){return updateState;}, set: function(_){updateState=_;}},
-	        radioButtonMode:    {get: function(){return radioButtonMode;}, set: function(_){radioButtonMode=_;}},
-	        expanded:   {get: function(){return expanded;}, set: function(_){expanded=_;}},
-	        vers:   {get: function(){return vers;}, set: function(_){vers=_;}},
+	        width:          {get: function(){return width;}, set: function(_){width=_;}},
+	        height:         {get: function(){return height;}, set: function(_){height=_;}},
+	        key:            {get: function(){return getKey;}, set: function(_){getKey=_;}},
+	        keyFormatter:   {get: function(){return keyFormatter;}, set: function(_){keyFormatter=_;}},
+	        align:          {get: function(){return align;}, set: function(_){align=_;}},
+	        rightAlign:     {get: function(){return rightAlign;}, set: function(_){rightAlign=_;}},
+	        maxKeyLength:   {get: function(){return maxKeyLength;}, set: function(_){maxKeyLength=_;}},
+	        padding:        {get: function(){return padding;}, set: function(_){padding=_;}},
+	        updateState:    {get: function(){return updateState;}, set: function(_){updateState=_;}},
+	        radioButtonMode:{get: function(){return radioButtonMode;}, set: function(_){radioButtonMode=_;}},
+	        expanded:       {get: function(){return expanded;}, set: function(_){expanded=_;}},
+	        vers:           {get: function(){return vers;}, set: function(_){vers=_;}},
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
@@ -91229,10 +91891,13 @@
 	                })
 	                .on('click', function(d,i) {
 	                    if (!interactive) return;
+	                    var element = this;
 	                    dispatch.elementClick({
 	                        data: d,
 	                        index: i,
-	                        color: d3.select(this).style("fill")
+	                        color: d3.select(this).style("fill"),
+	                        event: d3.event,
+	                        element: element
 	                    });
 	                    d3.event.stopPropagation();
 	                })
@@ -91346,6 +92011,7 @@
 	
 	
 	    var margin = {top: 30, right: 90, bottom: 50, left: 90}
+	        , marginTop = null
 	        , color = nv.utils.defaultColor()
 	        , width = null
 	        , height = null
@@ -91445,7 +92111,7 @@
 	                    .datum(data)
 	                    .call(legend);
 	
-	                if ( margin.top != legend.height()) {
+	                if (!marginTop && legend.height() !== margin.top) {
 	                    margin.top = legend.height();
 	                    availableHeight = nv.utils.availableHeight(height, container, margin);
 	                }
@@ -91536,7 +92202,6 @@
 	
 	                var xValue = xAxis.tickFormat()(chart.x()(singlePoint,pointIndex));
 	                interactiveLayer.tooltip
-	                    .chartContainer(that.parentNode)
 	                    .valueFormatter(function(d,i) {
 	                        return yAxis.tickFormat()(d);
 	                    })
@@ -91649,7 +92314,10 @@
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
-	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            if (_.top !== undefined) {
+	                margin.top = _.top;
+	                marginTop = _.top;
+	            }
 	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
 	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
 	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
@@ -91740,6 +92408,7 @@
 	        , width = 400
 	        , height = 20
 	        , getKey = function(d) { return d.key }
+	        , keyFormatter = function (d) { return d }
 	        , color = nv.utils.getColor()
 	        , maxKeyLength = 20 //default value for key lengths
 	        , align = true
@@ -91763,7 +92432,10 @@
 	            var gEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-legend').append('g');
 	            var g = wrap.select('g');
 	
-	            wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+	            if (rightAlign)
+	                wrap.attr('transform', 'translate(' + (- margin.right) + ',' + margin.top + ')');
+	            else
+	                wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 	
 	            var series = g.selectAll('.nv-series')
 	                .data(function(d) {
@@ -91792,7 +92464,7 @@
 	                    .attr('class','nv-legend-symbol')
 	                    .attr('r', 5);
 	
-	                seriesShape = series.select('circle');
+	                seriesShape = series.select('.nv-legend-symbol');
 	            } else if (vers == 'furious') {
 	                seriesEnter.append('rect')
 	                    .style('stroke-width', 2)
@@ -91899,7 +92571,7 @@
 	
 	            seriesText
 	                .attr('fill', setTextColor)
-	                .text(getKey);
+	                .text(function (d) { return keyFormatter(getKey(d)) });
 	
 	            //TODO: implement fixed-width and max-width options (max-width is especially useful with the align option)
 	            // NEW ALIGNING CODE, TODO: clean up
@@ -91909,13 +92581,13 @@
 	                var seriesWidths = [];
 	                series.each(function(d,i) {
 	                    var legendText;
-	                    if (getKey(d).length > maxKeyLength) { 
-	                        var trimmedKey = getKey(d).substring(0, maxKeyLength);
+	                    if (keyFormatter(getKey(d)) && keyFormatter(getKey(d)).length > maxKeyLength) {
+	                        var trimmedKey = keyFormatter(getKey(d)).substring(0, maxKeyLength);
 	                        legendText = d3.select(this).select('text').text(trimmedKey + "...");
-	                        d3.select(this).append("svg:title").text(getKey(d));
+	                        d3.select(this).append("svg:title").text(keyFormatter(getKey(d)));
 	                    } else {
 	                        legendText = d3.select(this).select('text');
-	                    } 
+	                    }
 	                    var nodeTextLength;
 	                    try {
 	                        nodeTextLength = legendText.node().getComputedTextLength();
@@ -92080,17 +92752,18 @@
 	
 	    chart._options = Object.create({}, {
 	        // simple options, just get/set the necessary values
-	        width:      {get: function(){return width;}, set: function(_){width=_;}},
-	        height:     {get: function(){return height;}, set: function(_){height=_;}},
-	        key:        {get: function(){return getKey;}, set: function(_){getKey=_;}},
-	        align:      {get: function(){return align;}, set: function(_){align=_;}},
+	        width:          {get: function(){return width;}, set: function(_){width=_;}},
+	        height:         {get: function(){return height;}, set: function(_){height=_;}},
+	        key:            {get: function(){return getKey;}, set: function(_){getKey=_;}},
+	        keyFormatter:   {get: function(){return keyFormatter;}, set: function(_){keyFormatter=_;}},
+	        align:          {get: function(){return align;}, set: function(_){align=_;}},
 	        maxKeyLength:   {get: function(){return maxKeyLength;}, set: function(_){maxKeyLength=_;}},
-	        rightAlign:    {get: function(){return rightAlign;}, set: function(_){rightAlign=_;}},
-	        padding:       {get: function(){return padding;}, set: function(_){padding=_;}},
-	        updateState:   {get: function(){return updateState;}, set: function(_){updateState=_;}},
-	        radioButtonMode:    {get: function(){return radioButtonMode;}, set: function(_){radioButtonMode=_;}},
-	        expanded:   {get: function(){return expanded;}, set: function(_){expanded=_;}},
-	        vers:   {get: function(){return vers;}, set: function(_){vers=_;}},
+	        rightAlign:     {get: function(){return rightAlign;}, set: function(_){rightAlign=_;}},
+	        padding:        {get: function(){return padding;}, set: function(_){padding=_;}},
+	        updateState:    {get: function(){return updateState;}, set: function(_){updateState=_;}},
+	        radioButtonMode:{get: function(){return radioButtonMode;}, set: function(_){radioButtonMode=_;}},
+	        expanded:       {get: function(){return expanded;}, set: function(_){expanded=_;}},
+	        vers:           {get: function(){return vers;}, set: function(_){vers=_;}},
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
@@ -92350,35 +93023,27 @@
 	        , legend = nv.models.legend()
 	        , interactiveLayer = nv.interactiveGuideline()
 	        , tooltip = nv.models.tooltip()
-	        , lines2 = nv.models.line()
-	        , x2Axis = nv.models.axis()
-	        , y2Axis = nv.models.axis()
-	        , brush = d3.svg.brush()
+	        , focus = nv.models.focus(nv.models.line())
 	        ;
 	
 	    var margin = {top: 30, right: 20, bottom: 50, left: 60}
-	        , margin2 = {top: 0, right: 20, bottom: 20, left: 60}
+	        , marginTop = null
 	        , color = nv.utils.defaultColor()
 	        , width = null
 	        , height = null
 	        , showLegend = true
+	        , legendPosition = 'top'
 	        , showXAxis = true
 	        , showYAxis = true
 	        , rightAlignYAxis = false
 	        , useInteractiveGuideline = false
 	        , x
 	        , y
-	        , x2
-	        , y2
 	        , focusEnable = false
-	        , focusShowAxisY = false
-	        , focusShowAxisX = true
-	        , focusHeight = 50
-	        , brushExtent = null
 	        , state = nv.utils.state()
 	        , defaultState = null
 	        , noData = null
-	        , dispatch = d3.dispatch('tooltipShow', 'tooltipHide', 'brush', 'stateChange', 'changeState', 'renderEnd')
+	        , dispatch = d3.dispatch('tooltipShow', 'tooltipHide', 'stateChange', 'changeState', 'renderEnd')
 	        , duration = 250
 	        ;
 	
@@ -92387,19 +93052,13 @@
 	    yAxis.orient(rightAlignYAxis ? 'right' : 'left');
 	
 	    lines.clipEdge(true).duration(0);
-	    lines2.interactive(false);
-	    // We don't want any points emitted for the focus chart's scatter graph.
-	    lines2.pointActive(function(d) { return false; });
-	
-	    x2Axis.orient('bottom').tickPadding(5);
-	    y2Axis.orient(rightAlignYAxis ? 'right' : 'left');
 	
 	    tooltip.valueFormatter(function(d, i) {
 	        return yAxis.tickFormat()(d, i);
 	    }).headerFormatter(function(d, i) {
 	        return xAxis.tickFormat()(d, i);
 	    });
-	    
+	
 	    interactiveLayer.tooltip.valueFormatter(function(d, i) {
 	        return yAxis.tickFormat()(d, i);
 	    }).headerFormatter(function(d, i) {
@@ -92433,20 +93092,15 @@
 	    function chart(selection) {
 	        renderWatch.reset();
 	        renderWatch.models(lines);
-	        renderWatch.models(lines2);
 	        if (showXAxis) renderWatch.models(xAxis);
 	        if (showYAxis) renderWatch.models(yAxis);
 	
-	        if (focusShowAxisX) renderWatch.models(x2Axis);
-	        if (focusShowAxisY) renderWatch.models(y2Axis);
 	        selection.each(function(data) {
 	            var container = d3.select(this);
 	            nv.utils.initSVG(container);
 	            var availableWidth = nv.utils.availableWidth(width, container, margin),
-	                availableHeight1 = nv.utils.availableHeight(height, container, margin) - (focusEnable ? focusHeight : 0),
-	                availableHeight2 = focusHeight - margin2.top - margin2.bottom;
-	
-	            chart.update = function() { 
+	                availableHeight = nv.utils.availableHeight(height, container, margin) - (focusEnable ? focus.height() : 0);
+	            chart.update = function() {
 	                if( duration === 0 ) {
 	                    container.call( chart );
 	                } else {
@@ -92482,12 +93136,14 @@
 	                container.selectAll('.nv-noData').remove();
 	            }
 	
+	            /* Update `main' graph on brush update. */
+	            focus.dispatch.on("onBrush", function(extent) {
+	                onBrush(extent);
+	            });
 	
 	            // Setup Scales
 	            x = lines.xScale();
 	            y = lines.yScale();
-	            x2 = lines2.xScale();
-	            y2 = lines2.yScale();
 	
 	            // Setup containers and skeleton of chart
 	            var wrap = container.selectAll('g.nv-wrap.nv-lineChart').data([data]);
@@ -92503,13 +93159,7 @@
 	            focusEnter.append('g').attr('class', 'nv-linesWrap');
 	            focusEnter.append('g').attr('class', 'nv-interactive');
 	
-	            var contextEnter = gEnter.append('g').attr('class', 'nv-context');
-	            contextEnter.append('g').attr('class', 'nv-background').append('rect');
-	            contextEnter.append('g').attr('class', 'nv-x nv-axis');
-	            contextEnter.append('g').attr('class', 'nv-y nv-axis');
-	            contextEnter.append('g').attr('class', 'nv-linesWrap');
-	            contextEnter.append('g').attr('class', 'nv-brushBackground');
-	            contextEnter.append('g').attr('class', 'nv-x nv-brush');
+	            var contextEnter = gEnter.append('g').attr('class', 'nv-focusWrap');
 	
 	            // Legend
 	            if (!showLegend) {
@@ -92521,13 +93171,18 @@
 	                    .datum(data)
 	                    .call(legend);
 	
-	                if ( margin.top != legend.height()) {
-	                    margin.top = legend.height();
-	                    availableHeight1 = nv.utils.availableHeight(height, container, margin) - (focusEnable ? focusHeight : 0);
-	                }
+	                if (legendPosition === 'bottom') {
+	                    wrap.select('.nv-legendWrap')
+	                        .attr('transform', 'translate(0,' + availableHeight +')');
+	                } else if (legendPosition === 'top') {
+	                    if (!marginTop && legend.height() !== margin.top) {
+	                        margin.top = legend.height();
+	                        availableHeight = nv.utils.availableHeight(height, container, margin) - (focusEnable ? focus.height() : 0);
+	                    }
 	
-	                wrap.select('.nv-legendWrap')
-	                    .attr('transform', 'translate(0,' + (-margin.top) +')');
+	                    wrap.select('.nv-legendWrap')
+	                        .attr('transform', 'translate(0,' + (-margin.top) +')');
+	                }
 	            }
 	
 	            wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
@@ -92541,7 +93196,7 @@
 	            if (useInteractiveGuideline) {
 	                interactiveLayer
 	                    .width(availableWidth)
-	                    .height(availableHeight1)
+	                    .height(availableHeight)
 	                    .margin({left:margin.left, top:margin.top})
 	                    .svgContainer(container)
 	                    .xScale(x);
@@ -92550,14 +93205,13 @@
 	
 	            g.select('.nv-focus .nv-background rect')
 	                .attr('width', availableWidth)
-	                .attr('height', availableHeight1);
-	                
+	                .attr('height', availableHeight);
+	
 	            lines
 	                .width(availableWidth)
-	                .height(availableHeight1)
+	                .height(availableHeight)
 	                .color(data.map(function(d,i) {
 	                    return d.color || color(d, i);
-	
 	                }).filter(function(d,i) { return !data[i].disabled; }));
 	
 	            var linesWrap = g.select('.nv-linesWrap')
@@ -92569,14 +93223,13 @@
 	                xAxis
 	                    .scale(x)
 	                    ._ticks(nv.utils.calcTicksX(availableWidth/100, data) )
-	                    .tickSize(-availableHeight1, 0);
-	
+	                    .tickSize(-availableHeight, 0);
 	            }
 	
 	            if (showYAxis) {
 	                yAxis
 	                    .scale(y)
-	                    ._ticks( nv.utils.calcTicksY(availableHeight1/36, data) )
+	                    ._ticks( nv.utils.calcTicksY(availableHeight/36, data) )
 	                    .tickSize( -availableWidth, 0);
 	            }
 	
@@ -92602,104 +93255,28 @@
 	                ;
 	              }
 	            }
-	            
-	            g.select('.nv-focus .nv-x.nv-axis')
-	                .attr('transform', 'translate(0,' + availableHeight1 + ')');
 	
-	            if( !focusEnable )
-	            {
+	            g.select('.nv-focus .nv-x.nv-axis')
+	                .attr('transform', 'translate(0,' + availableHeight + ')');
+	
+	            //============================================================
+	            // Update Focus
+	            //============================================================
+	            if(!focusEnable) {
 	                linesWrap.call(lines);
 	                updateXAxis();
 	                updateYAxis();
-	            }
-	            else
-	            {
-	                lines2
-	                    .defined(lines.defined())
-	                    .width(availableWidth)
-	                    .height(availableHeight2)
-	                    .color(data.map(function(d,i) {
-	                        return d.color || color(d, i);
-	                    }).filter(function(d,i) { return !data[i].disabled; }));
-	    
-	                g.select('.nv-context')
-	                    .attr('transform', 'translate(0,' + ( availableHeight1 + margin.bottom + margin2.top) + ')')
-	                    .style('display', focusEnable ? 'initial' : 'none')
-	                ;
-	    
-	                var contextLinesWrap = g.select('.nv-context .nv-linesWrap')
+	            } else {
+	                focus.width(availableWidth);
+	                g.select('.nv-focusWrap')
+	                    .attr('transform', 'translate(0,' + ( availableHeight + margin.bottom + focus.margin().top) + ')')
 	                    .datum(data.filter(function(d) { return !d.disabled; }))
-	                    ;
-	                    
-	                d3.transition(contextLinesWrap).call(lines2);
-	                
-	            
-	                // Setup Brush
-	                brush
-	                    .x(x2)
-	                    .on('brush', function() {
-	                        onBrush();
-	                    });
-	    
-	                if (brushExtent) brush.extent(brushExtent);
-	    
-	                var brushBG = g.select('.nv-brushBackground').selectAll('g')
-	                    .data([brushExtent || brush.extent()]);
-	        
-	                var brushBGenter = brushBG.enter()
-	                    .append('g');
-	    
-	                brushBGenter.append('rect')
-	                    .attr('class', 'left')
-	                    .attr('x', 0)
-	                    .attr('y', 0)
-	                    .attr('height', availableHeight2);
-	    
-	                brushBGenter.append('rect')
-	                    .attr('class', 'right')
-	                    .attr('x', 0)
-	                    .attr('y', 0)
-	                    .attr('height', availableHeight2);
-	    
-	                var gBrush = g.select('.nv-x.nv-brush')
-	                    .call(brush);
-	                gBrush.selectAll('rect')
-	                    .attr('height', availableHeight2);
-	                gBrush.selectAll('.resize').append('path').attr('d', resizePath);
-	    
-	                onBrush();
-	    
-	                g.select('.nv-context .nv-background rect')
-	                    .attr('width', availableWidth)
-	                    .attr('height', availableHeight2);
-	    
-	                // Setup Secondary (Context) Axes
-	                if (focusShowAxisX) {
-	                  x2Axis
-	                      .scale(x2)
-	                      ._ticks( nv.utils.calcTicksX(availableWidth/100, data) )
-	                      .tickSize(-availableHeight2, 0);
-	      
-	                  g.select('.nv-context .nv-x.nv-axis')
-	                      .attr('transform', 'translate(0,' + y2.range()[0] + ')');
-	                  d3.transition(g.select('.nv-context .nv-x.nv-axis'))
-	                      .call(x2Axis);
+	                    .call(focus);
+	                var extent = focus.brush.empty() ? focus.xDomain() : focus.brush.extent();
+	                if(extent !== null){
+	                    onBrush(extent);
 	                }
-	    
-	                if (focusShowAxisY) {
-	                  y2Axis
-	                      .scale(y2)
-	                      ._ticks( nv.utils.calcTicksY(availableHeight2/36, data) )
-	                      .tickSize( -availableWidth, 0);
-	      
-	                  d3.transition(g.select('.nv-context .nv-y.nv-axis'))
-	                      .call(y2Axis);
-	                }
-	                
-	                g.select('.nv-context .nv-x.nv-axis')
-	                    .attr('transform', 'translate(0,' + y2.range()[0] + ')');
 	            }
-	
 	            //============================================================
 	            // Event Handling/Dispatching (in chart's scope)
 	            //------------------------------------------------------------
@@ -92720,16 +93297,22 @@
 	                        return !series.disabled && !series.disableTooltip;
 	                    })
 	                    .forEach(function(series,i) {
-	                        var extent = focusEnable ? (brush.empty() ? x2.domain() : brush.extent()) : x.domain();
+	                        var extent = focusEnable ? (focus.brush.empty() ? focus.xScale().domain() : focus.brush.extent()) : x.domain();
 	                        var currentValues = series.values.filter(function(d,i) {
-	                            return lines.x()(d,i) >= extent[0] && lines.x()(d,i) <= extent[1];
+	                            // Checks if the x point is between the extents, handling case where extent[0] is greater than extent[1]
+	                            // (e.g. x domain is manually set to reverse the x-axis)
+	                            if(extent[0] <= extent[1]) {
+	                                return lines.x()(d,i) >= extent[0] && lines.x()(d,i) <= extent[1];
+	                            } else {
+	                                return lines.x()(d,i) >= extent[1] && lines.x()(d,i) <= extent[0];
+	                            }
 	                        });
 	
 	                        pointIndex = nv.interactiveBisect(currentValues, e.pointXValue, lines.x());
 	                        var point = currentValues[pointIndex];
 	                        var pointYValue = chart.y()(point, pointIndex);
 	                        if (pointYValue !== null) {
-	                            lines.highlightPoint(series.seriesIndex, pointIndex, true);
+	                            lines.highlightPoint(i, pointIndex, true);
 	                        }
 	                        if (point === undefined) return;
 	                        if (singlePoint === undefined) singlePoint = point;
@@ -92756,8 +93339,7 @@
 	                };
 	
 	                interactiveLayer.tooltip
-	                    .chartContainer(chart.container.parentNode)
-	                    .valueFormatter(interactiveLayer.tooltip.valueFormatter() || defaultValueFormatter)
+	                    .valueFormatter(interactiveLayer.tooltip.valueFormatter() || defaultValueFormatter)
 	                    .data({
 	                        value: chart.x()( singlePoint,pointIndex ),
 	                        index: pointIndex,
@@ -92804,19 +93386,18 @@
 	
 	                    state.disabled = e.disabled;
 	                }
-	
 	                chart.update();
 	            });
 	
 	            //============================================================
 	            // Functions
 	            //------------------------------------------------------------
-	    
+	
 	            // Taken from crossfilter (http://square.github.com/crossfilter/)
 	            function resizePath(d) {
 	                var e = +(d == 'e'),
 	                    x = e ? 1 : -1,
-	                    y = availableHeight2 / 3;
+	                    y = availableHeight / 3;
 	                return 'M' + (0.5 * x) + ',' + y
 	                    + 'A6,6 0 0 ' + e + ' ' + (6.5 * x) + ',' + (y + 6)
 	                    + 'V' + (2 * y - 6)
@@ -92827,44 +93408,12 @@
 	                    + 'M' + (4.5 * x) + ',' + (y + 8)
 	                    + 'V' + (2 * y - 8);
 	            }
-	    
-	    
-	            function updateBrushBG() {
-	                if (!brush.empty()) brush.extent(brushExtent);
-	                brushBG
-	                    .data([brush.empty() ? x2.domain() : brushExtent])
-	                    .each(function(d,i) {
-	                        var leftWidth = x2(d[0]) - x.range()[0],
-	                            rightWidth = availableWidth - x2(d[1]);
-	                        d3.select(this).select('.left')
-	                            .attr('width',  leftWidth < 0 ? 0 : leftWidth);
-	    
-	                        d3.select(this).select('.right')
-	                            .attr('x', x2(d[1]))
-	                            .attr('width', rightWidth < 0 ? 0 : rightWidth);
-	                    });
-	            }
-	    
-	    
-	            function onBrush() {
-	                brushExtent = brush.empty() ? null : brush.extent();
-	                var extent = brush.empty() ? x2.domain() : brush.extent();
-	    
-	                //The brush extent cannot be less than one.  If it is, don't update the line chart.
-	                if (Math.abs(extent[0] - extent[1]) <= 1) {
-	                    return;
-	                }
-	    
-	                dispatch.brush({extent: extent, brush: brush});
-	    
-	    
-	                updateBrushBG();
-	    
+	
+	            function onBrush(extent) {
 	                // Update Main (Focus)
 	                var focusLinesWrap = g.select('.nv-focus .nv-linesWrap')
 	                    .datum(
-	                    data
-	                        .filter(function(d) { return !d.disabled; })
+	                    data.filter(function(d) { return !d.disabled; })
 	                        .map(function(d,i) {
 	                            return {
 	                                key: d.key,
@@ -92878,14 +93427,11 @@
 	                        })
 	                );
 	                focusLinesWrap.transition().duration(duration).call(lines);
-	    
-	    
+	
 	                // Update Main (Focus) Axes
 	                updateXAxis();
 	                updateYAxis();
 	            }
-	
-	
 	        });
 	
 	        renderWatch.renderEnd('lineChart immediate');
@@ -92914,12 +93460,12 @@
 	    // expose chart's sub-components
 	    chart.dispatch = dispatch;
 	    chart.lines = lines;
-	    chart.lines2 = lines2;
 	    chart.legend = legend;
+	    chart.focus = focus;
 	    chart.xAxis = xAxis;
-	    chart.x2Axis = x2Axis;
+	    chart.x2Axis = focus.xAxis
 	    chart.yAxis = yAxis;
-	    chart.y2Axis = y2Axis;
+	    chart.y2Axis = focus.yAxis
 	    chart.interactiveLayer = interactiveLayer;
 	    chart.tooltip = tooltip;
 	    chart.state = state;
@@ -92931,17 +93477,28 @@
 	        width:      {get: function(){return width;}, set: function(_){width=_;}},
 	        height:     {get: function(){return height;}, set: function(_){height=_;}},
 	        showLegend: {get: function(){return showLegend;}, set: function(_){showLegend=_;}},
+	        legendPosition: {get: function(){return legendPosition;}, set: function(_){legendPosition=_;}},
 	        showXAxis:      {get: function(){return showXAxis;}, set: function(_){showXAxis=_;}},
 	        showYAxis:    {get: function(){return showYAxis;}, set: function(_){showYAxis=_;}},
-	        focusEnable:    {get: function(){return focusEnable;}, set: function(_){focusEnable=_;}},
-	        focusHeight:     {get: function(){return height2;}, set: function(_){focusHeight=_;}},
-	        focusShowAxisX:    {get: function(){return focusShowAxisX;}, set: function(_){focusShowAxisX=_;}},
-	        focusShowAxisY:    {get: function(){return focusShowAxisY;}, set: function(_){focusShowAxisY=_;}},
-	        brushExtent: {get: function(){return brushExtent;}, set: function(_){brushExtent=_;}},
 	        defaultState:    {get: function(){return defaultState;}, set: function(_){defaultState=_;}},
 	        noData:    {get: function(){return noData;}, set: function(_){noData=_;}},
+	        // Focus options, mostly passed onto focus model.
+	        focusEnable:    {get: function(){return focusEnable;}, set: function(_){focusEnable=_;}},
+	        focusHeight:     {get: function(){return focus.height();}, set: function(_){focus.height(_);}},
+	        focusShowAxisX:    {get: function(){return focus.showXAxis();}, set: function(_){focus.showXAxis(_);}},
+	        focusShowAxisY:    {get: function(){return focus.showYAxis();}, set: function(_){focus.showYAxis(_);}},
+	        brushExtent: {get: function(){return focus.brushExtent();}, set: function(_){focus.brushExtent(_);}},
 	
 	        // options that require extra logic in the setter
+	        focusMargin: {get: function(){return focus.margin}, set: function(_){
+	            if (_.top !== undefined) {
+	                margin.top = _.top;
+	                marginTop = _.top;
+	            }
+	            focus.margin.right  = _.right  !== undefined ? _.right  : focus.margin.right;
+	            focus.margin.bottom = _.bottom !== undefined ? _.bottom : focus.margin.bottom;
+	            focus.margin.left   = _.left   !== undefined ? _.left   : focus.margin.left;
+	        }},
 	        margin: {get: function(){return margin;}, set: function(_){
 	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
 	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
@@ -92952,41 +93509,35 @@
 	            duration = _;
 	            renderWatch.reset(duration);
 	            lines.duration(duration);
+	            focus.duration(duration);
 	            xAxis.duration(duration);
-	            x2Axis.duration(duration);
 	            yAxis.duration(duration);
-	            y2Axis.duration(duration);
-	        }},
-	        focusMargin: {get: function(){return margin2;}, set: function(_){
-	            margin2.top    = _.top    !== undefined ? _.top    : margin2.top;
-	            margin2.right  = _.right  !== undefined ? _.right  : margin2.right;
-	            margin2.bottom = _.bottom !== undefined ? _.bottom : margin2.bottom;
-	            margin2.left   = _.left   !== undefined ? _.left   : margin2.left;
 	        }},
 	        color:  {get: function(){return color;}, set: function(_){
 	            color = nv.utils.getColor(_);
 	            legend.color(color);
 	            lines.color(color);
+	            focus.color(color);
 	        }},
 	        interpolate: {get: function(){return lines.interpolate();}, set: function(_){
 	            lines.interpolate(_);
-	            lines2.interpolate(_);
+	            focus.interpolate(_);
 	        }},
 	        xTickFormat: {get: function(){return xAxis.tickFormat();}, set: function(_){
 	            xAxis.tickFormat(_);
-	            x2Axis.tickFormat(_);
+	            focus.xTickFormat(_);
 	        }},
 	        yTickFormat: {get: function(){return yAxis.tickFormat();}, set: function(_){
 	            yAxis.tickFormat(_);
-	            y2Axis.tickFormat(_);
+	            focus.yTickFormat(_);
 	        }},
 	        x: {get: function(){return lines.x();}, set: function(_){
 	            lines.x(_);
-	            lines2.x(_);
+	            focus.x(_);
 	        }},
 	        y: {get: function(){return lines.y();}, set: function(_){
 	            lines.y(_);
-	            lines2.y(_);
+	            focus.y(_);
 	        }},
 	        rightAlignYAxis: {get: function(){return rightAlignYAxis;}, set: function(_){
 	            rightAlignYAxis = _;
@@ -93009,7 +93560,7 @@
 	
 	nv.models.lineWithFocusChart = function() {
 	  return nv.models.lineChart()
-	    .margin({ bottom: 30 }) 
+	    .margin({ bottom: 30 })
 	    .focusEnable( true );
 	};
 	nv.models.linePlusBarChart = function() {
@@ -93035,6 +93586,7 @@
 	        ;
 	
 	    var margin = {top: 30, right: 30, bottom: 30, left: 60}
+	        , marginTop = null
 	        , margin2 = {top: 0, right: 30, bottom: 20, left: 60}
 	        , width = null
 	        , height = null
@@ -93246,7 +93798,7 @@
 	                    }))
 	                    .call(legend);
 	
-	                if ( margin.top != legend.height()) {
+	                if (!marginTop && legend.height() !== margin.top) {
 	                    margin.top = legend.height();
 	                    // FIXME: shouldn't this be "- (focusEnabled ? focusHeight : 0)"?
 	                    availableHeight1 = nv.utils.availableHeight(height, container, margin) - focusHeight;
@@ -93464,6 +94016,7 @@
 	                                return {
 	                                    area: d.area,
 	                                    fillOpacity: d.fillOpacity,
+	                                    strokeWidth: d.strokeWidth,
 	                                    key: d.key,
 	                                    values: d.values.filter(function(d,i) {
 	                                        return lines.x()(d,i) >= extent[0] && lines.x()(d,i) <= extent[1];
@@ -93619,7 +94172,10 @@
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
-	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            if (_.top !== undefined) {
+	                margin.top = _.top;
+	                marginTop = _.top;
+	            }
 	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
 	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
 	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
@@ -93707,6 +94263,7 @@
 	        , xRange
 	        , yRange
 	        , groupSpacing = 0.1
+	        , fillOpacity = 0.75
 	        , dispatch = d3.dispatch('chartClick', 'elementClick', 'elementDblClick', 'elementMouseover', 'elementMouseout', 'elementMousemove', 'renderEnd')
 	        ;
 	
@@ -93779,7 +94336,7 @@
 	            });
 	
 	            // HACK for negative value stacking
-	            if (stacked) {
+	            if (stacked && data.length > 0) {
 	                data[0].values.map(function(d,i) {
 	                    var posBase = 0, negBase = 0;
 	                    data.map(function(d, idx) {
@@ -93889,7 +94446,7 @@
 	                .style('stroke', function(d,i){ return color(d, i) });
 	            groups
 	                .style('stroke-opacity', 1)
-	                .style('fill-opacity', 0.75);
+	                .style('fill-opacity', fillOpacity);
 	
 	            var bars = groups.selectAll('rect.nv-bar')
 	                .data(function(d) { return (hideable && !data.length) ? hideable.values : d.values });
@@ -94080,6 +94637,7 @@
 	        id:          {get: function(){return id;}, set: function(_){id=_;}},
 	        hideable:    {get: function(){return hideable;}, set: function(_){hideable=_;}},
 	        groupSpacing:{get: function(){return groupSpacing;}, set: function(_){groupSpacing=_;}},
+	        fillOpacity: {get: function(){return fillOpacity;}, set: function(_){fillOpacity=_;}},
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
@@ -94103,7 +94661,8 @@
 	    nv.utils.initOptions(chart);
 	
 	    return chart;
-	};nv.models.multiBarChart = function() {
+	};
+	nv.models.multiBarChart = function() {
 	    "use strict";
 	
 	    //============================================================
@@ -94120,6 +94679,7 @@
 	        ;
 	
 	    var margin = {top: 30, right: 20, bottom: 50, left: 60}
+	        , marginTop = null
 	        , width = null
 	        , height = null
 	        , color = nv.utils.defaultColor()
@@ -94159,6 +94719,31 @@
 	    ;
 	
 	    tooltip
+	        .duration(0)
+	        .valueFormatter(function(d, i) {
+	            return yAxis.tickFormat()(d, i);
+	        })
+	        .headerFormatter(function(d, i) {
+	            return xAxis.tickFormat()(d, i);
+	        });
+	
+	    interactiveLayer.tooltip
+	        .valueFormatter(function(d, i) {
+	            return d == null ? "N/A" : yAxis.tickFormat()(d, i);
+	        })
+	        .headerFormatter(function(d, i) {
+	            return xAxis.tickFormat()(d, i);
+	        });
+	
+	    interactiveLayer.tooltip
+	        .valueFormatter(function (d, i) {
+	            return d == null ? "N/A" : yAxis.tickFormat()(d, i);
+	        })
+	        .headerFormatter(function (d, i) {
+	            return xAxis.tickFormat()(d, i);
+	        });
+	
+	    interactiveLayer.tooltip
 	        .duration(0)
 	        .valueFormatter(function(d, i) {
 	            return yAxis.tickFormat()(d, i);
@@ -94272,7 +94857,7 @@
 	                    .datum(data)
 	                    .call(legend);
 	
-	                if ( margin.top != legend.height()) {
+	                if (!marginTop && legend.height() !== margin.top) {
 	                    margin.top = legend.height();
 	                    availableHeight = nv.utils.availableHeight(height, container, margin);
 	                }
@@ -94479,7 +95064,6 @@
 	                        });
 	
 	                    interactiveLayer.tooltip
-	                        .chartContainer(that.parentNode)
 	                        .data({
 	                            value: xValue,
 	                            index: pointIndex,
@@ -94553,7 +95137,10 @@
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
-	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            if (_.top !== undefined) {
+	                margin.top = _.top;
+	                marginTop = _.top;
+	            }
 	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
 	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
 	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
@@ -94614,6 +95201,7 @@
 	        , showBarLabels = false
 	        , valuePadding = 60
 	        , groupSpacing = 0.1
+	        , fillOpacity = 0.75
 	        , valueFormat = d3.format(',.2f')
 	        , delay = 1200
 	        , xDomain
@@ -94721,7 +95309,7 @@
 	                .style('stroke', function(d,i){ return color(d, i) });
 	            groups.watchTransition(renderWatch, 'multibarhorizontal: groups')
 	                .style('stroke-opacity', 1)
-	                .style('fill-opacity', .75);
+	                .style('fill-opacity', fillOpacity);
 	
 	            var bars = groups.selectAll('g.nv-bar')
 	                .data(function(d) { return d.values });
@@ -94922,7 +95510,8 @@
 	        id:           {get: function(){return id;}, set: function(_){id=_;}},
 	        valueFormat:  {get: function(){return valueFormat;}, set: function(_){valueFormat=_;}},
 	        valuePadding: {get: function(){return valuePadding;}, set: function(_){valuePadding=_;}},
-	        groupSpacing:{get: function(){return groupSpacing;}, set: function(_){groupSpacing=_;}},
+	        groupSpacing: {get: function(){return groupSpacing;}, set: function(_){groupSpacing=_;}},
+	        fillOpacity:  {get: function(){return fillOpacity;}, set: function(_){fillOpacity=_;}},
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
@@ -94964,6 +95553,7 @@
 	        ;
 	
 	    var margin = {top: 30, right: 20, bottom: 50, left: 60}
+	        , marginTop = null
 	        , width = null
 	        , height = null
 	        , color = nv.utils.defaultColor()
@@ -95107,7 +95697,7 @@
 	                    .datum(data)
 	                    .call(legend);
 	
-	                if ( margin.top != legend.height()) {
+	                if (!marginTop && legend.height() !== margin.top) {
 	                    margin.top = legend.height();
 	                    availableHeight = nv.utils.availableHeight(height, container, margin);
 	                }
@@ -95295,7 +95885,10 @@
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
-	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            if (_.top !== undefined) {
+	                margin.top = _.top;
+	                marginTop = _.top;
+	            }
 	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
 	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
 	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
@@ -95330,6 +95923,7 @@
 	    //------------------------------------------------------------
 	
 	    var margin = {top: 30, right: 20, bottom: 50, left: 60},
+	        marginTop = null,
 	        color = nv.utils.defaultColor(),
 	        width = null,
 	        height = null,
@@ -95339,11 +95933,12 @@
 	        yDomain2,
 	        getX = function(d) { return d.x },
 	        getY = function(d) { return d.y},
-	        interpolate = 'monotone',
+	        interpolate = 'linear',
 	        useVoronoi = true,
 	        interactiveLayer = nv.interactiveGuideline(),
 	        useInteractiveGuideline = false,
-	        legendRightAxisHint = ' (right axis)'
+	        legendRightAxisHint = ' (right axis)',
+	        duration = 250
 	        ;
 	
 	    //============================================================
@@ -95354,21 +95949,21 @@
 	        yScale1 = d3.scale.linear(),
 	        yScale2 = d3.scale.linear(),
 	
-	        lines1 = nv.models.line().yScale(yScale1),
-	        lines2 = nv.models.line().yScale(yScale2),
+	        lines1 = nv.models.line().yScale(yScale1).duration(duration),
+	        lines2 = nv.models.line().yScale(yScale2).duration(duration),
 	
-	        scatters1 = nv.models.scatter().yScale(yScale1),
-	        scatters2 = nv.models.scatter().yScale(yScale2),
+	        scatters1 = nv.models.scatter().yScale(yScale1).duration(duration),
+	        scatters2 = nv.models.scatter().yScale(yScale2).duration(duration),
 	
-	        bars1 = nv.models.multiBar().stacked(false).yScale(yScale1),
-	        bars2 = nv.models.multiBar().stacked(false).yScale(yScale2),
+	        bars1 = nv.models.multiBar().stacked(false).yScale(yScale1).duration(duration),
+	        bars2 = nv.models.multiBar().stacked(false).yScale(yScale2).duration(duration),
 	
-	        stack1 = nv.models.stackedArea().yScale(yScale1),
-	        stack2 = nv.models.stackedArea().yScale(yScale2),
+	        stack1 = nv.models.stackedArea().yScale(yScale1).duration(duration),
+	        stack2 = nv.models.stackedArea().yScale(yScale2).duration(duration),
 	
-	        xAxis = nv.models.axis().scale(x).orient('bottom').tickPadding(5),
-	        yAxis1 = nv.models.axis().scale(yScale1).orient('left'),
-	        yAxis2 = nv.models.axis().scale(yScale2).orient('right'),
+	        xAxis = nv.models.axis().scale(x).orient('bottom').tickPadding(5).duration(duration),
+	        yAxis1 = nv.models.axis().scale(yScale1).orient('left').duration(duration),
+	        yAxis2 = nv.models.axis().scale(yScale2).orient('right').duration(duration),
 	
 	        legend = nv.models.legend().height(30),
 	        tooltip = nv.models.tooltip(),
@@ -95419,7 +96014,7 @@
 	                    })
 	                });
 	
-	            x   .domain(d3.extent(d3.merge(series1.concat(series2)), function(d) { return getX(d) }))
+	            x   .domain(d3.extent(d3.merge(series1.concat(series2)), function(d) { return d.x }))
 	                .range([0, availableWidth]);
 	
 	            var wrap = container.selectAll('g.wrap.multiChart').data([data]);
@@ -95463,7 +96058,7 @@
 	                    }))
 	                    .call(legend);
 	
-	                if ( margin.top != legend.height()) {
+	                if (!marginTop && legend.height() !== margin.top) {
 	                    margin.top = legend.height();
 	                    availableHeight = nv.utils.availableHeight(height, container, margin);
 	                }
@@ -95501,10 +96096,12 @@
 	            stack1
 	                .width(availableWidth)
 	                .height(availableHeight)
+	                .interpolate(interpolate)
 	                .color(color_array.filter(function(d,i) { return !data[i].disabled && data[i].yAxis == 1 && data[i].type == 'area'}));
 	            stack2
 	                .width(availableWidth)
 	                .height(availableHeight)
+	                .interpolate(interpolate)
 	                .color(color_array.filter(function(d,i) { return !data[i].disabled && data[i].yAxis == 2 && data[i].type == 'area'}));
 	
 	            g.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
@@ -95741,17 +96338,21 @@
 	                        });
 	                    });
 	
-	                    interactiveLayer.tooltip
-	                    .chartContainer(chart.container.parentNode)
-	                    .valueFormatter(function(d,i) {
+	                    var defaultValueFormatter = function(d,i) {
 	                        var yAxis = allData[i].yAxis;
-	                        return d === null ? "N/A" : yAxis.tickFormat()(d);
-	                    })
-	                    .data({
-	                        value: chart.x()( singlePoint,pointIndex ),
-	                        index: pointIndex,
-	                        series: allData
-	                    })();
+	                        return d == null ? "N/A" : yAxis.tickFormat()(d);
+	                    };
+	
+	                    interactiveLayer.tooltip
+	                        .headerFormatter(function(d, i) {
+	                            return xAxis.tickFormat()(d, i);
+	                        })
+	                        .valueFormatter(interactiveLayer.tooltip.valueFormatter() || defaultValueFormatter)
+	                        .data({
+	                            value: chart.x()( singlePoint,pointIndex ),
+	                            index: pointIndex,
+	                            series: allData
+	                        })();
 	
 	                    interactiveLayer.renderGuideLine(pointXLocation);
 	                });
@@ -95843,7 +96444,10 @@
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
-	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            if (_.top !== undefined) {
+	                margin.top = _.top;
+	                marginTop = _.top;
+	            }
 	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
 	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
 	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
@@ -95895,6 +96499,13 @@
 	                scatters1.interactive(false);
 	                scatters2.interactive(false);
 	            }
+	        }},
+	
+	        duration: {get: function(){return duration;}, set: function(_) {
+	            duration = _;
+	            [lines1, lines2, stack1, stack2, scatters1, scatters2, xAxis, yAxis1, yAxis2].forEach(function(model){
+	              model.duration(duration);
+	            });
 	        }}
 	    });
 	
@@ -96145,6 +96756,8 @@
 	    var margin = {top: 30, right: 0, bottom: 10, left: 0}
 	        , width = null
 	        , height = null
+	        , availableWidth = null
+	        , availableHeight = null
 	        , x = d3.scale.ordinal()
 	        , y = {}
 	        , undefinedValuesLabel = "undefined values"
@@ -96176,8 +96789,8 @@
 	        renderWatch.reset();
 	        selection.each(function(data) {
 	            var container = d3.select(this);
-	            var availableWidth = nv.utils.availableWidth(width, container, margin),
-	                availableHeight = nv.utils.availableHeight(height, container, margin);
+	            availableWidth = nv.utils.availableWidth(width, container, margin);
+	            availableHeight = nv.utils.availableHeight(height, container, margin);
 	
 	            nv.utils.initSVG(container);
 	
@@ -96277,6 +96890,7 @@
 	            //Add missing value line at the bottom of the chart
 	            var missingValuesline, missingValueslineText;
 	            var step = x.range()[1] - x.range()[0];
+	            step = isNaN(step) ? x.range()[0] : step;
 	            if (!isNaN(step)) {
 	                var lineData = [0 + step / 2, availableHeight - 12, availableWidth - step / 2, availableHeight - 12];
 	                missingValuesline = wrap.select('.missingValuesline').selectAll('line').data([lineData]);
@@ -96550,15 +97164,6 @@
 	
 	                dispatch.dimensionsOrder(enabledDimensions);
 	            }
-	            function resetBrush() {
-	                filters = [];
-	                active = [];
-	                dispatch.stateChange();
-	            }
-	            function resetDrag() {
-	                dimensionName.map(function (d, i) { return d.currentPosition = d.originalPosition; });
-	                dispatch.stateChange();
-	            }
 	            function dimensionPosition(d) {
 	                var v = dragging[d];
 	                return v == null ? x(d) : v;
@@ -96642,22 +97247,23 @@
 	        var dimensionTooltip = nv.models.tooltip();
 	
 	        var margin = { top: 0, right: 0, bottom: 0, left: 0 }
+	        , marginTop = null
 	        , width = null
-			, height = null
+	        , height = null
 	        , showLegend = true
-			, color = nv.utils.defaultColor()
+	        , color = nv.utils.defaultColor()
 	        , state = nv.utils.state()
 	        , dimensionData = []
-	        , dimensionNames = []
 	        , displayBrush = true
 	        , defaultState = null
 	        , noData = null
+	        , nanValue = "undefined"
 	        , dispatch = d3.dispatch('dimensionsOrder', 'brushEnd', 'stateChange', 'changeState', 'renderEnd')
 	        , controlWidth = function () { return showControls ? 180 : 0 }
 	        ;
 	
 		    //============================================================
-		
+	
 			//============================================================
 	        // Private Variables
 	        //------------------------------------------------------------
@@ -96684,18 +97290,18 @@
 	
 	        tooltip.contentGenerator(function(data) {
 	            var str = '<table><thead><tr><td class="legend-color-guide"><div style="background-color:' + data.color + '"></div></td><td><strong>' + data.key + '</strong></td></tr></thead>';
-	            if(data.series.length !== 0) 
+	            if(data.series.length !== 0)
 	            {
 	                str = str + '<tbody><tr><td height ="10px"></td></tr>';
 	                data.series.forEach(function(d){
 	                    str = str + '<tr><td class="legend-color-guide"><div style="background-color:' + d.color + '"></div></td><td class="key">' + d.key + '</td><td class="value">' + d.value + '</td></tr>';
-	                }); 
+	                });
 	                str = str + '</tbody>';
 	            }
 	            str = str + '</table>';
 	            return str;
 	        });
-	        
+	
 	        //============================================================
 	        // Chart function
 	        //------------------------------------------------------------
@@ -96730,21 +97336,6 @@
 	                    d.currentPosition = isNaN(d.currentPosition) ? i : d.currentPosition;
 	                });
 	
-	                var currentDimensions = dimensionNames.map(function (d) { return d.key; });
-	                var newDimensions = dimensionData.map(function (d) { return d.key; });
-	                dimensionData.forEach(function (k, i) {
-	                    var idx = currentDimensions.indexOf(k.key);
-	                        if (idx < 0) {
-	                            dimensionNames.splice(i, 0, k);
-	                        } else {
-	                            var gap = dimensionNames[idx].currentPosition - dimensionNames[idx].originalPosition;
-	                            dimensionNames[idx].originalPosition = k.originalPosition;
-	                            dimensionNames[idx].currentPosition = k.originalPosition + gap;
-	                        }
-	                });
-	                //Remove old dimensions
-	                dimensionNames = dimensionNames.filter(function (d) { return newDimensions.indexOf(d.key) >= 0; });
-	
 	               if (!defaultState) {
 	                    var key;
 	                    defaultState = {};
@@ -96763,7 +97354,7 @@
 	                } else {
 	                    container.selectAll('.nv-noData').remove();
 	                }
-	                
+	
 	                //------------------------------------------------------------
 	                // Setup containers and skeleton of chart
 	
@@ -96771,7 +97362,7 @@
 	                var gEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-wrap nv-parallelCoordinatesChart').append('g');
 	
 	                var g = wrap.select('g');
-	                
+	
 	                gEnter.append('g').attr('class', 'nv-parallelCoordinatesWrap');
 	                gEnter.append('g').attr('class', 'nv-legendWrap');
 	
@@ -96787,10 +97378,10 @@
 	                        .color(function (d) { return "rgb(188,190,192)"; });
 	
 	                    g.select('.nv-legendWrap')
-	                        .datum(dimensionNames.sort(function (a, b) { return a.originalPosition - b.originalPosition; }))
+	                        .datum(dimensionData.sort(function (a, b) { return a.originalPosition - b.originalPosition; }))
 	                        .call(legend);
 	
-	                    if (margin.top != legend.height()) {
+	                    if (!marginTop && legend.height() !== margin.top) {
 	                        margin.top = legend.height();
 	                        availableHeight = nv.utils.availableHeight(height, container, margin);
 	                    }
@@ -96803,14 +97394,14 @@
 	                parallelCoordinates
 	                    .width(availableWidth)
 	                    .height(availableHeight)
-	                    .dimensionData(dimensionNames)
+	                    .dimensionData(dimensionData)
 	                    .displayBrush(displayBrush);
-			
+	
 			        var parallelCoordinatesWrap = g.select('.nv-parallelCoordinatesWrap ')
 	                  .datum(data);
 	
 			        parallelCoordinatesWrap.transition().call(parallelCoordinates);
-			  
+	
 					//============================================================
 	                // Event Handling/Dispatching (in chart's scope)
 	                //------------------------------------------------------------
@@ -96835,21 +97426,21 @@
 	
 	                //Update dimensions order and display reset sorting button
 			        parallelCoordinates.dispatch.on('dimensionsOrder', function (e) {
-			            dimensionNames.sort(function (a, b) { return a.currentPosition - b.currentPosition; });
+			            dimensionData.sort(function (a, b) { return a.currentPosition - b.currentPosition; });
 			            var isSorted = false;
-			            dimensionNames.forEach(function (d, i) {
+			            dimensionData.forEach(function (d, i) {
 			                d.currentPosition = i;
 			                if (d.currentPosition !== d.originalPosition)
 			                    isSorted = true;
 			            });
-			            dispatch.dimensionsOrder(dimensionNames, isSorted);
+			            dispatch.dimensionsOrder(dimensionData, isSorted);
 			        });
 	
 					// Update chart from a state object passed to event handler
 	                dispatch.on('changeState', function (e) {
 	
 	                    if (typeof e.disabled !== 'undefined') {
-	                        dimensionNames.forEach(function (series, i) {
+	                        dimensionData.forEach(function (series, i) {
 	                            series.disabled = e.disabled[i];
 	                        });
 	                        state.disabled = e.disabled;
@@ -96871,12 +97462,18 @@
 	                key: evt.label,
 	                color: evt.color,
 	                series: []
-	             }      
+	             }
 	            if(evt.values){
 	                Object.keys(evt.values).forEach(function (d) {
 	                    var dim = evt.dimensions.filter(function (dd) {return dd.key === d;})[0];
 	                    if(dim){
-	                        tp.series.push({idx:dim.currentPosition, key: d, value: dim.format(evt.values[d]), color: dim.color});
+	                        var v;
+	                        if (isNaN(evt.values[d]) || isNaN(parseFloat(evt.values[d]))) {
+	                            v = nanValue;
+	                        } else {
+	                            v = dim.format(evt.values[d]);
+	                        }
+	                        tp.series.push({ idx: dim.currentPosition, key: d, value: v, color: dim.color });
 	                    }
 	                });
 	                tp.series.sort(function(a,b) {return a.idx - b.idx});
@@ -96894,7 +97491,7 @@
 			 //============================================================
 	        // Expose Public Variables
 	        //------------------------------------------------------------
-			
+	
 			// expose chart's sub-components
 	        chart.dispatch = dispatch;
 	        chart.parallelCoordinates = parallelCoordinates;
@@ -96911,12 +97508,16 @@
 	            dimensionData: { get: function () { return dimensionData; }, set: function (_) { dimensionData = _; } },
 	            displayBrush: { get: function () { return displayBrush; }, set: function (_) { displayBrush = _; } },
 	            noData: { get: function () { return noData; }, set: function (_) { noData = _; } },
+	            nanValue: { get: function () { return nanValue; }, set: function (_) { nanValue = _; } },
 	
 	            // options that require extra logic in the setter
 	            margin: {
 	                get: function () { return margin; },
 	                set: function (_) {
-	                    margin.top = _.top !== undefined ? _.top : margin.top;
+	                    if (_.top !== undefined) {
+	                        margin.top = _.top;
+	                        marginTop = _.top;
+	                    }
 	                    margin.right = _.right !== undefined ? _.right : margin.right;
 	                    margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
 	                    margin.left = _.left !== undefined ? _.left : margin.left;
@@ -96964,6 +97565,7 @@
 	        , endAngle = false
 	        , cornerRadius = 0
 	        , donutRatio = 0.5
+	        , duration = 250
 	        , arcsRadius = []
 	        , dispatch = d3.dispatch('chartClick', 'elementClick', 'elementDblClick', 'elementMouseover', 'elementMouseout', 'elementMousemove', 'renderEnd')
 	        ;
@@ -97103,7 +97705,8 @@
 	                dispatch.elementMouseover({
 	                    data: d.data,
 	                    index: i,
-	                    color: d3.select(this).style("fill")
+	                    color: d3.select(this).style("fill"),
+	                    percent: (d.endAngle - d.startAngle) / (2 * Math.PI)
 	                });
 	            });
 	            ae.on('mouseout', function(d, i) {
@@ -97145,6 +97748,7 @@
 	
 	            slices.select('path')
 	                .transition()
+	                .duration(duration)
 	                .attr('d', function (d, i) { return arcs[i](d); })
 	                .attrTween('d', arcTween);
 	
@@ -97349,6 +97953,10 @@
 	            margin.bottom = typeof _.bottom != 'undefined' ? _.bottom : margin.bottom;
 	            margin.left   = typeof _.left   != 'undefined' ? _.left   : margin.left;
 	        }},
+	        duration: {get: function(){return duration;}, set: function(_){
+	            duration = _;
+	            renderWatch.reset(duration);
+	        }},
 	        y: {get: function(){return getY;}, set: function(_){
 	            getY=d3.functor(_);
 	        }},
@@ -97375,8 +97983,10 @@
 	    var tooltip = nv.models.tooltip();
 	
 	    var margin = {top: 30, right: 20, bottom: 20, left: 20}
+	        , marginTop = null
 	        , width = null
 	        , height = null
+	        , showTooltipPercent = false
 	        , showLegend = true
 	        , legendPosition = "top"
 	        , color = nv.utils.defaultColor()
@@ -97431,8 +98041,8 @@
 	            nv.utils.initSVG(container);
 	
 	            var that = this;
-	            var availableWidth = nv.utils.availableWidth(pie.width(), container, margin),
-	                availableHeight = nv.utils.availableHeight(pie.height(), container, margin);
+	            var availableWidth = nv.utils.availableWidth(width, container, margin),
+	                availableHeight = nv.utils.availableHeight(height, container, margin);
 	
 	            chart.update = function() { container.transition().call(chart); };
 	            chart.container = this;
@@ -97482,7 +98092,7 @@
 	                        .datum(data)
 	                        .call(legend);
 	
-	                    if ( margin.top != legend.height()) {
+	                    if (!marginTop && legend.height() !== margin.top) {
 	                        margin.top = legend.height();
 	                        availableHeight = nv.utils.availableHeight(height, container, margin);
 	                    }
@@ -97547,8 +98157,13 @@
 	        evt['series'] = {
 	            key: chart.x()(evt.data),
 	            value: chart.y()(evt.data),
-	            color: evt.color
+	            color: evt.color,
+	            percent: evt.percent
 	        };
+	        if (!showTooltipPercent) {
+	            delete evt.percent;
+	            delete evt.series.percent;
+	        }
 	        tooltip.data(evt).hidden(false);
 	    });
 	
@@ -97574,12 +98189,13 @@
 	    // use Object get/set functionality to map between vars and chart functions
 	    chart._options = Object.create({}, {
 	        // simple options, just get/set the necessary values
-	        width:      {get: function(){return width;}, set: function(_){width=_;}},
-	        height:     {get: function(){return height;}, set: function(_){height=_;}},
-	        noData:         {get: function(){return noData;},         set: function(_){noData=_;}},
-	        showLegend:     {get: function(){return showLegend;},     set: function(_){showLegend=_;}},
-	        legendPosition: {get: function(){return legendPosition;}, set: function(_){legendPosition=_;}},
-	        defaultState:   {get: function(){return defaultState;},   set: function(_){defaultState=_;}},
+	        width:              {get: function(){return width;},                set: function(_){width=_;}},
+	        height:             {get: function(){return height;},               set: function(_){height=_;}},
+	        noData:             {get: function(){return noData;},               set: function(_){noData=_;}},
+	        showTooltipPercent: {get: function(){return showTooltipPercent;},   set: function(_){showTooltipPercent=_;}},
+	        showLegend:         {get: function(){return showLegend;},           set: function(_){showLegend=_;}},
+	        legendPosition:     {get: function(){return legendPosition;},       set: function(_){legendPosition=_;}},
+	        defaultState:       {get: function(){return defaultState;},         set: function(_){defaultState=_;}},
 	
 	        // options that require extra logic in the setter
 	        color: {get: function(){return color;}, set: function(_){
@@ -97590,9 +98206,13 @@
 	        duration: {get: function(){return duration;}, set: function(_){
 	            duration = _;
 	            renderWatch.reset(duration);
+	            pie.duration(duration);
 	        }},
 	        margin: {get: function(){return margin;}, set: function(_){
-	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            if (_.top !== undefined) {
+	                margin.top = _.top;
+	                marginTop = _.top;
+	            }
 	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
 	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
 	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
@@ -97600,6 +98220,568 @@
 	    });
 	    nv.utils.inheritOptions(chart, pie);
 	    nv.utils.initOptions(chart);
+	    return chart;
+	};
+	nv.models.sankey = function() {
+	    'use strict';
+	
+	    // Sources:
+	    // - https://bost.ocks.org/mike/sankey/
+	    // - https://github.com/soxofaan/d3-plugin-captain-sankey
+	
+	    //============================================================
+	    // Public Variables with Default Settings
+	    //------------------------------------------------------------
+	
+	    var sankey = {},
+	        nodeWidth = 24,
+	        nodePadding = 8,
+	        size = [1, 1],
+	        nodes = [],
+	        links = [],
+	        sinksRight = true;
+	
+	    var layout = function(iterations) {
+	        computeNodeLinks();
+	        computeNodeValues();
+	        computeNodeBreadths();
+	        computeNodeDepths(iterations);
+	    };
+	
+	    var relayout = function() {
+	        computeLinkDepths();
+	    };
+	
+	    // SVG path data generator, to be used as 'd' attribute on 'path' element selection.
+	    var link = function() {
+	        var curvature = .5;
+	
+	        function link(d) {
+	
+	            var x0 = d.source.x + d.source.dx,
+	                x1 = d.target.x,
+	                xi = d3.interpolateNumber(x0, x1),
+	                x2 = xi(curvature),
+	                x3 = xi(1 - curvature),
+	                y0 = d.source.y + d.sy + d.dy / 2,
+	                y1 = d.target.y + d.ty + d.dy / 2;
+	            var linkPath = 'M' + x0 + ',' + y0
+	                + 'C' + x2 + ',' + y0
+	                + ' ' + x3 + ',' + y1
+	                + ' ' + x1 + ',' + y1;
+	            return linkPath;
+	        }
+	
+	        link.curvature = function(_) {
+	            if (!arguments.length) return curvature;
+	            curvature = +_;
+	            return link;
+	        };
+	
+	        return link;
+	    };
+	
+	    // Y-position of the middle of a node.
+	    var center = function(node) {
+	        return node.y + node.dy / 2;
+	    };
+	
+	    //============================================================
+	    // Private Variables
+	    //------------------------------------------------------------
+	
+	    // Populate the sourceLinks and targetLinks for each node.
+	    // Also, if the source and target are not objects, assume they are indices.
+	    function computeNodeLinks() {
+	        nodes.forEach(function(node) {
+	            // Links that have this node as source.
+	            node.sourceLinks = [];
+	            // Links that have this node as target.
+	            node.targetLinks = [];
+	        });
+	        links.forEach(function(link) {
+	            var source = link.source,
+	                target = link.target;
+	            if (typeof source === 'number') source = link.source = nodes[link.source];
+	            if (typeof target === 'number') target = link.target = nodes[link.target];
+	            source.sourceLinks.push(link);
+	            target.targetLinks.push(link);
+	        });
+	    }
+	
+	    // Compute the value (size) of each node by summing the associated links.
+	    function computeNodeValues() {
+	        nodes.forEach(function(node) {
+	            node.value = Math.max(
+	                d3.sum(node.sourceLinks, value),
+	                d3.sum(node.targetLinks, value)
+	            );
+	        });
+	    }
+	
+	    // Iteratively assign the breadth (x-position) for each node.
+	    // Nodes are assigned the maximum breadth of incoming neighbors plus one;
+	    // nodes with no incoming links are assigned breadth zero, while
+	    // nodes with no outgoing links are assigned the maximum breadth.
+	    function computeNodeBreadths() {
+	        //
+	        var remainingNodes = nodes,
+	            nextNodes,
+	            x = 0;
+	
+	        // Work from left to right.
+	        // Keep updating the breath (x-position) of nodes that are target of recently updated nodes.
+	        //
+	        while (remainingNodes.length && x < nodes.length) {
+	            nextNodes = [];
+	            remainingNodes.forEach(function(node) {
+	                node.x = x;
+	                node.dx = nodeWidth;
+	                node.sourceLinks.forEach(function(link) {
+	                    if (nextNodes.indexOf(link.target) < 0) {
+	                        nextNodes.push(link.target);
+	                    }
+	                });
+	            });
+	            remainingNodes = nextNodes;
+	            ++x;
+	            //
+	        }
+	
+	        // Optionally move pure sinks always to the right.
+	        if (sinksRight) {
+	            moveSinksRight(x);
+	        }
+	
+	        scaleNodeBreadths((size[0] - nodeWidth) / (x - 1));
+	    }
+	
+	    function moveSourcesRight() {
+	        nodes.forEach(function(node) {
+	            if (!node.targetLinks.length) {
+	                node.x = d3.min(node.sourceLinks, function(d) { return d.target.x; }) - 1;
+	            }
+	        });
+	    }
+	
+	    function moveSinksRight(x) {
+	        nodes.forEach(function(node) {
+	            if (!node.sourceLinks.length) {
+	                node.x = x - 1;
+	            }
+	        });
+	    }
+	
+	    function scaleNodeBreadths(kx) {
+	        nodes.forEach(function(node) {
+	            node.x *= kx;
+	        });
+	    }
+	
+	    // Compute the depth (y-position) for each node.
+	    function computeNodeDepths(iterations) {
+	        // Group nodes by breath.
+	        var nodesByBreadth = d3.nest()
+	            .key(function(d) { return d.x; })
+	            .sortKeys(d3.ascending)
+	            .entries(nodes)
+	            .map(function(d) { return d.values; });
+	
+	        //
+	        initializeNodeDepth();
+	        resolveCollisions();
+	        computeLinkDepths();
+	        for (var alpha = 1; iterations > 0; --iterations) {
+	            relaxRightToLeft(alpha *= .99);
+	            resolveCollisions();
+	            computeLinkDepths();
+	            relaxLeftToRight(alpha);
+	            resolveCollisions();
+	            computeLinkDepths();
+	        }
+	
+	        function initializeNodeDepth() {
+	            // Calculate vertical scaling factor.
+	            var ky = d3.min(nodesByBreadth, function(nodes) {
+	                return (size[1] - (nodes.length - 1) * nodePadding) / d3.sum(nodes, value);
+	            });
+	
+	            nodesByBreadth.forEach(function(nodes) {
+	                nodes.forEach(function(node, i) {
+	                    node.y = i;
+	                    node.dy = node.value * ky;
+	                });
+	            });
+	
+	            links.forEach(function(link) {
+	                link.dy = link.value * ky;
+	            });
+	        }
+	
+	        function relaxLeftToRight(alpha) {
+	            nodesByBreadth.forEach(function(nodes, breadth) {
+	                nodes.forEach(function(node) {
+	                    if (node.targetLinks.length) {
+	                        // Value-weighted average of the y-position of source node centers linked to this node.
+	                        var y = d3.sum(node.targetLinks, weightedSource) / d3.sum(node.targetLinks, value);
+	                        node.y += (y - center(node)) * alpha;
+	                    }
+	                });
+	            });
+	
+	            function weightedSource(link) {
+	                return (link.source.y + link.sy + link.dy / 2) * link.value;
+	            }
+	        }
+	
+	        function relaxRightToLeft(alpha) {
+	            nodesByBreadth.slice().reverse().forEach(function(nodes) {
+	                nodes.forEach(function(node) {
+	                    if (node.sourceLinks.length) {
+	                        // Value-weighted average of the y-positions of target nodes linked to this node.
+	                        var y = d3.sum(node.sourceLinks, weightedTarget) / d3.sum(node.sourceLinks, value);
+	                        node.y += (y - center(node)) * alpha;
+	                    }
+	                });
+	            });
+	
+	            function weightedTarget(link) {
+	                return (link.target.y + link.ty + link.dy / 2) * link.value;
+	            }
+	        }
+	
+	        function resolveCollisions() {
+	            nodesByBreadth.forEach(function(nodes) {
+	                var node,
+	                    dy,
+	                    y0 = 0,
+	                    n = nodes.length,
+	                    i;
+	
+	                // Push any overlapping nodes down.
+	                nodes.sort(ascendingDepth);
+	                for (i = 0; i < n; ++i) {
+	                    node = nodes[i];
+	                    dy = y0 - node.y;
+	                    if (dy > 0) node.y += dy;
+	                    y0 = node.y + node.dy + nodePadding;
+	                }
+	
+	                // If the bottommost node goes outside the bounds, push it back up.
+	                dy = y0 - nodePadding - size[1];
+	                if (dy > 0) {
+	                    y0 = node.y -= dy;
+	
+	                    // Push any overlapping nodes back up.
+	                    for (i = n - 2; i >= 0; --i) {
+	                        node = nodes[i];
+	                        dy = node.y + node.dy + nodePadding - y0;
+	                        if (dy > 0) node.y -= dy;
+	                        y0 = node.y;
+	                    }
+	                }
+	            });
+	        }
+	
+	        function ascendingDepth(a, b) {
+	            return a.y - b.y;
+	        }
+	    }
+	
+	    // Compute y-offset of the source endpoint (sy) and target endpoints (ty) of links,
+	    // relative to the source/target node's y-position.
+	    function computeLinkDepths() {
+	        nodes.forEach(function(node) {
+	            node.sourceLinks.sort(ascendingTargetDepth);
+	            node.targetLinks.sort(ascendingSourceDepth);
+	        });
+	        nodes.forEach(function(node) {
+	            var sy = 0, ty = 0;
+	            node.sourceLinks.forEach(function(link) {
+	                link.sy = sy;
+	                sy += link.dy;
+	            });
+	            node.targetLinks.forEach(function(link) {
+	                link.ty = ty;
+	                ty += link.dy;
+	            });
+	        });
+	
+	        function ascendingSourceDepth(a, b) {
+	            return a.source.y - b.source.y;
+	        }
+	
+	        function ascendingTargetDepth(a, b) {
+	            return a.target.y - b.target.y;
+	        }
+	    }
+	
+	    // Value property accessor.
+	    function value(x) {
+	        return x.value;
+	    }
+	
+	    sankey.options = nv.utils.optionsFunc.bind(sankey);
+	    sankey._options = Object.create({}, {
+	        nodeWidth:    {get: function(){return nodeWidth;},   set: function(_){nodeWidth=+_;}},
+	        nodePadding:  {get: function(){return nodePadding;}, set: function(_){nodePadding=_;}},
+	        nodes:        {get: function(){return nodes;},       set: function(_){nodes=_;}},
+	        links:        {get: function(){return links ;},      set: function(_){links=_;}},
+	        size:         {get: function(){return size;},        set: function(_){size=_;}},
+	        sinksRight:   {get: function(){return sinksRight;},  set: function(_){sinksRight=_;}},
+	
+	        layout:       {get: function(){layout(32);},         set: function(_){layout(_);}},
+	        relayout:     {get: function(){relayout();},         set: function(_){}},
+	        center:       {get: function(){return center();},    set: function(_){
+	            if(typeof _ === 'function'){
+	                center=_;
+	            }
+	        }},
+	        link:         {get: function(){return link();},      set: function(_){
+	            if(typeof _ === 'function'){
+	                link=_;
+	            }
+	            return link();
+	        }}
+	    });
+	
+	    nv.utils.initOptions(sankey);
+	
+	    return sankey;
+	};
+	nv.models.sankeyChart = function() {
+	    "use strict";
+	
+	    // Sources:
+	    // - https://bost.ocks.org/mike/sankey/
+	    // - https://github.com/soxofaan/d3-plugin-captain-sankey
+	
+	    //============================================================
+	    // Public Variables with Default Settings
+	    //------------------------------------------------------------
+	
+	    var margin = {top: 5, right: 0, bottom: 5, left: 0}
+	        , sankey = nv.models.sankey()
+	        , width = 600
+	        , height = 400
+	        , nodeWidth = 36
+	        , nodePadding =  40
+	        , units = 'units'
+	        , center = undefined
+	        ;
+	
+	    //============================================================
+	    // Private Variables
+	    //------------------------------------------------------------
+	
+	    var formatNumber = d3.format(',.0f');    // zero decimal places
+	    var format = function(d) {
+	        return formatNumber(d) + ' ' + units;
+	    };
+	    var color = d3.scale.category20();
+	    var linkTitle = function(d){
+	        return d.source.name + ' → ' + d.target.name + '\n' + format(d.value);
+	    };
+	    var nodeFillColor = function(d){
+	        return d.color = color(d.name.replace(/ .*/, ''));
+	    };
+	    var nodeStrokeColor = function(d){
+	        return d3.rgb(d.color).darker(2);
+	    };
+	    var nodeTitle = function(d){
+	        return d.name + '\n' + format(d.value);
+	    };
+	
+	    var showError = function(element, message) {
+	        element.append('text')
+	            .attr('x', 0)
+	            .attr('y', 0)
+	            .attr('class', 'nvd3-sankey-chart-error')
+	            .attr('text-anchor', 'middle')
+	            .text(message);
+	    };
+	
+	    function chart(selection) {
+	        selection.each(function(data) {
+	
+	            var testData = {
+	                nodes:
+	                    [
+	                        {'node': 1, 'name': 'Test 1'},
+	                        {'node': 2, 'name': 'Test 2'},
+	                        {'node': 3, 'name': 'Test 3'},
+	                        {'node': 4, 'name': 'Test 4'},
+	                        {'node': 5, 'name': 'Test 5'},
+	                        {'node': 6, 'name': 'Test 6'}
+	                    ],
+	                links:
+	                    [
+	                        {'source': 0, 'target': 1, 'value': 2295},
+	                        {'source': 0, 'target': 5, 'value': 1199},
+	                        {'source': 1, 'target': 2, 'value': 1119},
+	                        {'source': 1, 'target': 5, 'value': 1176},
+	                        {'source': 2, 'target': 3, 'value': 487},
+	                        {'source': 2, 'target': 5, 'value': 632},
+	                        {'source': 3, 'target': 4, 'value': 301},
+	                        {'source': 3, 'target': 5, 'value': 186}
+	                    ]
+	            };
+	
+	            // Error handling
+	            var isDataValid = false;
+	            var dataAvailable = false;
+	
+	            // check if data is valid
+	            if(
+	                (typeof data['nodes'] === 'object' && data['nodes'].length) >= 0 &&
+	                (typeof data['links'] === 'object' && data['links'].length) >= 0
+	            ){
+	                isDataValid = true;
+	            }
+	
+	            // check if data is available
+	            if(
+	                data['nodes'] && data['nodes'].length > 0 &&
+	                data['links'] && data['links'].length > 0
+	            ) {
+	                dataAvailable = true;
+	            }
+	
+	            // show error
+	            if(!isDataValid) {
+	                console.error('NVD3 Sankey chart error:', 'invalid data format for', data);
+	                console.info('Valid data format is: ', testData, JSON.stringify(testData));
+	                showError(selection, 'Error loading chart, data is invalid');
+	                return false;
+	            }
+	
+	            // TODO use nv.utils.noData
+	            if(!dataAvailable) {
+	                showError(selection, 'No data available');
+	                return false;
+	            }
+	
+	            // No errors, continue
+	
+	            // append the svg canvas to the page
+	            var svg = selection.append('svg')
+	                .attr('width', width)
+	                .attr('height', height)
+	                .append('g')
+	                .attr('class', 'nvd3 nv-wrap nv-sankeyChart');
+	
+	            // Set the sankey diagram properties
+	            sankey
+	                .nodeWidth(nodeWidth)
+	                .nodePadding(nodePadding)
+	                .size([width, height]);
+	
+	            var path = sankey.link();
+	
+	            sankey
+	                .nodes(data.nodes)
+	                .links(data.links)
+	                .layout(32)
+	                .center(center);
+	
+	            // add in the links
+	            var link = svg.append('g').selectAll('.link')
+	                .data(data.links)
+	                .enter().append('path')
+	                .attr('class', 'link')
+	                .attr('d', path)
+	                .style('stroke-width', function(d) { return Math.max(1, d.dy); })
+	            .sort(function(a,b) { return b.dy - a.dy; });
+	
+	            // add the link titles
+	            link.append('title')
+	                .text(linkTitle);
+	
+	            // add in the nodes
+	            var node = svg.append('g').selectAll('.node')
+	                .data(data.nodes)
+	                .enter().append('g')
+	                .attr('class', 'node')
+	                .attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; })
+	                .call(
+	                    d3.behavior
+	                        .drag()
+	                        .origin(function(d) { return d; })
+	                        .on('dragstart', function() {
+	                            this.parentNode.appendChild(this);
+	                        })
+	                        .on('drag', dragmove)
+	                );
+	
+	            // add the rectangles for the nodes
+	            node.append('rect')
+	                .attr('height', function(d) { return d.dy; })
+	                .attr('width', sankey.nodeWidth())
+	                .style('fill', nodeFillColor)
+	                .style('stroke', nodeStrokeColor)
+	                .append('title')
+	                .text(nodeTitle);
+	
+	            // add in the title for the nodes
+	            node.append('text')
+	                .attr('x', -6)
+	                .attr('y', function(d) { return d.dy / 2; })
+	                .attr('dy', '.35em')
+	                .attr('text-anchor', 'end')
+	                .attr('transform', null)
+	                .text(function(d) { return d.name; })
+	                .filter(function(d) { return d.x < width / 2; })
+	                .attr('x', 6 + sankey.nodeWidth())
+	                .attr('text-anchor', 'start');
+	
+	            // the function for moving the nodes
+	            function dragmove(d) {
+	                d3.select(this).attr('transform',
+	                'translate(' + d.x + ',' + (
+	                    d.y = Math.max(0, Math.min(height - d.dy, d3.event.y))
+	                ) + ')');
+	                sankey.relayout();
+	                link.attr('d', path);
+	            }
+	        });
+	
+	        return chart;
+	    }
+	
+	    //============================================================
+	    // Expose Public Variables
+	    //------------------------------------------------------------
+	
+	    chart.options = nv.utils.optionsFunc.bind(chart);
+	
+	    chart._options = Object.create({}, {
+	        // simple options, just get/set the necessary values
+	        units:           {get: function(){return units;},       set: function(_){units=_;}},
+	        width:           {get: function(){return width;},       set: function(_){width=_;}},
+	        height:          {get: function(){return height;},      set: function(_){height=_;}},
+	        format:          {get: function(){return format;},      set: function(_){format=_;}},
+	        linkTitle:       {get: function(){return linkTitle;},   set: function(_){linkTitle=_;}},
+	        nodeWidth:       {get: function(){return nodeWidth;},   set: function(_){nodeWidth=_;}},
+	        nodePadding:     {get: function(){return nodePadding;}, set: function(_){nodePadding=_;}},
+	        center:          {get: function(){return center},       set: function(_){center=_}},
+	
+	        // options that require extra logic in the setter
+	        margin: {get: function(){return margin;}, set: function(_){
+	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
+	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
+	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
+	        }},
+	        nodeStyle: {get: function(){return {};}, set: function(_){
+	            nodeFillColor   = _.fillColor   !== undefined ? _.fillColor   : nodeFillColor;
+	            nodeStrokeColor = _.strokeColor !== undefined ? _.strokeColor : nodeStrokeColor;
+	            nodeTitle       = _.title       !== undefined ? _.title       : nodeTitle;
+	        }}
+	
+	    });
+	
+	    nv.utils.initOptions(chart);
+	
 	    return chart;
 	};
 	
@@ -97614,6 +98796,7 @@
 	        , width        = null
 	        , height       = null
 	        , color        = nv.utils.defaultColor() // chooses color
+	        , pointBorderColor = null
 	        , id           = Math.floor(Math.random() * 100000) //Create semi-unique ID incase user doesn't select one
 	        , container    = null
 	        , x            = d3.scale.linear()
@@ -97645,6 +98828,7 @@
 	        , useVoronoi   = true
 	        , duration     = 250
 	        , interactiveUpdateDelay = 300
+	        , showLabels    = false
 	        ;
 	
 	
@@ -97653,32 +98837,37 @@
 	    //------------------------------------------------------------
 	
 	    var x0, y0, z0 // used to store previous scales
+	        , width0
+	        , height0
 	        , timeoutID
 	        , needsUpdate = false // Flag for when the points are visually updating, but the interactive layer is behind, to disable tooltips
 	        , renderWatch = nv.utils.renderWatch(dispatch, duration)
 	        , _sizeRange_def = [16, 256]
-	        , _caches
+	        , _cache = {}
 	        ;
 	
 	    function getCache(d) {
-	        var cache, i;
-	        cache = _caches = _caches || {};
-	        i = d[0].series;
-	        cache = cache[i] = cache[i] || {};
-	        i = d[1];
-	        cache = cache[i] = cache[i] || {};
-	        return cache;
+	        var key, val;
+	        key = d[0].series + ':' + d[1];
+	        val = _cache[key] = _cache[key] || {};
+	        return val;
+	    }
+	
+	    function delCache(d) {
+	        var key, val;
+	        key = d[0].series + ':' + d[1];
+	        delete _cache[key];
 	    }
 	
 	    function getDiffs(d) {
-	        var i, key,
-	            point = d[0],
+	        var i, key, val,
 	            cache = getCache(d),
 	            diffs = false;
-	        for (i = 1; i < arguments.length; i ++) {
+	        for (i = 1; i < arguments.length; i += 2) {
 	            key = arguments[i];
-	            if (cache[key] !== point[key] || !cache.hasOwnProperty(key)) {
-	                cache[key] = point[key];
+	            val = arguments[i + 1](d[0], d[1]);
+	            if (cache[key] !== val || !cache.hasOwnProperty(key)) {
+	                cache[key] = val;
 	                diffs = true;
 	            }
 	        }
@@ -97702,7 +98891,7 @@
 	            });
 	
 	            // Setup Scales
-	            var logScale = chart.yScale().name === d3.scale.log().name ? true : false; 
+	            var logScale = chart.yScale().name === d3.scale.log().name ? true : false;
 	            // remap and flatten the data for use in calculating the scales' domains
 	            var seriesData = (xDomain && yDomain && sizeDomain) ? [] : // if we know xDomain and yDomain and sizeDomain, no need to calculate.... if Size is constant remember to set sizeDomain to speed up performance
 	                d3.merge(
@@ -97764,6 +98953,11 @@
 	
 	            var scaleDiff = x(1) !== x0(1) || y(1) !== y0(1) || z(1) !== z0(1);
 	
+	            width0 = width0 || width;
+	            height0 = height0 || height;
+	
+	            var sizeDiff = width0 !== width || height0 !== height;
+	
 	            // Setup containers and skeleton of chart
 	            var wrap = container.selectAll('g.nv-wrap.nv-scatter').data([data]);
 	            var wrapEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-wrap nv-scatter nv-chart-' + id);
@@ -97780,11 +98974,12 @@
 	
 	            defsEnter.append('clipPath')
 	                .attr('id', 'nv-edge-clip-' + id)
-	                .append('rect');
-	
+	                .append('rect')
+	                .attr('transform', 'translate( -10, -10)');
+	                
 	            wrap.select('#nv-edge-clip-' + id + ' rect')
-	                .attr('width', availableWidth)
-	                .attr('height', (availableHeight > 0) ? availableHeight : 0);
+	                .attr('width', availableWidth + 20)
+	                .attr('height', (availableHeight > 0) ? availableHeight + 20 : 0);
 	
 	            g.attr('clip-path', clipEdge ? 'url(#nv-edge-clip-' + id + ')' : '');
 	
@@ -97882,7 +99077,7 @@
 	                            .attr('r', clipRadius);
 	                    }
 	
-	                    var mouseEventCallback = function(d, mDispatch) {
+	                    var mouseEventCallback = function(el, d, mDispatch) {
 	                        if (needsUpdate) return 0;
 	                        var series = data[d.series];
 	                        if (series === undefined) return;
@@ -97909,22 +99104,24 @@
 	                            pos: pos,
 	                            relativePos: [x(getX(point, d.point)) + margin.left, y(getY(point, d.point)) + margin.top],
 	                            seriesIndex: d.series,
-	                            pointIndex: d.point
+	                            pointIndex: d.point,
+	                            event: d3.event,
+	                            element: el
 	                        });
 	                    };
 	
 	                    pointPaths
 	                        .on('click', function(d) {
-	                            mouseEventCallback(d, dispatch.elementClick);
+	                            mouseEventCallback(this, d, dispatch.elementClick);
 	                        })
 	                        .on('dblclick', function(d) {
-	                            mouseEventCallback(d, dispatch.elementDblClick);
+	                            mouseEventCallback(this, d, dispatch.elementDblClick);
 	                        })
 	                        .on('mouseover', function(d) {
-	                            mouseEventCallback(d, dispatch.elementMouseover);
+	                            mouseEventCallback(this, d, dispatch.elementMouseover);
 	                        })
 	                        .on('mouseout', function(d, i) {
-	                            mouseEventCallback(d, dispatch.elementMouseout);
+	                            mouseEventCallback(this, d, dispatch.elementMouseout);
 	                        });
 	
 	                } else {
@@ -97938,14 +99135,16 @@
 	                            if (needsUpdate || !data[d.series]) return 0; //check if this is a dummy point
 	                            var series = data[d.series],
 	                                point  = series.values[i];
-	
+	                            var element = this;
 	                            dispatch.elementClick({
 	                                point: point,
 	                                series: series,
 	                                pos: [x(getX(point, i)) + margin.left, y(getY(point, i)) + margin.top], //TODO: make this pos base on the page
 	                                relativePos: [x(getX(point, i)) + margin.left, y(getY(point, i)) + margin.top],
 	                                seriesIndex: d.series,
-	                                pointIndex: i
+	                                pointIndex: i,
+	                                event: d3.event,
+	                                element: element
 	                            });
 	                        })
 	                        .on('dblclick', function(d,i) {
@@ -98011,7 +99210,7 @@
 	                .classed('hover', function(d) { return d.hover });
 	            groups.watchTransition(renderWatch, 'scatter: groups')
 	                .style('fill', function(d,i) { return color(d, i) })
-	                .style('stroke', function(d,i) { return color(d, i) })
+	                .style('stroke', function(d,i) { return d.pointBorderColor || pointBorderColor || color(d, i) })
 	                .style('stroke-opacity', 1)
 	                .style('fill-opacity', .5);
 	
@@ -98040,26 +99239,75 @@
 	                    .type(function(d) { return getShape(d[0]); })
 	                    .size(function(d) { return z(getSize(d[0],d[1])) })
 	            );
-	            points.exit().remove();
+	            points.exit().each(delCache).remove();
 	            groups.exit().selectAll('path.nv-point')
 	                .watchTransition(renderWatch, 'scatter exit')
 	                .attr('transform', function(d) {
 	                    return 'translate(' + nv.utils.NaNtoZero(x(getX(d[0],d[1]))) + ',' + nv.utils.NaNtoZero(y(getY(d[0],d[1]))) + ')'
 	                })
 	                .remove();
-	            points.filter(function (d) { return scaleDiff || getDiffs(d, 'x', 'y'); })
+	            // Update points position only if "x" or "y" have changed
+	            points.filter(function (d) { return scaleDiff || sizeDiff || getDiffs(d, 'x', getX, 'y', getY); })
 	                .watchTransition(renderWatch, 'scatter points')
 	                .attr('transform', function(d) {
 	                    //nv.log(d, getX(d[0],d[1]), x(getX(d[0],d[1])));
 	                    return 'translate(' + nv.utils.NaNtoZero(x(getX(d[0],d[1]))) + ',' + nv.utils.NaNtoZero(y(getY(d[0],d[1]))) + ')'
 	                });
-	            points.filter(function (d) { return scaleDiff || getDiffs(d, 'shape', 'size'); })
+	            // Update points appearance only if "shape" or "size" have changed
+	            points.filter(function (d) { return scaleDiff || sizeDiff || getDiffs(d, 'shape', getShape, 'size', getSize); })
 	                .watchTransition(renderWatch, 'scatter points')
 	                .attr('d',
 	                    nv.utils.symbol()
 	                    .type(function(d) { return getShape(d[0]); })
 	                    .size(function(d) { return z(getSize(d[0],d[1])) })
 	            );
+	
+	            // add label a label to scatter chart
+	            if(showLabels)
+	            {
+	                var titles =  groups.selectAll('.nv-label')
+	                    .data(function(d) {
+	                        return d.values.map(
+	                            function (point, pointIndex) {
+	                                return [point, pointIndex]
+	                            }).filter(
+	                                function(pointArray, pointIndex) {
+	                                    return pointActive(pointArray[0], pointIndex)
+	                                })
+	                        });
+	
+	                titles.enter().append('text')
+	                    .style('fill', function (d,i) {
+	                        return d.color })
+	                    .style('stroke-opacity', 0)
+	                    .style('fill-opacity', 1)
+	                    .attr('transform', function(d) {
+	                        var dx = nv.utils.NaNtoZero(x0(getX(d[0],d[1]))) + Math.sqrt(z(getSize(d[0],d[1]))/Math.PI) + 2;
+	                        return 'translate(' + dx + ',' + nv.utils.NaNtoZero(y0(getY(d[0],d[1]))) + ')';
+	                    })
+	                    .text(function(d,i){
+	                        return d[0].label;});
+	
+	                titles.exit().remove();
+	                groups.exit().selectAll('path.nv-label')
+	                    .watchTransition(renderWatch, 'scatter exit')
+	                    .attr('transform', function(d) {
+	                        var dx = nv.utils.NaNtoZero(x(getX(d[0],d[1])))+ Math.sqrt(z(getSize(d[0],d[1]))/Math.PI)+2;
+	                        return 'translate(' + dx + ',' + nv.utils.NaNtoZero(y(getY(d[0],d[1]))) + ')';
+	                    })
+	                    .remove();
+	               titles.each(function(d) {
+	                  d3.select(this)
+	                    .classed('nv-label', true)
+	                    .classed('nv-label-' + d[1], false)
+	                    .classed('hover',false);
+	                });
+	                titles.watchTransition(renderWatch, 'scatter labels')
+	                    .attr('transform', function(d) {
+	                        var dx = nv.utils.NaNtoZero(x(getX(d[0],d[1])))+ Math.sqrt(z(getSize(d[0],d[1]))/Math.PI)+2;
+	                        return 'translate(' + dx + ',' + nv.utils.NaNtoZero(y(getY(d[0],d[1]))) + ')'
+	                    });
+	            }
 	
 	            // Delay updating the invisible interactive layer for smoother animation
 	            if( interactiveUpdateDelay )
@@ -98076,6 +99324,9 @@
 	            x0 = x.copy();
 	            y0 = y.copy();
 	            z0 = z.copy();
+	
+	            width0 = width;
+	            height0 = height;
 	
 	        });
 	        renderWatch.renderEnd('scatter immediate');
@@ -98142,7 +99393,8 @@
 	        showVoronoi:   {get: function(){return showVoronoi;}, set: function(_){showVoronoi=_;}},
 	        id:           {get: function(){return id;}, set: function(_){id=_;}},
 	        interactiveUpdateDelay: {get:function(){return interactiveUpdateDelay;}, set: function(_){interactiveUpdateDelay=_;}},
-	
+	        showLabels: {get: function(){return showLabels;}, set: function(_){ showLabels = _;}},
+	        pointBorderColor: {get: function(){return pointBorderColor;}, set: function(_){pointBorderColor=_;}},
 	
 	        // simple functor options
 	        x:     {get: function(){return getX;}, set: function(_){getX = d3.functor(_);}},
@@ -98193,6 +99445,7 @@
 	        ;
 	
 	    var margin       = {top: 30, right: 20, bottom: 50, left: 75}
+	        , marginTop = null
 	        , width        = null
 	        , height       = null
 	        , container    = null
@@ -98210,6 +99463,7 @@
 	        , dispatch = d3.dispatch('stateChange', 'changeState', 'renderEnd')
 	        , noData       = null
 	        , duration = 250
+	        , showLabels    = false
 	        ;
 	
 	    scatter.xScale(x).yScale(y);
@@ -98341,7 +99595,7 @@
 	                    .datum(data)
 	                    .call(legend);
 	
-	                if ( margin.top != legend.height()) {
+	                if (!marginTop && legend.height() !== margin.top) {
 	                    margin.top = legend.height();
 	                    availableHeight = nv.utils.availableHeight(height, container, margin);
 	                }
@@ -98359,7 +99613,8 @@
 	                .color(data.map(function(d,i) {
 	                    d.color = d.color || color(d, i);
 	                    return d.color;
-	                }).filter(function(d,i) { return !data[i].disabled }));
+	                }).filter(function(d,i) { return !data[i].disabled }))
+	                .showLabels(showLabels);
 	
 	            wrap.select('.nv-scatterWrap')
 	                .datum(data.filter(function(d) { return !d.disabled }))
@@ -98537,10 +99792,14 @@
 	        defaultState:     {get: function(){return defaultState;}, set: function(_){defaultState=_;}},
 	        noData:     {get: function(){return noData;}, set: function(_){noData=_;}},
 	        duration:   {get: function(){return duration;}, set: function(_){duration=_;}},
+	        showLabels: {get: function(){return showLabels;}, set: function(_){showLabels=_;}},
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
-	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            if (_.top !== undefined) {
+	                margin.top = _.top;
+	                marginTop = _.top;
+	            }
 	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
 	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
 	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
@@ -98583,6 +99842,8 @@
 	        , yDomain
 	        , xRange
 	        , yRange
+	        , showMinMaxPoints = true
+	        , showCurrentPoint = true
 	        , dispatch = d3.dispatch('renderEnd')
 	        ;
 	
@@ -98643,7 +99904,7 @@
 	                    var maxPoint = pointIndex(yValues.lastIndexOf(y.domain()[1])),
 	                        minPoint = pointIndex(yValues.indexOf(y.domain()[0])),
 	                        currentPoint = pointIndex(yValues.length - 1);
-	                    return [minPoint, maxPoint, currentPoint].filter(function (d) {return d != null;});
+	                    return [(showMinMaxPoints ? minPoint : null), (showMinMaxPoints ? maxPoint : null), (showCurrentPoint ? currentPoint : null)].filter(function (d) {return d != null;});
 	                });
 	            points.enter().append('circle');
 	            points.exit().remove();
@@ -98669,15 +99930,17 @@
 	
 	    chart._options = Object.create({}, {
 	        // simple options, just get/set the necessary values
-	        width:     {get: function(){return width;}, set: function(_){width=_;}},
-	        height:    {get: function(){return height;}, set: function(_){height=_;}},
-	        xDomain:   {get: function(){return xDomain;}, set: function(_){xDomain=_;}},
-	        yDomain:   {get: function(){return yDomain;}, set: function(_){yDomain=_;}},
-	        xRange:    {get: function(){return xRange;}, set: function(_){xRange=_;}},
-	        yRange:    {get: function(){return yRange;}, set: function(_){yRange=_;}},
-	        xScale:    {get: function(){return x;}, set: function(_){x=_;}},
-	        yScale:    {get: function(){return y;}, set: function(_){y=_;}},
-	        animate:   {get: function(){return animate;}, set: function(_){animate=_;}},
+	        width:            {get: function(){return width;}, set: function(_){width=_;}},
+	        height:           {get: function(){return height;}, set: function(_){height=_;}},
+	        xDomain:          {get: function(){return xDomain;}, set: function(_){xDomain=_;}},
+	        yDomain:          {get: function(){return yDomain;}, set: function(_){yDomain=_;}},
+	        xRange:           {get: function(){return xRange;}, set: function(_){xRange=_;}},
+	        yRange:           {get: function(){return yRange;}, set: function(_){yRange=_;}},
+	        xScale:           {get: function(){return x;}, set: function(_){x=_;}},
+	        yScale:           {get: function(){return y;}, set: function(_){y=_;}},
+	        animate:          {get: function(){return animate;}, set: function(_){animate=_;}},
+	        showMinMaxPoints: {get: function(){return showMinMaxPoints;}, set: function(_){showMinMaxPoints=_;}},
+	        showCurrentPoint: {get: function(){return showCurrentPoint;}, set: function(_){showCurrentPoint=_;}},
 	
 	        //functor options
 	        x: {get: function(){return getX;}, set: function(_){getX=d3.functor(_);}},
@@ -99032,7 +100295,6 @@
 	                .y(function(d) {
 	                    if (d.display !== undefined) { return d.display.y + d.display.y0; }
 	                })
-	                .forceY([0])
 	                .color(data.map(function(d,i) {
 	                    d.color = d.color || color(d, d.seriesIndex);
 	                    return d.color;
@@ -99263,17 +100525,21 @@
 	        , controls = nv.models.legend()
 	        , interactiveLayer = nv.interactiveGuideline()
 	        , tooltip = nv.models.tooltip()
+	        , focus = nv.models.focus(nv.models.stackedArea())
 	        ;
 	
-	    var margin = {top: 30, right: 25, bottom: 50, left: 60}
+	    var margin = {top: 10, right: 25, bottom: 50, left: 60}
+	        , marginTop = null
 	        , width = null
 	        , height = null
 	        , color = nv.utils.defaultColor()
 	        , showControls = true
 	        , showLegend = true
+	        , legendPosition = 'top'
 	        , showXAxis = true
 	        , showYAxis = true
 	        , rightAlignYAxis = false
+	        , focusEnable = false
 	        , useInteractiveGuideline = false
 	        , showTotalInTooltip = true
 	        , totalLabel = 'TOTAL'
@@ -99306,7 +100572,7 @@
 	            return xAxis.tickFormat()(d, i);
 	        })
 	        .valueFormatter(function(d, i) {
-	            return yAxis.tickFormat()(d, i);
+	            return d == null ? "N/A" : yAxis.tickFormat()(d, i);
 	        });
 	
 	    var oldYTickFormat = null,
@@ -99355,7 +100621,7 @@
 	            nv.utils.initSVG(container);
 	
 	            var availableWidth = nv.utils.availableWidth(width, container, margin),
-	                availableHeight = nv.utils.availableHeight(height, container, margin);
+	                availableHeight = nv.utils.availableHeight(height, container, margin) - (focusEnable ? focus.height() : 0);
 	
 	            chart.update = function() { container.transition().duration(duration).call(chart); };
 	            chart.container = this;
@@ -99386,7 +100652,6 @@
 	            } else {
 	                container.selectAll('.nv-noData').remove();
 	            }
-	
 	            // Setup Scales
 	            x = stacked.xScale();
 	            y = stacked.yScale();
@@ -99396,32 +100661,46 @@
 	            var gEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-wrap nv-stackedAreaChart').append('g');
 	            var g = wrap.select('g');
 	
-	            gEnter.append("rect").style("opacity",0);
-	            gEnter.append('g').attr('class', 'nv-x nv-axis');
-	            gEnter.append('g').attr('class', 'nv-y nv-axis');
-	            gEnter.append('g').attr('class', 'nv-stackedWrap');
 	            gEnter.append('g').attr('class', 'nv-legendWrap');
 	            gEnter.append('g').attr('class', 'nv-controlsWrap');
-	            gEnter.append('g').attr('class', 'nv-interactive');
 	
-	            g.select("rect").attr("width",availableWidth).attr("height",availableHeight);
+	            var focusEnter = gEnter.append('g').attr('class', 'nv-focus');
+	            focusEnter.append('g').attr('class', 'nv-background').append('rect');
+	            focusEnter.append('g').attr('class', 'nv-x nv-axis');
+	            focusEnter.append('g').attr('class', 'nv-y nv-axis');
+	            focusEnter.append('g').attr('class', 'nv-stackedWrap');
+	            focusEnter.append('g').attr('class', 'nv-interactive');
+	
+	            // g.select("rect").attr("width",availableWidth).attr("height",availableHeight);
+	
+	            var contextEnter = gEnter.append('g').attr('class', 'nv-focusWrap');
 	
 	            // Legend
 	            if (!showLegend) {
 	                g.select('.nv-legendWrap').selectAll('*').remove();
 	            } else {
-	                var legendWidth = (showControls) ? availableWidth - controlWidth : availableWidth;
+	                var legendWidth = (showControls && legendPosition === 'top') ? availableWidth - controlWidth : availableWidth;
 	
 	                legend.width(legendWidth);
 	                g.select('.nv-legendWrap').datum(data).call(legend);
 	
-	                if ( margin.top != legend.height()) {
-	                    margin.top = legend.height();
-	                    availableHeight = nv.utils.availableHeight(height, container, margin);
-	                }
+	                if (legendPosition === 'bottom') {
+	                	// constant from axis.js, plus some margin for better layout
+	                	var xAxisHeight = (showXAxis ? 12 : 0) + 10;
+	                   	margin.bottom = Math.max(legend.height() + xAxisHeight, margin.bottom);
+	                   	availableHeight = nv.utils.availableHeight(height, container, margin) - (focusEnable ? focus.height() : 0);
+	                	var legendTop = availableHeight + xAxisHeight;
+	                    g.select('.nv-legendWrap')
+	                        .attr('transform', 'translate(0,' + legendTop +')');
+	                } else if (legendPosition === 'top') {
+	                    if (!marginTop && margin.top != legend.height()) {
+	                        margin.top = legend.height();
+	                        availableHeight = nv.utils.availableHeight(height, container, margin) - (focusEnable ? focus.height() : 0);
+	                    }
 	
-	                g.select('.nv-legendWrap')
-	                    .attr('transform', 'translate(' + (availableWidth-legendWidth) + ',' + (-margin.top) +')');
+	                    g.select('.nv-legendWrap')
+	                    	.attr('transform', 'translate(' + (availableWidth-legendWidth) + ',' + (-margin.top) +')');
+	                }
 	            }
 	
 	            // Controls
@@ -99468,9 +100747,11 @@
 	                    .datum(controlsData)
 	                    .call(controls);
 	
-	                if ( margin.top != Math.max(controls.height(), legend.height()) ) {
-	                    margin.top = Math.max(controls.height(), legend.height());
-	                    availableHeight = nv.utils.availableHeight(height, container, margin);
+	                var requiredTop = Math.max(controls.height(), showLegend && (legendPosition === 'top') ? legend.height() : 0);
+	
+	                if ( margin.top != requiredTop ) {
+	                    margin.top = requiredTop;
+	                    availableHeight = nv.utils.availableHeight(height, container, margin) - (focusEnable ? focus.height() : 0);
 	                }
 	
 	                g.select('.nv-controlsWrap')
@@ -99495,27 +100776,25 @@
 	                wrap.select(".nv-interactive").call(interactiveLayer);
 	            }
 	
+	            g.select('.nv-focus .nv-background rect')
+	                .attr('width', availableWidth)
+	                .attr('height', availableHeight);
+	
 	            stacked
 	                .width(availableWidth)
-	                .height(availableHeight);
+	                .height(availableHeight)
+	                .color(data.map(function(d,i) {
+	                    return d.color || color(d, i);
+	                }).filter(function(d,i) { return !data[i].disabled; }));
 	
-	            var stackedWrap = g.select('.nv-stackedWrap')
-	                .datum(data);
-	
-	            stackedWrap.transition().call(stacked);
+	            var stackedWrap = g.select('.nv-focus .nv-stackedWrap')
+	                .datum(data.filter(function(d) { return !d.disabled; }));
 	
 	            // Setup Axes
 	            if (showXAxis) {
 	                xAxis.scale(x)
 	                    ._ticks( nv.utils.calcTicksX(availableWidth/100, data) )
 	                    .tickSize( -availableHeight, 0);
-	
-	                g.select('.nv-x.nv-axis')
-	                    .attr('transform', 'translate(0,' + availableHeight + ')');
-	
-	                g.select('.nv-x.nv-axis')
-	                    .transition().duration(0)
-	                    .call(xAxis);
 	            }
 	
 	            if (showYAxis) {
@@ -99529,7 +100808,24 @@
 	                yAxis.scale(y)
 	                    ._ticks(ticks)
 	                    .tickSize(-availableWidth, 0);
+	            }
 	
+	            //============================================================
+	            // Update Axes
+	            //============================================================
+	            function updateXAxis() {
+	                if(showXAxis) {
+	                    g.select('.nv-focus .nv-x.nv-axis')
+	                        .attr('transform', 'translate(0,' + availableHeight + ')')
+	                        .transition()
+	                        .duration(duration)
+	                        .call(xAxis)
+	                        ;
+	                }
+	            }
+	
+	            function updateYAxis() {
+	                if(showYAxis) {
 	                    if (stacked.style() === 'expand' || stacked.style() === 'stack_percent') {
 	                        var currentFormat = yAxis.tickFormat();
 	
@@ -99546,9 +100842,29 @@
 	                        }
 	                    }
 	
-	                g.select('.nv-y.nv-axis')
+	                    g.select('.nv-focus .nv-y.nv-axis')
 	                    .transition().duration(0)
 	                    .call(yAxis);
+	                }
+	            }
+	
+	            //============================================================
+	            // Update Focus
+	            //============================================================
+	            if(!focusEnable) {
+	                stackedWrap.transition().call(stacked);
+	                updateXAxis();
+	                updateYAxis();
+	            } else {
+	                focus.width(availableWidth);
+	                g.select('.nv-focusWrap')
+	                    .attr('transform', 'translate(0,' + ( availableHeight + margin.bottom + focus.margin().top) + ')')
+	                    .datum(data.filter(function(d) { return !d.disabled; }))
+	                    .call(focus);
+	                var extent = focus.brush.empty() ? focus.xDomain() : focus.brush.extent();
+	                if(extent !== null){
+	                    onBrush(extent);
+	                }
 	            }
 	
 	            //============================================================
@@ -99598,7 +100914,7 @@
 	
 	            interactiveLayer.dispatch.on('elementMousemove', function(e) {
 	                stacked.clearHighlights();
-	                var singlePoint, pointIndex, pointXLocation, allData = [], valueSum = 0;
+	                var singlePoint, pointIndex, pointXLocation, allData = [], valueSum = 0, allNullValues = true;
 	                data
 	                    .filter(function(series, i) {
 	                        series.seriesIndex = i;
@@ -99621,11 +100937,12 @@
 	                            key: series.key,
 	                            value: tooltipValue,
 	                            color: color(series,series.seriesIndex),
-	                            stackedValue: point.display
+	                            point: point
 	                        });
 	
-	                        if (showTotalInTooltip && stacked.style() != 'expand') {
+	                        if (showTotalInTooltip && stacked.style() != 'expand' && tooltipValue != null) {
 	                          valueSum += tooltipValue;
+	                          allNullValues = false;
 	                        };
 	                    });
 	
@@ -99640,8 +100957,8 @@
 	                        //To handle situation where the stacked area chart is negative, we need to use absolute values
 	                        //when checking if the mouse Y value is within the stack area.
 	                        yValue = Math.abs(yValue);
-	                        var stackedY0 = Math.abs(series.stackedValue.y0);
-	                        var stackedY = Math.abs(series.stackedValue.y);
+	                        var stackedY0 = Math.abs(series.point.display.y0);
+	                        var stackedY = Math.abs(series.point.display.y);
 	                        if ( yValue >= stackedY0 && yValue <= (stackedY + stackedY0))
 	                        {
 	                            indexToHighlight = i;
@@ -99653,7 +100970,7 @@
 	                }
 	
 	                //If we are not in 'expand' mode, add a 'Total' row to the tooltip.
-	                if (showTotalInTooltip && stacked.style() != 'expand' && allData.length >= 2) {
+	                if (showTotalInTooltip && stacked.style() != 'expand' && allData.length >= 2 && !allNullValues) {
 	                    allData.push({
 	                        key: totalLabel,
 	                        value: valueSum,
@@ -99680,7 +100997,6 @@
 	                }
 	
 	                interactiveLayer.tooltip
-	                    .chartContainer(that.parentNode)
 	                    .valueFormatter(valueFormatter)
 	                    .data(
 	                    {
@@ -99695,6 +101011,11 @@
 	
 	            interactiveLayer.dispatch.on("elementMouseout",function(e) {
 	                stacked.clearHighlights();
+	            });
+	
+	            /* Update `main' graph on brush update. */
+	            focus.dispatch.on("onBrush", function(extent) {
+	                onBrush(extent);
 	            });
 	
 	            // Update chart from a state object passed to event handler
@@ -99716,6 +101037,34 @@
 	                chart.update();
 	            });
 	
+	            //============================================================
+	            // Functions
+	            //------------------------------------------------------------
+	
+	            function onBrush(extent) {
+	                // Update Main (Focus)
+	                var stackedWrap = g.select('.nv-focus .nv-stackedWrap')
+	                    .datum(
+	                    data.filter(function(d) { return !d.disabled; })
+	                        .map(function(d,i) {
+	                            return {
+	                                key: d.key,
+	                                area: d.area,
+	                                classed: d.classed,
+	                                values: d.values.filter(function(d,i) {
+	                                    return stacked.x()(d,i) >= extent[0] && stacked.x()(d,i) <= extent[1];
+	                                }),
+	                                disableTooltip: d.disableTooltip
+	                            };
+	                        })
+	                );
+	                stackedWrap.transition().duration(duration).call(stacked);
+	
+	                // Update Main (Focus) Axes
+	                updateXAxis();
+	                updateYAxis();
+	            }
+	
 	        });
 	
 	        renderWatch.renderEnd('stacked Area chart immediate');
@@ -99735,7 +101084,6 @@
 	    stacked.dispatch.on('elementMouseout.tooltip', function(evt) {
 	        tooltip.hidden(true)
 	    });
-	
 	    //============================================================
 	    // Expose Public Variables
 	    //------------------------------------------------------------
@@ -99746,9 +101094,12 @@
 	    chart.legend = legend;
 	    chart.controls = controls;
 	    chart.xAxis = xAxis;
+	    chart.x2Axis = focus.xAxis;
 	    chart.yAxis = yAxis;
+	    chart.y2Axis = focus.yAxis;
 	    chart.interactiveLayer = interactiveLayer;
 	    chart.tooltip = tooltip;
+	    chart.focus = focus;
 	
 	    chart.dispatch = dispatch;
 	    chart.options = nv.utils.optionsFunc.bind(chart);
@@ -99758,6 +101109,7 @@
 	        width:      {get: function(){return width;}, set: function(_){width=_;}},
 	        height:     {get: function(){return height;}, set: function(_){height=_;}},
 	        showLegend: {get: function(){return showLegend;}, set: function(_){showLegend=_;}},
+	        legendPosition: {get: function(){return legendPosition;}, set: function(_){legendPosition=_;}},
 	        showXAxis:      {get: function(){return showXAxis;}, set: function(_){showXAxis=_;}},
 	        showYAxis:    {get: function(){return showYAxis;}, set: function(_){showYAxis=_;}},
 	        defaultState:    {get: function(){return defaultState;}, set: function(_){defaultState=_;}},
@@ -99767,13 +101119,25 @@
 	        controlOptions:    {get: function(){return controlOptions;}, set: function(_){controlOptions=_;}},
 	        showTotalInTooltip:      {get: function(){return showTotalInTooltip;}, set: function(_){showTotalInTooltip=_;}},
 	        totalLabel:      {get: function(){return totalLabel;}, set: function(_){totalLabel=_;}},
+	        focusEnable:    {get: function(){return focusEnable;}, set: function(_){focusEnable=_;}},
+	        focusHeight:     {get: function(){return focus.height();}, set: function(_){focus.height(_);}},
+	        brushExtent: {get: function(){return focus.brushExtent();}, set: function(_){focus.brushExtent(_);}},
 	
 	        // options that require extra logic in the setter
 	        margin: {get: function(){return margin;}, set: function(_){
-	            margin.top    = _.top    !== undefined ? _.top    : margin.top;
+	            if (_.top !== undefined) {
+	                margin.top = _.top;
+	                marginTop = _.top;
+	            }
 	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
 	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
 	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
+	        }},
+	        focusMargin: {get: function(){return focus.margin}, set: function(_){
+	            focus.margin.top    = _.top    !== undefined ? _.top    : focus.margin.top;
+	            focus.margin.right  = _.right  !== undefined ? _.right  : focus.margin.right;
+	            focus.margin.bottom = _.bottom !== undefined ? _.bottom : focus.margin.bottom;
+	            focus.margin.left   = _.left   !== undefined ? _.left   : focus.margin.left;
 	        }},
 	        duration: {get: function(){return duration;}, set: function(_){
 	            duration = _;
@@ -99786,6 +101150,15 @@
 	            color = nv.utils.getColor(_);
 	            legend.color(color);
 	            stacked.color(color);
+	            focus.color(color);
+	        }},
+	        x: {get: function(){return stacked.x();}, set: function(_){
+	            stacked.x(_);
+	            focus.x(_);
+	        }},
+	        y: {get: function(){return stacked.y();}, set: function(_){
+	            stacked.y(_);
+	            focus.y(_);
 	        }},
 	        rightAlignYAxis: {get: function(){return rightAlignYAxis;}, set: function(_){
 	            rightAlignYAxis = _;
@@ -99803,6 +101176,12 @@
 	    nv.utils.initOptions(chart);
 	
 	    return chart;
+	};
+	
+	nv.models.stackedAreaWithFocusChart = function() {
+	  return nv.models.stackedAreaChart()
+	    .margin({ bottom: 30 })
+	    .focusEnable( true );
 	};
 	// based on http://bl.ocks.org/kerryrodden/477c1bfb081b783f80ad
 	nv.models.sunburst = function() {
@@ -99862,6 +101241,12 @@
 	        var endAngle = Math.max(0, Math.min(2 * Math.PI, x(d.x + d.dx)));
 	        var centerAngle = (((startAngle + endAngle) / 2) * (180 / Math.PI)) - 90;
 	        return centerAngle;
+	    }
+	
+	    function computeNodePercentage(d) {
+	        var startAngle = Math.max(0, Math.min(2 * Math.PI, x(d.x)));
+	        var endAngle = Math.max(0, Math.min(2 * Math.PI, x(d.x + d.dx)));
+	        return (endAngle - startAngle) / (2 * Math.PI);
 	    }
 	
 	    function labelThresholdMatched(d) {
@@ -100013,7 +101398,9 @@
 	            if( !wrap[0][0] ) {
 	                wrap = container.append('g')
 	                    .attr('class', 'nvd3 nv-wrap nv-sunburst nv-chart-' + id)
-	                    .attr('transform', 'translate(' + availableWidth / 2 + ',' + availableHeight / 2 + ')');
+	                    .attr('transform', 'translate(' + ((availableWidth / 2) + margin.left + margin.right) + ',' + ((availableHeight / 2) + margin.top + margin.bottom) + ')');
+	            } else {
+	                wrap.attr('transform', 'translate(' + ((availableWidth / 2) + margin.left + margin.right) + ',' + ((availableHeight / 2) + margin.top + margin.bottom) + ')');
 	            }
 	
 	            container.on('click', function (d, i) {
@@ -100053,12 +101440,19 @@
 	                    }
 	                })
 	                .style("stroke", "#FFF")
-	                .on("click", zoomClick)
+	                .on("click", function(d,i){
+	                    zoomClick(d);
+	                    dispatch.elementClick({
+	                        data: d,
+	                        index: i
+	                    })
+	                })
 	                .on('mouseover', function(d,i){
 	                    d3.select(this).classed('hover', true).style('opacity', 0.8);
 	                    dispatch.elementMouseover({
 	                        data: d,
-	                        color: d3.select(this).style("fill")
+	                        color: d3.select(this).style("fill"),
+	                        percent: computeNodePercentage(d)
 	                    });
 	                })
 	                .on('mouseout', function(d,i){
@@ -100188,6 +101582,7 @@
 	        , width = null
 	        , height = null
 	        , color = nv.utils.defaultColor()
+	        , showTooltipPercent = false
 	        , id = Math.round(Math.random() * 100000)
 	        , defaultState = null
 	        , noData = null
@@ -100239,7 +101634,7 @@
 	                container.selectAll('.nv-noData').remove();
 	            }
 	
-	            sunburst.width(availableWidth).height(availableHeight);
+	            sunburst.width(availableWidth).height(availableHeight).margin(margin);
 	            container.call(sunburst);
 	        });
 	
@@ -100255,8 +101650,13 @@
 	        evt.series = {
 	            key: evt.data.name,
 	            value: (evt.data.value || evt.data.size),
-	            color: evt.color
+	            color: evt.color,
+	            percent: evt.percent
 	        };
+	        if (!showTooltipPercent) {
+	            delete evt.percent;
+	            delete evt.series.percent;
+	        }
 	        tooltip.data(evt).hidden(false);
 	    });
 	
@@ -100281,8 +101681,9 @@
 	    // use Object get/set functionality to map between vars and chart functions
 	    chart._options = Object.create({}, {
 	        // simple options, just get/set the necessary values
-	        noData:         {get: function(){return noData;},         set: function(_){noData=_;}},
-	        defaultState:   {get: function(){return defaultState;},   set: function(_){defaultState=_;}},
+	        noData:             {get: function(){return noData;},               set: function(_){noData=_;}},
+	        defaultState:       {get: function(){return defaultState;},         set: function(_){defaultState=_;}},
+	        showTooltipPercent: {get: function(){return showTooltipPercent;},   set: function(_){showTooltipPercent=_;}},
 	
 	        // options that require extra logic in the setter
 	        color: {get: function(){return color;}, set: function(_){
@@ -100299,6 +101700,7 @@
 	            margin.right  = _.right  !== undefined ? _.right  : margin.right;
 	            margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
 	            margin.left   = _.left   !== undefined ? _.left   : margin.left;
+	            sunburst.margin(margin);
 	        }}
 	    });
 	    nv.utils.inheritOptions(chart, sunburst);
@@ -100307,11 +101709,12 @@
 	
 	};
 	
-	nv.version = "1.8.2-dev";
+	nv.version = "1.8.5";
 	})();
+	//# sourceMappingURL=nv.d3.js.map
 
 /***/ },
-/* 419 */
+/* 420 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(module) {//! moment.js
@@ -102128,7 +103531,7 @@
 	            module && module.exports) {
 	        try {
 	            oldLocale = globalLocale._abbr;
-	            __webpack_require__(421)("./" + name);
+	            __webpack_require__(422)("./" + name);
 	            // because defineLocale currently also sets the global locale, we
 	            // want to undo that for lazy loaded locales
 	            getSetGlobalLocale(oldLocale);
@@ -104616,10 +106019,10 @@
 	
 	})));
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(420)(module)))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(421)(module)))
 
 /***/ },
-/* 420 */
+/* 421 */
 /***/ function(module, exports) {
 
 	module.exports = function(module) {
@@ -104635,228 +106038,228 @@
 
 
 /***/ },
-/* 421 */
+/* 422 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var map = {
-		"./af": 422,
-		"./af.js": 422,
-		"./ar": 423,
-		"./ar-dz": 424,
-		"./ar-dz.js": 424,
-		"./ar-ly": 425,
-		"./ar-ly.js": 425,
-		"./ar-ma": 426,
-		"./ar-ma.js": 426,
-		"./ar-sa": 427,
-		"./ar-sa.js": 427,
-		"./ar-tn": 428,
-		"./ar-tn.js": 428,
-		"./ar.js": 423,
-		"./az": 429,
-		"./az.js": 429,
-		"./be": 430,
-		"./be.js": 430,
-		"./bg": 431,
-		"./bg-x": 432,
-		"./bg-x.js": 432,
-		"./bg.js": 431,
-		"./bn": 433,
-		"./bn.js": 433,
-		"./bo": 434,
-		"./bo.js": 434,
-		"./br": 435,
-		"./br.js": 435,
-		"./bs": 436,
-		"./bs.js": 436,
-		"./ca": 437,
-		"./ca.js": 437,
-		"./cs": 438,
-		"./cs.js": 438,
-		"./cv": 439,
-		"./cv.js": 439,
-		"./cy": 440,
-		"./cy.js": 440,
-		"./da": 441,
-		"./da.js": 441,
-		"./de": 442,
-		"./de-at": 443,
-		"./de-at.js": 443,
-		"./de.js": 442,
-		"./dv": 444,
-		"./dv.js": 444,
-		"./el": 445,
-		"./el.js": 445,
-		"./en-au": 446,
-		"./en-au.js": 446,
-		"./en-ca": 447,
-		"./en-ca.js": 447,
-		"./en-gb": 448,
-		"./en-gb.js": 448,
-		"./en-ie": 449,
-		"./en-ie.js": 449,
-		"./en-nz": 450,
-		"./en-nz.js": 450,
-		"./eo": 451,
-		"./eo.js": 451,
-		"./es": 452,
-		"./es-do": 453,
-		"./es-do.js": 453,
-		"./es.js": 452,
-		"./et": 454,
-		"./et.js": 454,
-		"./eu": 455,
-		"./eu.js": 455,
-		"./fa": 456,
-		"./fa.js": 456,
-		"./fi": 457,
-		"./fi.js": 457,
-		"./fo": 458,
-		"./fo.js": 458,
-		"./fr": 459,
-		"./fr-ca": 460,
-		"./fr-ca.js": 460,
-		"./fr-ch": 461,
-		"./fr-ch.js": 461,
-		"./fr.js": 459,
-		"./fy": 462,
-		"./fy.js": 462,
-		"./gd": 463,
-		"./gd.js": 463,
-		"./gl": 464,
-		"./gl.js": 464,
-		"./he": 465,
-		"./he.js": 465,
-		"./hi": 466,
-		"./hi.js": 466,
-		"./hr": 467,
-		"./hr.js": 467,
-		"./hu": 468,
-		"./hu.js": 468,
-		"./hy-am": 469,
-		"./hy-am.js": 469,
-		"./id": 470,
-		"./id.js": 470,
-		"./is": 471,
-		"./is.js": 471,
-		"./it": 472,
-		"./it.js": 472,
-		"./ja": 473,
-		"./ja.js": 473,
-		"./jv": 474,
-		"./jv.js": 474,
-		"./ka": 475,
-		"./ka.js": 475,
-		"./kk": 476,
-		"./kk.js": 476,
-		"./km": 477,
-		"./km.js": 477,
-		"./ko": 478,
-		"./ko.js": 478,
-		"./ky": 479,
-		"./ky.js": 479,
-		"./lb": 480,
-		"./lb.js": 480,
-		"./lo": 481,
-		"./lo.js": 481,
-		"./lt": 482,
-		"./lt.js": 482,
-		"./lv": 483,
-		"./lv.js": 483,
-		"./me": 484,
-		"./me.js": 484,
-		"./mi": 485,
-		"./mi.js": 485,
-		"./mk": 486,
-		"./mk.js": 486,
-		"./ml": 487,
-		"./ml.js": 487,
-		"./mr": 488,
-		"./mr.js": 488,
-		"./ms": 489,
-		"./ms-my": 490,
-		"./ms-my.js": 490,
-		"./ms.js": 489,
-		"./my": 491,
-		"./my.js": 491,
-		"./nb": 492,
-		"./nb.js": 492,
-		"./ne": 493,
-		"./ne.js": 493,
-		"./nl": 494,
-		"./nl-be": 495,
-		"./nl-be.js": 495,
-		"./nl.js": 494,
-		"./nn": 496,
-		"./nn.js": 496,
-		"./pa-in": 497,
-		"./pa-in.js": 497,
-		"./pl": 498,
-		"./pl.js": 498,
-		"./pt": 499,
-		"./pt-br": 500,
-		"./pt-br.js": 500,
-		"./pt.js": 499,
-		"./ro": 501,
-		"./ro.js": 501,
-		"./ru": 502,
-		"./ru.js": 502,
-		"./se": 503,
-		"./se.js": 503,
-		"./si": 504,
-		"./si.js": 504,
-		"./sk": 505,
-		"./sk.js": 505,
-		"./sl": 506,
-		"./sl.js": 506,
-		"./sq": 507,
-		"./sq.js": 507,
-		"./sr": 508,
-		"./sr-cyrl": 509,
-		"./sr-cyrl.js": 509,
-		"./sr.js": 508,
-		"./ss": 510,
-		"./ss.js": 510,
-		"./sv": 511,
-		"./sv.js": 511,
-		"./sw": 512,
-		"./sw.js": 512,
-		"./ta": 513,
-		"./ta.js": 513,
-		"./te": 514,
-		"./te.js": 514,
-		"./tet": 515,
-		"./tet.js": 515,
-		"./th": 516,
-		"./th.js": 516,
-		"./tl-ph": 517,
-		"./tl-ph.js": 517,
-		"./tlh": 518,
-		"./tlh.js": 518,
-		"./tr": 519,
-		"./tr.js": 519,
-		"./tzl": 520,
-		"./tzl.js": 520,
-		"./tzm": 521,
-		"./tzm-latn": 522,
-		"./tzm-latn.js": 522,
-		"./tzm.js": 521,
-		"./uk": 523,
-		"./uk.js": 523,
-		"./uz": 524,
-		"./uz.js": 524,
-		"./vi": 525,
-		"./vi.js": 525,
-		"./x-pseudo": 526,
-		"./x-pseudo.js": 526,
-		"./yo": 527,
-		"./yo.js": 527,
-		"./zh-cn": 528,
-		"./zh-cn.js": 528,
-		"./zh-hk": 529,
-		"./zh-hk.js": 529,
-		"./zh-tw": 530,
-		"./zh-tw.js": 530
+		"./af": 423,
+		"./af.js": 423,
+		"./ar": 424,
+		"./ar-dz": 425,
+		"./ar-dz.js": 425,
+		"./ar-ly": 426,
+		"./ar-ly.js": 426,
+		"./ar-ma": 427,
+		"./ar-ma.js": 427,
+		"./ar-sa": 428,
+		"./ar-sa.js": 428,
+		"./ar-tn": 429,
+		"./ar-tn.js": 429,
+		"./ar.js": 424,
+		"./az": 430,
+		"./az.js": 430,
+		"./be": 431,
+		"./be.js": 431,
+		"./bg": 432,
+		"./bg-x": 433,
+		"./bg-x.js": 433,
+		"./bg.js": 432,
+		"./bn": 434,
+		"./bn.js": 434,
+		"./bo": 435,
+		"./bo.js": 435,
+		"./br": 436,
+		"./br.js": 436,
+		"./bs": 437,
+		"./bs.js": 437,
+		"./ca": 438,
+		"./ca.js": 438,
+		"./cs": 439,
+		"./cs.js": 439,
+		"./cv": 440,
+		"./cv.js": 440,
+		"./cy": 441,
+		"./cy.js": 441,
+		"./da": 442,
+		"./da.js": 442,
+		"./de": 443,
+		"./de-at": 444,
+		"./de-at.js": 444,
+		"./de.js": 443,
+		"./dv": 445,
+		"./dv.js": 445,
+		"./el": 446,
+		"./el.js": 446,
+		"./en-au": 447,
+		"./en-au.js": 447,
+		"./en-ca": 448,
+		"./en-ca.js": 448,
+		"./en-gb": 449,
+		"./en-gb.js": 449,
+		"./en-ie": 450,
+		"./en-ie.js": 450,
+		"./en-nz": 451,
+		"./en-nz.js": 451,
+		"./eo": 452,
+		"./eo.js": 452,
+		"./es": 453,
+		"./es-do": 454,
+		"./es-do.js": 454,
+		"./es.js": 453,
+		"./et": 455,
+		"./et.js": 455,
+		"./eu": 456,
+		"./eu.js": 456,
+		"./fa": 457,
+		"./fa.js": 457,
+		"./fi": 458,
+		"./fi.js": 458,
+		"./fo": 459,
+		"./fo.js": 459,
+		"./fr": 460,
+		"./fr-ca": 461,
+		"./fr-ca.js": 461,
+		"./fr-ch": 462,
+		"./fr-ch.js": 462,
+		"./fr.js": 460,
+		"./fy": 463,
+		"./fy.js": 463,
+		"./gd": 464,
+		"./gd.js": 464,
+		"./gl": 465,
+		"./gl.js": 465,
+		"./he": 466,
+		"./he.js": 466,
+		"./hi": 467,
+		"./hi.js": 467,
+		"./hr": 468,
+		"./hr.js": 468,
+		"./hu": 469,
+		"./hu.js": 469,
+		"./hy-am": 470,
+		"./hy-am.js": 470,
+		"./id": 471,
+		"./id.js": 471,
+		"./is": 472,
+		"./is.js": 472,
+		"./it": 473,
+		"./it.js": 473,
+		"./ja": 474,
+		"./ja.js": 474,
+		"./jv": 475,
+		"./jv.js": 475,
+		"./ka": 476,
+		"./ka.js": 476,
+		"./kk": 477,
+		"./kk.js": 477,
+		"./km": 478,
+		"./km.js": 478,
+		"./ko": 479,
+		"./ko.js": 479,
+		"./ky": 480,
+		"./ky.js": 480,
+		"./lb": 481,
+		"./lb.js": 481,
+		"./lo": 482,
+		"./lo.js": 482,
+		"./lt": 483,
+		"./lt.js": 483,
+		"./lv": 484,
+		"./lv.js": 484,
+		"./me": 485,
+		"./me.js": 485,
+		"./mi": 486,
+		"./mi.js": 486,
+		"./mk": 487,
+		"./mk.js": 487,
+		"./ml": 488,
+		"./ml.js": 488,
+		"./mr": 489,
+		"./mr.js": 489,
+		"./ms": 490,
+		"./ms-my": 491,
+		"./ms-my.js": 491,
+		"./ms.js": 490,
+		"./my": 492,
+		"./my.js": 492,
+		"./nb": 493,
+		"./nb.js": 493,
+		"./ne": 494,
+		"./ne.js": 494,
+		"./nl": 495,
+		"./nl-be": 496,
+		"./nl-be.js": 496,
+		"./nl.js": 495,
+		"./nn": 497,
+		"./nn.js": 497,
+		"./pa-in": 498,
+		"./pa-in.js": 498,
+		"./pl": 499,
+		"./pl.js": 499,
+		"./pt": 500,
+		"./pt-br": 501,
+		"./pt-br.js": 501,
+		"./pt.js": 500,
+		"./ro": 502,
+		"./ro.js": 502,
+		"./ru": 503,
+		"./ru.js": 503,
+		"./se": 504,
+		"./se.js": 504,
+		"./si": 505,
+		"./si.js": 505,
+		"./sk": 506,
+		"./sk.js": 506,
+		"./sl": 507,
+		"./sl.js": 507,
+		"./sq": 508,
+		"./sq.js": 508,
+		"./sr": 509,
+		"./sr-cyrl": 510,
+		"./sr-cyrl.js": 510,
+		"./sr.js": 509,
+		"./ss": 511,
+		"./ss.js": 511,
+		"./sv": 512,
+		"./sv.js": 512,
+		"./sw": 513,
+		"./sw.js": 513,
+		"./ta": 514,
+		"./ta.js": 514,
+		"./te": 515,
+		"./te.js": 515,
+		"./tet": 516,
+		"./tet.js": 516,
+		"./th": 517,
+		"./th.js": 517,
+		"./tl-ph": 518,
+		"./tl-ph.js": 518,
+		"./tlh": 519,
+		"./tlh.js": 519,
+		"./tr": 520,
+		"./tr.js": 520,
+		"./tzl": 521,
+		"./tzl.js": 521,
+		"./tzm": 522,
+		"./tzm-latn": 523,
+		"./tzm-latn.js": 523,
+		"./tzm.js": 522,
+		"./uk": 524,
+		"./uk.js": 524,
+		"./uz": 525,
+		"./uz.js": 525,
+		"./vi": 526,
+		"./vi.js": 526,
+		"./x-pseudo": 527,
+		"./x-pseudo.js": 527,
+		"./yo": 528,
+		"./yo.js": 528,
+		"./zh-cn": 529,
+		"./zh-cn.js": 529,
+		"./zh-hk": 530,
+		"./zh-hk.js": 530,
+		"./zh-tw": 531,
+		"./zh-tw.js": 531
 	};
 	function webpackContext(req) {
 		return __webpack_require__(webpackContextResolve(req));
@@ -104869,11 +106272,11 @@
 	};
 	webpackContext.resolve = webpackContextResolve;
 	module.exports = webpackContext;
-	webpackContext.id = 421;
+	webpackContext.id = 422;
 
 
 /***/ },
-/* 422 */
+/* 423 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -104881,7 +106284,7 @@
 	//! author : Werner Mollentze : https://github.com/wernerm
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -104951,7 +106354,7 @@
 
 
 /***/ },
-/* 423 */
+/* 424 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -104961,7 +106364,7 @@
 	//! author : forabi https://github.com/forabi
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -105098,7 +106501,7 @@
 
 
 /***/ },
-/* 424 */
+/* 425 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -105106,7 +106509,7 @@
 	//! author : Noureddine LOUAHEDJ : https://github.com/noureddineme
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -105162,7 +106565,7 @@
 
 
 /***/ },
-/* 425 */
+/* 426 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -105170,7 +106573,7 @@
 	//! author : Ali Hmer: https://github.com/kikoanis
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -105293,7 +106696,7 @@
 
 
 /***/ },
-/* 426 */
+/* 427 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -105302,7 +106705,7 @@
 	//! author : Abdel Said : https://github.com/abdelsaid
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -105358,7 +106761,7 @@
 
 
 /***/ },
-/* 427 */
+/* 428 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -105366,7 +106769,7 @@
 	//! author : Suhail Alkowaileet : https://github.com/xsoh
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -105468,7 +106871,7 @@
 
 
 /***/ },
-/* 428 */
+/* 429 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -105476,7 +106879,7 @@
 	//! author : Nader Toukabri : https://github.com/naderio
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -105532,7 +106935,7 @@
 
 
 /***/ },
-/* 429 */
+/* 430 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -105540,7 +106943,7 @@
 	//! author : topchiyev : https://github.com/topchiyev
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -105642,7 +107045,7 @@
 
 
 /***/ },
-/* 430 */
+/* 431 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -105652,7 +107055,7 @@
 	//! Author : Menelion Elensúle : https://github.com/Oire
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -105781,7 +107184,7 @@
 
 
 /***/ },
-/* 431 */
+/* 432 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -105789,7 +107192,7 @@
 	//! author : Krasen Borisov : https://github.com/kraz
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -105876,12 +107279,12 @@
 
 
 /***/ },
-/* 432 */
+/* 433 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -105896,7 +107299,7 @@
 
 
 /***/ },
-/* 433 */
+/* 434 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -105904,7 +107307,7 @@
 	//! author : Kaushik Gandhi : https://github.com/kaushikgandhi
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -106020,7 +107423,7 @@
 
 
 /***/ },
-/* 434 */
+/* 435 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -106028,7 +107431,7 @@
 	//! author : Thupten N. Chakrishar : https://github.com/vajradog
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -106144,7 +107547,7 @@
 
 
 /***/ },
-/* 435 */
+/* 436 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -106152,7 +107555,7 @@
 	//! author : Jean-Baptiste Le Duigou : https://github.com/jbleduigou
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -106257,7 +107660,7 @@
 
 
 /***/ },
-/* 436 */
+/* 437 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -106266,7 +107669,7 @@
 	//! based on (hr) translation by Bojan Marković
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -106405,7 +107808,7 @@
 
 
 /***/ },
-/* 437 */
+/* 438 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -106413,7 +107816,7 @@
 	//! author : Juan G. Hurtado : https://github.com/juanghurtado
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -106491,7 +107894,7 @@
 
 
 /***/ },
-/* 438 */
+/* 439 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -106499,7 +107902,7 @@
 	//! author : petrbela : https://github.com/petrbela
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -106668,7 +108071,7 @@
 
 
 /***/ },
-/* 439 */
+/* 440 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -106676,7 +108079,7 @@
 	//! author : Anatoly Mironov : https://github.com/mirontoli
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -106736,7 +108139,7 @@
 
 
 /***/ },
-/* 440 */
+/* 441 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -106745,7 +108148,7 @@
 	//! author : https://github.com/ryangreaves
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -106822,7 +108225,7 @@
 
 
 /***/ },
-/* 441 */
+/* 442 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -106830,7 +108233,7 @@
 	//! author : Ulrik Nielsen : https://github.com/mrbase
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -106887,7 +108290,7 @@
 
 
 /***/ },
-/* 442 */
+/* 443 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -106897,7 +108300,7 @@
 	//! author : Mikolaj Dadela : https://github.com/mik01aj
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -106970,7 +108373,7 @@
 
 
 /***/ },
-/* 443 */
+/* 444 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -106981,7 +108384,7 @@
 	//! author : Mikolaj Dadela : https://github.com/mik01aj
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -107054,7 +108457,7 @@
 
 
 /***/ },
-/* 444 */
+/* 445 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -107062,7 +108465,7 @@
 	//! author : Jawish Hameed : https://github.com/jawish
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -107159,7 +108562,7 @@
 
 
 /***/ },
-/* 445 */
+/* 446 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -107167,7 +108570,7 @@
 	//! author : Aggelos Karalias : https://github.com/mehiel
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -107262,7 +108665,7 @@
 
 
 /***/ },
-/* 446 */
+/* 447 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -107270,7 +108673,7 @@
 	//! author : Jared Morse : https://github.com/jarcoal
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -107334,7 +108737,7 @@
 
 
 /***/ },
-/* 447 */
+/* 448 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -107342,7 +108745,7 @@
 	//! author : Jonathan Abourbih : https://github.com/jonbca
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -107402,7 +108805,7 @@
 
 
 /***/ },
-/* 448 */
+/* 449 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -107410,7 +108813,7 @@
 	//! author : Chris Gedrim : https://github.com/chrisgedrim
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -107474,7 +108877,7 @@
 
 
 /***/ },
-/* 449 */
+/* 450 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -107482,7 +108885,7 @@
 	//! author : Chris Cartlidge : https://github.com/chriscartlidge
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -107546,7 +108949,7 @@
 
 
 /***/ },
-/* 450 */
+/* 451 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -107554,7 +108957,7 @@
 	//! author : Luke McGregor : https://github.com/lukemcgregor
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -107618,7 +109021,7 @@
 
 
 /***/ },
-/* 451 */
+/* 452 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -107628,7 +109031,7 @@
 	//!          Se ne, bonvolu korekti kaj avizi min por ke mi povas lerni!
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -107696,7 +109099,7 @@
 
 
 /***/ },
-/* 452 */
+/* 453 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -107704,7 +109107,7 @@
 	//! author : Julio Napurí : https://github.com/julionc
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -107782,14 +109185,14 @@
 
 
 /***/ },
-/* 453 */
+/* 454 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
 	//! locale : Spanish (Dominican Republic) [es-do]
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -107867,7 +109270,7 @@
 
 
 /***/ },
-/* 454 */
+/* 455 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -107876,7 +109279,7 @@
 	//! improvements : Illimar Tambek : https://github.com/ragulka
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -107952,7 +109355,7 @@
 
 
 /***/ },
-/* 455 */
+/* 456 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -107960,7 +109363,7 @@
 	//! author : Eneko Illarramendi : https://github.com/eillarra
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -108023,7 +109426,7 @@
 
 
 /***/ },
-/* 456 */
+/* 457 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -108031,7 +109434,7 @@
 	//! author : Ebrahim Byagowi : https://github.com/ebraminio
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -108135,7 +109538,7 @@
 
 
 /***/ },
-/* 457 */
+/* 458 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -108143,7 +109546,7 @@
 	//! author : Tarmo Aidantausta : https://github.com/bleadof
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -108247,7 +109650,7 @@
 
 
 /***/ },
-/* 458 */
+/* 459 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -108255,7 +109658,7 @@
 	//! author : Ragnar Johannesen : https://github.com/ragnar123
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -108312,7 +109715,7 @@
 
 
 /***/ },
-/* 459 */
+/* 460 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -108320,7 +109723,7 @@
 	//! author : John Fischer : https://github.com/jfroffice
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -108381,7 +109784,7 @@
 
 
 /***/ },
-/* 460 */
+/* 461 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -108389,7 +109792,7 @@
 	//! author : Jonathan Abourbih : https://github.com/jonbca
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -108446,7 +109849,7 @@
 
 
 /***/ },
-/* 461 */
+/* 462 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -108454,7 +109857,7 @@
 	//! author : Gaspard Bucher : https://github.com/gaspard
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -108515,7 +109918,7 @@
 
 
 /***/ },
-/* 462 */
+/* 463 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -108523,7 +109926,7 @@
 	//! author : Robin van der Vliet : https://github.com/robin0van0der0v
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -108593,7 +109996,7 @@
 
 
 /***/ },
-/* 463 */
+/* 464 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -108601,7 +110004,7 @@
 	//! author : Jon Ashdown : https://github.com/jonashdown
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -108674,7 +110077,7 @@
 
 
 /***/ },
-/* 464 */
+/* 465 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -108682,7 +110085,7 @@
 	//! author : Juan G. Hurtado : https://github.com/juanghurtado
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -108756,7 +110159,7 @@
 
 
 /***/ },
-/* 465 */
+/* 466 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -108766,7 +110169,7 @@
 	//! author : Tal Ater : https://github.com/TalAter
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -108860,7 +110263,7 @@
 
 
 /***/ },
-/* 466 */
+/* 467 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -108868,7 +110271,7 @@
 	//! author : Mayank Singhal : https://github.com/mayanksinghal
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -108989,7 +110392,7 @@
 
 
 /***/ },
-/* 467 */
+/* 468 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -108997,7 +110400,7 @@
 	//! author : Bojan Marković : https://github.com/bmarkovic
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -109139,7 +110542,7 @@
 
 
 /***/ },
-/* 468 */
+/* 469 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -109147,7 +110550,7 @@
 	//! author : Adam Brunner : https://github.com/adambrunner
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -109253,7 +110656,7 @@
 
 
 /***/ },
-/* 469 */
+/* 470 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -109261,7 +110664,7 @@
 	//! author : Armendarabyan : https://github.com/armendarabyan
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -109353,7 +110756,7 @@
 
 
 /***/ },
-/* 470 */
+/* 471 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -109362,7 +110765,7 @@
 	//! reference: http://id.wikisource.org/wiki/Pedoman_Umum_Ejaan_Bahasa_Indonesia_yang_Disempurnakan
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -109441,7 +110844,7 @@
 
 
 /***/ },
-/* 471 */
+/* 472 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -109449,7 +110852,7 @@
 	//! author : Hinrik Örn Sigurðsson : https://github.com/hinrik
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -109573,7 +110976,7 @@
 
 
 /***/ },
-/* 472 */
+/* 473 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -109582,7 +110985,7 @@
 	//! author: Mattia Larentis: https://github.com/nostalgiaz
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -109648,7 +111051,7 @@
 
 
 /***/ },
-/* 473 */
+/* 474 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -109656,7 +111059,7 @@
 	//! author : LI Long : https://github.com/baryon
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -109729,7 +111132,7 @@
 
 
 /***/ },
-/* 474 */
+/* 475 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -109738,7 +111141,7 @@
 	//! reference: http://jv.wikipedia.org/wiki/Basa_Jawa
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -109817,7 +111220,7 @@
 
 
 /***/ },
-/* 475 */
+/* 476 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -109825,7 +111228,7 @@
 	//! author : Irakli Janiashvili : https://github.com/irakli-janiashvili
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -109911,7 +111314,7 @@
 
 
 /***/ },
-/* 476 */
+/* 477 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -109919,7 +111322,7 @@
 	//! authors : Nurlan Rakhimzhanov : https://github.com/nurlan
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -110003,7 +111406,7 @@
 
 
 /***/ },
-/* 477 */
+/* 478 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -110011,7 +111414,7 @@
 	//! author : Kruy Vanna : https://github.com/kruyvanna
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -110066,7 +111469,7 @@
 
 
 /***/ },
-/* 478 */
+/* 479 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -110075,7 +111478,7 @@
 	//! author : Jeeeyul Lee <jeeeyul@gmail.com>
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -110136,7 +111539,7 @@
 
 
 /***/ },
-/* 479 */
+/* 480 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -110144,7 +111547,7 @@
 	//! author : Chyngyz Arystan uulu : https://github.com/chyngyz
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -110229,7 +111632,7 @@
 
 
 /***/ },
-/* 480 */
+/* 481 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -110238,7 +111641,7 @@
 	//! author : David Raison : https://github.com/kwisatz
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -110371,7 +111774,7 @@
 
 
 /***/ },
-/* 481 */
+/* 482 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -110379,7 +111782,7 @@
 	//! author : Ryan Hart : https://github.com/ryanhart2
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -110446,7 +111849,7 @@
 
 
 /***/ },
-/* 482 */
+/* 483 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -110454,7 +111857,7 @@
 	//! author : Mindaugas Mozūras : https://github.com/mmozuras
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -110568,7 +111971,7 @@
 
 
 /***/ },
-/* 483 */
+/* 484 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -110577,7 +111980,7 @@
 	//! author : Jānis Elmeris : https://github.com/JanisE
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -110670,7 +112073,7 @@
 
 
 /***/ },
-/* 484 */
+/* 485 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -110678,7 +112081,7 @@
 	//! author : Miodrag Nikač <miodrag@restartit.me> : https://github.com/miodragnikac
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -110786,7 +112189,7 @@
 
 
 /***/ },
-/* 485 */
+/* 486 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -110794,7 +112197,7 @@
 	//! author : John Corrigan <robbiecloset@gmail.com> : https://github.com/johnideal
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -110855,7 +112258,7 @@
 
 
 /***/ },
-/* 486 */
+/* 487 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -110863,7 +112266,7 @@
 	//! author : Borislav Mickov : https://github.com/B0k0
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -110950,7 +112353,7 @@
 
 
 /***/ },
-/* 487 */
+/* 488 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -110958,7 +112361,7 @@
 	//! author : Floyd Pink : https://github.com/floydpink
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -111036,7 +112439,7 @@
 
 
 /***/ },
-/* 488 */
+/* 489 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -111045,7 +112448,7 @@
 	//! author : Vivek Athalye : https://github.com/vnathalye
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -111200,7 +112603,7 @@
 
 
 /***/ },
-/* 489 */
+/* 490 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -111208,7 +112611,7 @@
 	//! author : Weldan Jamili : https://github.com/weldan
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -111287,7 +112690,7 @@
 
 
 /***/ },
-/* 490 */
+/* 491 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -111296,7 +112699,7 @@
 	//! author : Weldan Jamili : https://github.com/weldan
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -111375,7 +112778,7 @@
 
 
 /***/ },
-/* 491 */
+/* 492 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -111385,7 +112788,7 @@
 	//! author : Tin Aung Lin : https://github.com/thanyawzinmin
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -111476,7 +112879,7 @@
 
 
 /***/ },
-/* 492 */
+/* 493 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -111485,7 +112888,7 @@
 	//!           Sigurd Gartmann : https://github.com/sigurdga
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -111544,7 +112947,7 @@
 
 
 /***/ },
-/* 493 */
+/* 494 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -111552,7 +112955,7 @@
 	//! author : suvash : https://github.com/suvash
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -111672,7 +113075,7 @@
 
 
 /***/ },
-/* 494 */
+/* 495 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -111681,7 +113084,7 @@
 	//! author : Jacob Middag : https://github.com/middagj
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -111763,7 +113166,7 @@
 
 
 /***/ },
-/* 495 */
+/* 496 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -111772,7 +113175,7 @@
 	//! author : Jacob Middag : https://github.com/middagj
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -111854,7 +113257,7 @@
 
 
 /***/ },
-/* 496 */
+/* 497 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -111862,7 +113265,7 @@
 	//! author : https://github.com/mechuwind
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -111919,7 +113322,7 @@
 
 
 /***/ },
-/* 497 */
+/* 498 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -111927,7 +113330,7 @@
 	//! author : Harpreet Singh : https://github.com/harpreetkhalsagtbit
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -112048,7 +113451,7 @@
 
 
 /***/ },
-/* 498 */
+/* 499 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -112056,7 +113459,7 @@
 	//! author : Rafal Hirsz : https://github.com/evoL
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -112158,7 +113561,7 @@
 
 
 /***/ },
-/* 499 */
+/* 500 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -112166,7 +113569,7 @@
 	//! author : Jefferson : https://github.com/jalex79
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -112228,7 +113631,7 @@
 
 
 /***/ },
-/* 500 */
+/* 501 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -112236,7 +113639,7 @@
 	//! author : Caio Ribeiro Pereira : https://github.com/caio-ribeiro-pereira
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -112294,7 +113697,7 @@
 
 
 /***/ },
-/* 501 */
+/* 502 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -112303,7 +113706,7 @@
 	//! author : Valentin Agachi : https://github.com/avaly
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -112374,7 +113777,7 @@
 
 
 /***/ },
-/* 502 */
+/* 503 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -112384,7 +113787,7 @@
 	//! author : Коренберг Марк : https://github.com/socketpair
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -112562,7 +113965,7 @@
 
 
 /***/ },
-/* 503 */
+/* 504 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -112570,7 +113973,7 @@
 	//! authors : Bård Rolstad Henriksen : https://github.com/karamell
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -112628,7 +114031,7 @@
 
 
 /***/ },
-/* 504 */
+/* 505 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -112636,7 +114039,7 @@
 	//! author : Sampath Sitinamaluwa : https://github.com/sampathsris
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -112704,7 +114107,7 @@
 
 
 /***/ },
-/* 505 */
+/* 506 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -112713,7 +114116,7 @@
 	//! based on work of petrbela : https://github.com/petrbela
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -112859,7 +114262,7 @@
 
 
 /***/ },
-/* 506 */
+/* 507 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -112867,7 +114270,7 @@
 	//! author : Robert Sedovšek : https://github.com/sedovsek
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -113026,7 +114429,7 @@
 
 
 /***/ },
-/* 507 */
+/* 508 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -113036,7 +114439,7 @@
 	//! author : Oerd Cukalla : https://github.com/oerd
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -113101,7 +114504,7 @@
 
 
 /***/ },
-/* 508 */
+/* 509 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -113109,7 +114512,7 @@
 	//! author : Milan Janačković<milanjanackovic@gmail.com> : https://github.com/milan-j
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -113216,7 +114619,7 @@
 
 
 /***/ },
-/* 509 */
+/* 510 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -113224,7 +114627,7 @@
 	//! author : Milan Janačković<milanjanackovic@gmail.com> : https://github.com/milan-j
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -113331,7 +114734,7 @@
 
 
 /***/ },
-/* 510 */
+/* 511 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -113339,7 +114742,7 @@
 	//! author : Nicolai Davies<mail@nicolai.io> : https://github.com/nicolaidavies
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -113425,7 +114828,7 @@
 
 
 /***/ },
-/* 511 */
+/* 512 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -113433,7 +114836,7 @@
 	//! author : Jens Alm : https://github.com/ulmus
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -113499,7 +114902,7 @@
 
 
 /***/ },
-/* 512 */
+/* 513 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -113507,7 +114910,7 @@
 	//! author : Fahad Kassim : https://github.com/fadsel
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -113563,7 +114966,7 @@
 
 
 /***/ },
-/* 513 */
+/* 514 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -113571,7 +114974,7 @@
 	//! author : Arjunkumar Krishnamoorthy : https://github.com/tk120404
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -113698,7 +115101,7 @@
 
 
 /***/ },
-/* 514 */
+/* 515 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -113706,7 +115109,7 @@
 	//! author : Krishna Chaitanya Thota : https://github.com/kcthota
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -113792,7 +115195,7 @@
 
 
 /***/ },
-/* 515 */
+/* 516 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -113801,7 +115204,7 @@
 	//! author : Onorio De J. Afonso : https://github.com/marobo
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -113865,7 +115268,7 @@
 
 
 /***/ },
-/* 516 */
+/* 517 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -113873,7 +115276,7 @@
 	//! author : Kridsada Thanabulpong : https://github.com/sirn
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -113937,7 +115340,7 @@
 
 
 /***/ },
-/* 517 */
+/* 518 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -113945,7 +115348,7 @@
 	//! author : Dan Hagman : https://github.com/hagmandan
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -114004,7 +115407,7 @@
 
 
 /***/ },
-/* 518 */
+/* 519 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -114012,7 +115415,7 @@
 	//! author : Dominika Kruk : https://github.com/amaranthrose
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -114129,7 +115532,7 @@
 
 
 /***/ },
-/* 519 */
+/* 520 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -114138,7 +115541,7 @@
 	//!           Burak Yiğit Kaya: https://github.com/BYK
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -114224,7 +115627,7 @@
 
 
 /***/ },
-/* 520 */
+/* 521 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -114233,7 +115636,7 @@
 	//! author : Iustì Canun
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -114320,7 +115723,7 @@
 
 
 /***/ },
-/* 521 */
+/* 522 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -114328,7 +115731,7 @@
 	//! author : Abdel Said : https://github.com/abdelsaid
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -114383,7 +115786,7 @@
 
 
 /***/ },
-/* 522 */
+/* 523 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -114391,7 +115794,7 @@
 	//! author : Abdel Said : https://github.com/abdelsaid
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -114446,7 +115849,7 @@
 
 
 /***/ },
-/* 523 */
+/* 524 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -114455,7 +115858,7 @@
 	//! Author : Menelion Elensúle : https://github.com/Oire
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -114597,7 +116000,7 @@
 
 
 /***/ },
-/* 524 */
+/* 525 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -114605,7 +116008,7 @@
 	//! author : Sardor Muminov : https://github.com/muminoff
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -114660,7 +116063,7 @@
 
 
 /***/ },
-/* 525 */
+/* 526 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -114668,7 +116071,7 @@
 	//! author : Bang Nguyen : https://github.com/bangnk
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -114744,7 +116147,7 @@
 
 
 /***/ },
-/* 526 */
+/* 527 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -114752,7 +116155,7 @@
 	//! author : Andrew Hood : https://github.com/andrewhood125
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -114817,7 +116220,7 @@
 
 
 /***/ },
-/* 527 */
+/* 528 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -114825,7 +116228,7 @@
 	//! author : Atolagbe Abisoye : https://github.com/andela-batolagbe
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -114882,7 +116285,7 @@
 
 
 /***/ },
-/* 528 */
+/* 529 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -114891,7 +116294,7 @@
 	//! author : Zeno Zeng : https://github.com/zenozeng
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -115014,7 +116417,7 @@
 
 
 /***/ },
-/* 529 */
+/* 530 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -115024,7 +116427,7 @@
 	//! author : Konstantin : https://github.com/skfd
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -115124,7 +116527,7 @@
 
 
 /***/ },
-/* 530 */
+/* 531 */
 /***/ function(module, exports, __webpack_require__) {
 
 	//! moment.js locale configuration
@@ -115133,7 +116536,7 @@
 	//! author : Chris Lam : https://github.com/hehachris
 	
 	;(function (global, factory) {
-	    true ? factory(__webpack_require__(419)) :
+	    true ? factory(__webpack_require__(420)) :
 	   typeof define === 'function' && define.amd ? define(['../moment'], factory) :
 	   factory(global.moment)
 	}(this, (function (moment) { 'use strict';
@@ -115233,14 +116636,14 @@
 
 
 /***/ },
-/* 531 */
+/* 532 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
 	var Router = __webpack_require__(1);
-	__webpack_require__(532);
+	__webpack_require__(533);
 	var platformManagerActionCreators = __webpack_require__(327);
 	
 	var LoginForm = React.createClass({
@@ -115297,20 +116700,20 @@
 	module.exports = LoginForm;
 
 /***/ },
-/* 532 */
+/* 533 */
 /***/ function(module, exports) {
 
 	// removed by extract-text-webpack-plugin
 
 /***/ },
-/* 533 */,
 /* 534 */,
 /* 535 */,
 /* 536 */,
 /* 537 */,
 /* 538 */,
 /* 539 */,
-/* 540 */
+/* 540 */,
+/* 541 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -115336,7 +116739,7 @@
 	module.exports = PageNotFound;
 
 /***/ },
-/* 541 */
+/* 542 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -115344,7 +116747,7 @@
 	var React = __webpack_require__(3);
 	var Router = __webpack_require__(1);
 	
-	var AgentRow = __webpack_require__(542);
+	var AgentRow = __webpack_require__(543);
 	var platformActionCreators = __webpack_require__(308);
 	var statusIndicatorActionCreators = __webpack_require__(271);
 	var platformsStore = __webpack_require__(268);
@@ -115540,7 +116943,7 @@
 	module.exports = Platform;
 
 /***/ },
-/* 542 */
+/* 543 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -115550,7 +116953,7 @@
 	var platformActionCreators = __webpack_require__(308);
 	var modalActionCreators = __webpack_require__(324);
 	
-	var RemoveAgentForm = __webpack_require__(543);
+	var RemoveAgentForm = __webpack_require__(544);
 	
 	var AgentRow = React.createClass({
 	    displayName: 'AgentRow',
@@ -115653,7 +117056,7 @@
 	module.exports = AgentRow;
 
 /***/ },
-/* 543 */
+/* 544 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -115726,7 +117129,7 @@
 	module.exports = RemoveAgentForm;
 
 /***/ },
-/* 544 */
+/* 545 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -115736,8 +117139,8 @@
 	
 	var modalActionCreators = __webpack_require__(324);
 	var platformsStore = __webpack_require__(268);
-	var RegisterPlatformForm = __webpack_require__(545);
-	var DeregisterPlatformConfirmation = __webpack_require__(546);
+	var RegisterPlatformForm = __webpack_require__(546);
+	var DeregisterPlatformConfirmation = __webpack_require__(547);
 	
 	var Platforms = React.createClass({
 	    displayName: 'Platforms',
@@ -115874,7 +117277,7 @@
 	module.exports = Platforms;
 
 /***/ },
-/* 545 */
+/* 546 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -116297,7 +117700,7 @@
 	module.exports = RegisterPlatformForm;
 
 /***/ },
-/* 546 */
+/* 547 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -116364,16 +117767,16 @@
 	module.exports = RegisterPlatformForm;
 
 /***/ },
-/* 547 */
+/* 548 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
 	var React = __webpack_require__(3);
-	var PlatformChart = __webpack_require__(416);
+	var PlatformChart = __webpack_require__(417);
 	var modalActionCreators = __webpack_require__(324);
 	var platformActionCreators = __webpack_require__(308);
-	var NewChartForm = __webpack_require__(548);
+	var NewChartForm = __webpack_require__(549);
 	var chartStore = __webpack_require__(267);
 	
 	var PlatformCharts = React.createClass({
@@ -116413,6 +117816,7 @@
 	                    chart: chartData[key],
 	                    chartKey: key,
 	                    hideControls: false });
+	
 	                platformCharts.push(platformChart);
 	            }
 	        }
@@ -116458,12 +117862,12 @@
 	module.exports = PlatformCharts;
 
 /***/ },
-/* 548 */
+/* 549 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 	
-	var _reactSelectMe = __webpack_require__(345);
+	var _reactSelectMe = __webpack_require__(346);
 	
 	var _reactSelectMe2 = _interopRequireDefault(_reactSelectMe);
 	
@@ -116758,4 +118162,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-3b78152a2bb0e7d6460e.js.map
+//# sourceMappingURL=app-5f6598545ef03e0db49b.js.map

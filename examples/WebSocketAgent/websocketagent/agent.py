@@ -101,7 +101,7 @@ def main(argv=sys.argv):
     """Main method called by the eggsecutable."""
 
     try:
-        utils.vip_main(WebSocketAgent)
+        utils.vip_main(WebSocketAgent, version=__version__)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')

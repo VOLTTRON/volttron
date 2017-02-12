@@ -301,7 +301,7 @@ class AlertGroup(Agent):
 
 
 def main():
-    utils.vip_main(AlertAgent, identity=PLATFORM_ALERTER)
+    utils.vip_main(AlertAgent, identity=PLATFORM_ALERTER, version=__version__)
 
 
 if __name__ == '__main__':

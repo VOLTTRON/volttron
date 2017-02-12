@@ -1534,7 +1534,8 @@ def main(argv=sys.argv):
     :param argv:
     :return:
     """
-    utils.vip_main(VolttronCentralAgent, identity=VOLTTRON_CENTRAL)
+    utils.vip_main(VolttronCentralAgent, identity=VOLTTRON_CENTRAL,
+                   version = __version__)
 
 
 if __name__ == '__main__':

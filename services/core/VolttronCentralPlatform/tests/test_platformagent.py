@@ -157,7 +157,6 @@ def test_get_health(vcp_simulated_vc):
     assert health['status'] == STATUS_GOOD
     assert health['context'] == 'Let the good-times role'
 
-
 @pytest.mark.pa
 @pytest.mark.skip(reason="4.1 fixing tests")
 def test_listagents(vcp_simulated_vc):
@@ -171,7 +170,8 @@ def test_listagents(vcp_simulated_vc):
         expected_keys = ['name', 'uuid', 'tag', 'priority', 'process_id', 'health',
                          'health.status', 'heatlh.context', 'health.last_updated',
                          'error_code', 'permissions', 'permissions.can_restart',
-                         'permissions.can_remove', 'can_stop', 'can_start']
+                         'permissions.can_remove', 'can_stop', 'can_start',
+                         'version']
         expected_key_set = set(expected_keys)
         none_key_set = set(['tag', 'priority', 'health.context', 'error_code'])
         not_none_key_set = expected_key_set.difference(none_key_set)
@@ -237,7 +237,7 @@ def test_can_get_agentlist(pa_instance):
     retagent = agentlist[0]
     assert retagent['uuid'] == agent_uuid
     checkkeys = ('process_id', 'error_code', 'is_running', 'permissions',
-                 'health')
+                 'health', 'version')
     for k in checkkeys:
         assert k in retagent.keys()
 

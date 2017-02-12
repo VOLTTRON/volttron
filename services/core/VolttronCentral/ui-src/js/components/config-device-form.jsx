@@ -67,7 +67,18 @@ class ConfigDeviceForm extends BaseComponent {
     _updateSetting(evt) {
         var key = evt.currentTarget.dataset.setting;
 
-        this.state.settings[key].value = evt.target.value;
+        if (this.state.settings[key].type === "number")
+        {
+            if (evt.target.value > 0 || evt.target.value === "")
+            {
+                this.state.settings[key].value = evt.target.value;
+            }
+        }
+        else
+        {
+            this.state.settings[key].value = evt.target.value;
+        }
+        
         this.setState({settings: this.state.settings});
     }
     _checkItem(checked, key) {
@@ -404,6 +415,11 @@ var initializeSettings = (type, savedConfig, settingsTemplate) => {
                 minimum_priority: {
                     value: 8, 
                     label: "Minimum Priority",
+                    type: "number"
+                },
+                max_per_request: {
+                    value: "", 
+                    label: "Maximum Objects per Request",
                     type: "number"
                 },
                 max_objs_per_read: {

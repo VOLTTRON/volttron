@@ -236,7 +236,7 @@ def default_main(agent_class, description=None, argv=sys.argv,
         pass
 
 
-def vip_main(agent_class, identity=None, **kwargs):
+def vip_main(agent_class, identity=None, version='0.1', **kwargs):
     """Default main entry point implementation for VIP agents."""
     try:
         # If stdout is a pipe, re-open it line buffered
@@ -266,7 +266,9 @@ def vip_main(agent_class, identity=None, **kwargs):
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
                             volttron_home=volttron_home,
-                            **kwargs)
+                            identity=PLATFORM_DRIVER
+                            version=version, **kwargs)
+        
         try:
             run = agent.run
         except AttributeError:
