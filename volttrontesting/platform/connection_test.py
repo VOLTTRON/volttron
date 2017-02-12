@@ -19,21 +19,19 @@ def setup_control_connection(request, get_volttron_instances):
     assert wrapper
     assert wrapper.is_running()
 
-    if get_volttron_instances.param == 'encrypted':
-        wrapper.allow_all_connections()
-        # Connect using keys
-        ks = KeyStore()
-        ks.generate()
+    wrapper.allow_all_connections()
 
-        control_connection = build_connection(identity="foo",
-                                              address=wrapper.vip_address,
-                                              peer=CONTROL,
-                                              serverkey=wrapper.serverkey,
-                                              publickey=ks.public,
-                                              secretkey=ks.secret)
-    else:
-        control_connection = Connection(address=wrapper.local_vip_address,
-                                        peer=CONTROL, developer_mode=True)
+    # Connect using keys
+    ks = KeyStore()
+    ks.generate()
+
+    control_connection = build_connection(identity="foo",
+                                          address=wrapper.vip_address,
+                                          peer=CONTROL,
+                                          serverkey=wrapper.serverkey,
+                                          publickey=ks.public,
+                                          secretkey=ks.secret)
+
     # Sleep a couple seconds to wait for things to startup
     gevent.sleep(2)
     return wrapper, control_connection

@@ -111,8 +111,7 @@ def volttron_instance1_web(request):
     print("building instance 1 (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
-    wrapper = build_wrapper(address,
-                            bind_web_address=web_address)
+    wrapper = build_wrapper(address, bind_web_address=web_address)
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -126,8 +125,7 @@ def volttron_instance2_web(request):
     print("building instance 2 (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
-    wrapper = build_wrapper(address,
-                            bind_web_address=web_address)
+    wrapper = build_wrapper(address, bind_web_address=web_address)
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -143,14 +141,14 @@ def volttron_instance2_web(request):
                 params=['encrypted'])
 def volttron_instance(request):
     """Fixture that returns a single instance of volttron platform for testing
-    Tests using this fixture will be run twice, once with an unencrypted
-    volttron instance and once with an encrypted volttron instance
+
     @param request: pytest request object
     @return: volttron platform instance
     """
     wrapper = None
     address = get_rand_vip()
     wrapper = build_wrapper(address)
+
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
@@ -170,9 +168,7 @@ def get_volttron_instances(request):
     """ Fixture to get more than 1 volttron instance for test
     Use this fixture to get more than 1 volttron instance for test. This
     returns a function object that should be called with number of instances
-    as parameter to get a list of volttron instnaces. Since this fixture is
-    parameterized you test method will be run twice once with unencrypted
-    volttron instances and once with encrypted instances. The fixture also
+    as parameter to get a list of volttron instnaces. The fixture also
     takes care of shutting down all the instances at the end
 
     Example Usage:
@@ -180,13 +176,8 @@ def get_volttron_instances(request):
     def test_function_that_uses_n_instances(get_volttron_instances):
         instance1, instance2, instance3 = get_volttron_instances(3)
 
-        if get_volttron_instances.param != 'encrypted':
-            pytest.skipif('Only available during encrypted round')
-
     @param request: pytest request object
-    @return: tuple:
-        The current param value (useful for skipping if context is either
-        encrypted or not) and a function that can used to get any number of
+    @return: function that can used to get any number of
         volttron instances for testing.
     """
     all_instances = []
@@ -202,8 +193,8 @@ def get_volttron_instances(request):
             else:
                 wrapper = PlatformWrapper()
             instances.append(wrapper)
-        get_n_volttron_instances.param = request.param
         instances = instances if n > 1 else instances[0]
+        # setattr(get_n_volttron_instances, 'instances', instances)
         get_n_volttron_instances.instances = instances
         return instances
 

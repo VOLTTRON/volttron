@@ -66,7 +66,7 @@ from volttron.platform.messaging.health import Status, STATUS_BAD
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.6'
+__version__ = '3.7'
 
 
 def thresholddetection_agent(config_path, **kwargs):
@@ -88,91 +88,175 @@ class ThresholdDetectionAgent(Agent):
 
     The agent's configuration specifies which topics to watch, the
     topic's threshold, and the message to send in an alert. Topics
-    in the `watch_max` list trigger alerts when the published data
-    are greater than the specified threshold. Topics in the
-    `watch_min` list trigger alerts when the published data are
-    less than the specified threshold. Non-numberic data will be
-    ignored.
+    can specify a maximum and minimum threshold. Non-numberic data
+    will be ignored.
 
     Example configuration:
 
     .. code-block:: python
 
         {
-          "watch_max": [
-            {
-              "topic": "datalogger/log/platform/cpu_percent",
-              "threshold": 99,
-              "message": "CPU ({topic}) exceeded {threshold} percent",
-              "enabled": true
+            "datalogger/log/platfor/cpu_percent": {
+                "threshold_max": 99,
+            },
+            "some/temperature/topic": {
+                "threshold_min": 0,
+            },
+            "devices/some/device/topic/all": {
+                "some_point": {
+                    "threshold_max": 42,
+                    "threshold_min": 0
+                }
             }
-          ]
-          "watch_min": [
-            {
-              "topic": "some/temperature/topic",
-              "threshold": 0,
-              "message": "Temperature is below {threshold}",
-              "enabled": true
-            }
-          ]
         }
 
     """
     def __init__(self, config, **kwargs):
-        self.config = config
         super(ThresholdDetectionAgent, self).__init__(**kwargs)
+        self.config_topics = {}
 
-    @Core.receiver('onstart')
-    def start(self, sender, **kwargs):
+        self.vip.config.set_default("config", config)
+        self.vip.config.subscribe(self._config_add, actions="NEW", pattern="config")
+        self.vip.config.subscribe(self._config_del, actions="DELETE", pattern="config")
+        self.vip.config.subscribe(self._config_mod, actions="UPDATE", pattern="config")
 
-        def is_number(x):
-            try:
-                float(x)
-                return True
-            except ValueError:
-                return False
-
-        def generate_callback(message, threshold, comparator):
-            """Generate callback function for pubsub.subscribe"""
-            def callback(peer, sender, bus, topic, headers, data):
-                if is_number(data):
-                    if comparator(data, threshold):
-                        alert_message = '{} ({} published {})\n'.format(
-                            message, topic, data)
-                        self.alert(alert_message, topic)
-            return callback
-
-        comparators = {'watch_max': lambda x, y: x > y,
-                       'watch_min': lambda x, y: x < y}
-
-        for key, comparator in comparators.iteritems():
-            for item in self.config.get(key, []):
-                if item.get('enabled', True):
-                    # replaces keywords ({topic}, {threshold})
-                    # with values in the message:
-                    msg = item['message'].format(**item)
-                    callback = generate_callback(
-                        msg, item['threshold'], comparator)
-                    self.vip.pubsub.subscribe(
-                        'pubsub', item['topic'], callback)
-
-    def alert(self, message, topic):
+    def _config_add(self, config_name, action, contents):
         """
-        Raise alert for the given topic
+        Configstore callback
 
-        :param message: Message to include in alert
-        :param topic: PUB/SUB topic that caused alert
-        :type message: str
+        Subscribes to configured topics with customized callbacks
+        """
+        self.config_topics[config_name] = set()
+        for topic, values in contents.iteritems():
+            self.config_topics[config_name].add(topic)
+            _log.info("Subscribing to {}".format(topic))
+
+            if topic.startswith("devices/") and topic.endswith("/all"):
+                self._create_device_subscription(topic, values)
+            else:
+                self._create_standard_subscription(topic, values)
+
+    def _create_device_subscription(self, topic, device_points):
+        """
+        Subscribe to points in a device's all publish and alert if
+        values are out of range
+
+        :param topic: All topic from a device scrape
         :type topic: str
+
+        :param device_points: Dictionary of points to thresholds
+        :type device_points: dict
         """
+        for point, values in device_points.iteritems():
+            threshold_max = values.get('threshold_max')
+            threshold_min = values.get('threshold_min')
+
+            def callback(peer, sender, bus, topic, headers, message):
+                data = message[0].get(point)
+
+                try:
+                    float(data)
+                except ValueError:
+                    return
+
+                if threshold_max is not None and data > threshold_max:
+                    self._alert(topic, threshold_max, data, point=point)
+                elif threshold_min is not None and data < threshold_min:
+                    self._alert(topic, threshold_min, data, point=point)
+
+            self.vip.pubsub.subscribe('pubsub', topic, callback)
+
+    def _create_standard_subscription(self, topic, values):
+        """
+        Subscribe to a topic and alert if its message is out of range
+
+        :param topic: All topic from a device scrape
+        :type topic: str
+
+        :param device_points: Dictionary of points to thresholds
+        :type device_points: dict
+        """
+        threshold_max = values.get('threshold_max')
+        threshold_min = values.get('threshold_min')
+
+        def callback(peer, sender, bus, topic, headers, data):
+            try:
+                float(data)
+            except ValueError:
+                return
+
+            if threshold_max is not None and data > threshold_max:
+                self._alert(topic, threshold_max, data)
+            elif threshold_min is not None and data < threshold_min:
+                self._alert(topic, threshold_min, data)
+
+        self.vip.pubsub.subscribe('pubsub', topic, callback)
+
+    def _config_del(self, config_name, action, contents):
+        """
+        Configstore callback
+
+        Unsubscribes from topics in a deleted configuration.
+        """
+        topics = self.config_topics.pop(config_name)
+        for t in topics:
+            _log.info("Unsubscribing from {}".format(t))
+            self.vip.pubsub.unsubscribe(peer='pubsub',
+                                        prefix=t,
+                                        callback=None).get()
+
+    def _config_mod(self, *args):
+        """
+        Configstore callback
+
+        Unsubscribes and resubscribes to updated configuration.
+        """
+        self._config_del(*args)
+        self._config_add(*args)
+
+    def _alert(self, topic, threshold, data, point=''):
+        """
+        Raise alert for the given topic.
+
+        :param topic: Topic that has published some threshold-exceeding value.
+        :type topic: str
+
+        :param threshold: Value that has been exceeded. Used in alert message.
+        :type threshold: float
+
+        :param data: Value that is out of range. Used in alert message.
+        :type data: float
+
+        :param point: Optional point name. Used in alert message.
+        :type point: str
+        """
+        if point:
+            point = '({})'.format(point)
+
+        if threshold < data:
+            custom = "above"
+        else:
+            custom = "below"
+
+        message = "{topic}{point} value ({data})" \
+                  "is {custom} acceptable limit ({threshold})"
+
+        message = message.format(topic=topic,
+                                 point=point,
+                                 data=data,
+                                 custom=custom,
+                                 threshold=threshold)
+
         status = Status.build(STATUS_BAD, message)
         self.vip.health.send_alert(topic, status)
 
 
 def main(argv=sys.argv):
-    '''Main method called by the platform.'''
+    """Main method called by the platform."""
     utils.vip_main(thresholddetection_agent,
-                   identity='platform.thresholddetection', version=__version__)
+                   identity='platform.thresholddetection', 
+                   version=__version__)
+
 
 if __name__ == '__main__':
     # Entry point for script

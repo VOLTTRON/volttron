@@ -156,6 +156,8 @@ class SQLHistorian(BaseHistorian):
         self.writer = None
         super(SQLHistorian, self).__init__(**kwargs)
 
+    def version(self):
+        return __version__
 
     def record_table_definitions(self, meta_table_name):
         self.writer.record_table_definitions(self.tables_def,

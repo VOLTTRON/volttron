@@ -134,7 +134,7 @@ class MySqlFuncts(DbDriver):
                      value_string TEXT NOT NULL, \
                      UNIQUE(topic_id, ts))')
 
-            self.execute_stmt('''CREATE INDEX IF NOT EXISTS data_idx
+            self.execute_stmt('''CREATE INDEX data_idx
                                     ON ''' + self.data_table + ''' (ts ASC)''')
             self.execute_stmt('''CREATE TABLE IF NOT EXISTS ''' +
                               self.topics_table +
@@ -150,15 +150,14 @@ class MySqlFuncts(DbDriver):
             _log.debug("Created data topics and meta tables")
 
             self.commit()
-        except self.__dbmodule.errors.Error as err:
+        except MysqlError as err:
             err_msg = "Error creating " \
                       "historian tables as the configured user. " \
                       "Please create the tables manually before " \
                       "restarting historian. Please refer to " \
                       "mysql-create*.sql files for create " \
                       "statements"
-            if err.errno == \
-                    self.__dbmodule.errorcode.ER_TABLEACCESS_DENIED_ERROR:
+            if err.errno == mysql_errorcodes.ER_TABLEACCESS_DENIED_ERROR:
                 err_msg = "Access denied : " + err_msg
             else:
                 err_msg = err.msg + " : " + err_msg
@@ -238,20 +237,24 @@ class MySqlFuncts(DbDriver):
         args = [topic_ids[0]]
 
         if start is not None:
-            where_clauses.append("ts >= %s")
-            if self.MICROSECOND_SUPPORT:
-                args.append(start)
-            else:
+            if not self.MICROSECOND_SUPPORT:
                 start_str = start.isoformat()
-                args.append(start_str[:start_str.rfind('.')])
+                start = start_str[:start_str.rfind('.')]
 
         if end is not None:
-            where_clauses.append("ts <= %s")
-            if self.MICROSECOND_SUPPORT:
-                args.append(end)
-            else:
+            if not self.MICROSECOND_SUPPORT:
                 end_str = end.isoformat()
-                args.append(end_str[:end_str.rfind('.')])
+                end = end_str[:end_str.rfind('.')]
+
+        if start and end and start == end:
+            where_clauses.append("ts = %s")
+            args.append(start)
+        elif start:
+            where_clauses.append("ts >= %s")
+            args.append(start)
+        elif end:
+            where_clauses.append("ts < %s")
+            args.append(end)
 
         where_statement = ' AND '.join(where_clauses)
 

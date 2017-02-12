@@ -58,7 +58,10 @@
 import logging
 from datetime import datetime
 
+import gevent
+
 from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.agent import utils
 from volttron.platform.messaging.health import Status, STATUS_BAD
 from volttron.platform.agent.known_identities import PLATFORM_ALERTER
@@ -66,19 +69,92 @@ from volttron.platform.agent.known_identities import PLATFORM_ALERTER
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-__version__ = '0.2'
+__version__ = '0.4'
 
 
 class AlertAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(AlertAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
+        self.group_agent = {}
+
+    @Core.receiver('onstart')
+    def onstart(self, sender, **kwargs):
+        for group_name, config in self.config.items():
+            event = gevent.event.Event()
+            group = AlertGroup(group_name, config,
+                               address=self.core.address,
+                               enable_store=False)
+            gevent.spawn(group.core.run, event)
+            event.wait()
+
+            self.group_agent[group_name] = group
+
+    @RPC.export
+    def watch_topic(self, group, topic, timeout):
+        """RPC method
+
+        Listen for a topic to be published within a given
+        number of seconds or send alerts.
+
+        :pararm group: Group that should watch the topic.
+        :type group: str
+        :param topic: Topic expected to be published.
+        :type topic: str
+        :param timeout: Seconds before an alert is sent.
+        :type timeout: int
+        """
+        group = self.group_agent[group]
+        group.watch_topic(topic, timeout)
+
+    @RPC.export
+    def watch_device(self, group, topic, timeout, points):
+        """RPC method
+
+        Watch a device's ALL topic and expect points. This
+        method calls the watch topic method so both methods
+        don't need to be called.
+
+        :pararm group: Group that should watch the device.
+        :type group: str
+        :param topic: Topic expected to be published.
+        :type topic: str
+        :param timeout: Seconds before an alert is sent.
+        :type timeout: int
+        :param points: Points to expect in the publish message.
+        :type points: [str]
+        """
+        group = self.group_agent[group]
+        group.watch_device(topic, timeout, points)
+
+    @RPC.export
+    def ignore_topic(self, group, topic):
+        """RPC method
+
+        Remove a topic from agent's watch list. Alerts will no
+        longer be sent if a topic stops being published.
+
+        :param group: Group that should ignore the topic.
+        :type group: str
+        :param topic: Topic to remove from the watch list.
+        :type topic: str
+        """
+        group = self.group_agent[group]
+        group.ignore_topic(topic)
+
+
+class AlertGroup(Agent):
+    def __init__(self, group_name, config, **kwargs):
+        super(AlertGroup, self).__init__(**kwargs)
+        self.group_name = group_name
+        self.config = config
         self.wait_time = {}
         self.topic_ttl = {}
         self.point_ttl = {}
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
+        _log.info("Listening for alert group {}".format(self.group_name))
         config = self.config
         for topic in config.iterkeys():
 
@@ -95,11 +171,8 @@ class AlertAgent(Agent):
                 timeout = config[topic]
                 self.watch_topic(topic, timeout)
 
-    @RPC.export
     def watch_topic(self, topic, timeout):
-        """RPC method
-
-        Listen for a topic to be published within a given
+        """Listen for a topic to be published within a given
         number of seconds or send alerts.
 
         :param topic: Topic expected to be published.
@@ -115,11 +188,8 @@ class AlertAgent(Agent):
         _log.info("Expecting {} every {} seconds"
                    .format(topic, timeout))
 
-    @RPC.export
     def watch_device(self, topic, timeout, points):
-        """RPC method
-        
-        Watch a device's ALL topic and expect points. This
+        """Watch a device's ALL topic and expect points. This
         method calls the watch topic method so both methods
         don't need to be called.
 
@@ -137,12 +207,8 @@ class AlertAgent(Agent):
 
         self.watch_topic(topic, timeout)
 
-    @RPC.export
     def ignore_topic(self, topic):
-        """RPC method
-
-        Remove a topic from agent's watch list. Alerts will no
-        longer be sent if a topic stops being published.
+        """Remove a topic from the group watchlist
 
         :param topic: Topic to remove from the watch list.
         :type topic: str
@@ -157,6 +223,10 @@ class AlertAgent(Agent):
         self.wait_time.pop(topic, None)
 
     def reset_time(self, peer, sender, bus, topic, headers, message):
+        """Callback for topic subscriptions
+
+        Resets the timeout for topics and devices when publishes are received.
+        """
         if topic not in self.wait_time:
             found = False
             # if topic isn't in wait time we need to figure out the
@@ -188,15 +258,19 @@ class AlertAgent(Agent):
 
     @Core.periodic(1)
     def decrement_ttl(self):
+        """Periodic call
+
+        Used to maintain the time since each topic's last publish.
+        Sends an alert if any topics are missing.
+        """
+        unseen_topics = set()
         for topic in self.wait_time.iterkeys():
 
             # Send an alert if a topic hasn't been seen
             self.topic_ttl[topic] -= 1
             if self.topic_ttl[topic] <= 0:
-                self.send_alert(topic)
+                unseen_topics.add(topic)
                 self.topic_ttl[topic] = self.wait_time[topic]
-
-
 
             # Send an alert if a point hasn't been seen
             try:
@@ -204,18 +278,23 @@ class AlertAgent(Agent):
                 for p in points:
                     self.point_ttl[topic][p] -= 1
                     if self.point_ttl[topic][p] <= 0:
-                        self.send_alert(topic, p)
+                        unseen_topics.add((topic, p))
                         self.point_ttl[topic][p] = self.wait_time[topic]
             except KeyError:
                 pass
 
-    def send_alert(self, device, point=None):
-        if point is not None:
-            alert_key = "Timeout:{}({})".format(device, point)
-            context = "{}({}) not published within time limit".format(device, point)
-        else:
-            alert_key = "Timeout:{}".format(device)
-            context = "{} not published within time limit".format(device)
+        if unseen_topics:
+            self.send_alert(list(unseen_topics))
+
+    def send_alert(self, unseen_topics):
+        """Send an alert for the group, summarizing missing topics.
+
+        :param unseen_topics: List of topics that were expected but not received
+        :type unseen_topics: list
+        """
+        alert_key = "AlertAgent Timeout for group {}".format(self.group_name)
+        context = "Topic(s) not published within time limit: {}".format(
+            sorted(unseen_topics))
 
         status = Status.build(STATUS_BAD, context=context)
         self.vip.health.send_alert(alert_key, status)
