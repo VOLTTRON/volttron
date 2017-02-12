@@ -266,7 +266,6 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
                             volttron_home=volttron_home,
-                            identity=PLATFORM_DRIVER,
                             version=version, **kwargs)
         
         try:
