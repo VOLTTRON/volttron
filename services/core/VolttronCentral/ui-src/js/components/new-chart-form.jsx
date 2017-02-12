@@ -120,10 +120,10 @@ var NewChartForm = React.createClass({
         );        
 
         var chartOptions = [
-            { value: "line", label: "Line"},
-            { value: "lineWithFocus", label: "Line with View Finder"},
-            { value: "stackedArea", label: "Stacked Area"},
-            { value: "cumulativeLine", label: "Cumulative Line"}
+            { value: "lineChart", label: "Line"},
+            { value: "lineWithFocusChart", label: "Line with View Finder"},
+            { value: "stackedAreaChart", label: "Stacked Area"},
+            { value: "cumulativeLineChart", label: "Cumulative Line"}
         ];
 
         return (

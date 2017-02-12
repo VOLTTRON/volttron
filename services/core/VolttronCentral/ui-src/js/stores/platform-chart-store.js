@@ -40,7 +40,7 @@ chartStore.getPinned = function (chartKey) {
 }
 
 chartStore.getType = function (chartKey) {
-    var type = "line";
+    var type = "lineChart";
 
     if (_chartData.hasOwnProperty(chartKey))
     {
@@ -184,7 +184,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                         refreshInterval: (action.panelItem.hasOwnProperty("refreshInterval") ? action.panelItem.refreshInterval :15000),
                         dataLength: (action.panelItem.hasOwnProperty("dataLength") ? action.panelItem.dataLength : 20),
                         pinned: (action.panelItem.hasOwnProperty("pinned") ? action.panelItem.pinned : false),
-                        type: (action.panelItem.hasOwnProperty("chartType") ? action.panelItem.chartType : "line"),
+                        type: (action.panelItem.hasOwnProperty("chartType") ? action.panelItem.chartType : "lineChart"),
                         data: convertTimeToSeconds(action.panelItem.data),
                         chartKey: action.panelItem.name,
                         min: (action.panelItem.hasOwnProperty("min") ? action.panelItem.min : null),

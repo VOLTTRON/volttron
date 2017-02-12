@@ -23,9 +23,6 @@
     "extract-text-webpack-plugin": "^1.0.1",
     "file-loader": "^0.9.0",
     "html-webpack-plugin": "^2.22.0",
-    "react": "^15.3.2",
-    "react-addons-shallow-compare": "^15.3.2",
-    "react-dom": "^15.3.2",
     "reactify": "^1.0.0",
     "style-loader": "^0.13.1",
     "url-loader": "^0.5.7",
@@ -61,6 +58,7 @@
     "react-dom": "^15.4.0",
     "react-easy-chart": "^0.1.12",
     "react-faux-dom": "^2.7.1",
+    "react-nvd3": "^0.5.7",
     "react-router": "^2.8.1",
     "react-select-me": "^0.6.4",
     "through2": "^2.0.0"
