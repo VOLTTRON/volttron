@@ -96,8 +96,8 @@ def test_reconnect_forwarder(get_volttron_instances):
     receiver = to_instance.build_agent()
 
     forwarder_config = deepcopy(BASE_FORWARD_CONFIG)
-    forwardtoaddr = build_vip_address(to_instance, receiver)
-    print("FORWARD ADDR: {}".format(forwardtoaddr))
+    #forwardtoaddr = build_vip_address(to_instance, receiver)
+    #print("FORWARD ADDR: {}".format(forwardtoaddr))
     forwarder_config['destination-vip'] = to_instance.vip_address
     forwarder_config['destination-serverkey'] = to_instance.keystore.public
 

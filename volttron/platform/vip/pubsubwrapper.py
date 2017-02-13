@@ -105,7 +105,6 @@ class PubSubWrapper(Agent):
         self.vip.rpc.export(self._peer_list, 'pubsub.list')
 
     def _sync(self, peer, items):
-        _log.debug("Im here???????????")
         items = {(bus, prefix) for bus, topics in items.iteritems()
                  for prefix in topics}
         remove = []
@@ -125,7 +124,6 @@ class PubSubWrapper(Agent):
             assert not subscriptions.pop(prefix)
         for bus, prefix in items:
             self._add_peer_subscription(peer, bus, prefix)
-            _log.debug("PUBSUBWRAPPER subscribing again")
             self.vip.pubsub.subscribe(peer, prefix, self._collector, bus=bus)
 
     def _peer_sync(self, items):
@@ -134,7 +132,6 @@ class PubSubWrapper(Agent):
         self._sync(peer, items)
 
     def _peer_publish(self, topic, headers, message=None, bus=''):
-        _log.debug("PUBSUBWRAPPER::perr_publish")
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         self.vip.pubsub.publish(peer, topic, headers, message=message, bus=bus)
 
@@ -145,7 +142,6 @@ class PubSubWrapper(Agent):
         self._peer_subscriptions[bus][prefix].add(peer)
 
     def _peer_subscribe(self, prefix, bus=''):
-        _log.debug("PUBSUBWRAPPER::perr_subscribe")
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         for prefix in prefix if isinstance(prefix, list) else [prefix]:
             self._add_peer_subscription(peer, bus, prefix)
@@ -194,7 +190,6 @@ class PubSubWrapper(Agent):
         return results
 
     def _peer_unsubscribe(self, prefix, bus=''):
-        _log.debug("PUBSUBWRAPPER::perr_unsubscribe")
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         subscriptions = self._peer_subscriptions[bus]
         if prefix is None:
@@ -205,6 +200,7 @@ class PubSubWrapper(Agent):
                     remove.append(topic)
             for topic in remove:
                 del subscriptions[topic]
+                self.vip.pubsub.unsubscribe(peer, prefix, self._collector, bus=bus)
         else:
             for prefix in prefix if isinstance(prefix, list) else [prefix]:
                 subscribers = subscriptions[prefix]
