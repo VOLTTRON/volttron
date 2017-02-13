@@ -1294,6 +1294,13 @@ a.view__item:hover::before {
     right: 0;
     height: 50%;
     overflow: open;
+
+    -webkit-touch-callout: auto;
+    -webkit-user-select: auto;
+    -khtml-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
 }
 
 .console::after {
@@ -1993,4 +2000,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-32aa2eeda4b2e38e54fa.css.map*/
+/*# sourceMappingURL=app-a74dc1e60cb3c41179d8.css.map*/
