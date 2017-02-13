@@ -10656,7 +10656,7 @@
 	        key: '_onDeviceConfig',
 	        value: function _onDeviceConfig(panelItem) {
 	
-	            var deviceName = panelItem.path[panelItem.path.size - 1];
+	            var deviceName = panelItem.path[panelItem.path.length - 1];
 	            var platformUuid = panelItem.path[1];
 	
 	            devicesActionCreators.reconfigureDevice(deviceName, platformUuid);
@@ -118320,4 +118320,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-de93a886b6a11ba67a18.js.map
+//# sourceMappingURL=app-32aa2eeda4b2e38e54fa.js.map
