@@ -499,7 +499,7 @@ def DataPub(config_path, **kwargs):
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
-    utils.vip_main(DataPub)
+    utils.vip_main(DataPub, version=__version__)
 
 if __name__ == '__main__':
     try:

@@ -1472,7 +1472,8 @@ class ActuatorAgent(Agent):
 
 def main():
     """Main method called to start the agent."""
-    utils.vip_main(actuator_agent, identity='platform.actuator')
+    utils.vip_main(actuator_agent, identity='platform.actuator',
+                   version=__version__)
 
 
 if __name__ == '__main__':

@@ -243,7 +243,7 @@ class MongodbAggregateHistorian(AggregateHistorian):
 def main(argv=sys.argv):
     """Main method called by the eggsecutable."""
     try:
-        utils.vip_main(MongodbAggregateHistorian)
+        utils.vip_main(MongodbAggregateHistorian, version=__version__)
     except Exception as e:
         _log.exception('unhandled exception' + e.message)
 

@@ -71,6 +71,7 @@ def both_with_vc_vcp(request):
 
 
 @pytest.mark.vc
+@pytest.mark.skip(reason="4.1 fixing tests")
 @pytest.mark.skipif(os.environ.get("CI") is not None,
                     reason="On travis this is flaky, run from command line.")
 def test_autoregister_external(vc_vcp_platforms):
@@ -91,6 +92,7 @@ def test_autoregister_external(vc_vcp_platforms):
 
 @pytest.mark.vc
 @pytest.mark.timeout(300)
+@pytest.mark.skip(reason="4.1 fixing tests")
 def test_autoregister_local(both_with_vc_vcp):
     gevent.sleep(15)
 

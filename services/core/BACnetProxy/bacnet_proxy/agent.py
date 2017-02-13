@@ -615,7 +615,8 @@ class BACnetProxyAgent(Agent):
     
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(bacnet_proxy_agent, identity="platform.bacnet_proxy")
+    utils.vip_main(bacnet_proxy_agent, identity="platform.bacnet_proxy",
+                   version=__version__)
 
 
 if __name__ == '__main__':

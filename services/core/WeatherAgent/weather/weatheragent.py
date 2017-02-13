@@ -372,7 +372,7 @@ def convert(_input):
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
-    utils.vip_main(weather_service)
+    utils.vip_main(weather_service, version=__version__)
 
 if __name__ == '__main__':
     # Entry point for script

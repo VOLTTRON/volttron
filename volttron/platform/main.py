@@ -573,7 +573,11 @@ def start_volttron_process(opts):
         # The instance file is where we are going to record the instance and
         # its details according to
         instance_file = os.path.expanduser('~/.volttron_instances')
-        instances = load_create_store(instance_file)
+        try:
+            instances = load_create_store(instance_file)
+        except ValueError:
+            os.remove(instance_file)
+            instances = load_create_store(instance_file)
         this_instance = instances.get(opts.volttron_home, {})
         this_instance['pid'] = os.getpid()
         this_instance['version'] = __version__

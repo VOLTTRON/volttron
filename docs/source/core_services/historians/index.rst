@@ -8,6 +8,7 @@ analysis are captured and stored in some sort of data store. Historians exist fo
 
 - A general :ref:`SQL Historian <SQL-Historian>` implemented for MySQL and SQLite
 - :ref:`MongoDB Historian <Mongo-Historian>`
+- :ref:`Crate Historian <Crate-Historian>`
 - :ref:`Forward-Historian>` for sending data to another VOLTTRON instance
 - :ref:`OpenEIS Historian <Analytics-Historian>`
 

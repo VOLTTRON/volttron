@@ -236,7 +236,7 @@ def subscriber_agent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
-        utils.vip_main(subscriber_agent)
+        utils.vip_main(subscriber_agent, version=__version__)
     except Exception as e:
         _log.exception('unhandled exception')
 
