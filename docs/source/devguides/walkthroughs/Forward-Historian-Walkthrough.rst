@@ -31,11 +31,7 @@ Configuration
 -------------
 
 #. Set up two Volttron instances as described in :ref:`Deployment Walkthrough <Deployment-Walkthrough>`
-#. In each Volttron's ``auth.json`` file add the public key and location
-   of the **other** Volttron instance to the ``"allow"`` array.
-#. Now the Volttron instances should be able to communicate. To avoid
-   having to worry about authentication for the remainder of the
-   walkthrough you can use ``--developer-mode`` when starting Volttron.
+#. Add the forwarder's public key to the target platform's auth file. :ref:`VIP Authentication <Vip-Authentication>`
 
 Forwarding Volttron
 ~~~~~~~~~~~~~~~~~~~

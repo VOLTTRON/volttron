@@ -135,8 +135,6 @@ class VolttronCentralAgent(Agent):
 
 
     """
-    __name__ = 'VolttronCentralAgent'
-
 
     def __init__(self, config_path, **kwargs):
         """ Creates a `VolttronCentralAgent` object to manage instances.
@@ -150,7 +148,7 @@ class VolttronCentralAgent(Agent):
         :param kwargs:
         :return:
         """
-        _log.info("{} constructing...".format(self.__name__))
+        _log.info("{} constructing...".format(self.__class__.__name__))
 
         super(VolttronCentralAgent, self).__init__(enable_web=True, **kwargs)
         # Load the configuration into a dictionary
@@ -1536,7 +1534,8 @@ def main(argv=sys.argv):
     :param argv:
     :return:
     """
-    utils.vip_main(VolttronCentralAgent, identity=VOLTTRON_CENTRAL)
+    utils.vip_main(VolttronCentralAgent, identity=VOLTTRON_CENTRAL,
+                   version = __version__)
 
 
 if __name__ == '__main__':

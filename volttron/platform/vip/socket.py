@@ -155,7 +155,16 @@ class Address(object):
             setattr(self, name, None)
         for name, value in defaults.iteritems():
             setattr(self, name, value)
+
         url = urlparse.urlparse(address, 'tcp')
+
+        # Old versions of python don't correctly parse queries for unknown
+        # schemes. This can cause ipc failures on outdated installations.
+        if not url.query and '?' in url.path:
+            path, query = url.path.split('?')
+            url = url._replace(path=path)
+            url = url._replace(query=query)
+
         self.base = '%s://%s%s' % url[:3]
         if url.fragment:
             self.identity = url.fragment

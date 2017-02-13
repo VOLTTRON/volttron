@@ -5,6 +5,7 @@ except:
     raise Exception("Required: pymongo")
 from datetime import datetime
 from bson.objectid import ObjectId
+from pymongo.errors import BulkWriteError
 from pymongo import ReplaceOne
 
 source_params = {
@@ -75,19 +76,26 @@ def copy(source_params, dest_params, start_date, end_date):
     dest_db = connect_mongodb(dest_params)
     dest_tables = get_table_names(dest_params)
 
-    # records = []
-    # for record in source_db[source_tables['topics_table']].find():
-    #     records.append(record)
-    # print("total records {}".format(len(records)))
-    # dest_db[dest_tables['topics_table']].insert_many(
-    #     records)
-    #
-    # records = []
-    # for record in source_db[source_tables['meta_table']].find():
-    #     records.append(record)
-    # print("total records {}".format(len(records)))
-    # dest_db[dest_tables['meta_table']].insert_many(
-    #     records)
+    records = []
+    for record in source_db[source_tables['topics_table']].find():
+        records.append(ReplaceOne(
+                record,
+                record,
+                upsert= True))
+    print("total records {}".format(len(records)))
+    try:
+        dest_db[dest_tables['topics_table']].bulk_write(records)
+    except BulkWriteError as bwe:
+        print("{}".format(bwe.details))
+
+    records = []
+    for record in source_db[source_tables['meta_table']].find():
+        records.append(ReplaceOne(record, record, upsert=True))
+    print("total records {}".format(len(records)))
+    try:
+        dest_db[dest_tables['meta_table']].bulk_write(records)
+    except BulkWriteError as bwe:
+        print("{}".format(bwe.details))
 
     # This is probably the most inefficient way of doing a copying a subset
     # of a
@@ -106,8 +114,6 @@ def copy(source_params, dest_params, start_date, end_date):
         unique=True, background=False)
     records = []
     i = 0
-    print ("start obj:{}".format(ObjectId.from_datetime(start_date)))
-    print ("end obj:{}".format(ObjectId.from_datetime(end_date)))
     cursor = source_db[source_tables['data_table']].find(
         {'$and':
             [{'_id': {'$gte': ObjectId.from_datetime(start_date)}},
@@ -128,25 +134,10 @@ def copy(source_params, dest_params, start_date, end_date):
             records = []
 
 
-
-    # cursor = dest_db[dest_tables['data_table']].aggregate([
-    #     {"$group": {
-    #         "_id": {"ts": "$ts", "topic_id": "$topic_id"},
-    #         "duplicates": {"$push": "$_id"},
-    #         "count": {"$sum": 1}
-    #     }},
-    #     {"$match": {"count": {"$gt": 1}}}
-    # ])
-    # for doc in cursor:
-    #     doc.dups.shift()
-    #     dest_db[dest_tables['data_table']].remove(
-            # {"_id": {"$in":  doc.duplicates}})
-
-
 if __name__ == '__main__':
 
-    copy(source_params, local_dest_params, datetime.strptime('31Mar2016',
-                                                         '%d%b%Y'),
-         datetime.strptime('01May2016', '%d%b%Y'))
+    copy(source_params, local_dest_params,
+         datetime.strptime('01May2016','%d%b%Y'),
+         datetime.strptime('15May2016', '%d%b%Y'))
 
 

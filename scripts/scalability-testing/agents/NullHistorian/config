@@ -1,4 +1,3 @@
 {
-
-    "agentid": "null_historian" 
+    "gather_timing_data": false
 }

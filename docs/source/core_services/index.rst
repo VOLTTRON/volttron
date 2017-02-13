@@ -1,5 +1,5 @@
 ======================
-VOLTTRON Core Services
+Core Services
 ======================
 
 .. toctree::

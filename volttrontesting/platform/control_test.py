@@ -3,6 +3,26 @@ import pytest
 
 
 @pytest.mark.control
+def test_agent_versions(volttron_instance):
+    auuid = volttron_instance.install_agent(
+        agent_dir="examples/ListenerAgent", start=True)
+    assert auuid is not None
+
+    agent = volttron_instance.build_agent()
+    version = agent.vip.rpc.call('control', 'agent_version',
+                                  auuid).get(timeout=2)
+    assert version == "3.2"
+
+    versions = agent.vip.rpc.call('control', 'agent_versions').get(timeout=2)
+    assert isinstance(versions, dict)
+    assert len(versions) == 1
+    k = versions.keys()[0]
+    versions = versions[k]
+    assert versions[0] == 'listeneragent-3.2'
+    assert versions[1] == '3.2'
+
+
+@pytest.mark.control
 def test_identity_is_uuid(volttron_instance):
     """ The identity is uuid for an agent that doesn't include a specific
     identity.

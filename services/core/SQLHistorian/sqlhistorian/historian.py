@@ -156,6 +156,8 @@ class SQLHistorian(BaseHistorian):
         self.writer = None
         super(SQLHistorian, self).__init__(**kwargs)
 
+    def version(self):
+        return __version__
 
     def record_table_definitions(self, meta_table_name):
         self.writer.record_table_definitions(self.tables_def,
@@ -363,7 +365,7 @@ def main(argv=sys.argv):
     """
 
     try:
-        utils.vip_main(historian)
+        utils.vip_main(historian, version=__version__)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')

@@ -1,0 +1,50 @@
+<script type="text/javascript">
+    RED.nodes.registerType('volttron-input',{
+        category: 'input',
+        color: '#a6bbcf',
+        defaults: {
+            name: {value:""}
+        },
+        inputs:0,
+        outputs:1,
+        icon: "feed.png",
+        label: function() {
+            return this.name||"volttron-input";
+        }
+    });
+    RED.nodes.registerType('volttron-output',{
+        category: 'output',
+        color: '#a6bbcf',
+        defaults: {
+            name: {value:""}
+        },
+        inputs:1,
+        outputs:0,
+        icon: "feed.png",
+        label: function() {
+            return this.name||"volttron-output";
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="volttron-input">
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="volttron-input">
+    <p>Receive messages from volttron</p>
+</script>
+
+<script type="text/x-red" data-template-name="volttron-output">
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="volttron-output">
+    <p>Publish messages to volttron.  msg.payload should have properties topic and data.</p>
+</script>

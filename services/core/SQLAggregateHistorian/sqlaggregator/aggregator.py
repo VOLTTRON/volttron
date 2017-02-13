@@ -164,7 +164,7 @@ class SQLAggregateHistorian(AggregateHistorian):
 def main(argv=sys.argv):
     """Main method called by the eggsecutable."""
     try:
-        utils.vip_main(SQLAggregateHistorian)
+        utils.vip_main(SQLAggregateHistorian, version=__version__)
     except Exception as e:
         _log.exception('unhandled exception' + e.message)
 

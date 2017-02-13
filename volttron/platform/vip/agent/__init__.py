@@ -89,14 +89,17 @@ class Agent(object):
                 self.config = ConfigStore(owner, core, self.rpc)
             if enable_web:
                 self.web = WebSubSystem(owner, core, self.rpc)
+            self.auth = Auth(owner, core, self.rpc)
 
     def __init__(self, identity=None, address=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
                  heartbeat_autostart=False, heartbeat_period=60,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, enable_store=True, developer_mode=False,
+                 agent_uuid=None, enable_store=True,
                  enable_web=False, enable_channel=False,
-                 reconnect_interval=None):
+                 reconnect_interval=None, version='0.1'):
+
+        self._version = version
 
         if identity is not None and not is_valid_identity(identity):
             _log.warn('Deprecation warning')
@@ -108,12 +111,14 @@ class Agent(object):
                          context=context, publickey=publickey,
                          secretkey=secretkey, serverkey=serverkey,
                          volttron_home=volttron_home, agent_uuid=agent_uuid,
-                         developer_mode=developer_mode,
-                         reconnect_interval=reconnect_interval)
+                         reconnect_interval=reconnect_interval,
+                         version=version)
+
         self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
                                     heartbeat_period, enable_store, enable_web,
                                     enable_channel)
         self.core.setup()
+        self.vip.rpc.export(self.core.version, 'agent.version')
 
 
 class BasicAgent(object):

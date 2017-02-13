@@ -63,6 +63,8 @@ import json
 
 from volttrontesting.utils.utils import get_rand_http_address
 
+from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
+
 server_addr = get_rand_http_address()
 no_scheme = server_addr[7:]
 ip, port = no_scheme.split(':')
@@ -97,21 +99,21 @@ def handle(env, start_response):
 def agent(request, volttron_instance1):
     agent = volttron_instance1.build_agent()
     # Clean out master driver configurations.
-    agent.vip.rpc.call('config.store',
+    agent.vip.rpc.call(CONFIGURATION_STORE,
                        'manage_delete_store',
-                       'platform.driver').get(timeout=10)
+                       PLATFORM_DRIVER).get(timeout=10)
 
     #Add test configurations.
-    agent.vip.rpc.call('config.store',
+    agent.vip.rpc.call(CONFIGURATION_STORE,
                        'manage_store',
-                       'platform.driver',
+                       PLATFORM_DRIVER,
                        "devices/campus/building/unit",
                        driver_config_dict_string,
                        "json").get(timeout=10)
 
-    agent.vip.rpc.call('config.store',
+    agent.vip.rpc.call(CONFIGURATION_STORE,
                        'manage_store',
-                       'platform.driver',
+                       PLATFORM_DRIVER,
                        "restful.csv",
                        restful_csv_string,
                        "csv").get(timeout=10)
@@ -136,7 +138,7 @@ def agent(request, volttron_instance1):
 
 
 def test_restful_get(agent):
-    point = agent.vip.rpc.call('platform.driver',
+    point = agent.vip.rpc.call(PLATFORM_DRIVER,
                                'get_point',
                                'campus/building/unit',
                                'test_point').get(timeout=10)
@@ -146,7 +148,7 @@ def test_restful_get(agent):
 
 def test_restful_set(agent):
     # set point
-    point = agent.vip.rpc.call('platform.driver',
+    point = agent.vip.rpc.call(PLATFORM_DRIVER,
                                'set_point',
                                'campus/building/unit',
                                'test_point',
@@ -154,7 +156,7 @@ def test_restful_set(agent):
     assert point == '42'
 
     # get point
-    point = agent.vip.rpc.call('platform.driver',
+    point = agent.vip.rpc.call(PLATFORM_DRIVER,
                                'get_point',
                                'campus/building/unit',
                                'test_point').get(timeout=10)
@@ -163,7 +165,7 @@ def test_restful_set(agent):
 
 def test_restful_revert(agent):
     # set point
-    point = agent.vip.rpc.call('platform.driver',
+    point = agent.vip.rpc.call(PLATFORM_DRIVER,
                                'set_point',
                                'campus/building/unit',
                                'test_point',
@@ -171,13 +173,13 @@ def test_restful_revert(agent):
     assert point == '42'
 
     # revert point
-    point = agent.vip.rpc.call('platform.driver',
+    point = agent.vip.rpc.call(PLATFORM_DRIVER,
                                'revert_point',
                                'campus/building/unit',
                                'test_point').get(timeout=10)
 
     # get point
-    point = agent.vip.rpc.call('platform.driver',
+    point = agent.vip.rpc.call(PLATFORM_DRIVER,
                                'get_point',
                                'campus/building/unit',
                                'test_point').get(timeout=10)

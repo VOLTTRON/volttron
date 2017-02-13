@@ -99,7 +99,7 @@ class CAgent(Agent):
         self.vip.pubsub.publish('pubsub', 'device/WATER_TEMP=' + str(wt))
 
 def main():
-    utils.vip_main(CAgent)
+    utils.vip_main(CAgent, version=__version__)
 
 if __name__ == '__main__':
     try:

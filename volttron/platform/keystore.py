@@ -80,11 +80,12 @@ class BaseJSONStore(object):
     def __init__(self, filename, permissions=0o600):
         self.filename = filename
         self.permissions = permissions
-        create_file_if_missing(filename)
+        create_file_if_missing(filename, contents='{}')
         os.chmod(filename, permissions)
 
     def store(self, data):
-        fd = os.open(self.filename, os.O_CREAT | os.O_WRONLY, self.permissions)
+        fd = os.open(self.filename, os.O_CREAT | os.O_WRONLY | os.O_TRUNC,
+                     self.permissions)
         try:
             os.write(fd, json.dumps(data, indent=4))
         finally:
@@ -94,10 +95,19 @@ class BaseJSONStore(object):
         try:
             with open(self.filename, 'r') as json_file:
                 return json.load(json_file)
-        except IOError:
-            return {}
         except ValueError:
+            # If the file is empty json.load will raise ValueError
             return {}
+
+    def remove(self, key):
+        data = self.load()
+        try:
+            del data[key]
+        except KeyError as e:
+            msg = 'Key "{}" is not present in {}'.format(key, self.filename)
+            raise KeyError(msg)
+        else:
+            self.store(data)
 
     def update(self, new_data):
         data = self.load()
@@ -119,11 +129,16 @@ class KeyStore(BaseJSONStore):
     def get_default_path():
         return os.path.join(get_home(), 'keystore')
 
-    def generate(self):
-        """Generate new key pair"""
+    @staticmethod
+    def generate_keypair_dict():
+        """Generate and return new keypair as dictionary"""
         public, secret = curve_keypair()
-        self.store({'public': encode_key(public),
-                    'secret': encode_key(secret)})
+        return {'public': encode_key(public),
+                'secret': encode_key(secret)}
+
+    def generate(self):
+        """Generate and store new key pair"""
+        self.store(self.generate_keypair_dict())
 
     def _get_key(self, keyname):
         """Get key and make sure it's type is str (not unicode)

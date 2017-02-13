@@ -28,7 +28,7 @@ meaningful names.
 
 Now only agents with the capability ``can_publish_to_foo`` can publish
 to the topic ``foo``. To add this capability to authenticated agents,
-run the `volttron-ctl auth update` (or `volttron-ctl auth add` for new
+run ``volttron-ctl auth update`` (or ``volttron-ctl auth add`` for new
 authentication entries), and enter ``can_publish_to_foo`` in the capabilities
 field:
 
