@@ -758,7 +758,7 @@ class MasterDriverAgent(Agent):
 
 def main(argv=sys.argv):
     """Main method called to start the agent."""
-    utils.vip_main(master_driver, identity=PLATFORM_DRIVER,
+    utils.vip_main(master_driver_agent, identity=PLATFORM_DRIVER,
                    version=__version__)
 
 
