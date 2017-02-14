@@ -59,13 +59,10 @@ import logging
 import sys
 from collections import defaultdict
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
-from calendar import monthrange
 from datetime import timedelta
 from dateutil.tz import tzutc
 import numbers
 
-import gevent
 import pymongo
 from bson.objectid import ObjectId
 from pymongo import ReplaceOne
@@ -77,7 +74,6 @@ from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.dbutils import mongoutils
 from volttron.platform.vip.agent import Core
-import re
 import pytz
 
 utils.setup_logging()
@@ -173,18 +169,75 @@ class MongodbHistorian(BaseHistorian):
         self._agg_topic_id_map = {}
         _log.debug("version number is {}".format(__version__))
         self.version_nums = __version__.split(".")
+        self.DAILY_COLLECTION = "daily_data"
+        self.HOURLY_COLLECTION = "hourly_data"
 
-        if config.get('initial_rollup_start_time'):
-            self._initial_rollup_start_time = datetime.strptime(
+        try:
+            if config.get('initial_rollup_start_time'):
+                self._initial_rollup_start_time = datetime.strptime(
                     config.get('initial_rollup_start_time'),
                     '%Y-%m-%dT%H:%M:%S.%f').replace(tzinfo=pytz.utc)
-        else:
-            self._initial_rollup_start_time = get_aware_utc_now()
-        super(MongodbHistorian, self).__init__(**kwargs)
+            else:
+                self._initial_rollup_start_time = get_aware_utc_now()
 
-    @Core.periodic(10, wait=15)
+            # Date from which rolled up data exists in hourly_data and
+            # daily_data collection
+            if config.get('rollup_query_start'):
+                self.rollup_query_start = datetime.strptime(
+                    config.get('rollup_query_start'),
+                    '%Y-%m-%dT%H:%M:%S.%f').replace(tzinfo=pytz.utc)
+            else:
+                self.rollup_query_start = get_aware_utc_now() + \
+                                          timedelta(days=1)
+
+
+            # number of minutes before current time, that can be used as end
+            # date for queries from hourly or daily data collections. This is to
+            # account for the time it takes the periodic_rollup to process
+            # records in data table and insert into daily_data and hourly_data
+            # collection
+            self.rollup_query_end = config.get('rollup_query_end')
+            if self.rollup_query_end is not None:
+                self.rollup_query_end = float(self.rollup_query_end)
+            else:
+                self.rollup_query_end = 4 * 60 #default to 4 hours before
+                # current time(at the time of query)
+
+            #how minutes ones should the periodic rollup function be run
+            if config.get('periodic_rollup_frequency') is not None:
+                self.periodic_rollup_frequency = \
+                    float(config.get('periodic_rollup_frequency')) * 60
+            else:
+                self.periodic_rollup_frequency = 60 #run every minute
+
+            # Number of minutes to wait before calling the periodic_rollup
+            # function for the first time
+            if config.get('periodic_rollup_initial_wait') is not None:
+                self.periodic_rollup_initial_wait = float(config.get(
+                    'periodic_rollup_initial_wait')) * 60
+            else:
+                self.periodic_rollup_initial_wait = 10
+                # by default wait for 10 seconds
+                # before running the periodic_rollup for the first time.
+
+            #Done with all init call super.init
+            super(MongodbHistorian, self).__init__(**kwargs)
+        except ValueError as e:
+            _log.error("Error processing configuration: {}".format(e))
+            return
+
+
+
+    @Core.receiver("onstart")
+    def starting_mongo(self, sender, **kwargs):
+        _log.debug("In on start method. scheduling periodic call to rollup "
+                   "data")
+        self.core.periodic(self.periodic_rollup_frequency,
+                           self.periodic_rollup,
+                           wait=self.periodic_rollup_initial_wait)
+
     def periodic_rollup(self):
-        _log.debug("periodic attempt to do daily rollup.")
+        _log.debug("periodic attempt to do hourly and daily rollup.")
         if self._client is None:
             _log.debug("historian setup not complete. "
                        "wait for next periodic call")
@@ -192,52 +245,78 @@ class MongodbHistorian(BaseHistorian):
         # Find the records that needs to be processed from data table
         db = self._client.get_default_database()
         stat = {}
-        stat["last_data_into_daily"] = self.get_last_updated_data(db,
-                                                                  "daily_data")
+        stat["last_data_into_daily"] = self.get_last_updated_data(
+            db, self.DAILY_COLLECTION)
 
-        find_condition = {'ts': {'$gt': self._initial_rollup_start_time}}
-
+        stat["last_data_into_hourly"] = self.get_last_updated_data(
+            db, self.HOURLY_COLLECTION)
+        find_condition = {}
         if stat["last_data_into_daily"]:
-            _log.debug("ROLLING FROM last processed id {}".format(
-                stat["last_data_into_daily"]))
-
-            find_condition = {'_id': {'$gt': stat["last_data_into_daily"]}}
-
-        else:
+            find_condition['_id'] = {'$gt': stat["last_data_into_daily"]}
+        if stat["last_data_into_hourly"]:
+            if stat["last_data_into_daily"] and stat[
+                "last_data_into_hourly"] < \
+                    stat["last_data_into_daily"]:
+                find_condition['_id'] = {'$gt': stat["last_data_into_hourly"]}
+        if not stat["last_data_into_hourly"] and not stat[
+            "last_data_into_daily"]:
             stat = {}
             _log.debug("ROLLING FROM start date {}".format(
                 self._initial_rollup_start_time))
+        else:
+            find_condition['ts']= {'$gt': self._initial_rollup_start_time}
+            _log.debug("ROLLING FROM last processed id {}".format(
+                find_condition['_id']))
 
         # Iterate and append to a bulk_array. Insert in batches of 1000
+        bulk_publish_hour = []
         bulk_publish_day = []
+        hour_ids = []
         day_ids = []
+        h = 0
         d = 0
         last_topic_id = ''
         last_date = ''
         cursor = db[self._data_collection].find(
             find_condition).sort("_id", pymongo.ASCENDING)
 
-
         for row in cursor:
-            # _log.debug("Initializing daily data for topic {}".format(
-            #         row['topic_id']))
-            self.initialize_daily(topic_id=row['topic_id'],
-                                  ts=row['ts'])
-            bulk_publish_day.append(
-                self.insert_to_daily(db,
-                                     row['_id'],
-                                     topic_id=row['topic_id'],
-                                     ts=row['ts'], value=row['value']))
-            day_ids.append(row['_id'])
-            d += 1
+            if not stat or row['_id'] > stat["last_data_into_hourly"]:
+                self.initialize_hourly(topic_id=row['topic_id'], ts=row['ts'])
+                bulk_publish_hour.append(
+                    MongodbHistorian.insert_to_hourly(db,
+                                          row['_id'],
+                                          topic_id=row['topic_id'],
+                                          ts=row['ts'],
+                                          value=row['value']))
+                hour_ids.append(row['_id'])
+                h += 1
+                #print("Insert bulk op to hourly. h= {}".format(h))
+
+            if not stat or row['_id'] > stat["last_data_into_daily"]:
+                self.initialize_daily(topic_id=row['topic_id'],
+                                      ts=row['ts'])
+                bulk_publish_day.append(
+                    MongodbHistorian.insert_to_daily(db,
+                                         row['_id'],
+                                         topic_id=row['topic_id'],
+                                         ts=row['ts'], value=row['value']))
+                day_ids.append(row['_id'])
+                d += 1
             #Perform insert if we have 1000 rows
-            d_errors = m_errors = False
+            d_errors = h_errors = False
+            if d == 3000:
+                bulk_publish_hour, hour_ids, h_errors = \
+                    MongodbHistorian.bulk_write_rolled_up_data(
+                        self.HOURLY_COLLECTION, bulk_publish_hour,
+                        hour_ids, db)
+                d = 0
             if d == 3000:
                 bulk_publish_day, day_ids, d_errors = \
                     MongodbHistorian.bulk_write_rolled_up_data(
-                    'daily', bulk_publish_day, day_ids, db)
+                        self.DAILY_COLLECTION, bulk_publish_day, day_ids, db)
                 d = 0
-            if d_errors:
+            if d_errors or h_errors:
                 # something failed in bulk write. try from last err
                 # row during the next periodic call
                 _log.warn("bulk publish errors. last_processed_data would "
@@ -247,18 +326,14 @@ class MongodbHistorian(BaseHistorian):
                 return
 
         # Perform insert for any pending records
+        if bulk_publish_hour:
+            _log.debug("bulk_publish outside loop")
+            MongodbHistorian.bulk_write_rolled_up_data(
+                self.HOURLY_COLLECTION, bulk_publish_hour, hour_ids, db)
         if bulk_publish_day:
             _log.debug("bulk_publish outside loop")
-            bulk_publish_day, day_ids, d_errors =\
-                MongodbHistorian.bulk_write_rolled_up_data(
-                'daily', bulk_publish_day, day_ids, db)
-            if d_errors:
-                # something failed in bulk write. try from last err
-                # row during the next periodic call
-                _log.warn("bulk publish errors. last_processed_data would "
-                          "have got recorded in collection. returning from "
-                          "periodic call to try again during next scheduled "
-                          "call")
+            MongodbHistorian.bulk_write_rolled_up_data(
+                self.DAILY_COLLECTION, bulk_publish_day, day_ids, db)
 
     def get_last_updated_data(self, db, collection):
         cursor = db[collection].find({}).sort(
@@ -267,12 +342,11 @@ class MongodbHistorian(BaseHistorian):
             return row['last_updated_data']
 
     @staticmethod
-    def bulk_write_rolled_up_data(time_period, requests, ids, db):
+    def bulk_write_rolled_up_data(collection_name, requests, ids, db):
         '''
-        Handle bulk inserts into daily or monthly roll up table. Find out
-        the last successfully processed record adn store that in the
-        rollup_status collection.
-        :param time_period: "daily" or "monthly"
+        Handle bulk inserts into daily or hourly roll up table.
+        :param collection_name: name of the collection on which the bulk
+        operation should happen
         :param requests: array of bulk write requests
         :param ids: array of data collection _ids that are part of the bulk
         write requests
@@ -282,7 +356,7 @@ class MongodbHistorian(BaseHistorian):
         '''
         errors = False
         try:
-            db[time_period + '_data'].bulk_write(requests, ordered=True)
+            db[collection_name].bulk_write(requests, ordered=True)
         except BulkWriteError as ex:
             _log.error(str(ex.details))
             errors = True
@@ -300,76 +374,45 @@ class MongodbHistorian(BaseHistorian):
         ts_hour = ts.replace(minute=0, second=0, microsecond=0)
 
         db = self._client.get_default_database()
-        needs_initializing = not db.hourly_data.find(
-            {'ts': ts_hour, 'topic_id': topic_id}).count() > 0
+        # use update+upsert instead of insert cmd as the external script
+        # to back fill data could have initialized this same row
+        db[self.HOURLY_COLLECTION].update_one(
+            {'ts': ts_hour, 'topic_id': topic_id},
+            {"$setOnInsert": {'ts': ts_hour,
+                              'topic_id': topic_id,
+                              'count': 0,
+                              'sum': 0,
+                              'data': [[]] * 60,
+                              'last_updated_data': ''}
+            },
+            upsert=True)
 
-        if needs_initializing:
-            db['hourly_data'].update_one(
-                {'ts': ts_hour, 'topic_id': topic_id},
-                {"$setOnInsert": {'ts': ts_hour,
-                                  'topic_id': topic_id,
-                                  'count': 0,
-                                  'sum': 0,
-                                  'data': [[]] * 60,
-                                  'last_updated_data': ''}
-                },
-                upsert=True)
-
-            _log.debug("CALLING INIT DAILY")
-
-            return True
-        return False
 
     def initialize_daily(self, topic_id, ts):
         ts_day = ts.replace(hour=0, minute=0, second=0, microsecond=0)
 
         db = self._client.get_default_database()
-        count = db.daily_data.find(
-            {'ts': ts_day, 'topic_id': topic_id}).count()
-        needs_initializing = not count > 0
-        _log.debug("Initializing with match {}".format(
-            {'ts': ts_day, 'topic_id': topic_id}
-        ))
-        _log.debug("Initialize set {}".format({
-            "$setOnInsert": {'ts': ts_day, 'topic_id': topic_id, 'count': 0,
-                             'sum': 0, 'data': [[]] * 24 * 60,
-                             'last_updated_data': ''}}
-        ))
-        if needs_initializing:
-            #_log.debug("topic needs init")
-            db.daily_data.update_one(
-                {'ts': ts_day, 'topic_id': topic_id},
-                {"$setOnInsert": {'ts': ts_day,
-                                  'topic_id': topic_id,
-                                  'count': 0,
-                                  'sum': 0,
-                                  'data': [[]] * 24 * 60,
-                                  'last_updated_data': ''}},
-                upsert=True)
+        db[self.DAILY_COLLECTION].update_one(
+            {'ts': ts_day, 'topic_id': topic_id},
+            {"$setOnInsert": {'ts': ts_day,
+                              'topic_id': topic_id,
+                              'count': 0,
+                              'sum': 0,
+                              'data': [[]] * 24 * 60,
+                              'last_updated_data': ''}},
+            upsert=True)
 
+    @staticmethod
+    def insert_to_hourly(db, data_id, topic_id, ts, value):
+        sum_value = MongodbHistorian.value_to_sumable(value)
+        rollup_hour = ts.replace(minute=0, second=0, microsecond=0)
 
-    # def initialize_monthly(self, topic_id, ts):
-    #     ts_month = ts.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    #
-    #     db = self._client.get_default_database()
-    #     needs_initializing = not db.monthly_data.find(
-    #         {'ts': ts_month, 'topic_id': topic_id}).count() > 0
-    #
-    #     if needs_initializing:
-    #         weekday, num_days = monthrange(ts_month.year,
-    #                                        ts_month.month)
-    #         db['monthly_data'].update_one(
-    #             {'ts': ts_month, 'topic_id': topic_id},
-    #             {"$setOnInsert": {'ts': ts_month,
-    #                               'topic_id': topic_id,
-    #                               'count': 0,
-    #                               'sum': 0,
-    #                               'data': [[]] * num_days * 24 * 60,
-    #                               'last_updated_data': ''}},
-    #             upsert=True)
+        return UpdateOne({'ts': rollup_hour, 'topic_id': topic_id},
+                {'$push': {"data." + str(ts.minute): [ts, value]},
+                    '$inc': {'count': 1, 'sum': sum_value}})
 
-
-    def insert_to_daily(self, db, data_id, topic_id, ts, value):
+    @staticmethod
+    def insert_to_daily(db, data_id, topic_id, ts, value):
         rollup_day = ts.replace(hour=0, minute=0, second=0,
                                          microsecond=0)
         position = ts.hour * 60 + ts.minute
@@ -379,32 +422,8 @@ class MongodbHistorian(BaseHistorian):
                         {'$push': {"data." + str(position): [ts, value]},
                          '$inc': {'count': 1, 'sum': sum_value},
                          '$set': {'last_updated_data': data_id}})
-        _log.debug("Update statement: {}".format(one))
         return one
 
-    # def insert_to_monthly(self, db, data_id, topic_id, ts, value):
-    #     rollup_month = ts.replace(day=1, hour=0, minute=0, second=0,
-    #                             microsecond=0)
-    #     sum_value = MongodbHistorian.value_to_sumable(value)
-    #     position = (ts.day * 24 * 60) + (ts.hour * 60) + ts.minute
-    #
-    #     return UpdateOne(
-    #         {
-    #             'ts': rollup_month, 'topic_id': topic_id
-    #         },
-    #         {
-    #             '$push':{
-    #                 "data." + str(position): [ts, value]
-    #             },
-    #             '$inc': {
-    #                 'count': 1,
-    #                 'sum': sum_value
-    #             },
-    #             '$set':{
-    #                 'last_updated_data': data_id
-    #             }
-    #         }
-    #     )
 
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
@@ -414,10 +433,8 @@ class MongodbHistorian(BaseHistorian):
         # and data collections
         db = self._client.get_default_database()
 
-        bulk_publish = []
-        bulk_publish_hour = []
-        bulk_publish_day = []
-        bulk_publish_month = []
+        bulk_publish = db[self._data_collection].initialize_ordered_bulk_op()
+
         for x in to_publish_list:
             #_log.debug("SOURCE IS: {}".format(x['source']))
             ts = x['timestamp']
@@ -435,9 +452,6 @@ class MongodbHistorian(BaseHistorian):
             topic_lower = topic.lower()
             topic_id = self._topic_id_map.get(topic_lower, None)
             db_topic_name = self._topic_name_map.get(topic_lower, None)
-            rollup_hour = ts.replace(minute=0, second=0, microsecond=0)
-            rollup_day = rollup_hour.replace(hour=0)
-            rollup_month = rollup_day.replace(day=1)
 
             if topic_id is None:
                 row = db[self._topic_collection].insert_one(
@@ -445,19 +459,6 @@ class MongodbHistorian(BaseHistorian):
                 topic_id = row.inserted_id
                 self._topic_id_map[topic_lower] = topic_id
                 self._topic_name_map[topic_lower] = topic
-
-                if int(self.version_nums[0]) >= 2:
-                    # Since we know it's a new topic we can just initialize
-                    # straight away
-                    self.initialize_hourly(topic_id, ts)
-                    self.initialize_daily(topic_id, ts)
-                    #self.initialize_monthly(topic_id, ts)
-
-                    # _log.debug("After init of rollup rows for new topic {} "
-                    #            "hr-{} day-{} month-{}".format(db_topic_name,
-                    #                                           rollup_day,
-                    #                                           rollup_hour,
-                    #                                           rollup_month))
 
             elif db_topic_name != topic:
                 _log.debug('Updating topic: {}'.format(topic))
@@ -477,79 +478,28 @@ class MongodbHistorian(BaseHistorian):
                 self._topic_meta[topic_id] = meta
 
             # Reformat to a filter tha bulk inserter.
-            bulk_publish.append(ReplaceOne(
-                {'ts': ts, 'topic_id': topic_id},
-                {'ts': ts, 'topic_id': topic_id, 'source':source,
-                 'value': value},
-                upsert=True))
+            bulk_publish.find(
+                {'ts': ts, 'topic_id': topic_id}).upsert().replace_one(
+                    {'ts': ts, 'topic_id': topic_id, 'source':source,
+                     'value': value})
 
-            if int(self.version_nums[0]) >= 2:
 
-                self.initialize_hourly(topic_id, ts)
-
-                sum_value = MongodbHistorian.value_to_sumable(value)
-
-                bulk_publish_hour.append(UpdateOne(
-                    {
-                        'ts': rollup_hour,
-                        'topic_id': topic_id
-                    },
-                    {
-                        '$push': {
-                            "data."+ str(ts.minute): [ts, value]
-                        },
-                        '$inc':{
-                            'count': 1,
-                            'sum': sum_value
-                        }
-                    }
-                ))
-
-        # done going through all data and adding appropriate updates stmts
-        # perform bulk write into data and roll up collections
-        # _log.debug("bulk_publish_hour {}".format(bulk_publish_hour))
-        # _log.debug("bulk_publish_day {}".format(bulk_publish_day))
-        # _log.debug("bulk_publish_month {}".format(bulk_publish_month))
         try:
-            # http://api.mongodb.org/python/current/api/pymongo
-            # /collection.html#pymongo.collection.Collection.bulk_write
-            result = db[self._data_collection].bulk_write(bulk_publish)
-            # insert into an "inserted hourly table"
+            result = bulk_publish.execute()
         except BulkWriteError as bwe:
             _log.error("Error during bulk write to data: {}".format(
                 bwe.details))
+            if bwe.details['writeErrors'] :
+                index = bwe.details['writeErrors'][0]['index']
+                if index > 0:
+                    _log.debug(
+                        "bulk operation processed {} records before "
+                        "failing".format(bwe.details['writeErrors'][0]['index']))
+                    self.report_handled(to_publish_list[0:index])
         else:  # No write errros here when
-            if not result.bulk_api_result['writeErrors']:
-                self.report_all_handled()
-            else:
-                # TODO handle when something happens during writing of
-                # data.
-                _log.error('SOME THINGS DID NOT WORK')
+            self.report_all_handled()
 
-        if int(self.version_nums[0]) >= 2:
-            try:
-                # http://api.mongodb.org/python/current/api/pymongo
-                # /collection.html#pymongo.collection.Collection.bulk_write
-                result = db['hourly_data'].bulk_write(bulk_publish_hour)
-            except BulkWriteError as bwe:
-                _log.error("Error during bulk write to hourly data:{}".format(
-                    bwe.details))
 
-            # try:
-            #     # http://api.mongodb.org/python/current/api/pymongo
-            #     # /collection.html#pymongo.collection.Collection.bulk_write
-            #     result = db['daily_data'].bulk_write(bulk_publish_day)
-            # except BulkWriteError as bwe:
-            #     _log.error("Error during bulk write to daily data:{}".format(
-            #         bwe.details))
-            #
-            # try:
-            #     # http://api.mongodb.org/python/current/api/pymongo
-            #     # /collection.html#pymongo.collection.Collection.bulk_write
-            #     result = db['monthly_data'].bulk_write(bulk_publish_month)
-            # except BulkWriteError as bwe:
-            #     _log.error("Error during bulk write to monthly data:{}".format(
-            #         bwe.details))
 
     @staticmethod
     def value_to_sumable(value):
@@ -576,53 +526,18 @@ class MongodbHistorian(BaseHistorian):
         start_time = datetime.utcnow()
         collection_name = self._data_collection
         use_rolled_up_data = False
+        query_start = start
+        query_end = end
         if agg_type and agg_period:
             # query aggregate data collection instead
             collection_name = agg_type + "_" + agg_period
         else:
-            # See if we can use rolled up data
-            if int(self.version_nums[0]) >= 2 and start and end \
-                    and start != end:
-                diff = (end - start).total_seconds()
-                _log.debug("total seconds between end and start {}".format(
-                    diff))
-                if diff > 30 * 24 * 3600:
-                    collection_name = "monthly_data"
-                    use_rolled_up_data = True
-                    query_start = start.replace(days=1,
-                                                hour=0,
-                                                minute=0,
-                                                second=0,
-                                                microsecond=0)
-                    query_end = (end + relativedelta(months=1)).replace(
-                        days=1,
-                        hour=0,
-                        minute=0,
-                        second=0, microsecond=0)
-                elif diff >= 24 * 3600:
-                    collection_name = "daily_data"
-                    use_rolled_up_data = True
-                    query_start = start.replace(hour=0,
-                                                minute=0,
-                                                second=0,
-                                                microsecond=0)
-                    query_end = (end + timedelta(days=1)).replace(
-                        hour=0,
-                        minute=0,
-                        second=0,
-                        microsecond=0)
-                elif diff >= 3600*3: #more than 3 hours of data
-                    collection_name = "hourly_data"
-                    use_rolled_up_data = True
-                    query_start = start.replace(minute=0, second=0,
-                                                microsecond=0)
-                    query_end = (end+timedelta(hours=1)).replace(
-                        minute=0,
-                        second=0,
-                        microsecond=0)
-
-
-
+            name, query_start, query_end = \
+                self.verify_use_of_rolledup_data(start, end)
+            if name:
+                collection_name = name
+                use_rolled_up_data = True
+        _log.debug("Using collection {} for query:".format(collection_name))
         topics_list = []
         if isinstance(topic, str):
             topics_list.append(topic)
@@ -666,16 +581,12 @@ class MongodbHistorian(BaseHistorian):
         if order == 'LAST_TO_FIRST':
             order_by = -1
 
-        if start is not None:
-            if use_rolled_up_data:
-                ts_filter["$gte"] = query_start
-            else:
-                ts_filter["$gte"] = start
-        if end is not None:
-            if use_rolled_up_data:
-                ts_filter["$lt"] = query_end
-            else:
-                ts_filter["$lt"] = end
+        if query_start is not None:
+            ts_filter["$gte"] = query_start
+
+        if query_end is not None:
+            ts_filter["$lt"] = query_end
+
 
         if count is None:
             count = 100
@@ -692,6 +603,9 @@ class MongodbHistorian(BaseHistorian):
 
         values = defaultdict(list)
         for x in topic_ids:
+            # Query for one topic at a time in a loop instead of topic_id $in
+            # in order to apply $limit to each topic searched instead of the
+            # combined result
             find_params['topic_id'] = ObjectId(x)
             _log.debug("querying table with params {}".format(find_params))
             if use_rolled_up_data:
@@ -712,17 +626,20 @@ class MongodbHistorian(BaseHistorian):
                 datetime.utcnow() - start_time))
             if use_rolled_up_data:
                 for row in rows:
-                    for data in row['data']:
-                        if data:
-                            _log.debug("start {}".format(start))
-                            _log.debug("end {}".format(end))
-                            if start.tzinfo:
-                                data[0] = data[0].replace(tzinfo=tzutc())
-                            _log.debug("data[0] {}".format(data[0]))
-                            if data[0] >= start and data[0] < end:
-                                values[id_name_map[x]].append(
-                                    (utils.format_timestamp(data[0]),
-                                     data[1]))
+                    for minute_data in row['data']:
+                        if minute_data:
+                            # there could be more than data entry during the
+                            # same minute
+                            for data in minute_data:
+                                _log.debug("start {}".format(start))
+                                _log.debug("end {}".format(end))
+                                if start.tzinfo:
+                                    data[0] = data[0].replace(tzinfo=tzutc())
+                                _log.debug("data[0] {}".format(data[0]))
+                                if data[0] >= start and data[0] < end:
+                                    values[id_name_map[x]].append(
+                                        (utils.format_timestamp(data[0]),
+                                         data[1]))
                 _log.debug("values len {}".format(len(values)))
             else:
                 for row in rows:
@@ -736,6 +653,72 @@ class MongodbHistorian(BaseHistorian):
             datetime.utcnow() - start_time))
         #_log.debug("Results got {}".format(values))
 
+        return self.add_metadata_to_query_result(agg_type,
+                                                 multi_topic_query,
+                                                 topic,
+                                                 topic_ids,
+                                                 values)
+
+    def verify_use_of_rolledup_data(self, start, end):
+        """
+        See if we can use rolled up data only be done with version >2,
+        with valid time period verify start is >= from when rolled up data
+        is available verify end date is < current time - configured lag time
+        (config.rollup_query_end) this
+        is to
+        account for any lag between the main historian thread and the thread
+        that periodically rolled up data
+        :param start:
+        :param end:
+        :return:
+        """
+        #
+        collection_name = ""
+        query_start = start
+        query_end = end
+        # if it is the right version of historian and
+        # if start and end dates are within the range for which rolled up
+        # data is available, use hourly_data or monthly_data collection
+        rollup_end = get_aware_utc_now() - timedelta(minutes=self.rollup_query_end)
+        _log.debug("historian version:{}".format(self.version_nums[0]))
+        _log.debug("start  {} and end {}".format(start, end))
+        _log.debug("rollup query start {}".format(self.rollup_query_start))
+        _log.debug("rollup query end {}".format(rollup_end))
+        if int(self.version_nums[0]) >= 2 and \
+                start and end and \
+                start != end and \
+                start >= self.rollup_query_start and \
+                end < rollup_end:
+
+            diff = (end - start).total_seconds()
+            _log.debug("total seconds between end and start {}".format(diff))
+            if diff >= 24 * 3600:
+                collection_name = self.DAILY_COLLECTION
+                query_start = start.replace(hour=0, minute=0, second=0,
+                                            microsecond=0)
+                query_end = (end + timedelta(days=1)).replace(hour=0, minute=0,
+                    second=0, microsecond=0)
+            elif diff >= 3600 * 3:  # more than 3 hours of data
+                collection_name = self.HOURLY_COLLECTION
+                query_start = start.replace(minute=0, second=0, microsecond=0)
+                query_end = (end + timedelta(hours=1)).replace(minute=0,
+                    second=0, microsecond=0)
+        return collection_name, query_start, query_end
+
+    def add_metadata_to_query_result(self, agg_type, multi_topic_query,
+                                     topic, topic_ids, values):
+        '''
+        Adds metadata to query results. If query is based on multiple topics
+        does not add any metadata. If query is based on single topic return
+        the metadata of it. If topic is an aggregate topic, returns the
+        metadata of underlying topic
+        :param agg_type:
+        :param multi_topic_query:
+        :param topic:
+        :param topic_ids:
+        :param values:
+        :return:
+        '''
         if len(values) > 0:
             # If there are results add metadata if it is a query on a
             # single
@@ -851,19 +834,13 @@ class MongodbHistorian(BaseHistorian):
             _log.debug("no agg topics to load")
             self._agg_topic_id_map = {}
 
-        db['hourly_data'].create_index(
+        db[self.HOURLY_COLLECTION].create_index(
             [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
             unique=True, background=True)
-        db['daily_data'].create_index(
+        db[self.DAILY_COLLECTION].create_index(
             [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
             unique=True, background=True)
-        db['monthly_data'].create_index(
-            [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
-            unique=True, background=True)
-        db['daily_data'].create_index(
-            [('last_updated_data', pymongo.DESCENDING)],
-            background=True)
-        db['monthly_data'].create_index(
+        db[self.DAILY_COLLECTION].create_index(
             [('last_updated_data', pymongo.DESCENDING)],
             background=True)
 
