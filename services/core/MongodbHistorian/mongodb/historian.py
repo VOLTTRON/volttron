@@ -303,15 +303,15 @@ class MongodbHistorian(BaseHistorian):
                                          ts=row['ts'], value=row['value']))
                 day_ids.append(row['_id'])
                 d += 1
-            #Perform insert if we have 1000 rows
+            #Perform insert if we have 5000 rows
             d_errors = h_errors = False
-            if d == 3000:
+            if h == 5000:
                 bulk_publish_hour, hour_ids, h_errors = \
                     MongodbHistorian.bulk_write_rolled_up_data(
                         self.HOURLY_COLLECTION, bulk_publish_hour,
                         hour_ids, db)
-                d = 0
-            if d == 3000:
+                h = 0
+            if d == 5000:
                 bulk_publish_day, day_ids, d_errors = \
                     MongodbHistorian.bulk_write_rolled_up_data(
                         self.DAILY_COLLECTION, bulk_publish_day, day_ids, db)
