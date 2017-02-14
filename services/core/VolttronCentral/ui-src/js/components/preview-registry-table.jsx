@@ -41,7 +41,7 @@ class PreviewRegistryTable extends BaseComponent {
             }, this);
 
             content = (
-                <div className="clearBoth">
+                <div className="preview-registry-csv">
                     {attributes}
                 </div>
             );

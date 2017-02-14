@@ -184,6 +184,17 @@ br + .form__control-help {
     margin-bottom: 1.5em;
 }
 
+.preview-registry-csv {
+    clear: both;
+    
+    -webkit-touch-callout: auto;
+    -webkit-user-select: auto;
+    -khtml-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+}
+
 .platform-manager, .public-exterior {
     position: absolute;
     top: 0;
@@ -2000,4 +2011,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-a74dc1e60cb3c41179d8.css.map*/
+/*# sourceMappingURL=app-36ec19d8e9d54af0d926.css.map*/

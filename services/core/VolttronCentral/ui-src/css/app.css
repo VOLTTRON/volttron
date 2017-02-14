@@ -184,6 +184,17 @@ br + .form__control-help {
     margin-bottom: 1.5em;
 }
 
+.preview-registry-csv {
+    clear: both;
+    
+    -webkit-touch-callout: auto;
+    -webkit-user-select: auto;
+    -khtml-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+}
+
 .platform-manager, .public-exterior {
     position: absolute;
     top: 0;

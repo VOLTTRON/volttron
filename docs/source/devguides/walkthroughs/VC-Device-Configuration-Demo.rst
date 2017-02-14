@@ -4,50 +4,35 @@
 Device Conifiguration in VOLTTRON Central Demo
 ==============================================
 
-Devices in your network can be detected by VOLTTRON Central and configured
-through the VOLTTRON Central UI. The current version of VOLTTRON enables
-the configuration of BACNet devices only. The following steps describe the
-process. 
+Devices in your network can be detected and configured through the VOLTTRON Central UI. The current version of VOLTTRON enables device detection and configuration for BACNet devices. The following sections describe the processes involved with performing scans to detect physical devices and get their points, and configuring them as virtual devices installed on VOLTTRON instances.
 
 -  `Launching Device Configuration <#launching-device-configuration>`__
 -  `Scanning for Devices <#scanning-for-devices>`__
 -  `Scanning for Points <#scanning-for-points>`__
--  `Stopping the Demo <#stopping-the-demo>`__
--  `Log In <#log-in>`__
--  `Log Out <#log-out>`__
--  `Platforms Tree <#platforms-tree>`__
--  `Loading the Tree <#loading-the-tree>`__
--  `Health Status <#health-status>`__
--  `Filter the Tree <#filter-the-tree>`__
--  `Platforms Screen <#platforms-screen>`__
--  `Register New Platform <#register-new-platform>`__
--  `Deregister Platform <#deregister-platform>`__
--  `Platform View <#platform-view>`__
--  `Add Charts <#add-charts>`__
--  `Dashboard Charts <#dashboard-charts>`__
--  `Remove Charts <#remove-charts>`__
+-  `Registry Configuration File <#registry-configuration-file>`__
+-  `Additional Attributes <#additional-attributes>`__
+-  `Quick Edit Features <#quick-edit-features>`__
+-  `Keyboard Commands <#keyboard-commands>`__
+-  `Registry Preview <#registry-preview>`__
+-  `Registry Configuration Options <#registry-configuration-options>`__
+-  `Reloading Device Points <#reloading-device-points>`__
+-  `Device Configuration Form <#device-configuration-form>`__
+-  `Configuring Subdevices <#configuring-subdevices>`__
+-  `Reconfiguring Devices <#reconfiguring-devices>`__
+-  `Exporting Registry Configuration Files <#exporting-registry-configuration-files>`__
 
 Launching Device Configuration
 ------------------------------
 
-In VOLTTRON Central, extend the side panel on the left and find the configure
-cogs button next to the platform instance you want to add the device to. Click 
-the cogs button to launch the device configuration feature.
+To begin device configuration in VOLTTRON Central, extend the side panel on the left and find the cogs button next to the platform instance you want to add a device to. Click the cogs button to launch the device configuration feature.
 
 |Add Devices|
 
 |Install Devices|
 
-Currently the only method of adding devices is to conduct a scan to detect 
-BACNet devices. A BACnet Proxy Agent must be running in order to do the scan.
-If more than one BACnet Proxy is installed on the platform, choose the one that
-will be used for the scan.
+Currently the only method of adding devices is to conduct a scan to detect BACNet devices. A BACnet Proxy Agent must be running in order to do the scan. If more than one BACnet Proxy is installed on the platform, choose the one that will be used for the scan.
 
-The scan can be conducted without setting any further options. However, optional
-settings that can be used include the range of device IDs that the scan should 
-target. Further advanced options include the ability to specify the IP address
-of a device to detect as well as the ability to change the duration of the scan
-from the default of five seconds.
+The scan can be conducted using default settings that will search for all physical devices on the network. However, optional settings can be used to focus on specific devices or change the duration of the scan. Entering a range of device IDs will limit the scan to return only devices with IDs in that range. Advanced options include the ability to specify the IP address of a device to detect as well as the ability to change the duration of the scan from the default of five seconds.
 
 Scanning for Devices
 --------------------
@@ -56,378 +41,292 @@ To start the scan, click the large cog button to the right of the scan settings.
 
 |Start Scan|
 
-Devices that are detected will appear in the space below the scan settings. 
-Scanning can be repeated at any time by clicking the large cog button again.
+Devices that are detected will appear in the space below the scan settings. Scanning can be repeated at any time by clicking the large cog button again.
 
 |Devices Found|
 
 Scanning for Points
 -------------------
 
-Another scan can be performed on each device to retrieve its available points.
-This scan is initiated by clicking the triangle next to the device in the list.
-The first time the arrow is clicked, it initiates the scan. After the points
-are retrieved, the arrow becomes a hide-and-show toggle button and won't 
-reinitiate scanning the device. 
+Another scan can be performed on each physical device to retrieve its available points. This scan is initiated by clicking the triangle next to the device in the list. The first time the arrow is clicked, it initiates the scan. After the points are retrieved, the arrow becomes a hide-and-show toggle button and won't reinitiate scanning the device. 
+
+|Get Device Points|
 
 After the points have been retrieved once, the only way to scan the same device 
 for points again is to relaunch the device configuration process from the start 
 by clicking on the small cogs button next to the platform instance in the panel tree.
 
-|Get Device Points|
+Registry Configuration File
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When all the points on the device have been retrieved, the points are loaded
-into the registry configuration editor. There, the points can be modified and 
-selected to go into the registry file for the configured device.
+The registry configuration determines which points on the physical device will be associated with the virtual device that uses that particular registry configuration. The registry configuration determines which points' data will be published to the message bus and recorded by the historian, and it determines how the data will be presented.
+
+When all the points on the device have been retrieved, the points are loaded into the registry configuration editor. There, the points can be modified and selected to go into the registry configuration file for a device. 
+
+Each row in the registry configuration editor represents a point, and each column represents the point's attributes. 
+
+Only points that have been selected will be included in the registry configuration file. To select a point, check the box next to the point in the editor. 
+
+|Select Point Before|
+
+|Select Point During|
+
+|Select Point After|
+
+Type directly in a cell to change an attribute value for a point.
 
 |Edit Points|
 
-Each row represents a point, and each column represents the point's 
-attributes. Type directly in a cell to change an attribute value for
-a point.
+Additional Attributes
+---------------------
 
-The default view of the editor the shows the attributes that are most often 
-needing to be changed during configuration: the VOLTTRON point name, the writable
-setting, and the units. Other attributes are present but not shown in the 
-default view. To see all the attributes for a point, click the Edit Point button 
-(the three dots) at the end of the point row.
+The editor's default view shows the attributes that are most likely to be changed during configuration: the VOLTTRON point name, the writable setting, and the units. Other attributes are present but not shown in the default view. To see the entire set of attributes for a point, click the Edit Point button (the three dots) at the end of the point row.
 
 |Edit Point Button|
 
-Point attributes can also be changed by typing in the fields in the Edit Point
-window, including changing the hidden attributes that aren't shown in the
-registry configuration editor. 
+Point attributes can be changed by typing in the fields in the Edit Point window and clicking the Apply button. 
 
 |Edit Point Dialog|
 
-Check or uncheck the "Show in Table" box for an attribute to add it or remove 
-it as a column in the registry configuration editor.
+Checking or unchecking the "Show in Table" box for an attribute will add or remove it as a column in the registry configuration editor.
 
-Several quick-edit features are available 
-
-
-
-The 
-
-One of our instances will have a VOLTTRON Central agent. We will install a
-platform agent and a historian on all three platforms.
-
-Run `volttron-cfg` in the first shell. This command will ask how the instance
-should be set up. Many of the options have defaults that will be sufficient.
-When asked if this instance is a VOLTTRON Central enter `y`. Read through the
-options and use the enter key to accept default options. There are no default
-credentials for VOLTTRON Central.
-
-|VC Config|
-
-Continue by configuring the the platform agent and installing the historian.
-The platform agent is installed if you accept the default `y` when asked if
-the instance will be controlled by a VOLTTRON Central. If you kept the
-VOLTTRON Central defaults then no changes need to be made to the platform agent.
-There are no options for the historian.
-
-VOLTTRON Central needs to accept the connecting instances'
-public keys. For this example we'll allow any CURVE credentials to be accepted.
-After `starting <#starting-the-demo>`__, the command **volttron-ctl auth add** will prompt the user for
-information about how the credentials should be used. We can simply hit Enter
-to select defaults on all fields except **credentials**, where we will type
-`/.*/`
-
-.. code-block:: console
-
-   $ volttron-ctl auth add
-   domain []:
-   address []:
-   user_id []:
-   capabilities (delimit multiple entries with comma) []:
-   roles (delimit multiple entries with comma) []:
-   groups (delimit multiple entries with comma) []:
-   mechanism [CURVE]:
-   credentials []: /.*/
-   comments []:
-   enabled [True]:
-   added entry domain=None, address=None, mechanism='CURVE', credentials=u'/.*/', user_id=None
-
-For more information on authorization see :ref:`authentication<VIP-Authentication>`.
-
-Remote Platform Configuration
------------------------------
-
-The next step is to configure the instances that will connect to VOLTTRON
-Central. In the second and third terminal windows run `volttron-cfg`. Like
-the VOLTTRON\_HOME variable, these instances need to have unique addresses.
-
-Install a platform agent and a historian as before. Since we used the default
-options when configuring VOLTTRON Central, we can use the default options when
-configuring these platform agents as well.
-
-|Platform Config|
-
-
-Starting the Demo
------------------
-
-Start each Volttron instance after configuration. The "-l" option in the
-following command tells volttron to log to a file. The file name
-should be different for each instance.
-
-.. code-block:: console
-
-    $ volttron -l log1&
-
-If you choose to not start your agents with their platforms they will need to
-be started by hand. List the installed agents with
-
-.. code-block:: console
-
-    $ volttron-ctl status
-
-A portion of each agent's uuid makes up the leftmost column of the status
-output. This is all that is needed to start or stop the agent. If any
-installed agents share a common prefix then more of the uuid will be needed
-to identify it.
-
-.. code-block:: console
-
-    $ volttron-ctl start uuid
-
-or
-
-.. code-block:: console
-
-    $ volttron-ctl start --tag tag
-
-Now point your browser to `localhost:8080` and and log in with the credentials
-you provided. The platform agents should automatically register with VOLTTRON
-central.
-
-Stopping the Demo
------------------
-
-Once you have completed your walk through of the different elements of
-the VOLTTRON Central demo you can stop the demos by executing the following
-command in each terminal window.
-
-.. code-block:: console
-
-    $ volttron-ctl shutdown --platform
-
-Once the demo is complete you may wish to see the
-:ref:`VOLTTRON Central Management Agent <VOLTTRON-Central>` page for more
-details on how to configure the agent for your specific use case.
-
-Log In
-------
-
-To log in to VOLTTRON Central, navigate in a browser to localhost:8080,
-and enter the user name and password on the login screen.
-
-|Login Screen|
-
-Log Out
--------
-
-To log out of VOLTTRON Central, click the link at the top right
-of the screen.
-
-|Logout Button|
-
-Platforms Tree
-~~~~~~~~~~~~~~
-
-The side panel on the left of the screen can be extended to
-reveal the tree view of registered platforms.
-
-|Platforms Panel|
-
-|Platforms Tree|
-
-Top-level nodes in the tree are platforms. Platforms can be expanded
-in the tree to reveal installed agents, devices on buildings, and
-performance statistics about the platform instances.
-
-Loading the Tree
-----------------
-
-The initial state of the tree is not loaded. The first time a top-level
-node is expanded is when the items for that platform are loaded.
-
-|Load Tree|
-
-After a platform has been loaded in the tree, all the items under a node
-can be quickly expanded by double-clicking on the node.
-
-Health Status
--------------
-
-The health status of an item in the tree is indicated by the color
-and shape next to it. A green triangle means healthy, a red circle
-means there's a problem, and a gray rectangle means the status can't
-be determined.
-
-Information about the health status also may be found by hovering the
-cursor over the item.
-
-|Status Tooltips|
-
-Filter the Tree
----------------
-
-The tree can be filtered by typing in the search field at the top or
-clicking on a status button next to the search field.
-
-|Filter Name|
-
-|Filter Button|
-
-Meta terms such as "status" can also be used as filter keys. Type the
-keyword "status" followed by a colon, and then the word "good," "bad,"
-or "unknown."
-
-|Filter Status|
-
-Platforms Screen
-~~~~~~~~~~~~~~~~
-
-This screen lists the registered VOLTTRON platforms and allows new
-platforms to be registered by clicking the Register Platform button.
-Each platform is listed with its unique ID and the number and status
-of its agents. The platform's name is a link that can be clicked on
-to go to the platform management view.
-
-|Platforms|
-
-Register New Platform
----------------------
-
-To register a new VOLTTRON platform, click the Register Platform button.
-You'll need to provide a name and the IP address of the platform. Click
-the Advanced link for additional configuration options.
-
-|Register Platform Information|
-
-Deregister Platform
+Quick Edit Features
 -------------------
 
-To deregister a VOLTTRON Platform, click on the X button for that platform
-in the list.
+Several quick-edit features are available in the registry configuration editor.
 
-Platform View
-~~~~~~~~~~~~~
+The list of points can be filtered based on values in the first column by clicking the filter button in the first column's header and entering a filter term.
 
-From the platforms screen, click on the name link of a platform to
-manage it. Managing a platform includes installing, starting, stopping,
-and removing its agents.
+|Filter Points Button|
 
-|Platform Screen|
+|Filter Set|
 
-To install a new agent, all you need is the agent’s wheel file. Click on
-the button and choose the file to upload it and install the agent.
+The filter feature allows points to be edited, selected, or deselected more quickly by narrowing down potentially large lists of points. However, the filter doesn't select points, and if the registry configuration is saved while a filter is applied, any selected points not included in the filter will still be included in the registry file.
 
-To start, stop, or remove an agent, click on the button next to the agent
-in the list. Buttons may be disabled if the user lacks the correct
-permission to perform the action or if the action can't be performed
-on a specific type of agent. For instance, platform agents and VOLTTRON
-Central agents can't be removed or stopped, but they can be restarted
-if they've been interrupted.
+To clear the filter, click on the Clear Filter button in the filter popup.
 
-Add Charts
-~~~~~~~~~~
+|Clear Filter|
 
-Performance statistics and device points can be added to charts either
-from the Charts page or from the platforms tree in the side panel.
+To add a new point to the points listed in the registry configuration editor, click on the Add Point button in the header of the first column. 
 
-Click the Charts link at the top-right corner of the screen to go to
-the Charts page.
+|Add New Point|
 
-|Charts Page|
+|Add Point Dialog|
 
-From the Charts page, click the Add Chart button to open the Add Chart
-window.
+Provide column values, and click the Apply button to add the new point, which will be appended to the bottom of the list.
 
-|Charts Button|
+To remove points from the list, select the points and click the Remove Points button in the header of the first column.
 
-|Charts Window|
+|Remove Points|
 
-Click in the topics input field to make the list of available chart
-topics appear.
+|Confirm Remove Points|
 
-|Chart Topics|
+Each column has an Edit Column button in its header.
 
-Scroll and select from the list, or type in the field to filter the
-list, and then select.
+|Edit Columns|
 
-|Filter Select|
+Click on the button to display a popup menu of operations to perform on the column. The options include inserting a blank new column, duplicating an existing column, removing a column, or searching for a value within a column.
 
-Select a chart type and click the Load Chart button to close the
-window and load the chart.
+|Edit Column Menu|
 
-|Load Chart|
+A duplicate or new column has to be given a unique name. 
 
-To add charts from the side panel, check boxes next to items in the
-tree.
+|Name Column|
 
-|Tree Charts|
+|Duplicated Column|
 
-Choose points with the same name from multiple platforms or devices
-to plot more than one line in a chart.
+To search for values in a column, choose the Find and Replace option in the popup menu.
 
-|Multiple Lines|
+|Find in Column|
 
-Move the cursor arrow over the chart to inspect the graphs.
+Type the term to search for, and click the Find Next button to highlight all the matched fields in the column.
 
-|Inspect Chart|
+|Find Next|
 
-To change the chart's type, click on the Chart Type button and choose
-a different option.
+Click the Find Next button again to advance the focus down the list of matched terms.
 
-|Chart Type|
+To quickly replace the matched term in the cell with focus, type a replacement term, and click on the Replace button. 
 
-Dashboard Charts
+|Replace in Column|
+
+To replace all the matched terms in the column, click on the Replace All button.
+
+Keyboard Commands
+-----------------
+
+Some keyboard commands are available to expedite the selection or de-selection of points. To initiate use of the keyboard commands, strike the Control key on the keyboard. For keyboard commands to be activated, the registry configuration table has to have focus, which comes from interacting with the editor. But the commands won't be activated if the cursor is in a typable field.
+
+If the keyboard commands have been successfully activated, a faint highlight will appear over the first row in the registry configuration editor.
+
+|Start Keyboard Commands|
+
+Keyboard commands are deactivated when the mouse cursor moves over the configuration editor. If unintentional deactivation occurs, strike the Control key again to reactivate the commands.
+
+With keyboard commands activated, the highlighted row can be advanced up or down by striking the up or down arrow on the keyboard. A group of rows can be highlighted by striking the up or down arrow while holding down the Shift key.
+
+|Keyboard Highlight|
+
+To select the highlighted rows, strike the Enter key.
+
+|Keyboard Select|
+
+Striking the Enter key with rows highlighted will also deselect any rows that were already selected.
+
+Click on the Keyboard Shortcuts button to show a popup list of the available keyboard commands.
+
+|Keyboard Shortcuts Button|
+
+|Keyboard Shortcuts|
+
+Registry Preview
 ----------------
 
-To pin a chart to the Dashboard, click the Pin Chart button to toggle
-it. When the pin image is black and upright, the chart is pinned; when
-the pin image is gray and diagonal, the chart is not pinned and won't
-appear on the Dashboard.
+To save the registry configuration, click the Save button at the bottom of the registry configuration editor.
 
-|Pin Chart|
+|Save Registry Button|
 
-Charts that have been pinned to the Dashboard are saved to the database
-and will automatically load when the user logs in to VOLTTRON Central.
-Different users can save their own configurations of dashboard charts.
+A preview will appear to let you confirm that the configuration is what you intended.
 
-Remove Charts
--------------
+|Registry Preview Table|
 
-To remove a chart, uncheck the box next to the item in the tree or click
-the X button next to the chart on the Charts page. Removing a chart
-removes it from the Charts page and the Dashboard.
+The configuration also can be inspected in the comma-separated format of the actual registry configuration file. 
+
+|Registry Preview CSV|
+
+Provide a name for the registry configuration file, and click the Save button to save the file.
+
+|Name Registry File|
+
+|Registry Saved|
+
+Registry Configuration Options
+------------------------------
+
+Different subsets of configured points can be saved from the same physical device and used to create separate registry files for multiple virtual devices and subdevices. Likewise, a single registry file can be reused by multiple virtual devices and subdevices.
+
+To reuse a previously saved registry file, click on the Select Registry File (CSV) button at the end of the physical device's listing.
+
+|Select Saved Registry File|
+
+The Previously Configured Registry Files window will appear, and a file can be selected to load it into the registry configuration editor. 
+
+|Saved Registry Selector|
+
+Another option is to import a registry configuration file from the computer running the VOLTTRON Central web application, if one has been saved to local storage connected to the computer. To import a registry configuration file from local storage, click on the Import Registry File (CSV) button at the end of the physical device's listing, and use the file selector window to locate and load the file.
+
+|File Import Button|
+
+Reloading Device Points
+-----------------------
+
+Once a physical device has been scanned, the original points from the scan can be reloaded at any point during device configuration by clicking on the Reload Points From Device button at the end of the device's listing.
+
+|Reload Points|
+
+Device Configuration Form
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+After the registry configuration file has been saved, the device configuration form appears. Creating the device configuration results in the virtual device being installed in the platform and determines the device's position in the side panel tree. It also contains some settings that determine how data is collected from the device.
+
+|Configure Device Dialog|
+
+After the device configuration settings have been entered, click the Save button to save the configuration and add the device to the platform.
+
+|Save Device Config|
+
+|Device Added|
+
+Configuring Subdevices
+----------------------
+
+After a device has been configured, subdevices can be configured by pointing to their position in the Path attribute of the device configuration form. But a subdevice can't be configured until its parent device has been configured first.
+
+|Subdevice Path|
+
+|Subdevice 2|
+
+As devices are configured, they're inserted into position in the side panel tree, along with their configured points.
+
+|Device Added to Tree|
+
+
+Reconfiguring Devices 
+~~~~~~~~~~~~~~~~~~~~~
+
+A device that's been added to a VOLTTRON instance can be reconfigured by changning its registry configuration or its device configuration. To launch reconfiguration, click on the wrench button next to the device in the side panel tree.
+
+|Reconfigure Device Button|
+
+Reconfiguration reloads the registry configuration editor and the device configuration form for the virtual device. The editor and the form work the same way in reconfiguration as during initial device configuration.
+
+|Reconfiguring Device|
+
+The reconfiguration view shows the name, address, and ID of the physical device that the virtual device was configured from. It also shows the name of the registry configuration file associated with the virtual device. 
+
+A different registry configuration device can be associated with the device by clicking on the Select Registry File (CSV) button or the Import Registry File (CSV) button.
+
+The registry configuration can be edited making changes to the configuration in the editor and clicking the Save button.
+
+To make changes to the device configuration form, click on the File to Edit selector and choose Device Config.
+
+|Reconfigure Option Selector|
+
+|Reconfigure Device Config|
+
+Exporting Registry Configuration Files
+--------------------------------------
+
+The registry configuration file associated with a virtual device can be exported from the web browser to the computer's local storage by clicking on the File Export Button in the device reconfiguration view.
+
+|File Export Button|
 
 .. |Add Devices| image:: files/01-add-devices.png
 .. |Install Devices| image:: files/02-install-devices.png
 .. |Start Scan| image:: files/03-start-scan.png
 .. |Devices Found| image:: files/04-devices-found.png
 .. |Get Device Points| image:: files/05-get-device-points.png
+.. |Select Point Before| image:: files/07-select-point-a.png
+.. |Select Point During| image:: files/07-select-point-b.png
+.. |Select Point After| image:: files/07-select-point-c.png
 .. |Edit Points| image:: files/07-edit-points.png
 .. |Edit Point Button| image:: files/21-edit-point-button.png
 .. |Edit Point Dialog| image:: files/22-edit-point-dialog.png
 .. |Filter Points Button| image:: files/08-filter-points-button.png
-.. |Platforms Tree| image:: files/side-panel-open.png
-.. |Platforms Panel| image:: files/side-panel-closed.png
-.. |Status Tooltips| image:: files/problems-found.png
-.. |Load Tree| image:: files/load-tree-item.png
-.. |Filter Button| image:: files/filter-button.png
-.. |Filter Name| image:: files/filter-name.png
-.. |Filter Status| image:: files/filter-status.png
-.. |Tree Charts| image:: files/add-charts.png
-.. |Charts Page| image:: files/go-to-charts.png
-.. |Charts Button| image:: files/add-charts-button.png
-.. |Charts Window| image:: files/charts-window.png
-.. |Chart Topics| image:: files/load-topics.png
-.. |Filter Select| image:: files/filter-and-select.png
-.. |Load Chart| image:: files/load-chart.png
-.. |Multiple Lines| image:: files/chart-multiple-lines.png
-.. |Chart Type| image:: files/chart-type.png
-.. |Pin Chart| image:: files/pin-chart.png
-.. |Inspect Chart| image:: files/inspect-charts.png
+.. |Filter Set| image:: files/09-filter-set.png
+.. |Clear Filter| image:: files/10-clear-filter.png
+.. |Add New Point| image:: files/11-add-new-point.png
+.. |Add Point Dialog| image:: files/12-add-point-dialog.png
+.. |Remove Points| image:: files/13-remove-points.png
+.. |Confirm Remove Points| image:: files/14-confirm-remove-points.png
+.. |Edit Columns| image:: files/15-edit-column-button.png
+.. |Edit Column Menu| image:: files/16-edit-column-menu.png
+.. |Name Column| image:: files/17-name-column.png
+.. |Duplicated Column| image:: files/18-duplicated-column.png
+.. |Find in Column| image:: files/19-find-in-column.png
+.. |Find Next| image:: files/19-find-in-column-b.png
+.. |Replace in Column| image:: files/20-replace-in-column.png
+.. |Start Keyboard Commands| image:: files/23-start-keyboard-commands.png
+.. |Keyboard Highlight| image:: files/24-keyboard-highlight.png
+.. |Keyboard Select| image:: files/25-keyboard-select.png
+.. |Keyboard Shortcuts Button| image:: files/26-keyboard-shortcuts-button.png
+.. |Keyboard Shortcuts| image:: files/27-keyboard-shortcuts.png
+.. |Save Registry Button| image:: files/28-save-registry button.png
+.. |Registry Preview Table| image:: files/29-registry-preview-table.png
+.. |Registry Preview CSV| image:: files/30-preview-registry-csv.png
+.. |Name Registry File| image:: files/31-name-registry-file.png
+.. |Registry Saved| image:: files/32-registry-saved.png
+.. |Select Saved Registry File| image:: files/38-select-saved-registry-file.png
+.. |Saved Registry Selector| image:: files/39-saved-registry-selector.png
+.. |File Import Button| image:: files/40-file-import-button.png
+.. |Reload Points| image:: files/41-reload-points-from-device.png
+.. |Configure Device Dialog| image:: files/33-configure-device-dialog.png
+.. |Save Device Config| image:: files/34-save-device-config.png
+.. |Device Added| image:: files/37-device-added.png
+.. |Subdevice Path| image:: files/35-subdevice-path.png
+.. |Subdevice 2| image:: files/36-subdevice2.png
+.. |Device Added to Tree| image:: files/37-device-added-b.png
+.. |Reconfigure Device Button| image:: files/43-reconfigure-device-button.png
+.. |Reconfiguring Device| image:: files/44-reconfiguring-device.png
+.. |Reconfigure Option Selector| image:: files/45-reconfigure-option-selector.png
+.. |Reconfigure Device Config| image:: files/46-reconfigure-device-config.png
+.. |File Export Button| image:: files/47-file-export-button.png

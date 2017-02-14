@@ -64986,7 +64986,7 @@
 	
 	                content = _react2.default.createElement(
 	                    'div',
-	                    { className: 'clearBoth' },
+	                    { className: 'preview-registry-csv' },
 	                    attributes
 	                );
 	            } else {
@@ -118320,4 +118320,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-a74dc1e60cb3c41179d8.js.map
+//# sourceMappingURL=app-36ec19d8e9d54af0d926.js.map
