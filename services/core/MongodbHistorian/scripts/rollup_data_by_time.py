@@ -4,14 +4,9 @@ except:
     raise Exception("Required: pymongo")
 from datetime import datetime
 from numbers import Number
-
-from bson.objectid import ObjectId
 from pymongo.errors import BulkWriteError
-from pymongo.operations import UpdateOne
-from dateutil.tz import tzutc
 from gevent import monkey
 monkey.patch_all()
-import gevent
 from gevent.threadpool import ThreadPool
 
 local_source_params = {"host": "localhost",
@@ -28,13 +23,14 @@ local_dest_params = {"host": "localhost",
                      "user": "test",
                      "passwd": "test"}
 
-DAILY_COLLECTION = "daily_data2"
-HOURLY_COLLECTION = "hourly_data2"
+DAILY_COLLECTION = "daily_data"
+HOURLY_COLLECTION = "hourly_data"
 running_historian = True
 import sys
 log = open('./script_out', 'w', buffering=1)
 sys.stdout = log
 sys.stderr = log
+
 
 def connect_mongodb(connection_params):
     #print ("setup mongodb")
@@ -73,9 +69,8 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
     source_db = None
     dest_db = None
     start = datetime.utcnow()
-    #match_count = 0
+    cursor = None
     try:
-
         source_db = connect_mongodb(source_params)
         source_tables = get_table_names(source_params)
 
@@ -116,7 +111,8 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             stat = {}
 
         cursor = source_db[source_tables['data_table']].find(
-            match_condition).sort("_id", pymongo.ASCENDING)
+            match_condition, no_cursor_timeout=True).sort(
+            "_id", pymongo.ASCENDING)
 
         #print ("match condition: {}".format(match_condition))
         #print("Before looping through results for {}".format(topic_id))
@@ -130,24 +126,30 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
         h = 0
         bulk_hourly = dest_db[HOURLY_COLLECTION].initialize_ordered_bulk_op()
         bulk_daily = dest_db[DAILY_COLLECTION].initialize_ordered_bulk_op()
-        bulk_init_hourly = dest_db[
-            HOURLY_COLLECTION].initialize_ordered_bulk_op()
-        bulk_init_daily = dest_db[
-            DAILY_COLLECTION].initialize_ordered_bulk_op()
-        hourly_needs_init = False
-        daily_needs_init = False
+        last_init_hour = None
+        last_init_day = None
         for row in cursor:
             if not stat or row['_id'] > stat["last_data_into_hourly"]:
-                initialize_hourly(topic_id=row['topic_id'], ts=row['ts'],
-                    db=dest_db)
+                ts_hour = row['ts'].replace(minute=0, second=0,
+                                            microsecond=0)
+                if last_init_hour is None or ts_hour != last_init_hour :
+                    # above check would work since we use 1 thread per topic
+                    initialize_hourly(topic_id=row['topic_id'],
+                                      ts_hour=ts_hour,
+                                      db=dest_db)
+                    last_init_hour = ts_hour
                 insert_to_hourly(bulk_hourly, row['_id'],
                     topic_id=row['topic_id'], ts=row['ts'], value=row['value'])
                 h += 1
                 #print("Insert bulk op to hourly. h= {}".format(h))
 
             if not stat or row['_id'] > stat["last_data_into_daily"]:
-                initialize_daily(topic_id=row['topic_id'], ts=row['ts'],
-                                  db=dest_db)
+                ts_day = row['ts'].replace(hour=0, minute=0,
+                                           second=0, microsecond=0)
+                if last_init_day is None or ts_day != last_init_day:
+                    initialize_daily(topic_id=row['topic_id'], ts_day=ts_day,
+                                      db=dest_db)
+                    last_init_day = ts_day
                 insert_to_daily(bulk_daily, row['_id'],
                                 topic_id=row['topic_id'], ts=row['ts'],
                                 value=row['value'])
@@ -157,7 +159,7 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             # Perform insert if we have 3000 rows
             d_errors = h_errors = False
             if h == 10000:
-                #print("In loop. bulk write hour")
+                print("In loop. bulk write hour")
                 h_errors = execute_batch(bulk_hourly)
                 if not h_errors:
                     bulk_hourly = dest_db[
@@ -165,7 +167,7 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
                     h = 0
 
             if d == 10000:
-                #print("In loop. bulk write day")
+                print("In loop. bulk write day")
                 d_errors = execute_batch(bulk_daily)
                 if not d_errors:
                     bulk_daily = dest_db[
@@ -186,11 +188,12 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             execute_batch(bulk_daily)
 
     finally:
+        if cursor:
+            cursor.close()
         if source_db:
             source_db.client.close()
         if dest_db:
             dest_db.client.close()
-        #if match_count > 0:
         # print ("Total time for roll up of data in topics {}: {}".format(
         #     topic_name, datetime.utcnow() - start))
 
@@ -224,9 +227,9 @@ def execute_batch(bulk):
     return errors
 
 
-def initialize_hourly(topic_id, ts, db):
-    ts_hour = ts.replace(minute=0, second=0, microsecond=0)
-    print ("In int hourly of {} {} . Hour is {}".format(topic_id, ts, ts_hour))
+def initialize_hourly(topic_id, ts_hour, db):
+
+    #print ("In int hourly of {} . Hour is {}".format(topic_id, ts_hour))
 
     count = db[HOURLY_COLLECTION].find(
         {'ts': ts_hour, 'topic_id': topic_id}).count()
@@ -235,8 +238,8 @@ def initialize_hourly(topic_id, ts, db):
     else:
         needs_initializing = True
 
-    print ("after check needs init={} count={}".format(needs_initializing,
-                                                       count))
+    #print ("after check needs init={} count={}".format(needs_initializing,
+    #                                                   count))
     if needs_initializing:
         if running_historian:
             # use update since historian could have initialized for the
@@ -256,8 +259,7 @@ def initialize_hourly(topic_id, ts, db):
     return needs_initializing
 
 
-def initialize_daily(topic_id, ts, db):
-    ts_day = ts.replace(hour=0, minute=0, second=0, microsecond=0)
+def initialize_daily(topic_id, ts_day, db):
     count = db[DAILY_COLLECTION].find(
         {'ts': ts_day, 'topic_id': topic_id}).count()
     needs_initializing = not count > 0
@@ -324,12 +326,12 @@ if __name__ == '__main__':
         cursor = source_db[source_tables['topics_table']].find({}).sort(
             "_id", pymongo.ASCENDING)
 
-        pool = ThreadPool(maxsize=5)
+        pool = ThreadPool(maxsize=10)
         running_historian = False
         topics = list(cursor)
         max = len(topics)
         for i in xrange(0, max):
-            print ("Processing topic: {} {}".format(topics[i]['_id'],
+            print("Processing topic: {} {}".format(topics[i]['_id'],
                                                     topics[i]['topic_name']))
             pool.spawn(rollup_data, local_source_params, local_dest_params,
                 datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f'),
