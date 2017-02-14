@@ -24,7 +24,7 @@
     # historian start up
     initial_rollup_start_time = "2017-01-01T00:00:00.000000"
 
-    # Optional. How long should the historian wait after startup to start
+    # How long should the historian wait after startup to start
     # rolling up raw data into hourly and daily collections. Wait in minutes.
     # Default 10 seconds
     periodic_rollup_initial_wait = 0.1
