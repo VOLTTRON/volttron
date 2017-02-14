@@ -409,7 +409,8 @@ class MongodbHistorian(BaseHistorian):
 
         return UpdateOne({'ts': rollup_hour, 'topic_id': topic_id},
                 {'$push': {"data." + str(ts.minute): [ts, value]},
-                    '$inc': {'count': 1, 'sum': sum_value}})
+                 '$inc': {'count': 1, 'sum': sum_value},
+                 '$set': {'last_updated_data': data_id}})
 
     @staticmethod
     def insert_to_daily(db, data_id, topic_id, ts, value):
