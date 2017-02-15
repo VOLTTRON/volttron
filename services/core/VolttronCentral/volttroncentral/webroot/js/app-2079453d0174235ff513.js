@@ -76364,10 +76364,6 @@
 	            this._updateLineChart(this.state.lineChart, this.state.chartName, this._lineData(this._getNested(this.props.data)));
 	        }
 	    },
-	    // componentWillReceiveProps: function (nextProps)
-	    // {
-	    //     this._rebuildLineChart(nextProps.data);
-	    // },
 	    _onStoresChange: function _onStoresChange() {
 	        this.setState({ pinned: platformChartStore.getPinned(this.props.name) });
 	        this.setState({ chartType: platformChartStore.getType(this.props.name) });
@@ -76729,20 +76725,6 @@
 	            controlButtons
 	        );
 	    },
-	    _rebuildLineChart: function _rebuildLineChart(data) {
-	        // d3.select('#' + this.state.chartName).remove();
-	        d3.selectAll('#' + this.state.chartName + ' > *').remove();
-	
-	        nv.charts = {};
-	        nv.graphs = [];
-	        nv.logs = {};
-	
-	        var lineChart = this._drawLineChart(this.state.chartName, this.state.chartType, this._lineData(this._getNested(data)), this.state.min, this.state.max);
-	
-	        this.setState({ lineChart: lineChart });
-	
-	        // this.chart = ReactDOM.findDOMNode(this.refs[this.state.chartName]);
-	    },
 	    _drawLineChart: function _drawLineChart(elementParent, chartType, data, yMin, yMax) {
 	
 	        var tickCount = 0;
@@ -76812,20 +76794,7 @@
 	        return lineChart;
 	    },
 	    _updateLineChart: function _updateLineChart(lineChart, elementParent, data) {
-	        // d3.selectAll('#' + elementParent + ' > *').remove();
-	
-	        // var svg = document.getElementById(elementParent);
-	
-	        // for (var i = svg.children.length - 1; i >= 0; i--)
-	        // {
-	        //     svg.removeChild(svg.children[i]);
-	        // }
-	
 	        d3.select('#' + elementParent).datum(data).call(lineChart);
-	
-	        // nv.utils.windowResize(function() {
-	        //     lineChart.update();
-	        // });
 	    },
 	    _getNested: function _getNested(data) {
 	        var keyYearMonth = d3.nest().key(function (d) {
@@ -118320,4 +118289,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-36ec19d8e9d54af0d926.js.map
+//# sourceMappingURL=app-2079453d0174235ff513.js.map

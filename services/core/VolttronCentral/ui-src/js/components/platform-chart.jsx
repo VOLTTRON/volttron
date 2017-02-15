@@ -229,10 +229,6 @@ var GraphLineChart = OutsideClick(React.createClass({
           );
       }
   },
-  // componentWillReceiveProps: function (nextProps)
-  // {
-  //     this._rebuildLineChart(nextProps.data);
-  // },
   _onStoresChange: function () {
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
       this.setState({chartType: platformChartStore.getType(this.props.name)});
@@ -259,11 +255,11 @@ var GraphLineChart = OutsideClick(React.createClass({
       var chartType = e.target.value;
       
       var lineChart = this._drawLineChart(
-                          this.state.chartName, 
-                          chartType, 
-                          this._lineData(this._getNested(this.props.data)),
-                          this.state.min, this.state.max
-                      );
+          this.state.chartName, 
+          chartType, 
+          this._lineData(this._getNested(this.props.data)),
+          this.state.min, this.state.max
+      );
 
       this.setState({lineChart: lineChart});
       this.setState({showTaptip: false});
@@ -301,10 +297,12 @@ var GraphLineChart = OutsideClick(React.createClass({
   },
   _onMinChange: function (e) {
       var min = e.target.value;
-      var lineChart = this._drawLineChart(this.state.chartName, 
-                                      this.state.chartType, 
-                                      this._lineData(this._getNested(this.props.data)),
-                                      min, this.state.max);
+      var lineChart = this._drawLineChart(
+          this.state.chartName, 
+          this.state.chartType, 
+          this._lineData(this._getNested(this.props.data)),
+          min, this.state.max
+      );
 
       this.setState({lineChart: lineChart});
 
@@ -603,27 +601,6 @@ var GraphLineChart = OutsideClick(React.createClass({
       </div>
     );
   },
-  _rebuildLineChart: function (data)
-  {
-      // d3.select('#' + this.state.chartName).remove();
-      d3.selectAll('#' + this.state.chartName + ' > *').remove();
-
-      nv.charts = {};
-      nv.graphs = [];
-      nv.logs = {};
-
-      var lineChart = this._drawLineChart(
-          this.state.chartName, 
-          this.state.chartType, 
-          this._lineData(this._getNested(data)),
-          this.state.min, 
-          this.state.max
-      );
-
-      this.setState({lineChart: lineChart});
-
-      // this.chart = ReactDOM.findDOMNode(this.refs[this.state.chartName]);
-  },
   _drawLineChart: function (elementParent, chartType, data, yMin, yMax) {
       
       var tickCount = 0;
@@ -709,22 +686,9 @@ var GraphLineChart = OutsideClick(React.createClass({
       return lineChart;
     },
     _updateLineChart: function (lineChart, elementParent, data) {
-      // d3.selectAll('#' + elementParent + ' > *').remove();
-
-      // var svg = document.getElementById(elementParent);
-
-      // for (var i = svg.children.length - 1; i >= 0; i--)
-      // {
-      //     svg.removeChild(svg.children[i]);
-      // }
-
       d3.select('#' + elementParent)
         .datum(data)
         .call(lineChart);
-
-      // nv.utils.windowResize(function() {
-      //     lineChart.update();
-      // });
     },
     _getNested: function (data) {
       var keyYearMonth = d3.nest()
