@@ -55,6 +55,7 @@
 # }}}
 from __future__ import absolute_import, print_function
 
+import json
 import logging
 import sys
 from collections import defaultdict
@@ -79,7 +80,7 @@ import pytz
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '2.0'
-
+_VOLTTRON_TYPE = '__volttron_type__'
 
 def historian(config_path, **kwargs):
     """
@@ -478,10 +479,17 @@ class MongodbHistorian(BaseHistorian):
                     {'topic_id': topic_id, 'meta': meta})
                 self._topic_meta[topic_id] = meta
 
-            # Reformat to a filter tha bulk inserter.
+            if isinstance(value, dict):
+                # Do this so that we need not worry about dict keys with $ or .
+                value_str = json.dumps(value)
+                # create a dict with __volttron_type__ so we can do
+                # json.loads() when we query for this data
+                value = {_VOLTTRON_TYPE: 'json',
+                         'string_value': value_str}
+
             bulk_publish.find(
-                {'ts': ts, 'topic_id': topic_id}).upsert().replace_one(
-                    {'ts': ts, 'topic_id': topic_id, 'source':source,
+                    {'ts': ts, 'topic_id': topic_id}).upsert().replace_one(
+                    {'ts': ts, 'topic_id': topic_id, 'source': source,
                      'value': value})
 
 
@@ -638,14 +646,17 @@ class MongodbHistorian(BaseHistorian):
                                     data[0] = data[0].replace(tzinfo=tzutc())
                                 _log.debug("data[0] {}".format(data[0]))
                                 if data[0] >= start and data[0] < end:
+                                    result_value = self.json_string_to_dict(
+                                        data[1])
                                     values[id_name_map[x]].append(
                                         (utils.format_timestamp(data[0]),
-                                         data[1]))
+                                         result_value))
                 _log.debug("values len {}".format(len(values)))
             else:
                 for row in rows:
+                    result_value = self.json_string_to_dict(row['value'])
                     values[id_name_map[x]].append(
-                        (row['timestamp'], row['value']))
+                        (row['timestamp'], result_value))
             _log.debug("Time taken to load into values {}".format(
                 datetime.utcnow() - start_time))
             _log.debug("rows length {}".format(len(rows)))
@@ -659,6 +670,19 @@ class MongodbHistorian(BaseHistorian):
                                                  topic,
                                                  topic_ids,
                                                  values)
+
+    def json_string_to_dict(self, value):
+        """
+        Verify if the value was converted to json string at the time of
+        storing into db. If so, convert it back to dict and return
+        :param value:
+        :return:
+        """
+        result_value = value
+        if isinstance(result_value, dict) and result_value.get(_VOLTTRON_TYPE):
+            if result_value[_VOLTTRON_TYPE] == 'json':
+                result_value = json.loads(result_value['string_value'])
+        return result_value
 
     def verify_use_of_rolledup_data(self, start, end):
         """

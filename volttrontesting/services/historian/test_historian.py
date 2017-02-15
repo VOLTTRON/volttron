@@ -1564,7 +1564,6 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
         assert (result["values"][query_points['oat_point']][i][1] ==
                 expected_result["values"][query_points['oat_point']][i][1])
 
-
 @pytest.mark.historian
 def test_get_topic_list(request, historian, publish_agent, query_agent,
                         clean, volttron_instance):
@@ -1608,7 +1607,7 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
         # Make some random readings
         oat_reading = random.uniform(30, 100)
         mixed_reading = oat_reading + random.uniform(-5, 5)
-        damper_reading = random.uniform(0, 100)
+
 
         float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
         percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
@@ -1646,11 +1645,6 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
                                              'topic_list_test1234_topics',
                                              'topic_list_test1234_meta'])
             volttron_instance.remove_agent(agent_uuid)
-
-
-
-
-
 
 
 def publish_devices_fake_data(publish_agent, time=None):
