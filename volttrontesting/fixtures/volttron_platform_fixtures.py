@@ -8,6 +8,7 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 PRINT_LOG_ON_SHUTDOWN = False
 
+
 def print_log(volttron_home):
     if PRINT_LOG_ON_SHUTDOWN:
         if os.environ.get('PRINT_LOGS', PRINT_LOG_ON_SHUTDOWN):
@@ -96,7 +97,7 @@ def volttron_instance_encrypt(request):
         address = get_rand_vip()
     else:
         address = get_rand_ipc_vip()
-    wrapper = build_wrapper(address, encrypt=True)
+    wrapper = build_wrapper(address)
 
     def cleanup():
         cleanup_wrapper(wrapper)
@@ -110,7 +111,7 @@ def volttron_instance1_web(request):
     print("building instance 1 (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
-    wrapper = build_wrapper(address, encrypt=True,
+    wrapper = build_wrapper(address,
                             bind_web_address=web_address)
 
     def cleanup():
@@ -125,7 +126,7 @@ def volttron_instance2_web(request):
     print("building instance 2 (using web)")
     address = get_rand_vip()
     web_address = "http://{}".format(get_rand_ip_and_port())
-    wrapper = build_wrapper(address, encrypt=True,
+    wrapper = build_wrapper(address,
                             bind_web_address=web_address)
 
     def cleanup():
@@ -139,7 +140,7 @@ def volttron_instance2_web(request):
 # Use this fixture when you want a single instance of volttron platform for
 # test
 @pytest.fixture(scope="module",
-                params=['encrypted', 'unencrypted'])
+                params=['encrypted'])
 def volttron_instance(request):
     """Fixture that returns a single instance of volttron platform for testing
     Tests using this fixture will be run twice, once with an unencrypted
@@ -149,11 +150,7 @@ def volttron_instance(request):
     """
     wrapper = None
     address = get_rand_vip()
-    if request.param == 'encrypted':
-        print("building instance (using encryption)")
-        wrapper = build_wrapper(address, encrypt=True)
-    else:
-        wrapper = build_wrapper(address)
+    wrapper = build_wrapper(address)
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
@@ -168,7 +165,7 @@ def volttron_instance(request):
 # def test_function_that_uses_n_instances(request, get_volttron_instances):
 #     instances = get_volttron_instances(3)
 @pytest.fixture(scope="module",
-                params=['encrypted', 'unencrypted'])
+                params=['encrypted'])
 def get_volttron_instances(request):
     """ Fixture to get more than 1 volttron instance for test
     Use this fixture to get more than 1 volttron instance for test. This
@@ -195,18 +192,13 @@ def get_volttron_instances(request):
     all_instances = []
 
     def get_n_volttron_instances(n, should_start=True):
-        print('GETTING NEW INSTANCES!!!!!', request.param, n)
         get_n_volttron_instances.count = n
         instances = []
         for i in range(0, n):
             address = get_rand_vip()
             wrapper = None
             if should_start:
-                if request.param == 'encrypted':
-                    print("building instance  (using encryption)")
-                    wrapper = build_wrapper(address, encrypt=True)
-                else:
-                    wrapper = build_wrapper(address)
+                wrapper = build_wrapper(address)
             else:
                 wrapper = PlatformWrapper()
             instances.append(wrapper)

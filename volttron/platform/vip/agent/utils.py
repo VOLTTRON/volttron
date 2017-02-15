@@ -100,5 +100,6 @@ def build_agent(address=get_address(), identity=None, publickey=ks.public,
                   secretkey=secretkey, serverkey=serverkey, **kwargs)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
-    event.wait(timeout=timeout)
+    with gevent.Timeout(timeout):
+        event.wait()
     return agent

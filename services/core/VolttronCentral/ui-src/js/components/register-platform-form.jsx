@@ -126,12 +126,6 @@ var RegisterPlatformForm = React.createClass({
                         
                         <div className="tableDiv">
                             <div className="rowDiv">
-                                <div className="cellDiv firstCell">
-                                    <div className="form__link"
-                                        onClick={this._toggleMethod}>
-                                        <a>Advanced</a>
-                                    </div>
-                                </div> 
                                 <div className="cellDiv"
                                     width="70%">
                                     <div className="form__actions">

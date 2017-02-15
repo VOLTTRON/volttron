@@ -20,7 +20,8 @@ from volttron.platform import packaging
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import strip_comments
 from volttron.platform.aip import AIPplatform
-from volttron.platform.auth import AuthFile, AuthEntry
+from volttron.platform.auth import (AuthFile, AuthEntry,
+                                    AuthFileEntryAlreadyExists)
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
@@ -131,20 +132,26 @@ def build_vip_address(dest_wrapper, agent):
 
 
 def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
-                           volttron_central_address=None):
+                           volttron_central_address=None,
+                           volttron_central_serverkey=None,
+                           add_local_vc_address=False):
     """ Customize easily customize the platform wrapper before starting it.
     """
     assert not wrapper.is_running()
 
     vc_http = get_rand_http_address() if with_http else None
     vc_tcp = get_rand_tcp_address() if with_tcp else None
-    if vc_tcp:
-        encrypt = True
-    else:
-        encrypt = False
-    wrapper.startup_platform(encrypt=encrypt, vip_address=vc_tcp,
+
+    if add_local_vc_address:
+        ks = KeyStore(os.path.join(wrapper.volttron_home, 'keystore'))
+        ks.generate()
+        volttron_central_address = vc_tcp
+        volttron_central_serverkey = ks.public
+
+    wrapper.startup_platform(vip_address=vc_tcp,
                              bind_web_address=vc_http,
-                             volttron_central_address=volttron_central_address)
+                             volttron_central_address=volttron_central_address,
+                             volttron_central_serverkey=volttron_central_serverkey)
     if with_http:
         discovery = "{}/discovery/".format(vc_http)
         response = requests.get(discovery)
@@ -189,7 +196,6 @@ class PlatformWrapper:
         self.started_agent_pids = []
         self.local_vip_address = None
         self.vip_address = None
-        self.encrypt = False
         self.logit('Creating platform wrapper')
 
         # This was used when we are testing the SMAP historian.
@@ -219,14 +225,16 @@ class PlatformWrapper:
         """
         entry = AuthEntry(credentials="/.*/")
         authfile = AuthFile(self.volttron_home + "/auth.json")
-        authfile.add(entry)
+        try:
+            authfile.add(entry)
+        except AuthFileEntryAlreadyExists:
+            pass
 
     def build_connection(self, peer=None, address=None, identity=None,
                          publickey=None, secretkey=None, serverkey=None,
-                         **kwargs):
+                         capabilities=[], **kwargs):
 
-        if self.encrypt:
-            self.allow_all_connections()
+        self.allow_all_connections()
 
         if address is None:
             address = self.vip_address
@@ -239,14 +247,16 @@ class PlatformWrapper:
             keys.generate()
             publickey = keys.public
             secretkey = keys.secret
-        if self.encrypt:
-            conn = Connection(address=address, peer=peer, publickey=publickey,
-                              secretkey=secretkey, serverkey=serverkey,
-                              volttron_home=self.volttron_home)
-        else:
-            conn = Connection(address=self.local_vip_address, peer=peer,
-                              volttron_home=self.volttron_home,
-                              developer_mode=True)
+            entry = AuthEntry(capabilities=capabilities,
+                              comments="Added by test",
+                              credentials=keys.public)
+            file = AuthFile(self.volttron_home+"/auth.json")
+            file.add(entry)
+
+        conn = Connection(address=address, peer=peer, publickey=publickey,
+                          secretkey=secretkey, serverkey=serverkey,
+                          volttron_home=self.volttron_home)
+
         return conn
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
@@ -269,24 +279,20 @@ class PlatformWrapper:
         self.logit("Building generic agent.")
 
         use_ipc = kwargs.pop('use_ipc', False)
-        if self.encrypt:
-            if serverkey is None:
-                serverkey=self.serverkey
-            if publickey is None:
-                self.logit('generating new public secret key pair')
-                keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
-                keys = KeyStore(keyfile)
-                keys.generate()
-                publickey=keys.public
-                secretkey=keys.secret
+
+        if serverkey is None:
+            serverkey=self.serverkey
+        if publickey is None:
+            self.logit('generating new public secret key pair')
+            keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
+            keys = KeyStore(keyfile)
+            keys.generate()
+            publickey=keys.public
+            secretkey=keys.secret
 
         if address is None:
-            if not self.encrypt:
-                self.logit('Using IPC vip-address')
-                address = "ipc://@"+self.volttron_home+"/run/vip.socket"
-            else:
-                self.logit('Using vip-address '+self.vip_address)
-                address = self.vip_address
+            self.logit('Using vip-address ' + self.vip_address)
+            address = self.vip_address
 
         if publickey and not serverkey:
             self.logit('using instance serverkey: {}'.format(self.publickey))
@@ -296,7 +302,6 @@ class PlatformWrapper:
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
                             volttron_home=self.volttron_home,
-                            developer_mode=(not self.encrypt),
                             **kwargs)
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
 
@@ -335,7 +340,10 @@ class PlatformWrapper:
     def _append_allow_curve_key(self, publickey):
         entry = AuthEntry(credentials=publickey)
         authfile = AuthFile(self.volttron_home + "/auth.json")
-        authfile.add(entry)
+        try:
+            authfile.add(entry)
+        except AuthFileEntryAlreadyExists:
+            pass
 
     def add_vc(self):
         return add_vc_to_instance(self)
@@ -359,7 +367,7 @@ class PlatformWrapper:
                 fd.write(json.dumps(auth_dict))
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
-        mode=UNRESTRICTED, encrypt=False, bind_web_address=None,
+        mode=UNRESTRICTED, bind_web_address=None,
         volttron_central_address=None, volttron_central_serverkey=None):
 
         # if not isinstance(vip_address, list):
@@ -368,7 +376,6 @@ class PlatformWrapper:
         #     self.vip_address = vip_address
 
         self.vip_address = vip_address
-        self.encrypt = encrypt
         self.mode = mode
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
@@ -408,7 +415,6 @@ class PlatformWrapper:
                      'volttron_central_address': volttron_central_address,
                      'volttron_central_serverkey': volttron_central_serverkey,
                      'platform_name': None,
-                     'developer_mode': not encrypt,
                      'log': os.path.join(self.volttron_home, 'volttron.log'),
                      'log_config': None,
                      'monitor': True,
@@ -435,7 +441,9 @@ class PlatformWrapper:
         if volttron_central_address:
             parser.set('volttron', 'volttron-central-address',
                        volttron_central_address)
-
+        if volttron_central_serverkey:
+            parser.set('volttron', 'volttron-central-serverkey',
+                       volttron_central_serverkey)
         if self.mode == UNRESTRICTED:
             # TODO Restricted code should set with volttron as contianer
             # if RESTRICTED_AVAILABLE:
@@ -469,8 +477,6 @@ class PlatformWrapper:
         else:
             cmd = ['volttron', '-l{}'.format(log)]
 
-        if not encrypt:
-            cmd.append('--developer-mode')
         print('process environment: {}'.format(self.env))
         print('popen params: {}'.format(cmd))
         self.p_process = Popen(cmd, env=self.env, stdout=subprocess.PIPE,
@@ -596,8 +602,6 @@ class PlatformWrapper:
         cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
         if vip_identity:
             cmd.extend(['--vip-identity', vip_identity])
-        if self.opts.get('developer_mode', False):
-            cmd.append('--developer-mode')
         res = subprocess.check_output(cmd, env=env)
         assert res, "failed to install wheel:{}".format(wheel_file)
         agent_uuid = res.split(' ')[-2]
@@ -701,8 +705,6 @@ class PlatformWrapper:
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
         cmd = ['volttron-ctl']
-        if self.opts.get('developer_mode', False):
-            cmd.append('--developer-mode')
         cmd.extend(['start', agent_uuid])
         p = Popen(cmd, env=self.env,
                   stdout=sys.stdout, stderr=sys.stderr)
@@ -710,8 +712,6 @@ class PlatformWrapper:
 
         # Confirm agent running
         cmd = ['volttron-ctl']
-        if self.opts.get('developer_mode', False):
-            cmd.append('--developer-mode')
         cmd.extend(['status', agent_uuid])
         res = subprocess.check_output(cmd, env=self.env)
         #776 TODO: Timing issue where check fails
@@ -730,8 +730,6 @@ class PlatformWrapper:
         _log.debug("STOPPING AGENT: {}".format(agent_uuid))
         try:
             cmd = ['volttron-ctl']
-            if self.opts.get('developer_mode', False):
-                cmd.append('--developer-mode')
             cmd.extend(['stop', agent_uuid])
             res = subprocess.check_output(cmd, env=self.env)
         except CalledProcessError as ex:
@@ -750,8 +748,6 @@ class PlatformWrapper:
         _log.debug("REMOVING AGENT: {}".format(agent_uuid))
         try:
             cmd = ['volttron-ctl']
-            if self.opts.get('developer_mode', False):
-                cmd.append('--developer-mode')
             cmd.extend(['remove', agent_uuid])
             res = subprocess.check_output(cmd, env=self.env)
         except CalledProcessError as ex:
@@ -765,8 +761,6 @@ class PlatformWrapper:
         _log.debug("AGENT_STATUS: {}".format(agent_uuid))
         # Confirm agent running
         cmd = ['volttron-ctl']
-        if self.opts.get('developer_mode', False):
-            cmd.append('--developer-mode')
         cmd.extend(['status', agent_uuid])
         pid = None
         try:
@@ -782,9 +776,16 @@ class PlatformWrapper:
 
         return pid
 
-    def build_agentpackage(self, agent_dir, config_file):
-        assert os.path.exists(agent_dir)
+    def build_agentpackage(self, agent_dir, config_file={}):
+        if isinstance(config_file, dict):
+            cfg_path = os.path.join(agent_dir, "config_temp")
+            with open(cfg_path, "w") as tmp_cfg:
+                tmp_cfg.write(jsonapi.dumps(config_file))
+            config_file = cfg_path
+
         assert os.path.exists(config_file)
+        assert os.path.exists(agent_dir)
+
         wheel_path = packaging.create_package(agent_dir,
                                               self.packaged_dir)
         packaging.add_files_to_package(wheel_path, {
@@ -889,10 +890,30 @@ class PlatformWrapper:
             self.t_process.wait()
         elif self.use_twistd:
             self.logit("twistd process was null")
+
+        if os.environ.get('PRINT_LOG'):
+            logpath = os.path.join(self.volttron_home, 'volttron.log')
+            if os.path.exists(logpath):
+                print("************************* Begin {}".format(logpath))
+                with open(logpath) as f:
+                    for l in f.readlines():
+                        print(l)
+                print("************************* End {}".format(logpath))
+            else:
+                print("######################### No Log Exists: {}".format(
+                    logpath
+                ))
         if not self.skip_cleanup:
             self.logit('Removing {}'.format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)
 
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        data = []
+        data.append('volttron_home: {}'.format(self.volttron_home))
+        return '\n'.join(data)
 
 def mergetree(src, dst, symlinks=False, ignore=None):
     if not os.path.exists(dst):
