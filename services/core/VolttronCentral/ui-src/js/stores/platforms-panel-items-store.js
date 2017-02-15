@@ -369,13 +369,13 @@ platformsPanelItemsStore.getExpanded = function () {
     return _expanded;
 };
 
-platformsPanelItemsStore.getLoadingComplete = function (panelItem) {
+platformsPanelItemsStore.getLoadingComplete = function (uuid) {
 
     var loadingComplete = null;
 
-    if (_loadingDataComplete.hasOwnProperty(panelItem.uuid))
+    if (_loadingDataComplete.hasOwnProperty(uuid))
     {
-        loadingComplete = _loadingDataComplete[panelItem.uuid];
+        loadingComplete = _loadingDataComplete[uuid];
     }
 
     return loadingComplete;
@@ -439,6 +439,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.START_LOADING_DATA:
 
             _loadingDataComplete[action.panelItem.uuid] = false;
+            
             _lastCheck = false;
 
             break;

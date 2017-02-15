@@ -184,6 +184,17 @@ br + .form__control-help {
     margin-bottom: 1.5em;
 }
 
+.preview-registry-csv {
+    clear: both;
+    
+    -webkit-touch-callout: auto;
+    -webkit-user-select: auto;
+    -khtml-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+}
+
 .platform-manager, .public-exterior {
     position: absolute;
     top: 0;
@@ -609,7 +620,7 @@ br + .form__control-help {
 } 
 
 .noRotate:active {
-    animation: vibrate 0.1s 2;
+    animation: vibrate 0.1s 5;
 }
 
 @keyframes vibrate {
@@ -1294,6 +1305,13 @@ a.view__item:hover::before {
     right: 0;
     height: 50%;
     overflow: open;
+
+    -webkit-touch-callout: auto;
+    -webkit-user-select: auto;
+    -khtml-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
 }
 
 .console::after {
