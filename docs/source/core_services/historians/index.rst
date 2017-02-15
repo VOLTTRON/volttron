@@ -11,6 +11,7 @@ analysis are captured and stored in some sort of data store. Historians exist fo
 - :ref:`Crate Historian <Crate-Historian>`
 - :ref:`Forward-Historian>` for sending data to another VOLTTRON instance
 - :ref:`OpenEIS Historian <Analytics-Historian>`
+- :ref:`MQTT Historian <MQTT-Historian>` Forwards data to an MQTT broker
 
 Other implementations of historians can be created by following the
 :ref:`developing historian agents <Developing-Historian-Agents>` section of
