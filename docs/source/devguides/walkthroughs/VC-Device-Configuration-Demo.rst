@@ -1,10 +1,10 @@
-.. _VOLTTRON-Central-Demo:
+.. _Device-Conifiguration-in-VOLTTRON-Central:
 
-==============================================
-Device Conifiguration in VOLTTRON Central Demo
-==============================================
+=========================================
+Device Conifiguration in VOLTTRON Central
+=========================================
 
-Devices in your network can be detected and configured through the VOLTTRON Central UI. The current version of VOLTTRON enables device detection and configuration for BACNet devices. The following sections describe the processes involved with performing scans to detect physical devices and get their points, and configuring them as virtual devices installed on VOLTTRON instances.
+Devices in your network can be detected and configured through the VOLTTRON Central UI. The current version of VOLTTRON enables device detection and configuration for BACnet devices. The following sections describe the processes involved with performing scans to detect physical devices and get their points, and configuring them as virtual devices installed on VOLTTRON instances.
 
 -  `Launching Device Configuration <#launching-device-configuration>`__
 -  `Scanning for Devices <#scanning-for-devices>`__
@@ -30,7 +30,7 @@ To begin device configuration in VOLTTRON Central, extend the side panel on the 
 
 |Install Devices|
 
-Currently the only method of adding devices is to conduct a scan to detect BACNet devices. A BACnet Proxy Agent must be running in order to do the scan. If more than one BACnet Proxy is installed on the platform, choose the one that will be used for the scan.
+Currently the only method of adding devices is to conduct a scan to detect BACnet devices. A BACnet Proxy Agent must be running in order to do the scan. If more than one BACnet Proxy is installed on the platform, choose the one that will be used for the scan.
 
 The scan can be conducted using default settings that will search for all physical devices on the network. However, optional settings can be used to focus on specific devices or change the duration of the scan. Entering a range of device IDs will limit the scan to return only devices with IDs in that range. Advanced options include the ability to specify the IP address of a device to detect as well as the ability to change the duration of the scan from the default of five seconds.
 
@@ -63,7 +63,7 @@ The registry configuration determines which points on the physical device will b
 
 When all the points on the device have been retrieved, the points are loaded into the registry configuration editor. There, the points can be modified and selected to go into the registry configuration file for a device. 
 
-Each row in the registry configuration editor represents a point, and each column represents the point's attributes. 
+Each row in the registry configuration editor represents a point, and each cell in the row represents an attribute of the point. 
 
 Only points that have been selected will be included in the registry configuration file. To select a point, check the box next to the point in the editor. 
 
@@ -84,7 +84,7 @@ The editor's default view shows the attributes that are most likely to be change
 
 |Edit Point Button|
 
-Point attributes can be changed by typing in the fields in the Edit Point window and clicking the Apply button. 
+In the window that opens, point attributes can be changed by typing in the fields and clicking the Apply button. 
 
 |Edit Point Dialog|
 
@@ -113,7 +113,7 @@ To add a new point to the points listed in the registry configuration editor, cl
 
 |Add Point Dialog|
 
-Provide column values, and click the Apply button to add the new point, which will be appended to the bottom of the list.
+Provide attribute values, and click the Apply button to add the new point, which will be appended to the bottom of the list.
 
 To remove points from the list, select the points and click the Remove Points button in the header of the first column.
 
@@ -149,12 +149,12 @@ To quickly replace the matched term in the cell with focus, type a replacement t
 
 |Replace in Column|
 
-To replace all the matched terms in the column, click on the Replace All button.
+To replace all the matched terms in the column, click on the Replace All button. Click the Clear Search button to end the search.
 
 Keyboard Commands
 -----------------
 
-Some keyboard commands are available to expedite the selection or de-selection of points. To initiate use of the keyboard commands, strike the Control key on the keyboard. For keyboard commands to be activated, the registry configuration table has to have focus, which comes from interacting with the editor. But the commands won't be activated if the cursor is in a typable field.
+Some keyboard commands are available to expedite the selection or de-selection of points. To initiate use of the keyboard commands, strike the Control key on the keyboard. For keyboard commands to be activated, the registry configuration editor has to have focus, which comes from interacting with it. But the commands won't be activated if the cursor is in a typable field.
 
 If the keyboard commands have been successfully activated, a faint highlight will appear over the first row in the registry configuration editor.
 
@@ -253,7 +253,7 @@ As devices are configured, they're inserted into position in the side panel tree
 Reconfiguring Devices 
 ~~~~~~~~~~~~~~~~~~~~~
 
-A device that's been added to a VOLTTRON instance can be reconfigured by changning its registry configuration or its device configuration. To launch reconfiguration, click on the wrench button next to the device in the side panel tree.
+A device that's been added to a VOLTTRON instance can be reconfigured by changing its registry configuration or its device configuration. To launch reconfiguration, click on the wrench button next to the device in the side panel tree.
 
 |Reconfigure Device Button|
 
@@ -261,11 +261,11 @@ Reconfiguration reloads the registry configuration editor and the device configu
 
 |Reconfiguring Device|
 
-The reconfiguration view shows the name, address, and ID of the physical device that the virtual device was configured from. It also shows the name of the registry configuration file associated with the virtual device. 
+The reconfiguration view shows the name, address, and ID of the physical device that the virtual device was configured from. It also shows the name of the registry configuration file associated with the virtual device as well as its configured path.
 
-A different registry configuration device can be associated with the device by clicking on the Select Registry File (CSV) button or the Import Registry File (CSV) button.
+A different registry configuration file can be associated with the device by clicking on the Select Registry File (CSV) button or the Import Registry File (CSV) button.
 
-The registry configuration can be edited making changes to the configuration in the editor and clicking the Save button.
+The registry configuration can be edited by making changes to the configuration in the editor and clicking the Save button.
 
 To make changes to the device configuration form, click on the File to Edit selector and choose Device Config.
 
@@ -296,7 +296,7 @@ The registry configuration file associated with a virtual device can be exported
 .. |Clear Filter| image:: files/10-clear-filter.png
 .. |Add New Point| image:: files/11-add-new-point.png
 .. |Add Point Dialog| image:: files/12-add-point-dialog.png
-.. |Remove Points| image:: files/13-remove-points.png
+.. |Remove Points| image:: files/13-remove-points-button.png
 .. |Confirm Remove Points| image:: files/14-confirm-remove-points.png
 .. |Edit Columns| image:: files/15-edit-column-button.png
 .. |Edit Column Menu| image:: files/16-edit-column-menu.png
@@ -310,7 +310,7 @@ The registry configuration file associated with a virtual device can be exported
 .. |Keyboard Select| image:: files/25-keyboard-select.png
 .. |Keyboard Shortcuts Button| image:: files/26-keyboard-shortcuts-button.png
 .. |Keyboard Shortcuts| image:: files/27-keyboard-shortcuts.png
-.. |Save Registry Button| image:: files/28-save-registry button.png
+.. |Save Registry Button| image:: files/28-save-registry-button.png
 .. |Registry Preview Table| image:: files/29-registry-preview-table.png
 .. |Registry Preview CSV| image:: files/30-preview-registry-csv.png
 .. |Name Registry File| image:: files/31-name-registry-file.png
