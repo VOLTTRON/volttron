@@ -38,13 +38,12 @@ git command.
     git clone https://github.com/VOLTTRON/volttron/
 
 
-To work with the latest devlopment code clone from the develop branch by using
-the following git command.
-
+You may use the following command to work with the latest code from the develop
+branch. It must be run within the VOLLTRON source directory.
 
 .. code-block:: bash
 
-    git clone -b develop https://github.com/VOLTTRON/volttron/
+    git checkout develop
 
 
 

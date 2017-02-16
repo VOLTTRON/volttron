@@ -56,7 +56,7 @@ The project can now be checked out from the repository into Eclipse.
 
    |Select repo|
 
-#. Select 3.x branch for latest release (**master for latest stable version**)
+#. Select master for latest stable version
 
    |Select branch repo|
 
@@ -156,8 +156,14 @@ Execute VOLTTRON Through Eclipse
 
    |Successful Start|
 
+:ref: _Start-Listener-Eclipse:
 Start a ListenerAgent
 ~~~~~~~~~~~~~~~~~~~~~
+
+.. warning::
+    Before attempting to run an agent in Eclipse, please see the note in: :ref:`AgentDevelopment <Agent_Development>`
+
+
 
 The listener agent will listen to the message bus for any published
 messages. It will also publish a heartbeat message ever 10 seconds (by
@@ -174,7 +180,7 @@ Create a new run configuration entry for the listener agent.
 #. Click on the Arguments tab and Change Working Directory to Default
 
 #. In the Environment tab, click new set the variable to AGENT\_CONFIG
-   with the value of /home/\\/git/volttron/examples/ListenerAgent/config
+   with the value of /home/git/volttron/examples/ListenerAgent/config
 
    |Listener Vars|
 

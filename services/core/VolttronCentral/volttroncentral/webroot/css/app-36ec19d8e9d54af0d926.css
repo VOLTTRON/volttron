@@ -178,6 +178,23 @@ br + .form__control-help {
     margin-left: 1em;
 }
 
+.preview-registry-form .form__actions {
+    float: right;
+    margin-top: 0;
+    margin-bottom: 1.5em;
+}
+
+.preview-registry-csv {
+    clear: both;
+    
+    -webkit-touch-callout: auto;
+    -webkit-user-select: auto;
+    -khtml-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+}
+
 .platform-manager, .public-exterior {
     position: absolute;
     top: 0;
@@ -603,7 +620,7 @@ br + .form__control-help {
 } 
 
 .noRotate:active {
-    animation: vibrate 0.1s infinite;
+    animation: vibrate 0.1s 5;
 }
 
 @keyframes vibrate {
@@ -842,6 +859,10 @@ br + .form__control-help {
 
 .displayBlock {
     display: block;
+}
+
+.clearBoth {
+    clear: both;
 }
 
 .control_button {
@@ -1284,6 +1305,13 @@ a.view__item:hover::before {
     right: 0;
     height: 50%;
     overflow: open;
+
+    -webkit-touch-callout: auto;
+    -webkit-user-select: auto;
+    -khtml-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
 }
 
 .console::after {
@@ -1983,4 +2011,4 @@ td.buffer_row {
     line-height: 20px;
 }
 
-/*# sourceMappingURL=app-be07f3ca911e829993ef.css.map*/
+/*# sourceMappingURL=app-36ec19d8e9d54af0d926.css.map*/

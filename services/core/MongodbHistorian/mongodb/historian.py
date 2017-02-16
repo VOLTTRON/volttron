@@ -130,7 +130,7 @@ def historian(config_path, **kwargs):
 
     MongodbHistorian.__name__ = 'MongodbHistorian'
     return MongodbHistorian(config_dict, identity=identity,
-                            topic_replace_list=topic_replacements, **kwargs)
+        topic_replace_list=topic_replacements, **kwargs)
 
 
 class MongodbHistorian(BaseHistorian):
@@ -438,7 +438,6 @@ class MongodbHistorian(BaseHistorian):
         bulk_publish = db[self._data_collection].initialize_ordered_bulk_op()
 
         for x in to_publish_list:
-            #_log.debug("SOURCE IS: {}".format(x['source']))
             ts = x['timestamp']
             topic = x['topic']
             value = x['value']
@@ -862,6 +861,8 @@ class MongodbHistorian(BaseHistorian):
         db[self.HOURLY_COLLECTION].create_index(
             [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
             unique=True, background=True)
+        db[self.HOURLY_COLLECTION].create_index(
+            [('last_updated_data', pymongo.DESCENDING)], background=True)
         db[self.DAILY_COLLECTION].create_index(
             [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
             unique=True, background=True)
@@ -899,7 +900,7 @@ def main(argv=sys.argv):
     @param argv:
     """
     try:
-        utils.vip_main(historian, enable_store=True)
+        utils.vip_main(historian, version=__version__)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')

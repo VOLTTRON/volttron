@@ -5,6 +5,11 @@ Chargepoint Driver README
 
 Version 1.0
 
+Requirements
+------------
+Make sure to do a pip install of requirements.txt. The Chargepoint Driver has a requirement for:
+- suds-jurko==0.6
+
 Write Points
 ------------
 
@@ -29,6 +34,8 @@ The driver config dictionary must have three entries.
 - stationID: This is the ID for the Chargepoint Station of the Driver.  It is in the format "1:00001"
 - username: This is the username to be used for the Chargepoint API Service.
 - password: This is the password to be used for the Chargepoint API Service.
+- cacheExpiration: This is how many seconds any API responses will be cached. Cached responses limit traffic to
+Chargepoint API services.
 
 CSV Config
 ----------

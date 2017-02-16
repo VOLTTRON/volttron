@@ -807,16 +807,24 @@ class CPService(object):
         if self._suds_client is None:
             self._suds_client = suds.client.Client(SERVICE_WSDL_URL)
             # Add SOAP Security tokens
-            security = suds.wsse.Security()
-            token = suds.wsse.UsernameToken(self._username, self._password)
-            security.tokens.append(token)
-            self._suds_client.set_options(wsse=security)
+            self.set_security_token()
 
         return self._suds_client
 
     @property
     def _soap_service(self):
         return self._client.service
+
+    def set_security_token(self):
+        # Add SOAP Security tokens
+        security = suds.wsse.Security()
+        token = suds.wsse.UsernameToken(self._username, self._password)
+        security.tokens.append(token)
+        self._suds_client.set_options(wsse=security)
+
+    def set_client(self, client):
+        self._suds_client = client
+        self.set_security_token()
 
     def clearAlarms(self, **kwargs):
         """Clears the Alarms of given group or station based on given query parameters.

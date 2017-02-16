@@ -95,7 +95,7 @@ class AgentWatcher(Agent):
 
 
 def main():
-    utils.vip_main(AgentWatcher)
+    utils.vip_main(AgentWatcher, version=__version__)
 
 
 if __name__ == '__main__':

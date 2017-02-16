@@ -511,6 +511,18 @@ var devicesActionCreators = {
         {
             config[key] = (settings.config[key].hasOwnProperty("value") ? settings.config[key].value : settings.config[key]);
         }
+        
+        if (config.hasOwnProperty("max_per_request"))
+        {
+            if (config.max_per_request === "")
+            {
+                config.max_per_request = 10000;
+            }
+        }
+        else
+        {
+            config.max_per_request = 10000;
+        }
 
         config.publish_depth_first = true;
 

@@ -97,6 +97,7 @@ from .agent import utils
 from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
+from ..utils.persistance import load_create_store
 
 try:
     import volttron.restricted
@@ -577,6 +578,25 @@ def start_volttron_process(opts):
         gevent.sleep(0.1)
         if not thread.isAlive():
             sys.exit()
+
+        # The instance file is where we are going to record the instance and
+        # its details according to
+        instance_file = os.path.expanduser('~/.volttron_instances')
+        try:
+            instances = load_create_store(instance_file)
+        except ValueError:
+            os.remove(instance_file)
+            instances = load_create_store(instance_file)
+        this_instance = instances.get(opts.volttron_home, {})
+        this_instance['pid'] = os.getpid()
+        this_instance['version'] = __version__
+        # note vip_address is a list
+        this_instance['vip-address'] = opts.vip_address
+        this_instance['volttron-home'] = opts.volttron_home
+        this_instance['volttron-root'] = os.path.abspath('../..')
+        this_instance['start-args'] = sys.argv[1:]
+        instances[opts.volttron_home] = this_instance
+        instances.async_sync()
 
         protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
         _log.debug('protected topics file %s', protected_topics_file)

@@ -103,6 +103,14 @@ from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
 
 try:
+    from crate import client
+    from crate.client.exceptions import ProgrammingError
+    from volttron.platform.dbutils import cratedriver
+    HAS_CRATE_CONNECTOR = True
+except:
+    HAS_CRATE_CONNECTOR = False
+
+try:
     import mysql.connector as mysql
     from mysql.connector import errorcode
 
@@ -121,7 +129,8 @@ mysql_skipif = pytest.mark.skipif(not HAS_MYSQL_CONNECTOR,
                                   reason='No mysql connector available')
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
                                     reason='No pymongo client available.')
-
+crate_skipif = pytest.mark.skipif(not HAS_CRATE_CONNECTOR,
+                                  reason='No crate client available.')
 # Module level variables
 DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 MICROSECOND_PRECISION = 0
@@ -175,6 +184,19 @@ sqlite_platform3 = {
         "data_table": "data_table",
         "topics_table": "topics_table",
         "meta_table": "meta_table",
+    }
+}
+
+crate_platform1 = {
+    "agentid": "crate-historian",
+    "source_historian": "services/core/CrateHistorian",
+    "schema": "test_historian",
+    "connection": {
+        "type": "crate",
+        "params": {
+            "host": "http://localhost:4200",
+            "debug": False
+        }
     }
 }
 
@@ -264,6 +286,26 @@ data_table = 'data'
 topics_table = 'topics'
 meta_table = 'meta'
 
+
+def setup_crate(connection_params, table_names):
+    print("setup crate")
+    conn = client.connect(connection_params['host'],
+                          error_trace=True)
+    cursor = conn.cursor()
+    schema = crate_platform1.get("schema", 'test_historian')
+    for tbl in ('analysis', 'datalogger','device', 'meta', 'record', 'topic'):
+        try:
+            cursor.execute(
+                'DELETE FROM {schema}.{table}'.format(
+                    schema=schema, table=tbl))
+        except ProgrammingError:
+            pass
+
+    cratedriver.create_schema(conn, schema)
+    MICROSECOND_PRECISION = 3
+    return conn, MICROSECOND_PRECISION
+
+
 def setup_mysql(connection_params, table_names):
     print ("setup mysql")
     db_connection = mysql.connect(**connection_params)
@@ -302,6 +344,7 @@ def setup_sqlite(connection_params, table_names):
     db_connection.commit()
     return db_connection, 6
 
+
 def setup_mongodb(connection_params, table_names):
     print ("setup mongodb")
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
@@ -324,7 +367,6 @@ def cleanup_sql(db_connection, truncate_tables):
 
 def cleanup_sqlite(db_connection, truncate_tables):
     cleanup_sql(db_connection, truncate_tables)
-    pass
 
 
 def cleanup_mysql(db_connection, truncate_tables):
@@ -334,6 +376,37 @@ def cleanup_mysql(db_connection, truncate_tables):
 def cleanup_mongodb(db_connection, truncate_tables):
     for collection in truncate_tables:
         db_connection[collection].remove()
+
+
+def cleanup_crate(db_connection, truncate_tables):
+    cursor = db_connection.cursor()
+    schema = crate_platform1.get("schema", "test_historian")
+    for tbl in ('analysis', 'analysis_double', 'datalogger',
+                'datalogger_double', 'device', 'device_double',
+                'meta', 'record', 'topic'):
+        try:
+            cursor.execute(
+                'DELETE FROM {schema}.{table}'.format(
+                    schema=schema, table=tbl))
+        except ProgrammingError:
+            pass
+    cursor.close()
+
+
+def random_uniform(a, b):
+    """
+    Creates a random uniform value for using within our tests.  This function
+    will chop a float off at a specific uniform number of decimals.
+
+    :param a: lower bound of range for return value
+    :param b: upper bound of range for return value
+    :return: A psuedo random uniform float.
+    :type a: int
+    :type b: int
+    :rtype: float
+    """
+    format_spec = "{0:.13f}"
+    return float(format_spec.format(random.uniform(a, b)))
 
 
 def get_table_names(config):
@@ -357,7 +430,6 @@ def get_table_names(config):
             table_names[key] = table_prefix + table_names[key]
 
     return table_names
-
 
 
 @pytest.fixture(scope="module",
@@ -410,7 +482,8 @@ def query_agent(request, volttron_instance):
                     sqlite_platform1,
                     sqlite_platform2,
                     sqlite_platform3,
-                    pymongo_skipif(mongo_aggregator)
+                    pymongo_skipif(mongo_aggregator),
+                    crate_skipif(crate_platform1)
                 ])
 def historian(request, volttron_instance, query_agent):
     global db_connection, MICROSECOND_PRECISION, table_names, \
@@ -431,6 +504,7 @@ def historian(request, volttron_instance, query_agent):
     function_name = "setup_" + connection_type
     try:
         setup_function = globals()[function_name]
+        print(table_names)
         db_connection, MICROSECOND_PRECISION = \
             setup_function(request.param['connection']['params'], table_names)
     except NameError:
@@ -457,6 +531,7 @@ def historian(request, volttron_instance, query_agent):
 
     request.addfinalizer(stop_agent)
     return request.param
+
 
 @pytest.fixture()
 def clean(request):
@@ -506,6 +581,7 @@ def skip_custom_tables(historian):
         pytest.skip(msg="Need not repeat all test cases for custom table "
                         "names")
 
+
 @pytest.mark.historian
 def test_basic_function(request, historian, publish_agent, query_agent,
                         clean):
@@ -529,10 +605,12 @@ def test_basic_function(request, historian, publish_agent, query_agent,
         request.keywords.node.name))
 
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-    # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
-    damper_reading = random.uniform(0, 100)
+    # Make some random readings.  Randome readings are going to be
+    # within the tolerance here.
+    format_spec = "{0:.13f}"
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
+    damper_reading = random_uniform(0, 100)
 
     float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
     percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
@@ -598,6 +676,7 @@ def test_basic_function(request, historian, publish_agent, query_agent,
     assert (result['values'][0][1] == damper_reading)
     assert set(result['metadata'].items()) == set(percent_meta.items())
 
+
 @pytest.mark.historian
 def test_exact_timestamp(request, historian, publish_agent, query_agent,
                          clean):
@@ -642,6 +721,7 @@ def test_exact_timestamp(request, historian, publish_agent, query_agent,
         now_time = now_time[:-1]
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == reading)
+
 
 @pytest.mark.historian
 def test_exact_timestamp_with_z(request, historian, publish_agent,
@@ -737,6 +817,7 @@ def test_query_start_time(request, historian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], time2_date, time2_time)
     assert (result['values'][0][1] == reading)
 
+
 @pytest.mark.historian
 def test_query_start_time_with_z(request, historian, publish_agent,
                                  query_agent,
@@ -784,6 +865,7 @@ def test_query_start_time_with_z(request, historian, publish_agent,
     time2_time = time2_time.split("+")[0]
     assert_timestamp(result['values'][0][0], time2_date, time2_time)
     assert (result['values'][0][1] == reading)
+
 
 @pytest.mark.historian
 def test_query_end_time(request, historian, publish_agent, query_agent,
@@ -839,6 +921,7 @@ def test_query_end_time(request, historian, publish_agent, query_agent,
     # index 0
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == reading1)
+
 
 @pytest.mark.historian
 def test_query_end_time_with_z(request, historian, publish_agent,
@@ -957,6 +1040,7 @@ def test_zero_timestamp(request, historian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == reading)
 
+
 @pytest.mark.historian
 def test_topic_name_case_change(request, historian, publish_agent,
                                 query_agent,
@@ -981,8 +1065,8 @@ def test_topic_name_case_change(request, historian, publish_agent,
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
 
     # Create a message for all points.
     all_message = [{'OutsideAirTemperature': oat_reading,
@@ -1038,6 +1122,7 @@ def test_topic_name_case_change(request, historian, publish_agent,
     time1_time = time1_time[:-1]
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == oat_reading)
+
 
 @pytest.mark.historian
 def test_invalid_query(request, historian, publish_agent, query_agent,
@@ -1124,6 +1209,7 @@ def test_invalid_time(request, historian, publish_agent, query_agent,
         print ("exception: {}".format(error))
         assert 'hour must be in 0..23' == error.message
 
+
 @pytest.mark.historian
 def test_analysis_topic(request, historian, publish_agent, query_agent,
                         clean):
@@ -1148,9 +1234,9 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
-    damper_reading = random.uniform(0, 100)
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
+    damper_reading = random_uniform(0, 100)
 
     # Create a message for all points.
     all_message = [{'OutsideAirTemperature': oat_reading,
@@ -1197,6 +1283,7 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
         now_time = now_time[:-1]
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
+
 
 @pytest.mark.historian
 def test_record_topic_query(request, historian, publish_agent, query_agent,
@@ -1254,6 +1341,7 @@ def test_record_topic_query(request, historian, publish_agent, query_agent,
     assert (result['values'][1][1] == 'value0')
     assert (result['values'][2][1] == {'key': 'value'})
 
+
 @pytest.mark.historian
 def test_log_topic(request, historian, publish_agent, query_agent, clean):
     """
@@ -1277,8 +1365,8 @@ def test_log_topic(request, historian, publish_agent, query_agent, clean):
     print("\n** test_log_topic for {}**".format(request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
 
     # Create a message for all points.
     message = {'MixedAirTemperature': {'Readings': mixed_reading, 'Units': 'F',
@@ -1334,8 +1422,8 @@ def test_log_topic_no_header(request, historian, publish_agent, query_agent,
     print("\n** test_log_topic for {}**".format(request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
 
     # Create a message for all points.
     message = {'MixedAirTemperature': {'Readings': mixed_reading, 'Units': 'F',
@@ -1359,6 +1447,7 @@ def test_log_topic_no_header(request, historian, publish_agent, query_agent,
     print('Query Result', result)
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
+
 
 @pytest.mark.historian
 def test_log_topic_timestamped_readings(request, historian, publish_agent,
@@ -1384,8 +1473,8 @@ def test_log_topic_timestamped_readings(request, historian, publish_agent,
     print("\n** test_log_topic for {}**".format(request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
 
     # Create a message for all points.
     message = {'MixedAirTemperature': {'Readings': ['2015-12-02T00:00:00',
@@ -1417,6 +1506,7 @@ def test_log_topic_timestamped_readings(request, historian, publish_agent,
     assert (result['values'][0][1] == mixed_reading)
     assert_timestamp(result['values'][0][0], '2015-12-02', '00:00:00.000000')
 
+
 @pytest.mark.historian
 def test_get_topic_metadata(request, historian, publish_agent,
                             query_agent, clean):
@@ -1445,8 +1535,8 @@ def test_get_topic_metadata(request, historian, publish_agent,
             request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
 
     # Create a message for all points.
     message = {'temp1': {'Readings': ['2015-12-02T00:00:00',
@@ -1605,9 +1695,9 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
 
         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
         # Make some random readings
-        oat_reading = random.uniform(30, 100)
-        mixed_reading = oat_reading + random.uniform(-5, 5)
-
+        oat_reading = random_uniform(30, 100)
+        mixed_reading = oat_reading + random_uniform(-5, 5)
+        damper_reading = random_uniform(0, 100)
 
         float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
         percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
@@ -1635,7 +1725,7 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
         topic_list = query_agent.vip.rpc.call('topic_list.historian',
                                           'get_topic_list').get(timeout=100)
         print('Query Result', topic_list)
-        assert (len(topic_list) == 2)
+        assert len(topic_list) == 2
         expected = [query_points['oat_point'], query_points['mixed_point']]
         assert set(topic_list) ==  set(expected)
     finally:
@@ -1651,7 +1741,7 @@ def publish_devices_fake_data(publish_agent, time=None):
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
     global DEVICES_ALL_TOPIC
-    reading = random.uniform(30, 100)
+    reading = random_uniform(30, 100)
     meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
     # Create a message for all points.
     all_message = [{'OutsideAirTemperature': reading,

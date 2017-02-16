@@ -419,7 +419,9 @@ class Core(BasicCore):
     def __init__(self, owner, address=None, identity=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(platform.get_home()),
-                 agent_uuid=None, reconnect_interval=None):
+                 agent_uuid=None, reconnect_interval=None,
+                 version='0.1'):
+      
         self.volttron_home = volttron_home
 
         # These signals need to exist before calling super().__init__()
@@ -448,6 +450,10 @@ class Core(BasicCore):
         self.socket = None
         self.subsystems = {'error': self.handle_error}
         self.__connected = False
+        self._version = version
+
+    def version(self):
+        return self._version
 
     def _set_keys(self):
         """Implements logic for setting encryption keys and putting
@@ -576,6 +582,8 @@ class Core(BasicCore):
                 return
             _log.error("No response to hello message after 10 seconds.")
             _log.error("A common reason for this is a conflicting VIP IDENTITY.")
+            _log.error("Another common reason is not having an auth entry on"
+                       "the target instance.")
             _log.error("Shutting down agent.")
             _log.error("Possible conflicting identity is: {}".format(
                 self.socket.identity
