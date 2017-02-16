@@ -55,27 +55,35 @@
 # }}}
 from __future__ import absolute_import, print_function
 
-import json
 import logging
+import numbers
 import sys
 from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
-from dateutil.tz import tzutc
-import numbers
 
 import pymongo
+import pytz
 from bson.objectid import ObjectId
+from dateutil.tz import tzutc
 from pymongo import ReplaceOne
 from pymongo import UpdateOne
-
 from pymongo.errors import BulkWriteError
+
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.dbutils import mongoutils
 from volttron.platform.vip.agent import Core
-import pytz
+
+try:
+    import ujson
+    def dumps(data):
+        return ujson.dumps(data, double_precision=15)
+    def loads(data_string):
+        return ujson.loads(data_string, precise_float=True)
+except ImportError:
+    from zmq.utils.jsonapi import dumps, loads
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -480,9 +488,9 @@ class MongodbHistorian(BaseHistorian):
 
             if isinstance(value, dict):
                 # Do this so that we need not worry about dict keys with $ or .
-                value_str = json.dumps(value)
+                value_str = dumps(value)
                 # create a dict with __volttron_type__ so we can do
-                # json.loads() when we query for this data
+                # loads() when we query for this data
                 value = {_VOLTTRON_TYPE: 'json',
                          'string_value': value_str}
 
@@ -680,7 +688,7 @@ class MongodbHistorian(BaseHistorian):
         result_value = value
         if isinstance(result_value, dict) and result_value.get(_VOLTTRON_TYPE):
             if result_value[_VOLTTRON_TYPE] == 'json':
-                result_value = json.loads(result_value['string_value'])
+                result_value = loads(result_value['string_value'])
         return result_value
 
     def verify_use_of_rolledup_data(self, start, end):
