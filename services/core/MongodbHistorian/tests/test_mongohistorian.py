@@ -237,10 +237,11 @@ def publish_minute_data_for_two_hours(agent):
 
             now = datetime(now.year, now.month, now.day, h, m,
                            random.randint(0, 59), int(micro))
-            # Make some random readings
-            oat_reading = random.uniform(30, 100)
-            mixed_reading = oat_reading + random.uniform(-5, 5)
-            damper_reading = random.uniform(0, 100)
+            # Make some random readings. round to 14 digit precision
+            # as mongo only store 14 digit precision
+            oat_reading = round(random.uniform(30, 100),14)
+            mixed_reading = round(oat_reading + random.uniform(-5, 5),14)
+            damper_reading = round(random.uniform(0, 100),14)
 
             # Create a message for all points.
             all_message = [{
@@ -301,9 +302,9 @@ def publish_fake_data(agent, now=None, value=None):
         mixed_reading = value
         damper_reading = value
     else:
-        oat_reading = random.uniform(30, 100)
-        mixed_reading = oat_reading + random.uniform(-5, 5)
-        damper_reading = random.uniform(0, 100)
+        oat_reading = round(random.uniform(30, 100), 14)
+        mixed_reading = round(oat_reading + random.uniform(-5, 5), 14)
+        damper_reading = round(random.uniform(0, 100), 14)
 
     # Create a message for all points.
     all_message = [{'OutsideAirTemperature': oat_reading,
@@ -360,7 +361,7 @@ def test_insert_duplicate(volttron_instance, database_client):
 
     try:
 
-        oat_reading = random.uniform(30, 100)
+        oat_reading = round(random.uniform(30, 100),14)
         all_message = [{'OutsideAirTemperature': oat_reading}, {
             'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
                                       'type': 'float'}}]
@@ -413,7 +414,7 @@ def test_analysis_topic(volttron_instance, database_client):
 
     try:
         publisher = volttron_instance.build_agent()
-        oat_reading = random.uniform(30, 100)
+        oat_reading = round(random.uniform(30, 100), 14)
         message = [{'FluffyWidgets': oat_reading}, {
             'FluffyWidgets': {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
@@ -449,7 +450,7 @@ def test_get_topic_map(volttron_instance, database_client):
                                          mongo_agent_config())
 
     try:
-        oat_reading = random.uniform(30, 100)
+        oat_reading = round(random.uniform(30, 100), 14)
         all_message = [{'OutsideAirTemperature': oat_reading}, {
             'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
                                       'type': 'float'}}]
@@ -477,7 +478,7 @@ def test_get_topic_map(volttron_instance, database_client):
         assert topic_list[0] == BASE_DEVICE_TOPIC[
                                 8:] + '/OutsideAirTemperature'
 
-        mixed_reading = random.uniform(30, 100)
+        mixed_reading = round(random.uniform(30, 100), 14)
         all_message = [{'MixedAirTemperature': mixed_reading}, {
             'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
                                     'type': 'float'}}]
@@ -568,7 +569,7 @@ def test_topic_name_case_change(volttron_instance, database_client):
                                          mongo_agent_config())
     try:
         publisher = volttron_instance.build_agent()
-        oat_reading = random.uniform(30, 100)
+        oat_reading = round(random.uniform(30, 100), 14)
         message = [{'FluffyWidgets': oat_reading}, {
             'FluffyWidgets': {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
