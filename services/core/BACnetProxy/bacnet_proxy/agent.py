@@ -94,7 +94,8 @@ from bacpypes.object import get_datatype
 from bacpypes.apdu import (ReadPropertyRequest, 
                            WritePropertyRequest, 
                            Error, 
-                           AbortPDU, 
+                           AbortPDU,
+                           RejectPDU,
                            ReadPropertyACK, 
                            SimpleAckPDU,
                            ReadPropertyMultipleRequest,
@@ -215,6 +216,10 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             iocb.set_exception(RuntimeError("Error during device communication: " + str(apdu)))
             return
 
+        if isinstance(apdu, RejectPDU):
+            iocb.set_exception(RuntimeError("Device at {source} rejected the request: {reason}".format(source=apdu.pduSource,
+                                                                                                       reason=apdu.apduAbortRejectReason)))
+
         elif (isinstance(iocb.ioRequest, ReadPropertyRequest) and 
               isinstance(apdu, ReadPropertyACK)):
             # find the datatype
@@ -305,6 +310,8 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             iocb.set(result_dict)
             
         else:
+            _log.error("For invoke key {key} Unsupported Request Response pair Request: {request} Response: {response}".
+                       format(key=invoke_key, request=iocb.ioRequest, response=apdu))
             iocb.set_exception(TypeError('Unsupported Request Type'))
 
     def indication(self, apdu):
@@ -528,11 +535,46 @@ class BACnetProxyAgent(Agent):
         if isinstance(result, SimpleAckPDU):
             return value
         raise RuntimeError("Failed to set value: " + str(result))
+
+    def read_using_single_request(self, target_address, point_map):
+        results = {}
+
+        for point, properties in point_map.iteritems():
+            if len(properties) == 3:
+                object_type, instance_number, property_name = properties
+                property_index = None
+            elif len(properties) == 4:
+                object_type, instance_number, property_name, property_index = properties
+            else:
+                _log.error("skipping {} in request to {}: incorrect number of parameters".format(point, target_address))
+                continue
+
+            try:
+                results[point] = self.read_property(target_address, object_type, instance_number, property_name, property_index)
+            except Exception as e:
+                _log.error("Error reading point {} from {}: {}".format(point, target_address, e))
+
+        return results
+
+    @RPC.export
+    def read_property(self, target_address, object_type, instance_number, property_name, property_index=None):
+        request = ReadPropertyRequest(
+            objectIdentifier=(object_type, instance_number),
+            propertyIdentifier=property_name,
+            propertyArrayIndex=property_index)
+        request.pduDestination = Address(target_address)
+        iocb = self.iocb_class(request)
+        self.this_application.submit_request(iocb)
+        bacnet_results = iocb.ioResult.get(10)
+        return bacnet_results
         
     
     @RPC.export
-    def read_properties(self, target_address, point_map, max_per_request=None):
+    def read_properties(self, target_address, point_map, max_per_request=None, use_read_multiple=True):
         """Read a set of points and return the results"""
+
+        if not use_read_multiple:
+            return self.read_using_single_request(target_address, point_map)
         
         #Set max_per_request really high if not set.
         if max_per_request is None:
