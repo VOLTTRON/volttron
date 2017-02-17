@@ -538,7 +538,7 @@ class BACnetProxyAgent(Agent):
     def read_using_single_request(self, target_address, point_map):
         results = {}
 
-        for point, properties in point_map.iter_items():
+        for point, properties in point_map.iteritems():
             if len(properties) == 3:
                 object_type, instance_number, property_name = properties
                 property_index = None
