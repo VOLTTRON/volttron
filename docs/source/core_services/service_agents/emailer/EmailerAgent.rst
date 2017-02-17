@@ -1,8 +1,8 @@
 .. _EmailerAgent:
 
-===============
+=============
 Emailer Agent
-===============
+=============
 Emailer agent is responsible for sending emails for an instance. It has been written so that any agent on the instance
 can send emails through it via the "send_email" method or through the pubsub message bus using the topic
 "platform/send_email".
@@ -12,9 +12,8 @@ By default any alerts will be sent through this agent. In addition all emails wi
 
 Configuration
 ~~~~~~~~~~~~~
-A typical configuration for this agent is as follows. We need to specify the SMTP server address or the mail gateway,
-email address of the sender, email addresses of all the recipients and frequency (in minutes) with which the emails need
-to be sent.
+A typical configuration for this agent is as follows. We need to specify the SMTP server address, email address of the
+sender, email addresses of all the recipients and minimum time span (in minutes) between individual emails.
 
 
 .. code-block:: python
