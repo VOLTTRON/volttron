@@ -287,9 +287,9 @@ def process_object(address, obj_type, index, max_range_report, config_writer):
                 try:
                     min_value = read_prop(address, obj_type, index, "minPresValue")
                     max_value = read_prop(address, obj_type, index, "maxPresValue")
-                    
-                    has_min = min_value > -max_range_report
-                    has_max = max_value <  max_range_report
+
+                    has_min = (min_value is not None) and (min_value > -max_range_report)
+                    has_max = (max_value is not None) and (max_value < max_range_report)
                     
                     if has_min and has_max:
                         object_units_details = '{min:.2f} to {max:.2f}'.format(min=min_value, max=max_value)
