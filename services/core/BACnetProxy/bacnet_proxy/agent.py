@@ -217,7 +217,8 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             return
 
         if isinstance(apdu, RejectPDU):
-            iocb.set_exception(RuntimeError("Request rejected: {reason}".format(reason=apdu.apduAbortRejectReason)))
+            iocb.set_exception(RuntimeError("Device at {source} rejected the request: {reason}".format(source=apdu.pduSource,
+                                                                                                       reason=apdu.apduAbortRejectReason)))
 
         elif (isinstance(iocb.ioRequest, ReadPropertyRequest) and 
               isinstance(apdu, ReadPropertyACK)):
