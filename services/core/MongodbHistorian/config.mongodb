@@ -9,7 +9,7 @@
             "user": "historian",
             "passwd": "historian"
         }
-    }
+    },
 
     # configuration specific to hourly and daily rollup tables
     # new from version 2.0 of mongo historian
@@ -22,29 +22,29 @@
     # background process(see rollup_data_by_time.py script under
     # MongodbHistorian/scripts. Default value = current time at the time of
     # historian start up
-    initial_rollup_start_time = "2017-01-01T00:00:00.000000"
+    "initial_rollup_start_time":"2017-01-01T00:00:00.000000",
 
     # How long should the historian wait after startup to start
     # rolling up raw data into hourly and daily collections. Wait in minutes.
     # Default 10 seconds
-    periodic_rollup_initial_wait = 0.1
+    "periodic_rollup_initial_wait":0.1,
 
     # How often should the function to rollup data be called. The process of
     # rolling up raw data into hourly and daily collections happens in a
     # separate process that is run periodically
     # units - minutes. Default 1 minute
-    periodic_rollup_frequency = 1
+    "periodic_rollup_frequency":1,
 
     # Start time from which hourly and daily rollup tables can be used for
     # querying. datetime string in UTC. Format "%Y-%m-%dT%H:%M:%S.%f". Default
     # current time (at init of historian)  +  1day
-    rollup_query_start = "2017-01-01T00:00:00.000000"
+    "rollup_query_start":"2017-01-01T00:00:00.000000",
 
     # number of minutes before current time, that can be used as end
     # date for queries from hourly or daily data collections. This is to
     # account for the time it takes the periodic_rollup to process
     # records in data table and insert into daily_data and hourly_data
     # collection. Units minutes. Default 4 minutes
-    rollup_query_end = 10
+    "rollup_query_end":10
 
 }
