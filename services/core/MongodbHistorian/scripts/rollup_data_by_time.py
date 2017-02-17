@@ -1,3 +1,6 @@
+from gevent import monkey
+monkey.patch_all()
+
 try:
     import pymongo
 except:
@@ -5,9 +8,7 @@ except:
 from datetime import datetime
 from numbers import Number
 from pymongo.errors import BulkWriteError
-from gevent import monkey
-monkey.patch_all()
-from gevent.threadpool import ThreadPool
+from gevent.pool import Pool
 
 local_source_params = {"host": "localhost",
                        "port": 27017,
@@ -194,8 +195,8 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             source_db.client.close()
         if dest_db:
             dest_db.client.close()
-        # print ("Total time for roll up of data in topics {}: {}".format(
-        #     topic_name, datetime.utcnow() - start))
+        print ("Total time for roll up of data in topics {}: {}".format(
+            topic_name, datetime.utcnow() - start))
 
 
 def get_last_back_filled_data(db, collection, topic_id, topic_name):
@@ -320,26 +321,29 @@ if __name__ == '__main__':
     end_date = '03May2016T00:00:00.000'
     print ("Starting rollup of data from {} to {}. current time: {}".format(
         start_date, end_date, start))
+    pool = Pool(size=10)
     try:
         source_db = connect_mongodb(local_source_params)
         source_tables = get_table_names(local_source_params)
         cursor = source_db[source_tables['topics_table']].find({}).sort(
             "_id", pymongo.ASCENDING)
 
-        pool = ThreadPool(maxsize=10)
         running_historian = False
         topics = list(cursor)
         max = len(topics)
+
         for i in xrange(0, max):
             print("Processing topic: {} {}".format(topics[i]['_id'],
                                                     topics[i]['topic_name']))
-            pool.spawn(rollup_data, local_source_params, local_dest_params,
+            pool.spawn(rollup_data, local_source_params,
+                            local_dest_params,
                 datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f'),
                 datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f'),
                 topics[i]['_id'], topics[i]['topic_name'])
 
         pool.join()
     finally:
+        pool.kill()
         print ("Total time for roll up of data : {}".format(
                datetime.utcnow() - start))
         if log:
