@@ -545,7 +545,7 @@ class BACnetProxyAgent(Agent):
             elif len(properties) == 4:
                 object_type, instance_number, property_name, property_index = properties
             else:
-                _log.error("skipping {} in request to {}: incorrect number of parameters".format(name, target_address))
+                _log.error("skipping {} in request to {}: incorrect number of parameters".format(point, target_address))
                 continue
 
             try:
