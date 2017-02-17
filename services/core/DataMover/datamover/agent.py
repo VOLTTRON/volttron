@@ -240,16 +240,17 @@ class DataMover(BaseHistorian):
                             'headers': headers,
                             'message': message})
 
-        try:
-            self._target_platform.vip.rpc.call(self.destination_historian_identity,
-                                               'insert', to_send).get(timeout=10)
-            self.report_all_handled()
-        except gevent.Timeout:
-            self._last_timeout = self.timestamp()
-            self._target_platform.core.stop()
-            self._target_platform = None
-            self.vip.health.set_status(
-                STATUS_BAD, "Timeout occurred")
+        with gevent.Timeout(30):
+            try:
+                self._target_platform.vip.rpc.call(self.destination_historian_identity,
+                                                   'insert', to_send).get(timeout=10)
+                self.report_all_handled()
+            except gevent.Timeout:
+                self._last_timeout = self.timestamp()
+                self._target_platform.core.stop()
+                self._target_platform = None
+                self.vip.health.set_status(
+                    STATUS_BAD, "Timeout occurred")
 
     def historian_setup(self):
         _log.debug("Setting up to forward to {}".format(self.destination_vip))
