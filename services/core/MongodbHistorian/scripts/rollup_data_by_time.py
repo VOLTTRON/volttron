@@ -115,13 +115,6 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             match_condition, no_cursor_timeout=True).sort(
             "_id", pymongo.ASCENDING)
 
-        #print ("match condition: {}".format(match_condition))
-        #print("Before looping through results for {}".format(topic_id))
-        #imatch_count = cursor.count()
-        # print (
-        # "Record count for topic {} {} is {}".format(topic_id, topic_name,
-        #     match_count))
-
         # Iterate and append to a bulk_array. Insert in batches of 3000
         d = 0
         h = 0
@@ -131,26 +124,26 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
         last_init_day = None
         for row in cursor:
             if not stat or row['_id'] > stat["last_data_into_hourly"]:
-                ts_hour = row['ts'].replace(minute=0, second=0,
-                                            microsecond=0)
-                if last_init_hour is None or ts_hour != last_init_hour :
-                    # above check would work since we use 1 thread per topic
-                    initialize_hourly(topic_id=row['topic_id'],
-                                      ts_hour=ts_hour,
-                                      db=dest_db)
-                    last_init_hour = ts_hour
+                # ts_hour = row['ts'].replace(minute=0, second=0,
+                #                             microsecond=0)
+                # if last_init_hour is None or ts_hour != last_init_hour :
+                #     # above check would work since we use 1 thread per topic
+                #     initialize_hourly(topic_id=row['topic_id'],
+                #                       ts_hour=ts_hour,
+                #                       db=dest_db)
+                #     last_init_hour = ts_hour
                 insert_to_hourly(bulk_hourly, row['_id'],
                     topic_id=row['topic_id'], ts=row['ts'], value=row['value'])
                 h += 1
                 #print("Insert bulk op to hourly. h= {}".format(h))
 
             if not stat or row['_id'] > stat["last_data_into_daily"]:
-                ts_day = row['ts'].replace(hour=0, minute=0,
-                                           second=0, microsecond=0)
-                if last_init_day is None or ts_day != last_init_day:
-                    initialize_daily(topic_id=row['topic_id'], ts_day=ts_day,
-                                      db=dest_db)
-                    last_init_day = ts_day
+                # ts_day = row['ts'].replace(hour=0, minute=0,
+                #                            second=0, microsecond=0)
+                # if last_init_day is None or ts_day != last_init_day:
+                #     initialize_daily(topic_id=row['topic_id'], ts_day=ts_day,
+                #                       db=dest_db)
+                #     last_init_day = ts_day
                 insert_to_daily(bulk_daily, row['_id'],
                                 topic_id=row['topic_id'], ts=row['ts'],
                                 value=row['value'])
@@ -160,7 +153,7 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             # Perform insert if we have 3000 rows
             d_errors = h_errors = False
             if h == 10000:
-                print("In loop. bulk write hour")
+                #print("In loop. bulk write hour")
                 h_errors = execute_batch(bulk_hourly)
                 if not h_errors:
                     bulk_hourly = dest_db[
@@ -168,7 +161,7 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
                     h = 0
 
             if d == 10000:
-                print("In loop. bulk write day")
+                #print("In loop. bulk write day")
                 d_errors = execute_batch(bulk_daily)
                 if not d_errors:
                     bulk_daily = dest_db[
@@ -228,63 +221,6 @@ def execute_batch(bulk):
     return errors
 
 
-def initialize_hourly(topic_id, ts_hour, db):
-
-    #print ("In int hourly of {} . Hour is {}".format(topic_id, ts_hour))
-
-    count = db[HOURLY_COLLECTION].find(
-        {'ts': ts_hour, 'topic_id': topic_id}).count()
-    if count > 0:
-        needs_initializing = False
-    else:
-        needs_initializing = True
-
-    #print ("after check needs init={} count={}".format(needs_initializing,
-    #                                                   count))
-    if needs_initializing:
-        if running_historian:
-            # use update since historian could have initialized for the
-            # same topic and ts sometime between when we checked and when we
-            # do an insert
-            db[HOURLY_COLLECTION].update(
-                {'ts': ts_hour, 'topic_id': topic_id},
-                {"$setOnInsert": {'ts': ts_hour, 'topic_id': topic_id,
-                                  'count': 0, 'sum': 0, 'data': [[]] * 60,
-                                  'last_back_filled_data': ''}},
-                upsert=True)
-        else:
-            # else do insert since that is faster than update
-            db[HOURLY_COLLECTION].insert(
-                {'ts': ts_hour, 'topic_id': topic_id, 'count': 0,
-                 'sum': 0, 'data': [[]] * 60, 'last_back_filled_data': ''})
-    return needs_initializing
-
-
-def initialize_daily(topic_id, ts_day, db):
-    count = db[DAILY_COLLECTION].find(
-        {'ts': ts_day, 'topic_id': topic_id}).count()
-    needs_initializing = not count > 0
-    if needs_initializing:
-        if running_historian:
-            # use update since historian could have initialized for the
-            # same topic and ts sometime between when we checked and when we
-            # do an insert
-            db[DAILY_COLLECTION].update(
-                {'ts': ts_day, 'topic_id': topic_id},
-                {"$setOnInsert": {'ts': ts_day, 'topic_id': topic_id,
-                                  'count': 0, 'sum': 0,
-                                  'data': [[]] * 24 * 60,
-                                  'last_back_filled_data': ''}},
-                upsert=True)
-        else:
-            # else do insert since that is faster than update
-            db[DAILY_COLLECTION].insert({'ts': ts_day, 'topic_id': topic_id,
-                              'count': 0, 'sum': 0, 'data': [[]] * 24 * 60,
-                              'last_back_filled_data': ''})
-
-    return needs_initializing
-
-
 def insert_to_hourly(bulk_hourly, data_id, topic_id, ts, value):
     rollup_hour = ts.replace(minute=0, second=0, microsecond=0)
     sum_value = value_to_sumable(value)
@@ -315,37 +251,105 @@ def value_to_sumable(value):
     return sum_value
 
 
+def init_daily_data(db, data_collection, start_dt, end_dt):
+    init_start = datetime.utcnow()
+    try:
+        pipeline = []
+        if start_date and end_date:
+            pipeline.append({"$match":
+                                 {'ts': {"$gte": start_dt, "$lt": end_dt}}})
+        pipeline.append({'$group': {
+            '_id': {'topic_id': "$topic_id", 'year': {"$year": "$ts"},
+                    'month': {"$month": "$ts"},
+                    'dayOfMonth': {"$dayOfMonth": "$ts"}},
+            'h': {"$first": {"$hour": "$ts"}},
+            'm': {"$first": {"$minute": "$ts"}},
+            's': {"$first": {"$second": "$ts"}},
+            'ml': {"$first": {"$millisecond": "$ts"}}, 'ts': {"$first": "$ts"},
+            'topic_id': {"$first": "$topic_id"}, 'sum': {"$sum": "$sum"},
+            'count': {"$sum": "$count"}}})
+        pipeline.append({'$project': {'_id': 0, 'ts': {"$subtract": ["$ts", {
+            "$add": ["$ml", {"$multiply": ["$s", 1000]},
+                     {"$multiply": ["$m", 60, 1000]},
+                     {"$multiply": ["$h", 60, 60, 1000]}]}]}, 'topic_id': 1,
+            'sum': {"$literal": 0}, 'count': {"$literal": 0},
+            'data': {"$literal": [[]] * 24 * 60}}})
+
+        pipeline.append({"$out": DAILY_COLLECTION})
+        db[data_collection].aggregate(pipeline, allowDiskUse=True)
+    finally:
+        print ("Total time for init of daily data between {} and {} : {} "
+               "".format(start_dt, end_dt, datetime.utcnow() - init_start))
+
+
+def init_hourly_data(db, data_collection, start_dt, end_dt):
+    init_start = datetime.utcnow()
+    try:
+        pipeline = []
+        pipeline.append({"$match": {'ts': {"$gte": start_dt, "$lt": end_dt}}})
+        pipeline.append({'$group': {
+            '_id': {'topic_id': "$topic_id", 'year': {"$year": "$ts"},
+                    'month': {"$month": "$ts"},
+                    'dayOfMonth': {"$dayOfMonth": "$ts"}},
+            'h': {"$first": {"$hour": "$ts"}},
+            'm': {"$first": {"$minute": "$ts"}},
+            's': {"$first": {"$second": "$ts"}},
+            'ml': {"$first": {"$millisecond": "$ts"}}, 'ts': {"$first": "$ts"},
+            'topic_id': {"$first": "$topic_id"}, 'sum': {"$sum": "$sum"},
+            'count': {"$sum": "$count"}}})
+        pipeline.append({'$project': {'_id': 0, 'ts': {"$subtract": ["$ts", {
+            "$add": ["$ml", {"$multiply": ["$s", 1000]},
+                {"$multiply": ["$m", 60, 1000]}]}]}, 'topic_id': 1,
+            'sum': {"$literal": 0}, 'count': {"$literal": 0},
+            'data': {"$literal": [[]] * 60}}})
+
+        pipeline.append({"$out": "hourly_data8"})
+        db[data_collection].aggregate(pipeline, allowDiskUse=True)
+    finally:
+        print ("Total time for init of hourly data : {}".format(
+            datetime.utcnow() - init_start))
+
+
 if __name__ == '__main__':
     start = datetime.utcnow()
-    start_date = '02May2016T00:00:00.000'
-    end_date = '03May2016T00:00:00.000'
+    start_date = '01Jan1980T00:00:00.000'
+    end_date = '01Jun2016T00:00:00.000'
     print ("Starting rollup of data from {} to {}. current time: {}".format(
         start_date, end_date, start))
+
     pool = Pool(size=10)
     try:
         source_db = connect_mongodb(local_source_params)
         source_tables = get_table_names(local_source_params)
+        print ("Starting init of tables")
+        source_db = connect_mongodb(local_source_params)
+        s_dt = datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f')
+        e_dt = datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f')
+        init_daily_data(source_db, source_tables['data_table'], s_dt, e_dt)
+        init_hourly_data(source_db, source_tables['data_table'], s_dt, e_dt)
+
         cursor = source_db[source_tables['topics_table']].find({}).sort(
             "_id", pymongo.ASCENDING)
 
-        running_historian = False
         topics = list(cursor)
         max = len(topics)
 
         for i in xrange(0, max):
             print("Processing topic: {} {}".format(topics[i]['_id'],
-                                                    topics[i]['topic_name']))
+                                                   topics[i]['topic_name']))
             pool.spawn(rollup_data, local_source_params,
-                            local_dest_params,
-                datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f'),
-                datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f'),
-                topics[i]['_id'], topics[i]['topic_name'])
+                       local_dest_params,
+                       datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f'),
+                       datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f'),
+                       topics[i]['_id'], topics[i]['topic_name'])
 
         pool.join()
     finally:
         pool.kill()
         print ("Total time for roll up of data : {}".format(
-               datetime.utcnow() - start))
+            datetime.utcnow() - start))
         if log:
-          log.close()
+            log.close()
+
+
 
