@@ -69,6 +69,7 @@ from datetime import timedelta
 from dateutil.tz import tzutc
 
 from crate import client
+from volttron.platform.messaging.health import Status, STATUS_BAD
 from zmq.utils import jsonapi
 
 from volttron.platform.agent import utils
@@ -134,12 +135,13 @@ class CrateHistorian(BaseHistorian):
 
         """
         super(CrateHistorian, self).__init__(**kwargs)
-        self.tables_def, table_names = self.parse_table_def(config)
-        self._data_collection = table_names['data_table']
-        self._meta_collection = table_names['meta_table']
-        self._topic_collection = table_names['topics_table']
-        self._agg_topic_collection = table_names['agg_topics_table']
-        self._agg_meta_collection = table_names['agg_meta_table']
+        # self.tables_def, table_names = self.parse_table_def(config)
+        # self._data_collection = table_names['data_table']
+        # self._meta_collection = table_names['meta_table']
+        # self._topic_collection = table_names['topics_table']
+        # self._agg_topic_collection = table_names['agg_topics_table']
+        # self._agg_meta_collection = table_names['agg_meta_table']
+
         self._connection_params = config['connection']['params']
         self._schema = config.get('schema', 'historian')
         self._client = None
@@ -196,16 +198,17 @@ class CrateHistorian(BaseHistorian):
             cursor.execute(insert_query, (topic_id, ts_formatted,
                                           data, data))
         try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
+            if self._connection is None:
+                self._connection = self.get_connection()
 
-            for x in to_publish_list:
-                _id = x['_id']  # A base_historian reference to internal id.
-                ts = x['timestamp']
-                source = x['source']
-                topic = x['topic']
-                value = x['value']
-                meta = x['meta']
+            cursor = self._connection.cursor()
+
+            for row in to_publish_list:
+                ts = row['timestamp']
+                source = row['source']
+                topic = row['topic']
+                value = row['value']
+                meta = row['meta']
 
                 if source == 'scrape':
                     source = 'device'
@@ -227,15 +230,30 @@ class CrateHistorian(BaseHistorian):
                             db_datatype = 'numeric'
                         except ValueError:
                             db_datatype = 'string'
+                        except TypeError:
+                            if type(value) == dict and topic.startswith('record'):
+                                value = jsonapi.dumps(value)
+                            else:
+                                _log.error(
+                                    'Type was {} in type error for value: {}'.format(
+                                        type(value), value))
                 except ValueError:
+                    alert_key = "Inconsistency for topic: {}".format(topic)
+                    context = """
+Meta specified as {} but was given {} for value {}.  The data will not be
+cached.
+                    """.format(meta_type, type(value), value)
+                    status = Status.build(STATUS_BAD, context=context.strip())
+
+                    self.vip.health.send_alert(alert_key, status)
                     _log.error(
                         "Topic: {} "
                         "Couldn't cast value {} to {}".format(topic,
                                                               value,
                                                               meta_type))
                     # since this isn't going to be fixed we mark it as
-                    # handled
-                    self.report_handled(_id)
+                    # handled, note we need to pass the full row.
+                    self.report_handled(row)
                     continue
 
                 _log.debug('META IS: {}'.format(meta))
