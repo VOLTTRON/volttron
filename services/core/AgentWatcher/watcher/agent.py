@@ -53,20 +53,53 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
-from __future__ import absolute_import
+import logging
 
-from .channel import Channel
-from .hello import Hello
-from .peerlist import PeerList
-from .ping import Ping
-from .pubsub import PubSub
-from .rpc import RPC
-from .heartbeat import Heartbeat
-from .health import Health
-from .configstore import ConfigStore
-from .auth import Auth
+from volttron.platform.vip.agent import Agent, Core
+from volttron.platform.agent import utils
+from volttron.platform.messaging.health import Status, STATUS_BAD
 
-__all__ = ['PeerList', 'Ping', 'RPC', 'Hello', 'PubSub', 'Channel',
-           'Heartbeat', 'Health', 'ConfigStore', 'Auth']
+utils.setup_logging()
+_log = logging.getLogger(__name__)
+
+__version__ = '0.1'
+
+
+class AgentWatcher(Agent):
+    def __init__(self, config_path, **kwargs):
+        super(AgentWatcher, self).__init__(**kwargs)
+        config = utils.load_config(config_path)
+        self.watchlist = config["watchlist"]
+        self.check_period = config.get("check-period", 10)
+
+    @Core.receiver('onstart')
+    def onstart(self, sender, **kwargs):
+        self.core.periodic(self.check_period, self.watch_agents)
+
+    def watch_agents(self):
+        peerlist = self.vip.peerlist().get()
+
+        missing_agents = []
+        for vip_id in self.watchlist:
+            if vip_id not in peerlist:
+                missing_agents.append(vip_id)
+
+        if missing_agents:
+            alert_key = "AgentWatcher"
+            context = "Agent(s) expected but but not running {}".format(missing_agents)
+            _log.warning(context)
+            status = Status.build(STATUS_BAD, context=context)
+            self.vip.health.send_alert(alert_key, status)
+
+
+def main():
+    utils.vip_main(AgentWatcher)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
