@@ -13,7 +13,7 @@ By default any alerts will be sent through this agent. In addition all emails wi
 Configuration
 ~~~~~~~~~~~~~
 A typical configuration for this agent is as follows. We need to specify the SMTP server address, email address of the
-sender, email addresses of all the recipients and minimum time span (in minutes) between individual emails.
+sender, email addresses of all the recipients and minimum time for duplicate emails based upon the key.
 
 
 .. code-block:: python
