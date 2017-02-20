@@ -99,7 +99,6 @@ def create_schema(connection, schema="historian"):
         for t in create_queries:
             cursor.execute(t)
             _log.debug("Query took: {}ms".format(cursor.duration))
-        #cursor.execute(query)
         _log.debug("Query took: {}ms".format(cursor.duration))
     finally:
         cursor.close()

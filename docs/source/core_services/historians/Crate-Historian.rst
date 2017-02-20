@@ -61,7 +61,7 @@ for the CrateHistorian is very easy.
         "connection": {
             "type": "crate",
             # Optional table prefix defaults to historian
-            "table_prefix": "testing",
+            "schema": "testing",
             "params": {
                 "host": "localhost:4200"
             }
