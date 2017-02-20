@@ -142,8 +142,9 @@ class CrateHistorian(BaseHistorian):
         # self._agg_topic_collection = table_names['agg_topics_table']
         # self._agg_meta_collection = table_names['agg_meta_table']
 
+        _log.debug(config)
         self._connection_params = config['connection']['params']
-        self._schema = config.get('schema', 'historian')
+        self._schema = config['connection'].get('schema', 'historian')
         self._client = None
         self._connection = None
 
@@ -564,7 +565,7 @@ cached.
         _log.debug("HISTORIAN SETUP")
 
         self._connection = self.get_connection()
-
+        _log.debug("Using schema: {}".format(self._schema))
         create_schema(self._connection, self._schema)
 
         self._load_topic_map()

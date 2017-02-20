@@ -114,7 +114,7 @@ def crate_connection1():
     host = crate_config_no_schema['connection']['params']['host']
     conn = client.connect(host, error_trace=True)
     yield conn
-    schemas = ("historian",)
+    schemas = ("historian", "testing")
     for x in schemas:
         clean_schema_from_database(conn, x)
     conn.close()
@@ -132,20 +132,25 @@ def crate_connection2():
 
 
 def clean_schema_from_database(connection, schema):
-
     tables = retrieve_tables_from_schema(connection, schema)
     cursor = connection.cursor()
     for tbl in tables:
-        query = "DROP TABLE IF EXISTS {table}".format(table=tbl)
+        query = "DROP TABLE IF EXISTS {schema}.{table}".format(table=tbl,
+                                                               schema=schema)
+        cursor.execute(query)
     cursor.close()
 
 
 def retrieve_tables_from_schema(connection, schema):
-    cursor = connection.cursor()
-    query = "show tables in historian"
-    cursor.execute(query)
-    rows = [row[0] for row in cursor.fetchall()]
-    cursor.close()
+    try:
+        cursor = connection.cursor()
+        query = "show tables in {schema}".format(schema=schema)
+        cursor.execute(query)
+        rows = [row[0] for row in cursor.fetchall()]
+    except:
+        rows = []
+    finally:
+        cursor.close()
     return rows
 
 
@@ -155,6 +160,7 @@ def test_creates_default_table_prefixes(volttron_instance, crate_connection1):
 
     try:
         vi = volttron_instance
+        assert not retrieve_tables_from_schema(crate_connection1, "historian")
 
         agent_uuid = vi.install_agent(agent_dir="services/core/CrateHistorian",
                                       config_file=crate_config_no_schema)
@@ -175,11 +181,12 @@ def test_creates_schema_prefix_tables(volttron_instance, crate_connection2):
 
     try:
         vi = volttron_instance
+        assert not retrieve_tables_from_schema(crate_connection2, "testing")
 
         agent_uuid = vi.install_agent(agent_dir="services/core/CrateHistorian",
                                       config_file=crate_config)
 
-        tables = retrieve_tables_from_schema(crate_connection2, "historian")
+        tables = retrieve_tables_from_schema(crate_connection2, "testing")
 
         assert len(expected_table_list) == len(tables)
         assert set(expected_table_list) == set(tables)
