@@ -51,6 +51,7 @@
     "normalize.css": "^3.0.2",
     "nvd3": "^1.8.5",
     "path-to-regexp": "^1.5.3",
+    "plotly": "^1.0.6",
     "react": "^15.4.0",
     "react-addons-pure-render-mixin": "^15.3.2",
     "react-addons-shallow-compare": "^15.3.2",
@@ -59,6 +60,7 @@
     "react-easy-chart": "^0.1.12",
     "react-faux-dom": "^2.7.1",
     "react-nvd3": "^0.5.7",
+    "react-plotlyjs": "^0.4.0",
     "react-router": "^2.8.1",
     "react-select-me": "^0.6.4",
     "through2": "^2.0.0"

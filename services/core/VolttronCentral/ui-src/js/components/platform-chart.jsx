@@ -2,12 +2,14 @@
 
 var React = require('react');
 var ReactDOM = require('react-dom');
-var d3 = require('d3');;
-var NVD3Chart = require('react-nvd3');
+var d3 = require('d3');
 var moment = require('moment');
 var OutsideClick = require('react-click-outside');
 
 import ControlButton from './control-button';
+import {LineChart, AreaChart} from 'react-d3-components';
+// var LineChart = ReactD3.LineChart;
+// var AreaChart = ReactD3.AreaChart;
 
 var chartStore = require('../stores/platform-chart-store');
 var platformChartStore = require('../stores/platform-chart-store');
@@ -191,6 +193,7 @@ var GraphLineChart = OutsideClick(React.createClass({
       state.taptipY = 0;
       state.tooltipX = 0;
       state.tooltipY = 0;
+      state.tooltipContent = "";
       state.min = (this.props.min ? this.props.min : d3.min(this.props.data, function (d) {return d["1"]}));
       state.max = (this.props.max ? this.props.max : d3.max(this.props.data, function (d) {return d["1"]}));
 
@@ -198,9 +201,16 @@ var GraphLineChart = OutsideClick(React.createClass({
   },
   componentDidMount: function() {
       platformChartStore.addChangeListener(this._onStoresChange);
+
+      // this.chart = ReactDOM.findDOMNode(this.refs[this.state.chartName]);
   },
   componentWillUnmount: function () {
       platformChartStore.removeChangeListener(this._onStoresChange);
+      
+      // if (this.chart)
+      // {
+      //     delete this.chart;
+      // }
   },
   _onStoresChange: function () {
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
@@ -213,12 +223,8 @@ var GraphLineChart = OutsideClick(React.createClass({
       this.setState({max: (max ? max : d3.max(this.props.data, function (d) {return d["1"]}))});      
   },
   handleClickOutside: function () {      
-      var tooltips = document.querySelectorAll(".nvtooltip");
-
-      for (var i = 0; i < tooltips.length; i++)
-      {
-        tooltips[i].style.opacity = 0;
-      }
+      
+      this.setState({ showTooltip: false });
   },
   _onChartChange: function (e) {
 
@@ -277,6 +283,20 @@ var GraphLineChart = OutsideClick(React.createClass({
           platformActionCreators.saveCharts();
       }
   },
+  _showTooltip: function (d, e) {
+      // var content = JSON.stringify(e);
+      var content = JSON.stringify(d);
+      this.setState({ tooltipContent: content });
+      this.setState({ showTooltip: true });
+  },
+  _hideTooltip: function (e) {
+
+      this.setState({ showTooltip: false });
+  },
+  mouseMoveHandler: function (e) {
+
+      // this.setState({ showTooltip: false });
+  },
   render: function() {
 
     var chartStyle = {
@@ -312,10 +332,10 @@ var GraphLineChart = OutsideClick(React.createClass({
                 autoFocus
                 required
             >
-                <option value="lineChart">Line</option>
-                <option value="lineWithFocusChart">Line with View Finder</option>
-                <option value="stackedAreaChart">Stacked Area</option>
-                <option value="cumulativeLineChart">Cumulative Line</option>
+                <option value="line">Line</option>
+                <option value="lineWithFocus">Line with View Finder</option>
+                <option value="stackedArea">Stacked Area</option>
+                <option value="cumulativeLine">Cumulative Line</option>
             </select>
         );
 
@@ -538,116 +558,75 @@ var GraphLineChart = OutsideClick(React.createClass({
         );
     }
 
-    var graphData = [{
-      key: "test1",
-      color: '#ff7f0e',
-      values: this.props.data.map(function (item) {
-        return {x: item[0], y: item[1]};
-      })
-    }];
+    var graphData = this.props.data.map(function (item) {
+      return {x: item[0], y: item[1]};
+    });
 
-    var tickCount = 0;
-    var nvChart;
+    // console.log(graphData[0]);
+
+    var chartData = [
+      {
+        label: this.props.data[0].name,
+        values: graphData
+      }
+    ];
+
+    var tooltip;
+
+    if (this.state.showTooltip)
+    {
+      var tooltipStyle = {
+          position: "absolute",
+          top: this.state.tooltipY + "px",
+          left: this.state.tooltipX + "px"
+      };
+
+      tooltip = (
+          <div className="tooltip_outer"
+              style={tooltipStyle}>
+              <div className="tooltip_inner">
+                  <div className="opaque_inner">
+                      {this.state.tooltipContent}
+                  </div>
+              </div>
+          </div>
+      );
+    }
+
+    var rdcChart, chartTooltip;
 
     switch(this.state.chartType)
     {
-      case "lineWithFocusChart":
+      case "stackedArea":
 
-        nvChart = (
-          <NVD3Chart
-            key={this.state.chartName}
-            xAxis={{
-              tickFormat: function (d, i) {
-
-                var tickValue;
-
-                if (typeof i === "undefined")
-                {
-                    if (tickCount === 0)
-                    {
-                        tickValue = moment(d).fromNow();
-                        tickCount++;
-                    }
-                    else if (tickCount === 1)
-                    {
-                        tickValue = moment(d).fromNow();
-                        tickCount = 0;
-                    }
-                }
-                else
-                {
-                    tickValue = "";
-                }
-
-                return tickValue;
-              },
-              axisLabel: 'Time'
-            }}
-            x2Axis={{
-              tickFormat: function (d) { return d3.time.format('%X')(new Date(d)); }
-            }}
-            yAxis={{
-              tickFormat: function(d) {return parseFloat(d).toFixed(1); }
-            }}
-            type={this.state.chartType}
-            datum={graphData}
-            x='x'
-            y='y'
-            duration={1}
-            margin={{
-              left: 200
-            }}
-            renderEnd={function(){
-              console.log('renderEnd');
-            }}/>
+        chartTooltip = function(x, y, z) {
+            return "x: " + x + " y: " + z;
+        };
+        rdcChart = (
+          <AreaChart 
+            height={200} 
+            width={700} 
+            data={chartData}
+            margin={{top: 10, bottom: 50, left: 50, right: 10}}
+            tooltipHtml={chartTooltip}
+            tooltipMode="element"
+            tooltipContained={true}/>
         );
         break;
-
       default:
-        nvChart = (
-          <NVD3Chart
-            key={this.state.chartName}
-            xAxis={{
-              tickFormat: function (d, i) {
 
-                var tickValue;
-
-                if (typeof i === "undefined")
-                {
-                    if (tickCount === 0)
-                    {
-                        tickValue = moment(d).fromNow();
-                        tickCount++;
-                    }
-                    else if (tickCount === 1)
-                    {
-                        tickValue = moment(d).fromNow();
-                        tickCount = 0;
-                    }
-                }
-                else
-                {
-                    tickValue = "";
-                }
-
-                return tickValue;
-            },
-              axisLabel: 'Period'
-            }}
-            yAxis={{
-              tickFormat: function(d) {return parseFloat(d).toFixed(1); }
-            }}
-            type={this.state.chartType}
-            datum={graphData}
-            x='x'
-            y='y'
-            duration={1}
-            margin={{
-              left: 200
-            }}
-            renderEnd={function(){
-              console.log('renderEnd');
-            }}/>
+        chartTooltip = function(x, pt) {
+            return "x: " + pt.x + " y: " + pt.y;
+        };
+        rdcChart = (
+          <LineChart 
+            height={200} 
+            width={700} 
+            data={chartData}
+            margin={{top: 10, bottom: 50, left: 50, right: 10}}
+            tooltipHtml={chartTooltip}
+            tooltipMode="element"
+            tooltipContained={true}/>
         );
         break;
     }
@@ -656,7 +635,8 @@ var GraphLineChart = OutsideClick(React.createClass({
       <div className='absolute_anchor'
           style={chartStyle}
           ref={this.state.chartName}>
-          {nvChart}
+          {tooltip}
+          {rdcChart}
           {controlButtons}
       </div>
     );
