@@ -11,10 +11,10 @@ conn = client.connect(host, error_trace=True)
 
 cursor = conn.cursor()
 
-schema = ''
-tables = ['analysis', 'analysis_double',
-          'datalogger', 'datalogger_double',
-          'device', 'device_double', 'topic',
+schema = 'test_import'
+tables = ['analysis', 'analysis_string',
+          'datalogger', 'datalogger_string',
+          'device', 'device_string', 'topic',
           'meta', 'record']
 
 for t in tables:

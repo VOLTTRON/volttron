@@ -163,21 +163,21 @@ class CrateHistorian(BaseHistorian):
 
         if source == 'device':
             if db_datatype == 'string':
-                table = 'device'
+                table = 'device_string'
             else:
-                table = 'device_double'
+                table = 'device'
 
         if source == 'log':
             if db_datatype == 'string':
-                table = 'datalogger'
+                table = 'datalogger_string'
             else:
-                table = 'datalogger_double'
+                table = 'datalogger'
 
         if source == 'analysis':
             if db_datatype == 'string':
-                table = 'analysis'
+                table = 'analysis_string'
             else:
-                table = 'analysis_double'
+                table = 'analysis'
 
         if source == 'record':
             table = 'record'
