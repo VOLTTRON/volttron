@@ -249,64 +249,53 @@ def value_to_sumable(value):
 
 
 def init_daily_data(db, data_collection, start_dt, end_dt):
-    init_start = datetime.utcnow()
-    try:
-        pipeline = []
-        if start_date and end_date:
-            pipeline.append({"$match":
-                                 {'ts': {"$gte": start_dt, "$lt": end_dt}}})
-        pipeline.append({'$group': {
-            '_id': {'topic_id': "$topic_id", 'year': {"$year": "$ts"},
-                    'month': {"$month": "$ts"},
-                    'dayOfMonth': {"$dayOfMonth": "$ts"}},
-            'h': {"$first": {"$hour": "$ts"}},
-            'm': {"$first": {"$minute": "$ts"}},
-            's': {"$first": {"$second": "$ts"}},
-            'ml': {"$first": {"$millisecond": "$ts"}}, 'ts': {"$first": "$ts"},
-            'topic_id': {"$first": "$topic_id"}, 'sum': {"$sum": "$sum"},
-            'count': {"$sum": "$count"}}})
-        pipeline.append({'$project': {'_id': 0, 'ts': {"$subtract": ["$ts", {
-            "$add": ["$ml", {"$multiply": ["$s", 1000]},
-                     {"$multiply": ["$m", 60, 1000]},
-                     {"$multiply": ["$h", 60, 60, 1000]}]}]}, 'topic_id': 1,
-            'sum': {"$literal": 0}, 'count': {"$literal": 0},
-            'data': {"$literal": [[]] * 24 * 60}}})
+    pipeline = []
+    if start_date and end_date:
+        pipeline.append({"$match":
+                             {'ts': {"$gte": start_dt, "$lt": end_dt}}})
+    pipeline.append({'$group': {
+        '_id': {'topic_id': "$topic_id", 'year': {"$year": "$ts"},
+                'month': {"$month": "$ts"},
+                'dayOfMonth': {"$dayOfMonth": "$ts"}},
+        'h': {"$first": {"$hour": "$ts"}},
+        'm': {"$first": {"$minute": "$ts"}},
+        's': {"$first": {"$second": "$ts"}},
+        'ml': {"$first": {"$millisecond": "$ts"}}, 'ts': {"$first": "$ts"},
+        'topic_id': {"$first": "$topic_id"}, 'sum': {"$sum": "$sum"},
+        'count': {"$sum": "$count"}}})
+    pipeline.append({'$project': {'_id': 0, 'ts': {"$subtract": ["$ts", {
+        "$add": ["$ml", {"$multiply": ["$s", 1000]},
+                 {"$multiply": ["$m", 60, 1000]},
+                 {"$multiply": ["$h", 60, 60, 1000]}]}]}, 'topic_id': 1,
+        'sum': {"$literal": 0}, 'count': {"$literal": 0},
+        'data': {"$literal": [[]] * 24 * 60}}})
 
-        pipeline.append({"$out": DAILY_COLLECTION})
-        db[data_collection].aggregate(pipeline, allowDiskUse=True)
-    finally:
-        pass
-        #print ("Total time for init of daily data between {} and {} : {} "
-        #       "".format(start_dt, end_dt, datetime.utcnow() - init_start))
+    pipeline.append({"$out": DAILY_COLLECTION})
+    db[data_collection].aggregate(pipeline, allowDiskUse=True)
 
 
 def init_hourly_data(db, data_collection, start_dt, end_dt):
-    init_start = datetime.utcnow()
-    try:
-        pipeline = []
-        pipeline.append({"$match": {'ts': {"$gte": start_dt, "$lt": end_dt}}})
-        pipeline.append({'$group': {
-            '_id': {'topic_id': "$topic_id", 'year': {"$year": "$ts"},
-                    'month': {"$month": "$ts"},
-                    'dayOfMonth': {"$dayOfMonth": "$ts"}},
-            'h': {"$first": {"$hour": "$ts"}},
-            'm': {"$first": {"$minute": "$ts"}},
-            's': {"$first": {"$second": "$ts"}},
-            'ml': {"$first": {"$millisecond": "$ts"}}, 'ts': {"$first": "$ts"},
-            'topic_id': {"$first": "$topic_id"}, 'sum': {"$sum": "$sum"},
-            'count': {"$sum": "$count"}}})
-        pipeline.append({'$project': {'_id': 0, 'ts': {"$subtract": ["$ts", {
-            "$add": ["$ml", {"$multiply": ["$s", 1000]},
-                {"$multiply": ["$m", 60, 1000]}]}]}, 'topic_id': 1,
-            'sum': {"$literal": 0}, 'count': {"$literal": 0},
-            'data': {"$literal": [[]] * 60}}})
 
-        pipeline.append({"$out": HOURLY_COLLECTION})
-        db[data_collection].aggregate(pipeline, allowDiskUse=True)
-    finally:
-        pass
-        #print ("Total time for init of hourly data : {}".format(
-        #    datetime.utcnow() - init_start))
+    pipeline = []
+    pipeline.append({"$match": {'ts': {"$gte": start_dt, "$lt": end_dt}}})
+    pipeline.append({'$group': {
+        '_id': {'topic_id': "$topic_id", 'year': {"$year": "$ts"},
+                'month': {"$month": "$ts"},
+                'dayOfMonth': {"$dayOfMonth": "$ts"}},
+        'h': {"$first": {"$hour": "$ts"}},
+        'm': {"$first": {"$minute": "$ts"}},
+        's': {"$first": {"$second": "$ts"}},
+        'ml': {"$first": {"$millisecond": "$ts"}}, 'ts': {"$first": "$ts"},
+        'topic_id': {"$first": "$topic_id"}, 'sum': {"$sum": "$sum"},
+        'count': {"$sum": "$count"}}})
+    pipeline.append({'$project': {'_id': 0, 'ts': {"$subtract": ["$ts", {
+        "$add": ["$ml", {"$multiply": ["$s", 1000]},
+            {"$multiply": ["$m", 60, 1000]}]}]}, 'topic_id': 1,
+        'sum': {"$literal": 0}, 'count': {"$literal": 0},
+        'data': {"$literal": [[]] * 60}}})
+
+    pipeline.append({"$out": HOURLY_COLLECTION})
+    db[data_collection].aggregate(pipeline, allowDiskUse=True)
 
 
 if __name__ == '__main__':
@@ -327,11 +316,11 @@ if __name__ == '__main__':
         init_start = datetime.utcnow()
         init_daily_data(source_db, source_tables['data_table'], s_dt, e_dt)
         print ("Total time for init of daily data between {} and {} : {} "
-               "".format(start_dt, end_dt, datetime.utcnow() - init_start))
+               "".format(start_date, end_date, datetime.utcnow() - init_start))
         init_start = datetime.utcnow()
         init_hourly_data(source_db, source_tables['data_table'], s_dt, e_dt)
         print ("Total time for init of hourly data between {} and {} : {} "
-               "".format(start_dt, end_dt, datetime.utcnow() - init_start))
+               "".format(start_date, end_date, datetime.utcnow() - init_start))
 
         cursor = source_db[source_tables['topics_table']].find({}).sort(
             "_id", pymongo.ASCENDING)
@@ -349,6 +338,8 @@ if __name__ == '__main__':
                        topics[i]['_id'], topics[i]['topic_name'])
 
         pool.join()
+    except Exception as e:
+        print("Exception processing data: {}".format(e.args))
     finally:
         pool.kill()
         print ("Total time for roll up of data : {}".format(
