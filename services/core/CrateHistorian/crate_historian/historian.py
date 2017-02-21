@@ -62,13 +62,14 @@ import pytz
 from collections import defaultdict
 from datetime import datetime
 
-from crate.client.exceptions import ConnectionError
+from crate.client.exceptions import ConnectionError, ProgrammingError
 from dateutil.relativedelta import relativedelta
 from calendar import monthrange
 from datetime import timedelta
 from dateutil.tz import tzutc
 
 from crate import client
+from volttron.platform.agent.utils import get_utc_seconds_from_epoch
 from volttron.platform.messaging.health import Status, STATUS_BAD
 from zmq.utils import jsonapi
 
@@ -134,7 +135,6 @@ class CrateHistorian(BaseHistorian):
                        topic_replace_list used by parent classes)
 
         """
-        super(CrateHistorian, self).__init__(**kwargs)
         # self.tables_def, table_names = self.parse_table_def(config)
         # self._data_collection = table_names['data_table']
         # self._meta_collection = table_names['meta_table']
@@ -154,6 +154,9 @@ class CrateHistorian(BaseHistorian):
         self._topic_name_map = {}
         self._topic_meta = {}
         self._agg_topic_id_map = {}
+        self._initialized = False
+        self._wait_until = None
+        super(CrateHistorian, self).__init__(**kwargs)
 
     def _get_topic_table(self, source, db_datatype):
         table = None
@@ -186,6 +189,20 @@ class CrateHistorian(BaseHistorian):
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
             len(to_publish_list)))
+        # Verify that we have actually gone through the historian_setup code
+        # before we attempt to do anything else.
+        if not self._initialized:
+            self.historian_setup()
+            if not self._initialized:
+                return
+
+        if self._wait_until is not None:
+            ct = get_utc_seconds_from_epoch()
+            if ct > self._wait_until:
+                self._wait_until = None
+            else:
+                _log.debug('Waiting to attempt to write to database.')
+                return
 
         def insert_data(cursor, topic_id, ts, data):
             insert_query = """INSERT INTO {} (topic_id, ts, result)
@@ -315,7 +332,13 @@ cached.
             self.report_all_handled()
         except ConnectionError:
             _log.error("Cannot connect to crate service.")
+            self._wait_until = get_utc_seconds_from_epoch() + 30
             self._connection = None
+        except ProgrammingError as e:
+            self._wait_until = get_utc_seconds_from_epoch() + 30
+            _log.error(e.args)
+            if cursor is not None:
+                cursor.close()
         finally:
             if cursor is not None:
                 cursor.close()
@@ -387,6 +410,13 @@ cached.
         :py:meth:`volttron.platform.agent.base_historian.BaseQueryHistorianAgent.query_historian`
         for input parameters and return value details
         """
+
+        # Verify that we have initialized through the historian setup code
+        # before we do anything else.
+        if not self._initialized:
+            self.historian_setup()
+            if not self._initialized:
+                return {}
         #try:
 
         # Final results that are sent back to the client.
@@ -562,33 +592,39 @@ cached.
         return self._connection
 
     def historian_setup(self):
-        _log.debug("HISTORIAN SETUP")
+        try:
+            _log.debug("HISTORIAN SETUP")
 
-        self._connection = self.get_connection()
-        _log.debug("Using schema: {}".format(self._schema))
-        create_schema(self._connection, self._schema)
+            self._connection = self.get_connection()
+            _log.debug("Using schema: {}".format(self._schema))
+            create_schema(self._connection, self._schema)
 
-        self._load_topic_map()
-        self._load_meta_map()
+            self._load_topic_map()
+            self._load_meta_map()
+            self._initialized = True
+        except Exception as e:
+            _log.error("Exception during historian setup!")
+            _log.error(e.args)
 
-        # self._client = mongoutils.get_mongo_client(self._connection_params)
-        # db = self._client.get_default_database()
-        # db[self._data_collection].create_index(
-        #     [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
-        #     unique=True, background=True)
 
-        # self._topic_id_map, self._topic_name_map = \
-        #     mongoutils.get_topic_map(
-        #         self._client, self._topic_collection)
-        # self._load_meta_map()
-        #
-        # if self._agg_topic_collection in db.collection_names():
-        #     _log.debug("found agg_topics_collection ")
-        #     self._agg_topic_id_map = mongoutils.get_agg_topic_map(
-        #         self._client, self._agg_topic_collection)
-        # else:
-        #     _log.debug("no agg topics to load")
-        #     self._agg_topic_id_map = {}
+            # self._client = mongoutils.get_mongo_client(self._connection_params)
+            # db = self._client.get_default_database()
+            # db[self._data_collection].create_index(
+            #     [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
+            #     unique=True, background=True)
+
+            # self._topic_id_map, self._topic_name_map = \
+            #     mongoutils.get_topic_map(
+            #         self._client, self._topic_collection)
+            # self._load_meta_map()
+            #
+            # if self._agg_topic_collection in db.collection_names():
+            #     _log.debug("found agg_topics_collection ")
+            #     self._agg_topic_id_map = mongoutils.get_agg_topic_map(
+            #         self._client, self._agg_topic_collection)
+            # else:
+            #     _log.debug("no agg topics to load")
+            #     self._agg_topic_id_map = {}
 
     def record_table_definitions(self, meta_table_name):
         _log.debug("In record_table_def  table:{}".format(meta_table_name))
