@@ -12,21 +12,18 @@ from gevent.pool import Pool
 
 local_source_params = {"host": "localhost",
                        "port": 27017,
-                       "authSource": "mongo_test",
-                       "database": "performance_test",
-                       "user": "test",
-                       "passwd": "test"}
+                       "database": "historian",
+                       "user": "historian",
+                       "passwd": "volttron"}
 
 local_dest_params = {"host": "localhost",
                      "port": 27017,
-                     "authSource": "mongo_test",
-                     "database": "performance_test",
-                     "user": "test",
-                     "passwd": "test"}
+                     "database": "historian",
+                     "user": "historian",
+                     "passwd": "volttron"}
 
 DAILY_COLLECTION = "daily_data"
 HOURLY_COLLECTION = "hourly_data"
-running_historian = True
 import sys
 log = open('./script_out', 'w', buffering=1)
 sys.stdout = log
@@ -188,8 +185,8 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             source_db.client.close()
         if dest_db:
             dest_db.client.close()
-        print ("Total time for roll up of data in topics {}: {}".format(
-            topic_name, datetime.utcnow() - start))
+        #print ("Total time for roll up of data in topics {}: {}".format(
+        #    topic_name, datetime.utcnow() - start))
 
 
 def get_last_back_filled_data(db, collection, topic_id, topic_name):
@@ -278,8 +275,9 @@ def init_daily_data(db, data_collection, start_dt, end_dt):
         pipeline.append({"$out": DAILY_COLLECTION})
         db[data_collection].aggregate(pipeline, allowDiskUse=True)
     finally:
-        print ("Total time for init of daily data between {} and {} : {} "
-               "".format(start_dt, end_dt, datetime.utcnow() - init_start))
+        pass
+        #print ("Total time for init of daily data between {} and {} : {} "
+        #       "".format(start_dt, end_dt, datetime.utcnow() - init_start))
 
 
 def init_hourly_data(db, data_collection, start_dt, end_dt):
@@ -303,17 +301,18 @@ def init_hourly_data(db, data_collection, start_dt, end_dt):
             'sum': {"$literal": 0}, 'count': {"$literal": 0},
             'data': {"$literal": [[]] * 60}}})
 
-        pipeline.append({"$out": "hourly_data8"})
+        pipeline.append({"$out": HOURLY_COLLECTION})
         db[data_collection].aggregate(pipeline, allowDiskUse=True)
     finally:
-        print ("Total time for init of hourly data : {}".format(
-            datetime.utcnow() - init_start))
+        pass
+        #print ("Total time for init of hourly data : {}".format(
+        #    datetime.utcnow() - init_start))
 
 
 if __name__ == '__main__':
     start = datetime.utcnow()
     start_date = '01Jan1980T00:00:00.000'
-    end_date = '01Jun2016T00:00:00.000'
+    end_date = '02Dec2016T00:00:00.000'
     print ("Starting rollup of data from {} to {}. current time: {}".format(
         start_date, end_date, start))
 
@@ -325,8 +324,14 @@ if __name__ == '__main__':
         source_db = connect_mongodb(local_source_params)
         s_dt = datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f')
         e_dt = datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f')
+        init_start = datetime.utcnow()
         init_daily_data(source_db, source_tables['data_table'], s_dt, e_dt)
+        print ("Total time for init of daily data between {} and {} : {} "
+               "".format(start_dt, end_dt, datetime.utcnow() - init_start))
+        init_start = datetime.utcnow()
         init_hourly_data(source_db, source_tables['data_table'], s_dt, e_dt)
+        print ("Total time for init of hourly data between {} and {} : {} "
+               "".format(start_dt, end_dt, datetime.utcnow() - init_start))
 
         cursor = source_db[source_tables['topics_table']].find({}).sort(
             "_id", pymongo.ASCENDING)
