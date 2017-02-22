@@ -65,6 +65,7 @@ from enum import Enum
 import hashlib
 import logging
 import os
+import platform
 import shutil
 import sys
 import tempfile
@@ -73,6 +74,7 @@ import urlparse
 import gevent
 import gevent.event
 import psutil
+from . vcconnection import VCConnection
 
 from volttron.platform import jsonrpc
 from volttron.platform.agent.utils import (get_utc_seconds_from_epoch)
@@ -88,11 +90,11 @@ from volttron.platform.messaging.topics import (LOGGER, )
 from volttron.platform.vip.agent import (Agent, Core, RPC, PubSub, Unreachable)
 from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.vip.agent.utils import build_connection
+from volttron.platform.vip.agent.utils import build_connection, build_agent
 from volttron.platform.web import DiscoveryInfo, DiscoveryError
 from . bacnet_proxy_reader import BACnetReader
 
-__version__ = '3.6.0'
+__version__ = '4.0'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -280,10 +282,14 @@ class VolttronCentralPlatform(Agent):
         address_hash = hashlib.md5(external_addresses[0]).hexdigest()
         _log.debug('External hash is set using external_addresses[0] {}'.format(external_addresses[0]))
         self.current_config['address_hash'] = address_hash
+        self.current_config['instance_id'] = 'vcp.{}'.format(address_hash)
+        self.current_config['host'] = platform.uname()[1]
 
-        self.enable_registration = True
-        self._periodic_attempt_registration()
-        self._start_stats_publisher()
+        # Connect to volttron central instance.
+        self._establish_connection_to_vc()
+        # self.enable_registration = True
+        # self._periodic_attempt_registration()
+        # self._start_stats_publisher()
 
     @RPC.export
     def get_public_keys(self):
@@ -310,28 +316,23 @@ class VolttronCentralPlatform(Agent):
 
         return parsed.scheme
 
-    def _reconnect_to_vc(self):
-        # with self.vcl_semaphore:
-        if self.volttron_central_connection is not None and \
-                self.volttron_central_connection.is_connected:
-            self.volttron_central_connection.kill()
-            self.volttron_central_connection = None
+    def _establish_connection_to_vc(self):
 
-        instance_id = self.current_config['instance_id']
-        vc_address = self._volttron_central_address
-        vc_serverkey = self._volttron_central_serverkey
-
-        _log.debug('Connecting using vc: {} serverkey: {}'.format(vc_address,
-                                                                  vc_serverkey))
-
-        self.volttron_central_connection = build_connection(
-            identity=instance_id, peer=VOLTTRON_CENTRAL, address=vc_address,
-            serverkey=vc_serverkey, publickey=self.core.publickey,
-            secretkey=self.core.secretkey
-        )
-
-        assert self.volttron_central_connection.is_connected()
-        assert self.volttron_central_connection.is_peer_connected()
+        if self.vc_connection is None:
+            instance_id = self.current_config['instance_id']
+            # Note using the connect_address and connect_serverkey because they
+            # are now resolved to the correct values based upon the different
+            # ways of configuring the agent.
+            vc_address = self.current_config['vc_connect_address']
+            vc_serverkey =self.current_config['vc_connect_serverkey']
+            self.volttron_central_connection = build_agent(
+                identity=instance_id,
+                address=vc_address,
+                serverkey=vc_serverkey,
+                publickey=self.core.publickey,
+                secretkey=self.core.secretkey,
+                agent_class=VCConnection
+            )
 
     def _update_vcp_config(self, external_addresses, local_serverkey,
                            vc_address, vc_serverkey, instance_name):
@@ -446,7 +447,7 @@ class VolttronCentralPlatform(Agent):
         except ValueError as e:
             _log.error(e.message)
         except Exception as e:
-            _log.error("{} found as {}".format(e, e.message))
+            _log.error("Error: {}".format(e.args))
         except gevent.Timeout as e:
             _log.error("timout occured connecting to remote platform.")
         finally:
@@ -494,7 +495,7 @@ class VolttronCentralPlatform(Agent):
             :param context:
             """
             conn = self.vc_connection
-            conn.server.vip.health.set_status(status, context)
+            conn.vip.health.set_status(status, context)
 
         self.vip.health.add_status_callback(sync_status_to_vc)
 
@@ -504,10 +505,10 @@ class VolttronCentralPlatform(Agent):
             """
             conn = self.vc_connection
             status = self.vip.health.get_status()
-            conn.server.vip.health.set_status(
+            conn.vip.health.set_status(
                 status['status'], status['context']
             )
-            conn.server.vip.heartbeat.start()
+            conn.vip.heartbeat.start()
 
         # We are going to use an identity of platform.address_hash for
         # connections to vc.  This should allow us unique connection as well
@@ -524,11 +525,17 @@ class VolttronCentralPlatform(Agent):
             address_hash = hashlib.md5(self.core.address).hexdigest()
             self.current_config['address_hash'] = address_hash
             vcp_identity_on_vc += address_hash
-            self.vc_connection = Connection(
-                self.core.address, VOLTTRON_CENTRAL,
-                publickey=self.core.publickey, secretkey=self.core.secretkey,
-                identity=vcp_identity_on_vc
+            vc_serverkey = self.current_config['volttron_central_serverkey']
+            self.vc_connection = build_agent(
+                self.core.address,
+                #peer=VOLTTRON_CENTRAL,
+                publickey=self.core.publickey,
+                secretkey=self.core.secretkey,
+                serverkey=vc_serverkey,
+                identity=vcp_identity_on_vc,
+                agent_class=VCConnection
             )
+            self.vc_connection.set_main_agent(self)
             if self.vc_connection.is_connected() and \
                     self.vc_connection.is_peer_connected():
                 _log.debug("Connection has been established to local peer.")
@@ -550,15 +557,17 @@ class VolttronCentralPlatform(Agent):
         c = self.current_config
         address_hash = c.get('address_hash')
         vcp_identity_on_vc += address_hash
-        self.vc_connection = build_connection(
+        self.vc_connection = build_agent(
             identity=vcp_identity_on_vc,
-            peer=VOLTTRON_CENTRAL,
+            # peer=VOLTTRON_CENTRAL,
             address=c.get('vc_connect_address'),
             serverkey=c.get('vc_connect_serverkey'),
             publickey=self.core.publickey,
-            secretkey=self.core.secretkey
+            secretkey=self.core.secretkey,
+            agent_class=VCConnection
         )
 
+        self.vc_connection.set_main_agent(self)
         if not self.vc_connection.is_peer_connected():
             _log.error('Peer: {} is not connected to the external platform'
                        .format(self.vc_connection.peer))

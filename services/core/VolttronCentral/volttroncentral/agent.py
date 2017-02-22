@@ -114,7 +114,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 
-__version__ = "3.6.0"
+__version__ = "4.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -210,6 +210,51 @@ class VolttronCentralAgent(Agent):
 
         self._platforms = Platforms(self)
 
+        self._platform_scan_event = None
+        self._connected_platforms = dict()
+
+    @staticmethod
+    def _get_next_time_seconds(seconds=10):
+        now = get_aware_utc_now()
+        next_time = now + datetime.timedelta(seconds=seconds)
+        return next_time
+
+    def _handle_platform_connection(self, platform_vip_identity):
+        _log.debug("Handling new platform connection {}".format(
+            platform_vip_identity))
+        self._connected_platforms[platform_vip_identity] = dict()
+
+    def _handle_platform_disconnect(self, platform_vip_identity):
+        _log.debug("Handling disconnection of connection from identity: {}".format(
+            platform_vip_identity
+        ))
+        del self._connected_platforms[platform_vip_identity]
+
+    def _scan_for_platforms(self):
+        if self._platform_scan_event is not None:
+            # This won't hurt anything if we are canceling ourselves.
+            self._platform_scan_event.cancel()
+
+        # Identities of all platform agents that are connecting to us should
+        # have an identity of platform.md5hash.
+        connected_platforms = set([x for x in self.vip.peerlist().get(timeout=5)
+                                   if x.startswith('vcp.')])
+
+        disconnected = set(self._connected_platforms.keys()) - connected_platforms
+
+        for id in disconnected:
+            self._handle_platform_disconnect(id)
+
+        not_known = connected_platforms - set(self._connected_platforms.keys())
+
+        for id in not_known:
+            self._handle_platform_connection(id)
+
+        next_platform_scan = VolttronCentralAgent._get_next_time_seconds()
+
+        self._platform_scan_event = self.core.schedule(
+            next_platform_scan, self._scan_for_platforms)
+
     def configure_main(self, config_name, action, contents):
         """
         The main configuration for volttron central.  This is where validation
@@ -268,41 +313,46 @@ class VolttronCentralAgent(Agent):
         self.vip.web.register_endpoint(r'/jsonrpc', self.jsonrpc)
         self.vip.web.register_path(r'^/.*', self.runtime_config.get('webroot'))
 
-        auth_file = AuthFile()
-        entry = auth_file.find_by_credentials(self.core.publickey)[0]
-        if 'manager' not in entry.capabilities:
-            _log.debug('Adding manager capability for volttron.central to '
-                       'local instance. Publickey is {}'.format(
-                self.core.publickey))
-            entry.add_capabilities(['manager'])
-            auth_file.add(entry, True)
-            gevent.sleep(0.1)
+        # Start scanning for new platforms connections as well as for
+        # disconnects that happen.
+        self._scan_for_platforms()
 
-        # We know that peers are going to be connected to this platform with the
-        # identity of platform.address_hash so we collect all of the peers that
-        # have that signature.  Then if there is a config store entry for that
-        # platform then register it.
-        platforms = [p for p in self.vip.peerlist().get(timeout=2)
-                     if p.startswith('platform')]
-        for p in platforms:
-            try:
-                config_name="platforms/{}".format(p.split(".")[1])
-                platform_config = self.vip.config.get(config_name)
-            except KeyError:
-                _log.warn(
-                    "Couldn't reconnect to platform, missing data for "
-                    "already connected platform.")
-            else:
-                _log.warn("Re-registering platform: {} {}".format(
-                    platform_config['display_name'],
-                    platform_config['address']
-                ))
-                self._platforms.register_platform(
-                    platform_config['address'],
-                    platform_config['address_type'],
-                    platform_config['serverkey'],
-                    platform_config['display_name']
-                )
+        #
+        # auth_file = AuthFile()
+        # entry = auth_file.find_by_credentials(self.core.publickey)[0]
+        # if 'manager' not in entry.capabilities:
+        #     _log.debug('Adding manager capability for volttron.central to '
+        #                'local instance. Publickey is {}'.format(
+        #         self.core.publickey))
+        #     entry.add_capabilities(['manager'])
+        #     auth_file.add(entry, True)
+        #     gevent.sleep(0.1)
+        #
+        # # We know that peers are going to be connected to this platform with the
+        # # identity of platform.address_hash so we collect all of the peers that
+        # # have that signature.  Then if there is a config store entry for that
+        # # platform then register it.
+        # platforms = [p for p in self.vip.peerlist().get(timeout=2)
+        #              if p.startswith('platform')]
+        # for p in platforms:
+        #     try:
+        #         config_name="platforms/{}".format(p.split(".")[1])
+        #         platform_config = self.vip.config.get(config_name)
+        #     except KeyError:
+        #         _log.warn(
+        #             "Couldn't reconnect to platform, missing data for "
+        #             "already connected platform.")
+        #     else:
+        #         _log.warn("Re-registering platform: {} {}".format(
+        #             platform_config['display_name'],
+        #             platform_config['address']
+        #         ))
+        #         self._platforms.register_platform(
+        #             platform_config['address'],
+        #             platform_config['address_type'],
+        #             platform_config['serverkey'],
+        #             platform_config['display_name']
+        #         )
 
     def configure_platforms(self, config_name, action, contents):
         _log.debug('Platform configuration updated.')
