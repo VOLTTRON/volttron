@@ -80,7 +80,8 @@ def build_connection(identity, peer='', address=get_address(),
 
 
 def build_agent(address=get_address(), identity=None, publickey=ks.public,
-                secretkey=ks.secret, timeout=10, serverkey=None, **kwargs):
+                secretkey=ks.secret, timeout=10, serverkey=None,
+                agent_class=Agent, **kwargs):
     """ Builds a dynamic agent connected to the specifiedd address.
 
     All key parameters should have been encoded with
@@ -96,8 +97,8 @@ def build_agent(address=get_address(), identity=None, publickey=ks.public,
     :return: Agent that has been started
     :rtype: Agent
     """
-    agent = Agent(address=address, identity=identity, publickey=publickey,
-                  secretkey=secretkey, serverkey=serverkey, **kwargs)
+    agent = agent_class(address=address, identity=identity, publickey=publickey,
+                        secretkey=secretkey, serverkey=serverkey, **kwargs)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     with gevent.Timeout(timeout):
