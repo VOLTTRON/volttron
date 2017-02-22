@@ -12,15 +12,17 @@ from gevent.pool import Pool
 
 local_source_params = {"host": "localhost",
                        "port": 27017,
-                       "database": "historian",
-                       "user": "historian",
-                       "passwd": "volttron"}
+                       "authSource":"mongo_test",
+                       "database": "performance_test",
+                       "user": "test",
+                       "passwd": "test"}
 
 local_dest_params = {"host": "localhost",
                      "port": 27017,
-                     "database": "historian",
-                     "user": "historian",
-                     "passwd": "volttron"}
+                     "authSource":"mongo_test",
+                     "database": "performance_test",
+                     "user": "test",
+                     "passwd": "test"}
 
 DAILY_COLLECTION = "daily_data"
 HOURLY_COLLECTION = "hourly_data"
@@ -151,7 +153,7 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             d_errors = h_errors = False
             if h == 10000:
                 #print("In loop. bulk write hour")
-                h_errors = execute_batch(bulk_hourly)
+                h_errors = execute_batch(bulk_hourly, h)
                 if not h_errors:
                     bulk_hourly = dest_db[
                         HOURLY_COLLECTION].initialize_ordered_bulk_op()
@@ -159,7 +161,7 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
 
             if d == 10000:
                 #print("In loop. bulk write day")
-                d_errors = execute_batch(bulk_daily)
+                d_errors = execute_batch(bulk_daily, d)
                 if not d_errors:
                     bulk_daily = dest_db[
                         DAILY_COLLECTION].initialize_ordered_bulk_op()
@@ -174,9 +176,9 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
 
         # Perform insert for any pending records
         if h > 0:
-            execute_batch(bulk_hourly)
+            execute_batch(bulk_hourly, h)
         if d > 0:
-            execute_batch(bulk_daily)
+            execute_batch(bulk_daily, d)
 
     finally:
         if cursor:
@@ -201,7 +203,7 @@ def get_last_back_filled_data(db, collection, topic_id, topic_name):
     return id
 
 
-def execute_batch(bulk):
+def execute_batch(bulk, count):
     """
     Execute bulk operation. return true if operation completed successfully
     False otherwise
@@ -210,7 +212,9 @@ def execute_batch(bulk):
     errors = False
     try:
         result = bulk.execute()
-        # print ("bulk execute result {}".format(result))
+        if result['nModified'] != count:
+            print ("bulk execute result {}".format(result))
+            errors = True
     except BulkWriteError as ex:
         print(str(ex.details))
         errors = True
@@ -279,18 +283,28 @@ def init_hourly_data(db, data_collection, start_dt, end_dt):
     pipeline = []
     pipeline.append({"$match": {'ts': {"$gte": start_dt, "$lt": end_dt}}})
     pipeline.append({'$group': {
-        '_id': {'topic_id': "$topic_id", 'year': {"$year": "$ts"},
+        '_id': {'topic_id': "$topic_id",
+                'year': {"$year": "$ts"},
                 'month': {"$month": "$ts"},
-                'dayOfMonth': {"$dayOfMonth": "$ts"}},
-        'h': {"$first": {"$hour": "$ts"}},
+                'dayOfMonth': {"$dayOfMonth": "$ts"},
+                'hour': {"$hour": "$ts"}},
         'm': {"$first": {"$minute": "$ts"}},
         's': {"$first": {"$second": "$ts"}},
-        'ml': {"$first": {"$millisecond": "$ts"}}, 'ts': {"$first": "$ts"},
-        'topic_id': {"$first": "$topic_id"}, 'sum': {"$sum": "$sum"},
+        'ml': {"$first": {"$millisecond": "$ts"}},
+        'ts': {"$first": "$ts"},
+        'topic_id': {"$first": "$topic_id"},
+        'sum': {"$sum": "$sum"},
         'count': {"$sum": "$count"}}})
-    pipeline.append({'$project': {'_id': 0, 'ts': {"$subtract": ["$ts", {
-        "$add": ["$ml", {"$multiply": ["$s", 1000]},
-            {"$multiply": ["$m", 60, 1000]}]}]}, 'topic_id': 1,
+    pipeline.append({'$project': {
+        '_id': 0,
+        'ts': {"$subtract": [
+                    "$ts", {
+                    "$add": [
+                        "$ml",
+                        {"$multiply": ["$s", 1000]},
+                        {"$multiply": ["$m", 60, 1000]}]
+                    }]},
+        'topic_id': 1,
         'sum': {"$literal": 0}, 'count': {"$literal": 0},
         'data': {"$literal": [[]] * 60}}})
 
@@ -300,8 +314,8 @@ def init_hourly_data(db, data_collection, start_dt, end_dt):
 
 if __name__ == '__main__':
     start = datetime.utcnow()
-    start_date = '01Jan1980T00:00:00.000'
-    end_date = '02Dec2016T00:00:00.000'
+    start_date = '30Mar2016T00:00:00.000'
+    end_date = '10Feb2017T00:00:00.000'
     print ("Starting rollup of data from {} to {}. current time: {}".format(
         start_date, end_date, start))
 
