@@ -101,7 +101,6 @@ class VCConnection(Agent):
     """
     def __init__(self, **kwargs):
         self._log = logging.getLogger(self.__class__.__name__)
-        self._log.debug('KWARGS Passed: {}'.format(kwargs))
         super(VCConnection, self).__init__(**kwargs)
         self._main_agent = None
 
@@ -120,6 +119,16 @@ class VCConnection(Agent):
         self._log.debug("Created VCConnection")
 
     @RPC.export
+    def gather_devices(self):
+        """
+        Retrieves configuration entries from the config store that begin with
+        'devices'.
+
+        :return: dictionary of devices.
+        """
+        return self._main_agent.get_devices()
+
+    @RPC.export
     def publish_bacnet_props(self, proxy_identity, publish_topic, address,
                              device_id, filter=[]):
         self._log.debug('Publishing bacnet props to topic: {}'.format(
@@ -130,6 +139,25 @@ class VCConnection(Agent):
             address,
             device_id,
             filter=[])
+
+    @RPC.export
+    def subscribe_to_vcp(self, prefix):
+        """
+        Allows volttron.central to listen to the message bus on vcp instance.
+
+        :param prefix: The prefix to listen for.
+        """
+
+        def subscription_wrapper(peer, sender, bus, topic, headers,
+                                 message):
+            self.publish_to_vc(topic, message, headers)
+
+        # Use the main agent to do the subscription on.
+        self._main_agent.vip.pubsub.subscribe('pubsub',
+                                              prefix,
+                                              subscription_wrapper)
+
+        self.publish_to_vc(prefix, "WE DID IT!")
 
     def publish_to_vc(self, topic, message, headers={}):
         """
@@ -142,9 +170,9 @@ class VCConnection(Agent):
         """
         self.vip.pubsub.publish('pubsub', topic, headers, message)
 
-
-    def call(self, method, *args, **kwargs):
-        self._log.debug("Callilng method {} {} {}".format(method, args, kwargs))
+    @RPC.export
+    def call(self, platform_method, *args, **kwargs):
+        return self._main_agent.call(platform_method, *args, **kwargs)
 
     def is_connected(self):
         connected = self.vip.hello().get(timeout=5) is not None
@@ -154,7 +182,9 @@ class VCConnection(Agent):
     def is_peer_connected(self, peer=VOLTTRON_CENTRAL):
         connected = peer in self.vip.peerlist().get(timeout=5)
         self._log.debug("is_connected returning {}".format(connected))
-        return connected    @RPC.export
+        return connected
+
+    @RPC.export
     def route_to_agent_method(self, id, agent_method, params):
         """
         Calls a method on an installed agent running on the platform.

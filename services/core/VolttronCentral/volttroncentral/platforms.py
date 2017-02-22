@@ -287,6 +287,9 @@ class PlatformHandler(object):
         """
         return hashlib.md5(address).hexdigest()
 
+    def _on_platform_message(self,peer, sender, bus, topic, headers, message):
+        self._log.debug("PLATFORM MESSAGE: {}".format(message))
+
     def __init__(self, vc, vip_identity):
         # This is the identity of the vcp agent connected to the
         # volttron.central instance.
@@ -304,6 +307,15 @@ class PlatformHandler(object):
             self._external_vip_addresses
         )
         self._log.info(message)
+
+        self._vc.vip.pubsub.subscribe(
+            'pubsub',
+            "platforms/{}".format(self.vip_identity),
+            self._on_platform_message)
+
+        self._vc.vip.rpc.call(self.vip_identity,
+                              "subscribe_to_vcp",
+                              "platforms/{}".format(self.vip_identity))
 
     # def __init__(self, platforms, address, address_type, serverkey=None,
     #              display_name=None):
@@ -689,6 +701,7 @@ class PlatformHandler(object):
 
     def _on_platform_message(self, peer, sender, bus, topic, headers, message):
 
+        self._log.debug("MESSAGE: {}".format(message))
         point_list = []
 
         for point, item in message.iteritems():
