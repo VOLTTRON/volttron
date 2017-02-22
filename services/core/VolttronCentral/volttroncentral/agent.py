@@ -222,15 +222,21 @@ class VolttronCentralAgent(Agent):
     def _handle_platform_connection(self, platform_vip_identity):
         _log.debug("Handling new platform connection {}".format(
             platform_vip_identity))
-        self._connected_platforms[platform_vip_identity] = dict()
+
+        self._platforms.add_platform(platform_vip_identity)
 
     def _handle_platform_disconnect(self, platform_vip_identity):
         _log.debug("Handling disconnection of connection from identity: {}".format(
             platform_vip_identity
         ))
-        del self._connected_platforms[platform_vip_identity]
+        # TODO send alert that there was a platform disconnect.
+        self._platforms.disconnect_platform(platform_vip_identity)
 
     def _scan_for_platforms(self):
+        """
+        Scan the local bus for peers that start with 'vcp-'.  Handle the
+        connection and disconnection events here.
+        """
         if self._platform_scan_event is not None:
             # This won't hurt anything if we are canceling ourselves.
             self._platform_scan_event.cancel()
@@ -238,20 +244,21 @@ class VolttronCentralAgent(Agent):
         # Identities of all platform agents that are connecting to us should
         # have an identity of platform.md5hash.
         connected_platforms = set([x for x in self.vip.peerlist().get(timeout=5)
-                                   if x.startswith('vcp.')])
+                                   if x.startswith('vcp-')])
 
-        disconnected = set(self._connected_platforms.keys()) - connected_platforms
+        disconnected = self._platforms.get_platform_keys() - connected_platforms
 
-        for id in disconnected:
-            self._handle_platform_disconnect(id)
+        for vip_id in disconnected:
+            self._handle_platform_disconnect(vip_id)
 
-        not_known = connected_platforms - set(self._connected_platforms.keys())
+        not_known = connected_platforms - self._platforms.get_platform_keys()
 
-        for id in not_known:
-            self._handle_platform_connection(id)
+        for vip_id in not_known:
+            self._handle_platform_connection(vip_id)
 
         next_platform_scan = VolttronCentralAgent._get_next_time_seconds()
 
+        # reschedule the next scan.
         self._platform_scan_event = self.core.schedule(
             next_platform_scan, self._scan_for_platforms)
 
@@ -1377,7 +1384,8 @@ class VolttronCentralAgent(Agent):
             # management related
 
             list_agents="get_agent_list",
-            get_devices="get_devices"
+            get_devices="get_devices",
+            status_agents="status_agents"
         )
 
         # These methods are specifically to be handled by the platform not any
@@ -1459,6 +1467,7 @@ class VolttronCentralAgent(Agent):
             enable_setup_mode=self._enable_setup_mode,
             disable_setup_mode=self._disable_setup_mode
         )
+
 
         if method in vc_methods:
             if not params:

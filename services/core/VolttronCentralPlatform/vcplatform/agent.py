@@ -282,7 +282,7 @@ class VolttronCentralPlatform(Agent):
         address_hash = hashlib.md5(external_addresses[0]).hexdigest()
         _log.debug('External hash is set using external_addresses[0] {}'.format(external_addresses[0]))
         self.current_config['address_hash'] = address_hash
-        self.current_config['instance_id'] = 'vcp.{}'.format(address_hash)
+        self.current_config['instance_id'] = 'vcp-{}'.format(address_hash)
         self.current_config['host'] = platform.uname()[1]
 
         # Connect to volttron central instance.
@@ -290,6 +290,14 @@ class VolttronCentralPlatform(Agent):
         # self.enable_registration = True
         # self._periodic_attempt_registration()
         # self._start_stats_publisher()
+
+    @RPC.export
+    def get_external_vip_addresses(self):
+        return self.current_config['local_external_addresses']
+
+    @RPC.export
+    def get_instance_name(self):
+        return self.current_config['instance_name']
 
     @RPC.export
     def get_public_keys(self):
@@ -300,6 +308,9 @@ class VolttronCentralPlatform(Agent):
         :rtype: dict
         """
         return self.control_connection.call('get_agents_publickeys')
+
+    def call(self, platform_method, *args, **kwargs):
+        return self.vip.rpc.call(platform_method, *args, **kwargs)
 
     def _address_type(self, address):
         """
@@ -333,6 +344,7 @@ class VolttronCentralPlatform(Agent):
                 secretkey=self.core.secretkey,
                 agent_class=VCConnection
             )
+            self.volttron_central_connection.set_main_agent(self)
 
     def _update_vcp_config(self, external_addresses, local_serverkey,
                            vc_address, vc_serverkey, instance_name):
@@ -732,7 +744,6 @@ class VolttronCentralPlatform(Agent):
         # self._was_unmanaged = True
 
     @RPC.export
-    @RPC.allow("manager")
     def list_agents(self):
         """
         RPC method to list the agents installed on the platform.
@@ -827,31 +838,23 @@ class VolttronCentralPlatform(Agent):
                                  agent_identity, config_name, raw).get(timeout=5)
         return data or ""
 
-    @RPC.export
-    @RPC.allow("manager")
     def start_agent(self, agent_uuid):
         self.vip.rpc.call(CONTROL, "start_agent", agent_uuid)
 
-    @RPC.export
-    @RPC.allow("manager")
+
     def stop_agent(self, agent_uuid):
         proc_result = self.vip.rpc.call(CONTROL, "stop_agent", agent_uuid)
 
-    @RPC.export
-    @RPC.allow("manager")
     def restart_agent(self, agent_uuid):
         self.vip.rpc.call(CONTROL, "restart_agent", agent_uuid)
         gevent.sleep(0.2)
         return self.agent_status(agent_uuid).get(timeout=5)
 
-    @RPC.export
-    @RPC.allow("manager")
     def agent_status(self, agent_uuid):
         return self.vip.rpc.call(CONTROL, "agent_status", agent_uuid).get(timeout=5)
 
-    @RPC.export
-    @RPC.allow("manager")
     def status_agents(self):
+        _log.debug('STATUS AGENTS')
         return self.vip.rpc.call(CONTROL, 'status_agents').get(timeout=5)
 
     @PubSub.subscribe('pubsub', 'devices')
@@ -862,8 +865,6 @@ class VolttronCentralPlatform(Agent):
     def _on_analysis_message(self, peer, sender, bus, topic, headers, message):
         pass
 
-    @RPC.export
-    @RPC.allow("manager")
     def get_devices(self):
         """
         RPC method for retrieving device data from the platform.
@@ -913,8 +914,6 @@ class VolttronCentralPlatform(Agent):
 
         return devices
 
-    @RPC.export
-    @RPC.allow("manager")
     def route_request(self, id, method, params):
         _log.debug(
             'platform agent routing request: {}, {}'.format(id, method))
