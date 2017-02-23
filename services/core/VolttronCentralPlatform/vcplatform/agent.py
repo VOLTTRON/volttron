@@ -818,22 +818,16 @@ class VolttronCentralPlatform(Agent):
                 a.update(uuid_to_status[a['uuid']])
         return agents
 
-    @RPC.export
-    @RPC.allow("manager")
     def store_agent_config(self, agent_identity, config_name, raw_contents,
                             config_type='raw'):
         _log.debug("Storeing configuration file: {}".format(config_name))
         self.vip.rpc.call(CONFIGURATION_STORE, "manage_store", agent_identity,
                           config_name, raw_contents, config_type)
 
-    @RPC.export
-    @RPC.allow("manager")
     def list_agent_configs(self, agent_identity):
         return self.vip.rpc.call(CONFIGURATION_STORE, "manage_list_configs",
                                  agent_identity).get(timeout=5)
 
-    @RPC.export
-    @RPC.allow("manager")
     def get_agent_config(self, agent_identity, config_name, raw=True):
         data = self.vip.rpc.call(CONFIGURATION_STORE, "manage_get",
                                  agent_identity, config_name, raw).get(timeout=5)

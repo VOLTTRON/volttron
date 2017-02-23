@@ -115,10 +115,6 @@ class VCConnection(Agent):
         """
         self._main_agent = main_agent
 
-    @Core.receiver("onstart")
-    def onstart(self, sender, **kwargs):
-        self._log.debug("Created VCConnection")
-
     @RPC.export
     def gather_devices(self):
         """
@@ -242,6 +238,44 @@ class VCConnection(Agent):
     @RPC.export
     def get_instance_name(self):
         return self._main_agent.get_instance_name()
+
+    @RPC.export
+    def list_agent_configs(self, agent_identity):
+        """
+        Retrieve the agent configurations associated with the agent identity
+        from vcp.
+
+        :param agent_identity:
+        :return:
+        """
+        self._main_agent.list_agent_configs(agent_identity)
+
+    @RPC.export
+    def get_agent_config(self, agent_identity, config_name, raw=True):
+        """
+        Retrieve the contents of an agent configuration.
+
+        :param agent_identity:
+        :param config_name:
+        :param raw:
+        :return:
+        """
+        self._main_agent.get_agent_config(agent_identity, config_name, raw)
+
+    @RPC.export
+    def store_agent_config(self, agent_identity, config_name, raw_contents,
+                           config_type='raw'):
+        """
+        Create or update configuration store for an agent.
+
+        :param agent_identity:
+        :param config_name:
+        :param raw_contents:
+        :param config_type:
+        :return:
+        """
+        self._main_agent.store_agent_config(agent_identity, config_name,
+                                            raw_contents, config_type)
 
     @RPC.export
     def start_agent(self, agent_uuid):
