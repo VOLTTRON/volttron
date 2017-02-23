@@ -720,9 +720,8 @@ class VolttronCentralPlatform(Agent):
         gevent.spawn_later(float(scan_length), stop_iam)
 
     def _pub_to_vc(self, topic_leaf, headers=None, message=None):
-        vc = self.get_vc_connection()
 
-        if not vc:
+        if not self.volttron_central_connection:
             _log.error('Platform must have connection to vc to publish {}'
                        .format(topic_leaf))
         else:
@@ -733,7 +732,9 @@ class VolttronCentralPlatform(Agent):
             _log.debug('Publishing to vc topic: {}'.format(topic))
             _log.debug('Publishing to vc headers: {}'.format(headers))
             _log.debug('Publishing to vc message: {}'.format(message))
-            vc.publish(topic=topic, headers=headers, message=message)
+            self.volttron_central_connection.publish_to_vc(topic=topic,
+                                                           headers=headers,
+                                                           message=message)
 
     @RPC.export
     @RPC.allow("manager")

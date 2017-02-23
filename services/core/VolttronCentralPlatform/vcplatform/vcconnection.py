@@ -99,6 +99,7 @@ class VCConnection(Agent):
     to it.  The volttron.central agent will use this agent to communicate with
     the platform.agent(vcp) running on the current instance of the platform.
     """
+
     def __init__(self, **kwargs):
         self._log = logging.getLogger(self.__class__.__name__)
         super(VCConnection, self).__init__(**kwargs)
@@ -127,6 +128,32 @@ class VCConnection(Agent):
         :return: dictionary of devices.
         """
         return self._main_agent.get_devices()
+
+    @RPC.export
+    def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
+                          high_device_id=None, target_address=None,
+                          scan_length=5):
+        """
+        Starts a bacnet scan using the bacnet proxy identity that is passed.
+        The responses will be published to the iam_topic on volttron central.
+
+        .. Note::
+
+            The iam_topic should be subscribed iam_topic via  before
+            calling this method.
+
+        :param iam_topic:
+        :param proxy_identity:
+        :param low_device_id:
+        :param high_device_id:
+        :param target_address:
+        :param scan_length:
+        :return:
+        """
+        self._main_agent.start_bacnet_scan(iam_topic, proxy_identity,
+                                           low_device_id, high_device_id,
+                                           target_address, scan_length)
+
 
     @RPC.export
     def publish_bacnet_props(self, proxy_identity, publish_topic, address,
@@ -168,6 +195,7 @@ class VCConnection(Agent):
         :param message:
         :param headers:
         """
+        # Publishing to local connectino (Which is connected to volttron.centrl)
         self.vip.pubsub.publish('pubsub', topic, headers, message)
 
     @RPC.export
