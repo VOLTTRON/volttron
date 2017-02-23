@@ -24,7 +24,8 @@ class ConfigDeviceForm extends BaseComponent {
             this.state.driver_config = initializeDriverConfig(
                 this.props.config.driver_config.device_address, 
                 this.props.config.driver_config.device_id,
-                this.props.config.driver_config.proxy_address
+                this.props.config.driver_config.proxy_address,
+                this.props.config.driver_config.max_per_request
             );
 
             var nameParts = this.props.device.name.split("/");
@@ -55,7 +56,8 @@ class ConfigDeviceForm extends BaseComponent {
             this.state.driver_config = initializeDriverConfig(
                 this.props.device.address, 
                 this.props.device.id, 
-                this.props.device.bacnetProxy
+                this.props.device.bacnetProxy,
+                this.props.device.max_per_request
             );
 
             this.state.physicalDeviceName = this.props.device.name;
@@ -373,11 +375,12 @@ class ConfigDeviceForm extends BaseComponent {
     }
 };
 
-var initializeDriverConfig = (address, id, bacnetProxy) => {
+var initializeDriverConfig = (address, id, bacnetProxy, max_per_request) => {
     var driver_config = {
         device_address: address,
         device_id: id,
-        proxy_address: bacnetProxy
+        proxy_address: bacnetProxy,
+        max_per_request: max_per_request
     };
 
     return driver_config;
@@ -397,8 +400,13 @@ var initializeSettings = (type, savedConfig, settingsTemplate) => {
                     label: "Driver Type",
                     type: "text"
                 },
+                max_per_request: {
+                    value: 60,
+                    label: "Maximum Per Request",
+                    type: "number"
+                },
                 interval: {
-                    value: "", 
+                    value: 60,
                     label: "Interval (seconds)",
                     type: "number"
                 },
@@ -415,16 +423,6 @@ var initializeSettings = (type, savedConfig, settingsTemplate) => {
                 minimum_priority: {
                     value: 8, 
                     label: "Minimum Priority",
-                    type: "number"
-                },
-                max_per_request: {
-                    value: "", 
-                    label: "Maximum Objects per Request",
-                    type: "number"
-                },
-                max_objs_per_read: {
-                    value: "", 
-                    label: "Maximum Objects per Read",
                     type: "number"
                 },
                 publish_depth_first: {
