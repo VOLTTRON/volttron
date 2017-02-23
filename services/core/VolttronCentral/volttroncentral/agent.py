@@ -220,13 +220,13 @@ class VolttronCentralAgent(Agent):
         return next_time
 
     def _handle_platform_connection(self, platform_vip_identity):
-        _log.debug("Handling new platform connection {}".format(
+        _log.info("Handling new platform connection {}".format(
             platform_vip_identity))
 
         self._platforms.add_platform(platform_vip_identity)
 
     def _handle_platform_disconnect(self, platform_vip_identity):
-        _log.debug("Handling disconnection of connection from identity: {}".format(
+        _log.warn("Handling disconnection of connection from identity: {}".format(
             platform_vip_identity
         ))
         # TODO send alert that there was a platform disconnect.
@@ -607,6 +607,7 @@ class VolttronCentralAgent(Agent):
 
         if len(topicsplit) < 3:
             _log.warn("Invalid topic length no operation or datatype.")
+            _log.warn("Topic was {}".format(topic))
             return
 
         _, platform_uuid, op_or_datatype, other = topicsplit[0], \
