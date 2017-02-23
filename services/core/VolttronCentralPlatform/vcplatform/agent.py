@@ -537,7 +537,7 @@ class VolttronCentralPlatform(Agent):
             address_hash = hashlib.md5(self.core.address).hexdigest()
             self.current_config['address_hash'] = address_hash
             vcp_identity_on_vc += address_hash
-            vc_serverkey = self.current_config['volttron_central_serverkey']
+            vc_serverkey = self.current_config['volttron_connect_serverkey']
             self.vc_connection = build_agent(
                 self.core.address,
                 #peer=VOLTTRON_CENTRAL,
