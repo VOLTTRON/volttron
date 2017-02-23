@@ -397,14 +397,16 @@ class PlatformHandler(object):
         return self._health.as_dict()
 
     def call(self, platform_method, *args, **kwargs):
+        """
+        Calls a method on a vcp platform.
 
-        peer = kwargs.pop('peer', self.vip_identity)
-        self._log.debug("Platform handler call peer: {} method: {}, args: {}, kwargs: {}".format(
-            peer, platform_method, args, kwargs
-        ))
-        return self._vc.vip.rpc.call(
-            peer=peer,
-            method=platform_method, *args, **kwargs).get(timeout=20)
+        :param platform_method:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        return self._vc.vip.rpc.call(self.vip_identity, platform_method, *args,
+                                     **kwargs).get(timeout=60)
 
     def status_agents(self, session_user, params):
         return self.call("status_agents")
@@ -702,20 +704,20 @@ class PlatformHandler(object):
     def _on_platform_message(self, peer, sender, bus, topic, headers, message):
 
         self._log.debug("MESSAGE: {}".format(message))
-        point_list = []
-
-        for point, item in message.iteritems():
-            point_list.append(point)
-
-        stats = {
-            'topic': topic,
-            'points': point_list,
-            'last_published_utc': format_timestamp(get_aware_utc_now())
-        }
-
-        config = deepcopy(self._vc.vip.config.get(self.config_store_name))
-        config['stats_point_list'] = stats
-        self._vc.vip.config.set(self.config_store_name, config)
+        # point_list = []
+        #
+        # for point, item in message.iteritems():
+        #     point_list.append(point)
+        #
+        # stats = {
+        #     'topic': topic,
+        #     'points': point_list,
+        #     'last_published_utc': format_timestamp(get_aware_utc_now())
+        # }
+        #
+        # config = deepcopy(self._vc.vip.config.get(self.config_store_name))
+        # config['stats_point_list'] = stats
+        # self._vc.vip.config.set(self.config_store_name, config)
 
     def _on_stats_published(self, peer, sender, bus, topic, headers, message):
         self._log.debug('STATS PUBLISHERD: {}'.format(message))
