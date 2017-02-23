@@ -157,7 +157,7 @@ class VCConnection(Agent):
                                               prefix,
                                               subscription_wrapper)
 
-        self.publish_to_vc(prefix, "WE DID IT!")
+        self._main_agent.vip.pubsub.publish(prefix, "WE DID IT!")
 
     def publish_to_vc(self, topic, message, headers={}):
         """
