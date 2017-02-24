@@ -2,11 +2,8 @@ import os
 
 import gevent
 import pytest
-import requests
 
 from vctestutils import APITester
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL
-from volttron.platform.keystore import KeyStore
 from volttron.platform.messaging.health import STATUS_GOOD
 from volttrontesting.utils.core_service_installs import add_volttron_central, \
     add_volttron_central_platform
@@ -32,7 +29,7 @@ def vc_vcp_platforms(request):
 
     vcp_uuid = add_volttron_central_platform(vcp)
     vc_uuid = add_volttron_central(vc)
-    
+
     # Give the agents a chance to do stuff.
     gevent.sleep(2)
 
@@ -93,6 +90,8 @@ def test_autoregister_external(vc_vcp_platforms):
 
 
 @pytest.mark.vc
+@pytest.mark.skipif(os.environ.get("CI") is not None,
+                    reason="Flaky on travis-ci for some reason")
 def test_autoregister_local(both_with_vc_vcp):
 
     api = APITester(both_with_vc_vcp.jsonrpc_endpoint)
