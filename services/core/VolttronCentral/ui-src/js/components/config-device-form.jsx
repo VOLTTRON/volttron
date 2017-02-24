@@ -24,8 +24,7 @@ class ConfigDeviceForm extends BaseComponent {
             this.state.driver_config = initializeDriverConfig(
                 this.props.config.driver_config.device_address, 
                 this.props.config.driver_config.device_id,
-                this.props.config.driver_config.proxy_address,
-                this.props.config.driver_config.max_per_request
+                this.props.config.driver_config.proxy_address
             );
 
             var nameParts = this.props.device.name.split("/");
@@ -56,8 +55,7 @@ class ConfigDeviceForm extends BaseComponent {
             this.state.driver_config = initializeDriverConfig(
                 this.props.device.address, 
                 this.props.device.id, 
-                this.props.device.bacnetProxy,
-                this.props.device.max_per_request
+                this.props.device.bacnetProxyIdentity
             );
 
             this.state.physicalDeviceName = this.props.device.name;
@@ -375,12 +373,11 @@ class ConfigDeviceForm extends BaseComponent {
     }
 };
 
-var initializeDriverConfig = (address, id, bacnetProxy, max_per_request) => {
+var initializeDriverConfig = (address, id, bacnetProxy) => {
     var driver_config = {
         device_address: address,
         device_id: id,
-        proxy_address: bacnetProxy,
-        max_per_request: max_per_request
+        proxy_address: bacnetProxy
     };
 
     return driver_config;

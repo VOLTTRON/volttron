@@ -1308,6 +1308,12 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _reconfiguration = action.configuration;
             _reconfiguration.deviceName = action.deviceName.replace("devices/", "");
 
+            _reconfiguration.max_per_request = _reconfiguration.driver_config.max_per_request;
+            _reconfiguration.minimum_priority = _reconfiguration.driver_config.minimum_priority;
+
+            delete _reconfiguration.driver_config.max_per_request;
+            delete _reconfiguration.driver_config.minimum_priority;
+
             _platform = {
                 "uuid": action.platformUuid
             };
