@@ -398,7 +398,7 @@ var initializeSettings = (type, savedConfig, settingsTemplate) => {
                     type: "text"
                 },
                 max_per_request: {
-                    value: 60,
+                    value: 10000,
                     label: "Maximum Per Request",
                     type: "number"
                 },
