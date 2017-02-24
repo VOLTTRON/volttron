@@ -73,6 +73,7 @@ import base64
 import binascii
 from contextlib import contextmanager
 import logging
+import re
 import sys
 import urllib
 import urlparse
