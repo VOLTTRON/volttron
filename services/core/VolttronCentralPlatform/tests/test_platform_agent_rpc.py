@@ -103,7 +103,7 @@ def test_can_call_rpc_method(vcp_conn):
 def test_can_get_version(vcp_conn):
     version = vcp_conn.call('agent.version', timeout=2)
     assert version is not None
-    assert version == '3.6.0'
+    assert version == '4.0'
 
 
 @pytest.mark.vcp
