@@ -141,6 +141,47 @@ class VCConnection(Agent):
             filter=[])
 
     @RPC.export
+    def store_agent_config(self, agent_identity, config_name, raw_contents,
+                           config_type='raw'):
+        """
+        Store an agent configuration on the volttron instance associated with
+        this agent.
+
+        :param agent_identity:
+        :param config_name:
+        :param raw_contents:
+        :param config_type:
+        :return: None
+        """
+        return self._main_agent.store_agent_config(agent_identity, config_name,
+                                            raw_contents, config_type)
+
+    @RPC.export
+    def list_agent_configs(self, agent_identity):
+        """
+        List the agent configuration files stored on the volttron instance
+        associated with this agent.
+
+        :param agent_identity: Agent identity to retrieve configuration from.
+        :return: A list of the configuration names.
+        """
+        return self._main_agent.list_agent_configs(agent_identity)
+
+    @RPC.export
+    def get_agent_config(self, agent_identity, config_name, raw=True):
+        """
+        Retrieve the configuration from the config store of the passed agent
+        identity.
+
+        :param agent_identity:
+        :param config_name:
+        :param raw:
+        :return: The stored configuration.
+        """
+        return self._main_agent.get_agent_config(agent_identity, config_name,
+                                                 raw)
+
+    @RPC.export
     def subscribe_to_vcp(self, prefix):
         """
         Allows volttron.central to listen to the message bus on vcp instance.
