@@ -114,12 +114,81 @@ class VCConnection(Agent):
         """
         self._main_agent = main_agent
 
-    @Core.receiver("onstart")
-    def onstart(self, sender, **kwargs):
-        self._log.debug("Created VCConnection")
+    @RPC.export
+    def get_instance_uuid(self):
+        """
+        Retrieve the instance uuid for the vcp agent's instance.
+
+        :return:
+        """
+        return self._main_agent.get_instance_uuid()
 
     @RPC.export
-    def gather_devices(self):
+    def get_health(self):
+        """
+        Retrieve the health of the vcp agent.
+
+        :return:
+        """
+        return self._main_agent.vip.health.get_status()
+
+    @RPC.export
+    def start_agent(self, agent_uuid):
+        """
+        Start an agent that is already present on the vcp instance.
+
+        :param agent_uuid:
+        :return:
+        """
+        return self._main_agent.start_agent(agent_uuid)
+
+    @RPC.export
+    def stop_agent(self, agent_uuid):
+        """
+        Stop an agent already running on the vcp instance.
+
+        :param agent_uuid:
+        :return:
+        """
+        return self._main_agent.start_agent(agent_uuid)
+
+    @RPC.export
+    def restart(self, agent_uuid):
+        """
+        Performs the stop and start operations on the vcp instance for an agent.
+
+        :param agent_uuid:
+        :return:
+        """
+        stop_result = self.stop_agent(agent_uuid)
+        start_result = self.start_agent(agent_uuid)
+
+        return (stop_result, start_result)
+
+    @RPC.export
+    def agent_status(self, agent_uuid):
+        """
+        Retrieves the status of a particular agent executing on the vcp
+        instance.  The agent does not have to be executing in order to receive
+        it's status.
+
+        :param agent_uuid:
+        :return:
+        """
+        return self._main_agent.agent_status(agent_uuid)
+
+    @RPC.export
+    def status_agents(self):
+        """
+        Return all of the installed agents' statuses for the vcp instance.
+
+        :return:
+        """
+        return self._main_agent.status_agents()
+
+
+    @RPC.export
+    def get_devices(self):
         """
         Retrieves configuration entries from the config store that begin with
         'devices'.

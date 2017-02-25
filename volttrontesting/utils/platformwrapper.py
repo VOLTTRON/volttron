@@ -794,7 +794,20 @@ class PlatformWrapper:
                 pid = None
         except CalledProcessError as ex:
             _log.error("Exception: {}".format(ex))
-        _log.debug("AGENT_PID: {}".format(pid))
+
+        # Handle the following exception that seems to happen when getting a pid of
+        # an agent during the platform shutdown phase.
+        # Logged from file platformwrapper.py, line 797
+        #   AGENT             IDENTITY          TAG STATUS
+        # Traceback (most recent call last):
+        #   File "/usr/lib/python2.7/logging/__init__.py", line 882, in emit
+        #     stream.write(fs % msg)
+        #   File "/home/volttron/git/volttron/env/local/lib/python2.7/site-packages/_pytest/capture.py", line 244, in write
+        #     self.buffer.write(obj)
+        # ValueError: I/O operation on closed file
+        except ValueError:
+            pass
+        # _log.debug("AGENT_PID: {}".format(pid))
         return pid
 
     def build_agentpackage(self, agent_dir, config_file={}):

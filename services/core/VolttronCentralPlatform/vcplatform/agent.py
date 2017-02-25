@@ -611,21 +611,12 @@ class VolttronCentralPlatform(Agent):
         _log.debug("Getting health: {}".format(self.vip.health.get_status()))
         return self.vip.health.get_status()
 
-    @RPC.export
-    @RPC.allow("manager")
     def get_instance_uuid(self):
         _log.debug('ADDRESS HASH for {} is {}'.format(
             self.current_config.get('local_external_addresses')[0],
             self.current_config.get("address_hash")))
         return self.current_config.get('address_hash')
 
-    @RPC.export
-    @RPC.allow("manager")
-    def get_publickey(self):
-        return self.core.publickey
-
-    @RPC.export
-    @RPC.allow("manager")
     def manage(self, address):
         """ Allows the `VolttronCentralPlatform` to be managed.
 
@@ -736,14 +727,6 @@ class VolttronCentralPlatform(Agent):
             vc.publish(topic=topic, headers=headers, message=message)
 
     @RPC.export
-    @RPC.allow("manager")
-    def unmanage(self):
-        pass
-        # self._is_registering = False
-        # self._is_registered = False
-        # self._was_unmanaged = True
-
-    @RPC.export
     def list_agents(self):
         """
         RPC method to list the agents installed on the platform.
@@ -838,6 +821,7 @@ class VolttronCentralPlatform(Agent):
 
     def stop_agent(self, agent_uuid):
         proc_result = self.vip.rpc.call(CONTROL, "stop_agent", agent_uuid)
+        return proc_result
 
     def restart_agent(self, agent_uuid):
         self.vip.rpc.call(CONTROL, "restart_agent", agent_uuid)
