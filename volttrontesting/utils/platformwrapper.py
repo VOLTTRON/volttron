@@ -169,6 +169,11 @@ class PlatformWrapper:
         for agents that are built.
         """
 
+        # This is hopefully going to keep us from attempting to shutdown
+        # multiple times.  For example if a fixture calls shutdown and a
+        # lower level fixture calls shutdown, this won't hang.
+        self._instance_shutdown = False
+
         self.volttron_home = tempfile.mkdtemp()
         self.packaged_dir = os.path.join(self.volttron_home, "packaged")
         os.makedirs(self.packaged_dir)
@@ -233,16 +238,21 @@ class PlatformWrapper:
 
     def build_connection(self, peer=None, address=None, identity=None,
                          publickey=None, secretkey=None, serverkey=None,
-                         capabilities=[], **kwargs):
-
+                         capabilities=[], caplog=None, **kwargs):
+        caplog.debug('Building connection to {}'.format(peer))
         self.allow_all_connections()
 
         if address is None:
+            caplog.debug(
+                'Default address was None so setting to current instances')
             address = self.vip_address
             serverkey = self.serverkey
+        if serverkey is None:
+            caplog.error("serverkey wasn't set but the address was.")
+            raise Exception("Invalid state.")
 
         if publickey is None or secretkey is None:
-            self.logit('generating new public secret key pair')
+            caplog.debug('generating new public secret key pair')
             keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
             keys = KeyStore(keyfile)
             keys.generate()
@@ -877,6 +887,10 @@ class PlatformWrapper:
         pids are still running then kill them.
         """
 
+        # Handle cascading calls from multiple levels of fixtures.
+        if self._instance_shutdown:
+           return
+
         running_pids = []
 
         for agnt in self.list_agents():
@@ -928,6 +942,7 @@ class PlatformWrapper:
         if not self.skip_cleanup:
             self.logit('Removing {}'.format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)
+        self._instance_shutdown = True
 
     def __repr__(self):
         return str(self)
