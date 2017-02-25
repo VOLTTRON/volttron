@@ -187,6 +187,7 @@ class PlatformWrapper:
             'DEBUG': os.environ.get('DEBUG', ''),
             'PATH': VOLTTRON_ROOT+':'+os.environ['PATH']
         }
+        self.volttron_root = VOLTTRON_ROOT
 
         # By default no web server should be started.
         self.bind_web_address = None

@@ -205,13 +205,15 @@ def test_can_remove_agent(volttron_instance):
     assert agent_uuid is not None
     started = volttron_instance.start_agent(agent_uuid)
     assert started is not None
-    assert volttron_instance.agent_status(agent_uuid) is not None
+    pid = volttron_instance.agent_pid(agent_uuid)
+    assert pid is not None and pid > 0
 
     # Now attempt removal
     volttron_instance.remove_agent(agent_uuid)
 
     # Confirm that it has been removed.
-    assert volttron_instance.agent_status(agent_uuid) is None
+    pid = volttron_instance.agent_pid(agent_uuid)
+    assert pid is None
 
 
 messages = {}
