@@ -244,7 +244,7 @@ class PlatformWrapper:
         self.allow_all_connections()
 
         if address is None:
-            self._logit(
+            self.logit(
                 'Default address was None so setting to current instances')
             address = self.vip_address
             serverkey = self.serverkey
