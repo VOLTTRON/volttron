@@ -239,21 +239,21 @@ class PlatformWrapper:
 
     def build_connection(self, peer=None, address=None, identity=None,
                          publickey=None, secretkey=None, serverkey=None,
-                         capabilities=[], caplog=None, **kwargs):
-        caplog.debug('Building connection to {}'.format(peer))
+                         capabilities=[], **kwargs):
+        self.logit('Building connection to {}'.format(peer))
         self.allow_all_connections()
 
         if address is None:
-            caplog.debug(
+            self._logit(
                 'Default address was None so setting to current instances')
             address = self.vip_address
             serverkey = self.serverkey
         if serverkey is None:
-            caplog.error("serverkey wasn't set but the address was.")
+            self.logit("serverkey wasn't set but the address was.")
             raise Exception("Invalid state.")
 
         if publickey is None or secretkey is None:
-            caplog.debug('generating new public secret key pair')
+            self.logit('generating new public secret key pair')
             keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
             keys = KeyStore(keyfile)
             keys.generate()
