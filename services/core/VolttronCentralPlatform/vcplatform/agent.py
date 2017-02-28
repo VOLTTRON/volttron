@@ -665,10 +665,19 @@ class VolttronCentralPlatform(Agent):
 
     def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
                           high_device_id=None, target_address=None,
-                          scan_length=5):
+                          scan_length=5, instance_address=None,
+                          instance_serverkey=None):
         """This function is a wrapper around the bacnet proxy scan.
         """
-        if proxy_identity not in self.vip.peerlist().get(timeout=5):
+        agent_to_use = self
+        if instance_address is not None:
+            agent_to_use = build_agent(address=instance_address,
+                                       identity="proxy_bacnetplatform",
+                                       publickey=self.core.publickey,
+                                       secretkey=self.core.secretkey,
+                                       serverkey=instance_serverkey)
+
+        if proxy_identity not in agent_to_use.vip.peerlist().get(timeout=5):
             raise Unreachable("Can't reach agent identity {}".format(
                 proxy_identity))
         _log.info('Starting bacnet_scan with who_is request to {}'.format(
@@ -678,7 +687,7 @@ class VolttronCentralPlatform(Agent):
             proxy_identity = sender
             address = message['address']
             device_id = message['device_id']
-            bn = BACnetReader(self.vip.rpc, proxy_identity)
+            bn = BACnetReader(agent_to_use.vip.rpc, proxy_identity)
             message['device_name'] = bn.read_device_name(address, device_id)
             message['device_description'] = bn.read_device_description(
                 address,
@@ -693,19 +702,20 @@ class VolttronCentralPlatform(Agent):
                 status="FINISHED IAM",
                 timestamp=stop_timestamp
             ))
-            self.vip.pubsub.unsubscribe('pubsub', topics.BACNET_I_AM,
+            agent_to_use.vip.pubsub.unsubscribe('pubsub', topics.BACNET_I_AM,
                                         handle_iam)
 
-        self.vip.pubsub.subscribe('pubsub', topics.BACNET_I_AM, handle_iam)
+        agent_to_use.vip.pubsub.subscribe('pubsub', topics.BACNET_I_AM, handle_iam)
 
         timestamp = get_utc_seconds_from_epoch()
 
         self._pub_to_vc(iam_topic, message=dict(status="STARTED IAM",
                                                 timestamp=timestamp))
 
-        self.vip.rpc.call(proxy_identity, "who_is", low_device_id=low_device_id,
-                          high_device_id=high_device_id,
-                          target_address=target_address).get(timeout=5.0)
+        agent_to_use.vip.rpc.call(proxy_identity, "who_is",
+                                  low_device_id=low_device_id,
+                                  high_device_id=high_device_id,
+                                  target_address=target_address).get(timeout=5.0)
 
         gevent.spawn_later(float(scan_length), stop_iam)
 
