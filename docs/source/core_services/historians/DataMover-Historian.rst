@@ -3,12 +3,12 @@ DataMover Historian
 ===================
 
 DataMover sends data from its platform to a remote platform in cases where
- there is not sufficient resources to store locally. It shares this
+there is not sufficient resources to store locally. It shares this
 functionality with the :ref:`Forward Historian <ForwardHistorian>`,
- however DataMover does not have a goal of data appearing "live" on the
+However DataMover does not have a goal of data appearing "live" on the
 remote platform. This allows DataMover to be more efficient by both batching
 data and by sending an RCP call to a remote historian instead of publishing
- data on the remote message bus. This allows allows DataMover to be more
+data on the remote message bus. This allows allows DataMover to be more
 robust by ensuring that the receiving historian is running. If the target is
 unreachable, DataMover will cache data until it is available.
 
@@ -36,11 +36,11 @@ point towards the foreign Volttron instance.
 
 
 The **services_topic_list** allows you to sepcify which of the main data topics
- to forward. If there is no entry, the historian defaults to sending all.
+to forward. If there is no entry, the historian defaults to sending all.
 
 **topic_replace_list** allows you to replace portions of topics if needed. This
- could be used to correct or standardize topics or to replace building/device
- names with an anonymized version. The receiving platform will only see the
+could be used to correct or standardize topics or to replace building/device
+names with an anonymized version. The receiving platform will only see the
 replaced values.
 
 

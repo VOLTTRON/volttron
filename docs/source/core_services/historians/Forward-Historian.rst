@@ -28,7 +28,7 @@ point towards the foreign Volttron instance.
     }
 
 In order to send to a remote platform, you will need its VIP address and server
- key. The server key can be found by running
+key. The server key can be found by running
 
 ::
 
