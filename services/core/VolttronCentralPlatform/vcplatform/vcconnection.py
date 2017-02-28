@@ -114,6 +114,41 @@ class VCConnection(Agent):
         """
         self._main_agent = main_agent
 
+    def publish_to_vc(self, topic, message, headers={}):
+        """
+        This method allows the main_agent to publish a message up to the
+        volttron.central instance.
+
+        :param topic:
+        :param message:
+        :param headers:
+        """
+        self.vip.pubsub.publish('pubsub', topic, headers, message)
+
+    @RPC.export
+    def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
+                          high_device_id=None, target_address=None,
+                          scan_length=5):
+        """
+        Starts a bacnet scan using the the named proxy_identity as the callee.
+
+
+        :param iam_topic:
+        :param proxy_identity:
+        :param low_device_id:
+        :param high_device_id:
+        :param target_address:
+        :param scan_length:
+        :return:
+        """
+        self._main_agent.start_bacnet_scan(iam_topic=iam_topic,
+                                           proxy_identity=proxy_identity,
+                                           low_device_id=low_device_id,
+                                           high_device_id=high_device_id,
+                                           target_address=target_address,
+                                           scan_length=scan_length)
+
+
     @RPC.export
     def get_instance_uuid(self):
         """
@@ -269,17 +304,6 @@ class VCConnection(Agent):
 
         self._main_agent.vip.pubsub.publish(prefix, "WE DID IT!")
 
-    def publish_to_vc(self, topic, message, headers={}):
-        """
-        This method allows the main_agent to publish a message up to the
-        volttron.central instance.
-
-        :param topic:
-        :param message:
-        :param headers:
-        """
-        self.vip.pubsub.publish('pubsub', topic, headers, message)
-
     @RPC.export
     def call(self, platform_method, *args, **kwargs):
         return self._main_agent.call(platform_method, *args, **kwargs)
@@ -407,3 +431,12 @@ class VCConnection(Agent):
         :return:
         """
         return self._main_agent.list_agents()
+
+    @RPC.export
+    def install_agent(self, local_wheel_file):
+        """
+        Installs
+        :param local_wheel_file:
+        :return:
+        """
+        return self._main_agent.install_agent

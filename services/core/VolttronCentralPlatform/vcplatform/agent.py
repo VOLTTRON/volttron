@@ -663,7 +663,6 @@ class VolttronCentralPlatform(Agent):
 
         return "PUBLISHING"
 
-    @RPC.export
     def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
                           high_device_id=None, target_address=None,
                           scan_length=5):
@@ -724,7 +723,9 @@ class VolttronCentralPlatform(Agent):
             _log.debug('Publishing to vc topic: {}'.format(topic))
             _log.debug('Publishing to vc headers: {}'.format(headers))
             _log.debug('Publishing to vc message: {}'.format(message))
-            vc.publish(topic=topic, headers=headers, message=message)
+            # Note because vc is a vcconnection object we are explicitly
+            # saying to publish to the vc platform.
+            vc.publish_to_vc(topic=topic, headers=headers, message=message)
 
     @RPC.export
     def list_agents(self):
@@ -816,11 +817,13 @@ class VolttronCentralPlatform(Agent):
         return data or ""
 
     def start_agent(self, agent_uuid):
-        self.vip.rpc.call(CONTROL, "start_agent", agent_uuid)
+        self.vip.rpc.call(CONTROL, "start_agent", agent_uuid).get(timeout=5)
 
 
     def stop_agent(self, agent_uuid):
-        proc_result = self.vip.rpc.call(CONTROL, "stop_agent", agent_uuid)
+        _log.debug("Stopping agent: {}".format(agent_uuid))
+        proc_result = self.vip.rpc.call(CONTROL, "stop_agent",
+                                        agent_uuid).get(timeout=5)
         return proc_result
 
     def restart_agent(self, agent_uuid):
