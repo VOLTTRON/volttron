@@ -55,7 +55,7 @@ class ConfigDeviceForm extends BaseComponent {
             this.state.driver_config = initializeDriverConfig(
                 this.props.device.address, 
                 this.props.device.id, 
-                this.props.device.bacnetProxy
+                this.props.device.bacnetProxyIdentity
             );
 
             this.state.physicalDeviceName = this.props.device.name;
@@ -397,8 +397,13 @@ var initializeSettings = (type, savedConfig, settingsTemplate) => {
                     label: "Driver Type",
                     type: "text"
                 },
+                max_per_request: {
+                    value: 10000,
+                    label: "Maximum Per Request",
+                    type: "number"
+                },
                 interval: {
-                    value: "", 
+                    value: 60,
                     label: "Interval (seconds)",
                     type: "number"
                 },
@@ -415,16 +420,6 @@ var initializeSettings = (type, savedConfig, settingsTemplate) => {
                 minimum_priority: {
                     value: 8, 
                     label: "Minimum Priority",
-                    type: "number"
-                },
-                max_per_request: {
-                    value: "", 
-                    label: "Maximum Objects per Request",
-                    type: "number"
-                },
-                max_objs_per_read: {
-                    value: "", 
-                    label: "Maximum Objects per Read",
                     type: "number"
                 },
                 publish_depth_first: {

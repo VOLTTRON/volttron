@@ -526,6 +526,12 @@ var devicesActionCreators = {
 
         config.publish_depth_first = true;
 
+        config.driver_config.max_per_request = config.max_per_request;
+        config.driver_config.minimum_priority = config.minimum_priority;
+
+        delete config.max_per_request;
+        delete config.minimum_priority;
+
         var params = {
             platform_uuid: device.platformUuid, 
             agent_identity: "platform.driver", 
