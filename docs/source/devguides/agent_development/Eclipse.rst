@@ -1,3 +1,4 @@
+.. _Eclipse:
 Agent Development in Eclipse
 ============================
 
@@ -175,7 +176,7 @@ Figure 16. Checking Out VOLTTRON with Eclipse GitHub (continued)
 .. image:: files/17-check-volttron-from-github.jpg
 Figure 17. Checking Out VOLTTRON with Eclipse from GitHub (continued)
 
-5. Select the 3.x branch (Figure 18).
+5. Select the master branch (Figure 18).
 
 .. image:: files/18-check-volttron-from-github.jpg
 Figure 18. Checking Out VOLTTRON with Eclipse from GitHub (continued)
@@ -247,7 +248,7 @@ Figure 27. Running VOLTTRON Platform, Setting Up a Run Configuration (continued)
 
 3. Change the name (any name may be used but for this example the name VOLTTRON was chosen) and select the main module (``<project directory>/volttron/platform/main.py``).
 
-4. Select the Arguments tab and enter '-vv --developer-mode' in the Program arguments field (Figure 28) then select the Run button.
+4. Select the Arguments tab and enter '-vv' in the Program arguments field (Figure 28) then select the Run button.
 
 .. image:: files/28-running-volttron.jpg
 Figure 28. Running VOLTTRON Platform, Setting Up a Run Configuration (continued)
@@ -483,11 +484,14 @@ Figure 37. TestAgent Output In VOLTTRON Log
 Running the TestAgent in Eclipse
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. warning::
+    Before attempting to run an agent in Eclipse, please see the note in: :ref:`AgentDevelopment <Agent_Development>`
+
 If you are working in Eclipse, create a run configuration for the TestAgent based on the Listener agent configuration in the Eclipse development environment ##(Section 5.5.5 Running the VOLTTRON Platform and Agents)##.
 
 1. Launch the platform (##Section 5.5.5.1 Setup a Run Configuration for the Platform##)
 
-2. Launch the TestAgent by following the steps outlined in ##Section 5.5.5.2 *Configure a Run Configuration for the Listener Agent*## for launching the Listener agent.
+2. Launch the TestAgent by following the steps outlined in `Launching the Listener <Start-Listener-Eclipse>` for launching the Listener agent.
 
 3. Launch the Listener agent. TestAgent should start receiving the heartbeats from Listener agent and the following should be displayed in the console (Figure 38).
 

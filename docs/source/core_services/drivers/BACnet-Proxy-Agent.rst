@@ -148,12 +148,10 @@ a device on the first network
 
     {
         "driver_config": {"device_address": "1002:12",
-                          "proxy_address": "platform.bacnet_proxy_47808" },
-        "campus": "campus",
-        "building": "building",
-        "unit": "bacnet1",
+                          "proxy_address": "platform.bacnet_proxy_47808",
+                          "timeout": 10},
         "driver_type": "bacnet",
-        "registry_config":"/home/kyle/configs/bacnet.csv",
+        "registry_config":"config://registry_configs/bacnet.csv",
         "interval": 60,
         "timezone": "UTC",
         "heart_beat_point": "Heartbeat"
@@ -165,17 +163,18 @@ and a device on the second network
 
     {
         "driver_config": {"device_address": "12000:5",
-                          "proxy_address": "platform.bacnet_proxy_47809" },
-        "campus": "campus",
-        "building": "building",
-        "unit": "bacnet2",
+                          "proxy_address": "platform.bacnet_proxy_47809",
+                          "timeout": 10},
         "driver_type": "bacnet",
-        "registry_config":"/home/kyle/configs/bacnet.csv",
+        "registry_config":"config://registry_configs/bacnet.csv",
         "interval": 60,
         "timezone": "UTC",
         "heart_beat_point": "Heartbeat"
     }
 
 Notice that both configs use the same registry configuration
-(/home/kyle/configs/bacnet.csv). This is perfectly fine as long as the
+(config://registry_configs/bacnet.csv). This is perfectly fine as long as the
 registry configuration is appropriate for both devices.
+For scraping large numbers of points from a single BACnet device, 
+there is an optional timeout parameter provided, to prevent the master driver 
+timing out while the BACnet Proxy Agent is collecting points.

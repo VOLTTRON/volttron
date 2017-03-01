@@ -266,7 +266,7 @@ var GraphLineChart = OutsideClick(React.createClass({
   },
   _onMinChange: function (e) {
       var min = e.target.value;
-      
+
       platformChartActionCreators.setMin(min, this.props.name);
 
       if (this.state.pinned)

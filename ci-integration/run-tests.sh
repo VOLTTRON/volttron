@@ -3,11 +3,11 @@
 export CI=travis
 export FAST_FAIL=1
 
-# The context should already have been activated at this point.
 
+# The context should already have been activated at this point.
 #pip install pymongo pytest pytest-bdd pytest-cov
-pip install mock --upgrade
-pip install pytest pytest-timeout --upgrade
+#pip install mock --upgrade
+#pip install pytest pytest-timeout --upgrade
 
 pip list
 
