@@ -5,7 +5,8 @@
     },
     "--testing": {
         "help": "Installs testing infrastructure dependencies",
-        "packages": ["pytest>3", "pytest-timeout", "mock", "websocket-client"]
+        "packages": ["pytest>3", "pytest-timeout", "mock", "websocket-client",
+			"pytest-catchlog"]
     },
     "--crate": {
         "help": "Installs requirements for crate databases",

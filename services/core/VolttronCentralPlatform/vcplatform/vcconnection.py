@@ -115,28 +115,24 @@ class VCConnection(Agent):
         """
         self._main_agent = main_agent
 
-    @RPC.export
-    def gather_devices(self):
+    def publish_to_vc(self, topic, message, headers={}):
         """
-        Retrieves configuration entries from the config store that begin with
-        'devices'.
+        This method allows the main_agent to publish a message up to the
+        volttron.central instance.
 
-        :return: dictionary of devices.
+        :param topic:
+        :param message:
+        :param headers:
         """
-        return self._main_agent.get_devices()
+        self.vip.pubsub.publish('pubsub', topic, headers, message)
 
     @RPC.export
     def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
                           high_device_id=None, target_address=None,
                           scan_length=5):
         """
-        Starts a bacnet scan using the bacnet proxy identity that is passed.
-        The responses will be published to the iam_topic on volttron central.
+        Starts a bacnet scan using the the named proxy_identity as the callee.
 
-        .. Note::
-
-            The iam_topic should be subscribed iam_topic via  before
-            calling this method.
 
         :param iam_topic:
         :param proxy_identity:
@@ -146,10 +142,96 @@ class VCConnection(Agent):
         :param scan_length:
         :return:
         """
-        self._main_agent.start_bacnet_scan(iam_topic, proxy_identity,
-                                           low_device_id, high_device_id,
-                                           target_address, scan_length)
+        self._main_agent.start_bacnet_scan(iam_topic=iam_topic,
+                                           proxy_identity=proxy_identity,
+                                           low_device_id=low_device_id,
+                                           high_device_id=high_device_id,
+                                           target_address=target_address,
+                                           scan_length=scan_length)
 
+
+    @RPC.export
+    def get_instance_uuid(self):
+        """
+        Retrieve the instance uuid for the vcp agent's instance.
+
+        :return:
+        """
+        return self._main_agent.get_instance_uuid()
+
+    @RPC.export
+    def get_health(self):
+        """
+        Retrieve the health of the vcp agent.
+
+        :return:
+        """
+        return self._main_agent.vip.health.get_status()
+
+    @RPC.export
+    def start_agent(self, agent_uuid):
+        """
+        Start an agent that is already present on the vcp instance.
+
+        :param agent_uuid:
+        :return:
+        """
+        return self._main_agent.start_agent(agent_uuid)
+
+    @RPC.export
+    def stop_agent(self, agent_uuid):
+        """
+        Stop an agent already running on the vcp instance.
+
+        :param agent_uuid:
+        :return:
+        """
+        return self._main_agent.start_agent(agent_uuid)
+
+    @RPC.export
+    def restart(self, agent_uuid):
+        """
+        Performs the stop and start operations on the vcp instance for an agent.
+
+        :param agent_uuid:
+        :return:
+        """
+        stop_result = self.stop_agent(agent_uuid)
+        start_result = self.start_agent(agent_uuid)
+
+        return (stop_result, start_result)
+
+    @RPC.export
+    def agent_status(self, agent_uuid):
+        """
+        Retrieves the status of a particular agent executing on the vcp
+        instance.  The agent does not have to be executing in order to receive
+        it's status.
+
+        :param agent_uuid:
+        :return:
+        """
+        return self._main_agent.agent_status(agent_uuid)
+
+    @RPC.export
+    def status_agents(self):
+        """
+        Return all of the installed agents' statuses for the vcp instance.
+
+        :return:
+        """
+        return self._main_agent.status_agents()
+
+
+    @RPC.export
+    def get_devices(self):
+        """
+        Retrieves configuration entries from the config store that begin with
+        'devices'.
+
+        :return: dictionary of devices.
+        """
+        return self._main_agent.get_devices()
 
     @RPC.export
     def publish_bacnet_props(self, proxy_identity, publish_topic, address,
@@ -162,6 +244,47 @@ class VCConnection(Agent):
             address,
             device_id,
             filter=[])
+
+    @RPC.export
+    def store_agent_config(self, agent_identity, config_name, raw_contents,
+                           config_type='raw'):
+        """
+        Store an agent configuration on the volttron instance associated with
+        this agent.
+
+        :param agent_identity:
+        :param config_name:
+        :param raw_contents:
+        :param config_type:
+        :return: None
+        """
+        return self._main_agent.store_agent_config(agent_identity, config_name,
+                                            raw_contents, config_type)
+
+    @RPC.export
+    def list_agent_configs(self, agent_identity):
+        """
+        List the agent configuration files stored on the volttron instance
+        associated with this agent.
+
+        :param agent_identity: Agent identity to retrieve configuration from.
+        :return: A list of the configuration names.
+        """
+        return self._main_agent.list_agent_configs(agent_identity)
+
+    @RPC.export
+    def get_agent_config(self, agent_identity, config_name, raw=True):
+        """
+        Retrieve the configuration from the config store of the passed agent
+        identity.
+
+        :param agent_identity:
+        :param config_name:
+        :param raw:
+        :return: The stored configuration.
+        """
+        return self._main_agent.get_agent_config(agent_identity, config_name,
+                                                 raw)
 
     @RPC.export
     def subscribe_to_vcp(self, prefix):
@@ -181,18 +304,6 @@ class VCConnection(Agent):
                                               subscription_wrapper)
 
         self._main_agent.vip.pubsub.publish(prefix, "WE DID IT!")
-
-    def publish_to_vc(self, topic, message, headers={}):
-        """
-        This method allows the main_agent to publish a message up to the
-        volttron.central instance.
-
-        :param topic:
-        :param message:
-        :param headers:
-        """
-        # Publishing to local connectino (Which is connected to volttron.centrl)
-        self.vip.pubsub.publish('pubsub', topic, headers, message)
 
     @RPC.export
     def call(self, platform_method, *args, **kwargs):
@@ -238,44 +349,6 @@ class VCConnection(Agent):
     @RPC.export
     def get_instance_name(self):
         return self._main_agent.get_instance_name()
-
-    @RPC.export
-    def list_agent_configs(self, agent_identity):
-        """
-        Retrieve the agent configurations associated with the agent identity
-        from vcp.
-
-        :param agent_identity:
-        :return:
-        """
-        self._main_agent.list_agent_configs(agent_identity)
-
-    @RPC.export
-    def get_agent_config(self, agent_identity, config_name, raw=True):
-        """
-        Retrieve the contents of an agent configuration.
-
-        :param agent_identity:
-        :param config_name:
-        :param raw:
-        :return:
-        """
-        self._main_agent.get_agent_config(agent_identity, config_name, raw)
-
-    @RPC.export
-    def store_agent_config(self, agent_identity, config_name, raw_contents,
-                           config_type='raw'):
-        """
-        Create or update configuration store for an agent.
-
-        :param agent_identity:
-        :param config_name:
-        :param raw_contents:
-        :param config_type:
-        :return:
-        """
-        self._main_agent.store_agent_config(agent_identity, config_name,
-                                            raw_contents, config_type)
 
     @RPC.export
     def start_agent(self, agent_uuid):
@@ -359,3 +432,12 @@ class VCConnection(Agent):
         :return:
         """
         return self._main_agent.list_agents()
+
+    @RPC.export
+    def install_agent(self, local_wheel_file):
+        """
+        Installs
+        :param local_wheel_file:
+        :return:
+        """
+        return self._main_agent.install_agent

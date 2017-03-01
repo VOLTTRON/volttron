@@ -154,6 +154,16 @@ class Platforms(object):
         The response will be formatted as follows:
 
         [
+            {
+                "health": {
+                    "status": "GOOD",
+                    "last_updated": "2017-02-24T19:18:52.723445+00:00",
+                    "context": "Platform here!"
+                },
+                "name": "tcp://127.0.0.1:22916",
+                "uuid": "vcp-f6e675fb36989f97c3b0f25227aaf02e"
+            }
+
         ]
 
         :param session_user:
@@ -569,7 +579,8 @@ class PlatformHandler(object):
 
     def route_to_agent_method(self, id, agent_method, params):
         try:
-            self._log.debug('route_to_agent_method {} {}'.format(id, agent_method))
+            self._log.debug('route_to_agent_method {} {}'.format(id,
+                                                                 agent_method))
             resp = self.call('route_to_agent_method', id, agent_method,
                                          params)
             if isinstance(resp, dict):

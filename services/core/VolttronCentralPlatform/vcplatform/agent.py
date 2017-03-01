@@ -180,6 +180,9 @@ class VolttronCentralPlatform(Agent):
 
         self._stats_publisher = None
 
+        self._still_connected_event = None
+        self._establish_connection_event = None
+
     def _configure_main(self, config_name, action, contents):
         """
         This is the main configuration point for the agent.
@@ -329,22 +332,65 @@ class VolttronCentralPlatform(Agent):
 
     def _establish_connection_to_vc(self):
 
+        if not self.current_config.get("vc_connect_address"):
+            raise ValueError("vc_connect_address was not resolved properly.")
+
+        if not self.current_config.get("vc_connect_serverkey"):
+            raise ValueError("vc_connect_serverkey was not resolved properly.")
+
+        if self._establish_connection_event is not None:
+            self._establish_connection_event.cancel()
+
         if self.vc_connection is None:
+            _log.info("Attempting to reconnect with volttron central.")
             instance_id = self.current_config['instance_id']
             # Note using the connect_address and connect_serverkey because they
             # are now resolved to the correct values based upon the different
             # ways of configuring the agent.
             vc_address = self.current_config['vc_connect_address']
             vc_serverkey =self.current_config['vc_connect_serverkey']
-            self.volttron_central_connection = build_agent(
-                identity=instance_id,
-                address=vc_address,
-                serverkey=vc_serverkey,
-                publickey=self.core.publickey,
-                secretkey=self.core.secretkey,
-                agent_class=VCConnection
-            )
-            self.volttron_central_connection.set_main_agent(self)
+
+            try:
+
+                self.volttron_central_connection = build_agent(
+                    identity=instance_id,
+                    address=vc_address,
+                    serverkey=vc_serverkey,
+                    publickey=self.core.publickey,
+                    secretkey=self.core.secretkey,
+                    agent_class=VCConnection
+                )
+
+            except gevent.Timeout:
+                _log.debug("No connection to volttron central instance.")
+                self.volttron_central_connection = None
+
+                next_update_time = self._next_update_time()
+
+                self._establish_connection_event = self.core.schedule(
+                    next_update_time, self._establish_connection_to_vc)
+            else:
+                self.volttron_central_connection.set_main_agent(self)
+                self._still_connected()
+
+    def _still_connected(self):
+
+        if self._still_connected_event is not None:
+            self._still_connected_event.cancel()
+
+        try:
+            with gevent.Timeout(seconds=5):
+                hello = self.volttron_central_connection.vip.ping(
+                    b'', self.current_config['instance_id']).get()
+        except gevent.Timeout:
+            self.volttron_central_connection = None
+            self._establish_connection_to_vc()
+        else:
+            next_update_time = self._next_update_time(seconds=10)
+
+            self._still_connected_event = self.core.schedule(
+                next_update_time, self._still_connected)
+
 
     def _update_vcp_config(self, external_addresses, local_serverkey,
                            vc_address, vc_serverkey, instance_name):
@@ -391,9 +437,7 @@ class VolttronCentralPlatform(Agent):
 
         if not self.enable_registration:
             _log.debug('Registration of vcp is not enabled.')
-            now = get_aware_utc_now()
-            next_update_time = now + datetime.timedelta(
-                seconds=10)
+            next_update_time = self._next_update_time()
 
             self._scheduled_connection_event = self.core.schedule(
                 next_update_time, self._periodic_attempt_registration)
@@ -464,12 +508,21 @@ class VolttronCentralPlatform(Agent):
             _log.error("timout occured connecting to remote platform.")
         finally:
             _log.debug('Scheduling next periodic call')
-            now = get_aware_utc_now()
-            next_update_time = now + datetime.timedelta(
-                seconds=10)
+            next_update_time = self._next_update_time()
 
             self._scheduled_connection_event = self.core.schedule(
                 next_update_time, self._periodic_attempt_registration)
+
+    def _next_update_time(self, seconds=10):
+        """
+        Based upon the current time add 'seconds' to it and return that value.
+        :param seconds:
+        :return: time of next update
+        """
+        now = get_aware_utc_now()
+        next_update_time = now + datetime.timedelta(
+            seconds=seconds)
+        return next_update_time
 
     def get_vc_connection(self):
         """ Attempt to connect to volttron central management console.
@@ -611,46 +664,11 @@ class VolttronCentralPlatform(Agent):
         _log.debug("Getting health: {}".format(self.vip.health.get_status()))
         return self.vip.health.get_status()
 
-    @RPC.export
-    @RPC.allow("manager")
     def get_instance_uuid(self):
         _log.debug('ADDRESS HASH for {} is {}'.format(
             self.current_config.get('local_external_addresses')[0],
             self.current_config.get("address_hash")))
         return self.current_config.get('address_hash')
-
-    @RPC.export
-    @RPC.allow("manager")
-    def get_publickey(self):
-        return self.core.publickey
-
-    @RPC.export
-    @RPC.allow("manager")
-    def manage(self, address):
-        """ Allows the `VolttronCentralPlatform` to be managed.
-
-        From the web perspective this should be after the user has specified
-        that a user has blessed an agent to be able to be managed.
-
-        When the user enters a discovery address in `VolttronCentral` it is
-        implied that the user wants to manage a platform.
-
-        :returns publickey of the `VolttronCentralPlatform`
-        """
-        _log.info('Manage request from address: {}'.format(address))
-
-        if address != self.current_config['vc_connect_address']:
-            _log.error("Managed by differeent volttron central.")
-            return
-
-        vc = self.get_vc_connection()
-
-        if not vc.is_peer_connected():
-            self.registration_state = RegistrationStates.NotRegistered
-        else:
-            self.registration_state = RegistrationStates.Registered
-
-        return self.get_publickey()
 
     @RPC.export
     def publish_bacnet_props(self, proxy_identity, publish_topic, address,
@@ -672,13 +690,21 @@ class VolttronCentralPlatform(Agent):
 
         return "PUBLISHING"
 
-    @RPC.export
     def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
                           high_device_id=None, target_address=None,
-                          scan_length=5):
+                          scan_length=5, instance_address=None,
+                          instance_serverkey=None):
         """This function is a wrapper around the bacnet proxy scan.
         """
-        if proxy_identity not in self.vip.peerlist().get(timeout=5):
+        agent_to_use = self
+        if instance_address is not None:
+            agent_to_use = build_agent(address=instance_address,
+                                       identity="proxy_bacnetplatform",
+                                       publickey=self.core.publickey,
+                                       secretkey=self.core.secretkey,
+                                       serverkey=instance_serverkey)
+
+        if proxy_identity not in agent_to_use.vip.peerlist().get(timeout=5):
             raise Unreachable("Can't reach agent identity {}".format(
                 proxy_identity))
         _log.info('Starting bacnet_scan with who_is request to {}'.format(
@@ -688,7 +714,7 @@ class VolttronCentralPlatform(Agent):
             proxy_identity = sender
             address = message['address']
             device_id = message['device_id']
-            bn = BACnetReader(self.vip.rpc, proxy_identity)
+            bn = BACnetReader(agent_to_use.vip.rpc, proxy_identity)
             message['device_name'] = bn.read_device_name(address, device_id)
             message['device_description'] = bn.read_device_description(
                 address,
@@ -703,46 +729,42 @@ class VolttronCentralPlatform(Agent):
                 status="FINISHED IAM",
                 timestamp=stop_timestamp
             ))
-            self.vip.pubsub.unsubscribe('pubsub', topics.BACNET_I_AM,
+            agent_to_use.vip.pubsub.unsubscribe('pubsub', topics.BACNET_I_AM,
                                         handle_iam)
 
-        self.vip.pubsub.subscribe('pubsub', topics.BACNET_I_AM, handle_iam)
+        agent_to_use.vip.pubsub.subscribe('pubsub', topics.BACNET_I_AM, handle_iam)
 
         timestamp = get_utc_seconds_from_epoch()
 
         self._pub_to_vc(iam_topic, message=dict(status="STARTED IAM",
                                                 timestamp=timestamp))
 
-        self.vip.rpc.call(proxy_identity, "who_is", low_device_id=low_device_id,
-                          high_device_id=high_device_id,
-                          target_address=target_address).get(timeout=5.0)
+        agent_to_use.vip.rpc.call(proxy_identity, "who_is",
+                                  low_device_id=low_device_id,
+                                  high_device_id=high_device_id,
+                                  target_address=target_address).get(timeout=5.0)
 
         gevent.spawn_later(float(scan_length), stop_iam)
 
     def _pub_to_vc(self, topic_leaf, headers=None, message=None):
-
-        if not self.volttron_central_connection:
+        if self.volttron_central_connection is None:
             _log.error('Platform must have connection to vc to publish {}'
                        .format(topic_leaf))
-        else:
-            if topic_leaf[0] == '/':
-                topic_leaf = topic_leaf[1:]
-            topic = "platforms/{}/{}".format(self.get_instance_uuid(),
-                                             topic_leaf)
-            _log.debug('Publishing to vc topic: {}'.format(topic))
-            _log.debug('Publishing to vc headers: {}'.format(headers))
-            _log.debug('Publishing to vc message: {}'.format(message))
-            self.volttron_central_connection.publish_to_vc(topic=topic,
-                                                           headers=headers,
-                                                           message=message)
+            return
 
-    @RPC.export
-    @RPC.allow("manager")
-    def unmanage(self):
-        pass
-        # self._is_registering = False
-        # self._is_registered = False
-        # self._was_unmanaged = True
+        if topic_leaf[0] == '/':
+            topic_leaf = topic_leaf[1:]
+
+        topic = "platforms/{}/{}".format(self.get_instance_uuid(),
+                                         topic_leaf)
+        _log.debug('Publishing to vc topic: {}'.format(topic))
+        _log.debug('Publishing to vc headers: {}'.format(headers))
+        _log.debug('Publishing to vc message: {}'.format(message))
+        # Note because vc is a vcconnection object we are explicitly
+        # saying to publish to the vc platform.
+        self.volttron_central_connection.publish_to_vc(topic=topic,
+                                                       headers=headers,
+                                                       message=message)
 
     @RPC.export
     def list_agents(self):
@@ -834,11 +856,14 @@ class VolttronCentralPlatform(Agent):
         return data or ""
 
     def start_agent(self, agent_uuid):
-        self.vip.rpc.call(CONTROL, "start_agent", agent_uuid)
+        self.vip.rpc.call(CONTROL, "start_agent", agent_uuid).get(timeout=5)
 
 
     def stop_agent(self, agent_uuid):
-        proc_result = self.vip.rpc.call(CONTROL, "stop_agent", agent_uuid)
+        _log.debug("Stopping agent: {}".format(agent_uuid))
+        proc_result = self.vip.rpc.call(CONTROL, "stop_agent",
+                                        agent_uuid).get(timeout=5)
+        return proc_result
 
     def restart_agent(self, agent_uuid):
         self.vip.rpc.call(CONTROL, "restart_agent", agent_uuid)

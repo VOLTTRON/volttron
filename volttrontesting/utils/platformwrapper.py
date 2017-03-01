@@ -2,6 +2,7 @@ import ConfigParser as configparser
 import json
 import logging
 import os
+import psutil
 import shutil
 import sys
 import tempfile
@@ -168,6 +169,11 @@ class PlatformWrapper:
         for agents that are built.
         """
 
+        # This is hopefully going to keep us from attempting to shutdown
+        # multiple times.  For example if a fixture calls shutdown and a
+        # lower level fixture calls shutdown, this won't hang.
+        self._instance_shutdown = False
+
         self.volttron_home = tempfile.mkdtemp()
         self.packaged_dir = os.path.join(self.volttron_home, "packaged")
         os.makedirs(self.packaged_dir)
@@ -181,6 +187,7 @@ class PlatformWrapper:
             'DEBUG': os.environ.get('DEBUG', ''),
             'PATH': VOLTTRON_ROOT+':'+os.environ['PATH']
         }
+        self.volttron_root = VOLTTRON_ROOT
 
         # By default no web server should be started.
         self.bind_web_address = None
@@ -233,12 +240,17 @@ class PlatformWrapper:
     def build_connection(self, peer=None, address=None, identity=None,
                          publickey=None, secretkey=None, serverkey=None,
                          capabilities=[], **kwargs):
-
+        self.logit('Building connection to {}'.format(peer))
         self.allow_all_connections()
 
         if address is None:
+            self.logit(
+                'Default address was None so setting to current instances')
             address = self.vip_address
             serverkey = self.serverkey
+        if serverkey is None:
+            self.logit("serverkey wasn't set but the address was.")
+            raise Exception("Invalid state.")
 
         if publickey is None or secretkey is None:
             self.logit('generating new public secret key pair')
@@ -642,18 +654,20 @@ class PlatformWrapper:
         return results
 
     def install_agent(self, agent_wheel=None, agent_dir=None, config_file=None,
-        start=True, vip_identity=None):
-        """ Install and optionally start an agent on the instance.
+                      start=True, vip_identity=None):
+        """
+        Install and optionally start an agent on the instance.
 
-            This function allows installation from an agent wheel or an
-            agent directory (NOT BOTH).  If an agent_wheel is specified then
-            it is assumed to be ready for installation (has a config file).
-            If an agent_dir is specified then a config_file file must be
-            specified or if it is not specified then it is assumed that the
-            file agent_dir/config is to be used as the configuration file.  If
-            none of these exist then an assertion error will be thrown.
+        This function allows installation from an agent wheel or an
+        agent directory (NOT BOTH).  If an agent_wheel is specified then
+        it is assumed to be ready for installation (has a config file).
+        If an agent_dir is specified then a config_file file must be
+        specified or if it is not specified then it is assumed that the
+        file agent_dir/config is to be used as the configuration file.  If
+        none of these exist then an assertion error will be thrown.
 
-            This function will return with a uuid of the installed agent.
+        This function will return with a uuid of the installed agent.
+
         :param agent_wheel:
         :param agent_dir:
         :param config_file:
@@ -722,8 +736,11 @@ class PlatformWrapper:
         pidend = res.index(']')
         pid = int(res[pidpos: pidend])
 
+        assert psutil.pid_exists(pid), \
+            "The pid associated with agent {} does not exist".format(pid)
+
         self.started_agent_pids.append(pid)
-        return int(pid)
+        return pid
 
     def stop_agent(self, agent_uuid):
         # Confirm agent running
@@ -734,7 +751,7 @@ class PlatformWrapper:
             res = subprocess.check_output(cmd, env=self.env)
         except CalledProcessError as ex:
             _log.error("Exception: {}".format(ex))
-        return self.agent_status(agent_uuid)
+        return self.agent_pid(agent_uuid)
 
     def list_agents(self):
         agent = self.build_agent()
@@ -752,13 +769,18 @@ class PlatformWrapper:
             res = subprocess.check_output(cmd, env=self.env)
         except CalledProcessError as ex:
             _log.error("Exception: {}".format(ex))
-        return self.agent_status(agent_uuid)
+        return self.agent_pid(agent_uuid)
 
     def is_agent_running(self, agent_uuid):
-        return self.agent_status(agent_uuid) is not None
+        return self.agent_pid(agent_uuid) is not None
 
-    def agent_status(self, agent_uuid):
-        _log.debug("AGENT_STATUS: {}".format(agent_uuid))
+    def agent_pid(self, agent_uuid):
+        """
+        Returns the pid of a running agent or None
+
+        :param agent_uuid:
+        :return:
+        """
         # Confirm agent running
         cmd = ['volttron-ctl']
         cmd.extend(['status', agent_uuid])
@@ -774,6 +796,19 @@ class PlatformWrapper:
         except CalledProcessError as ex:
             _log.error("Exception: {}".format(ex))
 
+        # Handle the following exception that seems to happen when getting a pid of
+        # an agent during the platform shutdown phase.
+        # Logged from file platformwrapper.py, line 797
+        #   AGENT             IDENTITY          TAG STATUS
+        # Traceback (most recent call last):
+        #   File "/usr/lib/python2.7/logging/__init__.py", line 882, in emit
+        #     stream.write(fs % msg)
+        #   File "/home/volttron/git/volttron/env/local/lib/python2.7/site-packages/_pytest/capture.py", line 244, in write
+        #     self.buffer.write(obj)
+        # ValueError: I/O operation on closed file
+        except ValueError:
+            pass
+        # _log.debug("AGENT_PID: {}".format(pid))
         return pid
 
     def build_agentpackage(self, agent_dir, config_file={}):
@@ -860,30 +895,45 @@ class PlatformWrapper:
     #     print result
 
     def shutdown_platform(self):
-        '''Stop platform here
+        """
+        Stop platform here.  First grab a list of all of the agents that are
+        running on the platform, then shutdown, then if any of the listed agent
+        pids are still running then kill them.
+        """
 
-           This function will shutdown the platform and attempt to kill any
-           process that the platformwrapper has started.
-        '''
-        import signal
-        self.logit('shutting down platform: PIDS: {}'.format(self.started_agent_pids))
-        while self.started_agent_pids:
-            pid = self.started_agent_pids.pop()
-            self.logit('ending pid: {}'.format(pid))
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except:
-                self.logit('could not kill: {} '.format(pid))
+        # Handle cascading calls from multiple levels of fixtures.
+        if self._instance_shutdown:
+           return
 
-        if self.p_process is not None:
-            try:
-                gevent.sleep(0.2)
-                self.p_process.terminate()
-                gevent.sleep(0.2)
-            except OSError:
-                self.logit('Platform process was terminated.')
-        else:
-            self.logit("platform process was null")
+        running_pids = []
+
+        for agnt in self.list_agents():
+            pid = self.agent_pid(agnt['uuid'])
+            if pid is not None and int(pid) > 0:
+                running_pids.append(int(pid))
+
+        # First try and nicely shutdown the platform, which should clean all
+        # of the agents up automatically.
+        cmd = ['volttron-ctl']
+        cmd.extend(['shutdown', '--platform'])
+        try:
+            res = subprocess.check_output(cmd, env=self.env)
+        except CalledProcessError:
+            if self.p_process is not None:
+                try:
+                    gevent.sleep(0.2)
+                    self.p_process.terminate()
+                    gevent.sleep(0.2)
+                except OSError:
+                    self.logit('Platform process was terminated.')
+            else:
+                self.logit("platform process was null")
+
+        for pid in running_pids:
+            if psutil.pid_exists(pid):
+                self.logit("TERMINATING: {}".format(pid))
+                proc = psutil.Process(pid)
+                proc.terminate()
 
         if self.use_twistd and self.t_process != None:
             self.t_process.kill()
@@ -906,6 +956,7 @@ class PlatformWrapper:
         if not self.skip_cleanup:
             self.logit('Removing {}'.format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)
+        self._instance_shutdown = True
 
     def __repr__(self):
         return str(self)

@@ -1,6 +1,4 @@
 {
-    "agentid": "sqlhistorian",
-    "identity": "platform.historian",
     "connection": {
         "type": "sqlite",
         "params": {
