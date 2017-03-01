@@ -524,7 +524,21 @@ var devicesActionCreators = {
             config.max_per_request = 10000;
         }
 
-        config.publish_depth_first = true;
+        // Remove empty heartbeat from the config store.
+        // Gets rid of warning on the server side
+        if (config.heartbeat_point === "")
+        {
+            delete config.heartbeat_point;
+        }
+
+        // Remove empty timezone from the config store.
+        // Gets rid of error on the server side
+        if (config.timezone === "")
+        {
+            delete config.timezone;
+        }
+
+        config.publish_depth_first = false;
 
         config.driver_config.max_per_request = config.max_per_request;
         config.driver_config.minimum_priority = config.minimum_priority;
@@ -614,10 +628,10 @@ function checkDevice(device, platformUuid)
             warning: {}
         }
 
-        var deviceIdStr = device.device_id.toString();
+        var deviceId = Number(device.device_id);
         var addDevice = true;
 
-        var alreadyInList = devicesStore.getDeviceByID(deviceIdStr);
+        var alreadyInList = devicesStore.getDeviceByID(deviceId);
 
         if (alreadyInList)
         {
@@ -625,7 +639,7 @@ function checkDevice(device, platformUuid)
             {
                 // If there are multiple devices with same ID, see if there's another one
                 // with this same address
-                var sameDevice = devicesStore.getDeviceRef(deviceIdStr, device.address);
+                var sameDevice = devicesStore.getDeviceRef(deviceId, device.address);
 
                 if (sameDevice)
                 {
@@ -636,7 +650,7 @@ function checkDevice(device, platformUuid)
                     result.warning = { 
                         key: "duplicate_id", 
                         message: "Duplicate device IDs found. Your network may not be set up correctly. ",
-                        value: deviceIdStr 
+                        value: deviceId
                     };
                 }                
             }
