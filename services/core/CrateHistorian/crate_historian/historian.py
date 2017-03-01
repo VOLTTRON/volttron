@@ -167,7 +167,7 @@ class CrateHistorian(BaseHistorian):
             else:
                 table = 'device'
 
-        if source == 'log':
+        if source == 'datalogger':
             if db_datatype == 'string':
                 table = 'datalogger_string'
             else:
