@@ -7,9 +7,10 @@ var moment = require('moment');
 var OutsideClick = require('react-click-outside');
 
 import ControlButton from './control-button';
-import {LineChart, AreaChart} from 'react-d3-components';
+// import {LineChart, AreaChart} from 'react-d3-components';
 // var LineChart = ReactD3.LineChart;
 // var AreaChart = ReactD3.AreaChart;
+import {Line} from 'react-chartjs-2';
 
 var chartStore = require('../stores/platform-chart-store');
 var platformChartStore = require('../stores/platform-chart-store');
@@ -571,62 +572,61 @@ var GraphLineChart = OutsideClick(React.createClass({
       }
     ];
 
-    var tooltip;
+    var labels = this.props.data.map(function (item) {
+        return item[0];
+      });
 
-    if (this.state.showTooltip)
-    {
-      var tooltipStyle = {
-          position: "absolute",
-          top: this.state.tooltipY + "px",
-          left: this.state.tooltipX + "px"
-      };
+    var dataLabel = this.props.data[0].parent;
 
-      tooltip = (
-          <div className="tooltip_outer"
-              style={tooltipStyle}>
-              <div className="tooltip_inner">
-                  <div className="opaque_inner">
-                      {this.state.tooltipContent}
-                  </div>
-              </div>
-          </div>
-      );
-    }
+    var values = this.props.data.map(function (item) {
+          return item[1];
+        });
 
-    var rdcChart, chartTooltip;
+    var data = {
+      labels: labels,
+      datasets: [
+        { 
+          label: dataLabel,
+          data: values,
+          fill: false,
+          lineTension: 0.1,
+          backgroundColor: 'rgba(75,192,192,0.4)',
+          borderColor: 'rgba(75,192,192,1)',
+          borderCapStyle: 'butt',
+          borderDash: [],
+          borderDashOffset: 0.0,
+          borderJoinStyle: 'miter',
+          pointBorderColor: 'rgba(75,192,192,1)',
+          pointBackgroundColor: '#fff',
+          pointBorderWidth: 1,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: 'rgba(75,192,192,1)',
+          pointHoverBorderColor: 'rgba(220,220,220,1)',
+          pointHoverBorderWidth: 2,
+          pointRadius: 1,
+          pointHitRadius: 10
+        }
+      ]
+
+    };
+
+    
+
+    var rdcChart;
 
     switch(this.state.chartType)
     {
-      case "stackedArea":
-
-        chartTooltip = function(x, y, z) {
-            return "x: " + x + " y: " + z;
-        };
-        rdcChart = (
-          <AreaChart 
-            height={200} 
-            width={700} 
-            data={chartData}
-            margin={{top: 10, bottom: 50, left: 50, right: 10}}
-            tooltipHtml={chartTooltip}
-            tooltipMode="element"
-            tooltipContained={true}/>
-        );
-        break;
       default:
 
-        chartTooltip = function(x, pt) {
-            return "x: " + pt.x + " y: " + pt.y;
-        };
+        // chartTooltip = function(x, pt) {
+        //     return "x: " + pt.x + " y: " + pt.y;
+        // };
         rdcChart = (
-          <LineChart 
+          <Line 
             height={200} 
             width={700} 
-            data={chartData}
-            margin={{top: 10, bottom: 50, left: 50, right: 10}}
-            tooltipHtml={chartTooltip}
-            tooltipMode="element"
-            tooltipContained={true}/>
+            label={this.props.name}
+            data={data}/>
         );
         break;
     }
@@ -635,7 +635,6 @@ var GraphLineChart = OutsideClick(React.createClass({
       <div className='absolute_anchor'
           style={chartStyle}
           ref={this.state.chartName}>
-          {tooltip}
           {rdcChart}
           {controlButtons}
       </div>

@@ -166,7 +166,7 @@ class PlatformsPanelItem extends BaseComponent {
     }
     _onDeviceConfig (panelItem) {
 
-        var deviceName = panelItem.path[panelItem.path.size - 1];
+        var deviceName = panelItem.path[panelItem.path.length - 1];
         var platformUuid = panelItem.path[1];
 
         devicesActionCreators.reconfigureDevice(deviceName, platformUuid);
