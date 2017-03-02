@@ -518,6 +518,10 @@ var devicesActionCreators = {
             {
                 config.max_per_request = 10000;
             }
+            else
+            {
+                config.max_per_request = Number(config.max_per_request)
+            }
         }
         else
         {

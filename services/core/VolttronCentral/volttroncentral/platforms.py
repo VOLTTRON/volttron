@@ -550,16 +550,17 @@ class PlatformHandler(object):
         self._log.debug('handling get_devices platform: {} ({})'.format(
             self.vip_identity, self.address))
 
-        try:
-            platform_store = self._vc.vip.config.get(self.config_store_name)
-        except KeyError:
-            self._log.warn('Unknown platform platform_uuid specified! {}'.format(
-                self.vip_identity))
-        else:
-            try:
-                return platform_store['devices_health'].copy()
-            except KeyError:
-                return {}
+        return self._current_devices or {}
+        # try:
+        #     platform_store = self._vc.vip.config.get(self.config_store_name)
+        # except KeyError:
+        #     self._log.warn('Unknown platform platform_uuid specified! {}'.format(
+        #         self.vip_identity))
+        # else:
+        #     try:
+        #         return platform_store['devices_health'].copy()
+        #     except KeyError:
+        #         return {}
 
     def get_stats(self, stat_type):
         # TODO Change so stat_type is available.
