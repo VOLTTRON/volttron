@@ -401,7 +401,7 @@ cached.
     def query_historian(self, topic, start=None, end=None, agg_type=None,
                         agg_period=None, skip=0, count=None,
                         order="FIRST_TO_LAST"):
-        """ Returns the results of the query from the create database.
+        """ Returns the results of the query from the crate database.
 
         This historian stores data to the nearest second.  It will not
         store subsecond resolution data.  This is an optimisation based
