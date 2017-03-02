@@ -84,14 +84,14 @@ __version__ = '1.0'
 
 def historian(config_path, **kwargs):
     """
-    This method is called by the :py:func:`mongodb.historian.main` to parse
+    This method is called by the :py:func:`crate_historian.historian.main` to parse
     the passed config file or configuration dictionary object, validate the
     configuration entries, and create an instance of MongodbHistorian
 
     :param config_path: could be a path to a configuration file or can be a
                         dictionary object
     :param kwargs: additional keyword arguments if any
-    :return: an instance of :py:class:`MongodbHistorian`
+    :return: an instance of :py:class:`CrateHistorian`
     """
     if isinstance(config_path, dict):
         config_dict = config_path
@@ -116,15 +116,15 @@ def historian(config_path, **kwargs):
 
 class CrateHistorian(BaseHistorian):
     """
-    Historian that stores the data into mongodb collections.
+    Historian that stores the data into crate tables.
 
     """
 
     def __init__(self, config, **kwargs):
         """
-        Initialise the historian.
+        Initialize the historian.
 
-        The historian makes a mongoclient connection to the mongodb server.
+        The historian makes a crateclient connection to the crate cluster.
         This connection is thread-safe and therefore we create it before
         starting the main loop of the agent.
 
@@ -167,7 +167,7 @@ class CrateHistorian(BaseHistorian):
             else:
                 table = 'device'
 
-        if source == 'log':
+        if source == 'datalogger':
             if db_datatype == 'string':
                 table = 'datalogger_string'
             else:
@@ -203,6 +203,7 @@ class CrateHistorian(BaseHistorian):
             else:
                 _log.debug('Waiting to attempt to write to database.')
                 return
+
 
         def insert_data(cursor, topic_id, ts, data):
             insert_query = """INSERT INTO {} (topic_id, ts, result)
@@ -401,11 +402,8 @@ cached.
     def query_historian(self, topic, start=None, end=None, agg_type=None,
                         agg_period=None, skip=0, count=None,
                         order="FIRST_TO_LAST"):
-        """ Returns the results of the query from the mongo database.
+        """ Returns the results of the query from the crate database.
 
-        This historian stores data to the nearest second.  It will not
-        store subsecond resolution data.  This is an optimisation based
-        upon storage for the database.
         Please see
         :py:meth:`volttron.platform.agent.base_historian.BaseQueryHistorianAgent.query_historian`
         for input parameters and return value details
