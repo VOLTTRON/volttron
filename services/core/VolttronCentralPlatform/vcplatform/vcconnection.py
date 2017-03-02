@@ -231,6 +231,7 @@ class VCConnection(Agent):
 
         :return: dictionary of devices.
         """
+        self._log.debug("Getting devices in vcconnection.py")
         return self._main_agent.get_devices()
 
     @RPC.export
@@ -287,7 +288,7 @@ class VCConnection(Agent):
                                                  raw)
 
     @RPC.export
-    def subscribe_to_vcp(self, prefix):
+    def subscribe_to_vcp(self, prefix, prefix_on_vc):
         """
         Allows volttron.central to listen to the message bus on vcp instance.
 
@@ -296,14 +297,14 @@ class VCConnection(Agent):
 
         def subscription_wrapper(peer, sender, bus, topic, headers,
                                  message):
-            self.publish_to_vc(topic, message, headers)
+            # Prepend the specified prefix to the topic that was passed
+            # to the method
+            self.publish_to_vc(prefix_on_vc+topic, message, headers)
 
         # Use the main agent to do the subscription on.
         self._main_agent.vip.pubsub.subscribe('pubsub',
                                               prefix,
                                               subscription_wrapper)
-
-        self._main_agent.vip.pubsub.publish(prefix, "WE DID IT!")
 
     @RPC.export
     def call(self, platform_method, *args, **kwargs):

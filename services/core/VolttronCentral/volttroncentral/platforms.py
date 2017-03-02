@@ -58,6 +58,7 @@
 import datetime
 import hashlib
 import logging
+from collections import defaultdict
 
 import gevent
 from copy import deepcopy
@@ -101,6 +102,7 @@ class Platforms(object):
         """
         self._platforms[vip_identity] = PlatformHandler(self._vc, vip_identity)
         self._debug_platform_list()
+        return self._platforms[vip_identity]
 
     def disconnect_platform(self, vip_identity):
         """
@@ -241,6 +243,7 @@ class Platforms(object):
         :param default: a default to be returned if not in the collection.
         :return: a :ref:`PlatformHandler` or default
         """
+        self._debug_platform_list()
         return self._platforms.get(vip_identity, default)
 
     def register_platform(self, address, address_type, serverkey=None,
@@ -301,56 +304,58 @@ class PlatformHandler(object):
         self._log.debug("PLATFORM MESSAGE: {}".format(message))
 
     def __init__(self, vc, vip_identity):
+
         # This is the identity of the vcp agent connected to the
         # volttron.central instance.
         self._log = logging.getLogger(self.__class__.__name__)
         self._vip_identity = vip_identity
+        # References the main agent to be used to talk through to the vip
+        # router.
         self._vc = vc
-        self._external_vip_addresses = self._vc.vip.rpc.call(
-            peer=vip_identity,
-            method='get_vip_addresses').get(timeout=30)
-        self._instance_name = self._vc.vip.rpc.call(
-            peer=vip_identity,
-            method='get_instance_name').get(timeout=30)
+        # Add some logging information about the vcp platform
+        self._external_vip_addresses = self.call('get_vip_addresses')
+        self._instance_name = self.call('get_instance_name')
+
         message = "Building handler for platform: {} from address: {}".format(
             self._instance_name,
             self._external_vip_addresses
         )
         self._log.info(message)
 
-        self._vc.vip.pubsub.subscribe(
-            'pubsub',
-            "platforms/{}".format(self.vip_identity),
-            self._on_platform_message)
+        # Start the current devices dictionary.
+        self._current_devices = defaultdict(dict)
 
-        self._vc.vip.rpc.call(self.vip_identity,
-                              "subscribe_to_vcp",
-                              "platforms/{}".format(self.vip_identity))
+        """
+        the _current_devices structure should be what the ui uses to display
+        its data. where devices/t/1/1 was the full topic this was published to.
 
-    # def __init__(self, platforms, address, address_type, serverkey=None,
-    #              display_name=None):
-    #     """
-    #     Constructs a platform and attempts to connect it up with the
-    #     an instance containing a vcp agent.
-    #
-    #     :param platforms: A platforms object.
-    #     """
-    #     self._platforms = platforms
-    #     self._vc = self.platforms.vc
-    #     self._address = address
-    #     self._serverkey = serverkey
-    #     self._display_name = display_name
-    #     self._address_type = address_type
-    #     self._address_hash = PlatformHandler.address_hasher(address)
-    #     self._connection = None
-    #     self._log = logging.getLogger(self.__class__.__name__)
-    #     self._is_managed = False
-    #     self._last_time_verified_connection = None
-    #     self._event_listeners = set()
-    #     self._health = Status.build(UNKNOWN_STATUS, "Initial Status")
-    #     self._recheck_connection_event = None
-    #     self._connect()
-    #     self._recheck_connection()
+        "t/1/1": {
+            "points": [
+                "Occupied"
+            ],
+            "health": {
+                "status": "GOOD",
+                "last_updated": "2017-03-02T00:38:30.347172+00:00",
+                "context": "Last received data on: 2017-03-02T00:38:30.347075+00:00"
+            },
+            "last_publish_utc": null
+        }
+        """
+        for k, v in self.call('get_devices').items():
+
+            status = Status.build(UNKNOWN_STATUS,
+                                  context="Unpublished").as_dict()
+            self._current_devices[k]['health'] = status
+            self._current_devices[k]['points'] = [p for p in v['points']]
+            self._current_devices[k]['last_publish_utc'] = None
+
+        platform_prefix = "platforms/{}/".format(self.vip_identity)
+        self._vc.vip.pubsub.subscribe('pubsub',
+                                      platform_prefix,
+                                      self._on_device_message)
+        # method will subscribe to devices/ on the collector and publish
+        # the regular device topics with the prefix platform_prefix.
+        self.call("subscribe_to_vcp", "devices/", platform_prefix)
 
     @property
     def vip_identity(self):
@@ -482,26 +487,21 @@ class PlatformHandler(object):
                 new_device['points'] = points
                 self._vc.send_management_message("NEW_DEVICE", new_device)
 
-            self._log.debug('Updating device store for new device.')
-            # Update the devices store for get_devices function call.
-            try:
-                platform_store = self._vc.vip.config.get(self.config_store_name)
-            except KeyError:
-                return jsonrpc.json_error(message_id,  INTERNAL_ERROR, 
-                                          "Platform store doesns't exist!")
             status = Status.build(UNKNOWN_STATUS,
                                   context="Not published since update")
             device_config_name = params.get('config_name')
             device_no_prefix = device_config_name[len('devices/'):]
-            devices_health = platform_store.get('devices_health', {})
+            the_device = self._current_devices.get(device_no_prefix, {})
 
-            devices_health[device_no_prefix] = dict(
-                last_publish_utc=None,
-                health=status.as_dict(),
-                points=devices_health.get("points", points)
-            )
-            platform_store['devices_health'] = devices_health
-            self._vc.vip.config.set(self.config_store_name, platform_store)
+            if not the_device:
+                self._current_devices[device_no_prefix] = dict(
+                    last_publish_utc=None,
+                    health=status.as_dict(),
+                    points=points
+                )
+            else:
+                self._current_devices[device_no_prefix]['points'] = points
+
             return jsonrpc.json_result(message_id, "SUCCESS")
 
     def get_agent_list(self, session_user, params):
@@ -598,36 +598,6 @@ class PlatformHandler(object):
         for listener in self._event_listeners:
             listener(type, data)
 
-    # def _manage(self):
-    #     """
-    #     Attempt to call the manage function on the external instance's VCP
-    #     agent.
-    #
-    #     This will only happen if we have a connection and the platform.agent
-    #     is connected.
-    #     """
-    #     try:
-    #         if self._connection is not None and \
-    #                 self._connection.is_peer_connected():
-    #             public_address = self._vc.runtime_config['local_external_address']
-    #             my_address = self._vc.runtime_config['local_external_address']
-    #             self._log.debug('Calling manage with vc address: {}'.format(
-    #                 public_address
-    #             ))
-    #             pk = self._connection.call('manage', my_address)
-    #             self._raise_event("MANAGED", data=dict(
-    #                 address=self._address,
-    #                 address_hash=self._address_hash))
-    #             status = self._connection.call('health.get_status')
-    #             status.pop('last_updated', None)
-    #             self._health = Status.build(**status)
-    #     except gevent.Timeout:
-    #         self._log.error(
-    #             'RPC call to manage did not return in a timely manner.')
-    #         raise
-    #     else:
-    #         self._is_managed = True
-
     def _on_heartbeat(self, peer, sender, bus, topic, headers, message):
         self._log.debug("HEARTBEAT MESSAGE: {}".format(message))
 
@@ -636,6 +606,9 @@ class PlatformHandler(object):
         Handle device data coming from the platform represented by this
         object.
 
+        this method only cares about the /all messages that are published to
+        the message bus.
+
         :param peer:
         :param sender:
         :param bus:
@@ -643,7 +616,32 @@ class PlatformHandler(object):
         :param headers:
         :param message:
         """
-        # Update the devices store for get_devices function call.
+
+        expected_prefix = "platforms/{}/".format(self.vip_identity)
+        self._log.debug("TOPIC WAS: {}".format(topic))
+        self._log.debug("MESSAGE WAS: {}".format(message))
+        self._log.debug("Expected topic: {}".format(expected_prefix))
+        self._log.debug("Are Equal: {}".format(topic.startswith(expected_prefix)))
+        self._log.debug("topic type: {} prefix_type: {}".format(type(topic), type(expected_prefix)))
+        if topic is None or not topic.startswith(expected_prefix):
+            self._log.error("INVALID DEVICE DATA FOR {}".format(self.vip_identity))
+            return
+
+        if topic is None or not topic.startswith(expected_prefix):
+            self._log.error('INVALID DEVICE TOPIC/MESSAGE DETECTED ON {}'.format(
+                self.vip_identity
+            ))
+            return
+
+        # Update the devices store for get_devices function call
+        if not topic.endswith('/all'):
+            self._log.debug("Skipping publish to {}".format(topic))
+            return
+
+        #
+        topic = topic[len(expected_prefix):]
+
+        self._log.debug("topic: {}, message: {}".format(topic, message))
         try:
             platform_store = self._vc.vip.config.get(self.config_store_name)
         except KeyError:
@@ -657,11 +655,9 @@ class PlatformHandler(object):
             base_topic = topic[:-len('/all')]
             base_topic_no_prefix = base_topic[len('devices/'):]
 
-            devices_health = platform_store.get('devices_health', {})
+            devices_health = platform_store.get('devices_health', {}).copy()
 
-            self._log.debug(message[0])
             points = [k for k, v in message[0].items()]
-            self._log.debug([k for k, v in message[0].items()])
 
             devices_health[base_topic_no_prefix] = dict(
                 last_publish_utc=None,
@@ -712,212 +708,5 @@ class PlatformHandler(object):
         self._vc.vip.pubsub.publish('pubsub', topic=platforms_topic,
                                     headers=headers, message=message)
 
-    def _on_platform_message(self, peer, sender, bus, topic, headers, message):
-
-        self._log.debug("MESSAGE: {}".format(message))
-        # point_list = []
-        #
-        # for point, item in message.iteritems():
-        #     point_list.append(point)
-        #
-        # stats = {
-        #     'topic': topic,
-        #     'points': point_list,
-        #     'last_published_utc': format_timestamp(get_aware_utc_now())
-        # }
-        #
-        # config = deepcopy(self._vc.vip.config.get(self.config_store_name))
-        # config['stats_point_list'] = stats
-        # self._vc.vip.config.set(self.config_store_name, config)
-
     def _on_stats_published(self, peer, sender, bus, topic, headers, message):
         self._log.debug('STATS PUBLISHERD: {}'.format(message))
-
-    # def _connect(self):
-    #     """
-    #     Connects to the remote instance.  If unsuccessful raises a
-    #     gevent.Timeout error.
-    #     """
-    #
-    #     publickey = self._vc.core.publickey
-    #     secretkey = self._vc.core.secretkey
-    #
-    #     # First attempt to connect to the external instance.  The instance
-    #     # doesn't have to have the VCP on it for the connection to be
-    #     # established.  However it will need to have it on in order to
-    #     # execute any rpc methods on it.
-    #     try:
-    #         self._connection = build_connection(
-    #             identity=self.external_vip_identity,
-    #             peer=VOLTTRON_CENTRAL_PLATFORM,
-    #             address=self._address,
-    #             serverkey=self._serverkey,
-    #             publickey=publickey,
-    #             secretkey=secretkey)
-    #     except gevent.Timeout:
-    #         self._log.error("Unable to connect to instance.")
-    #         if self._connection is not None:
-    #             self._connection.kill()
-    #             self._connection = None
-    #         raise
-    #     else:
-    #         self._raise_event("CONECTED", data=dict(
-    #             address=self._address,
-    #             address_hash=self._address_hash))
-    #         self._connection.subscribe('devices', self._on_device_message)
-    #         self._connection.subscribe('datalogger/platform',
-    #                                    self._on_platform_stats)
-
-
-
-        # If we were successful in calling manage then we can add it to
-        # our list of managed platforms.
-        # if pk is not None and len(pk) == 43:
-        #
-        #     md5 = hashlib.md5(address)
-        #     address_hash = md5.hexdigest()
-        #     config_name = "platforms/{}".format(address_hash)
-        #     platform = None
-        #     if config_name in self.vip.config.list():
-        #         platform = self.vip.config.get(config_name)
-        #
-        #     if platform:
-        #         data = platform.copy()
-        #         data['serverkey'] = serverkey
-        #         data['display_name'] = display_name
-        #
-        #     else:
-        #         time_now = format_timestamp(get_aware_utc_now())
-        #         data = dict(
-        #             address=address, serverkey=serverkey,
-        #             display_name=display_name,
-        #             registered_time_utc=time_now,
-        #             instance_uuid=address_hash
-        #         )
-        #
-        #     data['health'] = connection.call('health.get_status')
-        #     devices = connection.call('get_devices')
-        #     data['devices'] = devices
-        #
-        #     status = Status.build(UNKNOWN_STATUS,
-        #                           context="Not published since update")
-        #     devices_health = {}
-        #     for device, item in devices.items():
-        #         device_no_prefix = device[len('devices/'):]
-        #         devices_health[device_no_prefix] = dict(
-        #             last_publish_utc=None,
-        #             health=status.as_dict(),
-        #             points=item.get('points', [])
-        #         )
-        #     data['devices_health'] = devices_health
-        #
-        #     self.vip.config.set(config_name, data)
-        #
-        #     # Hook into management socket here and send all of the data
-        #     # for newly registered platforms.
-        #     management_sockets = [s for s in self._websocket_endpoints
-        #                           if s.endswith("management")]
-        #     payload = dict(
-        #         type="platform_registered",
-        #         data=data
-        #     )
-        #     for s in management_sockets:
-        #         self.vip.web.send(s, payload)
-        #
-        #     def ondevicemessage(peer, sender, bus, topic, headers, message):
-        #         if not topic.endswith('/all'):
-        #             return
-        #
-        #         # used in the devices structure.
-        #         topic_no_all = topic[:-len('/all')]
-        #
-        #         # Used in the devices_health structure.
-        #         no_devices_prefix = topic_no_all[len('devices/'):]
-        #
-        #         now_time_utc = get_aware_utc_now()
-        #         last_publish_utc = format_timestamp(now_time_utc)
-        #
-        #         status = Status.build(GOOD_STATUS,
-        #                               context="Last publish {}".format(
-        #                                   last_publish_utc))
-        #         self._log.debug("DEVICES MESSAGE: {}".format(message))
-        #         try:
-        #             data = self.vip.config.get(config_name)
-        #         except KeyError:
-        #             self._log.error('Invalid configuration name: {}'.format(
-        #                 config_name))
-        #             return
-        #
-        #         cp = deepcopy(data)
-        #         try:
-        #             device_health = cp['devices_health'][no_devices_prefix]
-        #         except KeyError:
-        #             self._log.warn('No device health for: {}'.format(
-        #                 no_devices_prefix))
-        #             device_health = cp['devices']
-        #             device_health = cp['devices'][topic_no_all] = {
-        #                 'points': {}}
-        #             # device_health=dict(
-        #             #     points=cp['devices'][topic_no_all]['points'])
-        #
-        #         # Build a dictionary to easily update the status of our device
-        #         # health.
-        #         update = dict(last_publish_utc=last_publish_utc,
-        #                       health=status.as_dict())
-        #         device_health.update(update)
-        #         # Might need to provide protection around these three lines
-        #         data = self.vip.config.get(config_name)
-        #         data.update(cp)
-        #         self.vip.config.set(config_name, cp)
-        #
-        #     # Subscribe to the vcp instance for device publishes.
-        #     connection.server.vip.pubsub.subscribe('pubsub', 'devices',
-        #                                            ondevicemessage)
-
-    def _recheck_connection(self):
-        """
-        The recheck_connection function is scheduled to run and monitors whether
-        we have a valid connection to the external instance and if the
-        platform.agent is connected at the present time.
-        """
-        self._log.debug("Rechecking connection state.")
-        # if self._recheck_connection_event:
-        #     self._recheck_connection_event.kill()
-        #
-        # try:
-        #     if self._connection.is_peer_connected():
-        #         if not self._is_managed:
-        #             self._manage()
-        #
-        #         if self._last_time_verified_connection:
-        #             self._health.update_status(GOOD_STATUS,
-        #                                        "Connected to platform.")
-        #         self._last_time_verified_connection = get_utc_seconds_from_epoch()
-        #         self._log.debug('platform.agent is connected to remote instance')
-        #     else:
-        #         self._is_managed = False
-        #         self._raise_event("UNMANAGED", data=dict(
-        #             address=self._address,
-        #             address_hash=self._address_hash))
-        #         self._log.debug(
-        #             'platform.agent is not connected to remote instance.')
-        #
-        # except gevent.Timeout:
-        #     self._log.debug(
-        #         'Connection has timed out attempting to connect to peers.')
-        #     try:
-        #         if self._connection is None:
-        #             self._connect()
-        #     except gevent.Timeout:
-        #         # Here we are going to eat the exception as it won't help us.
-        #         # the _connect object
-        #         pass
-        #
-        # # For now we are going to schedule this for 10 second periods of
-        # # checking for connections.
-        # now = get_aware_utc_now()
-        # next_update_time = now + datetime.timedelta(
-        #     seconds=10)
-        #
-        # self._scheduled_connection_event = self._vc.core.schedule(
-        #     next_update_time, self._recheck_connection)

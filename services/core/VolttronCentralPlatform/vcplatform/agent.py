@@ -183,6 +183,9 @@ class VolttronCentralPlatform(Agent):
         self._still_connected_event = None
         self._establish_connection_event = None
 
+        # This becomes a connection using the vcconnection.py file.
+        self.volttron_central_connection = None
+
     def _configure_main(self, config_name, action, contents):
         """
         This is the main configuration point for the agent.
@@ -665,10 +668,7 @@ class VolttronCentralPlatform(Agent):
         return self.vip.health.get_status()
 
     def get_instance_uuid(self):
-        _log.debug('ADDRESS HASH for {} is {}'.format(
-            self.current_config.get('local_external_addresses')[0],
-            self.current_config.get("address_hash")))
-        return self.current_config.get('address_hash')
+        return self.current_config.get('instance_id')
 
     @RPC.export
     def publish_bacnet_props(self, proxy_identity, publish_topic, address,
@@ -903,7 +903,7 @@ class VolttronCentralPlatform(Agent):
         for cfg_name in config_list:
             # Skip as we are only looking to do devices in this call.
             if not cfg_name.startswith('devices/'):
-                break
+                continue
 
             _log.debug('Reading config store for device {}'.format(cfg_name))
 
@@ -929,8 +929,6 @@ class VolttronCentralPlatform(Agent):
                 points.append(pnt['Volttron Point Name'])
 
             devices[cfg_name]['points'] = points
-
-        _log.debug('get_devices returning {}'.format(devices))
 
         return devices
 
@@ -1114,17 +1112,19 @@ class VolttronCentralPlatform(Agent):
 
     @Core.receiver('onstop')
     def onstop(self, sender, **kwargs):
-        if self.vc_connection is not None:
+        if self.volttron_central_connection is not None:
             _log.debug("Shutting down agent.")
-            self.vc_connection.publish("platform/{}/stopping".format(
-                self.get_instance_uuid()))
+            self.volttron_central_connection.publish(
+                "platforms/{}/stopping".format(
+                    self.get_instance_uuid()))
             gevent.sleep(1)
             try:
-                self.vc_connection.kill()
+                self.volttron_central_connection.core.stop(timeput=5)
             except:
                 _log.error("killing vc_connection connection")
             finally:
-                self.vc_connection = None
+                self.volttron_central_connection = None
+
 
 def main(argv=sys.argv):
     """ Main method called by the eggsecutable.

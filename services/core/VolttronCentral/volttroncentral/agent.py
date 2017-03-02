@@ -223,7 +223,7 @@ class VolttronCentralAgent(Agent):
         _log.info("Handling new platform connection {}".format(
             platform_vip_identity))
 
-        self._platforms.add_platform(platform_vip_identity)
+        platform = self._platforms.add_platform(platform_vip_identity)
 
     def _handle_platform_disconnect(self, platform_vip_identity):
         _log.warn("Handling disconnection of connection from identity: {}".format(
@@ -416,143 +416,7 @@ class VolttronCentralAgent(Agent):
 
         return self._platforms.is_registered(address_hash)
 
-    @RPC.export
-    def register_instance(self, address, display_name=None, vcpserverkey=None,
-                          vcpagentkey=None):
-        """
-        RPC Method to register an instance with volttron central.
-
-        This method is able to accommodates both a discovery address as well
-        as well as a vip address.  In both cases the ports must be included in
-        the uri passed to address.  A discovery address allows the lookup of
-        serverkey from the address.  If instead address is an instance address
-        then the serverkey and vcpagentkey is required.  If either the serverkey
-        or the vcpagentkey are not specified then a ValueError is thrown.
-
-        .. code-block:: python
-            :linenos:
-
-            # Function call using discovery address
-            agent.vip.call('volttron.central', 'register_instance',
-                           'http://127.0.0.1:8080', 'platform1')
-
-            # Function call using instance address
-            agent.vip.call('volttron.central', 'register_instance',
-                           'tcp://127.0.0.1:22916',
-                           serverkey='EOEI_TzkyzOhjHuDPWqevWAQFaGxxU_tV1qVNZqqbBI',
-                           vcpagentkey='tV1qVNZqqbBIEOEI_TzkyzOhjHuDPWqevWAQFaGxxU_')
-
-            # Function call using instance address
-            agent.vip.call('volttron.central', 'register_instance',
-                           'ipc://@/home/volttron/.volttron/run/vip.socket',
-                           'platform1',
-                           'tV1qVNZqqbBIEOEI_TzkyzOhjHuDPWqevWAQFaGxxU_')
-
-        :param str address:
-            The url of the address for the platform.
-        :param str display_name:
-            (Optional) How the instance is displayed on volttron central.  This
-            will default to address if it is not specified.
-        :param str vcpserverkey:
-            (Optional) A server key for connecting from volttron central to the
-            calling instance
-        :param str vcpagentkey:
-            (Optional) The public key associated with the vcp agent connecting
-            to the volttron central instance.
-        """
-        _log.debug('register_instance called via RPC address: {}'.format(address))
-
-        _log.debug('rpc context for register_instance is: {}'.format(
-            self.vip.rpc.context.request)
-        )
-        _log.debug('rpc context for register_instance is: {}'.format(
-            self.vip.rpc.context.vip_message)
-        )
-
-        parsed = urlparse(address)
-
-        valid_schemes = ('http', 'https', 'tcp', 'ipc')
-        if parsed.scheme not in valid_schemes:
-            raise ValueError('Unknown scheme specified {} valid schemes are {}'
-                             .format(parsed.scheme, valid_schemes))
-
-        try:
-            if parsed.scheme in ('http', 'https'):
-                address_hash, platform = self._register_instance(
-                    address, parsed.scheme, display_name=display_name)
-            elif parsed.scheme == 'tcp':
-                if not vcpserverkey or len(vcpserverkey) != 43:  # valid publickey length
-                    raise ValueError(
-                        "tcp addresses must have valid vcpserverkey provided")
-                address_hash, platform = self._platforms.register_platform(
-                    address, parsed.scheme, vcpserverkey, display_name)
-            else: # ipc
-                address_hash, platform = self._platforms.register_platform(
-                    address, parsed.scheme, display_name=display_name)
-        except gevent.Timeout:
-            return dict(status="FAILED",
-                        context="Unable to register platform instance.")
-        else:
-            config_name = "platforms/{}".format(address_hash)
-            try:
-                current_config = self.vip.config.get(config_name)
-            except KeyError:
-                current_config = {}
-            config_store_data = dict(
-                address_type=parsed.scheme, display_name=platform.display_name,
-                address=platform.address, serverkey=platform.serverkey,
-                unregistered=False
-            )
-            current_config.update(config_store_data)
-            self.vip.config.set(config_name, current_config)
-            return dict(status="SUCCESS", context=address_hash)
-
-    def _periodic_reconnect_to_platforms(self):
-        _log.debug('Reconnecting to external platforms.')
-        if self._vcp_reconnect_event is not None:
-            # This won't hurt anything if we are canceling ourselves.
-            self._vcp_reconnect_event.cancel()
-
-        platforms = [x for x in self.vip.config.list()
-                     if x.startswith('platforms/')]
-        _log.debug('Platforms: {}'.format(platforms))
-        self.send_management_message("PLATFORM_HEARTBEAT", "Checking Platforms")
-        for x in platforms:
-            platform = self.vip.config.get(x)
-            address = platform.get('address')
-            serverkey = platform.get('serverkey')
-            _log.debug('Address: {} Serverkey: {}'.format(address, serverkey))
-            cn = self.vcp_connections.get(platform.get('instance_uuid'))
-            if cn is not None:
-                if cn.is_connected() and cn.is_peer_connected():
-                    _log.debug('Platform {} already connected'.format(
-                        platform.get('address')))
-
-                    continue
-                elif cn.is_connected() and not cn.is_peer_connected():
-                    _log.debug("Connection available, missing peer.")
-                    continue
-
-            _log.debug('Reconnecting to: {}'.format(platform.get('address')))
-            try:
-                cn = self._build_connection(address, serverkey)
-            except gevent.Timeout:
-                _log.error("Unable to reconnect to the external instances.")
-                continue
-
-            if cn is not None and cn.is_connected() and cn.is_peer_connected():
-                self.vcp_connections[x] = cn
-                cn.call('manage', self.runtime_config['local_external_address'])
-            else:
-                _log.debug('Not connected nor managed.')
-
-        now = get_aware_utc_now()
-        next_update_time = now + datetime.timedelta(seconds=10)
-
-        self._vcp_reconnect_event = self.core.schedule(
-            next_update_time, self._periodic_reconnect_to_platforms)
-
-    @PubSub.subscribe("pubsub", "heartbeat/platform")
+    # @PubSub.subscribe("pubsub", "heartbeat/platform")
     def _on_platform_heartbeat(self, peer, sender, bus, topic, headers,
                                message):
 
@@ -587,7 +451,6 @@ class VolttronCentralAgent(Agent):
 
             self.send_management_message("PLATFORM_HEARTBEAT", platform['health'])
 
-
     @PubSub.subscribe("pubsub", "platforms")
     def _on_platforms_messsage(self, peer, sender, bus, topic, headers,
                                message):
@@ -614,9 +477,6 @@ class VolttronCentralAgent(Agent):
                                                   topicsplit[1], \
                                                   topicsplit[2], topicsplit[3:]
 
-        _log.warn(platform_uuid)
-        _log.warn(op_or_datatype)
-        _log.warn(other)
         if op_or_datatype in ('iam', 'configure'):
             if not other:
                 _log.error("Invalid response to iam or configure endpoint")
@@ -627,6 +487,8 @@ class VolttronCentralAgent(Agent):
             ws_endpoint = "/vc/ws/{}/{}".format(other[0], op_or_datatype)
             _log.debug('SENDING MESSAGE TO {}'.format(ws_endpoint))
             self.vip.web.send(ws_endpoint, jsonapi.dumps(message))
+        else:
+            _log.debug("OP WAS: {}".format(op_or_datatype))
 
         # platform = self._registered_platforms.get(platform_uuid)
         # if platform is None:
@@ -659,7 +521,7 @@ class VolttronCentralAgent(Agent):
         #     ws_endpoint = "/vc/ws/{}".format(op_or_datatype)
         #     self.vip.web.send(ws_endpoint, jsonapi.dumps(message))
 
-    @PubSub.subscribe("pubsub", "datalogger/platforms")
+    #@PubSub.subscribe("pubsub", "datalogger/platforms")
     def _on_platform_log_message(self, peer, sender, bus, topic, headers,
                                  message):
         """ Receive message from a registered platform
@@ -1259,7 +1121,9 @@ class VolttronCentralAgent(Agent):
                 def close_socket():
                     _log.debug('Closing bacnet scan for {}'.format(
                         platform_uuid))
-                    #self.vip.web.unregister_websocket(ws_socket_topic)
+                    gevent.spawn_later(2,
+                                       self.vip.web.unregister_websocket,
+                                       iam_session_topic)
 
                 gevent.spawn_later(scan_length, close_socket)
             # By starting the scan a second later we allow the websocket
@@ -1406,7 +1270,7 @@ class VolttronCentralAgent(Agent):
                     platform_uuid = method_split[2]
 
             if not platform_uuid:
-                return err("Invalid platform_uuid '{}' specified as parameter"
+                return err("Invalid platform_uuid specified as parameter"
                            .format(platform_uuid),
                            INVALID_PARAMS)
 
