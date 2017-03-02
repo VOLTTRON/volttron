@@ -204,6 +204,7 @@ class CrateHistorian(BaseHistorian):
                 _log.debug('Waiting to attempt to write to database.')
                 return
 
+
         def insert_data(cursor, topic_id, ts, data):
             insert_query = """INSERT INTO {} (topic_id, ts, result)
                               VALUES(?, ?, ?)
@@ -403,9 +404,6 @@ cached.
                         order="FIRST_TO_LAST"):
         """ Returns the results of the query from the crate database.
 
-        This historian stores data to the nearest second.  It will not
-        store subsecond resolution data.  This is an optimisation based
-        upon storage for the database.
         Please see
         :py:meth:`volttron.platform.agent.base_historian.BaseQueryHistorianAgent.query_historian`
         for input parameters and return value details
