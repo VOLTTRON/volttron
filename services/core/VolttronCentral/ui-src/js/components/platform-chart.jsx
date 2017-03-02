@@ -43,10 +43,9 @@ var PlatformChart = React.createClass({
 
         this.setState({refreshing: false});
 
-        if (this.props.chart.data.length > 0)
+        if (this.props.chart.series.length > 0)
         {
-
-            var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
+            var refreshInterval = platformChartStore.getRefreshRate(this.props.chartKey);
 
             if (refreshInterval !== this.state.refreshInterval)
             {
@@ -101,7 +100,7 @@ var PlatformChart = React.createClass({
         );
     },
     render: function () {
-        var chartData = this.props.chart; 
+        var chartSeries = this.props.chart.series; 
         var platformChart;
 
         var removeButton;
@@ -129,36 +128,36 @@ var PlatformChart = React.createClass({
         }
 
         var innerStyle = {
-            width: (chartData.data[0].name.length > 10 ? chartData.data[0].name.length * 10 : 100) + "px",
+            width: (this.props.chartKey.length > 10 ? this.props.chartKey.length * 10 : 100) + "px",
             marginLeft: "auto",
             marginRight: "auto"
         }
-
-        if (chartData)
+        
+        if (chartSeries)
         {
-            if (chartData.data.length > 0)
+            if (chartSeries.length > 0)
             {
                 platformChart = (
                   <div className="platform-chart with-3d-shadow with-transitions absolute_anchor">
                       <div style={containerStyle}>
                         <div className="absolute_anchor" style={innerStyle}>
-                            <label className="chart-title">{chartData.data[0].name}</label> 
+                            <label className="chart-title">{this.props.chartKey}</label> 
                             {refreshingIcon}
                         </div>
                       </div>
                       {removeButton}
                       <div>
                           <div className='viz'>        
-                              { chartData.data.length != 0 ? 
+                              { chartSeries.length != 0 ? 
                                     <GraphLineChart 
                                         key={this.props.chartKey}
-                                        data={chartData.data}
+                                        series={chartSeries}
                                         name={this.props.chartKey}
                                         hideControls={this.props.hideControls}
                                         refreshInterval={this.props.chart.refreshInterval}
                                         dataLength={this.props.chart.dataLength}
-                                        max={chartData.max}
-                                        min={chartData.min}
+                                        max={this.props.chart.max}
+                                        min={this.props.chart.min}
                                         pinned={this.props.chart.pinned}
                                         chartType={this.props.chart.type} /> : null }
                           </div>
@@ -195,23 +194,16 @@ var GraphLineChart = OutsideClick(React.createClass({
       state.tooltipX = 0;
       state.tooltipY = 0;
       state.tooltipContent = "";
-      state.min = (this.props.min ? this.props.min : d3.min(this.props.data, function (d) {return d["1"]}));
-      state.max = (this.props.max ? this.props.max : d3.max(this.props.data, function (d) {return d["1"]}));
+      state.min = this.props.min;
+      state.max = this.props.max;
 
       return state;
   },
   componentDidMount: function() {
       platformChartStore.addChangeListener(this._onStoresChange);
-
-      // this.chart = ReactDOM.findDOMNode(this.refs[this.state.chartName]);
   },
   componentWillUnmount: function () {
       platformChartStore.removeChangeListener(this._onStoresChange);
-      
-      // if (this.chart)
-      // {
-      //     delete this.chart;
-      // }
   },
   _onStoresChange: function () {
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
@@ -220,8 +212,8 @@ var GraphLineChart = OutsideClick(React.createClass({
       var min = platformChartStore.getMin(this.props.name);
       var max = platformChartStore.getMax(this.props.name);
 
-      this.setState({min: (min ? min : d3.min(this.props.data, function (d) {return d["1"]}))});
-      this.setState({max: (max ? max : d3.max(this.props.data, function (d) {return d["1"]}))});      
+      this.setState({min: min});
+      this.setState({max: max});
   },
   handleClickOutside: function () {      
       
@@ -264,40 +256,6 @@ var GraphLineChart = OutsideClick(React.createClass({
           platformActionCreators.saveCharts();
       }
   },
-  _onMinChange: function (e) {
-      var min = e.target.value;
-
-      platformChartActionCreators.setMin(min, this.props.name);
-
-      if (this.state.pinned)
-      {
-          platformActionCreators.saveCharts();
-      }
-  },
-  _onMaxChange: function (e) {
-      var max = e.target.value;
-      
-      platformChartActionCreators.setMax(max, this.props.name);
-
-      if (this.state.pinned)
-      {
-          platformActionCreators.saveCharts();
-      }
-  },
-  _showTooltip: function (d, e) {
-      // var content = JSON.stringify(e);
-      var content = JSON.stringify(d);
-      this.setState({ tooltipContent: content });
-      this.setState({ showTooltip: true });
-  },
-  _hideTooltip: function (e) {
-
-      this.setState({ showTooltip: false });
-  },
-  mouseMoveHandler: function (e) {
-
-      // this.setState({ showTooltip: false });
-  },
   render: function() {
 
     var chartStyle = {
@@ -334,9 +292,7 @@ var GraphLineChart = OutsideClick(React.createClass({
                 required
             >
                 <option value="line">Line</option>
-                <option value="lineWithFocus">Line with View Finder</option>
-                <option value="stackedArea">Stacked Area</option>
-                <option value="cumulativeLine">Cumulative Line</option>
+                <option value="stacked">Stacked Area</option>
             </select>
         );
 
@@ -461,83 +417,7 @@ var GraphLineChart = OutsideClick(React.createClass({
               icon={lengthIcon}></ControlButton>
         );
 
-        var chartMin = (
-            <div>
-                <input
-                    type="number"
-                    onChange={this._onMinChange}
-                    value={this.state.min}
-                    step="1"
-                />
-            </div>
-        );
-
-        var chartMinTaptip = { 
-            "title": "Y Axis Min", 
-            "content": chartMin,
-            "x": taptipX,
-            "y": taptipY
-        };
-        var chartMinIcon = (
-            <div className="moveMin">
-                <span>&#9644;</span>
-            </div>
-        );
-
         tooltipX = tooltipX + 20;
-
-        var chartMinTooltip = {
-            "content": "Y Axis Min",
-            "x": tooltipX,
-            "y": tooltipY
-        };
-
-        var chartMinControlButton = (
-            <ControlButton 
-                name={this.state.chartName + "_chartMinControlButton"}
-                taptip={chartMinTaptip}
-                tooltip={chartMinTooltip}
-                icon={chartMinIcon}></ControlButton>
-        );
-
-        var chartMax = (
-            <div>
-                <input
-                    type="number"
-                    onChange={this._onMaxChange}
-                    value={this.state.max}
-                    step="1"
-                />
-            </div>
-        );
-
-        var chartMaxTaptip = { 
-            "title": "Y Axis Max", 
-            "content": chartMax,
-            "x": taptipX,
-            "y": taptipY
-        };
-        var chartMaxIcon = (
-            <div className="moveMax">
-                <span>&#9644;</span>
-            </div>
-        );
-
-        tooltipX = tooltipX + 20;
-
-        var chartMaxTooltip = {
-            "content": "Y Axis Max",
-            "x": tooltipX,
-            "y": tooltipY
-        };
-
-        var chartMaxControlButton = (
-            <ControlButton 
-                name={this.state.chartName + "_chartMaxControlButton"}
-                taptip={chartMaxTaptip}
-                tooltip={chartMaxTooltip}
-                icon={chartMaxIcon}></ControlButton>
-        );
 
         var spaceStyle = {
             width: "20px",
@@ -551,85 +431,75 @@ var GraphLineChart = OutsideClick(React.createClass({
                 {chartTypeControlButton}
                 {refreshChartControlButton}
                 {dataLengthControlButton}
-                {chartMinControlButton}
-                {chartMaxControlButton}
                 <div className="inlineBlock"
                     style={spaceStyle}></div>
             </div>
         );
     }
 
-    var graphData = this.props.data.map(function (item) {
-      return {x: item[0], y: item[1]};
-    });
-
-    // console.log(graphData[0]);
-
-    var chartData = [
-      {
-        label: this.props.data[0].name,
-        values: graphData
-      }
-    ];
-
-    var labels = this.props.data.map(function (item) {
-        return item[0];
-      });
-
-    var dataLabel = this.props.data[0].parent;
-
-    var values = this.props.data.map(function (item) {
-          return item[1];
-        });
-
-    var data = {
-      labels: labels,
-      datasets: [
-        { 
-          label: dataLabel,
-          data: values,
-          fill: false,
-          lineTension: 0.1,
-          backgroundColor: 'rgba(75,192,192,0.4)',
-          borderColor: 'rgba(75,192,192,1)',
-          borderCapStyle: 'butt',
-          borderDash: [],
-          borderDashOffset: 0.0,
-          borderJoinStyle: 'miter',
-          pointBorderColor: 'rgba(75,192,192,1)',
-          pointBackgroundColor: '#fff',
-          pointBorderWidth: 1,
-          pointHoverRadius: 5,
-          pointHoverBackgroundColor: 'rgba(75,192,192,1)',
-          pointHoverBorderColor: 'rgba(220,220,220,1)',
-          pointHoverBorderWidth: 2,
-          pointRadius: 1,
-          pointHitRadius: 10
-        }
-      ]
-
-    };
-
-    
-
     var rdcChart;
 
-    switch(this.state.chartType)
+    if (this.props.series.length && this.props.series[0].data)
     {
-      default:
+      var labels = this.props.series[0].data.map(function (datum) {
+        return datum[0];
+      });
 
-        // chartTooltip = function(x, pt) {
-        //     return "x: " + pt.x + " y: " + pt.y;
-        // };
-        rdcChart = (
+      var data = {
+        labels: labels,
+        datasets: this.props.series.map(function (item, index) {
+          
+          var mappedColor = mapSeriesColor(index);
+          var lighterColor = mapSeriesColor(index, 0.8);
+          var lightestColor = mapSeriesColor(index, 0.3);
+
+          return {
+            label: item.parentPath,
+            data: item.data.map(function (datum) {
+                return datum[1];
+            }),
+            fill: this.state.chartType === 'stacked',
+            lineTension: 0.1,
+            backgroundColor: lightestColor,
+            borderColor: lighterColor,
+            borderCapStyle: 'butt',
+            borderDash: [],
+            borderDashOffset: 0.0,
+            borderJoinStyle: 'miter',
+            pointBorderColor: lighterColor,
+            pointBackgroundColor: '#fff',
+            pointBorderWidth: 1,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: lighterColor,
+            pointHoverBorderColor: mappedColor,
+            pointHoverBorderWidth: 2,
+            pointRadius: 1,
+            pointHitRadius: 10
+          };
+
+        }, this)
+      }
+
+      var options = {
+          scales: {                    
+              xAxes: [{
+                display: false
+              }],
+              yAxes: [{
+                  stacked: this.state.chartType === 'stacked'
+              }]
+          }
+      };
+
+      rdcChart = (
           <Line 
             height={200} 
             width={700} 
             label={this.props.name}
-            data={data}/>
-        );
-        break;
-    }
+            data={data}
+            options={options}/>
+      );
+    };
 
     return (
       <div className='absolute_anchor'
@@ -643,7 +513,70 @@ var GraphLineChart = OutsideClick(React.createClass({
   
 }));
 
+function mapSeriesColor(index, a=1) {
+    var colorSet = [
+        {
+          color: 'darkorange',
+          shade: `rgba(255,140,0,${a})`
+        },
+        {
+          color: 'green',
+          shade: `rgba(0,128,0,${a})`
+        },
+        {
+          color: 'teal',
+          shade: `rgba(0,128,128,${a})`
+        },
+        {
+          color: 'maroon',
+          shade: `rgba(128,0,0,${a})`
+        },
+        {
+          color: 'navy',
+          shade: `rgba(0,0,128,${a})`
+        },
+        {
+          color: 'silver',
+          shade: `rgba(192,192,192,${a})`
+        },
+        {
+          color: 'purple',
+          shade: `rgba(128,0,128,${a})`
+        },
+        {
+          color: 'red',
+          shade: `rgba(255,0,0,${a})`
+        },
+        {
+          color: 'lime',
+          shade: `rgba(0,255,0),${a})`
+        },
+        {
+          color: 'tan',
+          shade: `rgba(210,180,140),${a})`
+        },
+        {
+          color: 'gold',
+          shade: `rgba(255,215,0),${a})`
+        },
+        {
+          color: 'aqua',
+          shade: `rgba(0,255,255),${a})`
+        },
+        {
+          color: 'fuchsia',
+          shade: `rgba(255,0,255),${a})`
+        },
+        {
+          color: 'olive',
+          shade: `rgba(128,128,0),${a})`
+        }
+    ];
 
+    var colorIndex = index % colorSet.length;
+
+    return colorSet[colorIndex].shade;
+}
 
 
 module.exports = PlatformChart;

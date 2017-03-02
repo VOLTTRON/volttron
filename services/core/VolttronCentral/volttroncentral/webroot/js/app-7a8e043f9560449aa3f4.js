@@ -36598,11 +36598,10 @@
 	                        dataLength: action.panelItem.hasOwnProperty("dataLength") ? action.panelItem.dataLength : 20,
 	                        pinned: action.panelItem.hasOwnProperty("pinned") ? action.panelItem.pinned : false,
 	                        type: action.panelItem.hasOwnProperty("chartType") ? action.panelItem.chartType : "lineChart",
-	                        data: convertTimeToSeconds(action.panelItem.data),
 	                        chartKey: action.panelItem.name,
 	                        min: action.panelItem.hasOwnProperty("min") ? action.panelItem.min : null,
 	                        max: action.panelItem.hasOwnProperty("max") ? action.panelItem.max : null,
-	                        series: [setChartItem(action.panelItem)]
+	                        series: [setChartItem(action.panelItem, convertTimeToSeconds(action.panelItem.data))]
 	                    };
 	
 	                    _chartData[action.panelItem.name] = chartObj;
@@ -36772,7 +36771,7 @@
 	            break;
 	    }
 	
-	    function setChartItem(item) {
+	    function setChartItem(item, data) {
 	
 	        var chartItem = {
 	            name: item.name,
@@ -36781,7 +36780,8 @@
 	            parentUuid: item.parentUuid,
 	            parentType: item.parentType,
 	            parentPath: item.parentPath,
-	            topic: item.topic
+	            topic: item.topic,
+	            data: data
 	        };
 	
 	        return chartItem;
@@ -36789,33 +36789,18 @@
 	
 	    function insertSeries(item) {
 	
-	        var chartItems = _chartData[item.name].data.filter(function (datum) {
-	            return datum.uuid === item.uuid;
-	        });
-	
-	        if (chartItems.length === 0) {
-	            if (item.hasOwnProperty("data")) {
-	                _chartData[item.name].data = _chartData[item.name].data.concat(convertTimeToSeconds(item.data));
-	                _chartData[item.name].series.push(setChartItem(item));
-	            }
+	        if (item.hasOwnProperty("data")) {
+	            _chartData[item.name].series.push(setChartItem(item, _chartData[item.name].data.concat(convertTimeToSeconds(item.data))));
 	        }
 	    }
 	
 	    function removeSeries(name, uuid) {
 	
-	        if (_chartData[name].data.length > 0) {
-	            for (var i = _chartData[name].data.length - 1; i >= 0; i--) {
-	                if (_chartData[name].data[i].uuid === uuid) {
-	                    _chartData[name].data.splice(i, 1);
-	                }
-	            }
+	        for (var i = 0; i < _chartData[name].series.length; i++) {
+	            if (_chartData[name].series[i].uuid === uuid) {
+	                _chartData[name].series.splice(i, 1);
 	
-	            for (var i = 0; i < _chartData[name].series.length; i++) {
-	                if (_chartData[name].series[i].uuid === uuid) {
-	                    _chartData[name].series.splice(i, 1);
-	
-	                    break;
-	                }
+	                break;
 	            }
 	        }
 	    }
@@ -62014,7 +61999,7 @@
 	            }).promise.then(function (result) {
 	
 	                if (result.hasOwnProperty("values")) {
-	                    item.data = result.values;
+	                    item.data = result.values.reverse();
 	
 	                    item.data.forEach(function (datum) {
 	                        datum.name = item.name;
@@ -62100,7 +62085,7 @@
 	    }).promise.then(function (result) {
 	
 	        if (result.hasOwnProperty("values")) {
-	            panelItem.data = result.values;
+	            panelItem.data = result.values.reverse();
 	
 	            panelItem.data.forEach(function (datum) {
 	                datum.name = panelItem.name;
@@ -80751,9 +80736,8 @@
 	
 	        this.setState({ refreshing: false });
 	
-	        if (this.props.chart.data.length > 0) {
-	
-	            var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
+	        if (this.props.chart.series.length > 0) {
+	            var refreshInterval = platformChartStore.getRefreshRate(this.props.chartKey);
 	
 	            if (refreshInterval !== this.state.refreshInterval) {
 	                this.setState({ refreshInterval: refreshInterval });
@@ -80799,7 +80783,7 @@
 	            onConfirm: deleteChart.bind(this) }));
 	    },
 	    render: function render() {
-	        var chartData = this.props.chart;
+	        var chartSeries = this.props.chart.series;
 	        var platformChart;
 	
 	        var removeButton;
@@ -80829,13 +80813,13 @@
 	        };
 	
 	        var innerStyle = {
-	            width: (chartData.data[0].name.length > 10 ? chartData.data[0].name.length * 10 : 100) + "px",
+	            width: (this.props.chartKey.length > 10 ? this.props.chartKey.length * 10 : 100) + "px",
 	            marginLeft: "auto",
 	            marginRight: "auto"
 	        };
 	
-	        if (chartData) {
-	            if (chartData.data.length > 0) {
+	        if (chartSeries) {
+	            if (chartSeries.length > 0) {
 	                platformChart = React.createElement(
 	                    'div',
 	                    { className: 'platform-chart with-3d-shadow with-transitions absolute_anchor' },
@@ -80848,7 +80832,7 @@
 	                            React.createElement(
 	                                'label',
 	                                { className: 'chart-title' },
-	                                chartData.data[0].name
+	                                this.props.chartKey
 	                            ),
 	                            refreshingIcon
 	                        )
@@ -80860,15 +80844,15 @@
 	                        React.createElement(
 	                            'div',
 	                            { className: 'viz' },
-	                            chartData.data.length != 0 ? React.createElement(GraphLineChart, {
+	                            chartSeries.length != 0 ? React.createElement(GraphLineChart, {
 	                                key: this.props.chartKey,
-	                                data: chartData.data,
+	                                series: chartSeries,
 	                                name: this.props.chartKey,
 	                                hideControls: this.props.hideControls,
 	                                refreshInterval: this.props.chart.refreshInterval,
 	                                dataLength: this.props.chart.dataLength,
-	                                max: chartData.max,
-	                                min: chartData.min,
+	                                max: this.props.chart.max,
+	                                min: this.props.chart.min,
 	                                pinned: this.props.chart.pinned,
 	                                chartType: this.props.chart.type }) : null
 	                        ),
@@ -80907,27 +80891,16 @@
 	        state.tooltipX = 0;
 	        state.tooltipY = 0;
 	        state.tooltipContent = "";
-	        state.min = this.props.min ? this.props.min : d3.min(this.props.data, function (d) {
-	            return d["1"];
-	        });
-	        state.max = this.props.max ? this.props.max : d3.max(this.props.data, function (d) {
-	            return d["1"];
-	        });
+	        state.min = this.props.min;
+	        state.max = this.props.max;
 	
 	        return state;
 	    },
 	    componentDidMount: function componentDidMount() {
 	        platformChartStore.addChangeListener(this._onStoresChange);
-	
-	        // this.chart = ReactDOM.findDOMNode(this.refs[this.state.chartName]);
 	    },
 	    componentWillUnmount: function componentWillUnmount() {
 	        platformChartStore.removeChangeListener(this._onStoresChange);
-	
-	        // if (this.chart)
-	        // {
-	        //     delete this.chart;
-	        // }
 	    },
 	    _onStoresChange: function _onStoresChange() {
 	        this.setState({ pinned: platformChartStore.getPinned(this.props.name) });
@@ -80936,12 +80909,8 @@
 	        var min = platformChartStore.getMin(this.props.name);
 	        var max = platformChartStore.getMax(this.props.name);
 	
-	        this.setState({ min: min ? min : d3.min(this.props.data, function (d) {
-	                return d["1"];
-	            }) });
-	        this.setState({ max: max ? max : d3.max(this.props.data, function (d) {
-	                return d["1"];
-	            }) });
+	        this.setState({ min: min });
+	        this.setState({ max: max });
 	    },
 	    handleClickOutside: function handleClickOutside() {
 	
@@ -80980,38 +80949,6 @@
 	        if (this.state.pinned) {
 	            platformActionCreators.saveCharts();
 	        }
-	    },
-	    _onMinChange: function _onMinChange(e) {
-	        var min = e.target.value;
-	
-	        platformChartActionCreators.setMin(min, this.props.name);
-	
-	        if (this.state.pinned) {
-	            platformActionCreators.saveCharts();
-	        }
-	    },
-	    _onMaxChange: function _onMaxChange(e) {
-	        var max = e.target.value;
-	
-	        platformChartActionCreators.setMax(max, this.props.name);
-	
-	        if (this.state.pinned) {
-	            platformActionCreators.saveCharts();
-	        }
-	    },
-	    _showTooltip: function _showTooltip(d, e) {
-	        // var content = JSON.stringify(e);
-	        var content = JSON.stringify(d);
-	        this.setState({ tooltipContent: content });
-	        this.setState({ showTooltip: true });
-	    },
-	    _hideTooltip: function _hideTooltip(e) {
-	
-	        this.setState({ showTooltip: false });
-	    },
-	    mouseMoveHandler: function mouseMoveHandler(e) {
-	
-	        // this.setState({ showTooltip: false });
 	    },
 	    render: function render() {
 	
@@ -81055,18 +80992,8 @@
 	                ),
 	                React.createElement(
 	                    'option',
-	                    { value: 'lineWithFocus' },
-	                    'Line with View Finder'
-	                ),
-	                React.createElement(
-	                    'option',
-	                    { value: 'stackedArea' },
+	                    { value: 'stacked' },
 	                    'Stacked Area'
-	                ),
-	                React.createElement(
-	                    'option',
-	                    { value: 'cumulativeLine' },
-	                    'Cumulative Line'
 	                )
 	            );
 	
@@ -81179,87 +81106,7 @@
 	                tooltip: dataLengthTooltip,
 	                icon: lengthIcon });
 	
-	            var chartMin = React.createElement(
-	                'div',
-	                null,
-	                React.createElement('input', {
-	                    type: 'number',
-	                    onChange: this._onMinChange,
-	                    value: this.state.min,
-	                    step: '1'
-	                })
-	            );
-	
-	            var chartMinTaptip = {
-	                "title": "Y Axis Min",
-	                "content": chartMin,
-	                "x": taptipX,
-	                "y": taptipY
-	            };
-	            var chartMinIcon = React.createElement(
-	                'div',
-	                { className: 'moveMin' },
-	                React.createElement(
-	                    'span',
-	                    null,
-	                    '\u25AC'
-	                )
-	            );
-	
 	            tooltipX = tooltipX + 20;
-	
-	            var chartMinTooltip = {
-	                "content": "Y Axis Min",
-	                "x": tooltipX,
-	                "y": tooltipY
-	            };
-	
-	            var chartMinControlButton = React.createElement(_controlButton2.default, {
-	                name: this.state.chartName + "_chartMinControlButton",
-	                taptip: chartMinTaptip,
-	                tooltip: chartMinTooltip,
-	                icon: chartMinIcon });
-	
-	            var chartMax = React.createElement(
-	                'div',
-	                null,
-	                React.createElement('input', {
-	                    type: 'number',
-	                    onChange: this._onMaxChange,
-	                    value: this.state.max,
-	                    step: '1'
-	                })
-	            );
-	
-	            var chartMaxTaptip = {
-	                "title": "Y Axis Max",
-	                "content": chartMax,
-	                "x": taptipX,
-	                "y": taptipY
-	            };
-	            var chartMaxIcon = React.createElement(
-	                'div',
-	                { className: 'moveMax' },
-	                React.createElement(
-	                    'span',
-	                    null,
-	                    '\u25AC'
-	                )
-	            );
-	
-	            tooltipX = tooltipX + 20;
-	
-	            var chartMaxTooltip = {
-	                "content": "Y Axis Max",
-	                "x": tooltipX,
-	                "y": tooltipY
-	            };
-	
-	            var chartMaxControlButton = React.createElement(_controlButton2.default, {
-	                name: this.state.chartName + "_chartMaxControlButton",
-	                taptip: chartMaxTaptip,
-	                tooltip: chartMaxTooltip,
-	                icon: chartMaxIcon });
 	
 	            var spaceStyle = {
 	                width: "20px",
@@ -81274,75 +81121,70 @@
 	                chartTypeControlButton,
 	                refreshChartControlButton,
 	                dataLengthControlButton,
-	                chartMinControlButton,
-	                chartMaxControlButton,
 	                React.createElement('div', { className: 'inlineBlock',
 	                    style: spaceStyle })
 	            );
 	        }
 	
-	        var graphData = this.props.data.map(function (item) {
-	            return { x: item[0], y: item[1] };
-	        });
-	
-	        // console.log(graphData[0]);
-	
-	        var chartData = [{
-	            label: this.props.data[0].name,
-	            values: graphData
-	        }];
-	
-	        var labels = this.props.data.map(function (item) {
-	            return item[0];
-	        });
-	
-	        var dataLabel = this.props.data[0].parent;
-	
-	        var values = this.props.data.map(function (item) {
-	            return item[1];
-	        });
-	
-	        var data = {
-	            labels: labels,
-	            datasets: [{
-	                label: dataLabel,
-	                data: values,
-	                fill: false,
-	                lineTension: 0.1,
-	                backgroundColor: 'rgba(75,192,192,0.4)',
-	                borderColor: 'rgba(75,192,192,1)',
-	                borderCapStyle: 'butt',
-	                borderDash: [],
-	                borderDashOffset: 0.0,
-	                borderJoinStyle: 'miter',
-	                pointBorderColor: 'rgba(75,192,192,1)',
-	                pointBackgroundColor: '#fff',
-	                pointBorderWidth: 1,
-	                pointHoverRadius: 5,
-	                pointHoverBackgroundColor: 'rgba(75,192,192,1)',
-	                pointHoverBorderColor: 'rgba(220,220,220,1)',
-	                pointHoverBorderWidth: 2,
-	                pointRadius: 1,
-	                pointHitRadius: 10
-	            }]
-	
-	        };
-	
 	        var rdcChart;
 	
-	        switch (this.state.chartType) {
-	            default:
+	        if (this.props.series.length && this.props.series[0].data) {
+	            var labels = this.props.series[0].data.map(function (datum) {
+	                return datum[0];
+	            });
 	
-	                // chartTooltip = function(x, pt) {
-	                //     return "x: " + pt.x + " y: " + pt.y;
-	                // };
-	                rdcChart = React.createElement(_reactChartjs.Line, {
-	                    height: 200,
-	                    width: 700,
-	                    label: this.props.name,
-	                    data: data });
-	                break;
-	        }
+	            var data = {
+	                labels: labels,
+	                datasets: this.props.series.map(function (item, index) {
+	
+	                    var mappedColor = mapSeriesColor(index);
+	                    var lighterColor = mapSeriesColor(index, 0.8);
+	                    var lightestColor = mapSeriesColor(index, 0.3);
+	
+	                    return {
+	                        label: item.parentPath,
+	                        data: item.data.map(function (datum) {
+	                            return datum[1];
+	                        }),
+	                        fill: this.state.chartType === 'stacked',
+	                        lineTension: 0.1,
+	                        backgroundColor: lightestColor,
+	                        borderColor: lighterColor,
+	                        borderCapStyle: 'butt',
+	                        borderDash: [],
+	                        borderDashOffset: 0.0,
+	                        borderJoinStyle: 'miter',
+	                        pointBorderColor: lighterColor,
+	                        pointBackgroundColor: '#fff',
+	                        pointBorderWidth: 1,
+	                        pointHoverRadius: 5,
+	                        pointHoverBackgroundColor: lighterColor,
+	                        pointHoverBorderColor: mappedColor,
+	                        pointHoverBorderWidth: 2,
+	                        pointRadius: 1,
+	                        pointHitRadius: 10
+	                    };
+	                }, this)
+	            };
+	
+	            var options = {
+	                scales: {
+	                    xAxes: [{
+	                        display: false
+	                    }],
+	                    yAxes: [{
+	                        stacked: this.state.chartType === 'stacked'
+	                    }]
+	                }
+	            };
+	
+	            rdcChart = React.createElement(_reactChartjs.Line, {
+	                height: 200,
+	                width: 700,
+	                label: this.props.name,
+	                data: data,
+	                options: options });
+	        };
 	
 	        return React.createElement(
 	            'div',
@@ -81355,6 +81197,58 @@
 	    }
 	
 	}));
+	
+	function mapSeriesColor(index) {
+	    var a = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 1;
+	
+	    var colorSet = [{
+	        color: 'darkorange',
+	        shade: 'rgba(255,140,0,' + a + ')'
+	    }, {
+	        color: 'green',
+	        shade: 'rgba(0,128,0,' + a + ')'
+	    }, {
+	        color: 'teal',
+	        shade: 'rgba(0,128,128,' + a + ')'
+	    }, {
+	        color: 'maroon',
+	        shade: 'rgba(128,0,0,' + a + ')'
+	    }, {
+	        color: 'navy',
+	        shade: 'rgba(0,0,128,' + a + ')'
+	    }, {
+	        color: 'silver',
+	        shade: 'rgba(192,192,192,' + a + ')'
+	    }, {
+	        color: 'purple',
+	        shade: 'rgba(128,0,128,' + a + ')'
+	    }, {
+	        color: 'red',
+	        shade: 'rgba(255,0,0,' + a + ')'
+	    }, {
+	        color: 'lime',
+	        shade: 'rgba(0,255,0),' + a + ')'
+	    }, {
+	        color: 'tan',
+	        shade: 'rgba(210,180,140),' + a + ')'
+	    }, {
+	        color: 'gold',
+	        shade: 'rgba(255,215,0),' + a + ')'
+	    }, {
+	        color: 'aqua',
+	        shade: 'rgba(0,255,255),' + a + ')'
+	    }, {
+	        color: 'fuchsia',
+	        shade: 'rgba(255,0,255),' + a + ')'
+	    }, {
+	        color: 'olive',
+	        shade: 'rgba(128,128,0),' + a + ')'
+	    }];
+	
+	    var colorIndex = index % colorSet.length;
+	
+	    return colorSet[colorIndex].shade;
+	}
 	
 	module.exports = PlatformChart;
 
@@ -121755,8 +121649,6 @@
 	var NewChartForm = __webpack_require__(634);
 	var chartStore = __webpack_require__(267);
 	
-	var reloadPageInterval = 1800000;
-	
 	var PlatformCharts = React.createClass({
 	    displayName: 'PlatformCharts',
 	
@@ -121766,28 +121658,16 @@
 	            chartData: chartStore.getData()
 	        };
 	
-	        // this._reloadPageTimeout = setTimeout(this._reloadPage, reloadPageInterval);
-	
 	        return state;
 	    },
 	    componentDidMount: function componentDidMount() {
 	        chartStore.addChangeListener(this._onChartStoreChange);
 	    },
 	    componentWillUnmount: function componentWillUnmount() {
-	        // clearTimeout(this._reloadPageTimeout);
 	        chartStore.removeChangeListener(this._onChartStoreChange);
 	    },
 	    _onChartStoreChange: function _onChartStoreChange() {
 	        this.setState({ chartData: chartStore.getData() });
-	    },
-	    _reloadPage: function _reloadPage() {
-	
-	        //Reload page to clear leaked memory
-	        if (Object.keys(this.state.chartData).length) {
-	            location.reload(true);
-	        } else {
-	            // this._reloadPageTimeout = setTimeout(this._reloadPage, reloadPageInterval);
-	        }
 	    },
 	    _onAddChartClick: function _onAddChartClick() {
 	
@@ -121801,7 +121681,7 @@
 	        var platformCharts = [];
 	
 	        for (var key in chartData) {
-	            if (chartData[key].data.length > 0) {
+	            if (chartData[key].series.length > 0) {
 	                var platformChart = React.createElement(PlatformChart, { key: key,
 	                    chart: chartData[key],
 	                    chartKey: key,
@@ -122152,4 +122032,4 @@
 
 /***/ }
 /******/ ]);
-//# sourceMappingURL=app-f778beea7ce2e9e1caae.js.map
+//# sourceMappingURL=app-7a8e043f9560449aa3f4.js.map

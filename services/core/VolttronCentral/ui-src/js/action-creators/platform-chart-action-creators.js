@@ -74,7 +74,7 @@ var platformChartActionCreators = {
 
                     if (result.hasOwnProperty("values"))
                     {
-                    	item.data = result.values;
+                    	item.data = result.values.reverse();
 
                         item.data.forEach(function (datum) {
                             datum.name = item.name;
@@ -168,7 +168,7 @@ function loadChart(panelItem, emitChange, authorization) {
 
             if (result.hasOwnProperty("values"))
             {    
-                panelItem.data = result.values;
+                panelItem.data = result.values.reverse();
 
                 panelItem.data.forEach(function (datum) {
                     datum.name = panelItem.name;
