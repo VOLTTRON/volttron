@@ -313,7 +313,10 @@ class WebApplicationWrapper(object):
         clients = self.endpoint_clients.get(endpoint, [])
         for identity, client in clients:
             client.close(reason="Endpoint closed.")
-        del self.endpoint_clients[endpoint]
+        try:
+            del self.endpoint_clients[endpoint]
+        except KeyError:
+            pass
 
     def websocket_send(self, endpoint, message):
         self._log.debug('Sending message to clients!')
