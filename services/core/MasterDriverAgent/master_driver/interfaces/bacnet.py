@@ -79,7 +79,6 @@ class Register(BaseRegister):
         self.index = list_index
 
 
-
 class Interface(BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
@@ -92,7 +91,7 @@ class Interface(BaseInterface):
         self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
         self.max_per_request = config_dict.get("max_per_request")
         self.use_read_multiple = config_dict.get("use_read_multiple", True)
-        self.timeout = float(config_dict.get("timeout", 10.0))
+        self.timeout = float(config_dict.get("timeout", 30.0))
 
         self.ping_retry_interval = timedelta(seconds=config_dict.get("ping_retry_interval", 5.0))
         self.scheduled_ping = None
