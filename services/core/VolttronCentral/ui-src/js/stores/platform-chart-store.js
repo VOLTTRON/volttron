@@ -188,7 +188,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                         chartKey: action.panelItem.name,
                         min: (action.panelItem.hasOwnProperty("min") ? action.panelItem.min : null),
                         max: (action.panelItem.hasOwnProperty("max") ? action.panelItem.max : null),
-                        series: [ setChartItem(action.panelItem, convertTimeToSeconds(action.panelItem.data)) ]
+                        series: [ setChartSeries(action.panelItem, convertTimeToSeconds(action.panelItem.data)) ]
                     };
 
                     _chartData[action.panelItem.name] = chartObj;
@@ -375,7 +375,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             break;
     }
 
-    function setChartItem(item, data) {
+    function setChartSeries(item, data) {
 
         var chartItem = {
             name: item.name,
@@ -394,10 +394,10 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
     function insertSeries(item) {
 
         if (item.hasOwnProperty("data"))
-        {
-            _chartData[item.name].series.push(setChartItem(item, _chartData[item.name].data.concat(convertTimeToSeconds(item.data))));
+        {   
+            _chartData[item.name].series.push(setChartSeries(item, convertTimeToSeconds(item.data)));
         }
-        
+
     }
 
     function removeSeries(name, uuid) {
