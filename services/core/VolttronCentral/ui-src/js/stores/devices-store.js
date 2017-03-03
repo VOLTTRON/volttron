@@ -1470,7 +1470,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             // can remove && !pointData.hasProp(device_name) if fix websocket endpoint collision
             if (pointData.hasOwnProperty("device_id") && (!pointData.hasOwnProperty("device_name")))
             {
-                var deviceId = pointData.device_id.toString();
+                var deviceId = Number(pointData.device_id);
                 var deviceAddress = pointData.address;
                 var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
 
@@ -1531,10 +1531,10 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
     function loadDevice(device, platformUuid, bacnetIdentity) 
     {
-        var deviceIdStr = device.device_id.toString();
+        var deviceId = Number(device.device_id);
 
         _devices.push({
-            id: deviceIdStr,
+            id: deviceId,
             name: device.device_name,
             type: device.type,
             vendor_id: device.vendor_id,
@@ -1553,7 +1553,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 { key: "address", label: "Address", value: device.address },  
                 { key: "deviceName", label: "Name", value: device.device_name },  
                 { key: "deviceDescription", label: "Description", value: device.device_description }, 
-                { key: "deviceId", label: "Device ID", value: deviceIdStr }, 
+                { key: "deviceId", label: "Device ID", value: deviceId },
                 { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
                 { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
                 { key: "type", label: "Type", value: device.type }

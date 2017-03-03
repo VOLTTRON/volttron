@@ -52,6 +52,17 @@ def add_volttron_central(wrapper, config=None, **kwargs):
     return agent_uuid
 
 
+def add_listener(wrapper, config={}, vip_identity=None, **kwargs):
+    print("Adding to {wrapper} a listener agent".format(wrapper=wrapper))
+    agent_uuid = wrapper.install_agent(
+        config_file=config,
+        vip_identity=vip_identity,
+        agent_dir="services/core/ListenerAgent",
+        **kwargs
+    )
+    return agent_uuid
+
+
 def add_volttron_central_platform(wrapper, config={}, **kwargs):
     print('Adding vcp to {}'.format(wrapper.vip_address))
     agent_uuid = wrapper.install_agent(

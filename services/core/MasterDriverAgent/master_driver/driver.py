@@ -218,7 +218,7 @@ class DriverAgent(BasicAgent):
             
             self.meta_data[point] = {'units': register.get_units(),
                                      'type': ts_type,
-                                     'tz': config['timezone']}
+                                     'tz': config.get('timezone', '')}
             
         self.base_topic = DEVICES_VALUE(campus='',
                                         building='',
