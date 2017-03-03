@@ -99,7 +99,7 @@ def create_schema(connection, schema="historian"):
             INDEX topic_ft using fulltext (topic) with (analyzer = 'pattern', type='pattern', lowercase='true', pattern='(W+|/|_)'),
             ts timestamp NOT NULL,
             value double,
-            primary key (topic, ts),
+            primary key (topic, ts)
         )
         CLUSTERED INTO 6 SHARDS
         """.format(schema=schema),
