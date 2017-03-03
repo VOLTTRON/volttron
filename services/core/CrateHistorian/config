@@ -6,5 +6,5 @@
             "host": "localhost:4200"
         }
     },
-    "raw_schema_enable": false
+    "raw_schema_enabled": false
 }
