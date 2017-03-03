@@ -647,34 +647,33 @@ class PlatformHandler(object):
         topic = topic[len(expected_prefix):]
 
         self._log.debug("topic: {}, message: {}".format(topic, message))
-        try:
-            platform_store = self._vc.vip.config.get(self.config_store_name)
-        except KeyError:
-            self._log.error("unknown config store named: {}".format(
-                self.config_store_name))
-        else:
-            ts = format_timestamp(get_aware_utc_now())
-            context = "Last received data on: {}".format(ts)
-            status = Status.build(GOOD_STATUS, context=context)
+        # try:
+        #     platform_store = self._vc.vip.config.get(self.config_store_name)
+        # except KeyError:
+        #     self._log.error("unknown config store named: {}".format(
+        #         self.config_store_name))
+        # else:
+        ts = format_timestamp(get_aware_utc_now())
+        context = "Last received data on: {}".format(ts)
+        status = Status.build(GOOD_STATUS, context=context)
 
-            base_topic = topic[:-len('/all')]
-            base_topic_no_prefix = base_topic[len('devices/'):]
+        base_topic = topic[:-len('/all')]
+        base_topic_no_prefix = base_topic[len('devices/'):]
 
-            devices_health = platform_store.get('devices_health', {}).copy()
+        if base_topic_no_prefix not in self._current_devices:
+            self._current_devices[base_topic_no_prefix] = {}
 
-            points = [k for k, v in message[0].items()]
+        device_dict = self._current_devices[base_topic_no_prefix]
 
-            devices_health[base_topic_no_prefix] = dict(
-                last_publish_utc=None,
-                health=status.as_dict(),
-                points=points
-            )
+        points = [k for k, v in message[0].items()]
 
-            platform_store['devices_health'] = devices_health
-            self._vc.vip.config.set(self.config_store_name, platform_store)
-            self._vc.send_management_message(
-                "DEVICE_STATUS_UPDATED", data=dict(context=context,
-                                                   topic=base_topic))
+        device_dict['points'] = points
+        device_dict['health'] = status.as_dict()
+        device_dict['last_publish_utc'] = ts
+
+        self._vc.send_management_message(
+            "DEVICE_STATUS_UPDATED", data=dict(context=context,
+                                               topic=base_topic))
 
     def _on_platform_stats(self, peer, sender, bus, topic, headers, message):
 
