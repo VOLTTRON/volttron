@@ -348,7 +348,7 @@ class SQLHistorian(BaseHistorian):
                                       table_names)
         self.writer = db_functs_class(self.config['connection']['params'],
                                       table_names)
-        self.reader.setup_historian_tables()
+        self.writer.setup_historian_tables()
 
         topic_id_map, topic_name_map = self.reader.get_topic_map()
         self.topic_id_map.update(topic_id_map)
