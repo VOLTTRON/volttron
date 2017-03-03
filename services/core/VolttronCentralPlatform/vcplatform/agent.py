@@ -293,9 +293,8 @@ class VolttronCentralPlatform(Agent):
 
         # Connect to volttron central instance.
         self._establish_connection_to_vc()
-        # self.enable_registration = True
-        # self._periodic_attempt_registration()
-        # self._start_stats_publisher()
+        # Start publishing stats to the local bus.
+        self._start_stats_publisher()
 
     @RPC.export
     def get_external_vip_addresses(self):

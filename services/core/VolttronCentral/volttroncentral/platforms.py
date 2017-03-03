@@ -349,17 +349,25 @@ class PlatformHandler(object):
             self._current_devices[k]['points'] = [p for p in v['points']]
             self._current_devices[k]['last_publish_utc'] = None
 
+        self._platform_stats = {}
+
         platform_prefix = "platforms/{}/".format(self.vip_identity)
-        self._vc.vip.pubsub.subscribe('pubsub',
-                                      platform_prefix,
-                                      self._on_device_message)
-        vcp_topic = 'devices/'
-        self._log.info('Subscribing to {} with platform prefix of {}'.format(
-            vcp_topic, platform_prefix
-        ))
-        # method will subscribe to devices/ on the collector and publish
-        # the regular device topics with the prefix platform_prefix.
-        self.call("subscribe_to_vcp", vcp_topic, platform_prefix)
+
+        # Setup callbacks to listen to the local bus from the vcp instance.
+        vcp_topics = (
+            ('devices/', self._on_device_message),
+            ('datalogger/platform/status', self._on_platform_stats)
+        )
+
+        for topic, funct in vcp_topics:
+            self._vc.vip.pubsub.subscribe('pubsub',
+                                          platform_prefix + topic, funct)
+            self._log.info('Subscribing to {} with from vcp {}'.format(
+                platform_prefix + topic, topic))
+
+            # method will subscribe to devices/ on the collector and publish
+            # the regular device topics with the prefix platform_prefix.
+            self.call("subscribe_to_vcp", topic, platform_prefix)
 
     @property
     def vip_identity(self):
@@ -555,29 +563,14 @@ class PlatformHandler(object):
             self.vip_identity, self.address))
 
         return self._current_devices or {}
-        # try:
-        #     platform_store = self._vc.vip.config.get(self.config_store_name)
-        # except KeyError:
-        #     self._log.warn('Unknown platform platform_uuid specified! {}'.format(
-        #         self.vip_identity))
-        # else:
-        #     try:
-        #         return platform_store['devices_health'].copy()
-        #     except KeyError:
-        #         return {}
 
     def get_stats(self, stat_type):
         # TODO Change so stat_type is available.
         if stat_type != 'status/cpu':
             self._log.warn('The only stats available are cpu stats currently')
-
-        try:
-            config = self._vc.vip.config.get(self.config_store_name)
-            return config['stats']['status/cpu']
-        except KeyError:
-            self._log.warn('Performance status for {} not found'.format(
-                self.config_store_name))
             return {}
+
+        return self._platform_stats.get(stat_type, {}).copy()
 
     def add_event_listener(self, callback):
         self._event_listeners.add(callback)
@@ -647,12 +640,7 @@ class PlatformHandler(object):
         topic = topic[len(expected_prefix):]
 
         self._log.debug("topic: {}, message: {}".format(topic, message))
-        # try:
-        #     platform_store = self._vc.vip.config.get(self.config_store_name)
-        # except KeyError:
-        #     self._log.error("unknown config store named: {}".format(
-        #         self.config_store_name))
-        # else:
+
         ts = format_timestamp(get_aware_utc_now())
         context = "Last received data on: {}".format(ts)
         status = Status.build(GOOD_STATUS, context=context)
@@ -677,11 +665,26 @@ class PlatformHandler(object):
 
     def _on_platform_stats(self, peer, sender, bus, topic, headers, message):
 
-        # This method publishes back to the message bus at
-        # datalogger/platforms/platform_hash so if it starts with platforms
-        # then ignore the publish.
-        if topic.startswith("datalogger/platforms"):
+        self._log.debug('ON PLATFORM STATUS!')
+        expected_prefix = "platforms/{}/".format(self.vip_identity)
+
+        if not topic.startswith(expected_prefix):
+            self._log.warn("Unexpected topic published to stats function: {}".format(
+                topic
+            ))
             return
+
+        self._log.debug("TOPIC WAS: {}".format(topic))
+        self._log.debug("MESSAGE WAS: {}".format(message))
+        self._log.debug("Expected topic: {}".format(expected_prefix))
+        self._log.debug(
+            "Are Equal: {}".format(topic.startswith(expected_prefix)))
+        self._log.debug("topic type: {} prefix_type: {}".format(type(topic),
+                                                                type(
+                                                                    expected_prefix)))
+
+        # Pull off the "real" topic from the prefix
+        topic = topic[len(expected_prefix):]
 
         prefix = "datalogger/platform"
         which_stats = topic[len(prefix)+1:]
@@ -695,22 +698,21 @@ class PlatformHandler(object):
         platforms_topic = "{}/{}/{}".format(prefix+"s",
                                             self.vip_identity, which_stats)
 
-        stat_dict = {
+        self._platform_stats[which_stats] = {
             'topic': platforms_topic,
             'points': point_list,
             'last_published_utc': format_timestamp(get_aware_utc_now())
         }
 
-        config = deepcopy(self._vc.vip.config.get(self.config_store_name))
-        stats = config.get('stats')
-        if not stats:
-            stats = config['stats'] = {}
+        self._vc.send_management_message(
+            "PLATFORM_STATS_UPDATED", data=dict(
+                context=self._platform_stats[which_stats],
+                topic=which_stats))
 
-        stats[which_stats] = stat_dict
-
-        self._vc.vip.config.set(self.config_store_name, config)
-        self._vc.vip.pubsub.publish('pubsub', topic=platforms_topic,
-                                    headers=headers, message=message)
-
-    def _on_stats_published(self, peer, sender, bus, topic, headers, message):
-        self._log.debug('STATS PUBLISHERD: {}'.format(message))
+        self._log.debug('Publishing to {} for ui to grab'.format(
+            platforms_topic
+        ))
+        self._vc.vip.pubsub.publish('pubsub',
+                                    topic=platforms_topic,
+                                    message=message,
+                                    headers=headers)
