@@ -353,9 +353,13 @@ class PlatformHandler(object):
         self._vc.vip.pubsub.subscribe('pubsub',
                                       platform_prefix,
                                       self._on_device_message)
+        vcp_topic = 'devices/'
+        self._log.info('Subscribing to {} with platform prefix of {}'.format(
+            vcp_topic, platform_prefix
+        ))
         # method will subscribe to devices/ on the collector and publish
         # the regular device topics with the prefix platform_prefix.
-        self.call("subscribe_to_vcp", "devices/", platform_prefix)
+        self.call("subscribe_to_vcp", vcp_topic, platform_prefix)
 
     @property
     def vip_identity(self):

@@ -1114,6 +1114,7 @@ class VolttronCentralPlatform(Agent):
     def onstop(self, sender, **kwargs):
         if self.volttron_central_connection is not None:
             _log.debug("Shutting down agent.")
+
             self.volttron_central_connection.publish_to_vc(
                 "platforms/{}/stopping".format(
                     self.get_instance_uuid()))
