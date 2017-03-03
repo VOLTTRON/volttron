@@ -6,10 +6,10 @@ From an activated shell execute
 ------How to do quick test-----
 Start volttron: volttron
 
-Load Mongodb agent:
+Load Crate agent:
 	./scripts/core/pack_install.sh services/core/CrateHistorian/ services/core/CrateHistorian/config crate
 
-Load data publisher to publish data to Mongo (remember to change input data file in the config file)
+Load data publisher to publish data to the message bus (remember to change input data file in the config file)
 	./scripts/core/pack_install.sh examples/DataPublisher/ examples/DataPublisher/airside_test_publisher.config publisher
 
 Start/stop agents:
