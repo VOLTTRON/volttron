@@ -92,6 +92,26 @@ def create_schema(connection, schema="historian"):
             primary key (topic_id, ts)
         )
         CLUSTERED INTO 6 SHARDS
+        """.format(schema=schema),
+        """
+        CREATE TABLE IF NOT EXISTS {schema}."device_raw"(
+            topic string,
+            INDEX topic_ft using fulltext (topic) with (analyzer = 'pattern', type='pattern', lowercase='true', pattern='(W+|/|_)'),
+            ts timestamp NOT NULL,
+            value double,
+            primary key (topic, ts)
+        )
+        CLUSTERED INTO 6 SHARDS
+        """.format(schema=schema),
+        """
+        CREATE TABLE IF NOT EXISTS {schema}."datalogger_raw"(
+            topic string,
+            INDEX topic_ft using fulltext (topic),
+            ts timestamp NOT NULL,
+            value double,
+            primary key (topic, ts)
+        )
+        CLUSTERED INTO 6 SHARDS
         """.format(schema=schema)
     ]
     try:
