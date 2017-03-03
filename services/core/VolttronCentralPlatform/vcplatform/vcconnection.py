@@ -294,6 +294,8 @@ class VCConnection(Agent):
 
         :param prefix: The prefix to listen for.
         """
+        self._log.info("VC subscribing to prefix: {}".format(prefix))
+        self._log.info("VCP will publish to {} on VC".format(prefix_on_vc))
 
         def subscription_wrapper(peer, sender, bus, topic, headers,
                                  message):
