@@ -206,25 +206,26 @@ class CrateHistorian(BaseHistorian):
                 return
 
 
-        def insert_data(cursor, topic_id, ts, data, topic=None):
-            (schema, table) = self._topic_to_table_map[topic_id].split('.')
-            insert_query = """INSERT INTO {}.{} (topic_id, ts, result)
+        def insert_data(cursor, topic_id, ts, data, topic_name=None):
+            target_table = self._topic_to_table_map[topic_id]
+            (schema_name, table_name) = target_table.split('.')
+            insert_query = """INSERT INTO {} (topic_id, ts, result)
                               VALUES(?, ?, ?)
                               ON DUPLICATE KEY UPDATE result=result
-                            """.format(schema, table)
+                            """.format(target_table)
             _log.debug("QUERY: {}".format(insert_query))
             _log.debug("PARAMS: {}".format(topic_id, ts, data))
             ts_formatted = utils.format_timestamp(ts)
 
             cursor.execute(insert_query, (topic_id, ts_formatted,
                                           data, data))
-            if self._raw_schema_enabled and table in ("datalogger", "device"):
-                insert_query_raw = """INSERT INTO {}.{} (topic_id, ts, result)
+            if self._raw_schema_enabled and table in ("datalogger", "device") and topic_name:
+                insert_query_raw = """INSERT INTO {}.{} (topic, ts, result)
                                 VALUES(?, ?, ?)
-                                ON DUPLICATE KEY UPDATE result=result
-                                """.format(schema, table + "_raw")
+                                ON DUPLICATE KEY UPDATE
+                                """.format(schema_name, table_name + "_raw")
                 cursor.execute(insert_query_raw, (topic, ts_formatted,
-                                          data, data))
+                                          data))
 
         try:
             if self._connection is None:
@@ -325,7 +326,7 @@ cached.
                         """.format(schema=self._schema), (topic, topic_id))
                     self._topic_name_map[topic_lower] = topic
 
-                insert_data(cursor, topic_id, ts, value, topic)
+                insert_data(cursor, topic_id, ts, value, topic_name = topic)
 
                 old_meta = self._topic_meta.get(topic_id, {})
 

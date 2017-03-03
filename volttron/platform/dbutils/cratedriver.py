@@ -101,7 +101,7 @@ def create_schema(connection, schema="historian"):
             value double,
             primary key (topic, ts)
         )
-        CLUSTERED INTO 6 SHARDS;
+        CLUSTERED INTO 6 SHARDS
         """.format(schema=schema),
         """
         CREATE TABLE IF NOT EXISTS {schema}."datalogger_raw"(
@@ -111,7 +111,7 @@ def create_schema(connection, schema="historian"):
             value double,
             primary key (topic, ts)
         )
-        CLUSTERED INTO 6 SHARDS;
+        CLUSTERED INTO 6 SHARDS
         """.format(schema=schema)
     ]
     try:
