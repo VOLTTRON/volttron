@@ -299,6 +299,9 @@ class VCConnection(Agent):
 
         def subscription_wrapper(peer, sender, bus, topic, headers,
                                  message):
+            self._log.debug("publishing to VC topic: {}".format(
+                prefix_on_vc + topic
+            ))
             # Prepend the specified prefix to the topic that was passed
             # to the method
             self.publish_to_vc(prefix_on_vc+topic, message, headers)
