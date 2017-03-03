@@ -134,7 +134,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     */
     function do_request_platform_method(method, callback) {
         var platform_uuid = $('#agent_platform_uuid').val();
-        var req_method = 'platform.uuid.'+platform_uuid+'.'+method;
+        var req_method = 'platforms.uuid.'+platform_uuid+'.'+method;
         console.log("Method is: "+req_method);
         var token = $('#token').val();
         var pdata = {
@@ -174,7 +174,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     function do_request_agent_method(method, data, callback) {
         var platform_uuid = $('#agent_platform_uuid').val();
         var agent_uuid = $('#agent_uuid').val()
-        var req_method = 'platform.uuid.'+platform_uuid+'.agent.uuid.'+
+        var req_method = 'platforms.uuid.'+platform_uuid+'.agent.uuid.'+
             agent_uuid+'.'+method;
         console.log("Method is: "+req_method);
         var token = $('#token').val();
@@ -473,7 +473,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
    /*
    $('#list_agents').click(function(){
         var platform_uuid = $('#agent_platform_uuid').val();
-        var method = 'platform.uuid.'+platform_uuid;
+        var method = 'platforms.uuid.'+platform_uuid;
 
         var token = $('#token').val();
         var pdata = {

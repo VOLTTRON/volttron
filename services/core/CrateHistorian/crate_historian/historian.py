@@ -84,14 +84,14 @@ __version__ = '1.0'
 
 def historian(config_path, **kwargs):
     """
-    This method is called by the :py:func:`mongodb.historian.main` to parse
+    This method is called by the :py:func:`crate_historian.historian.main` to parse
     the passed config file or configuration dictionary object, validate the
     configuration entries, and create an instance of MongodbHistorian
 
     :param config_path: could be a path to a configuration file or can be a
                         dictionary object
     :param kwargs: additional keyword arguments if any
-    :return: an instance of :py:class:`MongodbHistorian`
+    :return: an instance of :py:class:`CrateHistorian`
     """
     if isinstance(config_path, dict):
         config_dict = config_path
@@ -116,15 +116,15 @@ def historian(config_path, **kwargs):
 
 class CrateHistorian(BaseHistorian):
     """
-    Historian that stores the data into mongodb collections.
+    Historian that stores the data into crate tables.
 
     """
 
     def __init__(self, config, **kwargs):
         """
-        Initialise the historian.
+        Initialize the historian.
 
-        The historian makes a mongoclient connection to the mongodb server.
+        The historian makes a crateclient connection to the crate cluster.
         This connection is thread-safe and therefore we create it before
         starting the main loop of the agent.
 
@@ -145,6 +145,7 @@ class CrateHistorian(BaseHistorian):
         _log.debug(config)
         self._connection_params = config['connection']['params']
         self._schema = config['connection'].get('schema', 'historian')
+        self._raw_schema_enabled = config.get('raw_schema_enabled', None)
         self._client = None
         self._connection = None
 
@@ -167,7 +168,7 @@ class CrateHistorian(BaseHistorian):
             else:
                 table = 'device'
 
-        if source == 'log':
+        if source == 'datalogger':
             if db_datatype == 'string':
                 table = 'datalogger_string'
             else:
@@ -204,17 +205,28 @@ class CrateHistorian(BaseHistorian):
                 _log.debug('Waiting to attempt to write to database.')
                 return
 
-        def insert_data(cursor, topic_id, ts, data):
+
+        def insert_data(cursor, topic_id, ts, data, topic_name=None):
+            target_table = self._topic_to_table_map[topic_id]
+            (schema_name, table_name) = target_table.split('.')
             insert_query = """INSERT INTO {} (topic_id, ts, result)
                               VALUES(?, ?, ?)
                               ON DUPLICATE KEY UPDATE result=result
-                            """.format(self._topic_to_table_map[topic_id])
+                            """.format(target_table)
             _log.debug("QUERY: {}".format(insert_query))
             _log.debug("PARAMS: {}".format(topic_id, ts, data))
             ts_formatted = utils.format_timestamp(ts)
 
             cursor.execute(insert_query, (topic_id, ts_formatted,
                                           data, data))
+            if self._raw_schema_enabled and table in ("datalogger", "device") and topic_name:
+                insert_query_raw = """INSERT INTO {}.{} (topic, ts, result)
+                                VALUES(?, ?, ?)
+                                ON DUPLICATE KEY UPDATE value=value
+                                """.format(schema_name, table_name + "_raw")
+                cursor.execute(insert_query_raw, (topic, ts_formatted,
+                                          data))
+
         try:
             if self._connection is None:
                 self._connection = self.get_connection()
@@ -314,7 +326,7 @@ cached.
                         """.format(schema=self._schema), (topic, topic_id))
                     self._topic_name_map[topic_lower] = topic
 
-                insert_data(cursor, topic_id, ts, value)
+                insert_data(cursor, topic_id, ts, value, topic_name = topic)
 
                 old_meta = self._topic_meta.get(topic_id, {})
 
@@ -401,11 +413,8 @@ cached.
     def query_historian(self, topic, start=None, end=None, agg_type=None,
                         agg_period=None, skip=0, count=None,
                         order="FIRST_TO_LAST"):
-        """ Returns the results of the query from the mongo database.
+        """ Returns the results of the query from the crate database.
 
-        This historian stores data to the nearest second.  It will not
-        store subsecond resolution data.  This is an optimisation based
-        upon storage for the database.
         Please see
         :py:meth:`volttron.platform.agent.base_historian.BaseQueryHistorianAgent.query_historian`
         for input parameters and return value details
