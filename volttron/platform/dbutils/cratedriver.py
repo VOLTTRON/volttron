@@ -94,7 +94,7 @@ def create_schema(connection, schema="historian"):
         CLUSTERED INTO 6 SHARDS
         """.format(schema=schema),
         """
-        CREATE TABLE IF NOT EXISTS {schema}.device_raw(
+        CREATE TABLE IF NOT EXISTS {schema}."device_raw"(
             topic string INDEX using fulltext,
             INDEX topic_ft using fulltext (topic) with (analyzer = 'pattern', type='pattern', lowercase='true', pattern='(W+|/|_)'),
             ts timestamp NOT NULL,
@@ -104,7 +104,7 @@ def create_schema(connection, schema="historian"):
         CLUSTERED INTO 6 SHARDS;
         """.format(schema=schema),
         """
-        CREATE TABLE IF NOT EXISTS {schema}.datalogger_raw(
+        CREATE TABLE IF NOT EXISTS {schema}."datalogger_raw"(
             topic string INDEX using fulltext,
             INDEX topic_ft using fulltext (topic),
             ts timestamp NOT NULL,
