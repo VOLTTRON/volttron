@@ -115,7 +115,7 @@ class VCConnection(Agent):
         """
         self._main_agent = main_agent
 
-    def publish_to_vc(self, topic, message, headers={}):
+    def publish_to_vc(self, topic, message=None, headers={}):
         """
         This method allows the main_agent to publish a message up to the
         volttron.central instance.
