@@ -79,7 +79,6 @@ For method details please refer to base class
 class MySqlFuncts(DbDriver):
     def __init__(self, connect_params, table_names):
         # kwargs['dbapimodule'] = 'mysql.connector'
-        super(MySqlFuncts, self).__init__('mysql.connector', **connect_params)
         self.MICROSECOND_SUPPORT = None
 
         self.data_table = None
@@ -94,6 +93,7 @@ class MySqlFuncts(DbDriver):
             self.meta_table = table_names['meta_table']
             self.agg_topics_table = table_names.get('agg_topics_table', None)
             self.agg_meta_table = table_names.get('agg_meta_table', None)
+        super(MySqlFuncts, self).__init__('mysql.connector', **connect_params)
 
     def init_microsecond_support(self):
         rows = self.select("SELECT version()", None)

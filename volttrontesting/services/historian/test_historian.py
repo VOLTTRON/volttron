@@ -88,6 +88,7 @@ following
 
 
 """
+import copy
 import random
 import sqlite3
 from datetime import datetime, timedelta
@@ -309,13 +310,17 @@ def setup_crate(connection_params, table_names):
 def setup_mysql(connection_params, table_names):
     print ("setup mysql")
     db_connection = mysql.connect(**connection_params)
-    # clean up any rows from older runs
-    cursor = db_connection.cursor()
-    cursor.execute("DELETE FROM " + table_names['data_table'])
-    cursor.execute("DELETE FROM " + table_names['topics_table'])
-    cursor.execute("DELETE FROM " + "volttron_table_definitions")
+    # clean up any rows from older runs if exists
+    try:
+        cursor = db_connection.cursor()
+        cursor.execute("DELETE FROM " + table_names['data_table'])
+        cursor.execute("DELETE FROM " + table_names['topics_table'])
+        cursor.execute("DELETE FROM " + table_names['meta_table'])
+        cursor.execute("DELETE FROM " + "volttron_table_definitions")
+        db_connection.commit()
+    except Exception as e:
+        print ("Error cleaning existing table from last runs {}".format(e))
 
-    db_connection.commit()
     cursor = db_connection.cursor()
     cursor.execute("SELECT version()")
     version = cursor.fetchone()
@@ -1605,6 +1610,9 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
+    # skip if this test case need not repeated for this specific historian
+    skip_custom_tables(historian)
+
     global query_points, DEVICES_ALL_TOPIC, db_connection
 
     # print('HOME', volttron_instance.volttron_home)
@@ -1654,7 +1662,6 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
         assert (result["values"][query_points['oat_point']][i][1] ==
                 expected_result["values"][query_points['oat_point']][i][1])
 
-
 @pytest.mark.historian
 def test_get_topic_list(request, historian, publish_agent, query_agent,
                         clean, volttron_instance):
@@ -1672,6 +1679,8 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
     :param volttron_instance: instance of PlatformWrapper. Volttron
     instance in which agents are tested
     """
+    # skip if this test case need not repeated for this specific historian
+    skip_custom_tables(historian)
     global query_points, DEVICES_ALL_TOPIC, db_connection, topics_table, \
         connection_type
 
@@ -1680,8 +1689,9 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
         request.keywords.node.name))
     agent_uuid = None
     try:
-        historian["tables_def"] = {
-            "table_prefix": "topic_list_test1234",
+        new_historian = copy.copy(historian)
+        new_historian["tables_def"] = {
+            "table_prefix": "topic_list_test",
             "data_table":"data",
             "topics_table": "topics",
             "meta_table": "meta"}
@@ -1689,8 +1699,8 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
         # 1: Install historian agent
         # Install and start historian agent
         agent_uuid = volttron_instance.install_agent(
-            agent_dir=historian['source_historian'],
-            config_file=historian,
+            agent_dir=new_historian['source_historian'],
+            config_file=new_historian,
             start=True, vip_identity='topic_list.historian')
         print("agent id: ", agent_uuid)
 
@@ -1732,9 +1742,10 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
     finally:
         if agent_uuid:
             cleanup_function = globals()["cleanup_" + connection_type]
-            cleanup_function(db_connection, ['topic_list_test1234_data',
-                                             'topic_list_test1234_topics',
-                                             'topic_list_test1234_meta'])
+            cleanup_function(db_connection, ['topic_list_test_data',
+                                             'topic_list_test_topics',
+                                             'topic_list_test_meta'])
+            volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
 
