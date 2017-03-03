@@ -101,8 +101,6 @@ def create_schema(connection, schema="historian"):
             value double,
             primary key (topic, ts),
         )
-            on duplicate key update
-                value=value
         CLUSTERED INTO 6 SHARDS
         """.format(schema=schema),
         """
@@ -113,8 +111,6 @@ def create_schema(connection, schema="historian"):
             value double,
             primary key (topic, ts)
         )
-            on duplicate key update
-                value=value
         CLUSTERED INTO 6 SHARDS
         """.format(schema=schema)
     ]

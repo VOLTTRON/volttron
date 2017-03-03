@@ -222,7 +222,7 @@ class CrateHistorian(BaseHistorian):
             if self._raw_schema_enabled and table in ("datalogger", "device") and topic_name:
                 insert_query_raw = """INSERT INTO {}.{} (topic, ts, result)
                                 VALUES(?, ?, ?)
-                                ON DUPLICATE KEY UPDATE
+                                ON DUPLICATE KEY UPDATE value=value
                                 """.format(schema_name, table_name + "_raw")
                 cursor.execute(insert_query_raw, (topic, ts_formatted,
                                           data))
