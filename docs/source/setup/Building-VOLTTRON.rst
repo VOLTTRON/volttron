@@ -18,10 +18,10 @@ work with the master branch of the repository:
 
 ::
 
-    git clone <https://github.com/VOLTTRON/volttron>
+    git clone https://github.com/VOLTTRON/volttron
     cd volttron
 
-    # bootstrap.py --help will show you all of the "package options" such as 
+    # python bootstrap.py --help will show you all of the "package options" such as
     #installing required packages for volttron central or the platform agent.
     python2.7 bootstrap.py
 
