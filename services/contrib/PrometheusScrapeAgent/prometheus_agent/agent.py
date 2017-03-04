@@ -37,16 +37,16 @@ class PrometheusScrapeAgent(Agent):
 
     def scrape(self, env, data):
         if len(self._cache) > 0:
-            result = ""
+            result = "# TYPE volttron_data gauge\n"
             for device, device_topics in self._cache.iteritems():
                 for topic, value in device_topics.iteritems():
                     metric_props = re.split("\s+|:|_|/", topic)
                     metric_tag_str = ""
                     for i, prop in enumerate(metric_props):
                         metric_tag_str += "tag{}=\"{}\",".format(i, prop)
-                    result += ("# TYPE volttron_data gauge\n"
-                               "{}{{{}topic=\"{}\"}} {}\n").format(
-                        device.replace("-", "_").replace("/", "_"), metric_tag_str,
+                    result += "{}{{{}topic=\"{}\"}} {}\n".format(
+                        device.replace("-", "_"
+                                       ).replace("/", "_"), metric_tag_str,
                         topic.replace(" ", "_"), value)
         else:
             result = "#No Data to Scrape"
