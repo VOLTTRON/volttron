@@ -46,7 +46,7 @@ class PrometheusScrapeAgent(Agent):
                         metric_tag_str += "tag{}=\"{}\",".format(i, prop)
                     result += ("# TYPE volttron_data gauge\n"
                                "{}{{{}topic=\"{}\"}} {}\n").format(
-                        device.replace("-", "_"), metric_tag_str,
+                        device.replace("-", "_").replace("/", "_"), metric_tag_str,
                         topic.replace(" ", "_"), value)
         else:
             result = "#No Data to Scrape"
