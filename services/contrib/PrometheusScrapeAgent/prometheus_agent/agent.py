@@ -156,7 +156,7 @@ class PrometheusScrapeAgent(Agent):
                                                                source=source))
 
         for key, value in values.iteritems():
-            self._add_to_cache(device, topic, value)
+            self._add_to_cache(device, key, value)
 
     def _add_to_cache(self, device, topic, value):
         try:
