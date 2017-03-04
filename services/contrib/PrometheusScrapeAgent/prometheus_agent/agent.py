@@ -220,7 +220,7 @@ class PrometheusScrapeAgent(Agent):
             self._add_to_cache(point_topic, value)
 
 
-    def _add_to_cache(topic, value):
+    def _add_to_cache(self, topic, value):
         try:
             self._cache[topic] = float(value)
         except:
