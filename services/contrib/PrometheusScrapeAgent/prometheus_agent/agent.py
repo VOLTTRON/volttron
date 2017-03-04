@@ -62,11 +62,11 @@ import re
 
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent
-from volttron.platform.vip.agent import PubSub
 from volttron.platform.vip.agent import Core
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.agent.utils import process_timestamp, \
-    fix_sqlite3_datetime, get_aware_utc_now, parse_timestamp_string
+    get_aware_utc_now
+from volttron.platform.vip.agent import compat
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -76,31 +76,28 @@ ALL_REX = re.compile('.*/all$')
 
 class PrometheusScrapeAgent(Agent):
     def __init__(self, config_path, **kwargs):
-        super(PrometheusScrapeAgent, self).__init__(enable_web=True,**kwargs)
+        super(PrometheusScrapeAgent, self).__init__(enable_web=True, **kwargs)
         self._cache = {}
 
     @Core.receiver("onstart")
     def _starting(self, sender, **kwargs):
         self.vip.web.register_endpoint('/promscrape', self.scrape)
         self.vip.pubsub.subscribe(peer='pubsub',
-                                    prefix=topics.DRIVER_TOPIC_BASE,
-                                    callback=self._capture_device_data)
-
-
+                                  prefix=topics.DRIVER_TOPIC_BASE,
+                                  callback=self._capture_device_data)
 
     @Core.receiver("onstop")
     def _stopping(self, sender, **kwargs):
         pass
 
     def scrape(self, env, data):
-        _log.debug("made it to scrape")
         if len(self._cache) > 0:
             result = ""
-            for key, value in self._cache.iteritems():
-                result += """
+            for device, device_topics in self._cache.iteritems():
+                for topic, value in device_topics.iteritems():
+                    result += """
     # TYPE volttron_data guage
-    {} {}
-                """.format(key, value)
+    {} {}""".format(device, topic.replace(" ","_"), value)
         else:
             result = "#No Data to Scrape"
 
@@ -153,8 +150,7 @@ class PrometheusScrapeAgent(Agent):
                 elif my_tz:
                     meta['tz'] = my_tz
 
-            self._add_to_cache(topic + '/' + point, reading[1])
-
+            self._add_to_cache(topic, point, readings[1])
 
     def _capture_device_data(self, peer, sender, bus, topic, headers,
                              message):
@@ -171,7 +167,6 @@ class PrometheusScrapeAgent(Agent):
         parts = topic.split('/')
         device = '/'.join(parts[1:-1])
         self._capture_data(peer, sender, bus, topic, headers, message, device)
-
 
     def _capture_data(self, peer, sender, bus, topic, headers, message,
                       device):
@@ -203,10 +198,6 @@ class PrometheusScrapeAgent(Agent):
             _log.exception(e)
             return
 
-        meta = {}
-        if not isinstance(message, dict):
-            meta = message[1]
-
         if topic.startswith('analysis'):
             source = 'analysis'
         else:
@@ -216,15 +207,15 @@ class PrometheusScrapeAgent(Agent):
                                                                source=source))
 
         for key, value in values.iteritems():
-            point_topic = device + '/' + key
-            self._add_to_cache(point_topic, value)
+            self._add_to_cache(device, topic, value)
 
-
-    def _add_to_cache(self, topic, value):
+    def _add_to_cache(self, device, topic, value):
         try:
-            self._cache[topic] = float(value)
+            self._cache[device][topic] = float(value)
         except:
-            _log.debug("Topic \"{}\" contained value that was not castable as float".format(topic))
+            _log.debug(
+                "Topic \"{}\" on device \"{}\" contained value that was not "
+                "castable as float".format(topic, device))
 
 
 def main(argv=sys.argv):
