@@ -40,7 +40,7 @@ class PrometheusScrapeAgent(Agent):
             result = ""
             for device, device_topics in self._cache.iteritems():
                 for topic, value in device_topics.iteritems():
-                    metric_props = re.split("\s+|:|_", topic)
+                    metric_props = re.split("\s+|:|_|/", topic)
                     metric_tag_str = ""
                     for i, prop in enumerate(metric_props):
                         metric_tag_str += "tag{}=\"{}\",".format(i, prop)
