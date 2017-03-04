@@ -44,7 +44,7 @@ class PrometheusScrapeAgent(Agent):
                     metric_tag_str = ""
                     for i, prop in enumerate(metric_props):
                         metric_tag_str += "tag{}=\"{}\",".format(i, prop)
-                    result += ("# TYPE volttron_data guage \n"
+                    result += ("# TYPE volttron_data gauge \n"
                                "{}{{{}topic=\"{}\"}} {}\n").format(
                         device, metric_tag_str,
                         topic.replace(" ", "_"), value)
