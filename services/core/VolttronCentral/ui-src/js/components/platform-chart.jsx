@@ -2,14 +2,10 @@
 
 var React = require('react');
 var ReactDOM = require('react-dom');
-var d3 = require('d3');
 var moment = require('moment');
 var OutsideClick = require('react-click-outside');
 
 import ControlButton from './control-button';
-// import {LineChart, AreaChart} from 'react-d3-components';
-// var LineChart = ReactD3.LineChart;
-// var AreaChart = ReactD3.AreaChart;
 import {Line} from 'react-chartjs-2';
 
 var chartStore = require('../stores/platform-chart-store');
@@ -156,8 +152,6 @@ var PlatformChart = React.createClass({
                                         hideControls={this.props.hideControls}
                                         refreshInterval={this.props.chart.refreshInterval}
                                         dataLength={this.props.chart.dataLength}
-                                        max={this.props.chart.max}
-                                        min={this.props.chart.min}
                                         pinned={this.props.chart.pinned}
                                         chartType={this.props.chart.type} /> : null }
                           </div>
@@ -194,8 +188,6 @@ var GraphLineChart = OutsideClick(React.createClass({
       state.tooltipX = 0;
       state.tooltipY = 0;
       state.tooltipContent = "";
-      state.min = this.props.min;
-      state.max = this.props.max;
 
       return state;
   },
@@ -208,12 +200,6 @@ var GraphLineChart = OutsideClick(React.createClass({
   _onStoresChange: function () {
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
       this.setState({chartType: platformChartStore.getType(this.props.name)});
-
-      var min = platformChartStore.getMin(this.props.name);
-      var max = platformChartStore.getMax(this.props.name);
-
-      this.setState({min: min});
-      this.setState({max: max});
   },
   handleClickOutside: function () {      
       
@@ -279,10 +265,10 @@ var GraphLineChart = OutsideClick(React.createClass({
     if (!this.props.hideControls)
     {
         var taptipX = 0;
-        var taptipY = 40;
+        var taptipY = -100;
 
         var tooltipX = 0;
-        var tooltipY = 80;
+        var tooltipY = -80;
 
         var chartTypeSelect = (
             <select
@@ -327,7 +313,7 @@ var GraphLineChart = OutsideClick(React.createClass({
         );
         var pinChartTooltip = {
             "content": "Pin to Dashboard",
-            "x": tooltipX,
+            "x": tooltipX - 20,
             "y": tooltipY
         };
 
@@ -359,15 +345,15 @@ var GraphLineChart = OutsideClick(React.createClass({
         var refreshChartTaptip = { 
             "title": "Refresh Rate", 
             "content": refreshChart,
-            "x": taptipX,
-            "y": taptipY
+            "x": taptipX + 15,
+            "y": taptipY - 10
         };
         var refreshChartIcon = (
             <i className="fa fa-hourglass"></i>
         );
         var refreshChartTooltip = {
             "content": "Refresh Rate",
-            "x": tooltipX,
+            "x": tooltipX + 10,
             "y": tooltipY
         };
 
@@ -399,13 +385,13 @@ var GraphLineChart = OutsideClick(React.createClass({
         var dataLengthTaptip = { 
             "title": "Data Length", 
             "content": dataLength,
-            "x": taptipX,
+            "x": taptipX + 15,
             "y": taptipY
         };
 
         var dataLengthTooltip = { 
             "content": "Data Length",
-            "x": tooltipX - 10,
+            "x": tooltipX + 40,
             "y": tooltipY
         };  
 
@@ -437,7 +423,7 @@ var GraphLineChart = OutsideClick(React.createClass({
         );
     }
 
-    var rdcChart;
+    var rdcChart, leftLabel, rightLabel;
 
     if (this.props.series.length && this.props.series[0].data)
     {
@@ -480,6 +466,10 @@ var GraphLineChart = OutsideClick(React.createClass({
         }, this)
       }
 
+      var convertTitle = function (tooltipItem, data) {
+          return moment(Number(tooltipItem[0].xLabel)).format('MMM d, YYYY, h:mm:ss a');
+      };
+
       var options = {
           scales: {                    
               xAxes: [{
@@ -488,25 +478,46 @@ var GraphLineChart = OutsideClick(React.createClass({
               yAxes: [{
                   stacked: this.state.chartType === 'stacked'
               }]
+          },
+          tooltips: {
+              backgroundColor: '#eaebed',
+              titleFontColor: 'black',
+              bodyFontColor: 'black',
+              callbacks: {
+                  title: convertTitle
+              }
           }
       };
 
       rdcChart = (
           <Line 
-            height={200} 
+            height={100} 
             width={700} 
             label={this.props.name}
             data={data}
             options={options}/>
       );
+
+      var leftText = moment(Number(labels[0])).fromNow();
+      var rightText = moment(Number(labels[labels.length - 1])).fromNow();
+
+      leftLabel = <div className="axis-label bottom-left">{leftText}</div>;
+      rightLabel = <div className="axis-label bottom-right">{rightText}</div>;
     };
 
     return (
-      <div className='absolute_anchor'
-          style={chartStyle}
+      <div style={chartStyle}
           ref={this.state.chartName}>
-          {rdcChart}
-          {controlButtons}
+          <div className='absolute_anchor'>
+              <div className="chart-container">
+                  {rdcChart}
+              </div>
+              {leftLabel}
+              {rightLabel}
+          </div>
+          <div className='absolute_anchor'>
+              {controlButtons}
+          </div>
       </div>
     );
   }

@@ -22,7 +22,7 @@ chartStore.getPinnedCharts = function () {
 
     for (var key in _chartData)
     {
-        if (_chartData[key].hasOwnProperty("pinned") && (_chartData[key].pinned === true) && (_chartData[key].data.length > 0))
+        if (_chartData[key].hasOwnProperty("pinned") && (_chartData[key].pinned === true) && (_chartData[key].series.length > 0))
         {
             pinnedCharts.push(_chartData[key]);
         }
@@ -51,34 +51,6 @@ chartStore.getType = function (chartKey) {
     }
 
     return type;
-}
-
-chartStore.getMin = function (chartKey) {
-    var min;
-
-    if (_chartData.hasOwnProperty(chartKey))
-    {
-        if (_chartData[chartKey].hasOwnProperty("min"))
-        {
-            min = _chartData[chartKey].min;
-        }
-    }
-
-    return min;
-}
-
-chartStore.getMax = function (chartKey) {
-    var max;
-
-    if (_chartData.hasOwnProperty(chartKey))
-    {
-        if (_chartData[chartKey].hasOwnProperty("max"))
-        {
-            max = _chartData[chartKey].max;
-        }
-    }
-
-    return max;
 }
 
 chartStore.getRefreshRate = function (chartKey) {
@@ -186,8 +158,6 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                         pinned: (action.panelItem.hasOwnProperty("pinned") ? action.panelItem.pinned : false),
                         type: (action.panelItem.hasOwnProperty("chartType") ? action.panelItem.chartType : "lineChart"),
                         chartKey: action.panelItem.name,
-                        min: (action.panelItem.hasOwnProperty("min") ? action.panelItem.min : null),
-                        max: (action.panelItem.hasOwnProperty("max") ? action.panelItem.max : null),
                         series: [ setChartSeries(action.panelItem, convertTimeToSeconds(action.panelItem.data)) ]
                     };
 
@@ -254,22 +224,6 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             {
                 _chartData[action.chartKey].dataLength = action.length;
             }
-
-            chartStore.emitChange();
-
-            break;
-
-        case ACTION_TYPES.CHANGE_CHART_MIN:
-
-            _chartData[action.chartKey].min = action.min;
-
-            chartStore.emitChange();
-
-            break;
-
-        case ACTION_TYPES.CHANGE_CHART_MAX:
-
-            _chartData[action.chartKey].max = action.max;
 
             chartStore.emitChange();
 
