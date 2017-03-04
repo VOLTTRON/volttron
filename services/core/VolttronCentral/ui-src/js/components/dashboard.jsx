@@ -6,13 +6,9 @@ var platformChartStore = require('../stores/platform-chart-store');
 
 var PlatformChart = require('./platform-chart');
 
-var reloadPageInterval = 1800000;
-
 var Dashboard = React.createClass({
     getInitialState: function () {
         var state = getStateFromStores();
-
-        this._reloadPageTimeout = setTimeout(this._reloadPage, reloadPageInterval);
 
         return state;
     },
@@ -20,14 +16,12 @@ var Dashboard = React.createClass({
         platformChartStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
-        clearTimeout(this._reloadPageTimeout);
         platformChartStore.removeChangeListener(this._onStoreChange);
     },
     _onStoreChange: function () {
         this.setState(getStateFromStores());
     },
     _reloadPage: function () {
-        //Reload page to clear leaked memory
         location.reload(true);
     },
     render: function () {
@@ -37,7 +31,7 @@ var Dashboard = React.createClass({
         var platformCharts = [];
 
         pinnedCharts.forEach(function (pinnedChart) {
-            if (pinnedChart.data.length > 0)
+            if (pinnedChart.series.length > 0)
             {
                 var platformChart = <PlatformChart key={pinnedChart.chartKey} chart={pinnedChart} chartKey={pinnedChart.chartKey} hideControls={true}/>
                 platformCharts.push(platformChart);
