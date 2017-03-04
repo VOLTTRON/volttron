@@ -58,6 +58,7 @@
 
 import logging
 import sys
+import re
 
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent
@@ -68,6 +69,7 @@ from volttron.platform.messaging import topics, headers as headers_mod
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '0.0.1'
+ALL_REX = re.compile('.*/all$')
 
 
 class PrometheusScrapeAgent(Agent):
