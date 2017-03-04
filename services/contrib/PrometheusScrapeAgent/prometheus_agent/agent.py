@@ -65,6 +65,8 @@ from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent import PubSub
 from volttron.platform.vip.agent import Core
 from volttron.platform.messaging import topics, headers as headers_mod
+from volttron.platform.agent.utils import process_timestamp, \
+    fix_sqlite3_datetime, get_aware_utc_now, parse_timestamp_string
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -109,7 +111,6 @@ class PrometheusScrapeAgent(Agent):
         """Capture log data and submit it to be published by a historian."""
 
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
         try:
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
@@ -165,9 +166,6 @@ class PrometheusScrapeAgent(Agent):
         if not ALL_REX.match(topic):
             return
 
-        # Anon the topic if necessary.
-        topic = self._get_topic(topic)
-
         # Because of the above if we know that all is in the topic so
         # we strip it off to get the base device
         parts = topic.split('/')
@@ -177,8 +175,6 @@ class PrometheusScrapeAgent(Agent):
 
     def _capture_data(self, peer, sender, bus, topic, headers, message,
                       device):
-        # Anon the topic if necessary.
-        topic = self._get_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
