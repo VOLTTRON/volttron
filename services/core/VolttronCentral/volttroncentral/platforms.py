@@ -300,9 +300,6 @@ class PlatformHandler(object):
         """
         return hashlib.md5(address).hexdigest()
 
-    def _on_platform_message(self,peer, sender, bus, topic, headers, message):
-        self._log.debug("PLATFORM MESSAGE: {}".format(message))
-
     def __init__(self, vc, vip_identity):
 
         # This is the identity of the vcp agent connected to the
@@ -355,8 +352,14 @@ class PlatformHandler(object):
 
         # Setup callbacks to listen to the local bus from the vcp instance.
         vcp_topics = (
+            # devices and status.
             ('devices/', self._on_device_message),
-            ('datalogger/platform/status', self._on_platform_stats)
+            # statistics for showing performance in the ui.
+            ('datalogger/platform/status', self._on_platform_stats),
+            # iam and configure callbacks
+            ('iam/', self._on_platform_message),
+            # iam and configure callbacks
+            ('configure/', self._on_platform_message)
         )
 
         for topic, funct in vcp_topics:
@@ -716,3 +719,64 @@ class PlatformHandler(object):
                                     topic=platforms_topic,
                                     message=message,
                                     headers=headers)
+
+    def _on_platform_message(self,peer, sender, bus, topic, headers, message):
+        """
+        Callback function for vcp agent to publish to.
+
+        Platforms that are being managed should publish to this topic with
+        the agent_list and other interesting things that the volttron
+        central shsould want to know.
+        """
+        self._log.debug('ON PLATFORM MESSAGE!')
+        expected_prefix = "platforms/{}/".format(self.vip_identity)
+
+        if not topic.startswith(expected_prefix):
+            self._log.warn(
+                "Unexpected topic published to stats function: {}".format(
+                    topic
+                ))
+            return
+
+        self._log.debug("TOPIC WAS: {}".format(topic))
+        self._log.debug("MESSAGE WAS: {}".format(message))
+        self._log.debug("Expected topic: {}".format(expected_prefix))
+        self._log.debug(
+            "Are Equal: {}".format(topic.startswith(expected_prefix)))
+        self._log.debug("topic type: {} prefix_type: {}".format(type(topic),
+                                                                type(
+                                                                    expected_prefix)))
+
+        # Pull off the "real" topic from the prefix
+        # topic = topic[len(expected_prefix):]
+
+        topicsplit = topic.split('/')
+        if len(topicsplit) < 2:
+            self._log.error('Invalid topic length published to volttron central')
+            return
+
+        # Topic is platforms/<platform_uuid>/otherdata
+        topicsplit = topic.split('/')
+
+        if len(topicsplit) < 3:
+            self._log.warn("Invalid topic length no operation or datatype.")
+            self._log.warn("Topic was {}".format(topic))
+            return
+
+        _, platform_uuid, op_or_datatype, other = topicsplit[0], \
+                                                  topicsplit[1], \
+                                                  topicsplit[2], topicsplit[
+                                                                 3:]
+
+        if op_or_datatype in ('iam', 'configure'):
+            if not other:
+                self._log.error("Invalid response to iam or configure endpoint")
+                self._log.error(
+                    "the sesson token was not included in response from vcp.")
+                return
+
+            ws_endpoint = "/vc/ws/{}/{}".format(other[0], op_or_datatype)
+            self._log.debug('SENDING MESSAGE TO {}'.format(ws_endpoint))
+            self._vc.vip.web.send(ws_endpoint, jsonapi.dumps(message))
+        else:
+            self._log.debug("OP WAS: {}".format(op_or_datatype))
