@@ -3,6 +3,7 @@
 import logging
 import sys
 import re
+from collections import defaultdict
 
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent
@@ -21,7 +22,7 @@ ALL_REX = re.compile('.*/all$')
 class PrometheusScrapeAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(PrometheusScrapeAgent, self).__init__(enable_web=True, **kwargs)
-        self._cache = {}
+        self._cache = defaultdict(dict)
 
     @Core.receiver("onstart")
     def _starting(self, sender, **kwargs):
