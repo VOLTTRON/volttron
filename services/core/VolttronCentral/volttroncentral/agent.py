@@ -74,7 +74,7 @@ instance with VCA.
 2. From an external platform through pub/sub.  this secondary method is
    preferred when deploying instances in the field that need to "phone home"
    to VCA after being deployed.
-   
+
 """
 import errno
 import hashlib
@@ -114,7 +114,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 
-__version__ = "4.0"
+__version__ = "4.0.1"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -316,9 +316,13 @@ class VolttronCentralAgent(Agent):
             external_addresses = q.query('addresses').get(timeout=5)
             self.runtime_config['local_external_address'] = external_addresses[0]
 
-        self.vip.web.register_websocket(r'/vc/ws', self.open_authenticate_ws_endpoint, self._ws_closed, self._ws_received)
+        self.vip.web.register_websocket(r'/vc/ws',
+                                        self.open_authenticate_ws_endpoint,
+                                        self._ws_closed,
+                                        self._ws_received)
         self.vip.web.register_endpoint(r'/jsonrpc', self.jsonrpc)
-        self.vip.web.register_path(r'^/.*', self.runtime_config.get('webroot'))
+        self.vip.web.register_path(r'^/.*',
+                                   self.runtime_config.get('webroot'))
 
         # Start scanning for new platforms connections as well as for
         # disconnects that happen.
@@ -497,13 +501,14 @@ class VolttronCentralAgent(Agent):
                         "Invalid username/password specified.")
                 _log.info('Session created for {}'.format(
                     rpcdata.params['username']))
-                self.vip.web.register_websocket("/vc/ws/{}/management".format(sess),
-                                                self.open_authenticate_ws_endpoint,
-                                                self._ws_closed,
-                                                self._received_data)
+                self.vip.web.register_websocket(
+                    "/vc/ws/{}/management".format(sess),
+                    self.open_authenticate_ws_endpoint,
+                    self._ws_closed,
+                    self._received_data)
                 _log.info('Session created for {}'.format(
                     rpcdata.params['username']))
-                
+
                 gevent.sleep(1)
                 return jsonrpc.json_result(rpcdata.id, sess)
 
@@ -529,9 +534,9 @@ class VolttronCentralAgent(Agent):
         except Unreachable:
             return jsonrpc.json_error(
                 rpcdata.id, UNAVAILABLE_PLATFORM,
-                "Couldn't reach platform with method {} params: {}"
-                .format(rpcdata.method, rpcdata.params)
-            )
+                "Couldn't reach platform with method {} params: {}".format(
+                    rpcdata.method,
+                    rpcdata.params))
         except Exception as e:
 
             return jsonrpc.json_error(
@@ -674,87 +679,6 @@ class VolttronCentralAgent(Agent):
                 if x.startswith(prefix)]
         return keys or []
 
-    @Core.receiver('onstop')
-    def onstop(self, sender, **kwargs):
-        """ Clean up the  agent code before the agent is killed
-        """
-        pass
-        # for v in self._platform_connections.values():
-        #     try:
-        #         if v is not None:
-        #             v.kill()
-        #     except AttributeError:
-        #         pass
-        #
-        # self._platform_connections.clear()
-        #
-        # self.vip.rpc.call(MASTER_WEB, 'unregister_all_agent_routes',
-        #                   self.core.identity).get(timeout=30)
-
-    # #@Core.periodic(10)
-    # def _update_device_registry(self):
-    #     """ Updating the device registery from registered platforms.
-    #
-    #     :return:
-    #     """
-    #     try:
-    #         if not self._flag_updating_deviceregistry:
-    #             _log.debug("Updating device registry")
-    #             self._flag_updating_deviceregistry = True
-    #             self._sync_connected_platforms()
-    #             unreachable = []
-    #             # Loop over the connections to the registered agent platforms.
-    #             for k, v in self._platform_connections.items():
-    #                 _log.debug('updating for {}'.format(k))
-    #                 # Only attempt update if we have a connection to the
-    #                 # agent instance.
-    #                 if v is not None:
-    #                     try:
-    #                         devices = v.agent.vip.rpc.call(
-    #                             VOLTTRON_CENTRAL_PLATFORM,
-    #                             'get_devices').get(timeout=30)
-    #
-    #                         anon_devices = defaultdict(dict)
-    #
-    #                         # for each device returned from the query to
-    #                         # get_devices we need to anonymize the k1 in the
-    #                         # anon_devices dictionary.
-    #                         for k1, v1 in devices.items():
-    #                             _log.debug(
-    #                                 "before anon: {}, {}".format(k1, v1))
-    #                             # now we need to do a search/replace on the
-    #                             # self._topic_list so that the devices are
-    #                             # known as the correct itme nin the tree.
-    #                             anon_topic = self._topic_replace_map[k1]
-    #
-    #                             # if replaced has not already been replaced
-    #                             if not anon_topic:
-    #                                 anon_topic = k1
-    #                                 for sr in self._topic_replace_list:
-    #                                     anon_topic = anon_topic.replace(
-    #                                         sr['from'], sr['to'])
-    #
-    #                                 self._topic_replace_map[k1] = anon_topic
-    #
-    #                             anon_devices[anon_topic] = v1
-    #
-    #                         _log.debug('Anon devices are: {}'.format(
-    #                             anon_devices))
-    #
-    #                         self._registry.update_devices(k, anon_devices)
-    #                     except (gevent.Timeout, Unreachable) as e:
-    #                         _log.error(
-    #                             'Error getting devices from platform {}'
-    #                                 .format(k))
-    #                         unreachable.append(k)
-    #             for k in unreachable:
-    #                 if self._platform_connections[k]:
-    #                     self._platform_connections[k].disconnect()
-    #                 del self._platform_connections[k]
-    #
-    #     finally:
-    #         self._flag_updating_deviceregistry = False
-
     def _handle_bacnet_props(self, session_user, params):
         platform_uuid = params.pop('platform_uuid')
         id = params.pop('message_id')
@@ -821,6 +745,7 @@ class VolttronCentralAgent(Agent):
                                        iam_session_topic)
 
                 gevent.spawn_later(scan_length, close_socket)
+
             # By starting the scan a second later we allow the websocket
             # client to subscribe to the newly available endpoint.
             gevent.spawn_later(2, start_scan)
@@ -1035,7 +960,7 @@ class VolttronCentralAgent(Agent):
                 params['message_id'] = id
             response = vc_methods[method](session_user, params)
             _log.debug("Response is {}".format(response))
-            return response #vc_methods[method](session_user, params)
+            return response  # vc_methods[method](session_user, params)
 
         if method == 'register_instance':
             if isinstance(params, list):
@@ -1049,8 +974,9 @@ class VolttronCentralAgent(Agent):
             has_platform_historian = PLATFORM_HISTORIAN in \
                                      self.vip.peerlist().get(timeout=30)
             if not has_platform_historian:
-                return err('The VOLTTRON Central platform historian is unavailable.',
-                           UNAVAILABLE_AGENT)
+                return err(
+                    'The VOLTTRON Central platform historian is unavailable.',
+                    UNAVAILABLE_AGENT)
             _log.debug('Trapping platform.historian to vc.')
             _log.debug('has_platform_historian: {}'.format(
                 has_platform_historian))
