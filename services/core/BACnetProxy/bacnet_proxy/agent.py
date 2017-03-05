@@ -199,61 +199,99 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         except StandardError as e:
             iocb.set_exception(e)
 
-    def confirmation(self, apdu):
-        # build a key to look for the IOCB
-        invoke_key = (apdu.pduSource, apdu.apduInvokeID)
+    def _get_iocb_key_for_apdu(self, apdu):
+        return (apdu.pduSource, apdu.apduInvokeID)
+
+
+    def _get_iocb_for_apdu(self, apdu, invoke_key):
 
         # find the request
-        iocb = self.iocb.get(invoke_key, None)
-        if iocb is None:
+        working_iocb = self.iocb.get(invoke_key, None)
+        if working_iocb is None:
             _log.error("no matching request for confirmation")
-            return
+            return None
         del self.iocb[invoke_key]
 
         if isinstance(apdu, AbortPDU):
-            iocb.set_exception(RuntimeError(
+            working_iocb.set_exception(RuntimeError(
                 "Device communication aborted: " + str(apdu)))
-            return
+            return None
 
-        if isinstance(apdu, Error):
-            iocb.set_exception(RuntimeError(
+        elif isinstance(apdu, Error):
+            working_iocb.set_exception(RuntimeError(
                 "Error during device communication: " + str(apdu)))
-            return
-
-        if isinstance(apdu, RejectPDU):
-            iocb.set_exception(
+            return None
+        elif isinstance(apdu, RejectPDU):
+            working_iocb.set_exception(
                 RuntimeError("Device at {source} rejected the request: {reason}"
                              "".format(source=apdu.pduSource,
                                        reason=apdu.apduAbortRejectReason)))
+            return None
+        else:
+            return working_iocb
 
-        elif (isinstance(iocb.ioRequest, ReadPropertyRequest) and
-              isinstance(apdu, ReadPropertyACK)):
-            # find the datatype
-            datatype = get_datatype(apdu.objectIdentifier[0],
-                                    apdu.propertyIdentifier)
-            if not datatype:
-                iocb.set_exception(TypeError("unknown datatype"))
-                return
-
-            # special case for array parts, others are managed by cast_out
-            if issubclass(datatype, Array) and (
-                    apdu.propertyArrayIndex is not None):
-                if apdu.propertyArrayIndex == 0:
-                    value = apdu.propertyValue.cast_out(Unsigned)
-                else:
-                    value = apdu.propertyValue.cast_out(datatype.subtype)
-            else:
-                value = apdu.propertyValue.cast_out(datatype)
-                if issubclass(datatype, Enumerated):
-                    value = datatype(value).get_long()
-            iocb.set(value)
-
-        elif (isinstance(iocb.ioRequest, WritePropertyRequest) and
-              isinstance(apdu, SimpleAckPDU)):
-            iocb.set(apdu)
+    def _get_value_from_read_property_request(self, apdu, working_iocb):
+        # find the datatype
+        datatype = get_datatype(apdu.objectIdentifier[0],
+                                apdu.propertyIdentifier)
+        if not datatype:
+            working_iocb.set_exception(TypeError("unknown datatype"))
             return
 
-        elif (isinstance(iocb.ioRequest, ReadPropertyMultipleRequest) and
+        # special case for array parts, others are managed by cast_out
+        if issubclass(datatype, Array) and (
+                apdu.propertyArrayIndex is not None):
+            if apdu.propertyArrayIndex == 0:
+                value = apdu.propertyValue.cast_out(Unsigned)
+            else:
+                value = apdu.propertyValue.cast_out(datatype.subtype)
+        else:
+            value = apdu.propertyValue.cast_out(datatype)
+            if issubclass(datatype, Enumerated):
+                value = datatype(value).get_long()
+        return value
+
+    def _get_value_from_property_value(self, propertyValue,
+                                       datatype, working_iocb):
+        value = propertyValue.cast_out(datatype)
+        if issubclass(datatype, Enumerated):
+            value = datatype(value).get_long()
+
+        try:
+            if issubclass(datatype, Array) and (
+                    issubclass(datatype.subtype, Choice)):
+                new_value = []
+                for item in value.value[1:]:
+                    result = item.dict_contents().values()
+                    if result[0] != ():
+                        new_value.append(result[0])
+                    else:
+                        new_value.append(None)
+                value = new_value
+        except StandardError as e:
+            _log.exception(e)
+            working_iocb.set_exception(e)
+            return
+
+    def confirmation(self, apdu):
+        # return iocb if exists, otherwise sets error and returns
+        invoke_key = self._get_iocb_key_for_apdu(apdu)
+        working_iocb = self._get_iocb_for_apdu(apdu, invoke_key)
+        if not working_iocb:
+            return
+
+        if (isinstance(working_iocb.ioRequest, ReadPropertyRequest) and
+                isinstance(apdu, ReadPropertyACK)):
+            working_iocb.set(
+                self._get_value_from_read_property_request(apdu, working_iocb))
+
+        elif (isinstance(working_iocb.ioRequest, WritePropertyRequest) and
+              isinstance(apdu, SimpleAckPDU)):
+            working_iocb.set(apdu)
+            return
+
+        elif (isinstance(working_iocb.ioRequest,
+                         ReadPropertyMultipleRequest) and
               isinstance(apdu, ReadPropertyMultipleACK)):
 
             result_dict = {}
@@ -286,7 +324,8 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                         datatype = get_datatype(objectIdentifier[0],
                                                 propertyIdentifier)
                         if not datatype:
-                            iocb.set_exception(TypeError("unknown datatype"))
+                            working_iocb.set_exception(
+                                TypeError("unknown datatype"))
                             return
 
                         # special case for array parts, others are managed
@@ -298,37 +337,21 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                             else:
                                 value = propertyValue.cast_out(datatype.subtype)
                         else:
-                            value = propertyValue.cast_out(datatype)
-                            if issubclass(datatype, Enumerated):
-                                value = datatype(value).get_long()
-
-                            try:
-                                if issubclass(datatype, Array) and (
-                                        issubclass(datatype.subtype, Choice)):
-                                    new_value = []
-                                    for item in value.value[1:]:
-                                        result = item.dict_contents().values()
-                                        if result[0] != ():
-                                            new_value.append(result[0])
-                                        else:
-                                            new_value.append(None)
-                                    value = new_value
-                            except StandardError as e:
-                                _log.exception(e)
-                                iocb.set_exception(e)
+                            value = self._get_value_from_property_value(
+                                propertyValue, datatype, working_iocb)
 
                         result_dict[objectIdentifier[0], objectIdentifier[1],
                                     propertyIdentifier,
                                     propertyArrayIndex] = value
 
-            iocb.set(result_dict)
+            working_iocb.set(result_dict)
 
         else:
             _log.error("For invoke key {key} Unsupported Request Response pair"
                        " Request: {request} Response: {response}".
-                       format(key=invoke_key, request=iocb.ioRequest,
+                       format(key=invoke_key, request=working_iocb.ioRequest,
                               response=apdu))
-            iocb.set_exception(TypeError('Unsupported Request Type'))
+            working_iocb.set_exception(TypeError('Unsupported Request Type'))
 
     def indication(self, apdu):
         if isinstance(apdu, IAmRequest):
