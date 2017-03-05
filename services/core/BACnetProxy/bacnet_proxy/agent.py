@@ -421,7 +421,7 @@ class BACnetProxyAgent(Agent):
                 async_call.send(None, self.ioResult.set_exception, exception)
 
         self.iocb_class = IOCB
-        self._max_per_request = kwargs['max_per_request']
+        self._max_per_request = max_per_request
 
         self.setup_device(async_call, device_address,
                           max_apdu_len, seg_supported,
