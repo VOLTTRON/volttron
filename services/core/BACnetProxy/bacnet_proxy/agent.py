@@ -77,13 +77,12 @@ from collections import defaultdict
 from Queue import Queue, Empty
 
 from bacpypes.task import RecurringTask
-from bacpypes.apdu import ConfirmedRequestSequence, WhoIsRequest
 
 import bacpypes.core
 
 import threading
 
-#Tweeks to BACpypes to make it play nice with Gevent.
+# Tweeks to BACpypes to make it play nice with Gevent.
 bacpypes.core.enable_sleeping()
 bacpypes.core.SPIN = 0.1
 
@@ -104,8 +103,10 @@ from bacpypes.apdu import (ReadPropertyRequest,
                            ReadAccessSpecification,
                            encode_max_apdu_response,
                            WhoIsRequest,
-                           IAmRequest)
-from bacpypes.primitivedata import Null, Atomic, Enumerated, Integer, Unsigned, Real
+                           IAmRequest,
+                           ConfirmedRequestSequence)
+from bacpypes.primitivedata import (Null, Atomic, Enumerated, Integer,
+                                    Unsigned, Real)
 from bacpypes.constructeddata import Array, Any, Choice
 from bacpypes.basetypes import ServicesSupported
 from bacpypes.task import TaskManager
@@ -114,7 +115,7 @@ from gevent.event import AsyncResult
 path = os.path.dirname(os.path.abspath(__file__))
 configFile = os.path.join(path, "bacnet_example_config.csv")
 
-#Make sure the TaskManager singleton exists...
+# Make sure the TaskManager singleton exists...
 task_manager = TaskManager()
 
 #IO callback
@@ -131,6 +132,7 @@ task_manager = TaskManager()
 #
 #     def set_exception(self, exception):
 #         self.ioCall.send(None, self.ioResult.set_exception, exception)
+
 
 class BACnet_application(BIPSimpleApplication, RecurringTask):
     def __init__(self, i_am_callback, *args):
@@ -209,27 +211,33 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         del self.iocb[invoke_key]
 
         if isinstance(apdu, AbortPDU):
-            iocb.set_exception(RuntimeError("Device communication aborted: " + str(apdu)))
+            iocb.set_exception(RuntimeError(
+                "Device communication aborted: " + str(apdu)))
             return
 
         if isinstance(apdu, Error):
-            iocb.set_exception(RuntimeError("Error during device communication: " + str(apdu)))
+            iocb.set_exception(RuntimeError(
+                "Error during device communication: " + str(apdu)))
             return
 
         if isinstance(apdu, RejectPDU):
-            iocb.set_exception(RuntimeError("Device at {source} rejected the request: {reason}".format(source=apdu.pduSource,
-                                                                                                       reason=apdu.apduAbortRejectReason)))
+            iocb.set_exception(
+                RuntimeError("Device at {source} rejected the request: {reason}"
+                             "".format(source=apdu.pduSource,
+                                       reason=apdu.apduAbortRejectReason)))
 
         elif (isinstance(iocb.ioRequest, ReadPropertyRequest) and
               isinstance(apdu, ReadPropertyACK)):
             # find the datatype
-            datatype = get_datatype(apdu.objectIdentifier[0], apdu.propertyIdentifier)
+            datatype = get_datatype(apdu.objectIdentifier[0],
+                                    apdu.propertyIdentifier)
             if not datatype:
                 iocb.set_exception(TypeError("unknown datatype"))
                 return
 
             # special case for array parts, others are managed by cast_out
-            if issubclass(datatype, Array) and (apdu.propertyArrayIndex is not None):
+            if issubclass(datatype, Array) and (
+                    apdu.propertyArrayIndex is not None):
                 if apdu.propertyArrayIndex == 0:
                     value = apdu.propertyValue.cast_out(Unsigned)
                 else:
@@ -267,20 +275,24 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                         error_obj = readResult.propertyAccessError
 
                         msg = 'ERROR DURRING SCRAPE (Class: {0} Code: {1})'
-                        _log.error(msg.format(error_obj.errorClass, error_obj.errorCode))
+                        _log.error(msg.format(error_obj.errorClass,
+                                              error_obj.errorCode))
 
                     else:
                         # here is the value
                         propertyValue = readResult.propertyValue
 
                         # find the datatype
-                        datatype = get_datatype(objectIdentifier[0], propertyIdentifier)
+                        datatype = get_datatype(objectIdentifier[0],
+                                                propertyIdentifier)
                         if not datatype:
                             iocb.set_exception(TypeError("unknown datatype"))
                             return
 
-                        # special case for array parts, others are managed by cast_out
-                        if issubclass(datatype, Array) and (propertyArrayIndex is not None):
+                        # special case for array parts, others are managed
+                        # by cast_out
+                        if issubclass(datatype, Array) and (
+                             propertyArrayIndex is not None):
                             if propertyArrayIndex == 0:
                                 value = propertyValue.cast_out(Unsigned)
                             else:
@@ -291,34 +303,38 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                                 value = datatype(value).get_long()
 
                             try:
-                                if issubclass(datatype, Array):
-                                    if issubclass(datatype.subtype, Choice):
-                                        new_value = []
-                                        for item in value.value[1:]:
-                                            result = item.dict_contents().values()
-                                            if result[0] != ():
-                                                new_value.append(result[0])
-                                            else:
-                                                new_value.append(None)
-                                        value = new_value
+                                if issubclass(datatype, Array) and (
+                                        issubclass(datatype.subtype, Choice)):
+                                    new_value = []
+                                    for item in value.value[1:]:
+                                        result = item.dict_contents().values()
+                                        if result[0] != ():
+                                            new_value.append(result[0])
+                                        else:
+                                            new_value.append(None)
+                                    value = new_value
                             except StandardError as e:
                                 _log.exception(e)
                                 iocb.set_exception(e)
 
-                        result_dict[objectIdentifier[0], objectIdentifier[1], propertyIdentifier, propertyArrayIndex] = value
+                        result_dict[objectIdentifier[0], objectIdentifier[1],
+                                    propertyIdentifier,
+                                    propertyArrayIndex] = value
 
             iocb.set(result_dict)
 
         else:
-            _log.error("For invoke key {key} Unsupported Request Response pair Request: {request} Response: {response}".
-                       format(key=invoke_key, request=iocb.ioRequest, response=apdu))
+            _log.error("For invoke key {key} Unsupported Request Response pair"
+                       " Request: {request} Response: {response}".
+                       format(key=invoke_key, request=iocb.ioRequest,
+                              response=apdu))
             iocb.set_exception(TypeError('Unsupported Request Type'))
 
     def indication(self, apdu):
         if isinstance(apdu, IAmRequest):
             device_type, device_instance = apdu.iAmDeviceIdentifier
             if device_type != 'device':
-                #Bail without an error.
+                # Bail without an error.
                 return
 
             _log.debug("Calling IAm callback.")
@@ -333,26 +349,27 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         BIPSimpleApplication.indication(self, apdu)
 
 
-
-write_debug_str = "Writing: {target} {type} {instance} {property} (Priority: {priority}, Index: {index}): {value}"
+write_debug_str = ("Writing: {target} {type} {instance} {property} (Priority: "
+                   "{priority}, Index: {index}): {value}")
 
 
 def bacnet_proxy_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
     device_address = config["device_address"]
-    max_apdu_len=config.get("max_apdu_length",1024)
-    seg_supported=config.get("segmentation_supported","segmentedBoth")
-    obj_id=config.get("object_id",599)
-    obj_name=config.get("object_name","Volttron BACnet driver")
-    ven_id=config.get("vendor_id",15)
+    max_apdu_len = config.get("max_apdu_length", 1024)
+    seg_supported = config.get("segmentation_supported", "segmentedBoth")
+    obj_id = config.get("object_id", 599)
+    obj_name = config.get("object_name", "Volttron BACnet driver")
+    ven_id = config.get("vendor_id", 15)
     max_per_request = config.get("default_max_per_request", 1000000)
 
     return BACnetProxyAgent(device_address,
-                         max_apdu_len, seg_supported,
-                         obj_id, obj_name, ven_id,
-                         heartbeat_autostart=True,
-                            max_per_request=max_per_request,**kwargs)
+                            max_apdu_len, seg_supported,
+                            obj_id, obj_name, ven_id,
+                            heartbeat_autostart=True,
+                            max_per_request=max_per_request, **kwargs)
+
 
 class BACnetProxyAgent(Agent):
     '''This agent creates a virtual bacnet device that is used by
@@ -383,10 +400,8 @@ class BACnetProxyAgent(Agent):
         self._max_per_request = kwargs['max_per_request']
 
         self.setup_device(async_call, device_address,
-                         max_apdu_len, seg_supported,
-                         obj_id, obj_name, ven_id)
-
-
+                          max_apdu_len, seg_supported,
+                          obj_id, obj_name, ven_id)
 
     def setup_device(self, async_call, address,
                      max_apdu_len=1024,
@@ -401,11 +416,11 @@ class BACnetProxyAgent(Agent):
         _log.info('obj_name '+str(obj_name))
         _log.info('ven_id '+str(ven_id))
 
-
-
-        #Check to see if they gave a valid apdu length.
+        # Check to see if they gave a valid apdu length.
         if encode_max_apdu_response(max_apdu_len) is None:
-            raise ValueError('Invalid max_apdu_len: {} Valid options are 50, 128, 206, 480, 1024, and 1476'.format(max_apdu_len))
+            raise ValueError("Invalid max_apdu_len: {} Valid options are 50, "
+                             "128, 206, 480, 1024, and 1476".format(
+                                 max_apdu_len))
 
         this_device = LocalDeviceObject(
             objectName=obj_name,
@@ -423,12 +438,15 @@ class BACnetProxyAgent(Agent):
         # set the property value to be just the bits
         this_device.protocolServicesSupported = pss.value
 
-        def i_am_callback(address, device_id, max_apdu_len, seg_supported, vendor_id):
-            async_call.send(None, self.i_am, address, device_id, max_apdu_len, seg_supported, vendor_id)
+        def i_am_callback(address, device_id, max_apdu_len,
+                          seg_supported, vendor_id):
+            async_call.send(None, self.i_am, address, device_id, max_apdu_len,
+                            seg_supported, vendor_id)
 
         #i_am_callback('foo', 'bar', 'baz', 'foobar', 'foobaz')
 
-        self.this_application = BACnet_application(i_am_callback, this_device, address)
+        self.this_application = BACnet_application(i_am_callback, this_device,
+                                                   address)
 
         server_thread = threading.Thread(target=bacpypes.core.run)
 
@@ -439,28 +457,28 @@ class BACnetProxyAgent(Agent):
     def i_am(self, address, device_id, max_apdu_len, seg_supported, vendor_id):
         """Called by the BACnet application when a WhoIs is received.
         Publishes the IAm to the pubsub."""
-        _log.debug("IAm received: Address: {} Device ID: {}"
-                   " Max APDU: {} Segmentation: {} Vendor: {}".format(address,
-                                                                      device_id,
-                                                                      max_apdu_len,
-                                                                      seg_supported,
-                                                                      vendor_id))
+        _log.debug(("IAm received: Address: {} Device ID: {}"
+                   " Max APDU: {} Segmentation: {} Vendor:"
+                    " {}").format(address, device_id, max_apdu_len,
+                                  seg_supported, vendor_id))
 
-        header = {headers.TIMESTAMP: utils.format_timestamp(datetime.datetime.utcnow())}
+        header = {headers.TIMESTAMP: utils.format_timestamp(
+            datetime.datetime.utcnow())}
         value = {"address": address,
                  "device_id": device_id,
                  "max_apdu_length": max_apdu_len,
                  "segmentation_supported": seg_supported,
                  "vendor_id": vendor_id}
 
-        self.vip.pubsub.publish('pubsub', topics.BACNET_I_AM, header, message=value)
-
+        self.vip.pubsub.publish('pubsub', topics.BACNET_I_AM, header,
+                                message=value)
 
     @RPC.export
-    def who_is(self, low_device_id=None, high_device_id=None, target_address=None):
-        _log.debug("Sending WhoIs: low_id: {low} high: {high} address: {address}".format(low=low_device_id,
-                                                                                         high=high_device_id,
-                                                                                         address=target_address))
+    def who_is(self, low_device_id=None, high_device_id=None,
+               target_address=None):
+        _log.debug(("Sending WhoIs: low_id: {low} high: {high} address: "
+                   "{address}").format(low=low_device_id, high=high_device_id,
+                                       address=target_address))
         request = WhoIsRequest()
 
         if low_device_id is not None:
@@ -483,7 +501,9 @@ class BACnetProxyAgent(Agent):
         self.who_is(device_id, device_id, target_address)
 
     @RPC.export
-    def write_property(self, target_address, value, object_type, instance_number, property_name, priority=None, index=None):
+    def write_property(self, target_address, value, object_type,
+                       instance_number, property_name, priority=None,
+                       index=None):
         """Write to a property."""
 
         _log.debug(write_debug_str.format(target=target_address,
@@ -515,20 +535,22 @@ class BACnetProxyAgent(Agent):
             elif issubclass(datatype.subtype, Atomic):
                 bac_value = datatype.subtype(value)
             elif not isinstance(value, datatype.subtype):
-                raise TypeError("invalid result datatype, expecting %s" % (datatype.subtype.__name__,))
+                raise TypeError("invalid result datatype, expecting {}".format(
+                    datatype.subtype.__name__,))
         elif not isinstance(value, datatype):
-            raise TypeError("invalid result datatype, expecting %s" % (datatype.__name__,))
+            raise TypeError("invalid result datatype, expecting %s".format(
+                datatype.__name__,))
 
         request.propertyValue = Any()
         request.propertyValue.cast_in(bac_value)
 
         request.pduDestination = Address(target_address)
 
-        #Optional index
+        # Optional index
         if index is not None:
             request.propertyArrayIndex = index
 
-        #Optional priority
+        # Optional priority
         if priority is not None:
             request.priority = priority
 
@@ -547,20 +569,26 @@ class BACnetProxyAgent(Agent):
                 object_type, instance_number, property_name = properties
                 property_index = None
             elif len(properties) == 4:
-                object_type, instance_number, property_name, property_index = properties
+                (object_type, instance_number, property_name,
+                 property_index) = properties
             else:
-                _log.error("skipping {} in request to {}: incorrect number of parameters".format(point, target_address))
+                _log.error(("skipping {} in request to {}: incorrect number of"
+                           " parameters").format(point, target_address))
                 continue
 
             try:
-                results[point] = self.read_property(target_address, object_type, instance_number, property_name, property_index)
+                results[point] = self.read_property(
+                    target_address, object_type,
+                    instance_number, property_name, property_index)
             except Exception as e:
-                _log.error("Error reading point {} from {}: {}".format(point, target_address, e))
+                _log.error("Error reading point {} from {}: {}".format(
+                    point, target_address, e))
 
         return results
 
     @RPC.export
-    def read_property(self, target_address, object_type, instance_number, property_name, property_index=None):
+    def read_property(self, target_address, object_type, instance_number,
+                      property_name, property_index=None):
         request = ReadPropertyRequest(
             objectIdentifier=(object_type, instance_number),
             propertyIdentifier=property_name,
@@ -571,15 +599,57 @@ class BACnetProxyAgent(Agent):
         bacnet_results = iocb.ioResult.get(10)
         return bacnet_results
 
+    def _get_access_spec(self, obj_data, properties):
+        count = 0
+        obj_type, obj_inst = obj_data
+        prop_ref_list = []
+        for prop, prop_index in properties:
+            prop_ref = PropertyReference(propertyIdentifier=prop)
+            if prop_index is not None:
+                prop_ref.propertyArrayIndex = prop_index
+            prop_ref_list.append(prop_ref)
+            count += 1
+        return (ReadAccessSpecification(
+            objectIdentifier=(obj_type, obj_inst),
+            listOfPropertyReferences=prop_ref_list), count)
+
+    def _get_object_properties(self, point_map, target_address):
+        # This will be used to get the results mapped
+        # back on the the names
+        reverse_point_map = {}
+
+        # Used to group properties together for the request.
+        object_property_map = defaultdict(list)
+
+        for name, properties in point_map.iteritems():
+            if len(properties) == 3:
+                (object_type, instance_number,
+                 property_name) = properties
+                property_index = None
+            elif len(properties) == 4:
+                (object_type, instance_number, property_name,
+                 property_index) = properties
+            else:
+                _log.error("skipping {} in request to {}: incorrect number of "
+                           "parameters".format(name, target_address))
+                continue
+            object_property_map[object_type, instance_number].append(
+                (property_name, property_index))
+
+            reverse_point_map[object_type, instance_number, property_name,
+                              property_index] = name
+
+        return (object_property_map, reverse_point_map)
 
     @RPC.export
-    def read_properties(self, target_address, point_map, max_per_request=None, use_read_multiple=True):
+    def read_properties(self, target_address, point_map, max_per_request=None,
+                        use_read_multiple=True):
         """Read a set of points and return the results"""
 
         if not use_read_multiple:
             return self.read_using_single_request(target_address, point_map)
 
-        #Set max_per_request really high if not set.
+        # Set max_per_request really high if not set.
         if max_per_request is None:
             max_per_request = self._max_per_request
 
@@ -587,31 +657,12 @@ class BACnetProxyAgent(Agent):
                    " scrape: {max}".format(count=len(point_map),
                                            target=target_address,
                                            max=max_per_request))
+        # process point map and populate object_property_map and
+        # reverse_point_map
+        (object_property_map, reverse_point_map) = self._get_object_properties(
+            point_map, target_address)
 
-        # This will be used to get the results mapped
-        # back on the the names
-        reverse_point_map = {}
-
-        #Used to group properties together for the request.
-        object_property_map = defaultdict(list)
-
-        for name, properties in point_map.iteritems():
-            if len(properties) == 3:
-                object_type, instance_number, property_name = properties
-                property_index = None
-            elif len(properties) == 4:
-                object_type, instance_number, property_name, property_index = properties
-            else:
-                _log.error("skipping {} in request to {}: incorrect number of parameters".format(name, target_address))
-            reverse_point_map[object_type,
-                              instance_number,
-                              property_name,
-                              property_index] = name
-
-            object_property_map[object_type,
-                                instance_number].append((property_name, property_index))
-
-        result_dict={}
+        result_dict = {}
         finished = False
 
         while not finished:
@@ -623,41 +674,32 @@ class BACnetProxyAgent(Agent):
                 except KeyError:
                     finished = True
                     break
-                obj_type, obj_inst = obj_data
-                prop_ref_list = []
-                for prop, prop_index in properties:
-                    prop_ref = PropertyReference(propertyIdentifier=prop)
-                    if prop_index is not None:
-                        prop_ref.propertyArrayIndex = prop_index
-                    prop_ref_list.append(prop_ref)
-                    count += 1
-                read_access_spec = ReadAccessSpecification(objectIdentifier=(obj_type, obj_inst),
-                                                           listOfPropertyReferences=prop_ref_list)
-                read_access_spec_list.append(read_access_spec)
+                (spec_list, spec_count) = self._get_access_spec(
+                    obj_data, properties)
+                count += spec_count
+                read_access_spec_list.append(spec_list)
 
             if read_access_spec_list:
-                _log.debug("Requesting {count} properties from {target}".format(count=count,
-                                                                                target=target_address))
-                request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=read_access_spec_list)
+                _log.debug(("Requesting {count} properties from "
+                           "{target}").format(count=count,
+                                              target=target_address))
+                request = ReadPropertyMultipleRequest(
+                    listOfReadAccessSpecs=read_access_spec_list)
                 request.pduDestination = Address(target_address)
 
                 iocb = self.iocb_class(request)
                 self.this_application.submit_request(iocb)
                 bacnet_results = iocb.ioResult.get(10)
 
-                _log.debug("Received read response from {target} count: {count}".format(count=count,
-                                                                         target=target_address))
-
+                _log.debug(("Received read response from {target} count: "
+                            "{count}").format(count=count,
+                                              target=target_address))
 
                 for prop_tuple, value in bacnet_results.iteritems():
                     name = reverse_point_map[prop_tuple]
                     result_dict[name] = value
 
         return result_dict
-
-
-
-
 
 
 def main(argv=sys.argv):
