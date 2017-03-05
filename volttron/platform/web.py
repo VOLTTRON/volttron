@@ -633,18 +633,9 @@ class MasterWebService(Agent):
                     message = res['error']['message']
                     code = res['error']['code']
                     return [b'<h1>{}</h1>\n<h2>CODE:{}</h2>'
-                            .format(message, code)]
-            if 'text' in res:
-                start_response('200 OK',
-                               [('Content-Type', 'text/plain')])
-                _log.debug('RESPONSE WEB: {}'.format(res))
-                return res['text']
-            else:
-                start_response('200 OK',
-                               [('Content-Type', 'application/json')])
-        else:
-            start_response('200 OK',
-                           [('Content-Type', 'application/json')])
+                                .format(message, code)]
+        start_response('200 OK',
+                       [('Content-Type', 'application/json')])
         _log.debug('RESPONSE WEB: {}'.format(res))
         return jsonapi.dumps(res)
 
