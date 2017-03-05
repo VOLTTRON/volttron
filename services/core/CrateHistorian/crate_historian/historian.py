@@ -205,10 +205,9 @@ class CrateHistorian(BaseHistorian):
                 _log.debug('Waiting to attempt to write to database.')
                 return
 
-
         def insert_data(cursor, topic_id, ts, data, topic_name=None):
             target_table = self._topic_to_table_map[topic_id]
-            (schema_name, table_name) = target_table.split('.')
+            (schema_name, table_name) = target_table.split(".")
             insert_query = """INSERT INTO {} (topic_id, ts, result)
                               VALUES(?, ?, ?)
                               ON DUPLICATE KEY UPDATE result=result
@@ -219,13 +218,14 @@ class CrateHistorian(BaseHistorian):
 
             cursor.execute(insert_query, (topic_id, ts_formatted,
                                           data, data))
-            if self._raw_schema_enabled and table in ("datalogger", "device") and topic_name:
-                insert_query_raw = """INSERT INTO {}.{} (topic, ts, result)
+            if self._raw_schema_enabled and table_name in ("datalogger",
+                                                           "device") and topic_name:
+                insert_query_raw = """INSERT INTO "{}"."{}" (topic, ts, value)
                                 VALUES(?, ?, ?)
                                 ON DUPLICATE KEY UPDATE value=value
                                 """.format(schema_name, table_name + "_raw")
-                cursor.execute(insert_query_raw, (topic, ts_formatted,
-                                          data))
+                cursor.execute(insert_query_raw, (topic_name, ts_formatted,
+                                                  data))
 
         try:
             if self._connection is None:
