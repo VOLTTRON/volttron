@@ -61,6 +61,12 @@ class PrometheusScrapeAgent(Agent):
                             re.replace(" |/", "_", device), metric_tag_str,
                             topic.replace(" ", "_"), value[0])
                     else:
+                        try:
+                            del device_topics[topic]
+                            self._cache[device] = device_topics
+                        except Exception as e:
+                            _log.error("Could not delete stale topic")
+                            _log.exception(e)
                         continue
         else:
             result = "#No Data to Scrape"
