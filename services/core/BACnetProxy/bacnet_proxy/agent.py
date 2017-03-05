@@ -385,13 +385,13 @@ def bacnet_proxy_agent(config_path, **kwargs):
     obj_id = config.get("object_id", 599)
     obj_name = config.get("object_name", "Volttron BACnet driver")
     ven_id = config.get("vendor_id", 15)
-    max_per_request = config.get("default_max_per_request", 1000000)
+    kwargs['max_per_request'] = config.get("default_max_per_request", 1000000)
 
     return BACnetProxyAgent(device_address,
                             max_apdu_len, seg_supported,
                             obj_id, obj_name, ven_id,
                             heartbeat_autostart=True,
-                            max_per_request=max_per_request, **kwargs)
+                            **kwargs)
 
 
 class BACnetProxyAgent(Agent):
