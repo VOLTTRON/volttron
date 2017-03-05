@@ -91,12 +91,12 @@ from bacpypes.pdu import Address, GlobalBroadcast
 from bacpypes.app import LocalDeviceObject, BIPSimpleApplication
 from bacpypes.object import get_datatype
 
-from bacpypes.apdu import (ReadPropertyRequest, 
-                           WritePropertyRequest, 
-                           Error, 
+from bacpypes.apdu import (ReadPropertyRequest,
+                           WritePropertyRequest,
+                           Error,
                            AbortPDU,
                            RejectPDU,
-                           ReadPropertyACK, 
+                           ReadPropertyACK,
                            SimpleAckPDU,
                            ReadPropertyMultipleRequest,
                            ReadPropertyMultipleACK,
@@ -146,18 +146,18 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
         # keep track of requests to line up responses
         self.iocb = {}
-        
+
         self.install_task()
 
     def process_task(self):
         while True:
-            try: 
+            try:
                 iocb = self.request_queue.get(False)
             except Empty:
                 break
-            
+
             self.handle_request(iocb)
-            
+
     def submit_request(self, iocb):
         self.request_queue.put(iocb)
 
@@ -181,18 +181,18 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
     def handle_request(self, iocb):
         apdu = iocb.ioRequest
-        
+
         if isinstance(apdu, ConfirmedRequestSequence):
             # assign an invoke identifier
             apdu.apduInvokeID = self.get_next_invoke_id(apdu.pduDestination)
-    
+
             # build a key to reference the IOCB when the response comes back
             invoke_key = (apdu.pduDestination, apdu.apduInvokeID)
-    
+
             # keep track of the request
             self.iocb[invoke_key] = iocb
-        
-        try:    
+
+        try:
             self.request(apdu)
         except StandardError as e:
             iocb.set_exception(e)
@@ -211,7 +211,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         if isinstance(apdu, AbortPDU):
             iocb.set_exception(RuntimeError("Device communication aborted: " + str(apdu)))
             return
-        
+
         if isinstance(apdu, Error):
             iocb.set_exception(RuntimeError("Error during device communication: " + str(apdu)))
             return
@@ -220,7 +220,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             iocb.set_exception(RuntimeError("Device at {source} rejected the request: {reason}".format(source=apdu.pduSource,
                                                                                                        reason=apdu.apduAbortRejectReason)))
 
-        elif (isinstance(iocb.ioRequest, ReadPropertyRequest) and 
+        elif (isinstance(iocb.ioRequest, ReadPropertyRequest) and
               isinstance(apdu, ReadPropertyACK)):
             # find the datatype
             datatype = get_datatype(apdu.objectIdentifier[0], apdu.propertyIdentifier)
@@ -239,15 +239,15 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                 if issubclass(datatype, Enumerated):
                     value = datatype(value).get_long()
             iocb.set(value)
-            
-        elif (isinstance(iocb.ioRequest, WritePropertyRequest) and 
+
+        elif (isinstance(iocb.ioRequest, WritePropertyRequest) and
               isinstance(apdu, SimpleAckPDU)):
             iocb.set(apdu)
             return
-            
-        elif (isinstance(iocb.ioRequest, ReadPropertyMultipleRequest) and 
+
+        elif (isinstance(iocb.ioRequest, ReadPropertyMultipleRequest) and
               isinstance(apdu, ReadPropertyMultipleACK)):
-            
+
             result_dict = {}
             for result in apdu.listOfReadAccessResults:
                 # here is the object identifier
@@ -265,10 +265,10 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                     # check for an error
                     if readResult.propertyAccessError is not None:
                         error_obj = readResult.propertyAccessError
-                        
+
                         msg = 'ERROR DURRING SCRAPE (Class: {0} Code: {1})'
                         _log.error(msg.format(error_obj.errorClass, error_obj.errorCode))
-                        
+
                     else:
                         # here is the value
                         propertyValue = readResult.propertyValue
@@ -304,11 +304,11 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                             except StandardError as e:
                                 _log.exception(e)
                                 iocb.set_exception(e)
-                        
+
                         result_dict[objectIdentifier[0], objectIdentifier[1], propertyIdentifier, propertyArrayIndex] = value
-            
+
             iocb.set(result_dict)
-            
+
         else:
             _log.error("For invoke key {key} Unsupported Request Response pair Request: {request} Response: {response}".
                        format(key=invoke_key, request=iocb.ioRequest, response=apdu))
@@ -339,18 +339,20 @@ write_debug_str = "Writing: {target} {type} {instance} {property} (Priority: {pr
 
 def bacnet_proxy_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
-    
+
     device_address = config["device_address"]
     max_apdu_len=config.get("max_apdu_length",1024)
     seg_supported=config.get("segmentation_supported","segmentedBoth")
     obj_id=config.get("object_id",599)
     obj_name=config.get("object_name","Volttron BACnet driver")
     ven_id=config.get("vendor_id",15)
-    
+    max_per_request = config.get("default_max_per_request", 1000000)
+
     return BACnetProxyAgent(device_address,
                          max_apdu_len, seg_supported,
                          obj_id, obj_name, ven_id,
-                         heartbeat_autostart=True,**kwargs)
+                         heartbeat_autostart=True,
+                            max_per_request=max_per_request,**kwargs)
 
 class BACnetProxyAgent(Agent):
     '''This agent creates a virtual bacnet device that is used by
@@ -361,7 +363,7 @@ class BACnetProxyAgent(Agent):
                  obj_id, obj_name, ven_id,
                  **kwargs):
         super(BACnetProxyAgent, self).__init__(**kwargs)
-        
+
         async_call = AsyncCall()
 
         # IO callback
@@ -378,20 +380,21 @@ class BACnetProxyAgent(Agent):
                 async_call.send(None, self.ioResult.set_exception, exception)
 
         self.iocb_class = IOCB
+        self._max_per_request = kwargs['max_per_request']
 
         self.setup_device(async_call, device_address,
                          max_apdu_len, seg_supported,
                          obj_id, obj_name, ven_id)
-        
-        
-        
+
+
+
     def setup_device(self, async_call, address,
-                     max_apdu_len=1024, 
-                     seg_supported='segmentedBoth', 
-                     obj_id=599, 
-                     obj_name='sMap BACnet driver', 
-                     ven_id=15): 
-                    
+                     max_apdu_len=1024,
+                     seg_supported='segmentedBoth',
+                     obj_id=599,
+                     obj_name='sMap BACnet driver',
+                     ven_id=15):
+
         _log.info('seg_supported '+str(seg_supported))
         _log.info('max_apdu_len '+str(max_apdu_len))
         _log.info('obj_id '+str(obj_id))
@@ -399,11 +402,11 @@ class BACnetProxyAgent(Agent):
         _log.info('ven_id '+str(ven_id))
 
 
-        
+
         #Check to see if they gave a valid apdu length.
         if encode_max_apdu_response(max_apdu_len) is None:
             raise ValueError('Invalid max_apdu_len: {} Valid options are 50, 128, 206, 480, 1024, and 1476'.format(max_apdu_len))
-        
+
         this_device = LocalDeviceObject(
             objectName=obj_name,
             objectIdentifier=obj_id,
@@ -411,12 +414,12 @@ class BACnetProxyAgent(Agent):
             segmentationSupported=seg_supported,
             vendorIdentifier=ven_id,
             )
-        
+
         # build a bit string that knows about the bit names.
         pss = ServicesSupported()
         pss['whoIs'] = 1
         pss['iAm'] = 1
-    
+
         # set the property value to be just the bits
         this_device.protocolServicesSupported = pss.value
 
@@ -424,11 +427,11 @@ class BACnetProxyAgent(Agent):
             async_call.send(None, self.i_am, address, device_id, max_apdu_len, seg_supported, vendor_id)
 
         #i_am_callback('foo', 'bar', 'baz', 'foobar', 'foobaz')
-        
+
         self.this_application = BACnet_application(i_am_callback, this_device, address)
-      
+
         server_thread = threading.Thread(target=bacpypes.core.run)
-    
+
         # exit the BACnet App thread when the main thread terminates
         server_thread.daemon = True
         server_thread.start()
@@ -472,17 +475,17 @@ class BACnetProxyAgent(Agent):
 
         iocb = self.iocb_class(request)
         self.this_application.submit_request(iocb)
-        
+
     @RPC.export
     def ping_device(self, target_address, device_id):
         """Ping a device with a whois to potentially setup routing."""
         _log.debug("Pinging "+target_address)
         self.who_is(device_id, device_id, target_address)
-        
+
     @RPC.export
     def write_property(self, target_address, value, object_type, instance_number, property_name, priority=None, index=None):
         """Write to a property."""
-        
+
         _log.debug(write_debug_str.format(target=target_address,
                                           type=object_type,
                                           instance=instance_number,
@@ -490,11 +493,11 @@ class BACnetProxyAgent(Agent):
                                           priority=priority,
                                           index=index,
                                           value=value))
-        
+
         request = WritePropertyRequest(
             objectIdentifier=(object_type, instance_number),
             propertyIdentifier=property_name)
-        
+
         datatype = get_datatype(object_type, property_name)
         if (value is None or value == 'null'):
             bac_value = Null()
@@ -515,20 +518,20 @@ class BACnetProxyAgent(Agent):
                 raise TypeError("invalid result datatype, expecting %s" % (datatype.subtype.__name__,))
         elif not isinstance(value, datatype):
             raise TypeError("invalid result datatype, expecting %s" % (datatype.__name__,))
-            
+
         request.propertyValue = Any()
         request.propertyValue.cast_in(bac_value)
-            
+
         request.pduDestination = Address(target_address)
-        
+
         #Optional index
         if index is not None:
             request.propertyArrayIndex = index
-        
+
         #Optional priority
         if priority is not None:
             request.priority = priority
-        
+
         iocb = self.iocb_class(request)
         self.this_application.submit_request(iocb)
         result = iocb.ioResult.wait()
@@ -567,30 +570,31 @@ class BACnetProxyAgent(Agent):
         self.this_application.submit_request(iocb)
         bacnet_results = iocb.ioResult.get(10)
         return bacnet_results
-        
-    
+
+
     @RPC.export
     def read_properties(self, target_address, point_map, max_per_request=None, use_read_multiple=True):
         """Read a set of points and return the results"""
 
         if not use_read_multiple:
             return self.read_using_single_request(target_address, point_map)
-        
+
         #Set max_per_request really high if not set.
         if max_per_request is None:
-            max_per_request = 1000000
-            
-        _log.debug("Reading {count} points on {target}, max per scrape: {max}".format(count=len(point_map),
-                                                                                      target=target_address,
-                                                                                      max=max_per_request))
-        
-        #This will be used to get the results mapped
+            max_per_request = self._max_per_request
+
+        _log.debug("Reading {count} points on {target}, max per"
+                   " scrape: {max}".format(count=len(point_map),
+                                           target=target_address,
+                                           max=max_per_request))
+
+        # This will be used to get the results mapped
         # back on the the names
         reverse_point_map = {}
-        
+
         #Used to group properties together for the request.
         object_property_map = defaultdict(list)
-        
+
         for name, properties in point_map.iteritems():
             if len(properties) == 3:
                 object_type, instance_number, property_name = properties
@@ -603,14 +607,14 @@ class BACnetProxyAgent(Agent):
                               instance_number,
                               property_name,
                               property_index] = name
-                              
+
             object_property_map[object_type,
                                 instance_number].append((property_name, property_index))
-                                
+
         result_dict={}
         finished = False
-                        
-        while not finished:        
+
+        while not finished:
             read_access_spec_list = []
             count = 0
             for _ in xrange(max_per_request):
@@ -629,33 +633,33 @@ class BACnetProxyAgent(Agent):
                     count += 1
                 read_access_spec = ReadAccessSpecification(objectIdentifier=(obj_type, obj_inst),
                                                            listOfPropertyReferences=prop_ref_list)
-                read_access_spec_list.append(read_access_spec)    
-                
+                read_access_spec_list.append(read_access_spec)
+
             if read_access_spec_list:
                 _log.debug("Requesting {count} properties from {target}".format(count=count,
                                                                                 target=target_address))
                 request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=read_access_spec_list)
                 request.pduDestination = Address(target_address)
-                
+
                 iocb = self.iocb_class(request)
-                self.this_application.submit_request(iocb)   
+                self.this_application.submit_request(iocb)
                 bacnet_results = iocb.ioResult.get(10)
-                
+
                 _log.debug("Received read response from {target} count: {count}".format(count=count,
                                                                          target=target_address))
 
 
                 for prop_tuple, value in bacnet_results.iteritems():
                     name = reverse_point_map[prop_tuple]
-                    result_dict[name] = value        
-        
+                    result_dict[name] = value
+
         return result_dict
-        
-                    
-    
-            
-    
-    
+
+
+
+
+
+
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
     utils.vip_main(bacnet_proxy_agent, identity="platform.bacnet_proxy",
