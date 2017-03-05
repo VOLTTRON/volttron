@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
 import logging
 import sys
@@ -10,7 +11,7 @@ from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent import Core
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.agent.utils import process_timestamp, \
-    get_aware_utc_now
+    get_aware_utc_now, get_utc_seconds_from_epoch
 from volttron.platform.vip.agent import compat
 
 utils.setup_logging()
@@ -22,7 +23,15 @@ ALL_REX = re.compile('.*/all$')
 class PrometheusScrapeAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(PrometheusScrapeAgent, self).__init__(enable_web=True, **kwargs)
+        if isinstance(config_path, dict):
+            self._config_dict = config_path
+        else:
+            self._config_dict = utils.load_config(config_path)
         self._cache = defaultdict(dict)
+        if "cache_timeout" in self._config_dict:
+            self._cache_time = self._config_dict['cache_timeout']
+        else:
+            self._cache_time = 660
 
     @Core.receiver("onstart")
     def _starting(self, sender, **kwargs):
@@ -36,27 +45,29 @@ class PrometheusScrapeAgent(Agent):
         pass
 
     def scrape(self, env, data):
+        scrape_time = get_utc_seconds_from_epoch()
         if len(self._cache) > 0:
             result = "# TYPE volttron_data gauge\n"
             for device, device_topics in self._cache.iteritems():
+                device_tags = device.split('/')
                 for topic, value in device_topics.iteritems():
-                    metric_props = re.split("\s+|:|_|/", topic)
-                    metric_tag_str = ""
-                    for i, prop in enumerate(metric_props):
-                        metric_tag_str += "tag{}=\"{}\",".format(i, prop)
-                    result += "{}{{{}topic=\"{}\"}} {}\n".format(
-                        device.replace("-", "_"
-                                       ).replace("/", "_"), metric_tag_str,
-                        topic.replace(" ", "_"), value)
+                    if value[1] + self._cache_time > scrape_time:
+                        metric_props = re.split("\s+|:|_|/", topic)
+                        metric_tag_str = ("campus=\"{}\",building=\"{}\","
+                                          "device=\"{}\"").format(*device_tags)
+                        for i, prop in enumerate(metric_props):
+                            metric_tag_str += "tag{}=\"{}\",".format(i, prop)
+                        result += "{}{{{}topic=\"{}\"}} {}\n".format(
+                            re.replace(" |/", "_", device), metric_tag_str,
+                            topic.replace(" ", "_"), value[0])
+                    else:
+                        continue
         else:
             result = "#No Data to Scrape"
 
         return {'text': result}
 
-    def _capture_log_data(self, peer, sender, bus, topic, headers, message):
-        """Capture log data and submit it to be published by a historian."""
-
-        # Anon the topic if necessary.
+    def _clean_compat(self, sender, topic, headers, message):
         try:
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
@@ -64,14 +75,23 @@ class PrometheusScrapeAgent(Agent):
                 data = compat.unpack_legacy_message(headers, message)
             else:
                 data = message
+            return data
         except ValueError as e:
             _log.error("message for {topic} bad message string: "
                        "{message_string}".format(topic=topic,
                                                  message_string=message[0]))
-            return
+            raise e
+
         except IndexError as e:
             _log.error("message for {topic} missing message string".format(
                 topic=topic))
+            raise e
+
+    def _capture_log_data(self, peer, sender, bus, topic, headers, message):
+        """Capture log data and submit it to be published by a historian."""
+        try:
+            data = self._clean_compat(sender, topic, headers, message)
+        except:
             return
 
         for point, item in data.iteritems():
@@ -126,23 +146,15 @@ class PrometheusScrapeAgent(Agent):
         try:
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
-            if sender == 'pubsub.compat':
-                message = compat.unpack_legacy_message(headers, message)
-
+            message = self._clean_compat(sender, topic, headers, message)
+        except Exception as e:
+            _log.exception(e)
+            return
+        try:
             if isinstance(message, dict):
                 values = message
             else:
                 values = message[0]
-
-        except ValueError as e:
-            _log.error("message for {topic} bad message string: "
-                       "{message_string}".format(topic=topic,
-                                                 message_string=message[0]))
-            return
-        except IndexError as e:
-            _log.error("message for {topic} missing message string".format(
-                topic=topic))
-            return
         except Exception as e:
             _log.exception(e)
             return
@@ -159,10 +171,11 @@ class PrometheusScrapeAgent(Agent):
             self._add_to_cache(device, key, value)
 
     def _add_to_cache(self, device, topic, value):
+        cached_time = get_utc_seconds_from_epoch()
         try:
-            self._cache[device][topic] = float(value)
+            self._cache[device][topic] = (float(value), cached_time)
         except:
-            _log.debug(
+            _log.error(
                 "Topic \"{}\" on device \"{}\" contained value that was not "
                 "castable as float".format(topic, device))
 
