@@ -272,6 +272,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             _log.exception(e)
             working_iocb.set_exception(e)
             return
+        return value
 
     def confirmation(self, apdu):
         # return iocb if exists, otherwise sets error and returns
