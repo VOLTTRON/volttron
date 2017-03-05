@@ -46,6 +46,7 @@ class PrometheusScrapeAgent(Agent):
 
     def scrape(self, env, data):
         scrape_time = get_utc_seconds_from_epoch()
+        keys_to_delete = defaultdict(list)
         if len(self._cache) > 0:
             result = "# TYPE volttron_data gauge\n"
             for device, device_topics in self._cache.iteritems():
@@ -62,14 +63,16 @@ class PrometheusScrapeAgent(Agent):
                             topic.replace(" ", "_"), value[0])
                     else:
                         try:
-                            del device_topics[topic]
-                            self._cache[device] = device_topics
+                            keys_to_delete[device].append(topic)
                         except Exception as e:
                             _log.error("Could not delete stale topic")
                             _log.exception(e)
                         continue
         else:
             result = "#No Data to Scrape"
+        for device, delete_topics in keys_to_delete:
+            for topic in delete_topics:
+                del self._cache[device][topic]
 
         return {'text': result}
 
