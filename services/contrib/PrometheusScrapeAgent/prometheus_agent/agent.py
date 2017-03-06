@@ -70,7 +70,7 @@ class PrometheusScrapeAgent(Agent):
                         continue
         else:
             result = "#No Data to Scrape"
-        for device, delete_topics in keys_to_delete:
+        for device, delete_topics in keys_to_delete.iteritems():
             for topic in delete_topics:
                 del self._cache[device][topic]
 
