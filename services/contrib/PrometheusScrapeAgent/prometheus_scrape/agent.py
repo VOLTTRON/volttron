@@ -60,7 +60,7 @@ class PrometheusScrapeAgent(Agent):
                         for i, prop in enumerate(metric_props):
                             metric_tag_str += "tag{}=\"{}\",".format(i, prop)
                         result += "{}{{{}topic=\"{}\"}} {}\n".format(
-                            re.sub(" |/", "_", device), metric_tag_str,
+                            re.sub(" |/|-", "_", device), metric_tag_str,
                             topic.replace(" ", "_"), value[0])
                     else:
                         try:
