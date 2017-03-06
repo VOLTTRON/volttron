@@ -55,7 +55,7 @@ class PrometheusScrapeAgent(Agent):
                     if value[1] + self._cache_time > scrape_time:
                         metric_props = re.split("\s+|:|_|/", topic)
                         metric_tag_str = ("campus=\"{}\",building=\"{}\","
-                                          "device=\"{}\"").format(*device_tags)
+                                          "device=\"{}\",").format(*device_tags)
                         for i, prop in enumerate(metric_props):
                             metric_tag_str += "tag{}=\"{}\",".format(i, prop)
                         result += "{}{{{}topic=\"{}\"}} {}\n".format(
