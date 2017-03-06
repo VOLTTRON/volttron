@@ -525,6 +525,15 @@ class BACnetProxyAgent(Agent):
         _log.debug("Pinging "+target_address)
         self.who_is(device_id, device_id, target_address)
 
+    def _cast_value(self, value, datatype):
+            if datatype is Integer:
+                value = int(value)
+            elif datatype is Real:
+                value = float(value)
+            elif datatype is Unsigned:
+                value = int(value)
+            return datatype(value)
+
     @RPC.export
     def write_property(self, target_address, value, object_type,
                        instance_number, property_name, priority=None,
@@ -547,13 +556,7 @@ class BACnetProxyAgent(Agent):
         if (value is None or value == 'null'):
             bac_value = Null()
         elif issubclass(datatype, Atomic):
-            if datatype is Integer:
-                value = int(value)
-            elif datatype is Real:
-                value = float(value)
-            elif datatype is Unsigned:
-                value = int(value)
-            bac_value = datatype(value)
+            bac_value = self._cast_value(value, datatype)
         elif issubclass(datatype, Array) and (index is not None):
             if index == 0:
                 bac_value = Integer(value)
