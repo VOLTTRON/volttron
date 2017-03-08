@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+if [ ! -e "./volttron/platform" ]; then
+    echo "Please execute from root of volttron repository."
+    exit 0
+fi
+
+if [ ! -e "env/bin/volttron" ]; then
+    echo "Bootstrap the environment before using this script."
+    exit 0
+fi
+
+echo "Starting VOLTTRON with rotatinglog.py in the background."
+
+env/bin/volttron -L examples/rotatinglog.py > /dev/null 2>&1&
