@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+echo "Starting volttron with rotatinglog.py in the background."
+
+env/bin/volttron -L examples/rotatinglog.py > /dev/null 2>&1&
