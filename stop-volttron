@@ -5,6 +5,11 @@ if [ ! -e "./volttron/platform" ]; then
     exit 0
 fi
 
+if [ ! -e "env/bin/volttron" ]; then
+    echo "Bootstrap the environment before using this script."
+    exit 0
+fi
+
 echo "Shutting down VOLTTRON"
 
 env/bin/volttron-ctl shutdown --platform

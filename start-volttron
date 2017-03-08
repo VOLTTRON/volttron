@@ -5,6 +5,11 @@ if [ ! -e "./volttron/platform" ]; then
     exit 0
 fi
 
+if [ ! -e "env/bin/volttron" ]; then
+    echo "Bootstrap the environment before using this script."
+    exit 0
+fi
+
 echo "Starting VOLTTRON with rotatinglog.py in the background."
 
 env/bin/volttron -L examples/rotatinglog.py > /dev/null 2>&1&
