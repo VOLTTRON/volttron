@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
-echo "Starting volttron with rotatinglog.py in the background."
+if [ ! -e "./volttron/platform" ]; then
+    echo "Please execute from root of volttron repository."
+    exit 0
+fi
+
+echo "Starting VOLTTRON with rotatinglog.py in the background."
 
 env/bin/volttron -L examples/rotatinglog.py > /dev/null 2>&1&

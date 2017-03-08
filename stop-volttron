@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+if [ ! -e "./volttron/platform" ]; then
+    echo "Please execute from root VOLTTRON directory."
+    exit 0
+fi
+
+echo "Shutting down VOLTTRON"
+
+env/bin/volttron-ctl shutdown --platform
