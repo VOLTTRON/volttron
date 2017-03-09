@@ -341,18 +341,20 @@ def bacnet_proxy_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
     device_address = config["device_address"]
-    max_apdu_len=config.get("max_apdu_length",1024)
-    seg_supported=config.get("segmentation_supported","segmentedBoth")
-    obj_id=config.get("object_id",599)
-    obj_name=config.get("object_name","Volttron BACnet driver")
-    ven_id=config.get("vendor_id",15)
+    max_apdu_len = config.get("max_apdu_length", 1024)
+    seg_supported = config.get("segmentation_supported", "segmentedBoth")
+    obj_id = config.get("object_id", 599)
+    obj_name = config.get("object_name", "Volttron BACnet driver")
+    ven_id = config.get("vendor_id", 15)
     max_per_request = config.get("default_max_per_request", 1000000)
 
     return BACnetProxyAgent(device_address,
-                         max_apdu_len, seg_supported,
-                         obj_id, obj_name, ven_id,
-                         heartbeat_autostart=True,
-                            max_per_request=max_per_request,**kwargs)
+                            max_apdu_len, seg_supported,
+                            obj_id, obj_name, ven_id,
+                            max_per_request=max_per_request,
+                            heartbeat_autostart=True,
+                            **kwargs)
+
 
 class BACnetProxyAgent(Agent):
     '''This agent creates a virtual bacnet device that is used by
@@ -360,7 +362,7 @@ class BACnetProxyAgent(Agent):
     '''
     def __init__(self, device_address,
                  max_apdu_len, seg_supported,
-                 obj_id, obj_name, ven_id,
+                 obj_id, obj_name, ven_id, max_per_request,
                  **kwargs):
         super(BACnetProxyAgent, self).__init__(**kwargs)
 
@@ -380,7 +382,7 @@ class BACnetProxyAgent(Agent):
                 async_call.send(None, self.ioResult.set_exception, exception)
 
         self.iocb_class = IOCB
-        self._max_per_request = kwargs['max_per_request']
+        self._max_per_request = max_per_request
 
         self.setup_device(async_call, device_address,
                          max_apdu_len, seg_supported,
