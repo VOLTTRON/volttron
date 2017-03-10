@@ -1591,6 +1591,80 @@ def test_get_topic_metadata(request, historian, publish_agent,
     assert result['datalogger/Building/LAB/Device/temp2'] == \
         {'units': 'F', 'tz': 'UTC', 'type': 'float'}
 
+@pytest.mark.historian
+def test_insert_duplicate(request, historian, publish_agent, query_agent,
+                        clean):
+    """
+    Test that historians don't break when duplicate data gets published.
+    historians' should ignore or update record in the database but should not
+    throw exception
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param historian: instance of the historian tested
+    :param clean: teardown function
+    """
+    global query_points, DEVICES_ALL_TOPIC, db_connection
+
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_basic_function for {}**".format(
+        request.keywords.node.name))
+
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings.  Random readings are going to be
+    # within the tolerance here.
+    oat_reading = random_uniform(30, 100)
+
+
+    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': oat_reading},
+                   {'OutsideAirTemperature': float_meta}]
+
+    # Create timestamp
+    now = datetime.utcnow().isoformat(' ')
+
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: now
+    }
+    print("Published time in header: " + now)
+    # Publish messages
+    publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
+
+    gevent.sleep(1)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(identity,
+                                      'query',
+                                      topic=query_points['oat_point'],
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=100)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    (now_date, now_time) = now.split(" ")
+    assert_timestamp(result['values'][0][0], now_date, now_time)
+    assert (result['values'][0][1] == oat_reading)
+    assert set(result['metadata'].items()) == set(float_meta.items())
+
+    #publish same data again
+    publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
+
+    gevent.sleep(1)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(identity, 'query',
+                                      topic=query_points['oat_point'],
+                                      count=20, order="LAST_TO_FIRST").get(
+        timeout=100)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    (now_date, now_time) = now.split(" ")
+    assert_timestamp(result['values'][0][0], now_date, now_time)
+    assert (result['values'][0][1] == oat_reading)
+    assert set(result['metadata'].items()) == set(float_meta.items())
 
 @pytest.mark.historian
 def test_multi_topic_query(request, historian, publish_agent, query_agent,
