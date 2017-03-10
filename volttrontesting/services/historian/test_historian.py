@@ -985,7 +985,6 @@ def test_query_end_time_with_z(request, historian, publish_agent,
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == reading1)
 
-
 @pytest.mark.historian
 def test_zero_timestamp(request, historian, publish_agent, query_agent,
                         clean):
@@ -1288,7 +1287,6 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
         now_time = now_time[:-1]
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
-
 
 @pytest.mark.historian
 def test_record_topic_query(request, historian, publish_agent, query_agent,
@@ -1641,6 +1639,79 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
         'query',
         topic=[query_points['oat_point'], query_points['mixed_point']],
         count=3,
+        order="FIRST_TO_LAST").get(timeout=100)
+    print('Query Result', result)
+    print('Expected Result', expected_result)
+
+    assert result["metadata"] == expected_result["metadata"]
+
+    for i in range(0, 3):
+        expected_date, expected_time = expected_result["values"][query_points[
+            'mixed_point']][i][0].split("T")
+        assert_timestamp(result["values"][query_points['mixed_point']][i][0],
+                         expected_date, expected_time)
+        assert (result["values"][query_points['mixed_point']][i][1] ==
+                expected_result["values"][query_points['mixed_point']][i][1])
+
+        expected_date, expected_time = \
+        expected_result["values"][query_points['oat_point']][i][0].split("T")
+        assert_timestamp(result["values"][query_points['oat_point']][i][0],
+                         expected_date, expected_time)
+        assert (result["values"][query_points['oat_point']][i][1] ==
+                expected_result["values"][query_points['oat_point']][i][1])
+
+
+
+@pytest.mark.historian
+def test_query_with_naive_timestamp(request, historian, publish_agent,
+                                 query_agent, clean):
+    """
+    Test basic functionality of historian. Inserts three points as part
+    of all topic and checks if all three got into the database
+    Expected result:
+    Should be able to query data based on topic name. Result should contain
+    both data and metadata
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param historian: instance of the historian tested
+    :param clean: teardown function
+    """
+    # skip if this test case need not repeated for this specific historian
+    skip_custom_tables(historian)
+
+    global query_points, DEVICES_ALL_TOPIC, db_connection
+
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_basic_function for {}**".format(
+        request.keywords.node.name))
+
+    expected_result = {}
+    values_dict = {query_points['oat_point']: [],
+                   query_points['mixed_point']: []}
+    current_t_local = datetime.now()
+    for x in range(0, 5):
+        ts, reading, meta = publish_devices_fake_data(publish_agent)
+        gevent.sleep(0.5)
+        if x < 3:
+            values_dict[query_points['oat_point']].append(
+                [ts, reading])
+            values_dict[query_points['mixed_point']].append(
+                [ts, reading])
+    expected_result["values"] = values_dict
+    expected_result["metadata"] = {}
+
+    gevent.sleep(1)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(
+        identity,
+        'query',
+        topic=[query_points['oat_point'], query_points['mixed_point']],
+        count=3,
+        start=current_t_local.isoformat(),
+        end=(current_t_local + timedelta(days=1)).isoformat(),
         order="FIRST_TO_LAST").get(timeout=100)
     print('Query Result', result)
     print('Expected Result', expected_result)
