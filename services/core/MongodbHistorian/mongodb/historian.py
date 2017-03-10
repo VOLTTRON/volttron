@@ -345,10 +345,12 @@ class MongodbHistorian(BaseHistorian):
                 self.DAILY_COLLECTION, bulk_publish_day, day_ids, db)
 
     def get_last_updated_data(self, db, collection):
+        id = ""
         cursor = db[collection].find({}).sort(
             "last_updated_data", pymongo.DESCENDING).limit(1)
         for row in cursor:
-            return row['last_updated_data']
+            id = row.get('last_updated_data')
+        return id
 
     @staticmethod
     def bulk_write_rolled_up_data(collection_name, requests, ids, db):
