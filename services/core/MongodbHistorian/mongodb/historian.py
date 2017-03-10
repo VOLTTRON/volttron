@@ -88,7 +88,7 @@ except ImportError:
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '2.0'
+__version__ = '2.1'
 _VOLTTRON_TYPE = '__volttron_type__'
 
 def historian(config_path, **kwargs):
