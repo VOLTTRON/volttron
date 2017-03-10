@@ -1,3 +1,5 @@
+import re
+
 from gevent import monkey
 monkey.patch_all()
 
@@ -10,6 +12,8 @@ from numbers import Number
 from pymongo.errors import BulkWriteError
 from gevent.pool import Pool
 
+
+### START - Variables to set before running script ##
 local_source_params = {"host": "localhost",
                        "port": 27017,
                        "authSource":"mongo_test",
@@ -17,19 +21,22 @@ local_source_params = {"host": "localhost",
                        "user": "test",
                        "passwd": "test"}
 
-local_dest_params = {"host": "localhost",
-                     "port": 27017,
-                     "authSource":"mongo_test",
-                     "database": "performance_test",
-                     "user": "test",
-                     "passwd": "test"}
+DAILY_COLLECTION = "daily_data_3"
+HOURLY_COLLECTION = "hourly_data3"
+log_out_file = "./script_out"
+init_rollup_tables = True # Set this to false if init is already done and if
+#  you are rerunning to script for different date range or topic pattern
+start_date = '30Mar2016T00:00:00.000'
+end_date = '10Feb2017T00:00:00.000'
+topic_pattern = "^Economizer_RCx|^Airside_RCx"
 
-DAILY_COLLECTION = "daily_data"
-HOURLY_COLLECTION = "hourly_data"
-import sys
-log = open('./script_out', 'w', buffering=1)
-sys.stdout = log
-sys.stderr = log
+### END - Variables to set before running script ##
+
+# import sys
+# log = open(log_out_file, 'w', buffering=1)
+# sys.stdout = log
+# sys.stderr = log
+log = None
 
 
 def connect_mongodb(connection_params):
@@ -179,7 +186,10 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             execute_batch(bulk_hourly, h)
         if d > 0:
             execute_batch(bulk_daily, d)
-
+    except Exception as e:
+        print("Exception processing topic {}:{} {}".format(topic_id,
+                                                           topic_name,
+                                                           e.args))
     finally:
         if cursor:
             cursor.close()
@@ -314,8 +324,7 @@ def init_hourly_data(db, data_collection, start_dt, end_dt):
 
 if __name__ == '__main__':
     start = datetime.utcnow()
-    start_date = '30Mar2016T00:00:00.000'
-    end_date = '10Feb2017T00:00:00.000'
+
     print ("Starting rollup of data from {} to {}. current time: {}".format(
         start_date, end_date, start))
 
@@ -323,35 +332,74 @@ if __name__ == '__main__':
     try:
         source_db = connect_mongodb(local_source_params)
         source_tables = get_table_names(local_source_params)
-        print ("Starting init of tables")
-        source_db = connect_mongodb(local_source_params)
-        s_dt = datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f')
-        e_dt = datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f')
-        init_start = datetime.utcnow()
-        init_daily_data(source_db, source_tables['data_table'], s_dt, e_dt)
-        print ("Total time for init of daily data between {} and {} : {} "
-               "".format(start_date, end_date, datetime.utcnow() - init_start))
-        init_start = datetime.utcnow()
-        init_hourly_data(source_db, source_tables['data_table'], s_dt, e_dt)
-        print ("Total time for init of hourly data between {} and {} : {} "
-               "".format(start_date, end_date, datetime.utcnow() - init_start))
+        init_done = False
+        if init_rollup_tables:
+            existing_collections = source_db.collection_names()
+            if HOURLY_COLLECTION in existing_collections:
+                print(
+                    "init_rollup_tables set to True and hourly collection "
+                    "name is set as {}. But this collection already exists "
+                    "in the database. Exiting to avoid init process "
+                    "overwriting existing collection {}. Please rename "
+                    "collection in db or change value of "
+                    "HOURLY_COLLECTION in script".format(
+                        HOURLY_COLLECTION, HOURLY_COLLECTION))
+            elif DAILY_COLLECTION in existing_collections:
+                print(
+                    "init_rollup_tables set to True and daily collection "
+                    "name is set as {}. But this collection already exists "
+                    "in the database. Exiting to avoid init process "
+                    "overwriting existing collection {}. Please rename "
+                    "collection in db or change value of "
+                    "DAILY_COLLECTION in script".format(
+                        DAILY_COLLECTION, DAILY_COLLECTION))
+            else:
+                print ("Starting init of tables")
+                source_db = connect_mongodb(local_source_params)
+                s_dt = datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f')
+                e_dt = datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f')
+                init_start = datetime.utcnow()
+                init_daily_data(source_db,
+                                source_tables['data_table'],
+                                s_dt,
+                                e_dt)
+                print ("Total time for init of daily data "
+                       "between {} and {} : {} "
+                       "".format(start_date, end_date,
+                                 datetime.utcnow() - init_start))
+                init_start = datetime.utcnow()
+                init_hourly_data(source_db,
+                                 source_tables['data_table'],
+                                 s_dt,
+                                 e_dt)
+                print ("Total time for init of hourly data "
+                       "between {} and {} : {} "
+                       "".format(start_date, end_date,
+                                 datetime.utcnow() - init_start))
+                init_done = True
+        else:
+            init_done = True
 
-        cursor = source_db[source_tables['topics_table']].find({}).sort(
-            "_id", pymongo.ASCENDING)
+        if init_done:
+            regex = re.compile(topic_pattern, re.IGNORECASE)
+            cursor = source_db[source_tables['topics_table']].find(
+                {"topic_name": regex}).sort("_id", pymongo.ASCENDING)
 
-        topics = list(cursor)
-        max = len(topics)
+            topics = list(cursor)
+            max = len(topics)
+            print("Total number of topics with the pattern{}: {}".format(
+                topic_pattern, max))
 
-        for i in xrange(0, max):
-            print("Processing topic: {} {}".format(topics[i]['_id'],
-                                                   topics[i]['topic_name']))
-            pool.spawn(rollup_data, local_source_params,
-                       local_dest_params,
-                       datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f'),
-                       datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f'),
-                       topics[i]['_id'], topics[i]['topic_name'])
+            for i in xrange(0, max):
+                print("Processing topic: {} {}".format(topics[i]['_id'],
+                                                       topics[i]['topic_name']))
+                pool.spawn(rollup_data, local_source_params,
+                           local_source_params,
+                           datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f'),
+                           datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f'),
+                           topics[i]['_id'], topics[i]['topic_name'])
 
-        pool.join()
+            pool.join()
     except Exception as e:
         print("Exception processing data: {}".format(e.args))
     finally:

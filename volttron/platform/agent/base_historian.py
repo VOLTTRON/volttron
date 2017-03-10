@@ -1345,12 +1345,16 @@ class BaseQueryHistorianAgent(Agent):
                 start = parse_timestamp_string(start)
             except TypeError:
                 start = time_parser.parse(start)
+            if start and start.tzinfo is None:
+                start = start.replace(tzinfo=pytz.UTC)
 
         if end is not None:
             try:
                 end = parse_timestamp_string(end)
             except TypeError:
                 end = time_parser.parse(end)
+            if end and end.tzinfo is None:
+                end = end.replace(tzinfo=pytz.UTC)
 
         if start:
             _log.debug("start={}".format(start))
