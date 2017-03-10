@@ -75,7 +75,7 @@ import uuid
 import gevent
 from gevent.fileobject import FileObject
 import zmq
-from zmq import green
+from zmq import green, ZMQError
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from zmq.utils import jsonapi
@@ -97,6 +97,8 @@ from .agent import utils
 from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
+from .vip.pubsubservice import PubSubService
+from .vip.routingservice import RoutingService
 from ..utils.persistance import load_create_store
 
 try:
@@ -261,10 +263,12 @@ class Router(BaseRouter):
                  context=None, secretkey=None, publickey=None,
                  default_user_id=None, monitor=False, tracker=None,
                  volttron_central_address=None, instance_name=None,
-                 bind_web_address=None, volttron_central_serverkey=None):
+                 bind_web_address=None, volttron_central_serverkey=None,
+                 protected_topics={}, external_address_file=''):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
+        self._addr = addresses
         self.addresses = addresses = [Address(addr) for addr in set(addresses)]
         self._secretkey = secretkey
         self._publickey = publickey
@@ -285,6 +289,10 @@ class Router(BaseRouter):
         self._volttron_central_serverkey = volttron_central_serverkey
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address
+        self._protected_topics = protected_topics
+        self.external_address_file = external_address_file
+        self._pubsub = None
+
 
     def setup(self):
         sock = self.socket
@@ -317,6 +325,15 @@ class Router(BaseRouter):
                 address.domain = 'vip'
             address.bind(sock)
             _log.debug('Additional VIP router bound to %s' % address)
+        #self._ext_routing = None
+        self._ext_routing = RoutingService(self.socket, self.context,
+                                           self._socket_class, self._poller,
+                                           self.external_address_file, self._addr)
+        self._ext_routing.setup()
+        #gevent.spawn_later(2, self._ext_routing.setup())
+        self._pubsub = PubSubService(self.socket, self._protected_topics, self._ext_routing)
+        self._poller.register(sock, zmq.POLLIN)
+        _log.debug("ZMQ version: {}".format(zmq.zmq_version()))
 
     def issue(self, topic, frames, extra=None):
         log = self.logger.debug
@@ -338,6 +355,15 @@ class Router(BaseRouter):
             sender = bytes(frames[0])
             if sender == b'control' and user_id == self.default_user_id:
                 raise KeyboardInterrupt()
+        elif subsystem == b'agentstop':
+            try:
+                drop = frames[6].bytes
+                self._drop_peer(drop)
+                self._drop_pubsub_peers(drop)
+                _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
+            except IndexError:
+                pass
+            return False
         elif subsystem == b'query':
             try:
                 name = bytes(frames[6])
@@ -368,45 +394,74 @@ class Router(BaseRouter):
             frames[6:] = [b'', jsonapi.dumps(value)]
             frames[3] = b''
             return frames
-
-
-class PubSubService(Agent):
-    def __init__(self, protected_topics_file, *args, **kwargs):
-        super(PubSubService, self).__init__(*args, **kwargs)
-        self._protected_topics_file = os.path.abspath(protected_topics_file)
-
-    @Core.receiver('onstart')
-    def setup_agent(self, sender, **kwargs):
-        self._read_protected_topics_file()
-        self.core.spawn(utils.watch_file, self._protected_topics_file,
-                        self._read_protected_topics_file)
-        self.vip.pubsub.add_bus('')
-
-    def _read_protected_topics_file(self):
-        _log.info('loading protected-topics file %s',
-                  self._protected_topics_file)
-        try:
-            utils.create_file_if_missing(self._protected_topics_file)
-            with open(self._protected_topics_file) as fil:
-                # Use gevent FileObject to avoid blocking the thread
-                data = FileObject(fil, close=False).read()
-                topics_data = jsonapi.loads(data) if data else {}
-        except Exception:
-            _log.exception('error loading %s', self._protected_topics_file)
-        else:
-            write_protect = topics_data.get('write-protect', [])
-            topics = ProtectedPubSubTopics()
+        elif subsystem == b'pubsub':
+            result = self._pubsub.handle_subsystem(frames, user_id)
+            return result
+        elif subsystem == b'routing_table':
+            result = self._ext_routing.handle_subsystem(frames, user_id)
+        elif subsystem == b'EXT_RPC':
             try:
-                for entry in write_protect:
-                    topics.add(entry['topic'], entry['capabilities'])
-            except KeyError:
-                _log.exception('invalid format for protected topics '
-                               'file {}'.format(self._protected_topics_file))
-            else:
-                self.vip.pubsub.protected_topics = topics
-                _log.info('protected-topics file %s loaded',
-                          self._protected_topics_file)
+                _log.debug("ROUTER: Received EXT_RPC sub system message")
+                #Reframe the frames
+                sender, recipient, proto, usr_id, msg_id, subsystem, msg = frames[:7]
+                # for f in frames:
+                #     _log.debug("Frames for EXT_RPC: {}".format(f))
 
+                msg_data = jsonapi.loads(bytes(msg))
+                to_platform = msg_data['to_platform']
+                if self._ext_sockets:
+                    sock = self._ext_sockets[0]
+                else:
+                    sock = self.socket
+                msg_data['from_platform'] = sock.identity
+                msg_data['from_peer'] = bytes(sender)
+                msg = jsonapi.dumps(msg_data)
+                _log.debug("ROUTER: EXT RPC message frames: sender {0}, recipient {1}, proto {2}, usr_id {3}, msg_id {4}, subsystem {5}, msg args {6}".
+                               format(bytes(sender), bytes(recipient), bytes(proto), bytes(usr_id), bytes(msg_id), bytes(subsystem), msg))
+                _log.debug("ROUTER: Sending EXT RPC message to: {}".format(to_platform))
+                frames[:7] = [to_platform, sender, proto, usr_id, msg_id, subsystem, msg]
+                try:
+                    if self._instance_name == 'tcp://127.0.0.2:22916':
+                        _log.debug("ROUTER: Instance: {0}, Sending EXT RPC message to: {1}".format(self._instance_name, to_platform))
+                        sock = self._ext_sockets[0]
+                        sock = self.router_server_socket
+                        peer = msg_data['to_peer']
+                        frames[:7] = [to_platform, proto, usr_id, msg_id, subsystem, msg]
+                        sock.send_multipart(frames, flags=NOBLOCK, copy=False)
+                    else:
+                        #_log.debug("Not sending anything")
+                        sock = self.socket.send_multipart(frames, flags=NOBLOCK, copy=False)
+                except ZMQError as ex:
+                    _log.error("ZMQ error: {}".format(ex))
+                    pass
+            except IndexError:
+                _log.error("Invalid EXT RPC message")
+
+    def _drop_pubsub_peers(self, peer):
+        self._pubsub.peer_drop(peer)
+
+    def _add_pubsub_peers(self, peer):
+        self._pubsub.peer_add(peer)
+
+    def poll_sockets(self):
+        try:
+            sockets = dict(self._poller.poll())
+        except ZMQError as ex:
+            _log.error("ZMQ Error while polling: {}".format(ex))
+
+        for sock in sockets:
+            if sock == self.socket:
+                if sockets[sock] == zmq.POLLIN:
+                    self.route()
+            elif sock in self._ext_routing._ext_sockets:
+                _log.debug("External socket found")
+                if sockets[sock] == zmq.POLLIN:
+                    self.ext_route(sock)
+            else:
+                _log.debug("External ")
+                frames = sock.recv_multipart(copy=False)
+                # for f in frames:
+                #     _log.debug("f in frames {}".format(bytes(f)))
 
 def start_volttron_process(opts):
     '''Start the main volttron process.
@@ -530,6 +585,11 @@ def start_volttron_process(opts):
     zmq.Context.instance()   # DO NOT REMOVE LINE!!
 
     tracker = Tracker()
+    protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
+    _log.debug('protected topics file %s', protected_topics_file)
+    external_address_file = os.path.join(opts.volttron_home, 'external_address.json')
+    _log.debug('external_address_file file %s', external_address_file)
+    protected_topics = {}
     # Main loops
     def router(stop):
         try:
@@ -540,7 +600,8 @@ def start_volttron_process(opts):
                    volttron_central_address=opts.volttron_central_address,
                    volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
-                   bind_web_address=opts.bind_web_address).run()
+                   bind_web_address=opts.bind_web_address,
+                   protected_topics=protected_topics, external_address_file=external_address_file).run()
 
         except Exception:
             _log.exception('Unhandled exception in router loop')
@@ -562,13 +623,15 @@ def start_volttron_process(opts):
         # Ensure auth service is running before router
         auth_file = os.path.join(opts.volttron_home, 'auth.json')
         auth = AuthService(
-            auth_file, opts.aip, address=address, identity=AUTH,
+            auth_file, protected_topics_file, opts.aip, address=address, identity=AUTH,
             enable_store=False)
 
         event = gevent.event.Event()
         auth_task = gevent.spawn(auth.core.run, event)
         event.wait()
         del event
+        protected_topics = auth.get_protected_topics()
+        _log.debug("MAIN: protected topics content {}".format(protected_topics))
 
         # Start router in separate thread to remain responsive
         thread = threading.Thread(target=router, args=(auth.core.stop,))
@@ -607,9 +670,9 @@ def start_volttron_process(opts):
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=True),
-            PubSubService(protected_topics_file, address=address,
-                          identity='pubsub', heartbeat_autostart=True,
-                          enable_store=False),
+            # PubSubService(protected_topics_file, address=address,
+            #               identity='pubsub', heartbeat_autostart=True,
+            #               enable_store=False),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),

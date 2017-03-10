@@ -59,19 +59,19 @@
 from __future__ import absolute_import
 
 import os
-
+import logging
 import zmq
 from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
-
+from zmq.utils import jsonapi
 
 __all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
-
 
 OUTGOING = 0
 INCOMING = 1
 UNROUTABLE = 2
 ERROR = 3
 
+_log = logging.getLogger(__name__)
 
 # Optimizing by pre-creating frames
 _ROUTE_ERRORS = {
@@ -113,15 +113,66 @@ class BaseRouter(object):
         self.default_user_id = default_user_id
         self.socket = None
         self._peers = set()
+        self._poller = zmq.Poller()
+        self._ext_sockets = []
+        self._socket_id_mapping = {}
+
+    # def run(self):
+    #     '''Main router loop.'''
+    #     self.start()
+    #     try:
+    #         while self.poll():
+    #             self.route()
+    #     finally:
+    #         self.stop()
 
     def run(self):
         '''Main router loop.'''
         self.start()
         try:
-            while self.poll():
-                self.route()
+            while True:
+                self.poll_sockets()
         finally:
             self.stop()
+
+    def ext_route(self, socket):
+        # Expecting incoming frames:
+        #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
+        frames = socket.recv_multipart(copy=False)
+        for f in frames:
+            _log.debug("Frames: {}".format(bytes(f)))
+        if len(frames) < 6:
+            return
+        #sender, proto, auth_token, msg_id = frames[:5]
+        sender, proto = frames[:2]
+        if proto.bytes != b'VIP1':
+            return
+        self._add_peer(sender.bytes)
+        subsystem = frames[4]
+        # Handle requests directed at the router
+        name = subsystem.bytes
+        if name == 'EXT_RPC':
+            _log.debug("EXT ROUTER::Received EXT_RPC sub system message from external platform")
+            # Reframe the frames
+            sender, proto, usr_id, msg_id, subsystem, msg = frames[:6]
+            msg_data = jsonapi.loads(msg.bytes)
+            peer = msg_data['to_peer']
+            _log.debug("EXT ROUTER::Send to: {}".format(peer))
+            #frames[0] = peer
+            #Form new frame for local
+            frames[:9] = [peer, sender, proto, usr_id, msg_id, 'EXT_RPC', msg]
+            try:
+                self.socket.send_multipart(frames, flags=NOBLOCK, copy=False)
+            except ZMQError as ex:
+                _log.debug("ZMQ error: {}".format(ex))
+                pass
+        elif name == 'pubsub':
+            _log.debug("EXT ROUTER::Received external_pubsub")
+            recipient = b''
+            sender, proto, user_id, msg_id, subsystem, op, msg = frames[:7]
+            frames[:8] = sender, recipient, proto, user_id, msg_id, subsystem, op, msg
+            result = self._pubsub.handle_subsystem(frames, user_id)
+            #return result
 
     def start(self):
         '''Create the socket and call setup().
@@ -147,6 +198,13 @@ class BaseRouter(object):
 
         Implement this method to bind the socket, set identities and
         options, etc.
+        '''
+        raise NotImplementedError()
+
+    def poll_sockets(self):
+        '''Called inside run method
+
+        Implement this method to poll for sockets for incoming messages.
         '''
         raise NotImplementedError()
 
@@ -216,11 +274,20 @@ class BaseRouter(object):
         for peer in drop:
             self._drop_peer(peer)
 
+    def _drop_pubsub_peers(self, peer):
+        '''Drop peers for pubsub subsystem. To be handled by subclasses'''
+        pass
+
+    def _add_pubsub_peers(self, peer):
+        '''Add peers for pubsub subsystem. To be handled by subclasses'''
+        pass
+
     def _add_peer(self, peer):
         if peer in self._peers:
             return
         self._distribute(b'peerlist', b'add', peer)
         self._peers.add(peer)
+        self._add_pubsub_peers(peer)
 
     def _drop_peer(self, peer):
         try:
@@ -228,6 +295,7 @@ class BaseRouter(object):
         except KeyError:
             return
         self._distribute(b'peerlist', b'drop', peer)
+        self._drop_pubsub_peers(peer)
 
     def route(self):
         '''Route one message and return.
@@ -244,6 +312,8 @@ class BaseRouter(object):
         #   [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         frames = socket.recv_multipart(copy=False)
         issue(INCOMING, frames)
+        # for f in frames:
+        #    _log.debug("ROUTER Receiving frames: {}".format(bytes(f)))
         if len(frames) < 6:
             # Cannot route if there are insufficient frames, such as
             # might happen with a router probe.
@@ -313,6 +383,8 @@ class BaseRouter(object):
         recipient, sender = frames[:2]
         # Expecting outgoing frames:
         #   [RECIPIENT, SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
+        #for f in frames:
+        #    _log.debug("ROUTER sending frames: {}".format(bytes(f)))
         try:
             # Try sending the message to its recipient
             socket.send_multipart(frames, flags=NOBLOCK, copy=False)

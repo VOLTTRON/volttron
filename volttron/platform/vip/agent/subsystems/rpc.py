@@ -73,7 +73,8 @@ from ..errors import VIPError
 from ..results import counter, ResultsDictionary
 from ..decorators import annotate, annotations, dualmethod, spawn
 from .... import jsonrpc
-
+import zmq
+from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
 __all__ = ['RPC']
 
@@ -253,6 +254,47 @@ class RPC(SubsystemBase):
         return checked_method
 
     @spawn
+    def _handle_extrpc_subsystem(self, message):
+        ret_msg = dict()
+        rpc_msg = jsonapi.loads(message.args[0].bytes)
+        try:
+            _log.debug("External RPC IN message {0}, {1}".format(message.peer, rpc_msg))
+            method_args = rpc_msg['args']
+            #message.args = [method_args]
+            message.args = method_args
+            dispatch = self._dispatcher.dispatch
+            _log.debug("External RPC IN message args {}".format(message))
+
+            responses = [response for response in (
+                dispatch(bytes(msg), message) for msg in message.args) if response]
+            _log.debug("External RPC Resonses {}".format(responses))
+            if responses:
+                message.user = ''
+                try:
+                    recvr_platform = rpc_msg['to_platform']
+                    recvr_peer = rpc_msg['to_peer']
+                    sender_platform = rpc_msg['from_platform']
+                    sender_peer = rpc_msg['from_peer']
+                    message.peer = ''
+                    message.subsystem = 'EXT_RPC'
+                    ext_rpc_msg = jsonapi.dumps(
+                        dict(to_platform=sender_platform, to_peer=sender_peer, from_platform=recvr_platform, from_peer=recvr_peer, args=responses))
+                except KeyError:
+                    _log.error("External RPC message did not contain proper message format")
+                message.args = jsonapi.dumps(ret_msg)
+                ret_msg = jsonapi.dumps(ret_msg)
+                _log.debug("External RPC OUT message {}".format(message))
+                #self.core().socket.send_vip_object(message, copy=False)
+                try:
+                    self.core().socket.send_vip(b'', 'EXT_RPC', ext_rpc_msg, user=message.user, msg_id=message.id, copy=False)
+                    #self.corsock.send_multipart(frames, flags=NOBLOCK, copy=False)
+                except ZMQError as ex:
+                    _log.error("ZMQ error: {}".format(ex))
+                    pass
+        except KeyError:
+            pass
+
+    @spawn
     def _handle_subsystem(self, message):
         dispatch = self._dispatcher.dispatch
         responses = [response for response in (
@@ -308,6 +350,22 @@ class RPC(SubsystemBase):
         return result
 
     __call__ = call
+
+    def platform_call(self, peer, platform_id, method, *args, **kwargs):
+        request, result = self._dispatcher.call(method, args, kwargs)
+        ident = '%s.%s' % (next(self._counter), hash(result))
+        self._outstanding[ident] = result
+        #self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
+        _log.debug("Args: {0}, Kwargs: {1}".format(args, kwargs))
+        ext_rpc_msg = jsonapi.dumps(dict(to_platform=platform_id, to_peer=peer, from_platform='', from_peer= '', args=[request]))
+        if platform_id is None:
+            self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
+        else:
+            _log.debug("RPC subsystem: External platform RPC msg: {}".format(ext_rpc_msg))
+            self.core().socket.send_vip('', 'EXT_RPC', ext_rpc_msg, msg_id=ident)
+        return result
+
+    #__call__ = call
 
     def notify(self, peer, method, *args, **kwargs):
         request = self._dispatcher.notify(method, args, kwargs)
