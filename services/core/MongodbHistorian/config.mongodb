@@ -12,7 +12,11 @@
     },
 
     # configuration specific to hourly and daily rollup tables
-    # new from version 2.0 of mongo historian
+    # new from version 2.0 of mongo historian. Most of these configurations
+    # would become optional once data collected by earlier version of mongo has
+    # been batch processed to roll up into hourly and daily collections.
+
+    ## configurations related to rollup data creation
 
     # From when should historian start rolling up data into hourly and daily
     # collection. Rolling up this way makes queries more efficient
@@ -35,6 +39,8 @@
     # units - minutes. Default 1 minute
     "periodic_rollup_frequency":1,
 
+    ## configuration related to using rolled up data for queries
+
     # Start time from which hourly and daily rollup tables can be used for
     # querying. datetime string in UTC. Format "%Y-%m-%dT%H:%M:%S.%f". Default
     # current time (at init of historian)  +  1day
@@ -46,5 +52,10 @@
     # records in data table and insert into daily_data and hourly_data
     # collection. Units minutes. Default 4 minutes
     "rollup_query_end":10
+
+    # topic name patterns for which rollup exists. Set this if rollup was done
+    # for only a subset of topics
+    "rollup_topic_pattern": "^Economizer_RCx|^Airside_RCx"
+
 
 }
