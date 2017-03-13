@@ -76,6 +76,7 @@ from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.dbutils import mongoutils
 from volttron.platform.vip.agent import Core
+from volttron.utils.docs import doc_inherit
 
 try:
     import ujson
@@ -90,6 +91,7 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '2.1'
 _VOLTTRON_TYPE = '__volttron_type__'
+
 
 def historian(config_path, **kwargs):
     """
@@ -139,7 +141,7 @@ def historian(config_path, **kwargs):
 
     MongodbHistorian.__name__ = 'MongodbHistorian'
     return MongodbHistorian(config_dict, identity=identity,
-        topic_replace_list=topic_replacements, **kwargs)
+                            topic_replace_list=topic_replacements, **kwargs)
 
 
 class MongodbHistorian(BaseHistorian):
@@ -249,8 +251,6 @@ class MongodbHistorian(BaseHistorian):
             _log.error("Error processing configuration: {}".format(e))
             return
 
-
-
     @Core.receiver("onstart")
     def starting_mongo(self, sender, **kwargs):
         _log.debug("In on start method. scheduling periodic call to rollup "
@@ -314,7 +314,6 @@ class MongodbHistorian(BaseHistorian):
                                           value=row['value']))
                 hour_ids.append(row['_id'])
                 h += 1
-                #print("Insert bulk op to hourly. h= {}".format(h))
 
             if not stat or row['_id'] > stat["last_data_into_daily"]:
                 self.initialize_daily(topic_id=row['topic_id'],
@@ -326,7 +325,7 @@ class MongodbHistorian(BaseHistorian):
                                          ts=row['ts'], value=row['value']))
                 day_ids.append(row['_id'])
                 d += 1
-            #Perform insert if we have 5000 rows
+            # Perform insert if we have 5000 rows
             d_errors = h_errors = False
             if h == 5000:
                 bulk_publish_hour, hour_ids, h_errors = \
@@ -394,7 +393,6 @@ class MongodbHistorian(BaseHistorian):
     def version(self):
         return __version__
 
-
     def initialize_hourly(self, topic_id, ts):
         ts_hour = ts.replace(minute=0, second=0, microsecond=0)
 
@@ -411,7 +409,6 @@ class MongodbHistorian(BaseHistorian):
                               'last_updated_data': ''}
             },
             upsert=True)
-
 
     def initialize_daily(self, topic_id, ts):
         ts_day = ts.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -450,7 +447,7 @@ class MongodbHistorian(BaseHistorian):
                          '$set': {'last_updated_data': data_id}})
         return one
 
-
+    @doc_inherit
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
             len(to_publish_list)))
@@ -470,7 +467,6 @@ class MongodbHistorian(BaseHistorian):
 
             if source == 'scrape':
                 source = 'devices'
-
 
             # look at the topics that are stored in the database already
             # to see if this topic has a value
@@ -531,8 +527,6 @@ class MongodbHistorian(BaseHistorian):
         else:  # No write errros here when
             self.report_all_handled()
 
-
-
     @staticmethod
     def value_to_sumable(value):
         # Handle the case where value is not a number so we don't
@@ -576,7 +570,6 @@ class MongodbHistorian(BaseHistorian):
                 collection_name = name
                 use_rolled_up_data = True
         _log.debug("Using collection {} for query:".format(collection_name))
-
 
         topic_ids = []
         id_name_map = {}
@@ -688,7 +681,7 @@ class MongodbHistorian(BaseHistorian):
 
         _log.debug("Time taken to load all values {}".format(
             datetime.utcnow() - start_time))
-        #_log.debug("Results got {}".format(values))
+        # _log.debug("Results got {}".format(values))
 
         return self.add_metadata_to_query_result(agg_type,
                                                  multi_topic_query,
@@ -816,6 +809,7 @@ class MongodbHistorian(BaseHistorian):
         else:
             return {}
 
+    @doc_inherit
     def query_topic_list(self):
         db = self._client.get_default_database()
         cursor = db[self._topic_collection].find()
@@ -826,6 +820,7 @@ class MongodbHistorian(BaseHistorian):
 
         return res
 
+    @doc_inherit
     def query_topics_metadata(self, topics):
 
         meta = {}
@@ -870,6 +865,7 @@ class MongodbHistorian(BaseHistorian):
             document = cursor[num]
             self._topic_meta[document['topic_id']] = document['meta']
 
+    @doc_inherit
     def historian_setup(self):
         _log.debug("HISTORIAN SETUP")
         self._client = mongoutils.get_mongo_client(self._connection_params)
@@ -878,7 +874,7 @@ class MongodbHistorian(BaseHistorian):
         create_index1 = True
         create_index2 = True
 
-        #if data collection exists check if necessary indexes exists
+        # if data collection exists check if necessary indexes exists
         if self._data_collection in col_list:
             index_info = db[self._data_collection].index_information()
             index_list = [value['key'] for value in index_info.viewvalues()]
@@ -898,8 +894,7 @@ class MongodbHistorian(BaseHistorian):
             if i2 in index_new_list:
                 create_index2 = False
 
-
-        #create data indexes if needed
+        # create data indexes if needed
         if create_index1:
             db[self._data_collection].create_index(
                 [('topic_id', pymongo.DESCENDING),
@@ -934,8 +929,6 @@ class MongodbHistorian(BaseHistorian):
             [('last_updated_data', pymongo.DESCENDING)],
             background=True)
 
-
-
     def record_table_definitions(self, meta_table_name):
         _log.debug("In record_table_def  table:{}".format(meta_table_name))
 
@@ -956,7 +949,6 @@ class MongodbHistorian(BaseHistorian):
                 {'table_id': 'meta_table',
                  'table_name': self._meta_collection, 'table_prefix': ''},
                 upsert=True)])
-
 
 
 def main(argv=sys.argv):
