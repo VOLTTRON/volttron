@@ -3,9 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-====================================================
-Welcome to VOLTTRON\ :sup:`TM`\  documentation!
-====================================================
+====================================
+VOLTTRON\ :sup:`TM`\  documentation!
+====================================
 
 |VOLTTRON Tagline|
 
@@ -15,18 +15,21 @@ that interact with that data.
 Features
 --------
 
-- :ref:`Message Bus <messagebus index>` allows agents to subcribe to data sources and publish results and messages
-- :ref:`Driver framework <VOLTTRON-Driver-Framework>` for collecting data from and sending control actions to buildings and devices
-- :ref:`Historian framework <Historian Index>` for storing data
-- :ref:`Agent lifecycle managment <AgentManagement>` in the platform
-- :ref:`Web UI <VOLTTRON-Central>` for managing deployed instances from a single central instance.
+Out of the box VOLTTRON provides:
+
+- a secure :ref:`message bus <messagebus index>` allowing agents to subcribe to data sources and publish results and messages.
+- secure connectivity between multiple instances.
+- BACnet, ModBus and other device/system protocol connectivity through our :ref:`driver framework <VOLTTRON-Driver-Framework>` for collecting data from and sending control actions to buildings and devices.
+- automatic data capture and retrieval through our :ref:`historian framework <Historian Index>`.
+- platform based :ref:`agent lifecycle managment <AgentManagement>`.
+- a :ref:`web based management <VOLTTRON-Central>` tool for managing several instances from a central instance.
+- the ability to easily extend the functionality of existing agents or create new ones for your specific purposes.
 
 
 Background
 ----------
 
-VOLTTRON\ :sup:`TM` is written in Python 2.7 and runs on Linux Operating Systems. For users unfamiliar with those
-technologies, the following resources are recommended:
+VOLTTRON\ :sup:`TM` is written in Python 2.7 and runs on Linux Operating Systems. For users unfamiliar with those technologies, the following resources are recommended:
 
 - https://docs.python.org/2.7/tutorial/
 - http://ryanstutorials.net/linuxtutorial/
