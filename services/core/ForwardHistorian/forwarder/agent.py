@@ -73,6 +73,7 @@ from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD, Status)
+from volttron.utils.docs import doc_inherit
 
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
@@ -139,6 +140,7 @@ def historian(config_path, **kwargs):
         def timestamp(self):
             return time.mktime(datetime.datetime.now().timetuple())
 
+        @doc_inherit
         def capture_data(self, peer, sender, bus, topic, headers, message):
 
             # Grab the timestamp string from the message (we use this as the
@@ -191,11 +193,11 @@ def historian(config_path, **kwargs):
 
             payload = {'headers': headers, 'message': data}
 
-
             self._event_queue.put({'source': "forwarded",
                                    'topic': topic,
                                    'readings': [(timestamp_string, payload)]})
 
+        @doc_inherit
         def publish_to_historian(self, to_publish_list):
             handled_records = []
 
@@ -308,6 +310,7 @@ def historian(config_path, **kwargs):
                     STATUS_GOOD,"published {} items".format(
                         len(to_publish_list)))
 
+        @doc_inherit
         def historian_setup(self):
             _log.debug("Setting up to forward to {}".format(destination_vip))
             try:
