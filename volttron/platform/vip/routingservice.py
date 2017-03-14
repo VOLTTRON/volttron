@@ -104,7 +104,7 @@ class RoutingService(object):
         self._socket_class = socket_class
         self._read_platform_address_file()
         self._my_addr = my_addr
-        self._my_vip_id = ''
+        self._my_instance_name = ''
         self._monitor_poller = zmq.Poller()
         self._onconnect_pubsub_handler = None
         self._ondisconnect_pubsub_handler = None
@@ -123,25 +123,26 @@ class RoutingService(object):
                 str(keystore.public), str(keystore.secret)
             )
 
-        # thread = threading.Thread(target=self.monitor_external_sockets)
-        # thread.daemon = True
-        # thread.start()
-        for vip_id in self._ext_addresses:
-            _log.debug("my address: {0}, external {1}".format(self._my_addr, self._ext_addresses[vip_id]['address']))
+        thread = threading.Thread(target=self.monitor_external_sockets)
+        thread.daemon = True
+        thread.start()
+        for name in self._ext_addresses:
+            _log.debug("my address: {0}, external {1}".format(self._my_addr, self._ext_addresses[name]['address']))
             # Start monitor sockets in separate threads to remain responsive
 
-            if self._ext_addresses[vip_id]['address'] not in self._my_addr:
-                sock = zmq.Socket(self._context, zmq.DEALER)
+            if self._ext_addresses[name]['address'] not in self._my_addr:
+                sock = zmq.Socket(zmq.Context(), zmq.DEALER)
                 sock.sndtimeo = 0
                 sock.tcp_keepalive = True
                 sock.tcp_keepalive_idle = 180
                 sock.tcp_keepalive_intvl = 20
                 sock.tcp_keepalive_cnt = 6
 
-                addr = self._ext_addresses[vip_id]['address']
-                serverkey = self._ext_addresses[vip_id]['serverkey']
+                addr = self._ext_addresses[name]['address']
+                serverkey = self._ext_addresses[name]['serverkey']
                 _log.debug("ZMQ External serverkey: {}".format(serverkey))
-                sock.identity = vip_id
+                sock.identity = self._ext_addresses[name]['platform_identity']
+                _log.debug("ROUTINGSERVICE CONNECTED TO EXTERNAL PLATFORM {}".format(sock.identity))
                 sock.zap_domain = 'vip'
                 self._monitor_poller.register(sock.get_monitor_socket(zmq.EVENT_CONNECTED), zmq.POLLIN)
                 address = build_vip_address(addr, serverkey)
@@ -154,15 +155,20 @@ class RoutingService(object):
                     _log.error("ZMQ error on external connection {}".format(ex))
                     break
 
-                self._socket_id_mapping[vip_id] = [sock, sock.get_monitor_socket()]
+                self._socket_id_mapping[name] = dict(platform_identity=sock.identity,
+                                                     socket=sock, monitor_socket=sock.get_monitor_socket())
                 self._ext_sockets.append(sock)
-                _log.debug("ZMQ establishing connection to {}".format(ext_platform_address))
                 self._poller.register(sock, zmq.POLLIN)
-                self._routing_table[vip_id] = [vip_id]
+                self._routing_table[name] = [name]
             else:
-                self._my_vip_id = vip_id
-                self._routing_table[vip_id] = []
+                # self._socket_id_mapping[name] = dict(platform_identity= self._ext_addresses[name]['platform_identity'],
+                #                                      socket=None, monitor_socket=None)
+                self._my_instance_name = name
+                self._routing_table[name] = []
 
+            for name in self._socket_id_mapping:
+                sock = self._socket_id_mapping[name]['socket']
+                _log.debug("ROUTINGSERVICE CONNECTED TO EXTERNAL PLATFORM {}".format(sock.identity))
         #
         # for vip_id, sock in self._socket_id_mapping.iteritems():
         #     routing_msg = jsonapi.dumps(self._routing_table)
@@ -199,23 +205,23 @@ class RoutingService(object):
                     #_log.debug("ROUTING SERVICE RECEIVING EVENT: {0}, {1}".format(message, events[event]))
                     if event & zmq.EVENT_CONNECTED:
                         _log.debug("ROUTINGSERVICE socket CONNECTED!! send local subscriptions !!")
-                        platform_id = {id for id, socks in self._socket_id_mapping.iteritems()
-                                       if socks[1] == monitor_sock}
+                        instance_name = {name for name, instance_info in self._socket_id_mapping.items()
+                                       if instance_info['monitor_socket'] == monitor_sock}
                         gevent.sleep(1)
-                        self._onconnect_pubsub_handler(platform_id)
+                        self._onconnect_pubsub_handler(instance_name)
                     elif event & zmq.EVENT_CONNECT_DELAYED:
                         _log.debug("ROUTINGSERVICE socket DELAYED...Lets wait")
                     if event & zmq.EVENT_DISCONNECTED:
-                        platform_id = {id for id, socks in self._socket_id_mapping.iteritems()
-                                       if socks[1] == monitor_sock}
-                        #self._onconnect_pubsub_handler(platform_id)
+                        instance_name = {name for name, instance_info in self._socket_id_mapping.items()
+                                       if instance_info['monitor_socket'] == monitor_sock}
+                        #self._onconnect_pubsub_handler(instance_name)
                         #_log.debug("ROUTINGSERVICE socket DISCONNECTED, remove all subscriptions !!")
                 #gevent.sleep(1)
         finally:
             _log.debug("Reached finally")
-            for vip_id, socks in self._socket_id_mapping.items():
-                socks[0].close()
-                socks[1].close()
+            for name, instance_info in self._socket_id_mapping.items():
+                instance_info['socket'].close()
+                instance_info['monitor_socket'].close()
 
     def register(self, type, handler):
         if type == 'on_connect':
@@ -223,8 +229,8 @@ class RoutingService(object):
         else:
             self._ondisconnect_pubsub_handler = handler
 
-    def my_vip(self):
-        return self._my_vip_id
+    def my_instance_name(self):
+        return self._my_instance_name
 
     def disconnect_external_platform(self, vip_ids):
         for id in vip_ids:
@@ -232,15 +238,18 @@ class RoutingService(object):
             sock.close()
 
     def get_connected_platforms(self):
+        _log.debug(
+            "ROUTINGSERVICE: get connected platforms{}".format(self._socket_id_mapping.keys()))
         return list(self._socket_id_mapping.keys())
         #return list(self._routing_table.keys())
 
-    def send_external(self, vip_id, frames):
+    def send_external(self, instance_name, frames):
         try:
-            socks = self._socket_id_mapping[vip_id]
-            self._send(socks[0], frames)
+            instance_info = self._socket_id_mapping[instance_name]
+            self._send(instance_info['socket'], frames)
+            _log.debug("ROUTING SERVICE sending to {}".format(instance_info['socket'].identity))
         except KeyError:
-            _log.error("Invalid socket connection {}".format(vip_id))
+            _log.error("Invalid socket connection {}".format(instance_name))
 
     def _send(self, sock, frames):
         drop = []

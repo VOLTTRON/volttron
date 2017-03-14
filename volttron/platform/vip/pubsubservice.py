@@ -143,15 +143,15 @@ class PubSubService(object):
         #To do
         self._logger.debug("PUBSUBSERVICE peer add {}".format(peer))
 
-    def external_platform_add(self, platform_id):
-        self._logger.debug("PUBSUBSERVICE send subs external {}".format(platform_id))
+    def external_platform_add(self, instance_name):
+        self._logger.debug("PUBSUBSERVICE send subs external {}".format(instance_name))
         if self._ext_router is not None:
-            self._send_external_subscriptions(platform_id)
+            self._send_external_subscriptions(instance_name)
 
-    def external_platform_drop(self, platform_id):
-        self._logger.debug("PUBSUBSERVICE send subs external {}".format(platform_id))
+    def external_platform_drop(self, instance_name):
+        self._logger.debug("PUBSUBSERVICE send subs external {}".format(instance_name))
         if self._ext_router is not None:
-            self._send_external_subscriptions(platform_id)
+            self._send_external_subscriptions(instance_name)
 
     def _sync(self, peer, items):
         """
@@ -271,6 +271,11 @@ class PubSubService(object):
                         subscribers.discard(peer)
                         if not subscribers:
                             del subscriptions[prefix]
+
+                if platform == 'all' and self._ext_router is not None:
+                    # Send subscription message to all connected platforms
+                    external_platforms = self._ext_router.get_connected_platforms()
+                    self._send_external_subscriptions(external_platforms)
                 return True
 
     def _peer_publish(self, frames):
@@ -516,16 +521,18 @@ class PubSubService(object):
         :return:
         """
         prefixes = self._get_external_prefix_list()
-        platform_id = self._ext_router.my_vip()
+        instance_name = self._ext_router.my_instance_name()
         prefix_msg = dict()
-        prefix_msg[platform_id] = prefixes
+        prefix_msg[instance_name] = prefixes
         msg = jsonapi.dumps(prefix_msg)
-        self._logger.debug("PUBSUBSERVICE My vip id: {}".format(self._ext_router.my_vip()))
+        self._logger.debug("PUBSUBSERVICE My vip id: {}".format(self._ext_router.my_instance_name()))
         frames = [b'', 'VIP1', b'', b'', b'pubsub', b'external_list', msg]
 
         if self._ext_router is not None:
-            for vip_id in external_platforms:
-                self._ext_router.send_external(vip_id, frames)
+            for name in external_platforms:
+                self._logger.debug("PUBSUBSERVICE Sending to platform: {}".format(name))
+                #self._vip_sock.send_multipart(frames, flags=NOBLOCK, copy=False)
+                self._ext_router.send_external(name, frames)
             # #if vip_id == self._ext_router.my_vip():
             # frames[0] = bytes(self._ext_router.my_vip())
             # try:
@@ -621,13 +628,13 @@ class PubSubService(object):
             elif op == b'protected_update':
                 self._update_protected_topics(frames)
             elif op == b'external_list':
-                self._logger.debug("PUBSUBSERVICE external_lists")
-                self._update_external_subscriptions(frames)
+                self._logger.debug("PUBSUBSERVICE external_list")
+                result = self._update_external_subscriptions(frames)
             elif op == b'external_publish':
                 self._logger.debug("PUBSUBSERVICE external to local publish")
                 self.external_to_local_publish(frames)
             else:
-                self._logger.error("Unknown pubsub request {}".format(bytes(op)))
+                self._logger.error("PUBSUBSERVICE Unknown pubsub request {}".format(bytes(op)))
                 pass
 
         if result is not None:
@@ -666,15 +673,15 @@ class PubSubService(object):
                        ' provided').format(topic, required_caps, caps)
         return msg
 
-    def external_peer_add(self, platform_identity):
-        self._logger.debug("Adding external platform peer: {}".format(platform_identity))
-        self._ext_subscriptions[platform_identity] = set()
+    def external_peer_add(self, instance_name):
+        self._logger.debug("Adding external platform peer: {}".format(instance_name))
+        self._ext_subscriptions[instance_name] = set()
 
-    def external_peer_add(self, platform_identity):
-        self._logger.debug("Adding external platform peer: {}".format(platform_identity))
-        del self._ext_subscriptions[platform_identity]
+    def external_peer_add(self, instance_name):
+        self._logger.debug("Adding external platform peer: {}".format(instance_name))
+        del self._ext_subscriptions[instance_name]
 
-    def _update_external_subscriptions(self, frames):
+    def _external_subscribe(self, frames):
         self._logger.debug("PUBSUBSERVICE receiving subscriptions to external platforms")
         results = []
         if len(frames) <= 7:
@@ -688,6 +695,23 @@ class PubSubService(object):
                 prefixes = set(prefixes)
                 self._logger.debug("PUBSUBSERVICE prefixes: {}".format(prefixes))
                 self._ext_subscriptions[platform_id] = prefixes
+                self._logger.debug("PUBSUBSERVICE New external list: {}".format(self._ext_subscriptions))
+            return True
+
+    def _update_external_subscriptions(self, frames):
+        self._logger.debug("PUBSUBSERVICE external_subscriptions from external platforms: {}".format(bytes(frames[0])))
+        results = []
+        if len(frames) <= 7:
+            return False
+        else:
+            data = frames[7].bytes
+            msg = jsonapi.loads(data)
+            #self._logger.debug("PUBSUBSERVICE Msg: {}".format(msg))
+            for instance_name in msg:
+                prefixes = msg[instance_name]
+                prefixes = set(prefixes)
+                self._logger.debug("PUBSUBSERVICE prefixes: {}".format(prefixes))
+                self._ext_subscriptions[instance_name] = prefixes
                 self._logger.debug("PUBSUBSERVICE New external list: {}".format(self._ext_subscriptions))
             return True
 
