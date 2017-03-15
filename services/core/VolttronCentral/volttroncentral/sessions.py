@@ -5,6 +5,7 @@ from copy import deepcopy
 
 from zmq.utils import jsonapi
 
+
 class SessionHandler:
     """A handler for dealing with authentication of sessions
 
@@ -65,7 +66,6 @@ class SessionHandler:
 
         with open(self._stored_session_path, 'wb') as file:
             file.write(jsonapi.dumps(self._sessions))
-
 
     def _load_auths(self):
         if not self._stored_session_path:
