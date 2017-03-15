@@ -140,7 +140,6 @@ def historian(config_path, **kwargs):
         def timestamp(self):
             return time.mktime(datetime.datetime.now().timetuple())
 
-        @doc_inherit
         def capture_data(self, peer, sender, bus, topic, headers, message):
 
             # Grab the timestamp string from the message (we use this as the
