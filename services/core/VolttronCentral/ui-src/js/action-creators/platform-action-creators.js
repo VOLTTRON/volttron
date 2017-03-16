@@ -55,6 +55,7 @@ var platformActionCreators = {
             .then(function (status) {
                 agent.process_id = status.process_id;
                 agent.return_code = status.return_code;
+                agent.is_running = status.return_code === null;
             })                        
             .catch(rpc.Error, function (error) {
                 handle401(error, "Unable to start agent " + agent.name + ": " + error.message, agent.name);
@@ -86,6 +87,7 @@ var platformActionCreators = {
             .then(function (status) {
                 agent.process_id = status.process_id;
                 agent.return_code = status.return_code;
+                agent.is_running = false;
             })                      
             .catch(rpc.Error, function (error) {
                 handle401(error, "Unable to stop agent " + agent.name + ": " + error.message, agent.name);
