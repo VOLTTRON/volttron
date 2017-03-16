@@ -261,7 +261,7 @@ def test_listagent(vc_vcp_platforms):
 
     agent_list = api.list_agents(platform_uuid=platform['uuid'])
     print('The agent list is: {}'.format(agent_list))
-    assert len(agent_list) == 1
+    assert len(agent_list) > 1
     assert agent_list[0]['version']
 
 
