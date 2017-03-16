@@ -21,22 +21,23 @@ local_source_params = {"host": "localhost",
                        "user": "test",
                        "passwd": "test"}
 
-DAILY_COLLECTION = "daily_data_3"
-HOURLY_COLLECTION = "hourly_data3"
+DAILY_COLLECTION = "daily_data"
+HOURLY_COLLECTION = "hourly_data"
 log_out_file = "./script_out"
 init_rollup_tables = True # Set this to false if init is already done and if
 #  you are rerunning to script for different date range or topic pattern
 start_date = '30Mar2016T00:00:00.000'
 end_date = '10Feb2017T00:00:00.000'
-topic_pattern = "^Economizer_RCx|^Airside_RCx"
-
+topic_patterns = ["^Economizer_RCx|^Airside_RCx",
+                  '^PNNL-SEQUIM', '^pnnl',
+                  '^datalogger', '^record']
 ### END - Variables to set before running script ##
 
-# import sys
-# log = open(log_out_file, 'w', buffering=1)
-# sys.stdout = log
-# sys.stderr = log
-log = None
+import sys
+log = open(log_out_file, 'w', buffering=1)
+sys.stdout = log
+sys.stderr = log
+#log = None
 
 
 def connect_mongodb(connection_params):
@@ -156,11 +157,12 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
                 d += 1
                 #print("Insert bulk op to daily  d= {}".format(d))
 
-            # Perform insert if we have 3000 rows
+            # Perform insert if we have 10000 rows
             d_errors = h_errors = False
             if h == 10000:
                 #print("In loop. bulk write hour")
-                h_errors = execute_batch(bulk_hourly, h)
+                h_errors = execute_batch("hourly", bulk_hourly, h, topic_id,
+                                         topic_name)
                 if not h_errors:
                     bulk_hourly = dest_db[
                         HOURLY_COLLECTION].initialize_ordered_bulk_op()
@@ -168,7 +170,8 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
 
             if d == 10000:
                 #print("In loop. bulk write day")
-                d_errors = execute_batch(bulk_daily, d)
+                d_errors = execute_batch("daily", bulk_daily, d, topic_id,
+                                         topic_name)
                 if not d_errors:
                     bulk_daily = dest_db[
                         DAILY_COLLECTION].initialize_ordered_bulk_op()
@@ -177,15 +180,25 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             if d_errors or h_errors:
                 # something failed in bulk write. try from last err
                 # row during the next periodic call
-                print("error writing into daily: {} error writing into "
-                      "hourly: {}".format(d_errors, h_errors))
+                print(
+                    "error writing into {} data collection for topic: "
+                    "{}:{}".format("hourly" if h_errors else "daily",
+                                   topic_id, topic_name))
                 return
 
         # Perform insert for any pending records
         if h > 0:
-            execute_batch(bulk_hourly, h)
+            h_errors = execute_batch("hourly", bulk_hourly, h, topic_id,
+                                     topic_name)
+            if h_errors:
+                print("Error processing data into daily collection. "
+                      "topic {}:{}".format(topic_id, topic_name))
         if d > 0:
-            execute_batch(bulk_daily, d)
+            d_errors = execute_batch("daily", bulk_daily, d, topic_id,
+                                     topic_name)
+            if d_errors:
+                print("Error processing data into daily collection. "
+                      "topic {}:{}".format(topic_id, topic_name))
     except Exception as e:
         print("Exception processing topic {}:{} {}".format(topic_id,
                                                            topic_name,
@@ -213,16 +226,19 @@ def get_last_back_filled_data(db, collection, topic_id, topic_name):
     return id
 
 
-def execute_batch(bulk, count):
+def execute_batch(table_type, bulk, count, topic_id, topic_name):
     """
     Execute bulk operation. return true if operation completed successfully
     False otherwise
     """
-
     errors = False
     try:
         result = bulk.execute()
         if result['nModified'] != count:
+            print(
+                "bulk execute of {} data for {}:{}.\nnumber of op sent to "
+                "bulk execute ({}) does not match nModified count".format(
+                    table_type, topic_id, topic_name, count))
             print ("bulk execute result {}".format(result))
             errors = True
     except BulkWriteError as ex:
@@ -354,10 +370,10 @@ if __name__ == '__main__':
                     "DAILY_COLLECTION in script".format(
                         DAILY_COLLECTION, DAILY_COLLECTION))
             else:
-                print ("Starting init of tables")
                 source_db = connect_mongodb(local_source_params)
                 s_dt = datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f')
                 e_dt = datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f')
+                print ("Starting init of tables")
                 init_start = datetime.utcnow()
                 init_daily_data(source_db,
                                 source_tables['data_table'],
@@ -381,25 +397,27 @@ if __name__ == '__main__':
             init_done = True
 
         if init_done:
-            regex = re.compile(topic_pattern, re.IGNORECASE)
-            cursor = source_db[source_tables['topics_table']].find(
-                {"topic_name": regex}).sort("_id", pymongo.ASCENDING)
+            for topic_pattern in topic_patterns:
+                regex = re.compile(topic_pattern, re.IGNORECASE)
+                cursor = source_db[source_tables['topics_table']].find(
+                    {"topic_name": regex}).sort("_id", pymongo.ASCENDING)
 
-            topics = list(cursor)
-            max = len(topics)
-            print("Total number of topics with the pattern{}: {}".format(
-                topic_pattern, max))
+                topics = list(cursor)
+                max = len(topics)
+                print("Total number of topics with the pattern{}: {}".format(
+                    topic_pattern, max))
 
-            for i in xrange(0, max):
-                print("Processing topic: {} {}".format(topics[i]['_id'],
-                                                       topics[i]['topic_name']))
-                pool.spawn(rollup_data, local_source_params,
-                           local_source_params,
-                           datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f'),
-                           datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f'),
-                           topics[i]['_id'], topics[i]['topic_name'])
+                for i in xrange(0, max):
+                    print("Processing topic: {} {}".format(topics[i]['_id'],
+                                                           topics[i]['topic_name']))
+                    pool.spawn(rollup_data, local_source_params,
+                               local_source_params,
+                               datetime.strptime(start_date, '%d%b%YT%H:%M:%S.%f'),
+                               datetime.strptime(end_date, '%d%b%YT%H:%M:%S.%f'),
+                               topics[i]['_id'], topics[i]['topic_name'])
 
-            pool.join()
+                pool.join()
+
     except Exception as e:
         print("Exception processing data: {}".format(e.args))
     finally:
