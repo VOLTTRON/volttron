@@ -61,24 +61,29 @@ class SessionHandler:
         return False
 
     def _store_session(self):
-        if not self._stored_session_path:
-            self._get_auth_storage()
-
-        with open(self._stored_session_path, 'wb') as file:
-            file.write(jsonapi.dumps(self._sessions))
+        # Disable the storing of sessions to disk.
+        return
+        # if not self._stored_session_path:
+        #     self._get_auth_storage()
+        #
+        # with open(self._stored_session_path, 'wb') as file:
+        #     file.write(jsonapi.dumps(self._sessions))
 
     def _load_auths(self):
-        if not self._stored_session_path:
-            self._get_auth_storage()
-        try:
-            with open(self._stored_session_path) as file:
-                self._sessions = jsonapi.loads(file.read())
-
-            self._session_tokens.clear()
-            for k, v in self._sessions.items():
-                self._session_tokens[v['token']] = v
-        except IOError:
-            pass
+        self._sessions = {}
+        return
+        #
+        # if not self._stored_session_path:
+        #     self._get_auth_storage()
+        # try:
+        #     with open(self._stored_session_path) as file:
+        #         self._sessions = jsonapi.loads(file.read())
+        #
+        #     self._session_tokens.clear()
+        #     for k, v in self._sessions.items():
+        #         self._session_tokens[v['token']] = v
+        # except IOError:
+        #     pass
 
     def _get_auth_storage(self):
         if not os.environ.get('VOLTTRON_HOME', None):
