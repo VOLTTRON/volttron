@@ -127,6 +127,9 @@ if __name__ == '__main__':
                 'volttron-ctl = volttron.platform.control:_main',
                 'volttron-pkg = volttron.platform.packaging:_main',
                 'volttron-cfg = volttron.platform.config:_main',
+                'vctl = volttron.platform.control:_main',
+                'vpkg = volttron.platform.packaging:_main',
+                'vcfg = volttron.platform.config:_main',
             ]
         },
         zip_safe=False,
