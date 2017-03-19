@@ -310,12 +310,6 @@ class CrateHistorian(BaseHistorian):
     def query_historian(self, topic, start=None, end=None, agg_type=None,
                         agg_period=None, skip=0, count=None,
                         order="FIRST_TO_LAST"):
-        """ Returns the results of the query from the crate database.
-
-        Please see
-        :py:meth:`volttron.platform.agent.base_historian.BaseQueryHistorianAgent.query_historian`
-        for input parameters and return value details
-        """
 
         # Verify that we have initialized through the historian setup code
         # before we do anything else.
@@ -323,7 +317,16 @@ class CrateHistorian(BaseHistorian):
             self.historian_setup()
             if not self._initialized:
                 return {}
-        #try:
+
+        if count is not None:
+            try:
+                count = int(count)
+            except ValueError:
+                count = 20
+            else:
+                # protect the querying of the database limit to 500 at a time.
+                if count > 100:
+                    count = 100
 
         # Final results that are sent back to the client.
         results = {}
@@ -335,12 +338,7 @@ class CrateHistorian(BaseHistorian):
             # Copy elements into topic list
             topics = [x for x in topic]
 
-        # topic_list is what will query against the database.
-        topic_list = [x.lower() for x in topics]
-
         values = defaultdict(list)
-
-        multi_topic_query = len(topics) > 1
         metadata = {}
         table_name = "{}.data".format(self._schema)
         cursor = self.get_connection().cursor()
@@ -368,81 +366,12 @@ class CrateHistorian(BaseHistorian):
                 if len(topics) == 1:
                     metadata = meta
 
-        _log.debug("METADATA")
-        _log.debug(metadata)
-        _log.debug("VALUES")
-        _log.debug(values)
-        # # Log that one of the topics is not valid.
-        # for i in xrange(len(table_names)):
-        #
-        #     topic_lower = topic_list[i]
-        #     table_name = table_names[i]
-        #     topic_id = topic_ids[i]
-        #     original_topic = topics[i]
-        #
-        #     if table_names[i] is None:
-        #         _log.warn("Invalid topic presented to query: {}".format(
-        #             topics[i]
-        #         ))
-        #
-        #         # Handle when a query doesn't have a presence in the database
-        #         # by returning empty values and possible empty metadata.
-        #         if not multi_topic_query:
-        #             results['values'] = []
-        #             results['metadata'] = self._topic_meta.get(topic_id, {})
-        #
-        #         continue
-        #
-        #     query, args = self._build_single_topic_select_query(
-        #         start, end, agg_type, agg_period, skip, count, order,
-        #         table_name, topic_id)
-        #
-        #     cursor.execute(query, args)
-        #
-        #     for _id, ts, value in cursor.fetchall():
-        #         values[original_topic].append(
-        #             (
-        #                 utils.format_timestamp(
-        #                     utils.parse_timestamp_string(ts)),
-        #                 value
-        #             )
-        #         )
-        #     _log.debug("query result values {}".format(values))
-        #
-        #     if len(values) > 0:
-        #         # If there are results add metadata if it is a query on a
-        #         # single topic
-        #         if not multi_topic_query:
-        #             values = values.values()[0]
-        #             if agg_type:
-        #                 # if aggregation is on single topic find the topic id
-        #                 # in the topics table that corresponds to agg_topic_id
-        #                 # so that we can grab the correct metadata
-        #                 _log.debug("Single topic aggregate query. Try to get "
-        #                            "metadata")
-        #                 if topic_id:
-        #                     _log.debug("aggregation of a single topic, "
-        #                                "found topic id in topic map. "
-        #                                "topic_id={}".format(topic_id))
-        #                     metadata = self._topic_meta.get(topic_id, {})
-        #                 else:
-        #                     # if topic name does not have entry in topic_id_map
-        #                     # it is a user configured aggregation_topic_name
-        #                     # which denotes aggregation across multiple points
-        #                     metadata = {}
-        #             else:
-        #                 # this is a query on raw data, get metadata for
-        #                 # topic from topic_meta map
-        #                 metadata = self._topic_meta.get(topic_id, {})
-        #
-        #             return dict(values=values, metadata=metadata)
-        #     else:
-        #         results=dict()
-        if len(topics) == 1:
-            results['values'] = values[topics[0]]
-        else:
+        if len(topics) > 1:
             results['values'] = values
-        results['metadata'] = metadata
+            results['metadata'] = {}
+        else:  # return the list from the single topic
+            results['values'] = values[topics[0]]
+            results['metadata'] = metadata
 
         return results
 
