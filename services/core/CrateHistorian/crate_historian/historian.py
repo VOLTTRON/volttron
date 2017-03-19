@@ -55,28 +55,21 @@
 # }}}
 from __future__ import absolute_import, print_function
 
-import hashlib
 import logging
 import sys
-import pytz
 from collections import defaultdict
-from datetime import datetime
 
 from crate.client.exceptions import ConnectionError, ProgrammingError
-from dateutil.relativedelta import relativedelta
-from calendar import monthrange
-from datetime import timedelta
-from dateutil.tz import tzutc
-
 from crate import client
-from volttron.platform.agent.utils import get_utc_seconds_from_epoch
-from volttron.platform.messaging.health import Status, STATUS_BAD
-from volttron.utils.docs import doc_inherit
 from zmq.utils import jsonapi
 
+from . crate_utils import (create_schema, select_all_topics_query,
+                           insert_data_query, insert_topic_query)
+from volttron.platform.agent.utils import get_utc_seconds_from_epoch
+from volttron.utils.docs import doc_inherit
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
-from volttron.platform.dbutils.cratedriver import create_schema
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -150,6 +143,8 @@ class CrateHistorian(BaseHistorian):
         self._client = None
         self._connection = None
 
+        self._topic_set = set()
+
         self._topic_id_map = {}
         self._topic_to_table_map = {}
         self._topic_to_datatype_map = {}
@@ -159,34 +154,6 @@ class CrateHistorian(BaseHistorian):
         self._initialized = False
         self._wait_until = None
         super(CrateHistorian, self).__init__(**kwargs)
-
-    def _get_topic_table(self, source, db_datatype):
-        table = None
-
-        if source == 'device':
-            if db_datatype == 'string':
-                table = 'device_string'
-            else:
-                table = 'device'
-
-        if source == 'datalogger':
-            if db_datatype == 'string':
-                table = 'datalogger_string'
-            else:
-                table = 'datalogger'
-
-        if source == 'analysis':
-            if db_datatype == 'string':
-                table = 'analysis_string'
-            else:
-                table = 'analysis'
-
-        if source == 'record':
-            table = 'record'
-
-        assert source
-
-        return "{schema}.{table}".format(schema=self._schema, table=table)
 
     @doc_inherit
     def publish_to_historian(self, to_publish_list):
@@ -206,170 +173,97 @@ class CrateHistorian(BaseHistorian):
             else:
                 _log.debug('Waiting to attempt to write to database.')
                 return
-
-        def insert_data(cursor, topic_id, ts, data, topic_name=None):
-            target_table = self._topic_to_table_map[topic_id]
-            (schema_name, table_name) = target_table.split(".")
-            insert_query = """INSERT INTO {} (topic_id, ts, result)
-                              VALUES(?, ?, ?)
-                              ON DUPLICATE KEY UPDATE result=result
-                            """.format(target_table)
-            _log.debug("QUERY: {}".format(insert_query))
-            _log.debug("PARAMS: {}".format(topic_id, ts, data))
-            ts_formatted = utils.format_timestamp(ts)
-
-            cursor.execute(insert_query, (topic_id, ts_formatted,
-                                          data, data))
-            if self._raw_schema_enabled and table_name in ("datalogger",
-                                                           "device") and topic_name:
-                insert_query_raw = """INSERT INTO "{}"."{}" (topic, ts, value)
-                                VALUES(?, ?, ?)
-                                ON DUPLICATE KEY UPDATE value=value
-                                """.format(schema_name, table_name + "_raw")
-                cursor.execute(insert_query_raw, (topic_name, ts_formatted,
-                                                  data))
-
         try:
             if self._connection is None:
                 self._connection = self.get_connection()
 
             cursor = self._connection.cursor()
 
+            batch_data = []
+            batch_topics = []
+
             for row in to_publish_list:
-                ts = row['timestamp']
+                ts = utils.format_timestamp(row['timestamp'])
                 source = row['source']
                 topic = row['topic']
                 value = row['value']
                 meta = row['meta']
 
-                if source == 'scrape':
-                    source = 'device'
-                if source == 'log':
-                    source = 'datalogger'
+                if topic not in self._topic_set:
+                    batch_topics.append((topic,))
 
-                meta_type = meta.get('type', None)
-                db_datatype = None
-                try:
-                    if meta_type == 'integer':
-                        value = int(value)
-                        db_datatype = 'numeric'
-                    elif meta_type == 'float':
-                        value = float(value)
-                        db_datatype = 'numeric'
-                    else:
-                        try:
-                            value = float(value)
-                            db_datatype = 'numeric'
-                        except ValueError:
-                            db_datatype = 'string'
-                        except TypeError:
-                            if type(value) == dict and topic.startswith('record'):
-                                value = jsonapi.dumps(value)
-                            else:
-                                _log.error(
-                                    'Type was {} in type error for value: {}'.format(
-                                        type(value), value))
-                except ValueError:
-                    alert_key = "Inconsistency for topic: {}".format(topic)
-                    context = """
-Meta specified as {} but was given {} for value {}.  The data will not be
-cached.
-                    """.format(meta_type, type(value), value)
-                    status = Status.build(STATUS_BAD, context=context.strip())
+                batch_data.append(
+                    (ts, topic, source, value, meta)
+                )
+                batch_data.append(
+                    (ts, topic, source, value, meta)
+                )
 
-                    self.vip.health.send_alert(alert_key, status)
-                    _log.error(
-                        "Topic: {} "
-                        "Couldn't cast value {} to {}".format(topic,
-                                                              value,
-                                                              meta_type))
-                    # since this isn't going to be fixed we mark it as
-                    # handled, note we need to pass the full row.
-                    self.report_handled(row)
-                    continue
+            if batch_topics:
+                _log.debug('Inserting batch topics: {}'.format(batch_topics))
+                cursor.executemany(insert_topic_query(self._schema),
+                                   batch_topics)
 
-                _log.debug('META IS: {}'.format(meta))
-                # look at the topics that are stored in the database already
-                # to see if this topic has a value
-                topic_lower = topic.lower()
-                topic_id = hashlib.md5(topic_lower).hexdigest()
-                db_topic_name = self._topic_name_map.get(topic_lower, None)
-
-                if db_topic_name is None:
-                    topic_table = self._get_topic_table(source, db_datatype)
-
-                    if not topic_table:
+            try:
+                query = insert_data_query(self._schema)
+                _log.debug("Inserting batch data: {}".format(batch_data))
+                cursor.executemany(query, batch_data)
+            except ProgrammingError as ex:
+                _log.error(
+                    "Invalid data detected during batch insert: {}".format(
+                        ex.args))
+                _log.debug("Attempting singleton insert.")
+                insert = insert_data_query(self._schema)
+                for id in range(len(batch_data)):
+                    try:
+                        batch = batch_data[id]
+                        cursor.execute(insert, batch)
+                    except ProgrammingError:
+                        _log.debug('Invalid data not saved {}'.format(
+                            to_publish_list[id]
+                        ))
+                        self.report_handled(to_publish_list[id])
+                    except Exception as ex:
                         _log.error(
-                            "Invalid topic table for topic: {} source: {} invalid".format(
-                                topic, source)
-                        )
-                        continue
+                            "Exception Type: {} ARGS: {}".format(type(ex),
+                                                                 ex.args))
+                    else:
+                        self.report_handled(to_publish_list[id])
 
-                    cursor.execute(
-                        """ INSERT INTO {schema}.topic(
-                              id, name, data_table, data_type)
-                            VALUES(?, ?, ?, ?)
-                            ON DUPLICATE KEY UPDATE name=name
-                        """.format(schema=self._schema),
-                        (topic_id, topic, topic_table, db_datatype))
-                    self._topic_to_table_map[topic_id] = topic_table
-                    self._topic_to_table_map[topic_lower] = topic_table
-                    self._topic_to_datatype_map[topic_id] = db_datatype
-                    self._topic_to_datatype_map[topic_lower] = db_datatype
-                    self._topic_name_map[topic_lower] = topic
-                    self._topic_id_map[topic_lower] = topic_id
+            except Exception as ex:
+                _log.error(
+                    "Exception Type: {} ARGS: {}".format(type(ex), ex.args))
 
-                elif db_topic_name != topic:
-                    _log.debug('Updating topic: {}'.format(topic))
+            else:
+                self.report_all_handled()
+        except TypeError as ex:
+            _log.error(
+                "AFTER EXCEPTION: {} ARGS: {}".format(type(ex), ex.args))
+        except Exception as ex:
+            _log.error(
+                "Unknown Exception {} {}".format(type(ex), ex.args)
+            )
 
-                    result = cursor.execute(
-                        """
-                          UPDATE {schema}.topic set name=? WHERE id=?
-                        """.format(schema=self._schema), (topic, topic_id))
-                    self._topic_name_map[topic_lower] = topic
-
-                insert_data(cursor, topic_id, ts, value, topic_name = topic)
-
-                old_meta = self._topic_meta.get(topic_id, {})
-
-                if old_meta.get(topic_id) is None or \
-                                str(old_meta.get(topic_id)) != str(meta):
-                    _log.debug(
-                        'Updating meta for topic: {} {}'.format(topic, meta))
-                    meta_insert = """INSERT INTO {schema}.meta(topic_id, meta_data)
-                                     VALUES(?,?)
-                                     ON DUPLICATE KEY UPDATE meta_data=meta_data
-                                  """.format(schema=self._schema)
-                    cursor.execute(meta_insert, (topic_id, jsonapi.dumps(meta)))
-                    self._topic_meta[topic_id] = meta
-
-            self.report_all_handled()
-        except ConnectionError:
-            _log.error("Cannot connect to crate service.")
-            self._wait_until = get_utc_seconds_from_epoch() + 30
-            self._connection = None
-        except ProgrammingError as e:
-            self._wait_until = get_utc_seconds_from_epoch() + 30
-            _log.error(e.args)
-            if cursor is not None:
-                cursor.close()
         finally:
             if cursor is not None:
                 cursor.close()
                 cursor = None
 
-    def _build_single_topic_query(self, start, end, agg_type, agg_period, skip,
-                                  count, order, table_name, topic_id):
-        query = '''SELECT topic_id,
-                    date_format('%Y-%m-%dT%H:%i:%s.%f+00:00', ts) as ts, result
-                        FROM ''' + table_name + '''
+    @staticmethod
+    def _build_single_topic_select_query(start, end, agg_type, agg_period, skip,
+                                         count, order, table_name, topic):
+        query = """SELECT topic,
+                    date_format('%Y-%m-%dT%H:%i:%s.%f+00:00', ts) as ts,
+                    coalesce(try_cast(double_value as string), string_value) as result,
+                    meta
+                        FROM """ + table_name + """
                         {where}
                         {order_by}
                         {limit}
-                        {offset}'''
+                        {offset}""".replace("\n", "")
 
-        where_clauses = ["WHERE topic_id =?"]
-        args = [topic_id]
+        where_clauses = ["WHERE topic =?"]
+        args = [topic]
         if start and end and start == end:
             where_clauses.append("ts = ?")
             args.append(start)
@@ -384,7 +278,7 @@ cached.
 
         order_by = 'ORDER BY ts ASC'
         if order == 'LAST_TO_FIRST':
-            order_by = ' ORDER BY topic_id DESC, ts DESC'
+            order_by = ' ORDER BY topic DESC, ts DESC'
 
         # can't have an offset without a limit
         # -1 = no limit and allows the user to
@@ -416,12 +310,6 @@ cached.
     def query_historian(self, topic, start=None, end=None, agg_type=None,
                         agg_period=None, skip=0, count=None,
                         order="FIRST_TO_LAST"):
-        """ Returns the results of the query from the crate database.
-
-        Please see
-        :py:meth:`volttron.platform.agent.base_historian.BaseQueryHistorianAgent.query_historian`
-        for input parameters and return value details
-        """
 
         # Verify that we have initialized through the historian setup code
         # before we do anything else.
@@ -429,7 +317,16 @@ cached.
             self.historian_setup()
             if not self._initialized:
                 return {}
-        #try:
+
+        if count is not None:
+            try:
+                count = int(count)
+            except ValueError:
+                count = 20
+            else:
+                # protect the querying of the database limit to 500 at a time.
+                if count > 100:
+                    count = 100
 
         # Final results that are sent back to the client.
         results = {}
@@ -441,89 +338,40 @@ cached.
             # Copy elements into topic list
             topics = [x for x in topic]
 
-        # topic_list is what will query against the database.
-        topic_list = [x.lower() for x in topics]
-
-        # The following could have None items in it so we must prepare for that
-        # below.
-        table_names = [self._topic_to_table_map.get(x) for x in topic_list]
-        topic_ids = [self._topic_id_map.get(x) for x in topic_list]
-
         values = defaultdict(list)
-
-        multi_topic_query = len(topics) > 1
         metadata = {}
-
+        table_name = "{}.data".format(self._schema)
         cursor = self.get_connection().cursor()
-        # Log that one of the topics is not valid.
-        for i in xrange(len(table_names)):
 
-            topic_lower = topic_list[i]
-            table_name = table_names[i]
-            topic_id = topic_ids[i]
-            original_topic = topics[i]
-
-            if table_names[i] is None:
-                _log.warn("Invalid topic presented to query: {}".format(
-                    topics[i]
-                ))
-
-                # Handle when a query doesn't have a presence in the database
-                # by returning empty values and possible empty metadata.
-                if not multi_topic_query:
-                    results['values'] = []
-                    results['metadata'] = self._topic_meta.get(topic_id, {})
-
-                continue
-
-            query, args = self._build_single_topic_query(
+        for topic in topics:
+            query, args = self._build_single_topic_select_query(
                 start, end, agg_type, agg_period, skip, count, order,
-                table_name, topic_id)
+                table_name, topic)
 
             cursor.execute(query, args)
 
-            for _id, ts, value in cursor.fetchall():
-                values[original_topic].append(
+            for _id, ts, value, meta in cursor.fetchall():
+                try:
+                    value = float(value)
+                except ValueError:
+                    pass
+
+                values[topic].append(
                     (
                         utils.format_timestamp(
                             utils.parse_timestamp_string(ts)),
                         value
                     )
                 )
-            _log.debug("query result values {}".format(values))
+                if len(topics) == 1:
+                    metadata = meta
 
-            if len(values) > 0:
-                # If there are results add metadata if it is a query on a
-                # single topic
-                if not multi_topic_query:
-                    values = values.values()[0]
-                    if agg_type:
-                        # if aggregation is on single topic find the topic id
-                        # in the topics table that corresponds to agg_topic_id
-                        # so that we can grab the correct metadata
-                        _log.debug("Single topic aggregate query. Try to get "
-                                   "metadata")
-                        if topic_id:
-                            _log.debug("aggregation of a single topic, "
-                                       "found topic id in topic map. "
-                                       "topic_id={}".format(topic_id))
-                            metadata = self._topic_meta.get(topic_id, {})
-                        else:
-                            # if topic name does not have entry in topic_id_map
-                            # it is a user configured aggregation_topic_name
-                            # which denotes aggregation across multiple points
-                            metadata = {}
-                    else:
-                        # this is a query on raw data, get metadata for
-                        # topic from topic_meta map
-                        metadata = self._topic_meta.get(topic_id, {})
-
-                    return dict(values=values, metadata=metadata)
-            else:
-                results=dict()
-
-        results['values'] = values
-        results['metadata'] = metadata
+        if len(topics) > 1:
+            results['values'] = values
+            results['metadata'] = {}
+        else:  # return the list from the single topic
+            results['values'] = values[topics[0]]
+            results['metadata'] = metadata
 
         return results
 
@@ -541,64 +389,6 @@ cached.
         results = [x[0] for x in cursor.fetchall()]
         return results
 
-    @doc_inherit
-    def query_topics_metadata(self, topics):
-        pass
-        # meta = {}
-        # if isinstance(topics, str):
-        #     topic_id = self._topic_id_map.get(topics.lower())
-        #     if topic_id:
-        #         meta = {topics: self._topic_meta.get(topic_id)}
-        # elif isinstance(topics, list):
-        #     for topic in topics:
-        #         topic_id = self._topic_id_map.get(topic.lower())
-        #         if topic_id:
-        #             meta[topic] = self._topic_meta.get(topic_id)
-        # return meta
-
-    def query_aggregate_topics(self):
-        pass
-
-        # return mongoutils.get_agg_topics(
-        #     self._client,
-        #     self._agg_topic_collection,
-        #     self._agg_meta_collection)
-
-    def _load_topic_map(self):
-        _log.debug('loading topic map')
-        cursor = self._connection.cursor()
-
-        cursor.execute("""
-            SELECT id, name, lower(name) AS lower_name, data_table, data_type
-            FROM {schema}.topic
-            ORDER BY lower(name)
-        """.format(schema=self._schema))
-
-        for row in cursor.fetchall():
-            _log.debug('loading: {}'.format(row[2]))
-            self._topic_to_datatype_map[row[2]] = row[4]
-            self._topic_to_datatype_map[row[0]] = row[4]
-            self._topic_to_table_map[row[2]] = row[3]
-            self._topic_to_table_map[row[0]] = row[3]
-            self._topic_id_map[row[2]] = row[0]
-            self._topic_name_map[row[2]] = row[1]
-
-        cursor.close()
-
-    def _load_meta_map(self):
-        _log.debug('loading meta map')
-        cursor = self._connection.cursor()
-
-        cursor.execute("""
-            SELECT topic_id, meta_data
-            FROM {schema}.meta
-        """.format(schema=self._schema))
-
-        for row in cursor.fetchall():
-            self._topic_meta[row[0]] = jsonapi.loads(row[1])
-
-        cursor.close()
-
     def get_connection(self):
         if self._connection is None:
             self._connection = client.connect(self._connection_params['host'],
@@ -608,61 +398,20 @@ cached.
     @doc_inherit
     def historian_setup(self):
         try:
-            _log.debug("HISTORIAN SETUP")
-
             self._connection = self.get_connection()
+
             _log.debug("Using schema: {}".format(self._schema))
             create_schema(self._connection, self._schema)
 
-            self._load_topic_map()
-            self._load_meta_map()
+            cursor = self._connection.cursor()
+            cursor.execute(select_all_topics_query(self._schema))
+
+            topics = [x[0] for x in cursor.fetchall()]
+            self._topic_set = set(topics)
             self._initialized = True
         except Exception as e:
             _log.error("Exception during historian setup!")
             _log.error(e.args)
-
-
-            # self._client = mongoutils.get_mongo_client(self._connection_params)
-            # db = self._client.get_default_database()
-            # db[self._data_collection].create_index(
-            #     [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
-            #     unique=True, background=True)
-
-            # self._topic_id_map, self._topic_name_map = \
-            #     mongoutils.get_topic_map(
-            #         self._client, self._topic_collection)
-            # self._load_meta_map()
-            #
-            # if self._agg_topic_collection in db.collection_names():
-            #     _log.debug("found agg_topics_collection ")
-            #     self._agg_topic_id_map = mongoutils.get_agg_topic_map(
-            #         self._client, self._agg_topic_collection)
-            # else:
-            #     _log.debug("no agg topics to load")
-            #     self._agg_topic_id_map = {}
-
-    def record_table_definitions(self, meta_table_name):
-        _log.debug("In record_table_def  table:{}".format(meta_table_name))
-        pass
-        #
-        # db = self._client.get_default_database()
-        # db[meta_table_name].bulk_write([
-        #     ReplaceOne(
-        #         {'table_id': 'data_table'},
-        #         {'table_id': 'data_table',
-        #          'table_name': self._data_collection, 'table_prefix': ''},
-        #         upsert=True),
-        #     ReplaceOne(
-        #         {'table_id': 'topics_table'},
-        #         {'table_id': 'topics_table',
-        #          'table_name': self._topic_collection, 'table_prefix': ''},
-        #         upsert=True),
-        #     ReplaceOne(
-        #         {'table_id': 'meta_table'},
-        #         {'table_id': 'meta_table',
-        #          'table_name': self._meta_collection, 'table_prefix': ''},
-        #         upsert=True)])
-
 
 
 def main(argv=sys.argv):
