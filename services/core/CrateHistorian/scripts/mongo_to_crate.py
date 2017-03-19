@@ -13,8 +13,12 @@ import pymongo
 from bson.objectid import ObjectId
 from zmq.utils import jsonapi
 
+from volttron.platform import get_volttron_root
+
+sys.path.insert(0, os.path.join(get_volttron_root(),
+                                "services/core/CrateHistorian"))
+from crate_historian import crate_utils
 from volttron.platform.agent import utils
-from volttron.platform.dbutils import cratedriver
 from volttron.platform.dbutils import mongoutils
 
 logging.basicConfig(level=logging.DEBUG)
@@ -140,7 +144,7 @@ def get_crate_db():
     crate_db = crate_client.connect(crate_params["connection"]["params"]["host"],
                                     error_trace=True)
     if not crate_created:
-        cratedriver.create_schema(crate_db,
+        crate_utils.create_schema(crate_db,
                                   crate_params['connection'].get('schema',
                                                                  'historian'))
         crate_created = True

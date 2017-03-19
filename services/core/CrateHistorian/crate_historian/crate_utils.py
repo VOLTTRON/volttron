@@ -21,6 +21,23 @@ def insert_data_query(schema):
     return query.replace("\n", "")
 
 
+def drop_schema(connection, schema=None, truncate=False):
+    _log = logging.getLogger(__name__)
+    if not schema:
+        _log.error("Invalid schema passed to drop schema function")
+        return
+    tables = ["data", "topic"]
+    cursor = connection.cursor()
+    for t in tables:
+        if truncate:
+            query = "DELETE FROM {schema}.{table}".format(schema=schema,
+                                                          table=t)
+        else:
+            query = "DROP TABLE {schema}.{table}".format(schema=schema,
+                                                         table=t)
+        cursor.execute(query)
+
+
 def create_schema(connection, schema="historian"):
     _log = logging.getLogger(__name__)
     _log.debug("Creating crate tables if necessary.")
