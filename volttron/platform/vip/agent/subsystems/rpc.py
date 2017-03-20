@@ -215,6 +215,7 @@ class RPC(SubsystemBase):
         self._counter = counter()
         self._outstanding = weakref.WeakValueDictionary()
         core.register('RPC', self._handle_subsystem, self._handle_error)
+        core.register('EXT_RPC', self._handle_external_rpc_subsystem, self._handle_error)
 
         def export(member):   # pylint: disable=redefined-outer-name
             for name in annotations(member, set, 'rpc.exports'):
@@ -254,40 +255,43 @@ class RPC(SubsystemBase):
         return checked_method
 
     @spawn
-    def _handle_extrpc_subsystem(self, message):
+    def _handle_external_rpc_subsystem(self, message):
         ret_msg = dict()
-        rpc_msg = jsonapi.loads(message.args[0].bytes)
+        #_log.debug("EXT_RPC subsystem handler IN message {0}".format(message))
+        op = message.args[0].bytes
+        rpc_msg = jsonapi.loads(message.args[1].bytes)
         try:
-            _log.debug("External RPC IN message {0}, {1}".format(message.peer, rpc_msg))
+            #_log.debug("EXT_RPC subsystem handler IN message {0}, {1}".format(message.peer, rpc_msg))
             method_args = rpc_msg['args']
             #message.args = [method_args]
             message.args = method_args
             dispatch = self._dispatcher.dispatch
-            _log.debug("External RPC IN message args {}".format(message))
+            #_log.debug("External RPC IN message args {}".format(message))
 
             responses = [response for response in (
                 dispatch(bytes(msg), message) for msg in message.args) if response]
-            _log.debug("External RPC Resonses {}".format(responses))
+            #_log.debug("External RPC Resonses {}".format(responses))
             if responses:
                 message.user = ''
                 try:
-                    recvr_platform = rpc_msg['to_platform']
-                    recvr_peer = rpc_msg['to_peer']
-                    sender_platform = rpc_msg['from_platform']
-                    sender_peer = rpc_msg['from_peer']
                     message.peer = ''
                     message.subsystem = 'EXT_RPC'
-                    ext_rpc_msg = jsonapi.dumps(
-                        dict(to_platform=sender_platform, to_peer=sender_peer, from_platform=recvr_platform, from_peer=recvr_peer, args=responses))
+                    frames = []
+                    op = b'send_platform'
+                    frames.append(op)
+                    msg = jsonapi.dumps(dict(to_platform=rpc_msg['from_platform'],
+                                             to_peer=rpc_msg['from_peer'],
+                                             from_platform=rpc_msg['to_platform'],
+                                             from_peer=rpc_msg['to_peer'], args=responses))
+                    frames.append(msg)
                 except KeyError:
                     _log.error("External RPC message did not contain proper message format")
                 message.args = jsonapi.dumps(ret_msg)
                 ret_msg = jsonapi.dumps(ret_msg)
-                _log.debug("External RPC OUT message {}".format(message))
-                #self.core().socket.send_vip_object(message, copy=False)
+                #_log.debug("EXT_RPC subsystem handler OUT message {}".format(message))
                 try:
-                    self.core().socket.send_vip(b'', 'EXT_RPC', ext_rpc_msg, user=message.user, msg_id=message.id, copy=False)
-                    #self.corsock.send_multipart(frames, flags=NOBLOCK, copy=False)
+                    self.core().socket.send_vip(b'', 'EXT_RPC', frames,
+                                                user=message.user, msg_id=message.id, copy=False)
                 except ZMQError as ex:
                     _log.error("ZMQ error: {}".format(ex))
                     pass
@@ -343,10 +347,21 @@ class RPC(SubsystemBase):
         return results or None
 
     def call(self, peer, method, *args, **kwargs):
+        platform = kwargs.pop('platform', '')
         request, result = self._dispatcher.call(method, args, kwargs)
         ident = '%s.%s' % (next(self._counter), hash(result))
         self._outstanding[ident] = result
-        self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
+        if platform == '':
+            self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
+        else:
+            frames = []
+            op = b'send_platform'
+            frames.append(op)
+            msg = jsonapi.dumps(dict(to_platform=platform, to_peer=peer,
+                                           from_platform='', from_peer='', args=[request]))
+            frames.append(msg)
+            #_log.debug("RPC subsystem: External platform RPC msg: {}".format(frames))
+            self.core().socket.send_vip('', 'EXT_RPC', frames, msg_id=ident)
         return result
 
     __call__ = call
@@ -357,12 +372,16 @@ class RPC(SubsystemBase):
         self._outstanding[ident] = result
         #self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
         _log.debug("Args: {0}, Kwargs: {1}".format(args, kwargs))
-        ext_rpc_msg = jsonapi.dumps(dict(to_platform=platform_id, to_peer=peer, from_platform='', from_peer= '', args=[request]))
+
         if platform_id is None:
             self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
         else:
-            _log.debug("RPC subsystem: External platform RPC msg: {}".format(ext_rpc_msg))
-            self.core().socket.send_vip('', 'EXT_RPC', ext_rpc_msg, msg_id=ident)
+            frames = []
+            frames[0] = b'send_platform'
+            frames[1] = jsonapi.dumps(dict(to_platform=platform_id, to_peer=peer,
+                                           from_platform='', from_peer='', args=[request]))
+            _log.debug("RPC subsystem: External platform RPC msg: {}".format(frames))
+            self.core().socket.send_vip('', 'EXT_RPC', frames, msg_id=ident)
         return result
 
     #__call__ = call

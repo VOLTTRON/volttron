@@ -144,7 +144,7 @@ class RoutingService(object):
                 sock.identity = self._ext_addresses[name]['platform_identity']
                 _log.debug("ROUTINGSERVICE CONNECTED TO EXTERNAL PLATFORM {}".format(sock.identity))
                 sock.zap_domain = 'vip'
-                self._monitor_poller.register(sock.get_monitor_socket(zmq.EVENT_CONNECTED), zmq.POLLIN)
+                self._monitor_poller.register(sock.get_monitor_socket(zmq.EVENT_CONNECTED|zmq.EVENT_DISCONNECTED), zmq.POLLIN)
                 address = build_vip_address(addr, serverkey)
 
                 ext_platform_address = Address(address)
@@ -202,7 +202,7 @@ class RoutingService(object):
                 for monitor_sock in sockets:
                     message = recv_monitor_message(monitor_sock)
                     event = message['event']
-                    #_log.debug("ROUTING SERVICE RECEIVING EVENT: {0}, {1}".format(message, events[event]))
+                    _log.debug("ROUTING SERVICE RECEIVING EVENT: {0}, {1}".format(message, events[event]))
                     if event & zmq.EVENT_CONNECTED:
                         _log.debug("ROUTINGSERVICE socket CONNECTED!! send local subscriptions !!")
                         instance_name = {name for name, instance_info in self._socket_id_mapping.items()
@@ -212,9 +212,10 @@ class RoutingService(object):
                     elif event & zmq.EVENT_CONNECT_DELAYED:
                         _log.debug("ROUTINGSERVICE socket DELAYED...Lets wait")
                     if event & zmq.EVENT_DISCONNECTED:
+                        _log.debug("ROUTINGSERVICE socket DISCONNECTED...remove subscriptions")
                         instance_name = {name for name, instance_info in self._socket_id_mapping.items()
                                        if instance_info['monitor_socket'] == monitor_sock}
-                        #self._onconnect_pubsub_handler(instance_name)
+                        self._ondisconnect_pubsub_handler(instance_name)
                         #_log.debug("ROUTINGSERVICE socket DISCONNECTED, remove all subscriptions !!")
                 #gevent.sleep(1)
         finally:
@@ -272,7 +273,7 @@ class RoutingService(object):
                 _log.debug("EAGAIN error {}".format(peer_platform.bytes))
         return drop
 
-    def handle_subsystem(self, frames, user_id):
+    def handle_subsystem(self, frames):
         """
          Handler for incoming routing table frames. It checks operation frame and directs it to appropriate action handler.
         :param frames list of frames
@@ -301,7 +302,7 @@ class RoutingService(object):
                 _log.debug("Resonse to request")
         if result is not None:
             #Form response frame
-            response = [sender, recipient, proto, user_id, msg_id, subsystem]
+            response = [sender, recipient, proto, usr_id, msg_id, subsystem]
             response.append(zmq.Frame(b'request_response'))
             response.append(zmq.Frame(bytes(result)))
 

@@ -99,6 +99,7 @@ from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
 from .vip.routingservice import RoutingService
+from .vip.externalrpcservice import ExternalRPCService
 from ..utils.persistance import load_create_store
 
 try:
@@ -290,8 +291,9 @@ class Router(BaseRouter):
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address
         self._protected_topics = protected_topics
-        self.external_address_file = external_address_file
+        self._external_address_file = external_address_file
         self._pubsub = None
+        self._ext_rpc = None
 
 
     def setup(self):
@@ -328,10 +330,11 @@ class Router(BaseRouter):
         #self._ext_routing = None
         self._ext_routing = RoutingService(self.socket, self.context,
                                            self._socket_class, self._poller,
-                                           self.external_address_file, self._addr)
+                                           self._external_address_file, self._addr)
         self._ext_routing.setup()
         #gevent.spawn_later(2, self._ext_routing.setup())
         self._pubsub = PubSubService(self.socket, self._protected_topics, self._ext_routing)
+        self._ext_rpc = ExternalRPCService(self.socket, self._ext_routing)
         self._poller.register(sock, zmq.POLLIN)
         _log.debug("ZMQ version: {}".format(zmq.zmq_version()))
 
@@ -398,44 +401,10 @@ class Router(BaseRouter):
             result = self._pubsub.handle_subsystem(frames, user_id)
             return result
         elif subsystem == b'routing_table':
-            result = self._ext_routing.handle_subsystem(frames, user_id)
+            result = self._ext_routing.handle_subsystem(frames)
         elif subsystem == b'EXT_RPC':
-            try:
-                _log.debug("ROUTER: Received EXT_RPC sub system message")
-                #Reframe the frames
-                sender, recipient, proto, usr_id, msg_id, subsystem, msg = frames[:7]
-                # for f in frames:
-                #     _log.debug("Frames for EXT_RPC: {}".format(f))
-
-                msg_data = jsonapi.loads(bytes(msg))
-                to_platform = msg_data['to_platform']
-                if self._ext_sockets:
-                    sock = self._ext_sockets[0]
-                else:
-                    sock = self.socket
-                msg_data['from_platform'] = sock.identity
-                msg_data['from_peer'] = bytes(sender)
-                msg = jsonapi.dumps(msg_data)
-                _log.debug("ROUTER: EXT RPC message frames: sender {0}, recipient {1}, proto {2}, usr_id {3}, msg_id {4}, subsystem {5}, msg args {6}".
-                               format(bytes(sender), bytes(recipient), bytes(proto), bytes(usr_id), bytes(msg_id), bytes(subsystem), msg))
-                _log.debug("ROUTER: Sending EXT RPC message to: {}".format(to_platform))
-                frames[:7] = [to_platform, sender, proto, usr_id, msg_id, subsystem, msg]
-                try:
-                    if self._instance_name == 'tcp://127.0.0.2:22916':
-                        _log.debug("ROUTER: Instance: {0}, Sending EXT RPC message to: {1}".format(self._instance_name, to_platform))
-                        sock = self._ext_sockets[0]
-                        sock = self.router_server_socket
-                        peer = msg_data['to_peer']
-                        frames[:7] = [to_platform, proto, usr_id, msg_id, subsystem, msg]
-                        sock.send_multipart(frames, flags=NOBLOCK, copy=False)
-                    else:
-                        #_log.debug("Not sending anything")
-                        sock = self.socket.send_multipart(frames, flags=NOBLOCK, copy=False)
-                except ZMQError as ex:
-                    _log.error("ZMQ error: {}".format(ex))
-                    pass
-            except IndexError:
-                _log.error("Invalid EXT RPC message")
+            result = self._ext_rpc.handle_subsystem(frames)
+            return result
 
     def _drop_pubsub_peers(self, peer):
         self._pubsub.peer_drop(peer)
@@ -454,7 +423,7 @@ class Router(BaseRouter):
                 if sockets[sock] == zmq.POLLIN:
                     self.route()
             elif sock in self._ext_routing._ext_sockets:
-                _log.debug("External socket found")
+                _log.debug("External socket found {}".format(sock.identity))
                 if sockets[sock] == zmq.POLLIN:
                     self.ext_route(sock)
             else:
