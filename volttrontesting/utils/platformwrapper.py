@@ -380,7 +380,8 @@ class PlatformWrapper:
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
         mode=UNRESTRICTED, bind_web_address=None,
-        volttron_central_address=None, volttron_central_serverkey=None):
+        volttron_central_address=None, volttron_central_serverkey=None,
+        msgdebug=False):
 
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
@@ -484,10 +485,13 @@ class PlatformWrapper:
             raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
 
         log = os.path.join(self.volttron_home, 'volttron.log')
+
+        cmd = ['volttron']
+        if msgdebug:
+            cmd.append('--msgdebug')
         if enable_logging:
-            cmd = ['volttron', '-vv', '-l{}'.format(log)]
-        else:
-            cmd = ['volttron', '-l{}'.format(log)]
+            cmd.append('-vv')
+        cmd.append('-l{}'.format(log))
 
         print('process environment: {}'.format(self.env))
         print('popen params: {}'.format(cmd))
