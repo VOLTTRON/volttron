@@ -3,38 +3,50 @@
 Message Debugging
 =================
 
-VOLTTRON agent messages are routed to each other over the VOLTTRON message bus.
-The Message Debugger Agent enables examination of this message stream's
+VOLTTRON agent messages are routed over the VOLTTRON message bus.
+The Message Debugger Agent provides enhanced examination of this message stream's
 contents as an aid to debugging and troubleshooting agents and drivers.
 
-When it is enabled, the Message Debugger Agent captures and records each message.
-A second process, Message Viewer, provides a user interface that can filter the
-resulting data stream, either in real time or retrospectively, and display its contents.
+When enabled, the Message Debugger Agent captures and records each message as it is routed.
+A second process, Message Viewer, provides a user interface that optimizes and filters the
+resulting data stream, either in real time or retrospectively, and displays its contents.
 
-In the Message Viewer, a summary view conveys information about the high-level interactions
-occurring among VOLTTRON agents as conversations that can be filtered and/or expanded.
-A simple RPC call involving 4 message send/receive segments can be displayed as a single,
-expandable row of data. In this way, a higher-level, easier-to-obtain view of message bus
-activity is available than might be gleaned from using grep on verbose log files.
+The Message Viewer can convey information about high-level interactions among VOLTTRON agents,
+representing the message data as conversations that can be filtered and/or expanded.
+A simple RPC call involving 4 individual message send/receive segments can be displayed as a
+single row, which can then be expanded to drill down into the message details.
+This results in a higher-level, easier-to-obtain view of message bus activity
+than might be gleaned by using grep on verbose log files.
 
-Pub/sub interactions can be summarized by topic, with high-level statistics such as
-number of messages published, by sender, during the capture period.
-One view shows the most recently published message meeting filter criteria, continuously updated
-as new messages arrive.
+Pub/Sub interactions can be summarized by topic, including counts of messages published during
+a given capture period by sender, receiver and topic.
 
-.. image:: files/40-message-debugger.jpg
+Another view displays the most-recently-published message, or message exchange, that
+satisfies the current filter criteria, continuously updated as new messages are routed.
 
-Enabling the Message Debugger Agent
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Enabling the Message Debugger
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-TBD: Talk about why message debugging is disabled by default, and the consequences of enabling it.
+In order to use the Message Debugger, two steps are required:
 
-TBD: Describe the ``--msgdebug`` command line option.
+-   VOLTTRON must have been started with a ``--msgdebug`` command line option.
+-   The Message Debugger Agent must be running.
+
+When VOLTTRON has been started with ``--msgdebug``, its Router publishes each message
+to an IPC socket for which the Message Debugger Agent is a subscriber. This is kept disabled
+by default because it consumes a significant quantity of CPU and memory resources, potentially
+affecting VOLTTRON timing and performance. So as a general rule, the ``--msgdebug`` option
+should be employed during development/debugging only, and should not be left enabled in
+a production environment.
+
+Example of starting VOLTTRON with the ``--msgdebug`` command line option:
 ::
 
     (volttron) volttron -vv -l log1 ``--msgdebug``
 
-TBD: Show starting the Agent from volttron-ctl (include a link to volttron-ctl documentation)
+If VOLTTRON is running in this mode, the stream of routed messages is available to
+a subscribing Message Debugger Agent. It can be started from volttron-ctl in the same
+fashion as other agents, for example:
 ::
 
     (volttron) $ volttron-ctl status
@@ -54,30 +66,31 @@ TBD: Show starting the Agent from volttron-ctl (include a link to volttron-ctl d
     e1 vcplatformagent-3.5.4      platform.agent           vcp
     47 volttroncentralagent-3.5.5 volttron.central         vc
 
-Configuring the Message Debugger Agent
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+See :ref:`Agent Creation Walkthrough <Agent-Development>` for further details on
+installing and starting agents from volttron-ctl.
 
-TBD: Describe the agent's "out of the box" configuration
-::
+Once the Message Debugger Agent is running, it begins capturing message data and
+writing it to a SQLite database.
 
-    {
-        "agent": {
-            "exec": "messagedebuggeragent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
-        },
-        "agentid": "messagedebugger",
-        "router_path": "$VOLTTRON_HOME/run/messagedebug",
-        "monitor_path": "$VOLTTRON_HOME/run/messageviewer",
-        "db_path": "$VOLTTRON_HOME/data/messagedebugger.sqlite"
-    }
+Message Viewer
+~~~~~~~~~~~~~~
 
-The Message Viewer
-~~~~~~~~~~~~~~~~~~
+The Message Viewer is a separate process that interacts with the Message Debugger Agent
+primarily via VOLTTRON RPC calls. These calls allow it to request and report on filtered sets
+of message data.
 
-TBD: Describe how the Message Viewer interacts with the agent
+Since the Agent's RPC methods are available for use by any VOLTTRON agent, the Message Viewer
+is really just one example of a Message Debugger information consumer. Other viewers could be
+created to satisfy a variety of specific debugging needs. For example, a viewer could support
+browser-based message debugging with a graphical user interface, or a viewer could transform
+message data into PCAP format for consumption by WireShark.
 
-TBD: Describe the command-line UI, which gets started by default.
+The Message Viewer in services/core/MessageDebuggerAgent/messageviewer/viewer.py implements a
+command-line UI, subclassing Python's ``Cmd`` class. Most of the command-line options that it
+displays result in a MessageDebuggerAgent RPC request. The Message Viewer formats and displays
+the results.
 
-TBD: Reference the MessageViewer class methods, described later in this document.
+In Linux, the Message Viewer can be started as follows, and displays the following menu:
 ::
 
     (volttron) $ cd services/core/MessageDebuggerAgent/messageviewer
@@ -107,11 +120,14 @@ TBD: Reference the MessageViewer class methods, described later in this document
          help
          quit
     Please enter a command.
+    Viewer>
 
 Command-Line Help
 ~~~~~~~~~~~~~~~~~
 
-TBD: Describe command-line (two-level) help
+The Message Viewer offers two help levels. Simply typing ``help`` gives a list of available
+commands. If a command name is provided as an argument, advice is offered on how to use
+that command:
 ::
 
     Viewer> help
@@ -146,7 +162,9 @@ TBD: Describe command-line (two-level) help
 Debug Sessions
 ~~~~~~~~~~~~~~
 
-TBD: Discuss ``list_sessions``.
+The Message Debugger Agent tags each message with a debug session ID (a serial number),
+which groups a set of messages that are bounded by a start time and an end time. The ``list_sessions``
+command describes each session in the database:
 ::
 
     Viewer> list_sessions
@@ -155,10 +173,19 @@ TBD: Discuss ``list_sessions``.
       2            2017-03-20 17:17:35.725224  -                           1320
       3            2017-03-20 17:33:35.103204  2017-03-20 17:46:15.657487  12388
 
-Filtered Display of Debug Messages
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+A new session is started by default when the Agent is started. After that, the ``stop_session``
+and ``start_session`` commands can be used to create new session boundaries. If the Agent is running
+but no session is active (i.e., because ``stop_session`` was used to stop it), messages are
+still written to the database, but they have no session ID.
 
-TBD: Discuss ``set_filter`` and ``display_messages``.
+Filtered Display
+~~~~~~~~~~~~~~~~
+
+The ``set_filter <property> <value>`` command enables filtered display of messages. A variety
+of properties can be filtered.
+
+In the following example, message filters are defined by session_id and sender, and the ``display_messages``
+command displays the results:
 ::
 
     Viewer> set_filter session_id 4
@@ -177,12 +204,14 @@ TBD: Discuss ``set_filter`` and ``display_messages``.
 Debug Message Exchanges
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-TBD: Discuss DebugMessageExchange and ``display_exchanges``.
+A VOLTTRON message's request ID is not unique to a single message. A group of messages in an "exchange"
+(essentially a small conversation among agents) will often share a common request ID, for instance during RPC
+request/response exchanges.
 
-A VOLTTRON message ID is not unique to a single message. A group of messages in a "conversation"
-may share a common ID, for instance during RPC request/response exchanges.
-When detailed display of all messages for a single message ID is requested, they will be displayed
-in chronological order.
+The following example uses the same filters as above, and then uses ``display_exchanges``
+to display a single line for each message exchange, reducing the number of displayed rows from 6 to 2.
+Note that not all messages have a request ID; messages with no ID are absent from the responses to
+exchange queries.
 ::
 
     Viewer> list_filters
@@ -195,8 +224,14 @@ in chronological order.
 Special Filters
 ~~~~~~~~~~~~~~~
 
-TBD: Discuss ``set_filter starttime`` and ``set_filter endtime``.
-TBD: Note the use of quoted strings for the timestamps (any filter's value can be entered in quotes).
+Most filters that can be set with the ``set_filter`` command are simple string matches on
+one or another property of a message. Some filters have special characteristics, though.
+The ``set_filter starttime <timestamp>`` and ``set_filter endtime <timestamp>`` filters are
+inequalities that test for messages after a start time or before an end time.
+
+In the following example, note the use of quotes in the endtime value supplied to
+set_filter. Any filter value can be delimited with quotes. Quotes must be
+used when a value contains embedded spaces, as is the case here:
 ::
 
     Viewer> list_sessions
@@ -222,8 +257,10 @@ TBD: Note the use of quoted strings for the timestamps (any filter's value can b
       testagent    platform.driver  11:51:26     -                         chargepoint1  Status       AVAILABLE
       testagent    pubsub           11:51:26     test_topic/test_subtopic  -             -            None
 
-TBD: Discuss using ``set_filter topic``, matching only the start of the topic name.
-TBD: Unlike other filters, a 'topic' filter can match leading substrings.
+Another filter type with special behavior is ``set_filter topic <name>``. Ordinarily, filters do an exact
+match on a message property. Since message topics are often expressed as hierarchical substrings,
+though, the ``topic`` filter does a substring match on the left edge of a message's topic,
+as in the following example:
 ::
 
     Viewer> set_filter topic test_topic
@@ -235,9 +272,18 @@ TBD: Unlike other filters, a 'topic' filter can match leading substrings.
       testagent    pubsub       11:51:26     test_topic/test_subtopic  -            -            None
     Viewer>
 
-TBD: Discuss using ``set_filter results_only 1``.
-TBD: (Explain that the "1" is required by the set_filter syntax, but is ignored.)
-TBD: (Clear the topic filter.)
+Another filter type with special behavior is ``set_filter results_only 1``. In the JSON representation of a
+response to an RPC call, for example an RPC call to a Master Driver interface, the response to the
+RPC request typically appears as the value of a 'result' tag. The ``results_only`` filter matches
+only those messages that have a non-empty value for this tag.
+
+In the following example, note that when the ``results_only`` filter is set, it is given a value
+of '1'. This is actually a meaningless value that gets ignored. It must be supplied because the
+set_filter command syntax requires that a value be supplied as a parameter.
+
+In the following example, note the use of ``clear_filter <property>`` to remove a single
+named filter from the list of filters that are currently in effect. There is also a ``clear_filters``
+command, which clears all current filters.
 ::
 
     Viewer> clear_filter topic
@@ -253,8 +299,19 @@ TBD: (Clear the topic filter.)
 Streamed Display
 ~~~~~~~~~~~~~~~~
 
-TBD: Discuss using ``display_message_stream`` (interrupt with ctrl-C).
-TBD: Discuss how filters are applied to it.
+In addition to exposing a set of RPC calls that allow other agents (like the Message Viewer)
+to query the Message Debugger Agent's SQLite database of recent messages, the Agent can also
+publish messages in real time as it receives them.
+
+This feature is disabled by default due to the large quantity of data that it might need to
+handle. When it is enabled, the Agent applies the filters currently in effect to each message as
+it is received, and re-publishes the transformed, ready-for-debugging message to a socket
+if it meets the filter criteria. The Message Viewer can listen on that socket and display
+the message stream as it arrives.
+
+In the following ``display_message_stream`` example, the Message Viewer displays all messages
+sent by the agent named 'testagent', as they arrive. It continues to display messages until
+execution is interrupted with ctrl-C:
 ::
 
     Viewer> clear_filters
@@ -278,26 +335,22 @@ TBD: Discuss how filters are applied to it.
                                                           49056827.28
                                                           4581685
       12:28:58     outgoing     testagent    pubsub       -            RPC          pubsub.push  -            -            -            -
-      12:28:58     outgoing     testagent    pubsub       -            RPC          pubsub.push  -            -            -            -
-      12:28:58     incoming     testagent    platform.dr  11978862486  RPC          get_point    -            chargepoint  Status       -
-                                             iver         49056828.28                                         1
-                                                          4581685
-      12:28:58     outgoing     testagent    platform.dr  11978862486  RPC          -            -            -            -            AVAILABLE
-                                             iver         49056828.28
-                                                          4581685
-      12:28:58     incoming     testagent    pubsub       11978862486  RPC          pubsub.publ  test_topic/  -            -            -
-                                                          49056829.28               ish          test_subtop
-                                                          4581649                                ic
-      12:28:58     outgoing     testagent    pubsub       11978862486  RPC          -            -            -            -            None
-                                                          49056829.28
-                                                          4581649
     ^CViewer> stop_streaming
     Stopped streaming debug messages
+
+(Note the use of wrapping in the column formatting. Since these messages aren't known in advance, the
+Message Viewer has incomplete information about how wide to make each column. Instead, it must
+make guesses based on header widths, data widths in the first row received, and min/max values,
+and then wrap the data when it overflows the column boundaries.)
 
 Single-Line Display
 ~~~~~~~~~~~~~~~~~~~
 
-TBD: Discuss using ``set_filter freq`` to display a single line (interrupt with ctrl-C).
+Another filter with special behavior is ``set_filter freq <seconds>``. This filter, which takes a number N
+as its value, displays only one row, the most recently captured row that satisfies the filter criteria.
+(Like other filters, this filter can be used with either ``display_messages`` or ``display_exchanges``.)
+It then waits N seconds, reissues the query, and overwrites the old row with the new one.
+It continues this periodic single-line overwritten display until it is interrupted with ctrl-C:
 ::
 
     Viewer> list_filters
@@ -308,12 +361,17 @@ TBD: Discuss using ``set_filter freq`` to display a single line (interrupt with 
       sender       recipient    sender_time  topic                     device       point        result
       testagent    pubsub       12:31:28     test_topic/test_subtopic  -            -            None
 
-TBD: Discuss truncation vs wrap in table columns.
+(Again, the data isn't known in advance, so the Message Viewer has to guess the best
+width of each column. In this single-line display format, data gets truncated if it doesn't fit,
+because no wrapping can be performed -- only one display line is available.)
 
 Displaying Exchange Details
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-TBD: Show the use of ``display_exchange_details`` at low/medium verbosity.
+The ``display_exchange_details <request_id>`` command provides a way to get more specific details
+about an exchange, i.e. about all messages that share a common request ID. At low or medium
+verbosity, when this command is used (supplying the relevant request ID, which can be obtained
+from the output of other commands), it displays one row for each message:
 ::
 
     Viewer> set_filter sender testagent
@@ -331,7 +389,8 @@ TBD: Show the use of ``display_exchange_details`` at low/medium verbosity.
       11:51:01     incoming     testagent    pubsub       1197886248649056373.284581649  RPC          pubsub.publish  test_topic/test_subtopic  -            -            -
       11:51:01     outgoing     testagent    pubsub       1197886248649056373.284581649  RPC          -               -                         -            -            None
 
-TBD: Show the use of ``display_exchange_details`` at high verbosity.
+At high verbosity, ``display_exchange_details`` switches display formats, showing all properties for
+each message in a json-like dictionary format:
 ::
 
     Viewer> set_verbosity high
@@ -392,64 +451,12 @@ TBD: Show the use of ``display_exchange_details`` at high verbosity.
         "vip_signature": "VIP1"
     }
 
-    {
-        "data": "{\"jsonrpc\":\"2.0\",\"id\":\"15828311332408898779.284581649\",\"result\":null}",
-        "device": "",
-        "direction": "incoming",
-        "frame7": "",
-        "frame8": "",
-        "frame9": "",
-        "headers": "",
-        "message": "",
-        "message_size": 124,
-        "message_value": "",
-        "method": "",
-        "params": "",
-        "point": "",
-        "point_value": "",
-        "recipient": "testagent",
-        "request_id": "1197886248649056373.284581649",
-        "result": "None",
-        "sender": "pubsub",
-        "session_id": 4,
-        "subsystem": "RPC",
-        "timestamp": "2017-03-21 11:51:01.038373",
-        "topic": "",
-        "user_id": "",
-        "vip_signature": "VIP1"
-    }
-
-    {
-        "data": "{\"jsonrpc\":\"2.0\",\"id\":\"15828311332408898779.284581649\",\"result\":null}",
-        "device": "",
-        "direction": "outgoing",
-        "frame7": "",
-        "frame8": "",
-        "frame9": "",
-        "headers": "",
-        "message": "",
-        "message_size": 135,
-        "message_value": "",
-        "method": "",
-        "params": "",
-        "point": "",
-        "point_value": "",
-        "recipient": "pubsub",
-        "request_id": "1197886248649056373.284581649",
-        "result": "None",
-        "sender": "testagent",
-        "session_id": 4,
-        "subsystem": "RPC",
-        "timestamp": "2017-03-21 11:51:01.042501",
-        "topic": "",
-        "user_id": "vip.service",
-        "vip_signature": "VIP1"
-    }
-
 Verbosity
 ~~~~~~~~~
 
-TBD: Discuss ``set_verbosity``.
+As mentioned in the previous section, Agent and Viewer behavior can be adjusted by changing
+the current verbosity with the ``set_verbosity <level>`` command. The default verbosity is low.
+low, medium and high levels are available:
 ::
 
     Viewer> set_verbosity high
@@ -457,25 +464,26 @@ TBD: Discuss ``set_verbosity``.
     Viewer> set_verbosity none
     Invalid verbosity choice none; valid choices are ['low', 'medium', 'high']
 
-TBD: Discuss the effects of each verbosity level.
+At high verbosity, the following query formatting rules are in effect:
 
-High verbosity:
+-   When displaying timestamps, display the full date and time (including microseconds), not just HH:MM:SS.
+-   In responses to display_message_exchanges, use dictionary format (see example in previous section).
+-   Display all columns, not just "interesting" columns (see the list below).
+-   Don't exclude messages/exchanges based on excluded senders/receivers (see the list below).
 
-. When displaying timestamps, display the full date and time (including microseconds), not just the HH:MM:SS time.
-. Display json dictionary-style, not as a table (see above).
-. Display all columns, not just "interesting" ones. (Show which are "interesting")
-. Don't exclude any messages/exchanges based on excluded senders/receivers. (Show which are excluded)
+At medium or low verbosity:
 
-Medium or low verbosity:
+-   When displaying timestamps, display HH:MM:SS only.
+-   In responses to display_message_exchanges, use table format.
+-   Display "interesting" columns only (see the list below).
+-   Exclude messages/exchanges for certain senders/receivers (see the list below).
 
-. Display "interesting" columns only.
-. Exclude messages/exchanges based on excluded senders/receivers.
+At low verbosity:
 
-Low verbosity:
+-   If > 1000 objects are returned by a query, display the count only.
 
-. If > 1000 objects returned from query, display count only
-
-"Interesting" columns:
+The following "interesting" columns are displayed at low and medium verbosity levels
+(at high verbosity levels, all properties are displayed):
 ::
 
     Debug Message       Debug Message Exchange      Debug Session
@@ -492,7 +500,8 @@ Low verbosity:
     point               point
     result              result
 
-Excluded rows by sender and receiver:
+Messages from the following senders, or to the following receivers, are excluded at
+low and medium verbosity levels:
 ::
 
     Sender                                  Receiver
@@ -507,10 +516,25 @@ Excluded rows by sender and receiver:
     platform.messagedebugger
     platform.messagedebugger.loopback_rpc
 
+These choices about which columns are "interesting" and which senders/receivers are excluded
+are defined as parameters in Message Viewer, and can be adjusted as necessary by changing
+global value lists in viewer.py.
+
 Session Statistics
 ~~~~~~~~~~~~~~~~~~
 
-TBD: Discuss ``display_session_details_by_agent``.
+One useful tactic for starting at a summary level and drilling down is to capture a set
+of messages for a session and then examine the counts of sending and receiving agents,
+or sending agents and topics. This gives hints on which values might serve as useful filters
+for more specific queries.
+
+The ``display_session_details_by_agent <session_id>`` command displays statistics by sending and
+receiving agent. Sending agents are table columns, and receiving agents are table rows.
+This query also applies whatever filters are currently in effect; the filters can reduce
+the counts and can also reduce the number of columns and rows.
+
+The following example shows the command being used to list all senders and receivers for
+messages sent during debug session 7:
 ::
 
     Viewer> list_sessions
@@ -535,7 +559,8 @@ TBD: Discuss ``display_session_details_by_agent``.
       pubsub                              2          679                         -             1249                         -            4           31
       testagent                           -            -                         -               16                         -           31            -
 
-TBD: Discuss ``display_session_details_by_topic``.
+The ``display_session_details_by_topic <session_id>`` command is similar to ``display_session_details_by_agent``,
+but each row contains statistics for a topic instead of for a receiving agent:
 ::
 
     Viewer> display_session_details_by_topic 7
@@ -580,9 +605,6 @@ TBD: Discuss ``display_session_details_by_topic``.
       devices/chargepoint1/percentShed               -            -                         -                6                         -            6            -
       devices/chargepoint1/portLoad                  -            -                         -                6                         -            6            -
       devices/chargepoint1/portNumber                -            -                         -                6                         -            6            -
-      devices/chargepoint1/postalCode                -            -                         -                5                         -            5            -
-      devices/chargepoint1/rfidSerialNumb            -            -                         -                6                         -            6            -
-      er
       devices/chargepoint1/sessionID                 -            -                         -                5                         -            5            -
       devices/chargepoint1/sessionTime               -            -                         -                6                         -            6            -
       devices/chargepoint1/sgID                      -            -                         -                6                         -            6            -
@@ -599,16 +621,6 @@ TBD: Discuss ``display_session_details_by_topic``.
       rofile
       devices/chargepoint1/stationSerialN            -            -                         -                6                         -            6            -
       um
-      devices/chargepoint1/unitPriceForFi            -            -                         -                6                         -            6            -
-      rst
-      devices/chargepoint1/unitPricePerHo            -            -                         -                5                         -            5            -
-      ur
-      devices/chargepoint1/unitPricePerHo            -            -                         -                5                         -            5            -
-      urThereafter
-      devices/chargepoint1/unitPricePerKW            -            -                         -                6                         -            6            -
-      h
-      devices/chargepoint1/unitPricePerSe            -            -                         -                6                         -            6            -
-      ssion
       heartbeat/control                              1            -                         -                -                         -            1            -
       heartbeat/listener                             -           15                         -                -                         -           15            -
       heartbeat/platform.driver                      -            -                         -                1                         -            1            -
@@ -618,11 +630,18 @@ TBD: Discuss ``display_session_details_by_topic``.
 Database Administration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
+The Message Debugger Agent stores message data in a SQLite database's DebugMessage,
+DebugMessageExchange and DebugSession tables. If the database isn't present already
+when the Agent is started, it is created automatically.
+
+The SQLite database can consume a lot of disk space in a relatively short time,
+so the Message Viewer has command-line options that recover that space by
+deleting the database or by deleting all messages belonging to a given debug session.
+
 The ``delete_session <session_id>`` command deletes the database's DebugSession row
 with the indicated ID, and also deletes all DebugMessage and DebugMessageExchange rows
-with that session ID. This can be a good way to recover disk space when a given debug
-session is obsolete. The delete_session command in the following example deletes the
-60,000 DebugMessages captured during a 20-minute period as session 6:
+with that session ID. In the following example, ``delete_session`` deletes the 60,000
+DebugMessages that were captured during a 20-minute period as session 6:
 ::
 
     Viewer> list_sessions
@@ -647,74 +666,76 @@ session is obsolete. The delete_session command in the following example deletes
       7            2017-03-21 12:38:31.617099  2017-03-21 12:39:53.174712  3966
       8            2017-03-21 12:42:08.482936  -                           4370
 
-The ``delete_database`` command deletes the SQLite database, removing all records
+The ``delete_database`` command deletes the entire SQLite database, removing all records
 of previously-captured DebugMessages, DebugMessageExchanges and DebugSessions.
-This could be an important tactic for preserving disk space, since the
-Message Debugger Agent can consume a lot of storage in a relatively short time.
+The database will be re-created the next time a debug session is started.
 ::
 
     Viewer> delete_database
     Database deleted
     Viewer> list_sessions
     No query results
+    Viewer> start_session
+    Message debugger session 1 started
+    Viewer> list_sessions
+      rowid        start_time                  end_time     num_messages
+      1            2017-03-22 12:39:40.320252  -            180
 
-It's also a good idea to delete the database when there are changes in the data structures
-of DebugMessage, DebugMessageExchange or DebugSession. A skew between these data structures
-in code vs. the ones in the database can cause instability in the Message Debugger Agent,
-perhaps causing it to fail. If a failure of this kind is interfering with database deletion
-via the Message Viewer command line, the database can be deleted directly from the filesystem.
-By default, the database can be found in $VOLTTRON_HOME's ``run`` directory.
+It's recommended that the database be deleted if changes are made to the DebugMessage,
+DebugMessageExchange or DebugSession object structures that are defined in agent.py.
+A skew between these data structures in Python code vs. the ones in the database can
+cause instability in the Message Debugger Agent, perhaps causing it to fail. If a failure
+of this kind prevents use of the Message Viewer's ``delete_database`` command, the
+database can be deleted directly from the filesystem. By default, it is located
+in $VOLTTRON_HOME's ``run`` directory.
 
-Calling MessageViewer Directly
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Implementation Details
+~~~~~~~~~~~~~~~~~~~~~~
 
-TBD: Describe how commands are available as class methods, and issue RPC calls to the Agent.
+.. image:: files/40-message-debugger.jpg
 
-The message viewer will display messages from the SQLite db.  We need to consider whether it should also subscribe
-to receiving messages in real-time.  The viewer will be responsible for displaying message statistics and will provide
-a command line interface to filter and display messages.
+**Router changes**: MessageDebuggerAgent reads and stores all messages that pass through the VIP router.
+This is accomplished by subscribing to the messages on a new socket published by the platform's
+``Router.issue()`` method.
 
-Message Debugger Agent Data Storage
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**The ``direction`` property**: Most agent interactions result in at least two messages, an incoming
+request and an outgoing response. ``Router.issue()`` has a ``topic`` parameter with values INCOMING,
+OUTGOING, ERROR and UNROUTABLE. The publication on the socket that happens in issue() includes this
+"issue topic" (not to be confused with a message's ``topic``) along with each message.
+MessageDebuggerAgent records it as a DebugMessage property called ``direction``, since its
+value for almost all messages is either INCOMING or OUTGOING.
 
-TBD: Describe the ``SQLite`` database and the use of ``SQL Alchemy``.
+**SQLite Database and SQL Alchemy**: MessageDebuggerAgent records each messsage as a DebugMessage row
+in a relational database. SQLite is used since it's packaged with Python and is already being used
+by other VOLTTRON agents. Database semantics are kept simple through the use of a SQL Alchemy
+object-relational mapping framework. Python's "SQLAlchemy" plug-in must be loaded in order for
+MessageDebuggerAgent to run.
 
-::
+**Calling MessageViewer Directly**: The viewer.py module that starts the Message Viewer command line
+also contains a MessageViewer class. It exposes class methods which can be used to make direct
+Python calls that, in turn, make Message Debugger Agent's RPC calls. The MessageViewer
+class-method API includes the following calls:
 
-    message(id, created_on, issue_topic, extras, sender, recipient, user_id, msg_id, subsystem, data)
+-   delete_debugging_db()
+-   delete_debugging_session(session_id)
+-   disable_message_debugging()
+-   display_db_objects(db_object_name, filters=None)
+-   display_message_stream()
+-   enable_message_debugging()
+-   message_exchange_details(message_id)
+-   session_details_by_agent(session_id)
+-   session_details_by_topic(session_id)
+-   set_filters(filters)
+-   set_verbosity(verbosity_level)
+-   start_streaming(filters=None)
+-   stop_streaming()
 
-msg_id will be used to associate pairs of incoming/outgoing messages.
-**note: data will be a jsonified list of frames, alternatively we could add a message_data table with one
-row per frame.
+The command-line UI's ``display_messages`` and ``display_exchanges`` commands are implemented here
+as ``display_db_objects('DebugMessage')`` and ``display_db_objects(DebugMessageExchange)``.
+These calls return json-encoded representations of DebugMessages and DebugMessageExchanges,
+which are formatted for display by MessageViewerCmd.
 
-A session table will track the start and end of a debug session and, at the end of a session, record statistics
-on the messages in the session.
-
-::
-
-    session(id, created_on, name, start_time,  end_time, num_messages)
-
-The command line tool will allow users to delete old sessions and select a session for review/playback.
-
-Router Implementation Details
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-MessageDebuggerAgent reads and stores all messages that pass through the VIP router. This is
-accomplished by subscribing to the messages on a new socket published by the platform's
-``Router.issue()`` method. Each messsage is recorded as a DebugMessage row in a relational database.
-SQLite is used since it's packaged with Python and is already being used by other VOLTTRON agents.
-Database semantics are kept simple through the use of the SQL Alchemy object-relational mapping
-framework; this is the only additional third-party software install required by the agent.
-
-Most agent interactions result in at least two messages, an incoming request and an outgoing response.
-``Router.issue()`` has a ``topic`` parameter with values INCOMING, OUTGOING, ERROR and UNROUTABLE.
-This "issue topic" (not to be confused with a message's ``topic``) is passed, along with each message,
-to MessageDebuggerAgent. It is recorded as the DebugMessage's ``direction`` property, since the value
-for almost all messages will be either INCOMING or OUTGOING.
-
-Caveats
-~~~~~~~
-
-TBD: Describe differences between running from the command line vs. running from a PyCharm debugger.
-
-TBD: List known bugs, limitations and opportunities for future enhancement.
+**MessageViewer connection**: MessageViewer is not actually a VOLTTRON agent. In order for it make
+MessageDebuggerAgent RPC calls, which are agent-agent interactions, it builds a "connection"
+that manages a temporary agent. This is a standard VOLTTRON pattern that is also used, for
+instance, by Volttron Central.
