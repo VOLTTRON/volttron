@@ -1,3 +1,5 @@
+.. _VCM-Webservice-API:
+
 ===============================================
 VOLTTRON Central Web Services Api Documentation
 ===============================================

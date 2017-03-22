@@ -94,9 +94,7 @@ var NewChartForm = React.createClass({
             selectedTopic.dataLength = this.state.dataLength;
             selectedTopic.chartType = this.state.chartType;
             selectedTopic.path = platformsPanelItemsStore.findTopicInTree(selectedTopic.topic);
-            selectedTopic.max = this.state.max;
-            selectedTopic.min = this.state.min;
-
+            
             if (selectedTopic.path && selectedTopic.path.length > 1)
             {
                 selectedTopic.parentUuid = selectedTopic.path[selectedTopic.path.length - 2];
@@ -121,9 +119,7 @@ var NewChartForm = React.createClass({
 
         var chartOptions = [
             { value: "line", label: "Line"},
-            { value: "lineWithFocus", label: "Line with View Finder"},
-            { value: "stackedArea", label: "Stacked Area"},
-            { value: "cumulativeLine", label: "Cumulative Line"}
+            { value: "stacked", label: "Stacked Area"}
         ];
 
         return (
@@ -183,30 +179,6 @@ var NewChartForm = React.createClass({
                         value={this.state.chartType}
                     >
                     </Select>
-                </div>
-                <div className="form__control-group">
-                    <label>Y-axis range</label>
-                    <label htmlFor="min">Min:</label>&nbsp;
-                    <input
-                        className="form__control form__control--inline"
-                        type="number"
-                        id="min"
-                        onChange={this._onPropChange}
-                        value={this.state.min}
-                        placeholder="auto"
-                    />&nbsp;
-                    <label htmlFor="max">Max:</label>&nbsp;
-                    <input
-                        className="form__control form__control--inline"
-                        type="number"
-                        id="max"
-                        onChange={this._onPropChange}
-                        value={this.state.max}
-                        placeholder="auto"
-                    /><br />
-                    <span className="form__control-help">
-                        Omit either to determine from data
-                    </span>
                 </div>
                 <div className="form__actions">
                     <button

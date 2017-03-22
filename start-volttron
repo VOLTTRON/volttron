@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
+
+# Check to make sure the script is executed from the correct
+# directory and that the environment has been bootstrapped.
+if [ ! -e "$SCRIPT_DIR/volttron/platform" ]; then
+    echo "Please execute from root of volttron repository."
+    exit 0
+fi
+
+if [ ! -e "$SCRIPT_DIR/env/bin/volttron" ]; then
+    echo "Bootstrap the environment before using this script."
+    exit 0
+fi
+
+# Activate environment
+source "$SCRIPT_DIR/env/bin/activate"
+
+if [ "$1" = '--rotating' ]; then
+    echo "Starting VOLTTRON with rotatinglog.py in the background."
+    volttron -L examples/rotatinglog.py > volttron.log 2>&1 &
+else
+    echo "Starting VOLTTRON verbosely in the background"
+    volttron -vv -l volttron.log > volttron.log 2>&1 &
+fi
+

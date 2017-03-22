@@ -127,7 +127,7 @@ class ControlButton extends BaseComponent {
 		if (!this.state.showTaptip)
 		{
             if (!(this.props.taptip.hasOwnProperty("x") && this.props.taptip.hasOwnProperty("y")))
-            {
+            {            
                 this.setState({taptipX: evt.clientX - this.state.taptipOffsetX});
                 this.setState({taptipY: evt.clientY - this.state.taptipOffsetY});    
             }
@@ -230,7 +230,7 @@ class ControlButton extends BaseComponent {
 
         if (this.props.taptip)
         {
-        	var taptipStyle = {
+            var taptipStyle = {
 		        display: (this.state.showTaptip ? "block" : "none"),
 		        position: "absolute",
 		        left: this.state.taptipX + "px",

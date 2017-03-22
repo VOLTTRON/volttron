@@ -113,6 +113,11 @@ class BACnetReader(object):
         except TypeError:
             self._log.debug('device missing description')
             device_description = ""
+        except RemoteError as e:
+            self._log.error("REMOTE ERROR")
+            self._log.error(e.args)
+            device_description = ""
+
         return device_description
 
     def read_device_properties(self, target_address, device_id, filter):
@@ -149,6 +154,10 @@ class BACnetReader(object):
             object_count = self._read_prop(target_address, "device", device_id,
                                            "structuredObjectList", index=0)
             list_property = "structuredObjectList"
+        except RemoteError as e:
+            self._log.error("REMOTE ERROR read_device_properties")
+            self._log.error(e.args)
+            object_count = 0
 
         self._log.debug('object_count = ' + str(object_count))
 
@@ -510,11 +519,16 @@ class BACnetReader(object):
             count += 1
 
         if query_mapping:
-            results = self._read_props(target_address, query_mapping)
-            objects = self._build_results(object_type, query_mapping,
-                                          results)
-            self._log.debug('Built bacnet Objects 2: {}'.format(objects))
-            self._emit_responses(device_id, target_address, objects)
+            try:
+                results = self._read_props(target_address, query_mapping)
+                objects = self._build_results(object_type, query_mapping,
+                                              results)
+            except RemoteError as e:
+                self._log.error("REMOTE ERROR 2:")
+                self._log.error(e.args)
+            else:
+                self._log.debug('Built bacnet Objects 2: {}'.format(objects))
+                self._emit_responses(device_id, target_address, objects)
 
     def _filter_present_value_from_results(self, results):
         """ Filter the results so that only presentValue datatypes are kept.
@@ -754,8 +768,8 @@ class BACnetReader(object):
                         max_value = self._read_prop(address, obj_type, index,
                                                    "maxPresValue")
 
-                        has_min = min_value > -max_range_report
-                        has_max = max_value < max_range_report
+                        has_min = (min_value is not None) and (min_value > -max_range_report)
+                        has_max = (max_value is not None) and (max_value < max_range_report)
 
                         if has_min and has_max:
                             object_units_details = '{min:.2f} to {max:.2f}'.format(

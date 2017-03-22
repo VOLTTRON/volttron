@@ -5,12 +5,10 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 
 @pytest.mark.wrapper
-def test_fixture_returns_correct_number_of_instances(
-        request, get_volttron_instances):
+def test_fixture_returns_correct_number_of_instances(get_volttron_instances):
+
     num_instances = 5
     wrappers = get_volttron_instances(num_instances, False)
-
-    request.addfinalizer(lambda: cleanup_wrappers(wrappers))
 
     assert num_instances == len(wrappers)
     for w in wrappers:
@@ -19,13 +17,12 @@ def test_fixture_returns_correct_number_of_instances(
 
 
 @pytest.mark.wrapper
-def test_fixture_starts_platforms(request, get_volttron_instances):
+def test_fixture_starts_platforms(get_volttron_instances):
     num_instances = 5
     wrappers = get_volttron_instances(num_instances)
-
-    request.addfinalizer(lambda: cleanup_wrappers(wrappers))
 
     assert num_instances == len(wrappers)
     for w in wrappers:
         assert isinstance(w, PlatformWrapper)
         assert w.is_running()
+        w.shutdown_platform()

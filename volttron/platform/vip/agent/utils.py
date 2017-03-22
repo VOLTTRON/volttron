@@ -80,7 +80,8 @@ def build_connection(identity, peer='', address=get_address(),
 
 
 def build_agent(address=get_address(), identity=None, publickey=ks.public,
-                secretkey=ks.secret, timeout=10, serverkey=None, **kwargs):
+                secretkey=ks.secret, timeout=10, serverkey=None,
+                agent_class=Agent, **kwargs):
     """ Builds a dynamic agent connected to the specifiedd address.
 
     All key parameters should have been encoded with
@@ -91,13 +92,14 @@ def build_agent(address=get_address(), identity=None, publickey=ks.public,
     :param str publickey: Agent's Base64-encoded CURVE public key
     :param str secretkey: Agent's Base64-encoded CURVE secret key
     :param str serverkey: Server's Base64-encoded CURVE public key
+    :param class agent_class: Class to use for creating the instance
     :param int timeout: Seconds to wait for agent to start
     :param kwargs: Any Agent specific parameters
-    :return: Agent that has been started
-    :rtype: Agent
+    :return: an agent based upon agent_class that has been started
+    :rtype: agent_class
     """
-    agent = Agent(address=address, identity=identity, publickey=publickey,
-                  secretkey=secretkey, serverkey=serverkey, **kwargs)
+    agent = agent_class(address=address, identity=identity, publickey=publickey,
+                        secretkey=secretkey, serverkey=serverkey, **kwargs)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     with gevent.Timeout(timeout):

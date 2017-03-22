@@ -32,7 +32,11 @@ class APITester(object):
         r = requests.post(self._url, json=data)
         validate_response(r)
 
-        return r.json()['result']
+        rpcjson = r.json()
+        if 'result' in rpcjson:
+            return rpcjson['result']
+        else:
+            return rpcjson['error']
 
     def get_auth_token(self):
         return self.do_rpc('get_authorization',
