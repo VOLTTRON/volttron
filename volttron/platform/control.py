@@ -1367,6 +1367,8 @@ def main(argv=sys.argv):
                              help='show tracbacks for errors rather than a brief message')
     global_args.add_argument('-t', '--timeout', type=float, metavar='SECS',
                              help='timeout in seconds for remote calls (default: %(default)g)')
+    global_args.add_argument('--msgdebug',
+                             help='route all messages to an agent while debugging')
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
