@@ -180,7 +180,6 @@ class CrateHistorian(BaseHistorian):
             cursor = self._connection.cursor()
 
             batch_data = []
-            batch_topics = []
 
             for row in to_publish_list:
                 ts = utils.format_timestamp(row['timestamp'])
@@ -190,19 +189,24 @@ class CrateHistorian(BaseHistorian):
                 meta = row['meta']
 
                 if topic not in self._topic_set:
-                    batch_topics.append((topic,))
+                    try:
+                        cursor.execute(insert_topic_query(self._schema),
+                                       (topic,))
+                    except ProgrammingError as ex:
+                        if ex.args[0].startswith(
+                                'DocumentAlreadyExistsException'):
+                            self._top_set.add(topic)
+                        else:
+                            _log.error(
+                                "Unknown error during topic insert {} {}".format(
+                                    type(ex), ex.args
+                                ))
+                    else:
+                        self._topic_set.add(topic)
 
                 batch_data.append(
                     (ts, topic, source, value, meta)
                 )
-                batch_data.append(
-                    (ts, topic, source, value, meta)
-                )
-
-            if batch_topics:
-                _log.debug('Inserting batch topics: {}'.format(batch_topics))
-                cursor.executemany(insert_topic_query(self._schema),
-                                   batch_topics)
 
             try:
                 query = insert_data_query(self._schema)
