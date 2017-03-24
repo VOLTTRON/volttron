@@ -502,7 +502,7 @@ class MessageDebuggerAgent(Agent):
             self._monitor_socket = zmq.Context().socket(zmq.PUB)
             self._monitor_socket.set_hwm(100)           # Start dropping messages if queue backlog exceeds 100
             self._monitor_socket.connect(monitor_socket_address)
-            _log.debug('Publishing to monitor socket {}'.format(monitor_socket_address))
+            _log.ERROR('Publishing to monitor socket {}'.format(monitor_socket_address))
         return self._monitor_socket
 
     def db_session(self):
