@@ -154,17 +154,17 @@ class MessageDebuggerAgent(Agent):
                 routed_message = router_socket.recv_pyobj(zmq.NOBLOCK)
                 debug_message = DebugMessage(routed_message, self._debug_session.rowid if self._debug_session else 0)
 
-                # if not test_message_sent:
-                #     # First time in. Send a test RPC to validate that routed messages are arriving on the socket.
-                #     _log.debug('Sending a test RPC call')
-                #     build_connection(self.loopback(), peer=self.agent_id()).call('test_message', timeout=30)
-                #     test_message_sent = True
-                #
-                # if waiting_for_test_msg:
-                #     waiting_for_test_msg = self.check_for_test_msg(debug_message, start_time)
+                if not test_message_sent:
+                    # First time in. Send a test RPC to validate that routed messages are arriving on the socket.
+                    _log.debug('Sending a test RPC call')
+                    build_connection(self.loopback(), peer=self.agent_id()).call('test_message', timeout=30)
+                    test_message_sent = True
+
+                if waiting_for_test_msg:
+                    waiting_for_test_msg = self.check_for_test_msg(debug_message, start_time)
 
                 # Un-comment the following line to watch the message stream flow by in the log...
-                # _log.debug('{}'.format(debug_message))
+                _log.debug('{}'.format(debug_message))
 
                 self.store_debug_message(debug_message)
 
@@ -174,8 +174,8 @@ class MessageDebuggerAgent(Agent):
                     self.monitor_socket().send(json.dumps(debug_message.as_json_compatible_object()))
 
             except zmq.green.Again:
-                # if waiting_for_test_msg:
-                #     waiting_for_test_msg = self.check_for_test_msg(None, start_time)
+                if waiting_for_test_msg:
+                    waiting_for_test_msg = self.check_for_test_msg(None, start_time)
                 continue
 
     def store_debug_message(self, debug_message):
