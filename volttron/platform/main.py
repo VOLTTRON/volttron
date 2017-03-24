@@ -334,7 +334,9 @@ class Router(BaseRouter):
                 ('incoming' if topic == INCOMING else 'outgoing'), formatter)
         if self._tracker:
             self._tracker.hit(topic, frames, extra)
-        if self._msgdebug:
+        # @todo Temporarily enabling this in hard-coded fashion while debugging pytests...
+        # if self._msgdebug:
+        if True:
             if not self._message_debugger_socket:
                 # Initialize a ZMQ IPC socket on which to publish all messages to MessageDebuggerAgent.
                 socket_path = os.path.expandvars('$VOLTTRON_HOME/run/messagedebug')

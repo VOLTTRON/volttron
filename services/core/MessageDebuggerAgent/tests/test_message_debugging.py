@@ -72,6 +72,18 @@ DEBUGGER_CONFIG = {
 }
 
 
+# @pytest.fixture
+# def volttron_instance_xx(request):
+#     from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper, get_rand_vip, cleanup_wrapper
+#     wrapper = build_wrapper(get_rand_vip())
+#
+#     def cleanup():
+#         cleanup_wrapper(wrapper)
+#
+#     request.addfinalizer(cleanup)
+#     return wrapper
+
+
 @pytest.fixture(scope='module')
 def agent(request, volttron_instance1):
     master_uuid = volttron_instance1.install_agent(agent_dir='services/core/MessageDebuggerAgent',
