@@ -380,7 +380,8 @@ class PlatformWrapper:
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
         mode=UNRESTRICTED, bind_web_address=None,
-        volttron_central_address=None, volttron_central_serverkey=None):
+        volttron_central_address=None, volttron_central_serverkey=None,
+        msgdebug=False):
 
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
@@ -397,6 +398,8 @@ class PlatformWrapper:
             # Only available if vc is installed!
             self.jsonrpc_endpoint = "{}/jsonrpc".format(
                 self.bind_web_address)
+
+        self.env['msgdebug'] = msgdebug
 
         enable_logging = self.env.get('ENABLE_LOGGING', False)
         debug_mode = self.env.get('DEBUG_MODE', False)
