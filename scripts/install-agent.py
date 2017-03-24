@@ -127,7 +127,7 @@ if __name__ == '__main__':
     parser.add_argument("-s", "--agent-source", required=True)
     parser.add_argument("-i", "--vip-identity", default=None)
     parser.add_argument("-c", "--config", default=None, type=file)
-    parser.add_argument("-co", "--config_object", type=str, default="{}")
+    parser.add_argument("-co", "--config-object", type=str, default="{}")
     parser.add_argument("-wh", "--wheelhouse", default=None)
     parser.add_argument("-t", "--tag", default=None)
     parser.add_argument("-f", "--force", action='store_true')
