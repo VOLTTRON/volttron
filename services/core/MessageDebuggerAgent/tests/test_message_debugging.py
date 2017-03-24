@@ -127,7 +127,7 @@ class TestMessageDebugger:
 
         filters = {'session_id': session_id}
 
-        # Confirm that all DebugMessageExchanges in a query response are for the session_id applied by the filter
+        # Confirm that all DebugMessages in a query response are for the session_id applied by the filter
         response = self.issue_rpc_call(agent, 'execute_db_query', 'DebugMessage', filters=filters)
         assert type(response) is dict
         assert len(response['results']) > 0
