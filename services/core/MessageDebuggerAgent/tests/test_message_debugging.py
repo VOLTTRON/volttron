@@ -172,7 +172,7 @@ class TestMessageDebugger:
         self.issue_rpc_call(agent, 'set_verbosity', 'low')
         response = self.issue_rpc_call(agent, 'message_exchange_details', request_id)
         timestamp_string = response['results'][0]['timestamp']
-        valid_timestamp = datetime.strptime(timestamp_string, '%X')
+        valid_timestamp = datetime.datetime.strptime(timestamp_string, '%X')
 
         # Confirm that all DebugMessageExchanges in a query response are for the session_id applied by the filter
         response = self.issue_rpc_call(agent, 'execute_db_query', 'DebugMessageExchange', filters=filters)
