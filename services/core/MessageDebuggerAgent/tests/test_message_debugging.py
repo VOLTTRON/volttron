@@ -101,7 +101,7 @@ class TestMessageDebugger:
     def test_rpc_calls(self, agent):
         """Test the full range of RPC calls to the MessageDebuggerAgent, except those related to streaming."""
 
-        # Start by loading up two short (5-second) DebugSessions for testing purposes.
+        # Start by loading up two short (10-second) DebugSessions for testing purposes.
         # Each session contains at least one DebugMessage (i.e., for the RPC call generated from here).
         # This also confirm the ability to enable and disable message debugging.
 
@@ -110,14 +110,14 @@ class TestMessageDebugger:
         response = self.issue_rpc_call(agent, 'enable_message_debugging')
         assert 'started' in response
         self.list_sessions(agent)
-        time.sleep(3)
+        time.sleep(10)
         response = self.issue_rpc_call(agent, 'disable_message_debugging')
         assert 'stopped' in response
 
         # Second DebugSession
         self.issue_rpc_call(agent, 'enable_message_debugging')
         self.list_sessions(agent)
-        time.sleep(3)
+        time.sleep(10)
         self.issue_rpc_call(agent, 'disable_message_debugging')
 
         # The session should have a non-empty end time because it was just explicitly stopped
