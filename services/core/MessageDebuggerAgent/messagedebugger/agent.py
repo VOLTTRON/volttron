@@ -509,6 +509,9 @@ class MessageDebuggerAgent(Agent):
         if not self._db_session:
             # First time: create a SQLAlchemy engine and session.
             engine_path = 'sqlite:///' + self.vip_config_get('db_path')
+            directory = os.path.dirname(engine_path)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
             _log.debug('Connecting to sqlite database at {}'.format(engine_path))
             engine = create_engine(engine_path).connect()
             ORMBase.metadata.create_all(engine)
