@@ -511,8 +511,9 @@ class MessageDebuggerAgent(Agent):
             engine_path = 'sqlite:///' + self.vip_config_get('db_path')
             directory = os.path.dirname(engine_path)
             if not os.path.exists(directory):
+                _log.debug('Creating sqlite database directory {}'.format(directory))
                 os.makedirs(directory)
-            _log.debug('Connecting to sqlite database at {}'.format(engine_path))
+            _log.debug('Connecting to sqlite database {}'.format(engine_path))
             engine = create_engine(engine_path).connect()
             ORMBase.metadata.create_all(engine)
             self._db_session = sessionmaker(bind=engine)()
