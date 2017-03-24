@@ -66,7 +66,7 @@ import zmq
 def agent(request, volttron_instance1):
     msg_debugger_agent = volttron_instance1.build_agent()
     master_uuid = volttron_instance1.install_agent(agent_dir='services/core/MessageDebuggerAgent',
-                                                   config_file={},
+                                                   config_file='services/core/MessageDebuggerAgent/messagedebugger.config',
                                                    start=True)
     gevent.sleep(20)  # wait for the agent to start and start the devices
 
