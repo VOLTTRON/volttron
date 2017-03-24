@@ -125,6 +125,13 @@ class TestMessageDebugger:
         assert last_session['end_time']
         session_id = str(last_session['rowid'])
 
+        filters = {}
+
+        # Confirm that some DebugMessages are returned by a query
+        response = self.issue_rpc_call(agent, 'execute_db_query', 'DebugMessage', filters=filters)
+        assert type(response) is dict
+        assert len(response['results']) > 0
+
         filters = {'session_id': session_id}
 
         # Confirm that all DebugMessages in a query response are for the session_id applied by the filter
