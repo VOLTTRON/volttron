@@ -1,3 +1,10 @@
+"""
+    This is a little test jig to confirm the ability to create a SQLite database
+    and connect a SQL Alchemy session to it, building a test table in the process.
+"""
+
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy import Column, String, Integer
 from sqlalchemy.ext.declarative import declarative_base
@@ -7,7 +14,6 @@ ORMBase = declarative_base()
 
 
 def sqlite_helloworld():
-    import os
     path = os.path.expandvars('$VOLTTRON_HOME/data/test_db.sqlite')
     engine = create_engine('sqlite:///' + path).connect()
     ORMBase.metadata.create_all(engine)

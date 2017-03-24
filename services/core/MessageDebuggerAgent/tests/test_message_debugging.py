@@ -65,8 +65,18 @@ import zmq
 @pytest.fixture(scope='module')
 def agent(request, volttron_instance1):
     msg_debugger_agent = volttron_instance1.build_agent()
+    # config_file = 'services/core/MessageDebuggerAgent/messagedebugger.config'
+    config_file = {
+        "agent": {
+            "exec": "messagedebuggeragent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
+        },
+        "agentid": "messagedebugger",
+        "router_path": "$VOLTTRON_HOME/run/messagedebug",
+        "monitor_path": "$VOLTTRON_HOME/run/messageviewer",
+        "db_path": "$VOLTTRON_HOME/data/messagedebugger.sqlite"
+    }
     master_uuid = volttron_instance1.install_agent(agent_dir='services/core/MessageDebuggerAgent',
-                                                   config_file='services/core/MessageDebuggerAgent/messagedebugger.config',
+                                                   config_file=config_file,
                                                    start=True)
     gevent.sleep(20)  # wait for the agent to start and start the devices
 
