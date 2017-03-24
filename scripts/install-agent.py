@@ -6,9 +6,9 @@ from subprocess import Popen
 import tempfile
 import sys
 
-from zmq.utils import jsonapi
 
 logging.basicConfig(level=logging.WARN)
+log = logging.getLogger(os.path.basename(__file__))
 
 if not hasattr(sys, 'real_prefix'):
     inenv = False
@@ -17,18 +17,27 @@ else:
 
 if not inenv:
     mypath = os.path.dirname(__file__)
-    activatepath = os.path.join(mypath, '../../env/bin/activate')
-    if not os.path.exists(activatepath):
-        sys.stderr.write("Invalid location for the script {}".format(__file__))
+    correct_python = os.path.abspath(
+        os.path.join(mypath, '../env/bin/python'))
+    if not os.path.exists(correct_python):
+        log.error("Invalid location for the script {}".format(correct_python))
         sys.exit(-10)
 
+    # Call this script in a subprocess with the correct python interpreter.
+    cmds = [correct_python, __file__]
+    cmds.extend(sys.argv[1:])
+    process = subprocess.Popen(cmds, env=os.environ)
+    process.wait()
+    sys.exit(process.returncode)
+
+from zmq.utils import jsonapi
 from volttron.platform import get_address, get_home, get_volttron_root, \
     is_platform_running
 from volttron.platform.packaging import create_package, add_files_to_package
 
 __version__ = '0.1'
 
-log = logging.getLogger(os.path.basename(__file__))
+
 
 
 def _build_copy_env(opts):
