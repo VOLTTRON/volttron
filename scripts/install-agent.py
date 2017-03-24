@@ -76,12 +76,14 @@ def install_agent(opts, package, config):
     # Configure the whl file before installing.
     add_files_to_package(opts.package, {'config_file': config_file})
     env = _build_copy_env(opts)
-    cmds = [opts.volttron_control, "install", package]
+    if opts.vip_identity:
+        cmds = [opts.volttron_control, "upgrade", opts.vip_identity, package]
+    else:
+        cmds = [opts.volttron_control, "install", package]
 
     if opts.tag:
         cmds.extend(["--tag", opts.tag])
-    if opts.vip_identity:
-        cmds.extend(["--vip-identity", opts.vip_identity])
+
     process = Popen(cmds, env=env, stderr=subprocess.PIPE,
                     stdout=subprocess.PIPE)
     (output, errorout) = process.communicate()
@@ -166,8 +168,9 @@ if __name__ == '__main__':
                 log.error(
                     "identity already exists, but force wasn't specified.")
                 sys.exit(-10)
-            else:
-                remove_agent(opts, exists)
+            # Note we don't remove the agent here because if we do that will
+            # not allow us to update without losing the keys.  The
+            # install_agent method either installs or upgrades the agent.
 
     opts.package = create_package(agent_source, wheelhouse, opts.vip_identity)
 
