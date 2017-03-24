@@ -399,8 +399,6 @@ class PlatformWrapper:
             self.jsonrpc_endpoint = "{}/jsonrpc".format(
                 self.bind_web_address)
 
-        # self.env['msgdebug'] = msgdebug
-
         enable_logging = self.env.get('ENABLE_LOGGING', False)
         debug_mode = self.env.get('DEBUG_MODE', False)
         if not debug_mode:
@@ -487,10 +485,17 @@ class PlatformWrapper:
             raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
 
         log = os.path.join(self.volttron_home, 'volttron.log')
-        if enable_logging:
-            cmd = ['volttron', '-vv', '-l{}'.format(log)]
+
+        if msgdebug:
+            if enable_logging:
+                cmd = ['volttron', '--msgdebug', '-vv', '-l{}'.format(log)]
+            else:
+                cmd = ['volttron', '--msgdebug', '-l{}'.format(log)]
         else:
-            cmd = ['volttron', '-l{}'.format(log)]
+            if enable_logging:
+                cmd = ['volttron', '-vv', '-l{}'.format(log)]
+            else:
+                cmd = ['volttron', '-l{}'.format(log)]
 
         print('process environment: {}'.format(self.env))
         print('popen params: {}'.format(cmd))
