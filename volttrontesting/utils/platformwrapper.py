@@ -486,16 +486,12 @@ class PlatformWrapper:
 
         log = os.path.join(self.volttron_home, 'volttron.log')
 
+        cmd = ['volttron']
         if msgdebug:
-            if enable_logging:
-                cmd = ['volttron', '--msgdebug', '-vv', '-l{}'.format(log)]
-            else:
-                cmd = ['volttron', '--msgdebug', '-l{}'.format(log)]
-        else:
-            if enable_logging:
-                cmd = ['volttron', '-vv', '-l{}'.format(log)]
-            else:
-                cmd = ['volttron', '-l{}'.format(log)]
+            cmd.append('--msgdebug')
+        if enable_logging:
+            cmd.append('-vv')
+        cmd.append('-l{}'.format(log))
 
         print('process environment: {}'.format(self.env))
         print('popen params: {}'.format(cmd))
