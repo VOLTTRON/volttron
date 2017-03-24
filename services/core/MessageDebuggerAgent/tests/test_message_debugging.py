@@ -211,7 +211,7 @@ class TestMessageDebugger:
         # Confirm that a message is received on the stream
         self.issue_rpc_call(agent, 'enable_message_streaming')
         monitor_socket = self.subscribe_to_monitor_socket()
-        # assert monitor_socket.recv()
+        assert monitor_socket.recv()
 
         self.issue_rpc_call(agent, 'disable_message_streaming')
         # There may be some residual messages on the socket after streaming is disabled. Flush them.

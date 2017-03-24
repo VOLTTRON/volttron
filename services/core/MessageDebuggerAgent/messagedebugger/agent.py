@@ -170,6 +170,7 @@ class MessageDebuggerAgent(Agent):
 
                 if self._streaming_messages and self.allowed_by_filters(debug_message, ignore_session_id=True):
                     # Re-publish the DebugMessage (as json) for MessageViewer real-time consumption
+                    _log.error('Writing a DebugMessage to the viewer socket')
                     self.monitor_socket().send(json.dumps(debug_message.as_json_compatible_object()))
 
             except zmq.green.Again:
@@ -413,7 +414,7 @@ class MessageDebuggerAgent(Agent):
         @param filters: Filters that should be applied when publishing messages to the socket.
         @return: A string indicating command success.
         """
-        _log.debug('Starting message streaming')
+        _log.error('Starting message streaming')
         self._filters = filters
         self._streaming_messages = True
         return 'Streaming debug messages'
@@ -421,7 +422,7 @@ class MessageDebuggerAgent(Agent):
     @RPC.export
     def disable_message_streaming(self):
         """Stop publishing a stream of DebugMessages on monitor_socket. Return a string indicating command success."""
-        _log.debug('Stop message streaming')
+        _log.error('Stop message streaming')
         self._streaming_messages = False
         return 'Stopped streaming debug messages'
 
