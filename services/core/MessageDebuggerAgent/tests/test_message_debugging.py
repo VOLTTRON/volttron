@@ -74,7 +74,7 @@ DEBUGGER_CONFIG = {
 }
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def volttron_instance_msgdebug(request):
     wrapper = build_wrapper(get_rand_vip(), msgdebug=True)
 
