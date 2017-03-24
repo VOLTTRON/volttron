@@ -222,8 +222,6 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         wheel_name = os.listdir(distdir)[0]
         wheel_path = os.path.join(distdir, wheel_name)
 
-        print "_create_initial_package"
-
         if identity is not None:
             tmp_identity_file_fd, identity_template_filename = tempfile.mkstemp(dir=builddir)
             tmp_identity_file = os.fdopen(tmp_identity_file_fd, "w")
