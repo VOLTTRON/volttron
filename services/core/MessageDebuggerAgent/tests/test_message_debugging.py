@@ -63,15 +63,15 @@ import zmq
 
 
 @pytest.fixture(scope='module')
-def agent(request, volttron_instance):
-    msg_debugger_agent = volttron_instance.build_agent()
-    master_uuid = volttron_instance.install_agent(agent_dir='services/core/MessageDebuggerAgent',
-                                                  config_file={},
-                                                  start=True)
-    gevent.sleep(10)  # wait for the agent to start and start the devices
+def agent(request, volttron_instance1):
+    msg_debugger_agent = volttron_instance1.build_agent()
+    master_uuid = volttron_instance1.install_agent(agent_dir='services/core/MessageDebuggerAgent',
+                                                   config_file={},
+                                                   start=True)
+    gevent.sleep(20)  # wait for the agent to start and start the devices
 
     def stop():
-        volttron_instance.stop_agent(master_uuid)
+        volttron_instance1.stop_agent(master_uuid)
         msg_debugger_agent.core.stop()
 
     request.addfinalizer(stop)
@@ -180,7 +180,7 @@ class TestMessageDebugger:
 
         # Confirm that a message is received on the stream
         self.issue_rpc_call(agent, 'enable_message_streaming')
-        monitor_socket = self.subscribe_to_monitor_socket(agent)
+        monitor_socket = self.subscribe_to_monitor_socket()
         assert monitor_socket.recv()
 
         self.issue_rpc_call(agent, 'disable_message_streaming')
@@ -203,7 +203,7 @@ class TestMessageDebugger:
 
     @staticmethod
     def issue_rpc_call(agt, rpc_name, *args, **kwargs):
-        return agt.vip.rpc.call(rpc_name, *args, **kwargs).get(timeout=30)
+        return agt.vip.rpc.call('platform.messagedebugger', rpc_name, *args, **kwargs).get(timeout=30)
 
     @staticmethod
     def subscribe_to_monitor_socket():

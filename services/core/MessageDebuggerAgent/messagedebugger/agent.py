@@ -120,6 +120,7 @@ class MessageDebuggerAgent(Agent):
                                    db_path=config.get('db_path', '$VOLTTRON_HOME/data/volttron_messages.sqlite'),
                                    agentid=config.get('agentid', 'messagedebugger'))
         self.current_config = None
+        _log.debug('Initializing agent config, default config = {}'.format(self.default_config))
         self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
 
@@ -507,7 +508,9 @@ class MessageDebuggerAgent(Agent):
         """Return the SQLite database session. Initialize the session if first time in."""
         if not self._db_session:
             # First time: create a SQLAlchemy engine and session.
-            engine = create_engine('sqlite:///' + self.vip_config_get('db_path')).connect()
+            engine_path = 'sqlite:///' + self.vip_config_get('db_path')
+            _log.debug('Connecting to sqlite database at {}'.format(engine_path))
+            engine = create_engine(engine_path).connect()
             ORMBase.metadata.create_all(engine)
             self._db_session = sessionmaker(bind=engine)()
             # @todo Detect and report a data model structure change; allow db deletion if needed
