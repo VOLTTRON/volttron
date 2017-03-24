@@ -75,17 +75,6 @@ DEBUGGER_CONFIG = {
 
 
 @pytest.fixture(scope='module')
-def volttron_instance_msgdebug(request):
-    wrapper = build_wrapper(get_rand_vip(), msgdebug=True)
-
-    def cleanup():
-        cleanup_wrapper(wrapper)
-
-    request.addfinalizer(cleanup)
-    return wrapper
-
-
-@pytest.fixture(scope='module')
 def agent(request, volttron_instance_msgdebug):
     master_uuid = volttron_instance_msgdebug.install_agent(agent_dir='services/core/MessageDebuggerAgent',
                                                            config_file=DEBUGGER_CONFIG,
