@@ -399,7 +399,7 @@ class PlatformWrapper:
             self.jsonrpc_endpoint = "{}/jsonrpc".format(
                 self.bind_web_address)
 
-        self.env['msgdebug'] = msgdebug
+        # self.env['msgdebug'] = msgdebug
 
         enable_logging = self.env.get('ENABLE_LOGGING', False)
         debug_mode = self.env.get('DEBUG_MODE', False)
