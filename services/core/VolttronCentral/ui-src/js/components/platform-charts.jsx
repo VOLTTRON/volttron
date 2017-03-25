@@ -7,8 +7,6 @@ var platformActionCreators = require('../action-creators/platform-action-creator
 var NewChartForm = require('./new-chart-form');
 var chartStore = require('../stores/platform-chart-store');
 
-var reloadPageInterval = 1800000;
-
 var PlatformCharts = React.createClass({
     getInitialState: function () {
 
@@ -16,31 +14,16 @@ var PlatformCharts = React.createClass({
             chartData: chartStore.getData()
         };
 
-        this._reloadPageTimeout = setTimeout(this._reloadPage, reloadPageInterval);
-
         return state;
     },
     componentDidMount: function () {
         chartStore.addChangeListener(this._onChartStoreChange);
     },
     componentWillUnmount: function () {
-        clearTimeout(this._reloadPageTimeout);
         chartStore.removeChangeListener(this._onChartStoreChange);
     },
     _onChartStoreChange: function () {
         this.setState({chartData: chartStore.getData()});
-    },
-    _reloadPage: function () {
-        
-        //Reload page to clear leaked memory
-        if (Object.keys(this.state.chartData).length)
-        {
-            location.reload(true);
-        }
-        else
-        {
-            this._reloadPageTimeout = setTimeout(this._reloadPage, reloadPageInterval);
-        }
     },
     _onAddChartClick: function () {
 
@@ -55,7 +38,7 @@ var PlatformCharts = React.createClass({
 
         for (var key in chartData)
         {
-            if (chartData[key].data.length > 0)
+            if (chartData[key].series.length > 0)
             {
                 var platformChart = (
                     <PlatformChart key={key} 

@@ -268,7 +268,7 @@ class EmailerAgent(Agent):
         except Exception as e:
             _log.error(
                 'Unable to send email message: %s' % mime_message.as_string())
-            _log.error(e)
+            _log.error(e.args)
             self.vip.health.set_status(STATUS_BAD,
                                        "Unable to send email to recipients")
         finally:

@@ -363,7 +363,7 @@ Communicating with BACnet devices requires that the BACnet Proxy Agent is config
 driver_config
 *************
 
-There are six arguments for the "driver_config" section of the device configuration file:
+There are seven arguments for the "driver_config" section of the device configuration file:
 
     - **device_address** - Address of the device. If the target device is behind an IP to MS/TP router then Remote Station addressing will probably be needed for the driver to find the device.
     - **device_id** - BACnet ID of the device. Used to establish a route to the device at startup. 
@@ -371,6 +371,7 @@ There are six arguments for the "driver_config" section of the device configurat
     - **max_per_request** - (Optional) Configure driver to manually segment read requests. The driver will only grab up to the number of objects specified in this setting at most per request. This setting is primarily for scraping many points off of low resource devices that do not support segmentation. Defaults to 10000.
     - **proxy_address** - (Optional) VIP address of the BACnet proxy. Defaults to "platform.bacnet_proxy". See :ref:`bacnet-proxy-multiple-networks` for details. Unless your BACnet network has special needs you should not change this value.
     - **ping_retry_interval** - (Optional) The driver will ping the device to establish a route at startup. If the BACnet proxy is not available the driver will retry the ping at this interval until it succeeds. Defaults to 5.
+    - **use_read_multiple** - (Optional) During a scrape the driver will tell the proxy to use a ReadPropertyMultipleRequest to get data from the device. Otherwise the proxy will use multiple ReadPropertyRequest calls. If the BACnet proxy is reporting a device is rejecting requests try changing this to false for that device. Be aware that setting this to false will cause scrapes for that device to take much longer. Only change if needed. Defaults to true.
 
 Here is an example device configuration file:
 

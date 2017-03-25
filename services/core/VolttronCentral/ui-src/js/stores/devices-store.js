@@ -1138,14 +1138,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _devices = [];
             devicesStore.emitChange();
             break;
-        case ACTION_TYPES.CANCEL_SCANNING:
-            // devicesWs.close();
-            // devicesWs = null;
-
-            // devicesStore.emitChange();
-            break;
         case ACTION_TYPES.LISTEN_FOR_IAMS:
-            // _newScan = false;
             _scanningComplete = false;
             _warnings = {};
             devicesStore.emitChange();
@@ -1308,6 +1301,12 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _reconfiguration = action.configuration;
             _reconfiguration.deviceName = action.deviceName.replace("devices/", "");
 
+            _reconfiguration.max_per_request = _reconfiguration.driver_config.max_per_request;
+            _reconfiguration.minimum_priority = _reconfiguration.driver_config.minimum_priority;
+
+            delete _reconfiguration.driver_config.max_per_request;
+            delete _reconfiguration.driver_config.minimum_priority;
+
             _platform = {
                 "uuid": action.platformUuid
             };
@@ -1333,6 +1332,8 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             break;
         case ACTION_TYPES.UPDATE_DEVICES_LIST:            
             _devicesList[action.platformUuid] = action.devices;
+            break;
+        default:
             break;
     }
 
@@ -1464,49 +1465,31 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             // can remove && !pointData.hasProp(device_name) if fix websocket endpoint collision
             if (pointData.hasOwnProperty("device_id") && (!pointData.hasOwnProperty("device_name")))
             {
-                var deviceId = pointData.device_id.toString();
+                var deviceId = Number(pointData.device_id);
                 var deviceAddress = pointData.address;
                 var device = devicesStore.getDeviceRef(deviceId, deviceAddress);
 
                 if (device)
                 {
                     if (!pointData.hasOwnProperty("status"))
-                    {  
-                        var pointInList = device.registryConfig.find(function (point) {
-                            var indexCell = point.find(function (cell) {
-                                return cell.key === "index";
-                            })
+                    {                          
+                        var newPoint = [];
 
-                            var match = false;
-
-                            if (indexCell)
-                            {
-                                match = (indexCell.value === pointData.results.Index);
-                            }
-
-                            return match;
-                        });
-                    
-                        if (typeof pointInList === "undefined") 
+                        for (var key in pointData.results)
                         {
-                            var newPoint = [];
+                            var cell = {
+                                key: key.toLowerCase().replace(/ /g, "_"),
+                                label: key,
+                                value: (pointData.results[key] === null ? "" : pointData.results[key])
+                            };
 
-                            for (var key in pointData.results)
-                            {
-                                var cell = {
-                                    key: key.toLowerCase().replace(/ /g, "_"),
-                                    label: key,
-                                    value: (pointData.results[key] === null ? "" : pointData.results[key])
-                                };
+                            prepCell(cell);
 
-                                prepCell(cell);
-
-                                newPoint.push(cell);
-                            }
-
-                            var sortedPoint = sortPointColumns(newPoint);
-                            device.registryConfig.push(sortedPoint);
+                            newPoint.push(cell);
                         }
+
+                        var sortedPoint = sortPointColumns(newPoint);
+                        device.registryConfig.push(sortedPoint);
                     }
                     else
                     {
@@ -1525,10 +1508,10 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
 
     function loadDevice(device, platformUuid, bacnetIdentity) 
     {
-        var deviceIdStr = device.device_id.toString();
+        var deviceId = Number(device.device_id);
 
         _devices.push({
-            id: deviceIdStr,
+            id: deviceId,
             name: device.device_name,
             type: device.type,
             vendor_id: device.vendor_id,
@@ -1547,7 +1530,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 { key: "address", label: "Address", value: device.address },  
                 { key: "deviceName", label: "Name", value: device.device_name },  
                 { key: "deviceDescription", label: "Description", value: device.device_description }, 
-                { key: "deviceId", label: "Device ID", value: deviceIdStr }, 
+                { key: "deviceId", label: "Device ID", value: deviceId },
                 { key: "vendorId", label: "Vendor ID", value: device.vendor_id }, 
                 { key: "vendor", label: "Vendor", value: vendorTable[device.vendor_id] },
                 { key: "type", label: "Type", value: device.type }

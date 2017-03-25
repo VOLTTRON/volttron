@@ -7,7 +7,7 @@ import requests
 import sys
 
 from volttrontesting.utils.core_service_installs import \
-    add_volttron_central_platform, add_volttron_central
+    add_volttron_central_platform, add_volttron_central, add_listener
 
 from volttron.platform.messaging.health import STATUS_GOOD
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
@@ -17,8 +17,6 @@ from zmq.utils import jsonapi
 from vctestutils import (APITester,
                          check_multiple_platforms,
                          validate_response)
-
-pytestmark = pytest.mark.skipif("True", reason="4.1 fixing tests")
 
 
 @pytest.fixture(scope="module")
@@ -74,7 +72,6 @@ def web_api_tester(request, vc_instance, pa_instance):
 
 
 @pytest.mark.vc
-@pytest.mark.skip(reason="4.1 fixing tests")
 def test_vc_settings_store(vc_instance):
     """ Test the reading and writing of data through the get_setting,
         set_setting and get_all_key json-rpc calls.
@@ -123,7 +120,7 @@ def test_vc_settings_store(vc_instance):
 
 
 @pytest.mark.vc
-@pytest.mark.skip(reason="4.1 fixing tests")
+@pytest.mark.skip(reason="Must reimplement unregister.")
 def test_unregister_platform(web_api_tester):
     platforms = web_api_tester.list_platforms().json()['result']
     orig_platform_count = len(platforms)
@@ -144,7 +141,6 @@ def test_login_rejected_for_foo(vc_instance):
 
 
 @pytest.mark.vc
-@pytest.mark.skipif("True", reason="4.1 to fix!")
 def test_store_list_get_configuration(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
@@ -173,7 +169,88 @@ def test_store_list_get_configuration(vc_vcp_platforms):
 
 
 @pytest.mark.vc
-@pytest.mark.skipif("True", reason="4.1 to fix!")
+def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
+    vc, vcp = vc_vcp_platforms
+
+    api = APITester(vc.jsonrpc_endpoint, username="reader", password="reader")
+
+    platform = api.list_platforms()[0]
+    print('The platform is {}'.format(platform))
+
+    agent_list = api.list_agents(platform_uuid=platform['uuid'])
+    print('The agent list is: {}'.format(agent_list))
+    assert len(agent_list) == 1
+    assert agent_list[0]['version']
+
+    add_listener(vcp, {"log-level": "DEBUG"})
+    agent_list = api.list_agents(platform_uuid=platform['uuid'])
+    assert len(agent_list) == 2
+
+    permissions = ('can_restart', 'can_remove', 'can_stop', 'can_start')
+
+    for agent in agent_list:
+        for p in permissions:
+            assert p in agent['permissions']
+            # for reader all should be false.
+            assert not agent['permissions'][p]
+
+
+@pytest.mark.vc
+def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
+    vc, vcp = vc_vcp_platforms
+
+    api = APITester(vc.jsonrpc_endpoint)
+
+    platform = api.list_platforms()[0]
+
+    len_before_new_listener = len(
+        api.list_agents(platform_uuid=platform['uuid']))
+
+    add_listener(vcp, {"log-level": "DEBUG"})
+    agent_list = api.list_agents(platform_uuid=platform['uuid'])
+    assert len_before_new_listener + 1 == len(agent_list)
+
+    permissions = ('can_restart', 'can_remove', 'can_stop', 'can_start')
+
+    for agent in agent_list:
+        for p in permissions:
+            assert p in agent['permissions']
+            # for admin all should be true.
+            assert agent['permissions'][p]
+
+
+@pytest.mark.vc
+def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
+    vc, vcp = vc_vcp_platforms
+
+    api = APITester(vc.jsonrpc_endpoint)
+
+    platform = api.list_platforms()[0]
+    print('The platform is {}'.format(platform))
+
+    len_before_new_listener = len(api.list_agents(platform_uuid=platform['uuid']))
+
+    add_listener(vcp, {"log-level": "DEBUG"})
+    agent_list = api.list_agents(platform_uuid=platform['uuid'])
+    assert len_before_new_listener + 1 == len(agent_list)
+
+    permissions = ('can_restart', 'can_remove', 'can_stop', 'can_start')
+
+    for agent in agent_list:
+        for p in permissions:
+            assert p in agent['permissions']
+
+            if agent['identity'] in ('platform.agent', 'volttron.central'):
+                if p in ('can_restart', 'can_start'):
+                    assert agent['permissions'][p]
+                else:
+                    assert not agent['permissions'][p]
+            else:
+                # for admin all should be true if not vcp or vc.
+                assert agent['permissions'][p]
+
+
+@pytest.mark.vc
 def test_listagent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
@@ -184,12 +261,11 @@ def test_listagent(vc_vcp_platforms):
 
     agent_list = api.list_agents(platform_uuid=platform['uuid'])
     print('The agent list is: {}'.format(agent_list))
-    assert len(agent_list) == 1
+    assert len(agent_list) > 1
     assert agent_list[0]['version']
 
 
 @pytest.mark.vc
-@pytest.mark.skip(reason="4.1 fixing tests")
 def test_installagent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 

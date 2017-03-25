@@ -10,5 +10,5 @@ Service Agents
     central_management/index
     platform/index
     weather/index
-
+    emailer/index
      *

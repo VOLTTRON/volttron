@@ -4,15 +4,21 @@ import logging
 import os
 import sys
 from time import sleep
+import threading
 from threading import Thread
 import Queue
 
 from crate import client as crate_client
 import pymongo
+from bson.objectid import ObjectId
 from zmq.utils import jsonapi
 
+from volttron.platform import get_volttron_root
+
+sys.path.insert(0, os.path.join(get_volttron_root(),
+                                "services/core/CrateHistorian"))
+from crate_historian import crate_utils
 from volttron.platform.agent import utils
-from volttron.platform.dbutils import cratedriver
 from volttron.platform.dbutils import mongoutils
 
 logging.basicConfig(level=logging.DEBUG)
@@ -49,7 +55,8 @@ def get_mongo_db():
 
 insert_errors = open('insert_error.log', mode='w')
 topics = {}
-table_names = ('device', 'analysis', 'record', 'datalogger')
+table_names = ('device', 'device_string', 'analysis', 'analysis_string',
+               'record', 'datalogger', 'datalogger_string')
 
 # Create a queue for each of the tables.
 table_queues = {}
@@ -75,20 +82,23 @@ def build_topics_mapping():
         if tsplit[0] in ('PNNL', 'PNNL-SEQUIM', 'pnnl', 'pnnl-SEQUIM'):
             topics[obj['_id']]['table'] = 'device'
         elif tsplit[0] in ('Economizer_RCx', 'Airside_RCx'):
-            topics[obj['_id']]['table'] = 'analysis'
+            if tsplit[-1] == 'Timestamp':
+                topics[obj['_id']]['table'] = 'analysis_string'
+            else:
+                topics[obj['_id']]['table'] = 'analysis'
         else:
             topics[obj['_id']]['table'] = tsplit[0]
 
-
-INSERT_TOPIC_QUERY = """INSERT INTO historian.{} (id, name, data_table)
+schema = crate_params['connection'].get('schema', 'historian')
+INSERT_TOPIC_QUERY = """INSERT INTO {schema}.{table} (id, name, data_table)
                           VALUES(?, ?, ?)
                           ON DUPLICATE KEY UPDATE name=name, data_table=data_table
-                        """.format('topic')
+                        """.format(schema=schema, table='topic')
 
-INSERT_DATA_QUERY = """INSERT INTO historian.{} (topic_id, ts, result)
+INSERT_DATA_QUERY = """INSERT INTO {schema}.%table% (topic_id, ts, result)
                       VALUES(?, ?, ?)
                       ON DUPLICATE KEY UPDATE result=result
-                    """
+                    """.format(schema=schema)
 
 
 def insert_topic(cursor, id, name, data_table, flush=False):
@@ -134,7 +144,9 @@ def get_crate_db():
     crate_db = crate_client.connect(crate_params["connection"]["params"]["host"],
                                     error_trace=True)
     if not crate_created:
-        cratedriver.create_schema(crate_db)
+        crate_utils.create_schema(crate_db,
+                                  crate_params['connection'].get('schema',
+                                                                 'historian'))
         crate_created = True
     return crate_db
 
@@ -155,10 +167,14 @@ def insert_topics_to_crate():
         cursor.executemany(INSERT_TOPIC_QUERY, batch)
         total_time += cursor.duration
 
+    cursor.close()
+    crate_db.close()
+
 
 def insert_from_queue(insertion_queue, inserted_metrics_queue, logging_queue):
     internal = []
-    insert_query = INSERT_DATA_QUERY.format(insertion_queue.table_name)
+    insert_query = INSERT_DATA_QUERY.replace('%table%',
+                                             insertion_queue.table_name)
     _log.debug('Starting queue for: {}'.format(insertion_queue.table_name))
 
     while True:
@@ -191,6 +207,7 @@ def insert_from_queue(insertion_queue, inserted_metrics_queue, logging_queue):
         except Exception as ex:
             sys.stderr.write('Exception 2: {}'.format(ex.message))
     _log.debug('Ending queue for: {}'.format(insertion_queue.table_name))
+    # threading.current_thread().exit()
 
 insert_threads = []
 metric_queue = Queue.Queue()
@@ -236,7 +253,14 @@ def start_transfer_data():
         last_timestamp = result['ts'] - timedelta(days=1)
         _log.debug('After: {}'.format(result['ts']))
 
-        for obj in mongo_db.data.find({'ts': {"$gt": last_timestamp}}, no_cursor_timeout=True).sort([
+        for obj in mongo_db.data.find({'ts': {"$gt": last_timestamp}
+                                       #    ,
+                                       # 'topic_id': {"$in": [
+                                       #     ObjectId("573f2244c56e522eface840b"),
+                                       #     ObjectId("573f2244c56e522eface840f"),
+                                       #     ObjectId("573f8708c56e522efacea313")
+                                       # ]}
+                                       }, no_cursor_timeout=True).sort([
             ('ts', pymongo.ASCENDING)
         ]):
             if obj['topic_id'] not in topics:
@@ -251,6 +275,7 @@ def start_transfer_data():
             last_timestamp = obj['ts']
 
             topic_obj = topics[obj['topic_id']]
+
             if topic_obj['table'] in ('analysis', 'datalogger', 'device'):
                     if not isinstance(obj['value'], int) and not isinstance(obj['value'], float):
                         logger_queue.put("table: {} topic: {} ts: {} data: {}".format(
@@ -299,14 +324,18 @@ for q in table_queues.values():
     q.put("done")
 _log.debug('Total data insertion time: {}ms'.format(total_time))
 
-while len(insert_threads) > 0:
-    try:
-        for i in range(len(insert_threads) - 1, -1, -1):
-            if not insert_threads[i].is_alive():
-                _log.debug('Removing thread: {}'.format(i))
-                insert_threads.remove(i)
-
-    except ValueError:
-        pass
-    finally:
-        sleep(0.1)
+for t in insert_threads:
+    t.join(timeout=5)
+    sleep(0.1)
+# while len(insert_threads) > 0:
+#     try:
+#         for i in range(len(insert_threads) - 1, -1, -1):
+#             if not insert_threads[i].is_alive():
+#                 #_log.debug('Removing thread: {}'.format(i))
+#                 insert_threads.remove(i)
+#
+#     except ValueError:
+#         pass
+#     finally:
+#         sleep(0.1)
+#     #_log.debug('Insert threads now: {}'.format(insert_threads))
