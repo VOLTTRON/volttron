@@ -170,7 +170,7 @@ class MessageDebuggerAgent(Agent):
                     waiting_for_test_msg = self.check_for_test_msg(debug_message, start_time)
 
                 # Un-comment the following line to watch the message stream flow by in the log...
-                _log.debug('{}'.format(debug_message))
+                # _log.debug('{}'.format(debug_message))
 
                 self.store_debug_message(debug_message)
 
@@ -507,7 +507,7 @@ class MessageDebuggerAgent(Agent):
             self._monitor_socket = zmq.Context().socket(zmq.PUB)
             self._monitor_socket.set_hwm(100)           # Start dropping messages if queue backlog exceeds 100
             self._monitor_socket.connect(monitor_socket_address)
-            _log.ERROR('Publishing to monitor socket {}'.format(monitor_socket_address))
+            _log.debug('Publishing to monitor socket {}'.format(monitor_socket_address))
         return self._monitor_socket
 
     def db_session(self):
