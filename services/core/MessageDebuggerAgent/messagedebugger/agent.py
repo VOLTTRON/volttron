@@ -160,6 +160,8 @@ class MessageDebuggerAgent(Agent):
                     try:
                         build_connection(self.loopback(), peer=self.agent_id()).call('test_message', timeout=30)
                     except Exception, err:
+                        # @todo Creating the loopback connection has been failing on Linux
+                        # @todo due to a problem initializing the transient agent in build_connection
                         _log.debug('Attempt to send test_message failed: {}'.format(err))
                     test_message_sent = True
 
