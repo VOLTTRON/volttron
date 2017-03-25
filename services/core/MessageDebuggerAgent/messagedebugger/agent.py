@@ -159,8 +159,8 @@ class MessageDebuggerAgent(Agent):
                     _log.debug('Sending a test RPC call')
                     try:
                         build_connection(self.loopback(), peer=self.agent_id()).call('test_message', timeout=30)
-                    except:
-                        pass
+                    except Exception, err:
+                        _log.debug('Attempt to send test_message failed: {}'.format(err))
                     test_message_sent = True
 
                 if waiting_for_test_msg:
