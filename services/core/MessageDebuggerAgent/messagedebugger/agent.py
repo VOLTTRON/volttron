@@ -157,7 +157,10 @@ class MessageDebuggerAgent(Agent):
                 if not test_message_sent:
                     # First time in. Send a test RPC to validate that routed messages are arriving on the socket.
                     _log.debug('Sending a test RPC call')
-                    build_connection(self.loopback(), peer=self.agent_id()).call('test_message', timeout=30)
+                    try:
+                        build_connection(self.loopback(), peer=self.agent_id()).call('test_message', timeout=30)
+                    except:
+                        pass
                     test_message_sent = True
 
                 if waiting_for_test_msg:
