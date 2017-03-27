@@ -185,11 +185,14 @@ if __name__ == '__main__':
         log.error("The wheel file for the agent was unable to be created.")
         sys.exit(-10)
 
-    try:
-        jsonobj = jsonapi.loads(opts.config_object)
-    except Exception as ex:
-        log.error("Invalid json passed in config_object: {}".format(ex.args))
-        sys.exit(-10)
+    if opts.config:
+        opts.config = jsonapi.loads(opts.config.read())
+    else:
+        try:
+            jsonobj = jsonapi.loads(opts.config_object)
+        except Exception as ex:
+            log.error("Invalid json passed in config_object: {}".format(ex.args))
+            sys.exit(-10)
 
     if opts.config:
         install_agent(opts, opts.package, opts.config)
