@@ -32,12 +32,10 @@ if not inenv:
 
 from zmq.utils import jsonapi
 from volttron.platform import get_address, get_home, get_volttron_root, \
-    is_platform_running
+    is_instance_running
 from volttron.platform.packaging import create_package, add_files_to_package
 
 __version__ = '0.1'
-
-
 
 
 def _build_copy_env(opts):
@@ -150,7 +148,7 @@ if __name__ == '__main__':
         log.error("Agent source must contain a setup.py file.")
         sys.exit(-10)
 
-    if not is_platform_running(opts.volttron_home):
+    if not is_instance_running(opts.volttron_home):
         log.error("The instance at {} is not running".format(
             opts.volttron_home))
         sys.exit(-10)
