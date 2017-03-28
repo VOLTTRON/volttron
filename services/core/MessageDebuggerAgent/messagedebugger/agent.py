@@ -53,7 +53,7 @@
 # }}}
 
 import datetime
-import dateutil
+from dateutil.parser import parse
 import gevent
 import json
 import logging
@@ -61,6 +61,7 @@ import os
 import sys
 import time
 import zmq
+from zmq.green import Again
 
 from sqlalchemy import create_engine, desc
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey
@@ -68,15 +69,15 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
 from volttron.platform.agent import utils
+from volttron.platform.control import ControlConnection, KnownHostsStore, KeyStore
 from volttron.platform.vip.agent import Agent, RPC, Core
-from volttron.platform.vip.agent.utils import build_connection
 from volttron.platform.vip.router import ERROR, UNROUTABLE, INCOMING, OUTGOING
 
 ORMBase = declarative_base()
 
 utils.setup_logging()
 _log = logging.getLogger(os.path.basename(sys.argv[0]) if __name__ == '__main__' else __name__)
-__version__ = '0.1'
+__version__ = '1.0'
 
 VERBOSITY_LOW = 'low'
 VERBOSITY_MEDIUM = 'medium'
@@ -157,13 +158,7 @@ class MessageDebuggerAgent(Agent):
                 if not test_message_sent:
                     # First time in. Send a test RPC to validate that routed messages are arriving on the socket.
                     _log.debug('Sending a test RPC call')
-                    try:
-                        # @todo Creating the loopback connection has been failing on Linux
-                        # @todo due to a problem initializing the transient agent in build_connection
-                        # build_connection(self.loopback(), peer=self.agent_id()).call('test_message', timeout=30)
-                        pass
-                    except Exception, err:
-                        _log.debug('Attempt to send test_message failed: {}'.format(err))
+                    self.vip.rpc.call(self.agent_id(), 'test_message')
                     test_message_sent = True
 
                 if waiting_for_test_msg:
@@ -178,7 +173,7 @@ class MessageDebuggerAgent(Agent):
                     # Re-publish the DebugMessage (as json) for MessageViewer real-time consumption
                     self.monitor_socket().send(json.dumps(debug_message.as_json_compatible_object()))
 
-            except zmq.green.Again:
+            except Again:
                 if waiting_for_test_msg:
                     waiting_for_test_msg = self.check_for_test_msg(None, start_time)
                 continue
@@ -220,14 +215,14 @@ class MessageDebuggerAgent(Agent):
             if prop == 'freq':
                 pass        # This filter has a different meaning entirely
             elif prop == 'starttime':
-                parsed_starttime = dateutil.parser.parse(self._filters[prop], ignoretz=True, fuzzy=True)
-                parsed_timestamp = dateutil.parser.parse(str(msg.timestamp), ignoretz=True, fuzzy=True)
+                parsed_starttime = parse(self._filters[prop], ignoretz=True, fuzzy=True)
+                parsed_timestamp = parse(str(msg.timestamp), ignoretz=True, fuzzy=True)
                 if parsed_timestamp < parsed_starttime:
                     # Special-case filter: Filter out messages timestamped before the filter value
                     return False
             elif prop == 'endtime':
-                parsed_endtime = dateutil.parser.parse(self._filters[prop], ignoretz=True, fuzzy=True)
-                parsed_timestamp = dateutil.parser.parse(str(msg.timestamp), ignoretz=True, fuzzy=True)
+                parsed_endtime = parse(self._filters[prop], ignoretz=True, fuzzy=True)
+                parsed_timestamp = parse(str(msg.timestamp), ignoretz=True, fuzzy=True)
                 if parsed_timestamp > parsed_endtime:
                     # Special-case filter: Filter out messages timestamped after the filter value
                     return False
@@ -259,7 +254,7 @@ class MessageDebuggerAgent(Agent):
         @param test_msg_send_time: The time that the test RPC message was sent.
         @return: A Boolean indicating whether to keep watching for the test RPC to arrive on monitor_socket.
         """
-        if msg and msg.recipient == self.agent_id() and msg.sender == self.loopback() and msg.direction == 'outgoing':
+        if msg and msg.sender == self.agent_id() and msg.recipient == self.agent_id() and msg.direction == 'outgoing':
             _log.debug('Test RPC response appeared on monitor socket.')
             return False
         elif datetime.datetime.now() > test_msg_send_time + datetime.timedelta(seconds=15):
@@ -269,7 +264,7 @@ class MessageDebuggerAgent(Agent):
             return True
 
     @RPC.export
-    def execute_db_query(self, db_object_name, filters={}):
+    def execute_db_query(self, db_object_name, filters=None):
         """
             Execute a query and return the results.
 
@@ -279,7 +274,7 @@ class MessageDebuggerAgent(Agent):
         """
         global _verbosity
         _log.debug('Issuing {} query, filters={}'.format(db_object_name, filters))
-        self._filters = filters         # This also affects how data is filtered while streaming to the monitor socket
+        self._filters = filters if filters else {}  # This also affects filtering while streaming to the monitor socket
         if _verbosity == VERBOSITY_LOW:
             count = self._filtered_query(db_object_name).count()
             if count > MAX_MESSAGES_AT_LOW_VERBOSITY:
@@ -412,7 +407,7 @@ class MessageDebuggerAgent(Agent):
         return result
 
     @RPC.export
-    def enable_message_streaming(self, filters={}):
+    def enable_message_streaming(self, filters=None):
         """
             Start publishing a stream of DebugMessages on monitor_socket.
 
@@ -420,7 +415,7 @@ class MessageDebuggerAgent(Agent):
         @return: A string indicating command success.
         """
         _log.debug('Starting message streaming')
-        self._filters = filters
+        self._filters = filters if filters else {}
         self._streaming_messages = True
         return 'Streaming debug messages'
 
@@ -529,7 +524,7 @@ class MessageDebuggerAgent(Agent):
 
     def agent_id(self):
         """Return the ID of this agent, including the 'platform' prefix."""
-        return 'platform.' + self.vip_config_get('agentid')
+        return self.vip_config_get('agentid')
 
     def loopback(self):
         """Return the ID of the transient connection used by this agent to send an RPC to itself."""
@@ -879,7 +874,7 @@ class DebugSession(ORMBase):
 
 def main(argv=sys.argv):
     """Main method called by the platform."""
-    utils.vip_main(MessageDebuggerAgent, identity="platform.messagedebugger", version=__version__)
+    utils.vip_main(MessageDebuggerAgent, identity="messagedebugger", version=__version__)
 
 
 if __name__ == '__main__':

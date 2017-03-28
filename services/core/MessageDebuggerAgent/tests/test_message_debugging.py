@@ -65,7 +65,7 @@ from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper, g
 
 DEBUGGER_CONFIG = {
     "agent": {
-        "exec": "messagedebuggeragent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
+        "exec": "messagedebuggeragent-1.0-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
     },
     "agentid": "messagedebugger",
     "router_path": "$VOLTTRON_HOME/run/messagedebug",
@@ -169,15 +169,15 @@ class TestMessageDebugger:
         for msg in response['results']:
             assert str(msg['session_id']) == session_id
 
-        # Confirm that the response to session_details_by_agent contains stats for a platform.messagedebugger receiver
+        # Confirm that the response to session_details_by_agent contains stats for a messagedebugger receiver
         response = self.issue_rpc_call(agent, 'session_details_by_agent', session_id)
         assert response['message_count'] > 0
-        assert 'platform.messagedebugger' in response['stats']
+        assert 'messagedebugger' in response['stats']
 
-        # Confirm that the response to session_details_by_topic contains stats for a platform.messagedebugger sender
+        # Confirm that the response to session_details_by_topic contains stats for a messagedebugger sender
         response = self.issue_rpc_call(agent, 'session_details_by_topic', session_id)
         assert response['message_count'] > 0
-        assert 'platform.messagedebugger' in response['stats']['']
+        assert 'messagedebugger' in response['stats']['']
 
         # Confirm that a deleted DebugSession is absent in a subsequent list_sessions call
         self.issue_rpc_call(agent, 'delete_debugging_session', session_id)
@@ -224,7 +224,7 @@ class TestMessageDebugger:
 
     @staticmethod
     def issue_rpc_call(agt, rpc_name, *args, **kwargs):
-        return agt.vip.rpc.call('platform.messagedebugger', rpc_name, *args, **kwargs).get(timeout=30)
+        return agt.vip.rpc.call('messagedebugger', rpc_name, *args, **kwargs).get(timeout=30)
 
     @staticmethod
     def subscribe_to_monitor_socket():

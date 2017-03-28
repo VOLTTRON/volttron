@@ -53,6 +53,7 @@
 # }}}
 
 from cmd import Cmd
+import gevent
 import json
 import logging
 import logging.handlers
@@ -62,8 +63,10 @@ import sys
 import time
 import zmq
 
+from volttron.platform import get_address
 from volttron.platform.agent.utils import setup_logging
-from volttron.platform.vip.agent.utils import build_connection
+from volttron.platform.control import KnownHostsStore, KeyStore
+from volttron.platform.vip.agent import Agent
 
 setup_logging()
 # Setting the root logger's level to WARNING so that it won't interfere with single-line message display
@@ -109,7 +112,7 @@ INTERESTING_COLUMNS = {
 
 # When displaying messages, ignore messages sent to (or received by) these agents.
 EXCLUDED_SENDERS = ['None', '', 'control', 'config.store', 'pubsub', 'control.connection', 'messageviewer.connection',
-                    'platform.messagedebugger', 'platform.messagedebugger.loopback_rpc']
+                    'messagedebugger', 'messagedebugger.loopback_rpc']
 EXCLUDED_RECIPIENTS = ['None', '', 'control', 'config.store']
 
 
@@ -668,12 +671,57 @@ class MessageViewer(object):
 
     @classmethod
     def issue_debugger_request(cls, method_name, *args, **kwargs):
-        global debugger_connection
         _log.debug('Sending {0} to message debugger'.format(method_name))
-        # Re-use the cached debugger_connection if it's already been established by this process.
-        if not debugger_connection or not debugger_connection.is_connected():
-            debugger_connection = build_connection('messageviewer.connection', peer='platform.messagedebugger')
-        return debugger_connection.call(method_name, *args, timeout=30, **kwargs)
+        global debugger_connection
+        if not debugger_connection:
+            debugger_connection = ViewerConnection()
+        return debugger_connection.call(method_name, *args, **kwargs)
+
+
+class ViewerConnection(object):
+    """
+        This is a copy of volttron.platform.control.ControlConnection.
+        ControlConnection could not be used directly because it has a hard-coded
+        identity that would conflict if it were re-used by MessageViewer.
+
+        This connection/agent authenticates using the platform's credentials.
+    """
+
+    def __init__(self):
+        self.address = get_address()
+        self.peer = 'messagedebugger'
+        self._server = Agent(identity='message.viewer',
+                             address=self.address,
+                             publickey=KeyStore().public,
+                             secretkey=KeyStore().secret,
+                             serverkey=KnownHostsStore().serverkey(self.address),
+                             enable_store=False,
+                             enable_channel=True)
+        self._greenlet = None
+
+    @property
+    def server(self):
+        if self._greenlet is None:
+            event = gevent.event.Event()
+            self._greenlet = gevent.spawn(self._server.core.run, event)
+            event.wait()
+        return self._server
+
+    def call(self, method, *args, **kwargs):
+        return self.server.vip.rpc.call(
+            self.peer, method, *args, **kwargs).get()
+
+    def call_no_get(self, method, *args, **kwargs):
+        return self.server.vip.rpc.call(
+            self.peer, method, *args, **kwargs)
+
+    def notify(self, method, *args, **kwargs):
+        return self.server.vip.rpc.notify(
+            self.peer, method, *args, **kwargs)
+
+    def kill(self, *args, **kwargs):
+        if self._greenlet is not None:
+            self._greenlet.kill(*args, **kwargs)
 
 
 LEFT, CENTER, RIGHT = range(3)
