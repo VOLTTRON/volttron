@@ -97,6 +97,7 @@ class TestMessageDebugger:
         Regression tests for the MessageDebuggerAgent.
     """
 
+    @pytest.mark.skip(reason="Dependency on SQLAlchemy library")
     def test_rpc_calls(self, agent):
         """Test the full range of RPC calls to the MessageDebuggerAgent, except those related to streaming."""
 
