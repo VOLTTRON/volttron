@@ -95,8 +95,12 @@ def install_agent(opts, package, config):
                     stdout=subprocess.PIPE)
     (output, errorout) = process.communicate()
 
-    # split the command line response for the install.
-    agent_uuid = output.split('\n')[0].split()[-2]
+    parsed = output.split("\n")
+
+    if 'Removing' in parsed[0]:
+        agent_uuid = parsed[1].split()[-2]
+    else:
+        agent_uuid = parsed[0].split()[-2]
 
     if opts.start:
         cmds = [opts.volttron_control, "start", agent_uuid]
