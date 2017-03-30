@@ -97,3 +97,18 @@ def get_address():
         address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
 
     return address
+
+
+def get_volttron_root():
+    """
+    Returns the root folder where the volttron code base resideds on disk.
+
+    :return: absolute path to root folder
+    """
+    return os.path.dirname(
+        os.path.dirname(
+            os.path.dirname(
+                os.path.abspath(__file__)
+            )
+        )
+    )

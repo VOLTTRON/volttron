@@ -77,6 +77,9 @@ var Platforms = React.createClass({
                                     {platform.name}
                                 </Router.Link>
                             </h3>
+                            { /*
+                                Ignoring deregistration of platforms becuase we really want them to be
+                                registered without fail.
                             <button
                                 className="deregister-platform"
                                 onClick={this._onDeregisterClick.bind(this, platform)}
@@ -84,6 +87,7 @@ var Platforms = React.createClass({
                             >
                                 &times;
                             </button>
+                            */}
                             <code>{status.join(' | ')}</code>
                         </div>
                     );
@@ -95,10 +99,12 @@ var Platforms = React.createClass({
                 <div className="absolute_anchor">
                     <h2>Platforms</h2>
                     <div className="view__actions">
-                        
+                    {/*
                         <button className="button" onClick={this._onRegisterClick}>
                             Register platform
                         </button>
+                    */
+                    }
                     </div>
                     {platforms}
                 </div>

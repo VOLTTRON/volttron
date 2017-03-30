@@ -114,7 +114,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 
-__version__ = "4.0.1"
+__version__ = "4.0.3"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -328,43 +328,6 @@ class VolttronCentralAgent(Agent):
         # disconnects that happen.
         self._scan_for_platforms()
 
-        #
-        # auth_file = AuthFile()
-        # entry = auth_file.find_by_credentials(self.core.publickey)[0]
-        # if 'manager' not in entry.capabilities:
-        #     _log.debug('Adding manager capability for volttron.central to '
-        #                'local instance. Publickey is {}'.format(
-        #         self.core.publickey))
-        #     entry.add_capabilities(['manager'])
-        #     auth_file.add(entry, True)
-        #     gevent.sleep(0.1)
-        #
-        # # We know that peers are going to be connected to this platform with the
-        # # identity of platform.address_hash so we collect all of the peers that
-        # # have that signature.  Then if there is a config store entry for that
-        # # platform then register it.
-        # platforms = [p for p in self.vip.peerlist().get(timeout=2)
-        #              if p.startswith('platform')]
-        # for p in platforms:
-        #     try:
-        #         config_name="platforms/{}".format(p.split(".")[1])
-        #         platform_config = self.vip.config.get(config_name)
-        #     except KeyError:
-        #         _log.warn(
-        #             "Couldn't reconnect to platform, missing data for "
-        #             "already connected platform.")
-        #     else:
-        #         _log.warn("Re-registering platform: {} {}".format(
-        #             platform_config['display_name'],
-        #             platform_config['address']
-        #         ))
-        #         self._platforms.register_platform(
-        #             platform_config['address'],
-        #             platform_config['address_type'],
-        #             platform_config['serverkey'],
-        #             platform_config['display_name']
-        #         )
-
     def configure_platforms(self, config_name, action, contents):
         _log.debug('Platform configuration updated.')
         _log.debug('ACTION IS {}'.format(action))
@@ -482,7 +445,7 @@ class VolttronCentralAgent(Agent):
         """
         if env['REQUEST_METHOD'].upper() != 'POST':
             return jsonrpc.json_error('NA', INVALID_REQUEST,
-                                      'Invalid request method, only POST allowd'
+                                      'Invalid request method, only POST allowed'
                                       )
 
         try:
