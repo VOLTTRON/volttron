@@ -260,7 +260,7 @@ class MongodbHistorian(BaseHistorian):
                            wait=self.periodic_rollup_initial_wait)
 
     def periodic_rollup(self):
-        _log.debug("periodic attempt to do hourly and daily rollup.")
+        _log.info("periodic attempt to do hourly and daily rollup.")
         if self._client is None:
             _log.debug("historian setup not complete. "
                        "wait for next periodic call")
@@ -285,11 +285,14 @@ class MongodbHistorian(BaseHistorian):
             "last_data_into_daily"]:
             stat = {}
             find_condition['ts']= {'$gt': self._initial_rollup_start_time}
-            _log.debug("ROLLING FROM start date {}".format(
+            _log.info("ROLLING FROM start date {}".format(
                 self._initial_rollup_start_time))
         else:
-            _log.debug("ROLLING FROM last processed id {}".format(
+            _log.info("ROLLING FROM last processed id {}".format(
                 find_condition['_id']))
+
+        _log.info("query condition is {} ".format(find_condition))
+
 
         # Iterate and append to a bulk_array. Insert in batches of 1000
         bulk_publish_hour = []
@@ -302,7 +305,7 @@ class MongodbHistorian(BaseHistorian):
         last_date = ''
         cursor = db[self._data_collection].find(
             find_condition).sort("_id", pymongo.ASCENDING)
-
+        _log.info("rollup query returned. Looping through to updated db")
         for row in cursor:
             if not stat or row['_id'] > stat["last_data_into_hourly"]:
                 self.initialize_hourly(topic_id=row['topic_id'], ts=row['ts'])
