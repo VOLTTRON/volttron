@@ -99,13 +99,21 @@ def install_agent(opts, package, config):
 
     parsed = output.split("\n")
 
+
+    # If there is not an agent with that identity:
+    # 'Could not find agent with VIP IDENTITY "BOO". Installing as new agent
+    # Installed /home/jer/.volttron/packaged/listeneragent-3.2-py2-none-any.whl as 6ccbf8dc-4929-4794-9c8e-3d8c6a121776 listeneragent-3.2'
+
     # The following is standard output of an agent that was previously installed
     # If the agent was not previously installed then only the second line
     # would have been output to standard out.
     #
     # Removing previous version of agent "foo"
     # Installed /home/volttron/.volttron/packaged/listeneragent-3.2-py2-none-any.whl as 81b811ff-02b5-482e-af01-63d2fd95195a listeneragent-3.2
-    if 'Removing' in parsed[0]:
+
+    if 'Could not' in parsed[0]:
+        agent_uuid = parsed[1].split()[-2]
+    elif 'Removing' in parsed[0]:
         agent_uuid = parsed[1].split()[-2]
     else:
         agent_uuid = parsed[0].split()[-2]
