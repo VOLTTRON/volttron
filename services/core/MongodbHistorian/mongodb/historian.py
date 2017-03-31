@@ -216,16 +216,16 @@ class MongodbHistorian(BaseHistorian):
                     "not a valid regular expression. "
                     "\nException: {} ".format(self.topics_rolled_up, e.args))
 
-            # number of minutes before current time, that can be used as end
-            # date for queries from hourly or daily data collections. This is to
-            # account for the time it takes the periodic_rollup to process
+            # number of days before current time, that can be used as end
+            # date for queries from hourly or daily data collections. This is
+            # to account for the time it takes the periodic_rollup to process
             # records in data table and insert into daily_data and hourly_data
             # collection
             self.rollup_query_end = config.get('rollup_query_end')
             if self.rollup_query_end is not None:
                 self.rollup_query_end = float(self.rollup_query_end)
             else:
-                self.rollup_query_end = 4 * 60 #default to 4 hours before
+                self.rollup_query_end = 1 # default 1 day
                 # current time(at the time of query)
 
             #how minutes ones should the periodic rollup function be run
@@ -656,22 +656,25 @@ class MongodbHistorian(BaseHistorian):
                 datetime.utcnow() - start_time))
             if use_rolled_up_data:
                 for row in rows:
-                    for minute_data in row['data']:
-                        if minute_data:
-                            # there could be more than data entry during the
-                            # same minute
-                            for data in minute_data:
-                                _log.debug("start {}".format(start))
-                                _log.debug("end {}".format(end))
-                                if start.tzinfo:
-                                    data[0] = data[0].replace(tzinfo=tzutc())
-                                _log.debug("data[0] {}".format(data[0]))
-                                if data[0] >= start and data[0] < end:
-                                    result_value = self.json_string_to_dict(
-                                        data[1])
-                                    values[id_name_map[x]].append(
-                                        (utils.format_timestamp(data[0]),
-                                         result_value))
+                    if order_by == 1:
+                        for minute_data in row['data']:
+                            if minute_data:
+                                # there could be more than data entry during the
+                                # same minute
+                                for data in minute_data:
+                                    self.update_values(data, x, start, end,
+                                                       id_name_map,
+                                                       values)
+                    else:
+                        for minute_data in reversed(row['data']):
+                            if minute_data:
+                                # there could be more than data entry during the
+                                # same minute
+                                for data in reversed(minute_data):
+                                    self.update_values(data, x, start, end,
+                                                       id_name_map,
+                                                       values)
+
                 _log.debug("values len {}".format(len(values)))
             else:
                 for row in rows:
@@ -691,6 +694,19 @@ class MongodbHistorian(BaseHistorian):
                                                  topic,
                                                  topic_ids,
                                                  values)
+
+    def update_values(self, data, topic_id, start, end, id_name_map, values):
+        _log.debug("start {}".format(start))
+        _log.debug("end {}".format(end))
+        if start.tzinfo:
+            data[0] = data[0].replace(tzinfo=tzutc())
+        _log.debug("data[0] {}".format(data[0]))
+        if data[0] >= start and data[0] < end:
+            result_value = self.json_string_to_dict(data[1])
+            values[id_name_map[topic_id]].append(
+                (utils.format_timestamp(data[0]), result_value))
+
+
 
     def json_string_to_dict(self, value):
         """
@@ -725,7 +741,8 @@ class MongodbHistorian(BaseHistorian):
         # if it is the right version of historian and
         # if start and end dates are within the range for which rolled up
         # data is available, use hourly_data or monthly_data collection
-        rollup_end = get_aware_utc_now() - timedelta(minutes=self.rollup_query_end)
+        rollup_end = get_aware_utc_now() - timedelta(
+            days=self.rollup_query_end)
         _log.debug("historian version:{}".format(self.version_nums[0]))
         _log.debug("start  {} and end {}".format(start, end))
         _log.debug("rollup query start {}".format(self.rollup_query_start))
