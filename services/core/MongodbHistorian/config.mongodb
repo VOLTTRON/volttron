@@ -50,7 +50,7 @@
     # date for queries from hourly or daily data collections. This is to
     # account for the time it takes the periodic_rollup to process
     # records in data table and insert into daily_data and hourly_data
-    # collection. Units minutes. Default 4 minutes
+    # collection. Units minutes. Default 4 hours
     "rollup_query_end":10,
 
     # topic name patterns for which rollup exists. Set this if rollup was done
