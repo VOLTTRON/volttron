@@ -538,8 +538,17 @@ class PlatformHandler(object):
                     'can_remove': False
                 }
             else:
-                self._log.debug('Permissionse for {} are {}'
-                                .format(a['name'], a['permissions']))
+                a['permissions'] = {
+                    'can_stop': True,
+                    'can_start': True,
+                    'can_restart': True,
+                    'can_remove': True
+                }
+
+                if a['identity'] in ('volttron.central', 'platform.agent'):
+                    a['permissions']['can_stop'] = False
+                    a['permissions']['can_remove'] = False
+
         return agents
 
     def get_agent_config_list(self, session_user, params):

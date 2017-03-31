@@ -689,6 +689,8 @@ class AIPplatform(object):
                      ((logging.INFO, line.rstrip('\r\n'))
                       for line in proc.stdout))
 
+        return self.agent_status(agent_uuid)
+
     def agent_status(self, agent_uuid):
         execenv = self.agents.get(agent_uuid)
         if execenv is None:
