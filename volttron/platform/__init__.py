@@ -115,7 +115,7 @@ def get_volttron_root():
     )
 
 
-def is_platform_running(volttron_home=None):
+def is_instance_running(volttron_home=None):
     from zmq.utils import jsonapi
 
     if volttron_home is None:

@@ -1,9 +1,11 @@
 import argparse
+import json
 import logging
 import os
 import subprocess
 from subprocess import Popen
 import tempfile
+from time import sleep
 import sys
 
 
@@ -32,12 +34,10 @@ if not inenv:
 
 from zmq.utils import jsonapi
 from volttron.platform import get_address, get_home, get_volttron_root, \
-    is_platform_running
+    is_instance_running
 from volttron.platform.packaging import create_package, add_files_to_package
 
 __version__ = '0.1'
-
-
 
 
 def _build_copy_env(opts):
@@ -97,14 +97,31 @@ def install_agent(opts, package, config):
                     stdout=subprocess.PIPE)
     (output, errorout) = process.communicate()
 
-    # split the command line response for the install.
-    agent_uuid = output.split('\n')[0].split()[-2]
+    parsed = output.split("\n")
+
+    # The following is standard output of an agent that was previously installed
+    # If the agent was not previously installed then only the second line
+    # would have been output to standard out.
+    #
+    # Removing previous version of agent "foo"
+    # Installed /home/volttron/.volttron/packaged/listeneragent-3.2-py2-none-any.whl as 81b811ff-02b5-482e-af01-63d2fd95195a listeneragent-3.2
+    if 'Removing' in parsed[0]:
+        agent_uuid = parsed[1].split()[-2]
+    else:
+        agent_uuid = parsed[0].split()[-2]
+
+    output_dict = dict(agent_uuid=agent_uuid)
 
     if opts.start:
         cmds = [opts.volttron_control, "start", agent_uuid]
         process = Popen(cmds, env=env, stderr=subprocess.PIPE,
                         stdout=subprocess.PIPE)
         (outputdata, errordata) = process.communicate()
+
+        # Expected output on standard out
+        # Starting 83856b74-76dc-4bd9-8480-f62bd508aa9c listeneragent-3.2
+        if 'Starting' in outputdata:
+            output_dict['starting'] = True
 
     if opts.enable:
         cmds = [opts.volttron_control, "enable", agent_uuid]
@@ -115,25 +132,80 @@ def install_agent(opts, package, config):
         process = Popen(cmds, env=env, stderr=subprocess.PIPE,
                         stdout=subprocess.PIPE)
         (outputdata, errordata) = process.communicate()
+        # Expected output from standard out
+        # Enabling 6bcee29b-7af3-4361-a67f-7d3c9e986419 listeneragent-3.2 with priority 50
+        if "Enabling" in outputdata:
+            output_dict['enabling'] = True
+            output_dict['priority'] = outputdata.split("\n")[0].split()[-1]
 
+    if opts.start:
+        # Pause for 5 seconds before verifing that the agent
+        sleep(opts.agent_start_time)
+
+        cmds = [opts.volttron_control, "status", agent_uuid]
+        process = Popen(cmds, env=env, stderr=subprocess.PIPE,
+                        stdout=subprocess.PIPE)
+        (outputdata, errordata) = process.communicate()
+
+        # 5 listeneragent-3.2 foo     running [10737]
+        output_dict["started"] = "running" in outputdata
+        if output_dict["started"]:
+            pidpos = outputdata.index('[') + 1
+            pidend = outputdata.index(']')
+            output_dict['agent_pid'] = int(outputdata[pidpos: pidend])
+
+    if opts.json:
+        sys.stdout.write("%s\n" % json.dumps(output_dict, indent=4))
+    if opts.csv:
+        keylen = len(output_dict.keys())
+        keyline = ''
+        valueline = ''
+        keys = output_dict.keys()
+        for k in range(keylen):
+            if k < keylen - 1:
+                keyline += "%s," % keys[k]
+                valueline += "%s," % output_dict[keys[k]]
+            else:
+                keyline += "%s" % keys[k]
+                valueline += "%s" % output_dict[keys[k]]
+        sys.stdout.write("%s\n%s\n" % (keyline, valueline))
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(version=__version__)
 
-    parser.add_argument("-a", "--vip-address", default=get_address())
-    parser.add_argument("-vh", "--volttron-home", default=get_home())
-    parser.add_argument("-vr", "--volttron-root", default=get_volttron_root())
-    parser.add_argument("-s", "--agent-source", required=True)
-    parser.add_argument("-i", "--vip-identity", default=None)
-    parser.add_argument("-c", "--config", default=None, type=file)
-    parser.add_argument("-co", "--config-object", type=str, default="{}")
-    parser.add_argument("-wh", "--wheelhouse", default=None)
-    parser.add_argument("-t", "--tag", default=None)
-    parser.add_argument("-f", "--force", action='store_true')
-    parser.add_argument("--priority", default=-1, type=int)
-    parser.add_argument("--start", action='store_true')
-    parser.add_argument("--enable", action='store_true')
+    parser.add_argument("-a", "--vip-address", default=get_address(),
+                        help="vip-address to connect to.")
+    parser.add_argument("-vh", "--volttron-home", default=get_home(),
+                        help="local volttron-home for the instance.")
+    parser.add_argument("-vr", "--volttron-root", default=get_volttron_root(),
+                        help="location of the volttron root on the filesystem.")
+    parser.add_argument("-s", "--agent-source", required=True,
+                        help="source directory of the agent which is to be installed.")
+    parser.add_argument("-i", "--vip-identity", default=None,
+                        help="identity of the agent to be installed (unique per instance)")
+    parser.add_argument("-c", "--config", default=None, type=file,
+                        help="agent configuration file that will be packaged with the agent.")
+    parser.add_argument("-co", "--config-object", type=str, default="{}",
+                        help="json string that will be used as the configuration of the agent.")
+    parser.add_argument("-wh", "--wheelhouse", default=None,
+                        help="location of agents after they have been built")
+    parser.add_argument("-t", "--tag", default=None,
+                        help="a tag is a means of identifying an agent.")
+    parser.add_argument("-f", "--force", action='store_true',
+                        help="agents are uninstalled by tag so force allows multiple agents to be removed at one go.")
+    parser.add_argument("--priority", default=-1, type=int,
+                        help="priority of startup during instance startup")
+    parser.add_argument("--start", action='store_true',
+                        help="start the agent during the script execution")
+    parser.add_argument("--enable", action='store_true',
+                        help="enable the agent with default 50 priority unless --priority set")
+    parser.add_argument("-st", "--agent-start-time", default=5, type=int,
+                        help="the amount of time to wait and verify that the agent has started up.")
+    parser.add_argument("--csv", action='store_true',
+                        help="format the standard out output to csv")
+    parser.add_argument("--json", action="store_true",
+                        help="format the standard out output to jso")
 
     opts = parser.parse_args()
 
@@ -150,7 +222,7 @@ if __name__ == '__main__':
         log.error("Agent source must contain a setup.py file.")
         sys.exit(-10)
 
-    if not is_platform_running(opts.volttron_home):
+    if not is_instance_running(opts.volttron_home):
         log.error("The instance at {} is not running".format(
             opts.volttron_home))
         sys.exit(-10)
@@ -165,6 +237,11 @@ if __name__ == '__main__':
             log.error("Invalid priority specified must be between 1, 100")
             sys.exit(-10)
         opts.enable = True
+
+    if opts.json and opts.csv:
+        opts.csv = False
+    elif not opts.json and not opts.csv:
+        opts.json = True
 
     opts.volttron_control = os.path.join(opts.volttron_root,
                                          "env/bin/volttron-ctl")
@@ -187,11 +264,14 @@ if __name__ == '__main__':
         log.error("The wheel file for the agent was unable to be created.")
         sys.exit(-10)
 
-    try:
-        jsonobj = jsonapi.loads(opts.config_object)
-    except Exception as ex:
-        log.error("Invalid json passed in config_object: {}".format(ex.args))
-        sys.exit(-10)
+    if opts.config:
+        opts.config = jsonapi.loads(opts.config.read())
+    else:
+        try:
+            jsonobj = jsonapi.loads(opts.config_object)
+        except Exception as ex:
+            log.error("Invalid json passed in config_object: {}".format(ex.args))
+            sys.exit(-10)
 
     if opts.config:
         install_agent(opts, opts.package, opts.config)
