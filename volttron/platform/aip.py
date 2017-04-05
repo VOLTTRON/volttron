@@ -517,6 +517,12 @@ class AIPplatform(object):
         pkg = UnpackedPackage(os.path.join(agent_path, name))
         return pkg.version
 
+    def agent_dir(self, agent_uuid):
+        if '/' in agent_uuid or agent_uuid in ['.', '..']:
+            raise ValueError('invalid agent')
+        return os.path.join(self.install_dir, agent_uuid,
+                            self.agent_name(agent_uuid))
+
     def agent_versions(self):
         agents = {}
         for agent_uuid in os.listdir(self.install_dir):
