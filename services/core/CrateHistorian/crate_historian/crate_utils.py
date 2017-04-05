@@ -18,7 +18,7 @@ def insert_data_query(schema):
                 string_value = string_value,
                 meta = meta
               """.format(schema=schema)
-    return query.replace("\n", "")
+    return query.replace("\n", " ")
 
 
 def drop_schema(connection, schema=None, truncate=False):

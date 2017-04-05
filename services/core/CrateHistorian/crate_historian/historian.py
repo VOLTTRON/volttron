@@ -55,6 +55,21 @@
 # }}}
 from __future__ import absolute_import, print_function
 
+# ujson is significantly faster at dump/loading the data from/to the database
+# cache database, I use it in this agent to store/retrieve the string data that
+# can be put into json.
+try:
+    import ujson
+
+    def dumps(data):
+        return ujson.dumps(data, double_precision=15)
+
+
+    def loads(data_string):
+        return ujson.loads(data_string, precise_float=True)
+except ImportError:
+    from zmq.utils.jsonapi import dumps, loads
+
 import logging
 import sys
 from collections import defaultdict
@@ -73,7 +88,7 @@ from volttron.platform.agent.base_historian import BaseHistorian
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '1.0'
+__version__ = '1.0.1'
 
 
 def historian(config_path, **kwargs):
@@ -139,7 +154,7 @@ class CrateHistorian(BaseHistorian):
         _log.debug(config)
         self._connection_params = config['connection']['params']
         self._schema = config['connection'].get('schema', 'historian')
-        self._raw_schema_enabled = config.get('raw_schema_enabled', None)
+
         self._client = None
         self._connection = None
 
@@ -187,6 +202,11 @@ class CrateHistorian(BaseHistorian):
                 topic = row['topic']
                 value = row['value']
                 meta = row['meta']
+
+                # Handle the serialization of data here because we can't pass
+                # an array as a string so we create a string from the value.
+                if isinstance(value, list) or isinstance(value, dict):
+                    value = dumps(value)
 
                 if topic not in self._topic_set:
                     try:
@@ -264,7 +284,7 @@ class CrateHistorian(BaseHistorian):
                         {where}
                         {order_by}
                         {limit}
-                        {offset}""".replace("\n", "")
+                        {offset}""".replace("\n", " ")
 
         where_clauses = ["WHERE topic =?"]
         args = [topic]
@@ -305,7 +325,7 @@ class CrateHistorian(BaseHistorian):
         real_query = query.format(where=where_statement,
                                   limit=limit_statement,
                                   offset=offset_statement,
-                                  order_by=order_by)
+                                  order_by=order_by).replace("\n", "")
 
         _log.debug("Real Query: " + real_query)
         return real_query, args
@@ -329,8 +349,8 @@ class CrateHistorian(BaseHistorian):
                 count = 20
             else:
                 # protect the querying of the database limit to 500 at a time.
-                if count > 100:
-                    count = 100
+                if count > 500:
+                    count = 560
 
         # Final results that are sent back to the client.
         results = {}
@@ -383,10 +403,7 @@ class CrateHistorian(BaseHistorian):
     def query_topic_list(self):
         _log.debug("Querying topic list")
         cursor = self.get_connection().cursor()
-        sql = """
-            SELECT name, lower(name)
-            FROM {schema}.topic
-        """.format(schema=self._schema)
+        sql = select_all_topics_query(self._schema)
 
         cursor.execute(sql)
 
