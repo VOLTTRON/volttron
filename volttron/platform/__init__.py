@@ -60,6 +60,7 @@
 
 
 import os
+import psutil
 import sys
 
 __version__ = '4.1'
@@ -112,3 +113,28 @@ def get_volttron_root():
             )
         )
     )
+
+
+def is_instance_running(volttron_home=None):
+    from zmq.utils import jsonapi
+
+    if volttron_home is None:
+        volttron_home = get_home()
+
+    instance_file = os.path.expanduser("~/.volttron_instances")
+    if not os.path.isfile(instance_file):
+        return False
+
+    with open(instance_file, 'r') as fp:
+        jsonobj = jsonapi.loads(fp.read())
+
+    if volttron_home not in jsonobj:
+        return False
+
+    obj = jsonobj[volttron_home]
+    pid = obj.get('pid', None)
+
+    if not pid:
+        return False
+
+    return psutil.pid_exists(pid)
