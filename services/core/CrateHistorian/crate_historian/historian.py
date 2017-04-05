@@ -284,7 +284,7 @@ class CrateHistorian(BaseHistorian):
                         {where}
                         {order_by}
                         {limit}
-                        {offset}""".replace("\n", "")
+                        {offset}""".replace("\n", " ")
 
         where_clauses = ["WHERE topic =?"]
         args = [topic]
