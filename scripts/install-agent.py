@@ -12,11 +12,15 @@ import sys
 logging.basicConfig(level=logging.WARN)
 log = logging.getLogger(os.path.basename(__file__))
 
+# determine whether or not the script is being run from an activated environment
+# or not.  If we are then we need to call this script again from the correct
+# python interpreter.
 if not hasattr(sys, 'real_prefix'):
     inenv = False
 else:
     inenv = True
 
+# Call the script with the correct environment if we aren't activated yet.
 if not inenv:
     mypath = os.path.dirname(__file__)
     correct_python = os.path.abspath(
@@ -37,7 +41,7 @@ from volttron.platform import get_address, get_home, get_volttron_root, \
     is_instance_running
 from volttron.platform.packaging import create_package, add_files_to_package
 
-__version__ = '0.1'
+__version__ = '0.2'
 
 
 def _build_copy_env(opts):
@@ -74,6 +78,17 @@ def remove_agent(opts, agent_uuid):
 
 
 def install_agent(opts, package, config):
+    """
+    The main installation method for installing the agent on the correct local
+    platform instance.
+
+    :param opts:
+    :param package:
+    :param config:
+    :return:
+    """
+    print("Starting to install agent.")
+    # if not a dict then config should be a filename
     if not isinstance(config, dict):
         config_file = config
     else:
@@ -81,6 +96,13 @@ def install_agent(opts, package, config):
         with open(cfg.name, 'w') as fout:
             fout.write(jsonapi.dumps(config))
         config_file = cfg.name
+
+    try:
+        with open(config_file) as fp:
+            data = json.load(fp)
+    except:
+        log.error("Invalid json config file.")
+        sys.exit(-10)
 
     # Configure the whl file before installing.
     add_files_to_package(opts.package, {'config_file': config_file})
@@ -147,7 +169,7 @@ def install_agent(opts, package, config):
             output_dict['priority'] = outputdata.split("\n")[0].split()[-1]
 
     if opts.start:
-        # Pause for 5 seconds before verifing that the agent
+        # Pause for agent_start_time seconds before verifying that the agent
         sleep(opts.agent_start_time)
 
         cmds = [opts.volttron_control, "status", agent_uuid]
@@ -273,7 +295,19 @@ if __name__ == '__main__':
         sys.exit(-10)
 
     if opts.config:
-        opts.config = jsonapi.loads(opts.config.read())
+        tmpconfigfile = tempfile.NamedTemporaryFile()
+
+        with open(tmpconfigfile.name, 'w') as fout:
+            for line in opts.config:
+                line = line.partition('#')[0]
+                if line.rstrip():
+                    fout.write(line.rstrip())
+        config_file = tmpconfigfile.name
+        try:
+            with open(tmpconfigfile.name) as f:
+                opts.config = jsonapi.loads(f.read())
+        finally:
+            tmpconfigfile.close()
     else:
         try:
             jsonobj = jsonapi.loads(opts.config_object)
