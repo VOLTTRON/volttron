@@ -53,7 +53,10 @@
 # under Contract DE-AC05-76RL01830
 
 # }}}
+
 from __future__ import absolute_import, print_function
+# from gevent import monkey
+# monkey.patch_all()
 
 import logging
 import numbers
@@ -62,6 +65,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
+from gevent.pool import Pool
 
 import pymongo
 import pytz
@@ -451,7 +455,8 @@ class MongodbHistorian(BaseHistorian):
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
             len(to_publish_list)))
-
+        # self.report_all_handled()
+        # return
         # Use the db instance to insert/update the topics
         # and data collections
         db = self._client.get_default_database()
@@ -601,7 +606,6 @@ class MongodbHistorian(BaseHistorian):
             _log.debug("Found topic id for {} as {}".format(
                 topics_list, topic_ids))
         multi_topic_query = len(topic_ids) > 1
-        db = self._client.get_default_database()
 
         ts_filter = {}
         order_by = 1
@@ -629,68 +633,80 @@ class MongodbHistorian(BaseHistorian):
                 find_params = {'ts': ts_filter}
 
         values = defaultdict(list)
-        for x in topic_ids:
-            # Query for one topic at a time in a loop instead of topic_id $in
-            # in order to apply $limit to each topic searched instead of the
-            # combined result
-            find_params['topic_id'] = ObjectId(x)
-            _log.debug("querying table with params {}".format(find_params))
-            if use_rolled_up_data:
-                project = {"_id": 0, "data": 1}
-            else:
-                project = {"_id": 0, "timestamp": {
+        pool = Pool(size=10)
+        try:
+            for topic_id in topic_ids:
+                # Query for one topic at a time in a loop instead of topic_id $in
+                # in order to apply $limit to each topic searched instead of the
+                # combined result
+                _log.debug("Spawning thread for topic {}".format(topic_id))
+                pool.spawn(self.query_topic_data, topic_id, collection_name,
+                           start, end, count, skip_count, order_by, find_params,
+                           id_name_map, use_rolled_up_data, values)
+            pool.join()
+            _log.debug("Time taken to load all values {}".format(
+                datetime.utcnow() - start_time))
+            # _log.debug("Results got {}".format(values))
+
+            return self.add_metadata_to_query_result(agg_type,
+                                                     multi_topic_query,
+                                                     topic,
+                                                     topic_ids,
+                                                     values)
+        finally:
+            pool.kill()
+
+
+    def query_topic_data(self, topic_id, collection_name, start,
+                         end, count, skip_count, order_by, find_params,
+                         id_name_map, use_rolled_up_data, values):
+        start_time = datetime.utcnow()
+        db = self._client.get_default_database()
+        find_params['topic_id'] = ObjectId(topic_id)
+        _log.debug("querying table with params {}".format(find_params))
+        if use_rolled_up_data:
+            project = {"_id": 0, "data": 1}
+        else:
+            project = {"_id": 0, "timestamp": {
                 '$dateToString': {'format': "%Y-%m-%dT%H:%M:%S.%L000+00:00",
-                    "date": "$ts"}}, "value": 1}
-            pipeline = [{"$match": find_params}, {"$skip": skip_count},
-                        {"$sort": {"ts": order_by}}, {"$limit": count}, {
-                            "$project": project}]
-            _log.debug("pipeline for agg query is {}".format(pipeline))
-            _log.debug("collection_name is "+ collection_name)
-            cursor = db[collection_name].aggregate(pipeline)
+                                  "date": "$ts"}}, "value": 1}
+        pipeline = [{"$match": find_params}, {"$skip": skip_count},
+                    {"$sort": {"ts": order_by}}, {"$limit": count},
+                    {"$project": project}]
+        _log.debug("pipeline for agg query is {}".format(pipeline))
+        _log.debug("collection_name is " + collection_name)
+        cursor = db[collection_name].aggregate(pipeline)
+        rows = list(cursor)
+        _log.debug(
+            "Time after fetch {}".format(datetime.utcnow() - start_time))
+        if use_rolled_up_data:
+            for row in rows:
+                if order_by == 1:
+                    for minute_data in row['data']:
+                        if minute_data:
+                            # there could be more than data entry during the
+                            # same minute
+                            for data in minute_data:
+                                self.update_values(data, topic_id, start, end,
+                                                   id_name_map, values)
+                else:
+                    for minute_data in reversed(row['data']):
+                        if minute_data:
+                            # there could be more than data entry during the
+                            # same minute
+                            for data in reversed(minute_data):
+                                self.update_values(data, topic_id, start, end,
+                                                   id_name_map, values)
 
-            rows = list(cursor)
-            _log.debug("Time after fetch {}".format(
-                datetime.utcnow() - start_time))
-            if use_rolled_up_data:
-                for row in rows:
-                    if order_by == 1:
-                        for minute_data in row['data']:
-                            if minute_data:
-                                # there could be more than data entry during the
-                                # same minute
-                                for data in minute_data:
-                                    self.update_values(data, x, start, end,
-                                                       id_name_map,
-                                                       values)
-                    else:
-                        for minute_data in reversed(row['data']):
-                            if minute_data:
-                                # there could be more than data entry during the
-                                # same minute
-                                for data in reversed(minute_data):
-                                    self.update_values(data, x, start, end,
-                                                       id_name_map,
-                                                       values)
-
-                _log.debug("values len {}".format(len(values)))
-            else:
-                for row in rows:
-                    result_value = self.json_string_to_dict(row['value'])
-                    values[id_name_map[x]].append(
-                        (row['timestamp'], result_value))
-            _log.debug("Time taken to load into values {}".format(
-                datetime.utcnow() - start_time))
-            _log.debug("rows length {}".format(len(rows)))
-
-        _log.debug("Time taken to load all values {}".format(
+            _log.debug("values len {}".format(len(values)))
+        else:
+            for row in rows:
+                result_value = self.json_string_to_dict(row['value'])
+                values[id_name_map[topic_id]].append(
+                    (row['timestamp'], result_value))
+        _log.debug("Time taken to load into values {}".format(
             datetime.utcnow() - start_time))
-        # _log.debug("Results got {}".format(values))
-
-        return self.add_metadata_to_query_result(agg_type,
-                                                 multi_topic_query,
-                                                 topic,
-                                                 topic_ids,
-                                                 values)
+        _log.debug("rows length {}".format(len(rows)))
 
     def update_values(self, data, topic_id, start, end, id_name_map, values):
         if start.tzinfo:
@@ -882,7 +898,10 @@ class MongodbHistorian(BaseHistorian):
     @doc_inherit
     def historian_setup(self):
         _log.debug("HISTORIAN SETUP")
-        self._client = mongoutils.get_mongo_client(self._connection_params)
+        self._client = mongoutils.get_mongo_client(self._connection_params,
+                                                   minPoolSize=10)
+        _log.info("Mongo client created with min pool size {}".format(
+                  self._client.min_pool_size))
         db = self._client.get_default_database()
         col_list = db.collection_names()
         create_index1 = True
