@@ -633,11 +633,18 @@ class MasterWebService(Agent):
                     message = res['error']['message']
                     code = res['error']['code']
                     return [b'<h1>{}</h1>\n<h2>CODE:{}</h2>'
-                                .format(message, code)]
-        start_response('200 OK',
-                       [('Content-Type', 'application/json')])
-        _log.debug('RESPONSE WEB: {}'.format(res))
-        return jsonapi.dumps(res)
+                            .format(message, code)]
+            elif 'content_type' in res:
+                content_type = res['content_type']
+                start_response('200 OK',
+                               [('Content-Type', content_type)])
+                _log.debug('RESPONSE WEB: {}'.format(res['content']))
+                return res['content']
+        else:
+            start_response('200 OK',
+                           [('Content-Type', 'application/json')])
+            _log.debug('RESPONSE WEB: {}'.format(res))
+            return jsonapi.dumps(res)
 
     def _sendfile(self, env, start_response, filename):
         from wsgiref.util import FileWrapper
