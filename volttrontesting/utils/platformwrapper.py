@@ -614,15 +614,19 @@ class PlatformWrapper:
         cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
         if vip_identity:
             cmd.extend(['--vip-identity', vip_identity])
-        res = subprocess.check_output(cmd, env=env)
-        assert res, "failed to install wheel:{}".format(wheel_file)
-        agent_uuid = res.split(' ')[-2]
-        self.logit(agent_uuid)
+        try:
+            res = subprocess.check_output(cmd, env=env)
+            assert res, "failed to install wheel:{}".format(wheel_file)
+            agent_uuid = res.split(' ')[-2]
+            self.logit(agent_uuid)
+            if start:
+                self.start_agent(agent_uuid)
+            return agent_uuid
+        except CalledProcessError as c:
+            _log.error("command ({}) returned non zero exitcode({}). returned "
+                       "output:{}".format(c.cmd, c.returncode,  c.output))
+            raise c
 
-        if start:
-             self.start_agent(agent_uuid)
-
-        return agent_uuid
 
     def install_multiple_agents(self, agent_configs):
         """
