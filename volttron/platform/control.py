@@ -506,17 +506,18 @@ def upgrade_agent(opts):
         publickey = None
         secretkey = None
 
-    new_agent_uuid = install_agent(opts, publickey=publickey,
-                                   secretkey=secretkey)
+    def restore_agent_data(agent_uuid):
+        # if we are  upgrading transfer the old data on.
+        if os.path.exists(backup_agent_file):
+            new_agent_data_dir = find_agent_data_dir(opts, new_agent_uuid)
+            restore_agent_data(backup_agent_file, new_agent_data_dir)
+            os.remove(backup_agent_file)
 
-    # if we are  upgrading transfer the old data on.
-    if os.path.exists(backup_agent_file):
-        new_agent_data_dir = find_agent_data_dir(opts, new_agent_uuid)
-        restore_agent_data(backup_agent_file, new_agent_data_dir)
-        os.remove(backup_agent_file)
+    install_agent(opts, publickey=publickey, secretkey=secretkey,
+                  callback=restore_agent_data)
 
 
-def install_agent(opts, publickey=None, secretkey=None):
+def install_agent(opts, publickey=None, secretkey=None, callback=None):
     aip = opts.aip
     filename = opts.wheel
     tag = opts.tag
@@ -553,7 +554,7 @@ def install_agent(opts, publickey=None, secretkey=None):
             with open(filename, 'rb') as wheel_file_data:
                 while True:
                     # get a request
-                    with gevent.Timeout(30):
+                    with gevent.Timeout(60):
                         request, file_offset, chunk_size = channel.recv_multipart()
                     if request == b'checksum':
                         channel.send(sha512.digest())
@@ -589,7 +590,11 @@ def install_agent(opts, publickey=None, secretkey=None):
 
     name = opts.connection.call('agent_name', agent_uuid)
     _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
-    return agent_uuid
+
+    # Need to use a callback here rather than a return value.  I am not 100%
+    # sure why this is the reason for allowing our tests to pass.
+    if callback:
+        callback(agent_uuid)
 
 def tag_agent(opts):
     agents = filter_agent(_list_agents(opts.aip), opts.agent, opts)
