@@ -215,7 +215,7 @@ class CrateHistorian(BaseHistorian):
                     except ProgrammingError as ex:
                         if ex.args[0].startswith(
                                 'DocumentAlreadyExistsException'):
-                            self._top_set.add(topic)
+                            self._topic_set.add(topic)
                         else:
                             _log.error(
                                 "Unknown error during topic insert {} {}".format(
