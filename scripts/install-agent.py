@@ -87,7 +87,6 @@ def install_agent(opts, package, config):
     :param config:
     :return:
     """
-    print("Starting to install agent.")
     # if not a dict then config should be a filename
     if not isinstance(config, dict):
         config_file = config
