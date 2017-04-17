@@ -87,22 +87,21 @@ def install_agent(opts, package, config):
     :param config:
     :return:
     """
-    cfg = tempfile.NamedTemporaryFile()
-
     # if not a dict then config should be a filename
-    if isinstance(config, dict) or config is None:
-        with open(cfg.name, 'w') as fout:
-            if config is None:
-                fout.write("{}")
-            else:
-                fout.write(jsonapi.dumps(config))
-        config_file = cfg.name
-    else:
-        # Do this to verify that the file is json.
-        with open(config) as fp:
-            data = json.load(fp)
+    if not isinstance(config, dict):
         config_file = config
+    else:
+        cfg = tempfile.NamedTemporaryFile()
+        with open(cfg.name, 'w') as fout:
+            fout.write(jsonapi.dumps(config))
+        config_file = cfg.name
 
+    try:
+        with open(config_file) as fp:
+            data = json.load(fp)
+    except:
+        log.error("Invalid json config file.")
+        sys.exit(-10)
 
     # Configure the whl file before installing.
     add_files_to_package(opts.package, {'config_file': config_file})
@@ -120,6 +119,7 @@ def install_agent(opts, package, config):
     (output, errorout) = process.communicate()
 
     parsed = output.split("\n")
+
 
     # If there is not an agent with that identity:
     # 'Could not find agent with VIP IDENTITY "BOO". Installing as new agent
@@ -292,8 +292,7 @@ if __name__ == '__main__':
     if not os.path.isfile(opts.package):
         log.error("The wheel file for the agent was unable to be created.")
         sys.exit(-10)
-    # used when a config file is not specified.
-    jsonobj = None
+
     if opts.config:
         tmpconfigfile = tempfile.NamedTemporaryFile()
 
