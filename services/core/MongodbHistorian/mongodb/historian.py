@@ -648,8 +648,9 @@ class MongodbHistorian(BaseHistorian):
                 # of the combined result
                 _log.debug("Spawning thread for topic {}".format(topic_id))
                 pool.spawn(self.query_topic_data, topic_id, collection_name,
-                           start, end, count, skip_count, order_by, find_params,
-                           id_name_map, use_rolled_up_data, values)
+                           start, end, query_start, query_end, count,
+                           skip_count, order_by, find_params, id_name_map,
+                           use_rolled_up_data, values)
             pool.join()
             _log.debug("Time taken to load all values {}".format(
                 datetime.utcnow() - start_time))
@@ -664,25 +665,27 @@ class MongodbHistorian(BaseHistorian):
             pool.kill()
 
 
-    def query_topic_data(self, topic_id, collection_name, start,
-                         end, count, skip_count, order_by, find_params,
-                         id_name_map, use_rolled_up_data, values):
+    def query_topic_data(self, topic_id, collection_name, start, end,
+                         query_start, query_end, count, skip_count, order_by,
+                         find_params, id_name_map, use_rolled_up_data, values):
         start_time = datetime.utcnow()
         db = self._client.get_default_database()
         _log.info("Mongo client created with min pool size {}".format(
             self._client.min_pool_size))
         find_params['topic_id'] = ObjectId(topic_id)
         _log.debug("querying table with params {}".format(find_params))
+        raw_data_project = {"_id": 0, "timestamp": {
+            '$dateToString': {'format': "%Y-%m-%dT%H:%M:%S.%L000+00:00",
+                              "date": "$ts"}}, "value": 1}
         if use_rolled_up_data:
             project = {"_id": 0, "data": 1}
         else:
-            project = {"_id": 0, "timestamp": {
-                '$dateToString': {'format': "%Y-%m-%dT%H:%M:%S.%L000+00:00",
-                                  "date": "$ts"}}, "value": 1}
+            project = raw_data_project
+
         pipeline = [{"$match": find_params}, {"$skip": skip_count},
                     {"$sort": {"ts": order_by}}, {"$limit": count},
                     {"$project": project}]
-        _log.debug("pipeline for agg query is {}".format(pipeline))
+        _log.debug("pipeline for query is {}".format(pipeline))
         _log.debug("collection_name is "+ collection_name)
         cursor = db[collection_name].aggregate(pipeline)
 
@@ -710,14 +713,57 @@ class MongodbHistorian(BaseHistorian):
                                                    id_name_map,
                                                    values)
             _log.debug("values len {}".format(len(values)))
+            if query_start > start:
+                # query raw data collection for rest of the dates
+                find_params['ts'] = {'$gte':start,
+                                     '$lt':query_start}
+                pipeline = [{"$match": find_params}, {"$skip": skip_count},
+                            {"$sort": {"ts": order_by}}, {"$limit": count},
+                            {"$project": raw_data_project}]
+                self.add_raw_data_results(db, id_name_map[topic_id], values,
+                                          pipeline, order_by == 1)
+            if query_end < end:
+                # query raw data collection for rest of the dates
+                find_params['ts'] = {'$gte':query_end,
+                                     '$lt':end}
+                pipeline = [{"$match": find_params}, {"$skip": skip_count},
+                            {"$sort": {"ts": order_by}}, {"$limit": count},
+                            {"$project": raw_data_project}]
+                self.add_raw_data_results(db, id_name_map[topic_id], values,
+                                          pipeline, order_by == -1)
+
         else:
             for row in rows:
                 result_value = self.json_string_to_dict(row['value'])
                 values[id_name_map[topic_id]].append(
                     (row['timestamp'], result_value))
-        _log.debug("Time taken to load into values {}".format(
+        _log.debug("Time taken to load all results into values {}".format(
             datetime.utcnow() - start_time))
         _log.debug("rows length {}".format(len(rows)))
+
+    def add_raw_data_results(self, db, topic_name, values, pipeline,
+                             add_to_beginning):
+
+        _log.debug("pipeline for querying raw data is {}".format(pipeline))
+        _log.debug("collection_name is " + self._data_collection)
+        cursor = db[self._data_collection].aggregate(pipeline)
+        rows = list(cursor)
+        _log.debug("number of raw data records {}".format(len(rows)))
+        for row in rows:
+            result_value = self.json_string_to_dict(row['value'])
+            new_values[id_name_map[topic_id]].append(
+                (row['timestamp'], result_value))
+        # add to results from rollup collections
+        if add_to_beginning:
+            # add to beginning
+            values[topic_name] = new_values.get(
+                id_name_map[topic_id], []).extend(
+                values.get(topic_name,[]))
+        else:
+            # add to end
+            values[topic_name] = values.get(topic_name,
+                []).extend(new_values.get(topic_name,[]))
+
 
     def update_values(self, data, topic_id, start, end, id_name_map, values):
         if start.tzinfo:
@@ -780,23 +826,33 @@ class MongodbHistorian(BaseHistorian):
         # are present in rolled up format. Mainly because this topic_pattern
         # match is only a temporary fix. We want all topics to get loaded
         # into hourly or daily collections
-        if not (False in match_list) and start and end and start != end and \
-                        start >= self.rollup_query_start and end < rollup_end:
-
+        if not (False in match_list) and start and end and start != end:
             diff = (end - start).total_seconds()
-            _log.debug("total seconds between end and start {}".format(diff))
-            if diff >= 24 * 3600:
-                collection_name = self.DAILY_COLLECTION
-                query_start = start.replace(hour=0, minute=0, second=0,
-                                            microsecond=0)
-                query_end = (end + timedelta(days=1)).replace(
-                    hour=0, minute=0, second=0, microsecond=0)
-            elif diff >= 3600 * 3:  # more than 3 hours of data
-                collection_name = self.HOURLY_COLLECTION
-                query_start = start.replace(minute=0, second=0,
-                                            microsecond=0)
-                query_end = (end + timedelta(hours=1)).replace(
-                    minute=0, second=0, microsecond=0)
+
+            if start >= self.rollup_query_start and end < rollup_end:
+                _log.debug("total seconds between end and start {}".format(diff))
+                if diff >= 24 * 3600:
+                    collection_name = self.DAILY_COLLECTION
+                    query_start = start.replace(hour=0, minute=0, second=0,
+                                                microsecond=0)
+                    query_end = (end + timedelta(days=1)).replace(
+                        hour=0, minute=0, second=0, microsecond=0)
+                elif diff >= 3600 * 3:  # more than 3 hours of data
+                    collection_name = self.HOURLY_COLLECTION
+                    query_start = start.replace(minute=0, second=0,
+                                                microsecond=0)
+                    query_end = (end + timedelta(hours=1)).replace(
+                        minute=0, second=0, microsecond=0)
+            elif diff >= 24 * 3600:
+                # if querying more than a day's worth data, get part of data
+                # of rolleup query and rest for raw data
+                if start < self.rollup_query_start:
+                    collection_name = self.DAILY_COLLECTION
+                    query_start = self.rollup_query_start
+                if end >= rollup_end:
+                    collection_name = self.DAILY_COLLECTION
+                    query_end = rollup_end
+
         return collection_name, query_start, query_end
 
     def add_metadata_to_query_result(self, agg_type, multi_topic_query,
