@@ -123,10 +123,9 @@ def install_agent(opts, package, config):
 
     parsed = output.split("\n")
 
-
     # If there is not an agent with that identity:
     # 'Could not find agent with VIP IDENTITY "BOO". Installing as new agent
-    # Installed /home/jer/.volttron/packaged/listeneragent-3.2-py2-none-any.whl as 6ccbf8dc-4929-4794-9c8e-3d8c6a121776 listeneragent-3.2'
+    # Installed /home/volttron/.volttron/packaged/listeneragent-3.2-py2-none-any.whl as 6ccbf8dc-4929-4794-9c8e-3d8c6a121776 listeneragent-3.2'
 
     # The following is standard output of an agent that was previously installed
     # If the agent was not previously installed then only the second line

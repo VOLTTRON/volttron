@@ -119,7 +119,6 @@ class SimpleWebAgent(Agent):
         # http://localhost:8080/index.html
         # self.vip.web.register_path("/", os.path.join(WEBROOT))
 
-
         self.vip.web.register_endpoint("/simple/text", self.text)
         self.vip.web.register_endpoint("/simpleweb/jsonrpc", self.rpcendpoint)
 

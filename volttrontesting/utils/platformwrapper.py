@@ -188,7 +188,8 @@ class PlatformWrapper:
             'PATH': VOLTTRON_ROOT+':'+os.environ['PATH']
         }
         self.volttron_root = VOLTTRON_ROOT
-        self.python = os.path.join(self.volttron_root, 'env/bin/python')
+        # Use the path that will be in the environment.
+        self.python = 'python'
 
         # By default no web server should be started.
         self.bind_web_address = None
