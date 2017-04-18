@@ -7,7 +7,8 @@ from volttron.platform.messaging.health import STATUS_GOOD
 
 from volttrontesting.utils.core_service_installs import add_volttron_central, \
     add_volttron_central_platform, add_listener, add_sqlhistorian
-from volttrontesting.utils.platformwrapper import start_wrapper_platform
+from volttrontesting.utils.platformwrapper import start_wrapper_platform, \
+    PlatformWrapper
 
 SQLITE_HISTORIAN_CONFIG = {
     "connection": {
@@ -24,7 +25,7 @@ _log = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="module")
-def setup_platform(get_volttron_instances):
+def setup_platform():
     """
     Creates a single instance of VOLTTRON with a VOLTTRON Central Platform,
     a listener agent, and a sqlite historian that is a platform.historian.
@@ -32,7 +33,7 @@ def setup_platform(get_volttron_instances):
     The VOLTTRON Central Platform agent is not registered with a VOLTTRON
     Central Platform.
     """
-    vcp = get_volttron_instances(1, False)
+    vcp = PlatformWrapper()
 
     start_wrapper_platform(vcp, with_http=True)
 
