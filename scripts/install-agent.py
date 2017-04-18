@@ -20,11 +20,22 @@ if not hasattr(sys, 'real_prefix'):
 else:
     inenv = True
 
+if os.environ.get('WAS_CORRECTED'):
+    corrected = True
+else:
+    corrected = False
+
 # Call the script with the correct environment if we aren't activated yet.
-if not inenv:
+if not inenv and not corrected:
     mypath = os.path.dirname(__file__)
-    correct_python = os.path.abspath(
-        os.path.join(mypath, '../env/bin/python'))
+    # Travis-CI puts the python in a little bit different location than
+    # we do.
+    if os.environ.get('CI') is not None:
+        correct_python =subprocess.check_output(['which', 'python']).strip()
+    else:
+        correct_python = os.path.abspath(
+            os.path.join(mypath, '../env/bin/python'))
+
     if not os.path.exists(correct_python):
         log.error("Invalid location for the script {}".format(correct_python))
         sys.exit(-10)
@@ -274,8 +285,11 @@ if __name__ == '__main__':
     elif not opts.json and not opts.csv:
         opts.json = True
 
-    opts.volttron_control = os.path.join(opts.volttron_root,
-                                         "env/bin/volttron-ctl")
+    if os.environ.get('CI') is not None:
+        opts.volttron_control = "volttron-ctl"
+    else:
+        opts.volttron_control = os.path.join(opts.volttron_root,
+                                             "env/bin/volttron-ctl")
 
     if opts.vip_identity is not None:
         # if the identity exists the variable will have the agent uuid in it.
