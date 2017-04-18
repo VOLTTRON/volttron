@@ -17,6 +17,13 @@ exit_code=0
 # the files to be closed with the individual pytest processes
 echo "Current Environment of Execution"
 ls -la
+echo "PATH"
+echo "$PATH"
+echo "PYTHONPATH"
+echo "$PYTHONPATH"
+echo "VOLTTRON is at"
+whereis volttron
+whereis volttron-ctl
 
 #directories that need split into individual files
 filedirs="volttrontesting/platform"
