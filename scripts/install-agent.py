@@ -87,6 +87,9 @@ def install_agent(opts, package, config):
     :param config:
     :return:
     """
+    if config is None:
+        config = {}
+
     # if not a dict then config should be a filename
     if not isinstance(config, dict):
         config_file = config
@@ -293,6 +296,7 @@ if __name__ == '__main__':
         log.error("The wheel file for the agent was unable to be created.")
         sys.exit(-10)
 
+    jsonobj = None
     if opts.config:
         tmpconfigfile = tempfile.NamedTemporaryFile()
 
