@@ -4,10 +4,10 @@
 Definition of Terms
 ===================
 
-In the following sections the VOLTTRON team is presenting a common vocabulary
-that is required in order to successfully communicate about volttron.  The first
-section is more about cababilities and industry standards that volttron
-conform to while the latter is specific to the VOLTTRON domain.
+This page lays out a common terminology for discussing the components and 
+underlying technologies used by the platform. The first
+section discusses cababilities and industry standards that volttron
+conforms to while the latter is specific to the VOLTTRON domain.
 
 Industry Terms
 ~~~~~~~~~~~~~~
