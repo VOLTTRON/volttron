@@ -103,8 +103,12 @@ def historian(config_path, **kwargs):
     topic_replacements = config_dict.get('topic_replace_list', None)
     _log.debug('topic_replacements are: {}'.format(topic_replacements))
 
+    readonly = config_dict.get('readonly', False)
+
     CrateHistorian.__name__ = 'CrateHistorian'
-    return CrateHistorian(config_dict, topic_replace_list=topic_replacements,
+    return CrateHistorian(config_dict,
+                          readonly=readonly,
+                          topic_replace_list=topic_replacements,
                           **kwargs)
 
 
@@ -401,7 +405,8 @@ class CrateHistorian(BaseHistorian):
             self._connection = self.get_connection()
 
             _log.debug("Using schema: {}".format(self._schema))
-            create_schema(self._connection, self._schema)
+            if not self._readonly:
+                create_schema(self._connection, self._schema)
 
             cursor = self._connection.cursor()
             cursor.execute(select_all_topics_query(self._schema))

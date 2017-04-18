@@ -142,9 +142,12 @@ def historian(config_path, **kwargs):
     topic_replacements = config_dict.get('topic_replace_list', None)
     _log.debug('topic_replacements are: {}'.format(topic_replacements))
 
+    readonly = config_dict.get('readonly', False)
+
     MongodbHistorian.__name__ = 'MongodbHistorian'
     return MongodbHistorian(config_dict, identity=identity,
-                            topic_replace_list=topic_replacements, **kwargs)
+                            topic_replace_list=topic_replacements,
+                            readonly=readonly, **kwargs)
 
 
 class MongodbHistorian(BaseHistorian):
@@ -258,9 +261,10 @@ class MongodbHistorian(BaseHistorian):
     def starting_mongo(self, sender, **kwargs):
         _log.debug("In on start method. scheduling periodic call to rollup "
                    "data")
-        self.core.periodic(self.periodic_rollup_frequency,
-                           self.periodic_rollup,
-                           wait=self.periodic_rollup_initial_wait)
+        if not self._readonly:
+            self.core.periodic(self.periodic_rollup_frequency,
+                               self.periodic_rollup,
+                               wait=self.periodic_rollup_initial_wait)
 
     def periodic_rollup(self):
         _log.info("periodic attempt to do hourly and daily rollup.")
@@ -705,7 +709,6 @@ class MongodbHistorian(BaseHistorian):
                                 self.update_values(data, topic_id, start, end,
                                                    id_name_map,
                                                    values)
-
             _log.debug("values len {}".format(len(values)))
         else:
             for row in rows:
@@ -786,13 +789,14 @@ class MongodbHistorian(BaseHistorian):
                 collection_name = self.DAILY_COLLECTION
                 query_start = start.replace(hour=0, minute=0, second=0,
                                             microsecond=0)
-                query_end = (end + timedelta(days=1)).replace(hour=0, minute=0,
-                    second=0, microsecond=0)
+                query_end = (end + timedelta(days=1)).replace(
+                    hour=0, minute=0, second=0, microsecond=0)
             elif diff >= 3600 * 3:  # more than 3 hours of data
                 collection_name = self.HOURLY_COLLECTION
-                query_start = start.replace(minute=0, second=0, microsecond=0)
-                query_end = (end + timedelta(hours=1)).replace(minute=0,
-                    second=0, microsecond=0)
+                query_start = start.replace(minute=0, second=0,
+                                            microsecond=0)
+                query_end = (end + timedelta(hours=1)).replace(
+                    minute=0, second=0, microsecond=0)
         return collection_name, query_start, query_end
 
     def add_metadata_to_query_result(self, agg_type, multi_topic_query,
@@ -915,8 +919,11 @@ class MongodbHistorian(BaseHistorian):
         create_index1 = True
         create_index2 = True
 
+        if self._readonly:
+            create_index1 = False
+            create_index2 = False
         # if data collection exists check if necessary indexes exists
-        if self._data_collection in col_list:
+        elif self._data_collection in col_list:
             index_info = db[self._data_collection].index_information()
             index_list = [value['key'] for value in index_info.viewvalues()]
             index_new_list = []
@@ -958,17 +965,18 @@ class MongodbHistorian(BaseHistorian):
             _log.debug("no agg topics to load")
             self._agg_topic_id_map = {}
 
-        db[self.HOURLY_COLLECTION].create_index(
-            [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
-            unique=True, background=True)
-        db[self.HOURLY_COLLECTION].create_index(
-            [('last_updated_data', pymongo.DESCENDING)], background=True)
-        db[self.DAILY_COLLECTION].create_index(
-            [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
-            unique=True, background=True)
-        db[self.DAILY_COLLECTION].create_index(
-            [('last_updated_data', pymongo.DESCENDING)],
-            background=True)
+        if not self._readonly:
+            db[self.HOURLY_COLLECTION].create_index(
+                [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
+                unique=True, background=True)
+            db[self.HOURLY_COLLECTION].create_index(
+                [('last_updated_data', pymongo.DESCENDING)], background=True)
+            db[self.DAILY_COLLECTION].create_index(
+                [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
+                unique=True, background=True)
+            db[self.DAILY_COLLECTION].create_index(
+                [('last_updated_data', pymongo.DESCENDING)],
+                background=True)
 
     def record_table_definitions(self, meta_table_name):
         _log.debug("In record_table_def  table:{}".format(meta_table_name))

@@ -11,6 +11,10 @@
         }
     },
 
+    #run historian in query/read only mode and not to record any data into the
+    database. Default false
+    "readonly":false,
+
     # configuration specific to hourly and daily rollup tables
     # new from version 2.0 of mongo historian. Most of these configurations
     # would become optional once data collected by earlier version of mongo has
