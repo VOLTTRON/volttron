@@ -16,5 +16,5 @@ Platform Services:
 -  Weather Information: This agent periodically retrieves data from the Weather Underground site. It then reformats it and publishes it out to the platform on a weather topic.
 -  Modbus-based device interface: The Modbus driver publishes device data onto the message bus. It also handles the locking of devices to prevent multiple conflicting directives.
 -  Application Scheduling: This service allows the scheduling of agents’ access to devices in order to prevent conflicts.
--  Logging service: Agents can publish arbitrary strings to a logging topic and this service will push them to the sMAP historian for later analysis.
+-  Logging service: Agents can publish arbitrary strings to a logging topic and this service will push them to a historian for later analysis.
 
