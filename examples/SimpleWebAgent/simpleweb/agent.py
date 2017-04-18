@@ -64,21 +64,10 @@ import os, os.path
 from pprint import pprint
 import re
 import sys
-import uuid
-
-import gevent
-from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import Core, Agent
-from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
-from volttron.platform.messaging import topics, headers as headers_mod
-from gevent.core import callback
-from __builtin__ import list
-
-#import sqlhistorian
-#import sqlhistorian.settings
-#import settings
+from volttron.platform import jsonrpc
 
 
 utils.setup_logging()
@@ -129,6 +118,18 @@ class SimpleWebAgent(Agent):
         # Files will need to be  in webroot to use within the browser at
         # http://localhost:8080/index.html
         # self.vip.web.register_path("/", os.path.join(WEBROOT))
+
+
+        self.vip.web.register_endpoint("/simple/text", self.text)
+        self.vip.web.register_endpoint("/simpleweb/jsonrpc", self.rpcendpoint)
+
+    def text(self, env, data):
+        return "This is some text", [("Content-Type", "text/html")]
+
+    def rpcendpoint(self, env, data):
+        # Note we aren't using a valid json request to get the following output
+        # id will need to be grabbed from data etc
+        return jsonrpc.json_result("id", "A large number of responses go here")
 
 
 def main():
