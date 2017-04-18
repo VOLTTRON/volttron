@@ -22,8 +22,10 @@ echo "$PATH"
 echo "PYTHONPATH"
 echo "$PYTHONPATH"
 echo "VOLTTRON is at"
-whereis volttron
-whereis volttron-ctl
+which volttron
+which volttron-ctl
+echo "python is at"
+which python
 
 #directories that need split into individual files
 filedirs="volttrontesting/platform"
