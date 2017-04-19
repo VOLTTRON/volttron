@@ -325,7 +325,7 @@ class CrateHistorian(BaseHistorian):
         real_query = query.format(where=where_statement,
                                   limit=limit_statement,
                                   offset=offset_statement,
-                                  order_by=order_by).replace("\n", "")
+                                  order_by=order_by).replace("\n", " ")
 
         _log.debug("Real Query: " + real_query)
         return real_query, args
