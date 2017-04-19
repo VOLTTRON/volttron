@@ -55,8 +55,6 @@
 # }}}
 
 from __future__ import absolute_import, print_function
-# from gevent import monkey
-# monkey.patch_all()
 
 import logging
 import numbers
