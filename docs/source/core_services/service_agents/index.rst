@@ -10,5 +10,9 @@ Service Agents
     central_management/index
     platform/index
     weather/index
+    alerter/index
     emailer/index
+    failover/index
+    file_watch_publisher/index
+    threshold/index
      *
