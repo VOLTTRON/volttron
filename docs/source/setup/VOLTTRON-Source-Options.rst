@@ -1,6 +1,7 @@
 .. _Repository-Structure:
+
 Repository Structure
-=====================
+====================
 
 There are several options for using the VOLTTRON code depending on
 whether you require the most stable version of the code or want the
