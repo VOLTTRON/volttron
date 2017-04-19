@@ -20,11 +20,22 @@ if not hasattr(sys, 'real_prefix'):
 else:
     inenv = True
 
+if os.environ.get('WAS_CORRECTED'):
+    corrected = True
+else:
+    corrected = False
+
 # Call the script with the correct environment if we aren't activated yet.
-if not inenv:
+if not inenv and not corrected:
     mypath = os.path.dirname(__file__)
-    correct_python = os.path.abspath(
-        os.path.join(mypath, '../env/bin/python'))
+    # Travis-CI puts the python in a little bit different location than
+    # we do.
+    if os.environ.get('CI') is not None:
+        correct_python =subprocess.check_output(['which', 'python']).strip()
+    else:
+        correct_python = os.path.abspath(
+            os.path.join(mypath, '../env/bin/python'))
+
     if not os.path.exists(correct_python):
         log.error("Invalid location for the script {}".format(correct_python))
         sys.exit(-10)
@@ -87,6 +98,9 @@ def install_agent(opts, package, config):
     :param config:
     :return:
     """
+    if config is None:
+        config = {}
+
     # if not a dict then config should be a filename
     if not isinstance(config, dict):
         config_file = config
@@ -120,10 +134,9 @@ def install_agent(opts, package, config):
 
     parsed = output.split("\n")
 
-
     # If there is not an agent with that identity:
     # 'Could not find agent with VIP IDENTITY "BOO". Installing as new agent
-    # Installed /home/jer/.volttron/packaged/listeneragent-3.2-py2-none-any.whl as 6ccbf8dc-4929-4794-9c8e-3d8c6a121776 listeneragent-3.2'
+    # Installed /home/volttron/.volttron/packaged/listeneragent-3.2-py2-none-any.whl as 6ccbf8dc-4929-4794-9c8e-3d8c6a121776 listeneragent-3.2'
 
     # The following is standard output of an agent that was previously installed
     # If the agent was not previously installed then only the second line
@@ -272,8 +285,11 @@ if __name__ == '__main__':
     elif not opts.json and not opts.csv:
         opts.json = True
 
-    opts.volttron_control = os.path.join(opts.volttron_root,
-                                         "env/bin/volttron-ctl")
+    if os.environ.get('CI') is not None:
+        opts.volttron_control = "volttron-ctl"
+    else:
+        opts.volttron_control = os.path.join(opts.volttron_root,
+                                             "env/bin/volttron-ctl")
 
     if opts.vip_identity is not None:
         # if the identity exists the variable will have the agent uuid in it.
@@ -293,6 +309,7 @@ if __name__ == '__main__':
         log.error("The wheel file for the agent was unable to be created.")
         sys.exit(-10)
 
+    jsonobj = None
     if opts.config:
         tmpconfigfile = tempfile.NamedTemporaryFile()
 
