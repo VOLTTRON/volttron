@@ -288,10 +288,10 @@ class MongodbHistorian(BaseHistorian):
         if not stat["last_data_into_hourly"] and not stat[
             "last_data_into_daily"]:
             stat = {}
+            find_condition['ts']= {'$gt': self._initial_rollup_start_time}
             _log.debug("ROLLING FROM start date {}".format(
                 self._initial_rollup_start_time))
         else:
-            find_condition['ts']= {'$gt': self._initial_rollup_start_time}
             _log.debug("ROLLING FROM last processed id {}".format(
                 find_condition['_id']))
 
