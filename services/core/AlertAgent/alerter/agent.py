@@ -56,15 +56,13 @@
 # }}}
 
 import logging
-from datetime import datetime
 
 import gevent
 
-from volttron.platform.vip.agent import Agent, Core, RPC
-from volttron.platform.vip.agent.utils import build_agent
+from volttron.platform.agent.known_identities import PLATFORM_ALERTER
 from volttron.platform.agent import utils
 from volttron.platform.messaging.health import Status, STATUS_BAD
-from volttron.platform.agent.known_identities import PLATFORM_ALERTER
+from volttron.platform.vip.agent import Agent, Core, RPC
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

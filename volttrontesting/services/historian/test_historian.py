@@ -89,13 +89,17 @@ following
 
 """
 import copy
+from datetime import datetime, timedelta
+import os
 import random
 import sqlite3
-from datetime import datetime, timedelta
+import sys
 
 import gevent
 import pytest
 import re
+
+from volttron.platform import get_volttron_root
 from volttron.platform.agent import PublishMixin
 from volttron.platform.agent import utils
 from volttron.platform.jsonrpc import RemoteError
@@ -106,8 +110,16 @@ from volttron.platform.vip.agent import Agent
 try:
     from crate import client
     from crate.client.exceptions import ProgrammingError
-    from volttron.platform.dbutils import cratedriver
-    HAS_CRATE_CONNECTOR = True
+    # Adding crate historian to the path so we have access to it's packages
+    # for removing/creating schema for testing with.
+    root = get_volttron_root()
+    crate_path = os.path.join(root, "services/core/CrateHistorian")
+
+    sys.path.insert(0, crate_path)
+    import crate_historian
+    from crate_historian import crate_utils
+    # Once we fix the tests this will be able to be tested here.
+    HAS_CRATE_CONNECTOR = False
 except:
     HAS_CRATE_CONNECTOR = False
 
@@ -191,7 +203,7 @@ sqlite_platform3 = {
 crate_platform1 = {
     "agentid": "crate-historian",
     "source_historian": "services/core/CrateHistorian",
-    "schema": "test_historian",
+    "schema": "testing_historian",
     "connection": {
         "type": "crate",
         "params": {
@@ -292,17 +304,9 @@ def setup_crate(connection_params, table_names):
     print("setup crate")
     conn = client.connect(connection_params['host'],
                           error_trace=True)
+    schema = "testing_historian"
     cursor = conn.cursor()
-    schema = crate_platform1.get("schema", 'test_historian')
-    for tbl in ('analysis', 'datalogger','device', 'meta', 'record', 'topic'):
-        try:
-            cursor.execute(
-                'DELETE FROM {schema}.{table}'.format(
-                    schema=schema, table=tbl))
-        except ProgrammingError:
-            pass
-
-    cratedriver.create_schema(conn, schema)
+    crate_utils.create_schema(conn, schema)
     MICROSECOND_PRECISION = 3
     return conn, MICROSECOND_PRECISION
 
@@ -384,18 +388,7 @@ def cleanup_mongodb(db_connection, truncate_tables):
 
 
 def cleanup_crate(db_connection, truncate_tables):
-    cursor = db_connection.cursor()
-    schema = crate_platform1.get("schema", "test_historian")
-    for tbl in ('analysis', 'analysis_double', 'datalogger',
-                'datalogger_double', 'device', 'device_double',
-                'meta', 'record', 'topic'):
-        try:
-            cursor.execute(
-                'DELETE FROM {schema}.{table}'.format(
-                    schema=schema, table=tbl))
-        except ProgrammingError:
-            pass
-    cursor.close()
+    crate_utils.drop_schema(db_connection, truncate_tables)
 
 
 def random_uniform(a, b):
@@ -985,7 +978,6 @@ def test_query_end_time_with_z(request, historian, publish_agent,
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == reading1)
 
-
 @pytest.mark.historian
 def test_zero_timestamp(request, historian, publish_agent, query_agent,
                         clean):
@@ -1288,7 +1280,6 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
         now_time = now_time[:-1]
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
-
 
 @pytest.mark.historian
 def test_record_topic_query(request, historian, publish_agent, query_agent,
@@ -1593,6 +1584,80 @@ def test_get_topic_metadata(request, historian, publish_agent,
     assert result['datalogger/Building/LAB/Device/temp2'] == \
         {'units': 'F', 'tz': 'UTC', 'type': 'float'}
 
+@pytest.mark.historian
+def test_insert_duplicate(request, historian, publish_agent, query_agent,
+                        clean):
+    """
+    Test that historians don't break when duplicate data gets published.
+    historians' should ignore or update record in the database but should not
+    throw exception
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param historian: instance of the historian tested
+    :param clean: teardown function
+    """
+    global query_points, DEVICES_ALL_TOPIC, db_connection
+
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_basic_function for {}**".format(
+        request.keywords.node.name))
+
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings.  Random readings are going to be
+    # within the tolerance here.
+    oat_reading = random_uniform(30, 100)
+
+
+    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': oat_reading},
+                   {'OutsideAirTemperature': float_meta}]
+
+    # Create timestamp
+    now = datetime.utcnow().isoformat(' ')
+
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: now
+    }
+    print("Published time in header: " + now)
+    # Publish messages
+    publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
+
+    gevent.sleep(1)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(identity,
+                                      'query',
+                                      topic=query_points['oat_point'],
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=100)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    (now_date, now_time) = now.split(" ")
+    assert_timestamp(result['values'][0][0], now_date, now_time)
+    assert (result['values'][0][1] == oat_reading)
+    assert set(result['metadata'].items()) == set(float_meta.items())
+
+    #publish same data again
+    publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
+
+    gevent.sleep(1)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(identity, 'query',
+                                      topic=query_points['oat_point'],
+                                      count=20, order="LAST_TO_FIRST").get(
+        timeout=100)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    (now_date, now_time) = now.split(" ")
+    assert_timestamp(result['values'][0][0], now_date, now_time)
+    assert (result['values'][0][1] == oat_reading)
+    assert set(result['metadata'].items()) == set(float_meta.items())
 
 @pytest.mark.historian
 def test_multi_topic_query(request, historian, publish_agent, query_agent,
@@ -1641,6 +1706,79 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
         'query',
         topic=[query_points['oat_point'], query_points['mixed_point']],
         count=3,
+        order="FIRST_TO_LAST").get(timeout=100)
+    print('Query Result', result)
+    print('Expected Result', expected_result)
+
+    assert result["metadata"] == expected_result["metadata"]
+
+    for i in range(0, 3):
+        expected_date, expected_time = expected_result["values"][query_points[
+            'mixed_point']][i][0].split("T")
+        assert_timestamp(result["values"][query_points['mixed_point']][i][0],
+                         expected_date, expected_time)
+        assert (result["values"][query_points['mixed_point']][i][1] ==
+                expected_result["values"][query_points['mixed_point']][i][1])
+
+        expected_date, expected_time = \
+        expected_result["values"][query_points['oat_point']][i][0].split("T")
+        assert_timestamp(result["values"][query_points['oat_point']][i][0],
+                         expected_date, expected_time)
+        assert (result["values"][query_points['oat_point']][i][1] ==
+                expected_result["values"][query_points['oat_point']][i][1])
+
+
+
+@pytest.mark.historian
+def test_query_with_naive_timestamp(request, historian, publish_agent,
+                                 query_agent, clean):
+    """
+    Test basic functionality of historian. Inserts three points as part
+    of all topic and checks if all three got into the database
+    Expected result:
+    Should be able to query data based on topic name. Result should contain
+    both data and metadata
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param historian: instance of the historian tested
+    :param clean: teardown function
+    """
+    # skip if this test case need not repeated for this specific historian
+    skip_custom_tables(historian)
+
+    global query_points, DEVICES_ALL_TOPIC, db_connection
+
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_basic_function for {}**".format(
+        request.keywords.node.name))
+
+    expected_result = {}
+    values_dict = {query_points['oat_point']: [],
+                   query_points['mixed_point']: []}
+    current_t_local = datetime.now()
+    for x in range(0, 5):
+        ts, reading, meta = publish_devices_fake_data(publish_agent)
+        gevent.sleep(0.5)
+        if x < 3:
+            values_dict[query_points['oat_point']].append(
+                [ts, reading])
+            values_dict[query_points['mixed_point']].append(
+                [ts, reading])
+    expected_result["values"] = values_dict
+    expected_result["metadata"] = {}
+
+    gevent.sleep(1)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(
+        identity,
+        'query',
+        topic=[query_points['oat_point'], query_points['mixed_point']],
+        count=3,
+        start=current_t_local.isoformat(),
+        end=(current_t_local + timedelta(days=1)).isoformat(),
         order="FIRST_TO_LAST").get(timeout=100)
     print('Query Result', result)
     print('Expected Result', expected_result)

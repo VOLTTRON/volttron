@@ -57,6 +57,7 @@ from __future__ import absolute_import, print_function
 
 import logging
 import numbers
+import re
 import sys
 from collections import defaultdict
 from datetime import datetime
@@ -75,6 +76,7 @@ from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.dbutils import mongoutils
 from volttron.platform.vip.agent import Core
+from volttron.utils.docs import doc_inherit
 
 try:
     import ujson
@@ -87,8 +89,9 @@ except ImportError:
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '2.0'
+__version__ = '2.1'
 _VOLTTRON_TYPE = '__volttron_type__'
+
 
 def historian(config_path, **kwargs):
     """
@@ -138,7 +141,7 @@ def historian(config_path, **kwargs):
 
     MongodbHistorian.__name__ = 'MongodbHistorian'
     return MongodbHistorian(config_dict, identity=identity,
-        topic_replace_list=topic_replacements, **kwargs)
+                            topic_replace_list=topic_replacements, **kwargs)
 
 
 class MongodbHistorian(BaseHistorian):
@@ -199,6 +202,19 @@ class MongodbHistorian(BaseHistorian):
                 self.rollup_query_start = get_aware_utc_now() + \
                                           timedelta(days=1)
 
+            # topic_patterns for which queries can be run against rolled up
+            # tables. This is needed only till batch processing of older data
+            # is complete and everything gets loaded into hourly and daily
+            # collections
+            self.topics_rolled_up = config.get('rollup_topic_pattern')
+            try:
+                if self.topics_rolled_up:
+                    self.topics_rolled_up = re.compile(self.topics_rolled_up)
+            except Exception as e:
+                _log.error(
+                    "Invalid rollup_topic_pattern in configuration. {} is "
+                    "not a valid regular expression. "
+                    "\nException: {} ".format(self.topics_rolled_up, e.args))
 
             # number of minutes before current time, that can be used as end
             # date for queries from hourly or daily data collections. This is to
@@ -235,8 +251,6 @@ class MongodbHistorian(BaseHistorian):
             _log.error("Error processing configuration: {}".format(e))
             return
 
-
-
     @Core.receiver("onstart")
     def starting_mongo(self, sender, **kwargs):
         _log.debug("In on start method. scheduling periodic call to rollup "
@@ -270,10 +284,10 @@ class MongodbHistorian(BaseHistorian):
         if not stat["last_data_into_hourly"] and not stat[
             "last_data_into_daily"]:
             stat = {}
+            find_condition['ts']= {'$gt': self._initial_rollup_start_time}
             _log.debug("ROLLING FROM start date {}".format(
                 self._initial_rollup_start_time))
         else:
-            find_condition['ts']= {'$gt': self._initial_rollup_start_time}
             _log.debug("ROLLING FROM last processed id {}".format(
                 find_condition['_id']))
 
@@ -300,7 +314,6 @@ class MongodbHistorian(BaseHistorian):
                                           value=row['value']))
                 hour_ids.append(row['_id'])
                 h += 1
-                #print("Insert bulk op to hourly. h= {}".format(h))
 
             if not stat or row['_id'] > stat["last_data_into_daily"]:
                 self.initialize_daily(topic_id=row['topic_id'],
@@ -312,7 +325,7 @@ class MongodbHistorian(BaseHistorian):
                                          ts=row['ts'], value=row['value']))
                 day_ids.append(row['_id'])
                 d += 1
-            #Perform insert if we have 5000 rows
+            # Perform insert if we have 5000 rows
             d_errors = h_errors = False
             if h == 5000:
                 bulk_publish_hour, hour_ids, h_errors = \
@@ -345,10 +358,12 @@ class MongodbHistorian(BaseHistorian):
                 self.DAILY_COLLECTION, bulk_publish_day, day_ids, db)
 
     def get_last_updated_data(self, db, collection):
+        id = ""
         cursor = db[collection].find({}).sort(
             "last_updated_data", pymongo.DESCENDING).limit(1)
         for row in cursor:
-            return row['last_updated_data']
+            id = row.get('last_updated_data')
+        return id
 
     @staticmethod
     def bulk_write_rolled_up_data(collection_name, requests, ids, db):
@@ -378,7 +393,6 @@ class MongodbHistorian(BaseHistorian):
     def version(self):
         return __version__
 
-
     def initialize_hourly(self, topic_id, ts):
         ts_hour = ts.replace(minute=0, second=0, microsecond=0)
 
@@ -395,7 +409,6 @@ class MongodbHistorian(BaseHistorian):
                               'last_updated_data': ''}
             },
             upsert=True)
-
 
     def initialize_daily(self, topic_id, ts):
         ts_day = ts.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -434,7 +447,7 @@ class MongodbHistorian(BaseHistorian):
                          '$set': {'last_updated_data': data_id}})
         return one
 
-
+    @doc_inherit
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
             len(to_publish_list)))
@@ -454,7 +467,6 @@ class MongodbHistorian(BaseHistorian):
 
             if source == 'scrape':
                 source = 'devices'
-
 
             # look at the topics that are stored in the database already
             # to see if this topic has a value
@@ -515,8 +527,6 @@ class MongodbHistorian(BaseHistorian):
         else:  # No write errros here when
             self.report_all_handled()
 
-
-
     @staticmethod
     def value_to_sumable(value):
         # Handle the case where value is not a number so we don't
@@ -544,21 +554,22 @@ class MongodbHistorian(BaseHistorian):
         use_rolled_up_data = False
         query_start = start
         query_end = end
-        if agg_type and agg_period:
-            # query aggregate data collection instead
-            collection_name = agg_type + "_" + agg_period
-        else:
-            name, query_start, query_end = \
-                self.verify_use_of_rolledup_data(start, end)
-            if name:
-                collection_name = name
-                use_rolled_up_data = True
-        _log.debug("Using collection {} for query:".format(collection_name))
         topics_list = []
         if isinstance(topic, str):
             topics_list.append(topic)
         elif isinstance(topic, list):
             topics_list = topic
+
+        if agg_type and agg_period:
+            # query aggregate data collection instead
+            collection_name = agg_type + "_" + agg_period
+        else:
+            name, query_start, query_end = \
+                self.verify_use_of_rolledup_data(start, end, topics_list)
+            if name:
+                collection_name = name
+                use_rolled_up_data = True
+        _log.debug("Using collection {} for query:".format(collection_name))
 
         topic_ids = []
         id_name_map = {}
@@ -670,7 +681,7 @@ class MongodbHistorian(BaseHistorian):
 
         _log.debug("Time taken to load all values {}".format(
             datetime.utcnow() - start_time))
-        #_log.debug("Results got {}".format(values))
+        # _log.debug("Results got {}".format(values))
 
         return self.add_metadata_to_query_result(agg_type,
                                                  multi_topic_query,
@@ -691,17 +702,17 @@ class MongodbHistorian(BaseHistorian):
                 result_value = loads(result_value['string_value'])
         return result_value
 
-    def verify_use_of_rolledup_data(self, start, end):
+    def verify_use_of_rolledup_data(self, start, end, topics_list):
         """
         See if we can use rolled up data only be done with version >2,
         with valid time period verify start is >= from when rolled up data
         is available verify end date is < current time - configured lag time
-        (config.rollup_query_end) this
-        is to
-        account for any lag between the main historian thread and the thread
-        that periodically rolled up data
-        :param start:
-        :param end:
+        (config.rollup_query_end) this is to account for any lag between
+        the main historian thread and the thread that periodically rolls up
+        data. Also check rolled up data exists for the topics queried
+        :param start: query start time
+        :param end: query end time
+        :param topics_list: list of topics in queried
         :return:
         """
         #
@@ -716,11 +727,20 @@ class MongodbHistorian(BaseHistorian):
         _log.debug("start  {} and end {}".format(start, end))
         _log.debug("rollup query start {}".format(self.rollup_query_start))
         _log.debug("rollup query end {}".format(rollup_end))
-        if int(self.version_nums[0]) >= 2 and \
-                start and end and \
-                start != end and \
-                start >= self.rollup_query_start and \
-                end < rollup_end:
+        if int(self.version_nums[0]) < 2:
+            return collection_name, query_start, query_end
+
+        match_list = [True]
+        if self.topics_rolled_up:
+            match_list = [bool(self.topics_rolled_up.match(t)) for t in
+                          topics_list]
+
+        # For now use rolledup data collections only if all topics in query
+        # are present in rolled up format. Mainly because this topic_pattern
+        # match is only a temporary fix. We want all topics to get loaded
+        # into hourly or daily collections
+        if not (False in match_list) and start and end and start != end and \
+                        start >= self.rollup_query_start and end < rollup_end:
 
             diff = (end - start).total_seconds()
             _log.debug("total seconds between end and start {}".format(diff))
@@ -789,6 +809,7 @@ class MongodbHistorian(BaseHistorian):
         else:
             return {}
 
+    @doc_inherit
     def query_topic_list(self):
         db = self._client.get_default_database()
         cursor = db[self._topic_collection].find()
@@ -799,6 +820,7 @@ class MongodbHistorian(BaseHistorian):
 
         return res
 
+    @doc_inherit
     def query_topics_metadata(self, topics):
 
         meta = {}
@@ -843,15 +865,44 @@ class MongodbHistorian(BaseHistorian):
             document = cursor[num]
             self._topic_meta[document['topic_id']] = document['meta']
 
+    @doc_inherit
     def historian_setup(self):
         _log.debug("HISTORIAN SETUP")
         self._client = mongoutils.get_mongo_client(self._connection_params)
         db = self._client.get_default_database()
-        db[self._data_collection].create_index(
-            [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
-            unique=True, background=True)
-        db[self._data_collection].create_index([('ts', pymongo.DESCENDING)],
-            background=True)
+        col_list = db.collection_names()
+        create_index1 = True
+        create_index2 = True
+
+        # if data collection exists check if necessary indexes exists
+        if self._data_collection in col_list:
+            index_info = db[self._data_collection].index_information()
+            index_list = [value['key'] for value in index_info.viewvalues()]
+            index_new_list = []
+            for index in index_list:
+                keys = set()
+                for key in index:
+                    keys.add(key[0])
+                index_new_list.append(keys)
+
+            _log.debug("Index list got from db is {}. formatted list is ".format(
+                index_list, index_new_list))
+            i1 = {'topic_id', 'ts'}
+            if i1 in index_new_list:
+                create_index1 = False
+            i2 = {'ts'}
+            if i2 in index_new_list:
+                create_index2 = False
+
+        # create data indexes if needed
+        if create_index1:
+            db[self._data_collection].create_index(
+                [('topic_id', pymongo.DESCENDING),
+                 ('ts', pymongo.DESCENDING)],
+                unique=True, background=True)
+        if create_index2:
+            db[self._data_collection].create_index(
+                [('ts', pymongo.DESCENDING)], background=True)
 
         self._topic_id_map, self._topic_name_map = \
             mongoutils.get_topic_map(
@@ -878,8 +929,6 @@ class MongodbHistorian(BaseHistorian):
             [('last_updated_data', pymongo.DESCENDING)],
             background=True)
 
-
-
     def record_table_definitions(self, meta_table_name):
         _log.debug("In record_table_def  table:{}".format(meta_table_name))
 
@@ -900,7 +949,6 @@ class MongodbHistorian(BaseHistorian):
                 {'table_id': 'meta_table',
                  'table_name': self._meta_collection, 'table_prefix': ''},
                 upsert=True)])
-
 
 
 def main(argv=sys.argv):

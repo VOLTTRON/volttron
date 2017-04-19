@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
+
+# Check to make sure the script is executed from the correct
+# directory and that the environment has been bootstrapped.
+if [ ! -e "$SCRIPT_DIR/volttron/platform" ]; then
+    echo "Please execute from root of volttron repository."
+    exit 0
+fi
+
+if [ ! -e "$SCRIPT_DIR/env/bin/volttron" ]; then
+    echo "Bootstrap the environment before using this script."
+    exit 0
+fi
+
+# Activate environment
+source "$SCRIPT_DIR/env/bin/activate"
+
+echo "Shutting down VOLTTRON"
+
+env/bin/volttron-ctl shutdown --platform

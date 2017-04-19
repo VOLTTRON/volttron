@@ -53,62 +53,63 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-# }}}
+#}}}
 
-
-""" Core package."""
-
-
+import argparse
+import csv
+from os.path import dirname, join
 import os
-import sys
+import errno
+import subprocess
 
-__version__ = '4.0.1'
+def makedirs(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
+
+arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument("csv_file", type=argparse.FileType('rb'),
+                        help="Input CSV file")
+arg_parser.add_argument("--use-proxy", action="store_true",
+                        help="Use proxy_grab_bacnet_config.py to grab configurations.")
+arg_parser.add_argument("--out-directory",
+                        help="Output directory.", default=".")
+
+args = arg_parser.parse_args()
+
+program_name = "proxy_grab_bacnet_config.py" if args.use_proxy else "grab_bacnet_config.py"
+
+program_path = join(dirname(__file__), program_name)
+
+devices_dir = join(args.out_directory, "devices")
+registers_dir = join(args.out_directory, "registry_configs")
+
+makedirs(devices_dir)
+makedirs(registers_dir)
+
+device_list = csv.DictReader(args.csv_file)
+
+for device in device_list:
+    address = device["address"]
+    device_id = device["device_id"]
+
+    prog_args = ["python", program_path]
+    prog_args.append(device_id)
+    prog_args.append("--address")
+    prog_args.append(address)
+    prog_args.append("--registry-out-file")
+    prog_args.append(join(registers_dir,str(device_id)+".csv"))
+    prog_args.append("--driver-out-file")
+    prog_args.append(join(devices_dir, str(device_id)))
+
+    print "executing command:", " ".join(prog_args)
+
+    subprocess.call(prog_args)
 
 
-def set_home(home=None):
-    """ Set the home directory with user and variables expanded.
-
-    If the home is sent in, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    os.environ["VOLTTRON_HOME"] = home or get_home()
-    
-
-def get_home():
-    """ Return the home directory with user and variables expanded.
-
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    """
-    return os.path.abspath(
-        os.path.normpath(
-            os.path.expanduser(
-                os.path.expandvars(
-                    os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
 
 
-def get_address():
-    """Return the VIP address of the platform
-    If the VOLTTRON_VIP_ADDR environment variable is set, it used.
-    Otherwise, it is derived from get_home()."""
-    address = os.environ.get('VOLTTRON_VIP_ADDR')
-    if not address:
-        abstract = '@' if sys.platform.startswith('linux') else ''
-        address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
-
-    return address
-
-
-def get_volttron_root():
-    """
-    Returns the root folder where the volttron code base resideds on disk.
-
-    :return: absolute path to root folder
-    """
-    return os.path.dirname(
-        os.path.dirname(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            )
-        )
-    )

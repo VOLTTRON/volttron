@@ -63,6 +63,7 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.dbutils import sqlutils
 from volttron.platform.vip.agent import *
+from volttron.utils.docs import doc_inherit
 
 __version__ = "3.6.1"
 
@@ -122,6 +123,7 @@ def historian(config_path, **kwargs):
     return SQLHistorian(config_dict, identity=identity,
                         topic_replace_list=topic_replace_list, **kwargs)
 
+
 class SQLHistorian(BaseHistorian):
     """This is a historian agent that writes data to a SQLite or Mysql
     database based on the connection parameters in the configuration.
@@ -156,13 +158,11 @@ class SQLHistorian(BaseHistorian):
         self.writer = None
         super(SQLHistorian, self).__init__(**kwargs)
 
-    def version(self):
-        return __version__
-
     def record_table_definitions(self, meta_table_name):
         self.writer.record_table_definitions(self.tables_def,
                                              meta_table_name)
 
+    @doc_inherit
     def publish_to_historian(self, to_publish_list):
         thread_name = threading.currentThread().getName()
         _log.debug(
@@ -229,6 +229,7 @@ class SQLHistorian(BaseHistorian):
             # Raise to the platform so it is logged properly.
             raise
 
+    @doc_inherit
     def query_topic_list(self):
 
         _log.debug("query_topic_list Thread is: {}".format(
@@ -239,6 +240,7 @@ class SQLHistorian(BaseHistorian):
             # No topics present.
             return []
 
+    @doc_inherit
     def query_topics_metadata(self, topics):
         meta = {}
         if isinstance(topics, str):
@@ -255,6 +257,7 @@ class SQLHistorian(BaseHistorian):
     def query_aggregate_topics(self):
         return self.reader.get_agg_topics()
 
+    @doc_inherit
     def query_historian(self, topic, start=None, end=None, agg_type=None,
                         agg_period=None, skip=0, count=None,
                         order="FIRST_TO_LAST"):
@@ -337,6 +340,7 @@ class SQLHistorian(BaseHistorian):
             results = dict()
         return results
 
+    @doc_inherit
     def historian_setup(self):
         thread_name = threading.currentThread().getName()
         _log.debug("historian_setup on Thread: {}".format(thread_name))
