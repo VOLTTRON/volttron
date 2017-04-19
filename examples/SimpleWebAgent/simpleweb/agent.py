@@ -115,17 +115,28 @@ class SimpleWebAgent(Agent):
         # any default pages.
         self.vip.web.register_path("/simpleweb", os.path.join(WEBROOT))
 
-        # Files will need to be  in webroot to use within the browser at
-        # http://localhost:8080/index.html
-        # self.vip.web.register_path("/", os.path.join(WEBROOT))
-
+        # Note the following two examples show the way to call either a jsonrpc
+        # (default) endpoint and one that returns a different content-type.
+        # With the JSON-RPC example from vc we only allow post requests, however
+        # this is not required.
+        
+        # Endpoint will be available at http://localhost:8080/simple/text
         self.vip.web.register_endpoint("/simple/text", self.text)
+        
+        # Endpoint will be available at http://localhost:8080/simple/jsonrpc
         self.vip.web.register_endpoint("/simpleweb/jsonrpc", self.rpcendpoint)
 
     def text(self, env, data):
+        """
+        Text/html content type specified so the browser can act appropriately.
+        """
         return "This is some text", [("Content-Type", "text/html")]
 
     def rpcendpoint(self, env, data):
+        """
+        The default response is application/json so our endpoint returns appropriately
+        with a json based response.
+        """
         # Note we aren't using a valid json request to get the following output
         # id will need to be grabbed from data etc
         return jsonrpc.json_result("id", "A large number of responses go here")
