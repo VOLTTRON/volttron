@@ -350,7 +350,7 @@ class CrateHistorian(BaseHistorian):
             else:
                 # protect the querying of the database limit to 500 at a time.
                 if count > 500:
-                    count = 560
+                    count = 500
 
         # Final results that are sent back to the client.
         results = {}
