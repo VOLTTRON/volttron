@@ -808,6 +808,8 @@ def test_rollup_query_with_topic_pattern(volttron_instance, database_client):
         config['periodic_rollup_frequency'] = 2
         config['rollup_query_start'] = query_start_day.strftime(
             '%Y-%m-%dT%H:%M:%S.%f')
+        config['initial_rollup_start_time'] = query_start_day.strftime(
+            '%Y-%m-%dT%H:%M:%S.%f')
         config['rollup_topic_pattern'] = \
             ".*/OutsideAirTemperature|.*/MixedAirTemperature"
 
@@ -929,6 +931,8 @@ def test_rollup_query(volttron_instance, database_client):
         config['periodic_rollup_frequency'] = 2
         config['rollup_query_start'] = query_start_day.strftime(
             '%Y-%m-%dT%H:%M:%S.%f')
+        config['initial_rollup_start_time'] = query_start_day.strftime(
+            '%Y-%m-%dT%H:%M:%S.%f')
 
         agent_uuid = install_historian_agent(volttron_instance, config)
         # print('HOME', volttron_instance.volttron_home)
@@ -969,18 +973,19 @@ def test_rollup_query(volttron_instance, database_client):
             topic=query_points['oat_point'], count=20,
             start=query_start_day.isoformat(),
             end= query_end.isoformat(),
-            order="FIRST_TO_LAST").get(timeout=10)
+            order="LAST_TO_FIRST").get(timeout=10)
         print result
 
-        compare_query_results(db, expected1, expected2, expected3,
+        compare_query_results(db, expected3, expected2, expected1,
                               'oat_point', result)
-        verify_daily_collection(db, expected1, expected2, expected3)
+        verify_daily_collection(db, expected3, expected2, expected1)
 
 
     finally:
         if agent_uuid:
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
+
 
 @pytest.mark.historian
 @pytest.mark.mongodb
@@ -1019,6 +1024,8 @@ def test_dict_insert_special_character(volttron_instance, database_client):
         config['periodic_rollup_frequency'] = 2
         config['rollup_query_start'] = query_start_day.strftime(
             '%Y-%m-%dT%H:%M:%S.%f')
+        config['initial_rollup_start_time'] = query_start_day.strftime(
+            '%Y-%m-%dT%H:%M:%S.%f')
 
         agent_uuid = install_historian_agent(volttron_instance, config)
         # print('HOME', volttron_instance.volttron_home)
@@ -1048,7 +1055,7 @@ def test_dict_insert_special_character(volttron_instance, database_client):
             start = query_start.isoformat(),
             end = query_end.isoformat(),
             order="FIRST_TO_LAST").get(timeout=10)
-        print result
+        print(result)
         compare_query_results(db, expected1, expected2, None,
                               'oat_point', result)
 
@@ -1058,10 +1065,10 @@ def test_dict_insert_special_character(volttron_instance, database_client):
             topic=query_points['oat_point'], count=20,
             start=query_start_day.isoformat(),
             end= query_end.isoformat(),
-            order="FIRST_TO_LAST").get(timeout=10)
-        print result
+            order="LAST_TO_FIRST").get(timeout=10)
+        print(result)
 
-        compare_query_results(db, expected1, expected2, None,
+        compare_query_results(db, expected2, expected1, None,
                               'oat_point', result)
     finally:
         if agent_uuid:
@@ -1105,6 +1112,8 @@ def test_insert_multiple_data_per_minute(volttron_instance,
         config['rollup_query_end'] = 0
         config['periodic_rollup_frequency'] = 2
         config['rollup_query_start'] = query_start_day.strftime(
+            '%Y-%m-%dT%H:%M:%S.%f')
+        config['initial_rollup_start_time'] = query_start_day.strftime(
             '%Y-%m-%dT%H:%M:%S.%f')
 
         agent_uuid = install_historian_agent(volttron_instance, config)

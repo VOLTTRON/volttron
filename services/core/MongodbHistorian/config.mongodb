@@ -46,10 +46,11 @@
     # current time (at init of historian)  +  1day
     "rollup_query_start":"2017-01-01T00:00:00.000000",
 
-    # number of minutes before current time, that can be used as end
+    # number of days before current time, that can be used as end
     # date for queries from hourly or daily data collections. This is to
     # account for the time it takes the periodic_rollup to process
     # records in data table and insert into daily_data and hourly_data
+
     # collection. Units minutes. Default 4 minutes
     "rollup_query_end":10,
 
