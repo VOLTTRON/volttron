@@ -15,7 +15,7 @@ downloading the newest source code and re-installing.
 
 The master branch is now the default branch for VOLTTRON (meaning this
 is what you clone if you do not use the “-b” option). This branch will
-get the latest stable features are they are pushed. 3.x has stopped being
+get the latest stable features as they are pushed. 3.x has stopped being
 updated (except for fixes) and 4.x will track master.
 
 The “develop” branch contains the latest features as they are developed.
@@ -25,7 +25,7 @@ ready for release. This branch can be cloned by those wanting to work
 from the latest version of the platform but should not be used in
 deployments.
 
-The least stable branches are the “feature” branches. These are branches
-contain features which are in progress and under development. It is not
-recommended to clone feature branches except for exploring a new
+Features are developed on “feature” branches or developers' forks of
+the main repository. It is not
+recommended to clone these branches except for exploring a new
 feature.
