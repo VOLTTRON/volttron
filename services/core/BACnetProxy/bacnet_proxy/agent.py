@@ -87,7 +87,8 @@ bacpypes.core.enable_sleeping()
 bacpypes.core.SPIN = 0.1
 
 from bacpypes.pdu import Address, GlobalBroadcast
-from bacpypes.app import LocalDeviceObject, BIPSimpleApplication
+from bacpypes.app import BIPSimpleApplication
+from bacpypes.service.device import LocalDeviceObject
 from bacpypes.object import get_datatype
 
 from bacpypes.apdu import (ReadPropertyRequest,
@@ -101,7 +102,7 @@ from bacpypes.apdu import (ReadPropertyRequest,
                            ReadPropertyMultipleACK,
                            PropertyReference,
                            ReadAccessSpecification,
-                           encode_max_apdu_response,
+                           encode_max_apdu_length_accepted,
                            WhoIsRequest,
                            IAmRequest,
                            ConfirmedRequestSequence)
@@ -223,9 +224,10 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             return None
         elif isinstance(apdu, RejectPDU):
             working_iocb.set_exception(
-                RuntimeError("Device at {source} rejected the request: {reason}"
-                             "".format(source=apdu.pduSource,
-                                       reason=apdu.apduAbortRejectReason)))
+                RuntimeError("Device at {source} rejected the request:"
+                             " {reason}".format(
+                                 source=apdu.pduSource,
+                                 reason=apdu.apduAbortRejectReason)))
             return None
         else:
             return working_iocb
@@ -313,7 +315,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                     if readResult.propertyAccessError is not None:
                         error_obj = readResult.propertyAccessError
 
-                        msg = 'ERROR DURRING SCRAPE of {2} (Class: {0} Code: {1})'
+                        msg = 'ERROR DURING SCRAPE of {2} (Class: {0} Code: {1})'
                         _log.error(msg.format(error_obj.errorClass,
                                               error_obj.errorCode,
                                               objectIdentifier))
@@ -443,7 +445,7 @@ class BACnetProxyAgent(Agent):
         _log.info('ven_id '+str(ven_id))
 
         # Check to see if they gave a valid apdu length.
-        if encode_max_apdu_response(max_apdu_len) is None:
+        if encode_max_apdu_length_accepted(max_apdu_len) is None:
             raise ValueError("Invalid max_apdu_len: {} Valid options are 50, "
                              "128, 206, 480, 1024, and 1476".format(
                                  max_apdu_len))
