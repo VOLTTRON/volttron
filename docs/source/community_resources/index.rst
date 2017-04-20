@@ -6,8 +6,10 @@ Join  the Community
 The VOLTTRON team aims to work with users and contributors to continuously improve the platform with features requested
 by the community as well as architectural features that improve robustness, security, and scalability. Contributing
 back to the project, which is encouraged but not required, enhances its capabilities for the whole community. To
-learn more, check out
-:ref:`Contributing <contributing>`.
+learn more, check out :ref:`Contributing <contributing>` and :ref:`Documentation <documentation>`.
+
+
+
 
 Slack Channel
 ^^^^^^^^^^^^^
@@ -42,3 +44,13 @@ available through a Lync meeting.
 
 Meetings are recorded and can be reviewed `here <https://volttron.org/office-hours>`__.
 
+Contributing Back
+^^^^^^^^^^^^^^^^^^
+
+.. toctree::
+    :glob:
+    :maxdepth: 1
+
+   contributing
+   documentation
+   *
