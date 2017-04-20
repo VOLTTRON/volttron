@@ -122,19 +122,16 @@ Support
 There are several options for VOLTTRON\ :sup:`TM` :ref:`support <VOLTTRON-Community>`.
 
 - A VOLTTRON\ :sup:`TM` office hours telecon takes place every other Friday at 11am Pacific over Skype.
+- volttron-community.slack.com is where the VOLTTRON\ :sup:`TM` community at large can ask questions and meet with others using VOLTTRON\ :sup:`TM`.  Signup via https://volttron-community.signup.team/
 - A mailing list for announcements and reminders
 - The VOLTTRON\ :sup:`TM` contact email for being added to office hours, the mailing list, and for inquiries is: volttron@pnnl.gov
 - The preferred method for questions is through stackoverflow since this is easily discoverable by others who may have the same issue. http://stackoverflow.com/questions/tagged/volttron
 - GitHub issue tracker for feature requests, bug reports, and following development activities http://github.com/VOLTTRON/volttron/issues
 
-
-
 License
 -------
 
 The project is :ref:`licensed <license>` under a modified BSD license.
-
-
 
 
 Contents:
@@ -158,7 +155,6 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
 
 
 .. |VOLTTRON Logo| image:: images/volttron-webimage.jpg
