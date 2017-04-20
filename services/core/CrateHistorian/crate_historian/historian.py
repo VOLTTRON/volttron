@@ -271,12 +271,13 @@ class CrateHistorian(BaseHistorian):
         if start and end and start == end:
             where_clauses.append("ts = ?")
             args.append(start)
-        elif start:
-            where_clauses.append("ts >= ?")
-            args.append(start)
-        elif end:
-            where_clauses.append("ts < ?")
-            args.append(end)
+        else:
+            if start:
+                where_clauses.append("ts >= ?")
+                args.append(start)
+            if end:
+                where_clauses.append("ts < ?")
+                args.append(end)
 
         where_statement = ' AND '.join(where_clauses)
 

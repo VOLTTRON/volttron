@@ -249,12 +249,13 @@ class MySqlFuncts(DbDriver):
         if start and end and start == end:
             where_clauses.append("ts = %s")
             args.append(start)
-        elif start:
-            where_clauses.append("ts >= %s")
-            args.append(start)
-        elif end:
-            where_clauses.append("ts < %s")
-            args.append(end)
+        else:
+            if start:
+                where_clauses.append("ts >= %s")
+                args.append(start)
+            if end:
+                where_clauses.append("ts < %s")
+                args.append(end)
 
         where_statement = ' AND '.join(where_clauses)
 
