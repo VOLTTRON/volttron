@@ -5,6 +5,5 @@
         "params": {
             "host": "localhost:4200"
         }
-    },
-    "raw_schema_enabled": false
+    }
 }

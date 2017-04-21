@@ -53,84 +53,41 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 # }}}
 
 from os import path
-import sys
-import json
-
 from setuptools import setup, find_packages
 
-import re
-VERSIONFILE="volttron/platform/__init__.py"
-verstrline = open(VERSIONFILE, "rt").read()
-VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
-mo = re.search(VSRE, verstrline, re.M)
-if mo:
-    verstr = mo.group(1)
-else:
-    raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
+MAIN_MODULE = 'agent'
 
-# Requirements which must be built separately with the provided options.
-option_requirements = [
-    ('pyzmq>=15,<16', ['--zmq=bundled']),
-]
+# Find the agent package that contains the main module
+packages = find_packages('.')
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
 
-optional_requirements = set()
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
 
-# For the different keyed in options allow the command paramenter to
-# install the given requirements.
-if path.exists('optional_requirements.json'):
-    with open('optional_requirements.json') as optional:
-        data = json.load(optional)
-
-        for arg, val in data.items():
-            if arg in sys.argv:
-                for req in val['packages']:
-                    optional_requirements.add(req)
-
-# Requirements in the repository which should be installed as editable.
-local_requirements = [
-]
-
-# Standard requirements
-requirements = [
-    'BACpypes>0.13,<0.14',
-    'gevent>=0.13,<2',
-    'monotonic',
-    'pymodbus>=1.2,<2',
-    'setuptools',
-    'simplejson>=3.3,<4',
-    'wheel>=0.24,<2',
-]
-
-install_requires = (
-    [req for req, _ in option_requirements] +
-    [req for req, _ in local_requirements] +
-    requirements +
-    [req for req in optional_requirements]
+# Setup
+setup(
+    include_package_data=True,
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
+        'setuptools.installation': [
+            'eggsecutable = ' + agent_module + ':main',
+        ]
+    }
 )
-
-if __name__ == '__main__':
-    setup(
-        name='volttron',
-        version=verstr,
-        description='Agent Execution Platform',
-        author='Volttron Team',
-        author_email='volttron@pnnl.gov',
-        url='https://github.com/VOLTTRON/volttron',
-        packages=find_packages('.'),
-        install_requires=install_requires,
-        entry_points={
-            'console_scripts': [
-                'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control:_main',
-                'volttron-pkg = volttron.platform.packaging:_main',
-                'volttron-cfg = volttron.platform.config:_main',
-                'vctl = volttron.platform.control:_main',
-                'vpkg = volttron.platform.packaging:_main',
-                'vcfg = volttron.platform.config:_main',
-            ]
-        },
-        zip_safe=False,
-    )

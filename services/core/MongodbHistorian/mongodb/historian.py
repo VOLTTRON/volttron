@@ -53,6 +53,7 @@
 # under Contract DE-AC05-76RL01830
 
 # }}}
+
 from __future__ import absolute_import, print_function
 
 import logging
@@ -459,8 +460,7 @@ class MongodbHistorian(BaseHistorian):
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
             len(to_publish_list)))
-        # self.report_all_handled()
-        # return
+
         # Use the db instance to insert/update the topics
         # and data collections
         db = self._client.get_default_database()
@@ -610,7 +610,6 @@ class MongodbHistorian(BaseHistorian):
             _log.debug("Found topic id for {} as {}".format(
                 topics_list, topic_ids))
         multi_topic_query = len(topic_ids) > 1
-        db = self._client.get_default_database()
 
         ts_filter = {}
         order_by = 1
