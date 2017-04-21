@@ -95,9 +95,11 @@ import random
 import sqlite3
 import sys
 
+from tzlocal import get_localzone
 import gevent
 import pytest
 import re
+import pytz
 
 from volttron.platform import get_volttron_root
 from volttron.platform.agent import PublishMixin
@@ -766,7 +768,6 @@ def test_exact_timestamp_with_z(request, historian, publish_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == reading)
 
-
 @pytest.mark.historian
 def test_query_start_time(request, historian, publish_agent, query_agent,
                           clean):
@@ -1206,7 +1207,6 @@ def test_invalid_time(request, historian, publish_agent, query_agent,
         print ("exception: {}".format(error))
         assert 'hour must be in 0..23' == error.message
 
-
 @pytest.mark.historian
 def test_analysis_topic(request, historian, publish_agent, query_agent,
                         clean):
@@ -1248,11 +1248,12 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
                     }]
 
     # Create timestamp
-    now = datetime.utcnow().isoformat() + 'Z'
-    print("now is ", now)
-    # now = '2015-12-02T00:00:00'
+
+    publish_time = (datetime.utcnow() - timedelta(days=1)).isoformat()
+    print("publish_time ", publish_time)
+    # publish_time = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: now
+        headers_mod.DATE: publish_time
     }
 
     # Publish messages
@@ -1261,21 +1262,97 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
     gevent.sleep(0.5)
     abc = dict(peer=identity, method='query',
                topic=query_points['mixed_point'],
-               start=now,
-               end=now,
+               start=publish_time,
+               end=publish_time,
                count=20,
                order="LAST_TO_FIRST")
     # Query the historian
     result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
-                                      start=now,
-                                      end=now,
+                                      start=publish_time,
+                                      end=publish_time,
                                       count=20,
                                       order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    (now_date, now_time) = now.split("T")
+    (now_date, now_time) = publish_time.split("T")
+    if now_time[-1:] == 'Z':
+        now_time = now_time[:-1]
+    assert_timestamp(result['values'][0][0], now_date, now_time)
+    assert (result['values'][0][1] == mixed_reading)
+
+
+@pytest.mark.historian
+def test_tz_conversion(request, historian, publish_agent, query_agent,
+                        clean):
+    """
+    Test query based on same start and end time with literal 'Z' at the end
+    of utc time.
+    Expected result: record with timestamp == start time
+
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0 agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param historian: instance of the historian tested
+    :param clean: teardown function
+    """
+    # skip if this test case need not repeated for this specific historian
+    skip_custom_tables(historian)
+
+    global query_points
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_analysis_topic for {}**".format(
+        request.keywords.node.name))
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = oat_reading + random_uniform(-5, 5)
+    damper_reading = random_uniform(0, 100)
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': {'key1':'value1',
+                                              'key2':'value2'},
+                    'MixedAirTemperature': mixed_reading,
+                    'DamperSignal': damper_reading},
+                   {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                              'type': 'float'},
+                    'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                            'type': 'float'},
+                    'DamperSignal': {'units': '%', 'tz': 'UTC',
+                                     'type': 'float'}
+                    }]
+
+    # Create timestamp
+    publish_time_naive  = datetime.now() - timedelta(days=1)
+    local_tz = get_localzone()
+    local_t = local_tz.localize(publish_time_naive)
+    publish_time = local_t.isoformat()
+    utc_publish_time = local_t.astimezone(pytz.utc).isoformat()
+    print("publish_time UTC is ", utc_publish_time)
+    print("publish_time local tz is ", publish_time)
+    # publish_time = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: publish_time
+    }
+
+    # Publish messages
+    publish(publish_agent, 'analysis/Building/LAB/Device',
+            headers, all_message)
+    gevent.sleep(0.5)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(identity,
+                                      'query',
+                                      topic=query_points['mixed_point'],
+                                      start=publish_time,
+                                      end=publish_time,
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=10)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    (now_date, now_time) = utc_publish_time.split("T")
     if now_time[-1:] == 'Z':
         now_time = now_time[:-1]
     assert_timestamp(result['values'][0][0], now_date, now_time)
