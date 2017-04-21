@@ -54,8 +54,6 @@
 
 # }}}
 from __future__ import absolute_import, print_function
-# from gevent import monkey
-# monkey.patch_all()
 
 import logging
 import numbers
@@ -291,7 +289,7 @@ class MongodbHistorian(BaseHistorian):
         if not stat["last_data_into_hourly"] and not stat[
             "last_data_into_daily"]:
             stat = {}
-            find_condition['ts']= {'$gt': self._initial_rollup_start_time}
+            find_condition['ts']= {'$gte': self._initial_rollup_start_time}
             _log.info("ROLLING FROM start date {}".format(
                 self._initial_rollup_start_time))
         else:
@@ -647,9 +645,10 @@ class MongodbHistorian(BaseHistorian):
                 # $in in order to apply $limit to each topic searched instead
                 # of the combined result
                 _log.debug("Spawning thread for topic {}".format(topic_id))
-                pool.spawn(self.query_topic_data, topic_id, collection_name,
+                pool.spawn(self.query_topic_data, topic_id,
+                           id_name_map[topic_id], collection_name,
                            start, end, query_start, query_end, count,
-                           skip_count, order_by, find_params, id_name_map,
+                           skip_count, order_by, find_params,
                            use_rolled_up_data, values)
             pool.join()
             _log.debug("Time taken to load all values {}".format(
@@ -665,9 +664,9 @@ class MongodbHistorian(BaseHistorian):
             pool.kill()
 
 
-    def query_topic_data(self, topic_id, collection_name, start, end,
-                         query_start, query_end, count, skip_count, order_by,
-                         find_params, id_name_map, use_rolled_up_data, values):
+    def query_topic_data(self, topic_id, topic_name, collection_name, start,
+                         end, query_start, query_end, count, skip_count,
+                         order_by, find_params, use_rolled_up_data, values):
         start_time = datetime.utcnow()
         db = self._client.get_default_database()
         _log.info("Mongo client created with min pool size {}".format(
@@ -700,27 +699,26 @@ class MongodbHistorian(BaseHistorian):
                             # there could be more than data entry during the
                             # same minute
                             for data in minute_data:
-                                self.update_values(data, topic_id, start, end,
-                                                   id_name_map,
-                                                   values)
+                                self.update_values(data, topic_name, start,
+                                                   end, values)
                 else:
                     for minute_data in reversed(row['data']):
                         if minute_data:
                             # there could be more than data entry during the
                             # same minute
                             for data in reversed(minute_data):
-                                self.update_values(data, topic_id, start, end,
-                                                   id_name_map,
+                                self.update_values(data, topic_name, start,
+                                                   end,
                                                    values)
             _log.debug("values len {}".format(len(values)))
             if query_start > start:
                 # query raw data collection for rest of the dates
                 find_params['ts'] = {'$gte':start,
-                                     '$lt':query_start}
+                                     '$lt':self.rollup_query_start}
                 pipeline = [{"$match": find_params}, {"$skip": skip_count},
                             {"$sort": {"ts": order_by}}, {"$limit": count},
                             {"$project": raw_data_project}]
-                self.add_raw_data_results(db, id_name_map[topic_id], values,
+                self.add_raw_data_results(db, topic_name, values,
                                           pipeline, order_by == 1)
             if query_end < end:
                 # query raw data collection for rest of the dates
@@ -729,13 +727,13 @@ class MongodbHistorian(BaseHistorian):
                 pipeline = [{"$match": find_params}, {"$skip": skip_count},
                             {"$sort": {"ts": order_by}}, {"$limit": count},
                             {"$project": raw_data_project}]
-                self.add_raw_data_results(db, id_name_map[topic_id], values,
+                self.add_raw_data_results(db, topic_name, values,
                                           pipeline, order_by == -1)
 
         else:
             for row in rows:
                 result_value = self.json_string_to_dict(row['value'])
-                values[id_name_map[topic_id]].append(
+                values[topic_name].append(
                     (row['timestamp'], result_value))
         _log.debug("Time taken to load all results into values {}".format(
             datetime.utcnow() - start_time))
@@ -749,28 +747,31 @@ class MongodbHistorian(BaseHistorian):
         cursor = db[self._data_collection].aggregate(pipeline)
         rows = list(cursor)
         _log.debug("number of raw data records {}".format(len(rows)))
+        new_values = defaultdict(list)
         for row in rows:
             result_value = self.json_string_to_dict(row['value'])
-            new_values[id_name_map[topic_id]].append(
+            new_values[topic_name].append(
                 (row['timestamp'], result_value))
         # add to results from rollup collections
         if add_to_beginning:
             # add to beginning
-            values[topic_name] = new_values.get(
-                id_name_map[topic_id], []).extend(
-                values.get(topic_name,[]))
+            _log.debug("adding to beginning")
+            new_values.get(topic_name, []).extend(values.get(topic_name, []))
+            values[topic_name] = new_values.get(topic_name, [])
         else:
             # add to end
-            values[topic_name] = values.get(topic_name,
-                []).extend(new_values.get(topic_name,[]))
+            _log.debug("adding to end")
+            values.get(topic_name, []).extend(new_values.get(topic_name, []))
+            values[topic_name] = values.get(topic_name, [])
 
 
-    def update_values(self, data, topic_id, start, end, id_name_map, values):
+
+    def update_values(self, data, topic_name, start, end, values):
         if start.tzinfo:
             data[0] = data[0].replace(tzinfo=tzutc())
         if data[0] >= start and data[0] < end:
             result_value = self.json_string_to_dict(data[1])
-            values[id_name_map[topic_id]].append(
+            values[topic_name].append(
                 (utils.format_timestamp(data[0]), result_value))
 
 
@@ -849,10 +850,14 @@ class MongodbHistorian(BaseHistorian):
                 if start < self.rollup_query_start:
                     collection_name = self.DAILY_COLLECTION
                     query_start = self.rollup_query_start
+                    query_start = query_start.replace(hour=0,
+                                                      minute=0,
+                                                      second=0,
+                                                      microsecond=0)
                 if end >= rollup_end:
                     collection_name = self.DAILY_COLLECTION
                     query_end = rollup_end
-
+        _log.debug("Verify use of rollup data: {}".format(collection_name))
         return collection_name, query_start, query_end
 
     def add_metadata_to_query_result(self, agg_type, multi_topic_query,

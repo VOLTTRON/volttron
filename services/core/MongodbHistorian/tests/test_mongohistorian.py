@@ -986,7 +986,6 @@ def test_rollup_query(volttron_instance, database_client):
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
-
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
@@ -1014,10 +1013,10 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
         publish_t1 = datetime(year=2016, month=3, day=1, hour=1, minute=10,
                        second=1, microsecond=0, tzinfo=tzutc())
         publish_t2 = publish_t1 + timedelta(minutes=1)
-        publish_t3 = datetime.utcnow()
+        publish_t3 = utils.get_aware_utc_now()
         #query time period should be greater than 3 hours for historian to use
         # hourly_data collection and  >= 1 day to use daily_data table
-        query_start_day = publish_t1 - timedelta(month=1)
+        query_start_day = publish_t1 - timedelta(days=35)
         query_end = publish_t3 + timedelta(seconds=2)
 
         config = mongo_agent_config()
@@ -1049,7 +1048,12 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
 
         #Only publish_t2 should have gone into rollup collection.
         # Remove publish_t2 entry from data collection
+        print("removing {}".format(publish_t2))
         db['data'].remove({'ts':publish_t2})
+        db['daily_data'].remove({'ts':publish_t3.replace(hour=0,
+                                                         minute=0,
+                                                         second=0,
+                                                         microsecond=0)})
 
         # Check query
         result = publish_agent.vip.rpc.call('platform.historian', 'query',
