@@ -67,7 +67,7 @@ _log = logging.getLogger(__name__)
 
 bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
-__version__ = '0.2'
+__version__ = '0.3'
 
 import os.path
 import errno
