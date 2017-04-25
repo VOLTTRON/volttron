@@ -303,6 +303,13 @@ if __name__ == '__main__':
             # not allow us to update without losing the keys.  The
             # install_agent method either installs or upgrades the agent.
 
+    if opts.force and opts.vip_identity is None:
+        # If force is specified then identity must be specified to indicate the target of the force
+    
+        log.error(
+            "Force option specified without a target identity to force.")
+        sys.exit(-10)
+
     opts.package = create_package(agent_source, wheelhouse, opts.vip_identity)
 
     if not os.path.isfile(opts.package):

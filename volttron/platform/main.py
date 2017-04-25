@@ -353,6 +353,14 @@ class Router(BaseRouter):
             sender = bytes(frames[0])
             if sender == b'control' and user_id == self.default_user_id:
                 raise KeyboardInterrupt()
+        elif subsystem == b'agentstop':
+            try:
+                drop = frames[6].bytes
+                self._drop_peer(drop)
+                _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
+            except IndexError:
+                pass
+            return False
         elif subsystem == b'query':
             try:
                 name = bytes(frames[6])
