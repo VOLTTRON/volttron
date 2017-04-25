@@ -332,6 +332,7 @@ class BaseHistorianAgent(Agent):
                  backup_storage_limit_gb=None,
                  topic_replace_list=None,
                  gather_timing_data=False,
+                 readonly=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -354,6 +355,7 @@ class BaseHistorianAgent(Agent):
         self._successful_published = set()
         self._topic_replace_map = {}
         self._event_queue = Queue()
+        self._readonly = readonly
         self._process_thread = Thread(target=self._process_loop)
         self._process_thread.daemon = True  # Don't wait on thread to exit.
         self._process_thread.start()
@@ -404,9 +406,13 @@ class BaseHistorianAgent(Agent):
         Subscribes to the platform message bus on the actuator, record,
         datalogger, and device topics to capture data.
         """
-        _log.debug("Starting base historian")
+        if self._readonly:
+            _log.debug("Starting base historian in readonly mode. Historian"
+                       "will not subscribe to any topic")
+        else:
+            self._create_subscriptions()
+            _log.debug("Starting base historian")
 
-        self._create_subscriptions()
 
         self._started = True
 
@@ -418,14 +424,15 @@ class BaseHistorianAgent(Agent):
         Release subscription to the message bus because we are no longer able
         to respond to messages now.
         """
-        try:
-            # unsubscribes to all topics that we are subscribed to.
-            self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None,
-                                        callback=None)
-        except KeyError:
-            # means that the agent didn't start up properly so the pubsub
-            # subscriptions never got finished.
-            pass
+        if not self._readonly:
+            try:
+                # unsubscribes to all topics that we are subscribed to.
+                self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None,
+                                            callback=None)
+            except KeyError:
+                # means that the agent didn't start up properly so the pubsub
+                # subscriptions never got finished.
+                pass
 
     def parse_table_def(self, config):
         default_table_def = {"table_prefix": "",
@@ -701,13 +708,19 @@ class BaseHistorianAgent(Agent):
 
         _log.debug("Starting process loop.")
 
-        backupdb = BackupDatabase(self, self._backup_storage_limit_gb)
-
         # Sets up the concrete historian
+        # call this method even in case of readonly mode in case historian
+        # is setting up connections that are shared for both query and write
+        # operations
         self.historian_setup()
+
+        if self._readonly:
+            _log.info("Historian setup in readonly mode.")
+            return
 
         # Record the names of data, topics, meta tables in a metadata table
         self.record_table_definitions(self.volttron_table_defs)
+        backupdb = BackupDatabase(self, self._backup_storage_limit_gb)
 
         # now that everything is setup we need to make sure that the topics
         # are synchronized between
