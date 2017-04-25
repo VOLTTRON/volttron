@@ -734,6 +734,21 @@ class PlatformWrapper:
                 cmd.extend(["--start"])
 
             results = subprocess.check_output(cmd)
+
+            # Because we are no longer silencing output from the install, the
+            # the results object is now much more verbose.  Our assumption is
+            # the line before the output we care about has WHEEL at the end
+            # of it.
+            new_results = ""
+            found_wheel = False
+            for line in results.split("\n"):
+                if line.endswith("WHEEL"):
+                    found_wheel = True
+                elif found_wheel:
+                    new_results += line
+            results = new_results
+
+            #
             # Response from results is expected as follows depending on
             # parameters, note this is a json string so parse to get dictionary.
             # {
@@ -743,8 +758,7 @@ class PlatformWrapper:
             #     "agent_uuid": "ec1fd94e-922a-491f-9878-c392b24dbe50"
             # }
             assert results
-            self.logit("Result is: {}".format(results))
-            # import json
+
             resultobj = jsonapi.loads(str(results))
 
             if start:
