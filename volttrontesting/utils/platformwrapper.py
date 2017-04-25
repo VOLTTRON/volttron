@@ -189,6 +189,12 @@ class PlatformWrapper:
         }
         self.volttron_root = VOLTTRON_ROOT
 
+        volttron_exe = subprocess.check_output(['which', 'volttron']).strip()
+
+        assert os.path.exists(volttron_exe)
+        self.python = os.path.join(os.path.dirname(volttron_exe), 'python')
+        assert os.path.exists(self.python)
+
         # By default no web server should be started.
         self.bind_web_address = None
         self.discovery_address = None
@@ -614,6 +620,7 @@ class PlatformWrapper:
         cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
         if vip_identity:
             cmd.extend(['--vip-identity', vip_identity])
+        self.logit("cmd: {}".format(cmd))
         res = subprocess.check_output(cmd, env=env)
         assert res, "failed to install wheel:{}".format(wheel_file)
         agent_uuid = res.split(' ')[-2]
@@ -684,7 +691,10 @@ class PlatformWrapper:
             assert not config_file
             assert os.path.exists(agent_wheel)
             wheel_file = agent_wheel
+            agent_uuid = self._install_agent(wheel_file, start, vip_identity)
 
+
+        # Now if the agent_dir is specified.
         if agent_dir:
             assert not agent_wheel
             if isinstance(config_file, dict):
@@ -695,17 +705,51 @@ class PlatformWrapper:
                     fp.write(json.dumps(config_file))
                 config_file = temp_config
             elif not config_file:
-                assert os.path.exists(os.path.join(agent_dir, "config"))
-                config_file = os.path.join(agent_dir, "config")
+                if os.path.exists(os.path.join(agent_dir, "config")):
+                    config_file = os.path.join(agent_dir, "config")
+                else:
+                    from os.path import join, basename
+                    temp_config = join(self.volttron_home,
+                                       basename(agent_dir) + "_config_file")
+                    with open(temp_config, "w") as fp:
+                        fp.write(json.dumps({}))
+                    config_file = temp_config
             elif os.path.exists(config_file):
                 pass  # config_file already set!
             else:
                 raise ValueError("Can't determine correct config file.")
 
-            self.logit('Building agent package')
-            wheel_file = self.build_agentpackage(agent_dir, config_file)
-            assert wheel_file
-        agent_uuid = self._install_agent(wheel_file, start, vip_identity)
+            script = os.path.join(self.volttron_root,
+                                  "scripts/install-agent.py")
+            cmd = [self.python, script,
+                   "--volttron-home", self.volttron_home,
+                   "--volttron-root", self.volttron_root,
+                   "--agent-source", agent_dir,
+                   "--config", config_file,
+                   "--json"]
+
+            if vip_identity:
+                cmd.extend(["--vip-identity", vip_identity])
+            if start:
+                cmd.extend(["--start"])
+
+            results = subprocess.check_output(cmd)
+            # Response from results is expected as follows depending on
+            # parameters, note this is a json string so parse to get dictionary.
+            # {
+            #     "started": true,
+            #     "agent_pid": 26241,
+            #     "starting": true,
+            #     "agent_uuid": "ec1fd94e-922a-491f-9878-c392b24dbe50"
+            # }
+            assert results
+            self.logit("Result is: {}".format(results))
+            # import json
+            resultobj = jsonapi.loads(str(results))
+
+            if start:
+                assert resultobj['started']
+            agent_uuid = resultobj['agent_uuid']
 
         assert agent_uuid is not None
 
@@ -817,6 +861,10 @@ class PlatformWrapper:
             with open(cfg_path, "w") as tmp_cfg:
                 tmp_cfg.write(jsonapi.dumps(config_file))
             config_file = cfg_path
+
+        # Handle relative paths from the volttron git directory.
+        if not os.path.isabs(agent_dir):
+            agent_dir = os.path.join(self.volttron_root, agent_dir)
 
         assert os.path.exists(config_file)
         assert os.path.exists(agent_dir)

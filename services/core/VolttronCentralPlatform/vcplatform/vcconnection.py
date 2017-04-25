@@ -299,6 +299,10 @@ class VCConnection(Agent):
 
         def subscription_wrapper(peer, sender, bus, topic, headers,
                                  message):
+            # We only publish up to vc for things that aren't forwarded.
+            if 'X-Forwarded' in headers:
+                return
+
             self._log.debug("publishing to VC topic: {}".format(
                 prefix_on_vc + topic
             ))

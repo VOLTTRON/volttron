@@ -73,6 +73,7 @@ import StringIO
 import uuid
 import base64
 import hashlib
+import tarfile
 
 import gevent
 import gevent.event
@@ -454,6 +455,26 @@ def filter_agent(agents, pattern, opts):
     return next(filter_agents(agents, [pattern], opts))[1]
 
 
+def backup_agent_data(output_filename, source_dir):
+    with tarfile.open(output_filename, "w:gz") as tar:
+        tar.add(source_dir, arcname=os.path.sep) #os.path.basename(source_dir))
+
+
+def restore_agent_data(source_file, output_dir):
+    # Open tarfile
+    with tarfile.open(mode="r:gz", fileobj=file(source_file)) as tar:
+        tar.extractall(output_dir)
+
+
+def find_agent_data_dir(opts, agent_uuid):
+    agent_data_dir = None
+    for x in os.listdir(opts.aip.agent_dir(agent_uuid)):
+        if x.endswith("agent-data"):
+            agent_data_dir = os.path.join(opts.aip.agent_dir(agent_uuid), x)
+            break
+    return agent_data_dir
+
+
 def upgrade_agent(opts):
     publickey = None
     secretkey = None
@@ -464,7 +485,13 @@ def upgrade_agent(opts):
 
     identity_to_uuid = opts.aip.get_agent_identity_to_uuid_mapping()
     agent_uuid = identity_to_uuid.get(identity, None)
+    backup_agent_file = "/tmp/{}.tar.gz".format(agent_uuid)
     if agent_uuid:
+        agent_data_dir = find_agent_data_dir(opts, agent_uuid)
+
+        if agent_data_dir:
+            backup_agent_data(backup_agent_file, agent_data_dir)
+
         keystore = opts.aip.get_agent_keystore(agent_uuid)
         publickey = keystore.public
         secretkey = keystore.secret
@@ -479,10 +506,18 @@ def upgrade_agent(opts):
         publickey = None
         secretkey = None
 
-    install_agent(opts, publickey=publickey, secretkey=secretkey)
+    def restore_agent_data(agent_uuid):
+        # if we are  upgrading transfer the old data on.
+        if os.path.exists(backup_agent_file):
+            new_agent_data_dir = find_agent_data_dir(opts, new_agent_uuid)
+            restore_agent_data(backup_agent_file, new_agent_data_dir)
+            os.remove(backup_agent_file)
+
+    install_agent(opts, publickey=publickey, secretkey=secretkey,
+                  callback=restore_agent_data)
 
 
-def install_agent(opts, publickey=None, secretkey=None):
+def install_agent(opts, publickey=None, secretkey=None, callback=None):
     aip = opts.aip
     filename = opts.wheel
     tag = opts.tag
@@ -519,7 +554,7 @@ def install_agent(opts, publickey=None, secretkey=None):
             with open(filename, 'rb') as wheel_file_data:
                 while True:
                     # get a request
-                    with gevent.Timeout(30):
+                    with gevent.Timeout(60):
                         request, file_offset, chunk_size = channel.recv_multipart()
                     if request == b'checksum':
                         channel.send(sha512.digest())
@@ -556,6 +591,10 @@ def install_agent(opts, publickey=None, secretkey=None):
     name = opts.connection.call('agent_name', agent_uuid)
     _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
 
+    # Need to use a callback here rather than a return value.  I am not 100%
+    # sure why this is the reason for allowing our tests to pass.
+    if callback:
+        callback(agent_uuid)
 
 def tag_agent(opts):
     agents = filter_agent(_list_agents(opts.aip), opts.agent, opts)

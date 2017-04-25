@@ -98,7 +98,7 @@ class ModbusRegisterBase(BaseRegister):
         self.slave_id = slave_id
 
 class ModbusBitRegister(ModbusRegisterBase):
-    def __init__(self, address, type_string, pointName, units, read_only, description = '', slave_id=0):
+    def __init__(self, address, type_string, pointName, units, read_only, mixed_endian=False, description = '', slave_id=0):
         super(ModbusBitRegister, self).__init__(address, "bit", read_only, pointName, units, 
                                                 description = description, slave_id=slave_id)        
         
@@ -129,7 +129,7 @@ class ModbusBitRegister(ModbusRegisterBase):
         return None
 
 class ModbusByteRegister(ModbusRegisterBase):
-    def __init__(self, address, type_string, pointName, units, read_only, description = '', slave_id=0):
+    def __init__(self, address, type_string, pointName, units, read_only, mixed_endian=False, description = '', slave_id=0):
         super(ModbusByteRegister, self).__init__(address, "byte", read_only, 
                                                  pointName, units, description = description, slave_id=slave_id)
         
@@ -144,6 +144,8 @@ class ModbusByteRegister(ModbusRegisterBase):
             raise ValueError("Invalid length Modbus Register '" + type_string + "' for point " + pointName)
         
         self.python_type = struct_types[0]
+
+        self.mixed_endian = mixed_endian
         
     def get_register_count(self):        
         return self.parse_struct.size // MODBUS_REGISTER_SIZE
@@ -156,6 +158,16 @@ class ModbusByteRegister(ModbusRegisterBase):
         target_bytes = byte_stream[index:index+width]
         if len(target_bytes) < width:
             raise ValueError('Not enough data to parse')
+
+        if self.mixed_endian:
+            register_values = []
+            for i in xrange(0, len(target_bytes), PYMODBUS_REGISTER_STRUCT.size):
+                register_values.extend(PYMODBUS_REGISTER_STRUCT.unpack_from(target_bytes, i))
+            register_values.reverse()
+
+            target_bytes = ""
+            for value in register_values:
+                target_bytes += PYMODBUS_REGISTER_STRUCT.pack(value)
         
         return self.parse_struct.unpack(target_bytes)[0]
     
@@ -168,6 +180,10 @@ class ModbusByteRegister(ModbusRegisterBase):
             
         if response is None:
             raise ModbusInterfaceException("pymodbus returned None")
+
+        if self.mixed_endian:
+            response.registers.reverse()
+            
         response_bytes = response.encode()
         #skip the result count
         return self.parse_struct.unpack(response_bytes[1:])[0]
@@ -178,6 +194,8 @@ class ModbusByteRegister(ModbusRegisterBase):
             register_values = []
             for i in xrange(0, len(value_bytes), PYMODBUS_REGISTER_STRUCT.size):
                 register_values.extend(PYMODBUS_REGISTER_STRUCT.unpack_from(value_bytes, i))
+            if self.mixed_endian:
+                register_values.reverse()
             client.write_registers(self.address, register_values, unit=self.slave_id)
             return self.get_state(client)
         return None
@@ -260,7 +278,8 @@ class Interface(BasicRevert, BaseInterface):
     def scrape_byte_registers(self, client, read_only):
         result_dict = {}
         register_ranges = self.register_ranges[('byte',read_only)]
-        
+
+        read_func = client.read_input_registers if read_only else client.read_holding_registers
 
         for register_range in register_ranges:
             start, end, registers = register_range
@@ -268,10 +287,11 @@ class Interface(BasicRevert, BaseInterface):
 
             for group in xrange(start, end + 1, MODBUS_READ_MAX):
                 count = min(end - group + 1, MODBUS_READ_MAX)
-                response = client.read_input_registers(group, count, unit=self.slave_id) if read_only else client.read_holding_registers(group, count, unit=self.slave_id)
+                response = read_func(group, count, unit=self.slave_id)
                 if response is None:
                     raise ModbusInterfaceException("pymodbus returned None")
                 response_bytes = response.encode()
+                #Trim off length byte.
                 result += response_bytes[1:]
 
             for register in registers:
@@ -337,15 +357,16 @@ class Interface(BasicRevert, BaseInterface):
             read_only = regDef['Writable'].lower() != 'true'
             point_path = regDef['Volttron Point Name']        
             address = int(regDef['Point Address'])        
-            description = regDef.get('Notes', '')                 
+            description = regDef.get('Notes', '')
             units = regDef['Units']   
             
             default_value = regDef.get("Default Value", '').strip()
-            if not default_value:
-                default_value = None  
+
+            mixed_endian = regDef.get('Mixed Endian', '').strip().lower() == 'true'
                 
             klass = ModbusBitRegister if bit_register else ModbusByteRegister
-            register = klass(address, io_type, point_path, units, read_only, description = description, slave_id=self.slave_id)
+            register = klass(address, io_type, point_path, units, read_only, mixed_endian=mixed_endian,
+                             description=description, slave_id=self.slave_id)
             
             self.insert_register(register)
             
@@ -368,7 +389,7 @@ class Interface(BasicRevert, BaseInterface):
                 else:
                     _log.info("No default value supplied for point {}. Using default revert method.".format(point_path))
 
-         #Merge adjacent ranges for efficiency.
-         self.merge_register_ranges()
+        #Merge adjacent ranges for efficiency.
+        self.merge_register_ranges()
                 
             
