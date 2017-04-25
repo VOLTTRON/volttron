@@ -303,7 +303,6 @@ if __name__ == '__main__':
             # not allow us to update without losing the keys.  The
             # install_agent method either installs or upgrades the agent.
 
-
     if opts.force and opts.vip_identity is None:
         # If force is specified then identity must be specified to indicate the target of the force
     
