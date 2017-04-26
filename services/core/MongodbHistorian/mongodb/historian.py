@@ -715,24 +715,47 @@ class MongodbHistorian(BaseHistorian):
             _log.debug(
                 "{}:number of records from rolled up "
                 "collection is {}".format(topic_id, len(values[topic_name])))
+            check_count = False
             if query_start > start:
-                # query raw data collection for rest of the dates
-                find_params['ts'] = {'$gte':start,
-                                     '$lt':self.rollup_query_start}
-                pipeline = [{"$match": find_params}, {"$skip": skip_count},
-                            {"$sort": {"ts": order_by}}, {"$limit": count},
-                            {"$project": raw_data_project}]
-                self.add_raw_data_results(db, topic_name, values,
-                                          pipeline, order_by == 1)
+                if len(values[topic_name]) == count and order_by == -1:
+                    # if order by descending and count is already met,
+                    # nothing to do
+                    _log.debug("{}:Count limit already met. do not query raw "
+                               "data".format(topic_id))
+                else:
+                    # query raw data collection for rest of the dates
+                    find_params['ts'] = {'$gte':start,
+                                         '$lt':self.rollup_query_start}
+                    pipeline = [{"$match": find_params}, {"$skip": skip_count},
+                                {"$sort": {"ts": order_by}}, {"$limit": count},
+                                {"$project": raw_data_project}]
+                    self.add_raw_data_results(db, topic_name, values,
+                                              pipeline, order_by == 1)
+                    check_count = True
             if query_end < end:
-                # query raw data collection for rest of the dates
-                find_params['ts'] = {'$gte':query_end,
-                                     '$lt':end}
-                pipeline = [{"$match": find_params}, {"$skip": skip_count},
-                            {"$sort": {"ts": order_by}}, {"$limit": count},
-                            {"$project": raw_data_project}]
-                self.add_raw_data_results(db, topic_name, values,
-                                          pipeline, order_by == -1)
+                if len(values[topic_name]) == count and order_by == 1:
+                    # if order by ascending and count is already met,
+                    # nothing to do
+                    _log.debug("{}:Count limit already met. do not query raw "
+                               "data".format(topic_id))
+                else:
+                    # query raw data collection for rest of the dates
+                    find_params['ts'] = {'$gte':query_end,
+                                         '$lt':end}
+                    pipeline = [{"$match": find_params}, {"$skip": skip_count},
+                                {"$sort": {"ts": order_by}}, {"$limit": count},
+                                {"$project": raw_data_project}]
+                    self.add_raw_data_results(db, topic_name, values,
+                                              pipeline, order_by == -1)
+                    check_count = True
+
+            if check_count:
+                # Check if count has increased after adding raw data
+                # trim if needed
+                if len(values[topic_name]) > count:
+                    _log.debug("{}:result count exceeds limit".format(
+                        topic_id, len(values[topic_name])))
+                    values[topic_name] == values[topic_name][:count]
 
         else:
             for row in rows:
@@ -833,7 +856,8 @@ class MongodbHistorian(BaseHistorian):
         # are present in rolled up format. Mainly because this topic_pattern
         # match is only a temporary fix. We want all topics to get loaded
         # into hourly or daily collections
-        if not (False in match_list) and start and end and start != end:
+        if not (False in match_list) and start and end and start != end and \
+                end > self.rollup_query_start and start < rollup_end:
             diff = (end - start).total_seconds()
 
             if start >= self.rollup_query_start and end < rollup_end:
@@ -852,17 +876,24 @@ class MongodbHistorian(BaseHistorian):
                         minute=0, second=0, microsecond=0)
             elif diff >= 24 * 3600:
                 # if querying more than a day's worth data, get part of data
-                # of rolleup query and rest for raw data
+                # of roll up query and rest for raw data
+                collection_name = self.DAILY_COLLECTION
                 if start < self.rollup_query_start:
-                    collection_name = self.DAILY_COLLECTION
                     query_start = self.rollup_query_start
                     query_start = query_start.replace(hour=0,
                                                       minute=0,
                                                       second=0,
                                                       microsecond=0)
-                if end >= rollup_end:
-                    collection_name = self.DAILY_COLLECTION
+                else:
+                    query_start = start.replace(hour=0, minute=0, second=0,
+                                                microsecond=0)
+
+                if end > rollup_end:
                     query_end = rollup_end
+                else:
+                    query_end = (end + timedelta(days=1)).replace(hour=0,
+                        minute=0, second=0, microsecond=0)
+
         _log.debug("Verify use of rollup data: {}".format(collection_name))
         return collection_name, query_start, query_end
 
