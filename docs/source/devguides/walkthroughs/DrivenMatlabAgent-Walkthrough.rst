@@ -1,8 +1,11 @@
-How to integrate Matlab application with VOLTTRON to send control commands to devices
-=====================================================================================
+.. _MatLabBridge:
+
+MatLab Integration
+====================
+
 
 Overview:
-=========
+---------
 
 Matlab-VOLTTRON integration allows Matlab applications to receive
 data from devices and send control commands to change points on
@@ -12,13 +15,13 @@ DrivenMatlabAgent in VOLTTRON allows this interaction by using ZeroMQ
 sockets to communicate with the Matlab application.
 
 Data Flow Architecture:
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 |Architecture|
 
 
 Installation steps for system running Matlab:
-=============================================
+----------------------------------------------------
 
 1. Install python. Suggested 3.4. Other supported versions are 2.7, 3.3.
 
@@ -54,15 +57,15 @@ Installation steps for system running Matlab:
    to your desired folder.
 
 Run and test Matlab VOLTTRON Integration:
-=========================================
+---------------------------------------------
 
 Assumptions
------------
+~~~~~~~~~~~~~~
 
 -  Device driver agent is already developed
 
 Installation:
---------------
+~~~~~~~~~~~~~~~~
 
 1. Install VOLTTRON on a VM or different system than the one
    running Matlab.
@@ -77,7 +80,7 @@ Installation:
     git subtree add --prefix applications https://github.com/VOLTTRON/volttron-applications.git develop --squash
 
 Configuration
--------------
+~~~~~~~~~~~~~~~~~
 
 1. Copy example configuration file `applications/pnnl/DrivenMatlabAgent/config_waterheater` to `volltron/config`.
 
@@ -99,7 +102,7 @@ Change it to include correct device name and point names in the format:
    '{"commands":{"device1":[["point1",value1]],"device2":[["point2",value2]]}}';
 
 Steps to test integration:
----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. Start VOLTTRON
 
@@ -116,7 +119,7 @@ config file of DrivenMatlabAgent, DrivenMatlabAgent will send it to Matlab
 application and receive commands to send to devices.
 
 Resources
-=========
+--------------
 
 http://www.mathworks.com/help/matlab/getting-started_buik_wp-3.html
 
