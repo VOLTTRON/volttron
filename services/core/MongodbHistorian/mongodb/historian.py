@@ -63,7 +63,8 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
-from gevent.pool import Pool
+from multiprocessing.pool import ThreadPool
+from itertools import repeat
 
 import pymongo
 import pytz
@@ -611,17 +612,9 @@ class MongodbHistorian(BaseHistorian):
                 topics_list, topic_ids))
         multi_topic_query = len(topic_ids) > 1
 
-        ts_filter = {}
         order_by = 1
         if order == 'LAST_TO_FIRST':
             order_by = -1
-
-        if query_start is not None:
-            ts_filter["$gte"] = query_start
-
-        if query_end is not None:
-            ts_filter["$lt"] = query_end
-
 
         if count is None:
             count = 100
@@ -629,29 +622,26 @@ class MongodbHistorian(BaseHistorian):
         if skip > 0:
             skip_count = skip
 
-        find_params = {}
-        if ts_filter:
-            if start == end :
-                find_params = {'ts' : start}
-            else:
-                find_params = {'ts': ts_filter}
 
         values = defaultdict(list)
-        pool = Pool(size=10)
+        pool = ThreadPool(5)
         try:
-            for topic_id in topic_ids:
-                # Query for one topic at a time in a loop instead of topic_id
-                # $in in order to apply $limit to each topic searched instead
-                # of the combined result
-                _log.debug("Spawning thread for topic {}".format(topic_id))
-                pool.spawn(self.query_topic_data, topic_id,
-                           id_name_map[topic_id], collection_name,
-                           start, end, query_start, query_end, count,
-                           skip_count, order_by, find_params,
-                           use_rolled_up_data, values)
+
+            # Query for one topic at a time in a loop instead of topic_id
+            # $in in order to apply $limit to each topic searched instead
+            # of the combined result
+            _log.debug("Spawning threads")
+            pool.map(self.query_topic_data,
+                     zip(topic_ids, repeat(id_name_map),
+                         repeat(collection_name), repeat(start),
+                         repeat(end), repeat(query_start), repeat(query_end),
+                         repeat(count), repeat(skip_count), repeat(order_by),
+                         repeat(use_rolled_up_data),
+                         repeat(values)))
+            pool.close()
             pool.join()
-            _log.debug("Time taken to load all values {}".format(
-                datetime.utcnow() - start_time))
+            _log.debug("Time taken to load all values for all topics"
+                       " {}".format(datetime.utcnow() - start_time))
             # _log.debug("Results got {}".format(values))
 
             return self.add_metadata_to_query_result(agg_type,
@@ -660,18 +650,31 @@ class MongodbHistorian(BaseHistorian):
                                                      topic_ids,
                                                      values)
         finally:
-            pool.kill()
+            pool.close()
 
-
-    def query_topic_data(self, topic_id, topic_name, collection_name, start,
+    def query_topic_data(self, (topic_id, id_name_map, collection_name, start,
                          end, query_start, query_end, count, skip_count,
-                         order_by, find_params, use_rolled_up_data, values):
+                         order_by, use_rolled_up_data, values)):
         start_time = datetime.utcnow()
+        topic_name = id_name_map[topic_id]
         db = self._client.get_default_database()
-        _log.info("Mongo client created with min pool size {}".format(
-            self._client.min_pool_size))
+
+        find_params = {}
+        ts_filter = {}
+        if query_start is not None:
+            ts_filter["$gte"] = query_start
+
+        if query_end is not None:
+            ts_filter["$lt"] = query_end
+
+        if ts_filter:
+            if start == end:
+                find_params = {'ts': start}
+            else:
+                find_params = {'ts': ts_filter}
+
         find_params['topic_id'] = ObjectId(topic_id)
-        _log.debug("querying table with params {}".format(find_params))
+        _log.debug("{}:Querying topic {}".format(topic_id, topic_id))
         raw_data_project = {"_id": 0, "timestamp": {
             '$dateToString': {'format': "%Y-%m-%dT%H:%M:%S.%L000+00:00",
                               "date": "$ts"}}, "value": 1}
@@ -683,13 +686,13 @@ class MongodbHistorian(BaseHistorian):
         pipeline = [{"$match": find_params}, {"$skip": skip_count},
                     {"$sort": {"ts": order_by}}, {"$limit": count},
                     {"$project": project}]
-        _log.debug("pipeline for query is {}".format(pipeline))
-        _log.debug("collection_name is "+ collection_name)
+        _log.debug("{}:pipeline for querying {} is {}".format(
+            topic_id, collection_name, pipeline))
         cursor = db[collection_name].aggregate(pipeline)
 
         rows = list(cursor)
-        _log.debug("Time after fetch {}".format(
-            datetime.utcnow() - start_time))
+        _log.debug("{}:Time after fetch {}".format(
+            topic_id, datetime.utcnow() - start_time))
         if use_rolled_up_data:
             for row in rows:
                 if order_by == 1:
@@ -709,7 +712,9 @@ class MongodbHistorian(BaseHistorian):
                                 self.update_values(data, topic_name, start,
                                                    end,
                                                    values)
-            _log.debug("values len {}".format(len(values)))
+            _log.debug(
+                "{}:number of records from rolled up "
+                "collection is {}".format(topic_id, len(values[topic_name])))
             if query_start > start:
                 # query raw data collection for rest of the dates
                 find_params['ts'] = {'$gte':start,
@@ -734,15 +739,17 @@ class MongodbHistorian(BaseHistorian):
                 result_value = self.json_string_to_dict(row['value'])
                 values[topic_name].append(
                     (row['timestamp'], result_value))
-        _log.debug("Time taken to load all results into values {}".format(
-            datetime.utcnow() - start_time))
-        _log.debug("rows length {}".format(len(rows)))
+            _log.debug(
+                "{}:loading results only from raw data collections. "
+                "Results length {}".format(topic_id, len(values[topic_name])))
+
+        _log.debug("{}:Time taken to load results: {}".format(
+            topic_id,  datetime.utcnow() - start_time))
 
     def add_raw_data_results(self, db, topic_name, values, pipeline,
                              add_to_beginning):
 
         _log.debug("pipeline for querying raw data is {}".format(pipeline))
-        _log.debug("collection_name is " + self._data_collection)
         cursor = db[self._data_collection].aggregate(pipeline)
         rows = list(cursor)
         _log.debug("number of raw data records {}".format(len(rows)))
