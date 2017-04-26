@@ -14,7 +14,7 @@ there are significant changes. The system's Python need only be used on
 the initial bootstrap.
 
 Install Required Software
----------------------------
+-------------------------
 
 Before bootstrapping, ensure the :ref:`required
 packages <VOLTTRON-Prerequisites>` are installed. If you intend to
@@ -23,7 +23,7 @@ develop in Eclipse, we recommend creating the work directory: ~/git or
 work with the master branch of the repository:
 
 Bootstrap
-----------
+---------
 
 ::
 
@@ -40,7 +40,7 @@ Note: Some packages (especially numpy) can be very verbose when they
 install. Please wait for the wall of text to finish.
 
 Testing the Installation
--------------------------
+------------------------
 
 To test that installation worked, start up the platform in verbose mode
 and set a log file:
@@ -118,7 +118,7 @@ From the volttron directory:
 
 
 Next Steps
--------------
+----------
 
 Now that the project is configured correctly, see the following links for agent development:
 
@@ -128,7 +128,7 @@ Now that the project is configured correctly, see the following links for agent 
 
 
 Related Topics
----------------
+--------------
 
 .. toctree::
     :glob:
