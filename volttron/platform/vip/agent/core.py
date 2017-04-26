@@ -73,7 +73,7 @@ import weakref
 
 import gevent.event
 from zmq import green as zmq
-from zmq.green import ZMQError, EAGAIN
+from zmq.green import ZMQError, EAGAIN, ENOTSOCK, EADDRINUSE
 from zmq.utils import jsonapi as json
 from zmq.utils.monitor import recv_monitor_message
 
@@ -439,7 +439,8 @@ class Core(BasicCore):
         self.secretkey = secretkey
         self.serverkey = serverkey
         self.reconnect_interval = reconnect_interval
-
+        self._reconnect_attempt = 0
+        self._monitor_socket = None
         self._set_keys()
 
         _log.debug('address: %s', address)
@@ -610,6 +611,13 @@ class Core(BasicCore):
             if running_event is not None:
                 running_event.set()
 
+        def close_socket(sender):
+            try:
+                if self.socket is not None:
+                    self.socket.monitor(None, 0)
+                    self.socket.close(10)
+            finally:
+                self.socket = None
 
         def monitor():
             # Call socket.monitor() directly rather than use
@@ -617,23 +625,53 @@ class Core(BasicCore):
             # regular contexts (get_monitor_socket() uses
             # self.context.socket()).
             addr = 'inproc://monitor.v-%d' % (id(self.socket),)
-            self.socket.monitor(addr)
-            try:
-                sock = zmq.Socket(self.context, zmq.PAIR)
-                sock.connect(addr)
-                while True:
-                    message = recv_monitor_message(sock)
-                    self.onsockevent.send(self, **message)
-                    event = message['event']
-                    if event & zmq.EVENT_CONNECTED:
-                        hello()
-                    elif event & zmq.EVENT_DISCONNECTED:
-                        self.__connected = False
-                        self.ondisconnected.send(self)
-            finally:
-                self.socket.monitor(None, 0)
+            sock = None
+            if self.socket is not None:
+                try:
+                    self.socket.monitor(addr)
+
+                    sock = zmq.Socket(self.context, zmq.PAIR)
+                    # sock = self._monitor_socket
+
+                    sock.connect(addr)
+                    while True:
+                        try:
+                            message = recv_monitor_message(sock)
+                            self.onsockevent.send(self, **message)
+                            event = message['event']
+                            if event & zmq.EVENT_CONNECTED:
+                                hello()
+                            elif event & zmq.EVENT_DISCONNECTED:
+                                self.__connected = False
+                                self.ondisconnected.send(self)
+                            elif event & zmq.EVENT_CONNECT_RETRIED:
+                                self._reconnect_attempt += 1
+                                if self._reconnect_attempt == 50:
+                                    self.__connected = False
+                                    sock.disable_monitor()
+                                    self.stop()
+                                    self.ondisconnected.send(self)
+                            elif event & zmq.EVENT_MONITOR_STOPPED:
+                                break
+                        except ZMQError as exc:
+                            if exc.errno == ENOTSOCK:
+                                break
+
+                except ZMQError as exc:
+                    if exc.errno == EADDRINUSE:
+                        pass
+                finally:
+                    try:
+                        if sock is not None:
+                            sock.close(10)
+                        if self.socket is not None:
+                            self.socket.monitor(None, 0)
+                    except Exception as exc:
+                        _log.debug("Error in closing the socket: {}".format(exc.message))
+
 
         self.onconnected.connect(hello_response)
+        self.ondisconnected.connect(close_socket)
 
         if self.address[:4] in ['tcp:', 'ipc:']:
             self.spawn(monitor).join(0)
@@ -647,9 +685,13 @@ class Core(BasicCore):
                 try:
                     message = sock.recv_vip_object(copy=False)
                 except ZMQError as exc:
+
                     if exc.errno == EAGAIN:
                         continue
-                    raise
+                        raise
+                    if exc.errno == ENOTSOCK:
+                        self.socket = None
+                        break
 
                 subsystem = bytes(message.subsystem)
                 # Handle hellos sent by CONNECTED event
@@ -683,9 +725,15 @@ class Core(BasicCore):
         # pre-finish
         try:
             self.socket.disconnect(self.address)
+            self.socket.monitor(None, 0)
+            self.socket.close(10)
+        except AttributeError:
+            pass
         except ZMQError as exc:
             if exc.errno != ENOENT:
                 _log.exception('disconnect error')
+        finally:
+            self.socket = None
         yield
 
 

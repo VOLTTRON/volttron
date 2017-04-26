@@ -214,6 +214,7 @@ class RPC(SubsystemBase):
         self._counter = counter()
         self._outstanding = weakref.WeakValueDictionary()
         core.register('RPC', self._handle_subsystem, self._handle_error)
+        self._isconnected = False
 
         def export(member):   # pylint: disable=redefined-outer-name
             for name in annotations(member, set, 'rpc.exports'):
@@ -225,7 +226,15 @@ class RPC(SubsystemBase):
             self.context = gevent.local.local()
             self._dispatcher = Dispatcher(self._exports, self.context)
         core.onsetup.connect(setup, self)
+        core.ondisconnected.connect(self._disconnected)
+        core.onconnected.connect(self._connected)
         self._iterate_exports()
+
+    def _connected(self, sender, **kwargs):
+        self._isconnected =True
+
+    def _disconnected(self, sender, **kwargs):
+        self._isconnected = False
 
     def _iterate_exports(self):
         '''Iterates over exported methods and adds authorization checks
@@ -260,7 +269,8 @@ class RPC(SubsystemBase):
         if responses:
             message.user = ''
             message.args = responses
-            self.core().socket.send_vip_object(message, copy=False)
+            if self._isconnected:
+                self.core().socket.send_vip_object(message, copy=False)
 
     def _handle_error(self, sender, message, error, **kwargs):
         result = self._outstanding.pop(bytes(message.id), None)
@@ -304,14 +314,18 @@ class RPC(SubsystemBase):
         request, result = self._dispatcher.call(method, args, kwargs)
         ident = '%s.%s' % (next(self._counter), hash(result))
         self._outstanding[ident] = result
-        self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
+
+        if self._isconnected:
+            self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
         return result
 
     __call__ = call
 
     def notify(self, peer, method, *args, **kwargs):
         request = self._dispatcher.notify(method, args, kwargs)
-        self.core().socket.send_vip(peer, 'RPC', [request])
+
+        if self._isconnected:
+            self.core().socket.send_vip(peer, 'RPC', [request])
 
     @dualmethod
     def allow(self, method, capabilities):
