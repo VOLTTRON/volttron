@@ -186,7 +186,11 @@ class ControlService(BaseAgent):
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
+        identity = self.agent_vip_identity(uuid)
         self._aip.stop_agent(uuid)
+        #Send message to router that agent is shutting down
+        frames = [bytes(identity)]
+        self.core.socket.send_vip(b'', 'agentstop', frames, copy=False)
 
     @RPC.export
     def restart_agent(self, uuid):
@@ -1406,6 +1410,8 @@ def main(argv=sys.argv):
                              help='show tracbacks for errors rather than a brief message')
     global_args.add_argument('-t', '--timeout', type=float, metavar='SECS',
                              help='timeout in seconds for remote calls (default: %(default)g)')
+    global_args.add_argument('--msgdebug',
+                             help='route all messages to an agent while debugging')
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
