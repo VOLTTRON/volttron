@@ -86,13 +86,9 @@ def historian(config_path, **kwargs):
         topics.ANALYSIS_TOPIC_BASE
     ])
     custom_topic_list = config.get('custom_topic_list', [])
-    topic_replace_list = config.get('topic_replace_list', [])
     destination_vip = config.get('destination-vip')
     destination_historian_identity = config.get('destination-historian-identity',
                                                 'platform.historian')
-    backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
-
-    gather_timing_data = config.get('gather_timing_data', False)
 
     hosts = KnownHostsStore()
     destination_serverkey = hosts.serverkey(destination_vip)
@@ -100,14 +96,11 @@ def historian(config_path, **kwargs):
         _log.info("Destination serverkey not found in known hosts file, using config")
         destination_serverkey = config['destination-serverkey']
 
-    return DataMover(services_topic_list,
+    return DataMover(config, services_topic_list,
                      custom_topic_list,
-                     topic_replace_list,
                      destination_vip,
                      destination_serverkey,
                      destination_historian_identity,
-                     gather_timing_data,
-                     backup_storage_limit_gb=backup_storage_limit_gb,
                      **kwargs)
 
 
@@ -116,27 +109,24 @@ class DataMover(BaseHistorian):
     """
 
     def __init__(self,
+                 config,
                  services_topic_list,
                  custom_topic_list,
-                 topic_replace_list,
                  destination_vip,
                  destination_serverkey,
                  destination_historian_identity,
-                 gather_timing_data,
                  **kwargs):
 
         self.services_topic_list = services_topic_list
         self.custom_topic_list = custom_topic_list
-        self.topic_replace_list = topic_replace_list
         self.destination_vip = destination_vip
         self.destination_serverkey = destination_serverkey
         self.destination_historian_identity = destination_historian_identity
-        self.gather_timing_data = gather_timing_data
 
         # will be available in both threads.
         self._topic_replace_map = {}
         self._last_timeout = 0
-        super(DataMover, self).__init__(**kwargs)
+        super(DataMover, self).__init__(config, **kwargs)
 
     @Core.receiver("onstart")
     def starting_base(self, sender, **kwargs):
@@ -184,13 +174,13 @@ class DataMover(BaseHistorian):
                                           message_string=message[0]))
             raise
 
-        if self.topic_replace_list:
+        if self._topic_replace_list:
             if topic in self._topic_replace_map.keys():
                 topic = self._topic_replace_map[topic]
             else:
                 self._topic_replace_map[topic] = topic
                 temptopics = {}
-                for x in self.topic_replace_list:
+                for x in self._topic_replace_list:
                     if x['from'] in topic:
                         new_topic = temptopics.get(topic, topic)
                         temptopics[topic] = new_topic.replace(
@@ -200,7 +190,7 @@ class DataMover(BaseHistorian):
                     self._topic_replace_map[k] = v
                 topic = self._topic_replace_map[topic]
 
-        if self.gather_timing_data:
+        if self._gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
         payload = {'headers': headers, 'message': data}
@@ -233,7 +223,7 @@ class DataMover(BaseHistorian):
             headers = x['value']['headers']
             message = x['value']['message']
 
-            if self.gather_timing_data:
+            if self._gather_timing_data:
                 add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "forwarded")
 
             to_send.append({'topic': topic,

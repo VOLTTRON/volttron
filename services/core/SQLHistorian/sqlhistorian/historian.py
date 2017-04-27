@@ -114,14 +114,9 @@ def historian(config_path, **kwargs):
     else:
         identity = identity_from_platform
 
-    topic_replace_list = config_dict.get("topic_replace_list", None)
-    if topic_replace_list:
-        _log.debug("topic replace list is: {}".format(topic_replace_list))
 
-    readonly = config_dict.get('readonly', False)
     SQLHistorian.__name__ = 'SQLHistorian'
-    return SQLHistorian(config_dict, identity=identity, readonly=readonly,
-                        topic_replace_list=topic_replace_list, **kwargs)
+    return SQLHistorian(config_dict, identity=identity, **kwargs)
 
 
 class SQLHistorian(BaseHistorian):
@@ -156,7 +151,7 @@ class SQLHistorian(BaseHistorian):
         self.tables_def = {}
         self.reader = None
         self.writer = None
-        super(SQLHistorian, self).__init__( **kwargs)
+        super(SQLHistorian, self).__init__(config, **kwargs)
 
     def record_table_definitions(self, meta_table_name):
         self.writer.record_table_definitions(self.tables_def,

@@ -139,15 +139,10 @@ def historian(config_path, **kwargs):
     else:
         identity = identity_from_platform
 
-    topic_replacements = config_dict.get('topic_replace_list', None)
-    _log.debug('topic_replacements are: {}'.format(topic_replacements))
 
-    readonly = config_dict.get('readonly', False)
 
     MongodbHistorian.__name__ = 'MongodbHistorian'
-    return MongodbHistorian(config_dict, identity=identity,
-                            topic_replace_list=topic_replacements,
-                            readonly=readonly, **kwargs)
+    return MongodbHistorian(config_dict, identity=identity, **kwargs)
 
 
 class MongodbHistorian(BaseHistorian):
@@ -252,7 +247,7 @@ class MongodbHistorian(BaseHistorian):
                 # before running the periodic_rollup for the first time.
 
             #Done with all init call super.init
-            super(MongodbHistorian, self).__init__(**kwargs)
+            super(MongodbHistorian, self).__init__(config, **kwargs)
         except ValueError as e:
             _log.error("Error processing configuration: {}".format(e))
             return

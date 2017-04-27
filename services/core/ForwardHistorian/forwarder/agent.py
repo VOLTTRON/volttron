@@ -85,10 +85,7 @@ def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
     services_topic_list = config.get('services_topic_list', ['all'])
     custom_topic_list = config.get('custom_topic_list', [])
-    topic_replace_list = config.get('topic_replace_list', [])
     destination_vip = config.get('destination-vip')
-
-    gather_timing_data = config.get('gather_timing_data', False)
 
     hosts = KnownHostsStore()
     destination_serverkey = hosts.serverkey(destination_vip)
@@ -107,13 +104,13 @@ def historian(config_path, **kwargs):
         This historian forwards data to another platform.
         """
 
-        def __init__(self, **kwargs):
+        def __init__(self, config_dict, **kwargs):
             # will be available in both threads.
             self._topic_replace_map = {}
             self._num_failures = 0
             self._last_timeout = 0
             self._target_platform = None
-            super(ForwardHistorian, self).__init__(**kwargs)
+            super(ForwardHistorian, self).__init__(config_dict, **kwargs)
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
@@ -171,13 +168,13 @@ def historian(config_path, **kwargs):
                                               message_string=message[0]))
                 raise
 
-            if topic_replace_list:
+            if self._topic_replace_list:
                 if topic in self._topic_replace_map.keys():
                     topic = self._topic_replace_map[topic]
                 else:
                     self._topic_replace_map[topic] = topic
                     temptopics = {}
-                    for x in topic_replace_list:
+                    for x in self._topic_replace_list:
                         if x['from'] in topic:
                             new_topic = temptopics.get(topic, topic)
                             temptopics[topic] = new_topic.replace(
@@ -187,7 +184,7 @@ def historian(config_path, **kwargs):
                         self._topic_replace_map[k] = v
                     topic = self._topic_replace_map[topic]
 
-            if gather_timing_data:
+            if self._gather_timing_data:
                 add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
             payload = {'headers': headers, 'message': data}
@@ -254,7 +251,7 @@ def historian(config_path, **kwargs):
                 except KeyError:
                     pass
 
-                if gather_timing_data:
+                if self._gather_timing_data:
                     add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity,"forwarded")
 
                 if timeout_occurred:
@@ -328,9 +325,7 @@ def historian(config_path, **kwargs):
             else:
                 self._target_platform = agent
 
-
-    return ForwardHistorian(backup_storage_limit_gb=backup_storage_limit_gb,
-                            **kwargs)
+    return ForwardHistorian(config, **kwargs)
 
 
 def main(argv=sys.argv):

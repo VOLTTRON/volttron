@@ -115,16 +115,8 @@ def historian(config_path, **kwargs):
     params = connection.get('params', None)
     assert params is not None
 
-    topic_replacements = config_dict.get('topic_replace_list', None)
-    _log.debug('topic_replacements are: {}'.format(topic_replacements))
-
-    readonly = config_dict.get('readonly', False)
-
     CrateHistorian.__name__ = 'CrateHistorian'
-    return CrateHistorian(config_dict,
-                          readonly=readonly,
-                          topic_replace_list=topic_replacements,
-                          **kwargs)
+    return CrateHistorian(config_dict, **kwargs)
 
 
 class CrateHistorian(BaseHistorian):
@@ -172,7 +164,7 @@ class CrateHistorian(BaseHistorian):
         self._agg_topic_id_map = {}
         self._initialized = False
         self._wait_until = None
-        super(CrateHistorian, self).__init__(**kwargs)
+        super(CrateHistorian, self).__init__(config, **kwargs)
 
     @doc_inherit
     def publish_to_historian(self, to_publish_list):

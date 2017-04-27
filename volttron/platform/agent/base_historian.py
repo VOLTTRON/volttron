@@ -325,15 +325,15 @@ class BaseHistorianAgent(Agent):
     historian.
     """
 
-    def __init__(self,
-                 retry_period=300.0,
-                 submit_size_limit=1000,
-                 max_time_publishing=30,
-                 backup_storage_limit_gb=None,
-                 topic_replace_list=None,
-                 gather_timing_data=False,
-                 readonly=False,
-                 **kwargs):
+    def __init__(self, config, **kwargs):
+
+        retry_period = config.get('retry_period', 300.0)
+        submit_size_limit = config.get('submit_size_limit', 1000)
+        max_time_publishing = config.get('max_time_publishing', 30)
+        backup_storage_limit_gb = config.get('backup_storage_limit_gb')
+        topic_replace_list = config.get('topic_replace_list')
+        gather_timing_data = config.get('gather_timing_data', False)
+        readonly = config.get('readonly', False)
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
         # This should resemble a dictionary that has key's from and to which
@@ -1451,11 +1451,11 @@ class BaseQueryHistorianAgent(Agent):
 
 
 class BaseHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
-    def __init__(self, **kwargs):
+    def __init__(self, config, **kwargs):
         _log.debug('Constructor of BaseHistorian thread: {}'.format(
             threading.currentThread().getName()
         ))
-        super(BaseHistorian, self).__init__(**kwargs)
+        super(BaseHistorian, self).__init__(config, **kwargs)
 
 
 # The following code is

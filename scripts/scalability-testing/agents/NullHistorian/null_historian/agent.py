@@ -68,14 +68,13 @@ def historian(config_path, **kwargs):
 
     config = utils.load_config(config_path)
 
-    gather_timing_data = config.get("gather_timing_data", False)
-            
+
     class NullHistorian(BaseHistorian):
         '''This historian forwards data to another platform.
         '''
 
-        def __init__(self, **kwargs):
-            super(NullHistorian, self).__init__(**kwargs)
+        def __init__(self, config_dict, **kwargs):
+            super(NullHistorian, self).__init__(config_dict, **kwargs)
 
             if self._gather_timing_data:
                 self._turnaround_times = []
@@ -113,7 +112,7 @@ def historian(config_path, **kwargs):
             """
             raise NotImplemented("query_historian not implimented for null historian")
 
-    return NullHistorian(gather_timing_data=gather_timing_data, **kwargs)
+    return NullHistorian(config, **kwargs)
 
 
 
