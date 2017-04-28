@@ -1,6 +1,0 @@
-{
-    cache_timeout: 660,
-    tag_delimiter_re: "\s+|:|_|\.|/"
-}
-
-
