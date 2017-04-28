@@ -56,6 +56,7 @@
 # }}}
 from ConfigParser import ConfigParser
 import argparse
+import getpass
 import hashlib
 import os
 import sys
@@ -115,21 +116,24 @@ def _install_config_file():
         config.write(configfile)
 
 
-def prompt_response(prompt, valid_answers=None, default=None):
+def prompt_response(prompt, valid_answers=None, default=None, echo=True):
 
     prompt += ' '
     if default is not None:
         prompt += '[{}]: '.format(default)
-
-    while True:
-        resp = raw_input(prompt)
-        if resp == '' and default is not None:
-            return default
-        if valid_answers is None or resp in valid_answers:
-            return resp
-        else:
-            print('Invalid response. Proper responses are:')
-            print(valid_answers)
+    if echo:
+        while True:
+            resp = raw_input(prompt)
+            if resp == '' and default is not None:
+                return default
+            if valid_answers is None or resp in valid_answers:
+                return resp
+            else:
+                print('Invalid response. Proper responses are:')
+                print(valid_answers)
+    else:
+        resp = getpass.getpass()
+        return resp
 
 
 def _cmd(cmdargs):
@@ -363,7 +367,9 @@ internal address such as 127.0.0.1.
 
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
-    return vc_config()
+    resp = vc_config()
+    print('Installing volttron central')
+    return resp
 
 
 def vc_config():
@@ -374,7 +380,8 @@ def vc_config():
             print('ERROR Invalid username')
     password = ''
     while not password:
-        password = prompt_response('Enter volttron central admin password:')
+        password = prompt_response('Enter volttron central admin password:',
+                                   echo=False)
         if not password:
             print('ERROR: Invalid password')
 
