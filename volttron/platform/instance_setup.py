@@ -379,11 +379,20 @@ def vc_config():
         if not username:
             print('ERROR Invalid username')
     password = ''
+    password2 = ''
     while not password:
         password = prompt_response('Enter volttron central admin password:',
                                    echo=False)
         if not password:
             print('ERROR: Invalid password')
+            continue
+
+        password2 = prompt_response('Verify Password:',
+                                   echo=False)
+        if password2 != password:
+            print("ERROR: Passwords don't match")
+
+            password = ''
 
     config = {
         'users': {
