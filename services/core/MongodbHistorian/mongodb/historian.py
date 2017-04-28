@@ -141,12 +141,9 @@ def historian(config_path, **kwargs):
     topic_replacements = config_dict.get('topic_replace_list', None)
     _log.debug('topic_replacements are: {}'.format(topic_replacements))
 
-    readonly = config_dict.get('readonly', False)
-
     MongodbHistorian.__name__ = 'MongodbHistorian'
     return MongodbHistorian(config_dict, identity=identity,
-                            topic_replace_list=topic_replacements,
-                            readonly=readonly, **kwargs)
+                            topic_replace_list=topic_replacements, **kwargs)
 
 
 class MongodbHistorian(BaseHistorian):
@@ -260,13 +257,12 @@ class MongodbHistorian(BaseHistorian):
     def starting_mongo(self, sender, **kwargs):
         _log.debug("In on start method. scheduling periodic call to rollup "
                    "data")
-        if not self._readonly:
-            self.core.periodic(self.periodic_rollup_frequency,
-                               self.periodic_rollup,
-                               wait=self.periodic_rollup_initial_wait)
+        self.core.periodic(self.periodic_rollup_frequency,
+                           self.periodic_rollup,
+                           wait=self.periodic_rollup_initial_wait)
 
     def periodic_rollup(self):
-        _log.info("periodic attempt to do hourly and daily rollup.")
+        _log.debug("periodic attempt to do hourly and daily rollup.")
         if self._client is None:
             _log.debug("historian setup not complete. "
                        "wait for next periodic call")
@@ -290,15 +286,12 @@ class MongodbHistorian(BaseHistorian):
         if not stat["last_data_into_hourly"] and not stat[
             "last_data_into_daily"]:
             stat = {}
-            find_condition['ts']= {'$gte': self._initial_rollup_start_time}
-            _log.info("ROLLING FROM start date {}".format(
+            find_condition['ts']= {'$gt': self._initial_rollup_start_time}
+            _log.debug("ROLLING FROM start date {}".format(
                 self._initial_rollup_start_time))
         else:
-            _log.info("ROLLING FROM last processed id {}".format(
+            _log.debug("ROLLING FROM last processed id {}".format(
                 find_condition['_id']))
-
-        _log.debug("query condition is {} ".format(find_condition))
-
 
         # Iterate and append to a bulk_array. Insert in batches of 1000
         bulk_publish_hour = []
@@ -311,7 +304,7 @@ class MongodbHistorian(BaseHistorian):
         last_date = ''
         cursor = db[self._data_collection].find(
             find_condition).sort("_id", pymongo.ASCENDING)
-        _log.debug("rollup query returned. Looping through to updated db")
+
         for row in cursor:
             if not stat or row['_id'] > stat["last_data_into_hourly"]:
                 self.initialize_hourly(topic_id=row['topic_id'], ts=row['ts'])
@@ -460,7 +453,8 @@ class MongodbHistorian(BaseHistorian):
     def publish_to_historian(self, to_publish_list):
         _log.debug("publish_to_historian number of items: {}".format(
             len(to_publish_list)))
-
+        # self.report_all_handled()
+        # return
         # Use the db instance to insert/update the topics
         # and data collections
         db = self._client.get_default_database()
@@ -640,15 +634,13 @@ class MongodbHistorian(BaseHistorian):
         pool = Pool(size=10)
         try:
             for topic_id in topic_ids:
-                # Query for one topic at a time in a loop instead of topic_id
-                # $in in order to apply $limit to each topic searched instead
-                # of the combined result
+                # Query for one topic at a time in a loop instead of topic_id $in
+                # in order to apply $limit to each topic searched instead of the
+                # combined result
                 _log.debug("Spawning thread for topic {}".format(topic_id))
-                pool.spawn(self.query_topic_data, topic_id,
-                           id_name_map[topic_id], collection_name,
-                           start, end, query_start, query_end, count,
-                           skip_count, order_by, find_params,
-                           use_rolled_up_data, values)
+                pool.spawn(self.query_topic_data, topic_id, collection_name,
+                           start, end, count, skip_count, order_by, find_params,
+                           id_name_map, use_rolled_up_data, values)
             pool.join()
             _log.debug("Time taken to load all values {}".format(
                 datetime.utcnow() - start_time))
@@ -663,33 +655,28 @@ class MongodbHistorian(BaseHistorian):
             pool.kill()
 
 
-    def query_topic_data(self, topic_id, topic_name, collection_name, start,
-                         end, query_start, query_end, count, skip_count,
-                         order_by, find_params, use_rolled_up_data, values):
+    def query_topic_data(self, topic_id, collection_name, start,
+                         end, count, skip_count, order_by, find_params,
+                         id_name_map, use_rolled_up_data, values):
         start_time = datetime.utcnow()
         db = self._client.get_default_database()
-        _log.info("Mongo client created with min pool size {}".format(
-            self._client.min_pool_size))
         find_params['topic_id'] = ObjectId(topic_id)
         _log.debug("querying table with params {}".format(find_params))
-        raw_data_project = {"_id": 0, "timestamp": {
-            '$dateToString': {'format': "%Y-%m-%dT%H:%M:%S.%L000+00:00",
-                              "date": "$ts"}}, "value": 1}
         if use_rolled_up_data:
             project = {"_id": 0, "data": 1}
         else:
-            project = raw_data_project
-
+            project = {"_id": 0, "timestamp": {
+                '$dateToString': {'format': "%Y-%m-%dT%H:%M:%S.%L000+00:00",
+                                  "date": "$ts"}}, "value": 1}
         pipeline = [{"$match": find_params}, {"$skip": skip_count},
                     {"$sort": {"ts": order_by}}, {"$limit": count},
                     {"$project": project}]
-        _log.debug("pipeline for query is {}".format(pipeline))
-        _log.debug("collection_name is "+ collection_name)
+        _log.debug("pipeline for agg query is {}".format(pipeline))
+        _log.debug("collection_name is " + collection_name)
         cursor = db[collection_name].aggregate(pipeline)
-
         rows = list(cursor)
-        _log.debug("Time after fetch {}".format(
-            datetime.utcnow() - start_time))
+        _log.debug(
+            "Time after fetch {}".format(datetime.utcnow() - start_time))
         if use_rolled_up_data:
             for row in rows:
                 if order_by == 1:
@@ -698,79 +685,33 @@ class MongodbHistorian(BaseHistorian):
                             # there could be more than data entry during the
                             # same minute
                             for data in minute_data:
-                                self.update_values(data, topic_name, start,
-                                                   end, values)
+                                self.update_values(data, topic_id, start, end,
+                                                   id_name_map, values)
                 else:
                     for minute_data in reversed(row['data']):
                         if minute_data:
                             # there could be more than data entry during the
                             # same minute
                             for data in reversed(minute_data):
-                                self.update_values(data, topic_name, start,
-                                                   end,
-                                                   values)
-            _log.debug("values len {}".format(len(values)))
-            if query_start > start:
-                # query raw data collection for rest of the dates
-                find_params['ts'] = {'$gte':start,
-                                     '$lt':self.rollup_query_start}
-                pipeline = [{"$match": find_params}, {"$skip": skip_count},
-                            {"$sort": {"ts": order_by}}, {"$limit": count},
-                            {"$project": raw_data_project}]
-                self.add_raw_data_results(db, topic_name, values,
-                                          pipeline, order_by == 1)
-            if query_end < end:
-                # query raw data collection for rest of the dates
-                find_params['ts'] = {'$gte':query_end,
-                                     '$lt':end}
-                pipeline = [{"$match": find_params}, {"$skip": skip_count},
-                            {"$sort": {"ts": order_by}}, {"$limit": count},
-                            {"$project": raw_data_project}]
-                self.add_raw_data_results(db, topic_name, values,
-                                          pipeline, order_by == -1)
+                                self.update_values(data, topic_id, start, end,
+                                                   id_name_map, values)
 
+            _log.debug("values len {}".format(len(values)))
         else:
             for row in rows:
                 result_value = self.json_string_to_dict(row['value'])
-                values[topic_name].append(
+                values[id_name_map[topic_id]].append(
                     (row['timestamp'], result_value))
-        _log.debug("Time taken to load all results into values {}".format(
+        _log.debug("Time taken to load into values {}".format(
             datetime.utcnow() - start_time))
         _log.debug("rows length {}".format(len(rows)))
 
-    def add_raw_data_results(self, db, topic_name, values, pipeline,
-                             add_to_beginning):
-
-        _log.debug("pipeline for querying raw data is {}".format(pipeline))
-        _log.debug("collection_name is " + self._data_collection)
-        cursor = db[self._data_collection].aggregate(pipeline)
-        rows = list(cursor)
-        _log.debug("number of raw data records {}".format(len(rows)))
-        new_values = defaultdict(list)
-        for row in rows:
-            result_value = self.json_string_to_dict(row['value'])
-            new_values[topic_name].append(
-                (row['timestamp'], result_value))
-        # add to results from rollup collections
-        if add_to_beginning:
-            # add to beginning
-            _log.debug("adding to beginning")
-            new_values.get(topic_name, []).extend(values.get(topic_name, []))
-            values[topic_name] = new_values.get(topic_name, [])
-        else:
-            # add to end
-            _log.debug("adding to end")
-            values.get(topic_name, []).extend(new_values.get(topic_name, []))
-            values[topic_name] = values.get(topic_name, [])
-
-
-
-    def update_values(self, data, topic_name, start, end, values):
+    def update_values(self, data, topic_id, start, end, id_name_map, values):
         if start.tzinfo:
             data[0] = data[0].replace(tzinfo=tzutc())
         if data[0] >= start and data[0] < end:
             result_value = self.json_string_to_dict(data[1])
-            values[topic_name].append(
+            values[id_name_map[topic_id]].append(
                 (utils.format_timestamp(data[0]), result_value))
 
 
@@ -826,37 +767,22 @@ class MongodbHistorian(BaseHistorian):
         # are present in rolled up format. Mainly because this topic_pattern
         # match is only a temporary fix. We want all topics to get loaded
         # into hourly or daily collections
-        if not (False in match_list) and start and end and start != end:
-            diff = (end - start).total_seconds()
+        if not (False in match_list) and start and end and start != end and \
+                        start >= self.rollup_query_start and end < rollup_end:
 
-            if start >= self.rollup_query_start and end < rollup_end:
-                _log.debug("total seconds between end and start {}".format(diff))
-                if diff >= 24 * 3600:
-                    collection_name = self.DAILY_COLLECTION
-                    query_start = start.replace(hour=0, minute=0, second=0,
-                                                microsecond=0)
-                    query_end = (end + timedelta(days=1)).replace(
-                        hour=0, minute=0, second=0, microsecond=0)
-                elif diff >= 3600 * 3:  # more than 3 hours of data
-                    collection_name = self.HOURLY_COLLECTION
-                    query_start = start.replace(minute=0, second=0,
-                                                microsecond=0)
-                    query_end = (end + timedelta(hours=1)).replace(
-                        minute=0, second=0, microsecond=0)
-            elif diff >= 24 * 3600:
-                # if querying more than a day's worth data, get part of data
-                # of rolleup query and rest for raw data
-                if start < self.rollup_query_start:
-                    collection_name = self.DAILY_COLLECTION
-                    query_start = self.rollup_query_start
-                    query_start = query_start.replace(hour=0,
-                                                      minute=0,
-                                                      second=0,
-                                                      microsecond=0)
-                if end >= rollup_end:
-                    collection_name = self.DAILY_COLLECTION
-                    query_end = rollup_end
-        _log.debug("Verify use of rollup data: {}".format(collection_name))
+            diff = (end - start).total_seconds()
+            _log.debug("total seconds between end and start {}".format(diff))
+            if diff >= 24 * 3600:
+                collection_name = self.DAILY_COLLECTION
+                query_start = start.replace(hour=0, minute=0, second=0,
+                                            microsecond=0)
+                query_end = (end + timedelta(days=1)).replace(hour=0, minute=0,
+                    second=0, microsecond=0)
+            elif diff >= 3600 * 3:  # more than 3 hours of data
+                collection_name = self.HOURLY_COLLECTION
+                query_start = start.replace(minute=0, second=0, microsecond=0)
+                query_end = (end + timedelta(hours=1)).replace(minute=0,
+                    second=0, microsecond=0)
         return collection_name, query_start, query_end
 
     def add_metadata_to_query_result(self, agg_type, multi_topic_query,
@@ -979,11 +905,8 @@ class MongodbHistorian(BaseHistorian):
         create_index1 = True
         create_index2 = True
 
-        if self._readonly:
-            create_index1 = False
-            create_index2 = False
         # if data collection exists check if necessary indexes exists
-        elif self._data_collection in col_list:
+        if self._data_collection in col_list:
             index_info = db[self._data_collection].index_information()
             index_list = [value['key'] for value in index_info.viewvalues()]
             index_new_list = []
@@ -1025,18 +948,17 @@ class MongodbHistorian(BaseHistorian):
             _log.debug("no agg topics to load")
             self._agg_topic_id_map = {}
 
-        if not self._readonly:
-            db[self.HOURLY_COLLECTION].create_index(
-                [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
-                unique=True, background=True)
-            db[self.HOURLY_COLLECTION].create_index(
-                [('last_updated_data', pymongo.DESCENDING)], background=True)
-            db[self.DAILY_COLLECTION].create_index(
-                [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
-                unique=True, background=True)
-            db[self.DAILY_COLLECTION].create_index(
-                [('last_updated_data', pymongo.DESCENDING)],
-                background=True)
+        db[self.HOURLY_COLLECTION].create_index(
+            [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
+            unique=True, background=True)
+        db[self.HOURLY_COLLECTION].create_index(
+            [('last_updated_data', pymongo.DESCENDING)], background=True)
+        db[self.DAILY_COLLECTION].create_index(
+            [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
+            unique=True, background=True)
+        db[self.DAILY_COLLECTION].create_index(
+            [('last_updated_data', pymongo.DESCENDING)],
+            background=True)
 
     def record_table_definitions(self, meta_table_name):
         _log.debug("In record_table_def  table:{}".format(meta_table_name))
