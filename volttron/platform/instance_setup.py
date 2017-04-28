@@ -132,7 +132,7 @@ def prompt_response(prompt, valid_answers=None, default=None, echo=True):
                 print('Invalid response. Proper responses are:')
                 print(valid_answers)
     else:
-        resp = getpass.getpass()
+        resp = getpass.getpass(prompt)
         return resp
 
 
