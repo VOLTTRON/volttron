@@ -387,8 +387,8 @@ def vc_config():
             print('ERROR: Invalid password')
             continue
 
-        password2 = prompt_response('Verify Password:',
-                                   echo=False)
+        password2 = prompt_response('Retype password:',
+                                    echo=False)
         if password2 != password:
             print("ERROR: Passwords don't match")
 
