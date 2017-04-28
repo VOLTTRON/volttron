@@ -52,13 +52,11 @@
 #
 # }}}
 
-import datetime
 import logging
 import sys
 
 from volttron.platform.vip.agent import Agent, PubSub
 from volttron.platform.agent import utils
-from volttron.platform.messaging import headers as headers_mod
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -86,12 +84,15 @@ class TestAgent(Agent):
         except ValueError as e:
             _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
 
-    @PubSub.subscribe('pubsub', 'heartbeat/listener')
+    @PubSub.subscribe('pubsub', 'heartbeat/listeneragent')
     def on_heartbeat_topic(self, peer, sender, bus, topic, headers, message):
         global counter
+        print "TestAgent got\nTopic: {topic}, {headers}, Message: {message}".format(topic=topic,
+                                                                                    headers=headers,
+                                                                                    message=message)
         # Test various RPC calls to the Chargepoint driver.
         counter += 1
-        if counter > 1:
+        if counter > 30:
             # result = self.set_chargepoint_point('shedState', 0)
             # result = self.get_chargepoint_point('stationMacAddr')
             # result = self.get_chargepoint_point('Lat')
@@ -101,14 +102,8 @@ class TestAgent(Agent):
             # result = self.set_chargepoint_point('clearAlarms', True)
             # result = self.get_chargepoint_point('alarmType')
             # result = self.get_chargepoint_point('sessionID')
-            result = self.get_chargepoint_point('Status')
+            # result = self.get_chargepoint_point('status')
             # result = self.get_chargepoint_point('stationRightsProfile')
-
-            # Also publish a test pub/sub message just for kicks.
-            result = self.publish_message('test_topic/test_subtopic',
-                                          {headers_mod.DATE: datetime.datetime.now().isoformat()},
-                                          [{'property_1': 1, 'property_2': 2}, {'property_3': 3, 'property_4': 4}])
-
             counter = 0
 
     def get_chargepoint_point(self, point_name):
@@ -117,8 +112,6 @@ class TestAgent(Agent):
     def set_chargepoint_point(self, point_name, value):
         return self.vip.rpc.call('platform.driver', 'set_point', 'chargepoint1', point_name, value).get(timeout=10)
 
-    def publish_message(self, topic, headers, message):
-        return self.vip.pubsub.publish('pubsub', topic, headers=headers, message=message).get(timeout=10)
 
 def main(argv=sys.argv):
     """Main method called by the platform."""

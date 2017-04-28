@@ -768,6 +768,7 @@ def test_exact_timestamp_with_z(request, historian, publish_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == reading)
 
+
 @pytest.mark.historian
 def test_query_start_time(request, historian, publish_agent, query_agent,
                           clean):
@@ -1206,6 +1207,7 @@ def test_invalid_time(request, historian, publish_agent, query_agent,
     except RemoteError as error:
         print ("exception: {}".format(error))
         assert 'hour must be in 0..23' == error.message
+
 
 @pytest.mark.historian
 def test_analysis_topic(request, historian, publish_agent, query_agent,

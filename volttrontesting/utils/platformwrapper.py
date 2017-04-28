@@ -387,6 +387,7 @@ class PlatformWrapper:
                          mode=UNRESTRICTED, bind_web_address=None,
                          volttron_central_address=None,
                          volttron_central_serverkey=None):
+
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
         # else:
@@ -490,13 +491,10 @@ class PlatformWrapper:
                 "Invalid platform mode specified: {}".format(mode))
 
         log = os.path.join(self.volttron_home, 'volttron.log')
-
-        cmd = ['volttron']
-        if msgdebug:
-            cmd.append('--msgdebug')
         if enable_logging:
-            cmd.append('-vv')
-        cmd.append('-l{}'.format(log))
+            cmd = ['volttron', '-vv', '-l{}'.format(log)]
+        else:
+            cmd = ['volttron', '-l{}'.format(log)]
 
         print('process environment: {}'.format(self.env))
         print('popen params: {}'.format(cmd))
@@ -599,7 +597,7 @@ class PlatformWrapper:
         cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
         if vip_identity:
             cmd.extend(['--vip-identity', vip_identity])
-
+        self.logit("cmd: {}".format(cmd))
         res = subprocess.check_output(cmd, env=env)
         assert res, "failed to install wheel:{}".format(wheel_file)
         agent_uuid = res.split(' ')[-2]
@@ -609,7 +607,8 @@ class PlatformWrapper:
             self.start_agent(agent_uuid)
         return agent_uuid
 
-            
+        return agent_uuid
+
     def install_multiple_agents(self, agent_configs):
         """
         Installs mutltiple agents on the platform.
