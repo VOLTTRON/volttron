@@ -1,69 +1,140 @@
 .. _setup:
-===================
-Setting up VOLTTRON
-===================
 
-Installation
-------------
+.. _Building-VOLTTRON:
 
-:ref:`Install VOLTTRON <install>` by running the following commands that installs needed
-:ref:`prerequisites <VOLTTRON-Prerequisites>`, clones the source code, then builds the virtual environment for using the platform.
+Building VOLTTRON
+=================
 
-.. code-block:: bash
+The VOLTTRON project includes a bootstrap script which automatically
+downloads dependencies and builds VOLTTRON. The script also creates a
+Python virtual environment for use by the project which can be activated
+after bootstrapping with ". env/bin/activate". This activated Python
+virtual environment should be used for subsequent bootstraps whenever
+there are significant changes. The system's Python need only be used on
+the initial bootstrap.
 
-    sudo apt-get update
-    sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
-    git clone https://github.com/VOLTTRON/volttron
+Install Required Software
+-------------------------
+
+Before bootstrapping, ensure the :ref:`required
+packages <VOLTTRON-Prerequisites>` are installed. If you intend to
+develop in Eclipse, we recommend creating the work directory: ~/git or
+~/workspace. Then run the following commands in the work directory to
+work with the master branch of the repository:
+
+Bootstrap
+---------
+
+::
+
+    git clone <https://github.com/VOLTTRON/volttron>
     cd volttron
-    python bootstrap.py
 
-This will build the platform and create a virtual Python environment. Activate this and then start the platform with:
+    # bootstrap.py --help will show you all of the "package options" such as
+    #installing required packages for volttron central or the platform agent.
+    python2.7 bootstrap.py
 
-.. code-block:: bash
+For other options see: :ref:`Getting VOLTTRON <Repository-Structure>`
 
-    . env/bin/activate
+Note: Some packages (especially numpy) can be very verbose when they
+install. Please wait for the wall of text to finish.
+
+Testing the Installation
+------------------------
+
+To test that installation worked, start up the platform in verbose mode
+and set a log file:
+
+::
+
+    # Activate the terminal
+    source env/bin/activate
+
+    # Start the platform in the background
     volttron -vv -l volttron.log&
 
-This enters the virtual Python environment and then starts the platform in debug (vv) mode with a log file named volttron.log.
-
-Next, start an example listener to see it publish and subscribe to the message bus:
-
-.. code-block:: bash
-
-    scripts/core/make-listener
+    # If no errors are present then your setup is correct.  You can
+    # also tail the log file to see if the platform started correctly
+    tail -f volttron.log
 
 
-This script handles several different commands for installing and starting an agent after removing an old copy. This simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log
-to see the activity:
+.. warning::
+    If you plan on running VOLTTRON in the background and detaching it from the
+    terminal with the ``disown`` command be sure to redirect stderr and stdout to ``/dev/null``.
+    Some libraries which VOLTTRON relies on output directly to stdout and stderr.
+    This will cause problems if those file descriptors are not redirected to ``/dev/null``.
 
-.. code-block:: bash
 
-    tail volttron.log
+::
 
-Results in:
-
-.. code-block:: console
-
-   2016-10-17 18:17:52,245 (listeneragent-3.2 11367) listener.agent INFO: Peer: 'pubsub', Sender: 'listeneragent-3.2_1'
-   :, Bus: u'', Topic: 'heartbeat/ListenerAgent/f230df97-658e-45d3-8165-18a2ec834d3f', Headers:
-   {'Date': '2016-10-18T01:17:52.239724+00:00', 'max_compatible_version': u'', 'min_compatible_version': '3.0'},
-   Message: {'status': 'GOOD', 'last_updated': '2016-10-18T01:17:47.232972+00:00', 'context': 'hello'}
-
-Stop the platform:
-
-.. code-block:: bash
-
-   volttron-ctl shutdown --platform
+    #To start the platform in the background and redirect stderr and stdout
+    #to /dev/null
+    volttron -vv -l volttron.log > /dev/null 2>&1&
 
 
 
+If you are developing in Eclipse, you should update the Python path at
+this point. See: :ref:`Eclipse-Dev-Environment <Eclipse-Dev-Environment>`
+
+Note: The default working directory is ~/.volttron. The default
+directory for creation of agent packages is ~/.volttron/packaged
+
+.. _test-agent-deployment:
+
+To test agent deployment and messaging, build and deploy ListenerAgent.
+From the volttron directory:
+
+::
+
+    # Activate the terminal
+    source env/bin/activate
+
+    # Package the agent
+    volttron-pkg package examples/ListenerAgent
+
+    # Set the agent's configuration file
+    volttron-pkg configure ~/.volttron/packaged/listeneragent-3.2-py2-none-any.whl examples/ListenerAgent/config
+
+    # Install the agent (volttron must be running):
+    volttron-ctl install ~/.volttron/packaged/listeneragent-3.2-py2-none-any.whl
+
+    # Start the agent:
+    volttron-ctl start --name listeneragent-3.2
+
+    # Verify the agent has started
+    volttron-ctl status
+
+    # Note the uuid
+    # Check that Listener is publishing heartbeat message:
+    cat volttron.log
+
+    # Stop the agent
+    volttron-ctl stop --name listeneragent-3.2
+
+
+    # -- or --
+    volttron-ctl stop <uuid>
+
+
+
+Next Steps
+----------
+
+Now that the project is configured correctly, see the following links for agent development:
+
+:ref:`Agent Development <Agent-Development>`
+
+:ref:`VOLTTRON Development in Eclipse <Eclipse>`
+
+
+Related Topics
+--------------
 
 .. toctree::
     :glob:
     :maxdepth: 2
 
    VOLTTRON-Prerequisites
-   Building-VOLTTRON
    VOLTTRON-Sourcce-Options
    Volttron-Restricted
 
