@@ -607,6 +607,7 @@ class PlatformWrapper:
 
         if start:
             self.start_agent(agent_uuid)
+        return agent_uuid
 
             
     def install_multiple_agents(self, agent_configs):
