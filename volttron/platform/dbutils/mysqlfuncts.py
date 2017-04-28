@@ -237,15 +237,11 @@ class MySqlFuncts(DbDriver):
         args = [topic_ids[0]]
 
         if start is not None:
-            if start.tzinfo != pytz.UTC:
-                start = start.astimezone(pytz.UTC)
             if not self.MICROSECOND_SUPPORT:
                 start_str = start.isoformat()
                 start = start_str[:start_str.rfind('.')]
 
         if end is not None:
-            if end.tzinfo !=pytz.UTC:
-                end = end.astimezone(pytz.UTC)
             if not self.MICROSECOND_SUPPORT:
                 end_str = end.isoformat()
                 end = end_str[:end_str.rfind('.')]
@@ -253,13 +249,12 @@ class MySqlFuncts(DbDriver):
         if start and end and start == end:
             where_clauses.append("ts = %s")
             args.append(start)
-        else:
-            if start:
-                where_clauses.append("ts >= %s")
-                args.append(start)
-            if end:
-                where_clauses.append("ts < %s")
-                args.append(end)
+        elif start:
+            where_clauses.append("ts >= %s")
+            args.append(start)
+        elif end:
+            where_clauses.append("ts < %s")
+            args.append(end)
 
         where_statement = ' AND '.join(where_clauses)
 
