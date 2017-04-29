@@ -95,11 +95,9 @@ import random
 import sqlite3
 import sys
 
-from tzlocal import get_localzone
 import gevent
 import pytest
 import re
-import pytz
 
 from volttron.platform import get_volttron_root
 from volttron.platform.agent import PublishMixin
@@ -768,6 +766,7 @@ def test_exact_timestamp_with_z(request, historian, publish_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == reading)
 
+
 @pytest.mark.historian
 def test_query_start_time(request, historian, publish_agent, query_agent,
                           clean):
@@ -1207,6 +1206,7 @@ def test_invalid_time(request, historian, publish_agent, query_agent,
         print ("exception: {}".format(error))
         assert 'hour must be in 0..23' == error.message
 
+
 @pytest.mark.historian
 def test_analysis_topic(request, historian, publish_agent, query_agent,
                         clean):
@@ -1248,12 +1248,11 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
                     }]
 
     # Create timestamp
-
-    publish_time = (datetime.utcnow() - timedelta(days=1)).isoformat()
-    print("publish_time ", publish_time)
-    # publish_time = '2015-12-02T00:00:00'
+    now = datetime.utcnow().isoformat() + 'Z'
+    print("now is ", now)
+    # now = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: publish_time
+        headers_mod.DATE: now
     }
 
     # Publish messages
@@ -1262,166 +1261,21 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
     gevent.sleep(0.5)
     abc = dict(peer=identity, method='query',
                topic=query_points['mixed_point'],
-               start=publish_time,
-               end=publish_time,
+               start=now,
+               end=now,
                count=20,
                order="LAST_TO_FIRST")
     # Query the historian
     result = query_agent.vip.rpc.call(identity,
                                       'query',
                                       topic=query_points['mixed_point'],
-                                      start=publish_time,
-                                      end=publish_time,
+                                      start=now,
+                                      end=now,
                                       count=20,
                                       order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    (now_date, now_time) = publish_time.split("T")
-    if now_time[-1:] == 'Z':
-        now_time = now_time[:-1]
-    assert_timestamp(result['values'][0][0], now_date, now_time)
-    assert (result['values'][0][1] == mixed_reading)
-
-
-@pytest.mark.historian
-def test_analysis_topic_no_meta(request, historian, publish_agent, query_agent,
-                        clean):
-    """
-    Test query based on same start and end time with literal 'Z' at the end
-    of utc time.
-    Expected result: record with timestamp == start time
-
-    :param request: pytest request object
-    :param publish_agent: instance of volttron 2.0/3.0 agent used to publish
-    :param query_agent: instance of fake volttron 3.0 agent used to query
-    using rpc
-    :param historian: instance of the historian tested
-    :param clean: teardown function
-    """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
-
-    global query_points
-    # print('HOME', volttron_instance.volttron_home)
-    print("\n** test_analysis_topic for {}**".format(
-        request.keywords.node.name))
-    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-    # Make some random readings
-    oat_reading = random_uniform(30, 100)
-    mixed_reading = oat_reading + random_uniform(-5, 5)
-    damper_reading = random_uniform(0, 100)
-
-    # Create a message for all points.
-    all_message = {'OutsideAirTemperature': oat_reading,
-                    'MixedAirTemperature': mixed_reading,
-                    'DamperSignal': damper_reading}
-
-    # Create timestamp
-
-    publish_time = (datetime.utcnow() - timedelta(days=1)).isoformat()
-    print("publish_time ", publish_time)
-    # publish_time = '2015-12-02T00:00:00'
-    headers = {
-        headers_mod.DATE: publish_time
-    }
-
-    # Publish messages
-    publish(publish_agent, 'analysis/Building/LAB/Device',
-            headers, all_message)
-    gevent.sleep(0.5)
-    abc = dict(peer=identity, method='query',
-               topic=query_points['mixed_point'],
-               start=publish_time,
-               end=publish_time,
-               count=20,
-               order="LAST_TO_FIRST")
-    # Query the historian
-    result = query_agent.vip.rpc.call(identity,
-                                      'query',
-                                      topic=query_points['mixed_point'],
-                                      start=publish_time,
-                                      end=publish_time,
-                                      count=20,
-                                      order="LAST_TO_FIRST").get(timeout=10)
-    print('Query Result', result)
-    assert (len(result['values']) == 1)
-    (now_date, now_time) = publish_time.split("T")
-    if now_time[-1:] == 'Z':
-        now_time = now_time[:-1]
-    assert_timestamp(result['values'][0][0], now_date, now_time)
-    assert (result['values'][0][1] == mixed_reading)
-
-
-@pytest.mark.historian
-def test_tz_conversion(request, historian, publish_agent, query_agent,
-                        clean):
-    """
-    Test query based on same start and end time with literal 'Z' at the end
-    of utc time.
-    Expected result: record with timestamp == start time
-
-    :param request: pytest request object
-    :param publish_agent: instance of volttron 2.0/3.0 agent used to publish
-    :param query_agent: instance of fake volttron 3.0 agent used to query
-    using rpc
-    :param historian: instance of the historian tested
-    :param clean: teardown function
-    """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
-
-    global query_points
-    # print('HOME', volttron_instance.volttron_home)
-    print("\n** test_analysis_topic for {}**".format(
-        request.keywords.node.name))
-    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-    # Make some random readings
-    oat_reading = random_uniform(30, 100)
-    mixed_reading = oat_reading + random_uniform(-5, 5)
-    damper_reading = random_uniform(0, 100)
-
-    # Create a message for all points.
-    all_message = [{'OutsideAirTemperature': {'key1':'value1',
-                                              'key2':'value2'},
-                    'MixedAirTemperature': mixed_reading,
-                    'DamperSignal': damper_reading},
-                   {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
-                                              'type': 'float'},
-                    'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
-                                            'type': 'float'},
-                    'DamperSignal': {'units': '%', 'tz': 'UTC',
-                                     'type': 'float'}
-                    }]
-
-    # Create timestamp
-    publish_time_naive  = datetime.now() - timedelta(days=1)
-    local_tz = get_localzone()
-    local_t = local_tz.localize(publish_time_naive)
-    publish_time = local_t.isoformat()
-    utc_publish_time = local_t.astimezone(pytz.utc).isoformat()
-    print("publish_time UTC is ", utc_publish_time)
-    print("publish_time local tz is ", publish_time)
-    # publish_time = '2015-12-02T00:00:00'
-    headers = {
-        headers_mod.DATE: publish_time
-    }
-
-    # Publish messages
-    publish(publish_agent, 'analysis/Building/LAB/Device',
-            headers, all_message)
-    gevent.sleep(0.5)
-
-    # Query the historian
-    result = query_agent.vip.rpc.call(identity,
-                                      'query',
-                                      topic=query_points['mixed_point'],
-                                      start=publish_time,
-                                      end=publish_time,
-                                      count=20,
-                                      order="LAST_TO_FIRST").get(timeout=10)
-    print('Query Result', result)
-    assert (len(result['values']) == 1)
-    (now_date, now_time) = utc_publish_time.split("T")
+    (now_date, now_time) = now.split("T")
     if now_time[-1:] == 'Z':
         now_time = now_time[:-1]
     assert_timestamp(result['values'][0][0], now_date, now_time)
@@ -1946,84 +1800,6 @@ def test_query_with_naive_timestamp(request, historian, publish_agent,
         assert (result["values"][query_points['oat_point']][i][1] ==
                 expected_result["values"][query_points['oat_point']][i][1])
 
-
-@pytest.mark.historian
-def test_query_with_start_end_count(request, historian, publish_agent,
-                                    query_agent, clean):
-    """
-    Test basic functionality of historian. Inserts three points as part
-    of all topic and checks if all three got into the database
-    Expected result:
-    Should be able to query data based on topic name. Result should contain
-    both data and metadata
-    :param request: pytest request object
-    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
-    :param query_agent: instance of fake volttron 3.0 agent used to query
-    using rpc
-    :param historian: instance of the historian tested
-    :param clean: teardown function
-    """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
-
-    global query_points, DEVICES_ALL_TOPIC, db_connection
-
-    # print('HOME', volttron_instance.volttron_home)
-    print("\n** test_basic_function for {}**".format(
-        request.keywords.node.name))
-
-    expected_result = {}
-    values_dict = {query_points['oat_point']: [],
-                   query_points['mixed_point']: []}
-    query_start_time = datetime.utcnow().isoformat('T') + "+00:00"
-    query_end_time = ""
-    for x in range(0, 5):
-        ts, reading, meta = publish_devices_fake_data(publish_agent)
-        gevent.sleep(0.5)
-        if x == 2:
-            # set to 3rd record time. query should return 1st and 2nd
-            query_end_time = ts
-        if x < 2:
-            values_dict[query_points['oat_point']].append(
-                [ts, reading])
-            values_dict[query_points['mixed_point']].append(
-                [ts, reading])
-    expected_result["values"] = values_dict
-    expected_result["metadata"] = {}
-
-    gevent.sleep(1)
-    print("Query start: {}".format(query_start_time))
-    print("Query end: {}".format(query_end_time))
-    # Query the historian
-    result = query_agent.vip.rpc.call(
-        identity,
-        'query',
-        topic=[query_points['oat_point'], query_points['mixed_point']],
-        start=query_start_time,
-        end = query_end_time,
-        count=3,
-        order="FIRST_TO_LAST").get(timeout=100)
-    print('Query Result', result)
-    print('Expected Result', expected_result)
-    assert len(result["values"][query_points['mixed_point']]) == 2
-    assert len(result["values"][query_points['oat_point']]) == 2
-    assert result["metadata"] == expected_result["metadata"]
-
-    for i in range(0, 2):
-        expected_date, expected_time = expected_result["values"][query_points[
-            'mixed_point']][i][0].split("T")
-        assert_timestamp(result["values"][query_points['mixed_point']][i][0],
-                         expected_date, expected_time)
-        assert (result["values"][query_points['mixed_point']][i][1] ==
-                expected_result["values"][query_points['mixed_point']][i][1])
-
-        expected_date, expected_time = \
-            expected_result["values"][query_points['oat_point']][i][0].split("T")
-        assert_timestamp(result["values"][query_points['oat_point']][i][0],
-                         expected_date, expected_time)
-        assert (result["values"][query_points['oat_point']][i][1] ==
-                expected_result["values"][query_points['oat_point']][i][1])
-
 @pytest.mark.historian
 def test_get_topic_list(request, historian, publish_agent, query_agent,
                         clean, volttron_instance):
@@ -2107,103 +1883,6 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
             cleanup_function(db_connection, ['topic_list_test_data',
                                              'topic_list_test_topics',
                                              'topic_list_test_meta'])
-            volttron_instance.stop_agent(agent_uuid)
-            volttron_instance.remove_agent(agent_uuid)
-
-
-@pytest.mark.historian
-def test_readonly_mode(request, historian, publish_agent, query_agent,
-                        clean, volttron_instance):
-    """
-    Test the readonly mode of historian where historian is only used to query
-    and not insert anything into the database.
-    Expected result:
-    data published to message bus should not be recorded in the historian
-    :param request: pytest request object
-    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
-    :param query_agent: instance of fake volttron 3.0 agent used to query
-    using rpc
-    :param historian: instance of the historian tested
-    :param clean: teardown function
-    :param volttron_instance: instance of PlatformWrapper. Volttron
-    instance in which agents are tested
-    """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
-    global query_points, DEVICES_ALL_TOPIC, db_connection, topics_table, \
-        connection_type
-
-    # print('HOME', volttron_instance.volttron_home)
-    print("\n** test_basic_function for {}**".format(
-        request.keywords.node.name))
-    agent_uuid = None
-    try:
-        new_historian = copy.copy(historian)
-        new_historian["tables_def"] = {
-            "table_prefix": "readonly",
-            "data_table":"data",
-            "topics_table": "topics",
-            "meta_table": "meta"}
-
-        # 1: Install historian agent
-        # Install and start historian agent
-        agent_uuid = volttron_instance.install_agent(
-            agent_dir=new_historian['source_historian'],
-            config_file=new_historian,
-            start=True, vip_identity='readonly.historian')
-        print("agent id: ", agent_uuid)
-
-        # Create timestamp
-        query_start = datetime.utcnow().isoformat() + 'Z'
-        print("query_start is ", query_start)
-
-        # Publish messages
-        publish(publish_agent, topics.RECORD(subtopic="test"), None, 1)
-        # sleep 1 second so that records gets inserted with unique timestamp
-        # even in case of older mysql
-        gevent.sleep(1)
-
-        # Query the historian
-        result = query_agent.vip.rpc.call(
-            'readonly.historian',
-            'query',
-            topic=topics.RECORD(subtopic="test"),
-            start=query_start, count=20,
-            order="FIRST_TO_LAST").get(timeout=10)
-        print('Query Result', result)
-        assert (len(result['values']) == 1)
-        assert (result['values'][0][1] == 1)
-
-        volttron_instance.remove_agent(agent_uuid)
-
-        #reinstall agent this time with readonly=True
-
-        new_historian["readonly"] = True
-        agent_uuid = volttron_instance.install_agent(
-            agent_dir=new_historian['source_historian'],
-            config_file=new_historian, start=True,
-            vip_identity='readonly.historian')
-        print("agent id: ", agent_uuid)
-
-        # Publish messages
-        publish(publish_agent, topics.RECORD(subtopic="test"), None, 2)
-        gevent.sleep(1)
-
-        # Query the historian
-        result = query_agent.vip.rpc.call(
-            'readonly.historian', 'query',
-            topic=topics.RECORD(subtopic="test"), start=query_start, count=20,
-            order="FIRST_TO_LAST").get(timeout=10)
-        print('Query Result', result)
-        assert (len(result['values']) == 1)
-        assert (result['values'][0][1] == 1)
-
-    finally:
-        if agent_uuid:
-            cleanup_function = globals()["cleanup_" + connection_type]
-            cleanup_function(db_connection, ['readonly_data',
-                                             'readonly_topics',
-                                             'readonly_meta'])
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
