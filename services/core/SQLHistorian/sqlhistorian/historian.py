@@ -118,9 +118,9 @@ def historian(config_path, **kwargs):
     if topic_replace_list:
         _log.debug("topic replace list is: {}".format(topic_replace_list))
 
-
+    readonly = config_dict.get('readonly', False)
     SQLHistorian.__name__ = 'SQLHistorian'
-    return SQLHistorian(config_dict, identity=identity,
+    return SQLHistorian(config_dict, identity=identity, readonly=readonly,
                         topic_replace_list=topic_replace_list, **kwargs)
 
 
@@ -156,7 +156,7 @@ class SQLHistorian(BaseHistorian):
         self.tables_def = {}
         self.reader = None
         self.writer = None
-        super(SQLHistorian, self).__init__(**kwargs)
+        super(SQLHistorian, self).__init__( **kwargs)
 
     def record_table_definitions(self, meta_table_name):
         self.writer.record_table_definitions(self.tables_def,
@@ -352,7 +352,9 @@ class SQLHistorian(BaseHistorian):
                                       table_names)
         self.writer = db_functs_class(self.config['connection']['params'],
                                       table_names)
-        self.writer.setup_historian_tables()
+
+        if not self.config.get('readonly', False):
+            self.writer.setup_historian_tables()
 
         topic_id_map, topic_name_map = self.reader.get_topic_map()
         self.topic_id_map.update(topic_id_map)
