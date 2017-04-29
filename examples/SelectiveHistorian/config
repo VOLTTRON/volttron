@@ -1,0 +1,15 @@
+{
+    "agentid": "mysql",   
+    "connection": {
+        "type": "mysql",
+        "params": {
+            "host": "",
+            "port": ,
+            "database": "",
+            "user": "",
+            "passwd": ""
+        }
+    },
+    "filter_topics_enable": true, #enter true to filter topics that are saved to database
+    "topic_list": ["topic_prefix/"] #enter list of topics or prefixes to save to database. This string must be found in the topics published to the historian.
+}
