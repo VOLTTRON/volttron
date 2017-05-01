@@ -73,7 +73,7 @@ def set_home(home=None):
     Otherwise, the default value of '~/.volttron' is used.
     """
     os.environ["VOLTTRON_HOME"] = home or get_home()
-    
+
 
 def get_home():
     """ Return the home directory with user and variables expanded.
@@ -81,11 +81,17 @@ def get_home():
     If the VOLTTRON_HOME environment variable is set, it used.
     Otherwise, the default value of '~/.volttron' is used.
     """
-    return os.path.abspath(
+
+    vhome = os.path.abspath(
         os.path.normpath(
             os.path.expanduser(
                 os.path.expandvars(
                     os.environ.get('VOLTTRON_HOME', '~/.volttron')))))
+    if vhome.endswith('/'):
+        vhome = vhome[:-1]
+        if os.environ.get('VOLTTRON_HOME') is not None:
+            os.environ['VOLTTRON_HOME'] = vhome
+    return vhome
 
 
 def get_address():
