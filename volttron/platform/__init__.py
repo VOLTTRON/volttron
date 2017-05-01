@@ -58,7 +58,7 @@
 
 """ Core package."""
 
-
+import logging
 import os
 import psutil
 import sys
@@ -90,6 +90,8 @@ def get_home():
     if vhome.endswith('/'):
         vhome = vhome[:-1]
         if os.environ.get('VOLTTRON_HOME') is not None:
+            log = logging.getLogger('volttron')
+            log.warn("Removing / from the end of VOLTTRON_HOME")
             os.environ['VOLTTRON_HOME'] = vhome
     return vhome
 
