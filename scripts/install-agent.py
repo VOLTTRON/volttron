@@ -265,6 +265,7 @@ if __name__ == '__main__':
         sys.exit(-10)
 
     if opts.volttron_home.endswith('/'):
+        log.warn("VOLTTRON_HOME should not have / on the end trimming it.")
         opts.volttron_home = opts.volttron_home[:-1]
 
     if not is_instance_running(opts.volttron_home):
