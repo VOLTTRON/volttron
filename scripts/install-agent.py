@@ -264,6 +264,9 @@ if __name__ == '__main__':
         log.error("Agent source must contain a setup.py file.")
         sys.exit(-10)
 
+    if opts.volttron_home.endswith('/'):
+        opts.volttron_home = opts.volttron_home[:-1]
+
     if not is_instance_running(opts.volttron_home):
         log.error("The instance at {} is not running".format(
             opts.volttron_home))
@@ -305,7 +308,7 @@ if __name__ == '__main__':
 
     if opts.force and opts.vip_identity is None:
         # If force is specified then identity must be specified to indicate the target of the force
-    
+
         log.error(
             "Force option specified without a target identity to force.")
         sys.exit(-10)
