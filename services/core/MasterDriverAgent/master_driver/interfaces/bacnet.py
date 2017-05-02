@@ -60,6 +60,7 @@ from datetime import datetime, timedelta
 
 from master_driver.driver_exceptions import DriverConfigError
 from volttron.platform.vip.agent import errors
+from volttron.platform.jsonrpc import RemoteError
 
 #Logging is completely configured by now.
 _log = logging.getLogger(__name__)
@@ -82,6 +83,9 @@ class Register(BaseRegister):
 class Interface(BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
+        self.register_count = 10000
+        self.register_count_divisor = 1
+
 
     def configure(self, config_dict, registry_config_str):
         self.min_priority = config_dict.get("min_priority", 8)
@@ -165,14 +169,29 @@ class Interface(BaseInterface):
                                               register.property,
                                               register.index]
 
-        try:
-            result = self.vip.rpc.call(self.proxy_address, 'read_properties',
-                                           self.target_address, point_map,
-                                           self.max_per_request, self.use_read_multiple).get(timeout=self.timeout)
-        except errors.Unreachable:
-            _log.warning("Unable to reach BACnet proxy.")
-            self.schedule_ping()
-            raise
+        while True:
+            try:
+                result = self.vip.rpc.call(self.proxy_address, 'read_properties',
+                                               self.target_address, point_map,
+                                               self.max_per_request, self.use_read_multiple).get(timeout=self.timeout)
+            except RemoteError as e:
+                if "segmentationNotSupported" in e.message:
+                    if self.max_per_request <= 1:
+                        _log.error("Receiving a segmentationNotSupported error with 'max_per_request' setting of 1.")
+                        raise
+                    self.register_count_divisor += 1
+                    self.max_per_request = max(int(self.register_count/self.register_count_divisor), 1)
+                    _log.info("Device requires a lower max_per_request setting. Trying: "+str(self.max_per_request))
+                    continue
+                else:
+                    raise
+            except errors.Unreachable:
+                #If the Proxy is not running bail.
+                _log.warning("Unable to reach BACnet proxy.")
+                self.schedule_ping()
+                raise
+            else:
+                break
 
         return result
 
@@ -191,6 +210,8 @@ class Interface(BaseInterface):
     def parse_config(self, configDict):
         if configDict is None:
             return
+
+        self.register_count = len(configDict)
 
         for regDef in configDict:
             #Skip lines that have no address yet.

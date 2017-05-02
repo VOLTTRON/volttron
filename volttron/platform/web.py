@@ -566,10 +566,11 @@ class MasterWebService(Agent):
         return jsonapi.dumps(return_dict)
 
     def app_routing(self, env, start_response):
-        """The main routing function that maps the incoming request to a response.
+        """
+        The main routing function that maps the incoming request to a response.
 
-        Depending on the registered routes map the request data onto an rpc function
-        or a specific named file.
+        Depending on the registered routes map the request data onto an rpc
+        function or a specific named file.
         """
         path_info = env['PATH_INFO']
 
@@ -612,7 +613,7 @@ class MasterWebService(Agent):
                         k.pattern))
                     peer, fn = (v[0], v[1])
                     res = self.vip.rpc.call(peer, fn, passenv, data).get(
-                        timeout=60)
+                        timeout=120)
                     return self.create_response(res, start_response)
 
                 elif t == 'path':  # File service from agents on the platform.
@@ -624,7 +625,12 @@ class MasterWebService(Agent):
         return [b'<h1>Not Found</h1>']
 
     def create_response(self, res, start_response):
+
+        # Dictionaries are going to be treated as if they are meant to be json
+        # serialized with Content-Type of application/json
         if isinstance(res, dict):
+            # Note this is specific to volttron central agent and should
+            # probably not be at this level of abstraction.
             _log.debug('res is a dictionary.')
             if 'error' in res.keys():
                 if res['error']['code'] == UNAUTHORIZED:
@@ -634,10 +640,27 @@ class MasterWebService(Agent):
                     code = res['error']['code']
                     return [b'<h1>{}</h1>\n<h2>CODE:{}</h2>'
                                 .format(message, code)]
-        start_response('200 OK',
-                       [('Content-Type', 'application/json')])
-        _log.debug('RESPONSE WEB: {}'.format(res))
-        return jsonapi.dumps(res)
+
+            start_response('200 OK',
+                           [('Content-Type', 'application/json')])
+            return jsonapi.dumps(res)
+
+        # If this is a tuple then we know we are goint to have a response
+        # and a headers portion of the data.
+        if isinstance(res, tuple) or isinstance(res, list):
+            if len(res) != 2:
+                start_response("500 Programming Error",
+                               [('Content-Type', 'text/html')])
+                _log.error("Invalid length of response tuple (must be 2)")
+                return [b'Invalid response tuple (must contain 2 elements)']
+
+            response, headers = res
+            start_response('200 OK', headers)
+            return response
+        else:
+            start_response('200 OK',
+                           [('Content-Type', 'application/json')])
+            return jsonapi.dumps(res)
 
     def _sendfile(self, env, start_response, filename):
         from wsgiref.util import FileWrapper

@@ -1,7 +1,7 @@
-.. _Volttron-Restricted: 
+.. _Volttron-Restricted:
 
 VOLTTRON Restricted Code
-=========================
+========================
 
 Volttron Restricted adds a broader security layer on top of the volttron
 platform. If you are interested in this package please contact the
