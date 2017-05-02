@@ -110,18 +110,19 @@ class SQLTaggingService(BaseTaggingService):
             self.tags_table = config.get("table_prefix") + "_" \
                               + self.tags_table
 
-        super(SQLTaggingService, self).__init__(**kwargs)
+        super(SQLTaggingService, self).__init__(config, **kwargs)
 
 
     @doc_inherit
     def setup(self):
+        _log.debug("Setup of sqlite tagging agent")
         c = sqlite3.connect(self.config['connection']['params']['database'],
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         cursor = c.execute(
             "SELECT name FROM sqlite_master "
             "WHERE type='table' AND name='{}';".format(self.tags_table))
         table_name = cursor.fetchall()
-        print(table_name)
+        _log.debug(table_name)
 
 
 

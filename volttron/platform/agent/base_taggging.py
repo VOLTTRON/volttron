@@ -99,43 +99,23 @@ class BaseTaggingService(Agent):
     the tag details
     """
 
-    def __init__(self, config_path, **kwargs):
-        config = utils.load_config(config_path)
-        self.vip.config.set_default("config", config)
-        self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"],
-                                  pattern="config")
+    def __init__(self, config, **kwargs):
         self.tag_groups = None
-
         super(BaseTaggingService, self).__init__(**kwargs)
         _log.debug("Done init of base tagging agent")
 
-
-    def configure(self, config_name, action, config):
-        """
-        validates configuration values sets default if needed
-
-        :param config_name: name of the config entry in store. We only use
-                            one config store entry with the default name config
-        :param action: "NEW or "UPDATE" code treats both the same way
-        :param config: configuration as json object
-        """
-
-        _log.debug("In configure of base tagging service. config is {}".format(
-            config))
-
-        if not config or not isinstance(config, dict):
-            raise ValueError("Configuration should be a valid json")
-
     @Core.receiver("onstart")
-    @abstractmethod
-    def setup(self):
+    def on_start(self, sender, **kwargs):
         """
         Method to establish database connection, do any initial bootstrap 
         necessary. Example - load master list of tags, units, groups etc. into 
         datastore/memory   
         """
-        pass
+        self.setup()
 
+    @abstractmethod
+    def setup(self):
+        pass
 
     @RPC.export
     def get_groups(self, skip, count, order):

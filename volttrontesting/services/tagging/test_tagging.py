@@ -61,6 +61,8 @@ pytest test cases for tagging service
 
 import pytest
 import sqlite3
+import gevent
+
 try:
     import pymongo
 
@@ -160,4 +162,5 @@ def tagging_service(request, volttron_instance):
 
 @pytest.mark.dev
 def test_load(tagging_service, query_agent):
+    gevent.sleep(3)
     pass
