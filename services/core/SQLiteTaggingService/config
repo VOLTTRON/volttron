@@ -1,0 +1,11 @@
+{
+    "connection": {
+        "type": "sqlite",
+        "params": {
+            "database": "~/.volttron/data/volttron.tags.sqlite"
+        }
+    },
+    # optional if you want the tables created for tagging to have names
+    # starting with <given prefix>_<tablename>
+    "table_prefix": "volttron"
+}

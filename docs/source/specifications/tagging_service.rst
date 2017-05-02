@@ -1,5 +1,5 @@
 =============================
-Tagging service specification
+Tagging agent specification
 =============================
 
 ***********
@@ -52,13 +52,13 @@ Features
 API
 ***
 
-1. Get the list of topic groups available
------------------------------------------
-rpc call to tagging service method **'get_tag_groups'** with optional parameters:
+1. Get the list of tag groups available
+---------------------------------------
+rpc call to tagging service method **'get_groups'** with optional parameters:
 
-    1. **count** - limit the total number of tag groups returned to given count
-    2. **skip** - number of groups to skip. this parameter along with count can be
+    1. **skip** - number of groups to skip. this parameter along with count can be
       used for paginating results
+    2. **count** - limit the total number of tag groups returned to given count
     3. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
       ascending order
 
@@ -70,37 +70,37 @@ rpc call to tagging service method **'get_group_tags'** with parameter:
 
     and optional parameters:
 
-    2. **count** - limit the total number of tag groups returned to given count
-    3. **skip** - number of groups to skip. this parameter along with count can be
+    2. **skip** - number of groups to skip. this parameter along with count can be
        used for paginating results
+    3. **count** - limit the total number of tag groups returned to given count
     4. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
        ascending order
 
 3. Get the list of tags for a topic_name or topic_name_prefix
 -------------------------------------------------------------
-rpc call to tagging service method **get_tags**
+rpc call to tagging service method **get_topic_tags**
 
 with parameter
     1. **topic_prefix** - topic name or topic name prefix
 
 and optional parameters:
 
-    2. **count** - limit the total number of tag groups returned to given count
-    3. **skip** - number of groups to skip. this parameter along with count can be
+    2. **skip** - number of groups to skip. this parameter along with count can be
        used for paginating results
+    3. **count** - limit the total number of tag groups returned to given count
     4. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
        ascending order
 
 4. Find topic names by tags
 ---------------------------
 rpc call to tagging service method **'get_topics_by_tags'** with the one or
-more of the following tags
+more of the following parameters
 
-    1. **and** - dictionary of tag and its corresponding values that should be
-       matched using equality operator and combined with AND condition.
+    1. **and_condition** - dictionary of tag and its corresponding values that
+       should be matched using equality operator and combined with AND condition.
        only topics that match all the tags in the list would be returned
-    2. **or** -  dictionary of tag and its corresponding values that should be
-       matched using equality operator and combined with OR condition.
+    2. **or_condition** -  dictionary of tag and its corresponding values that
+       should be matched using equality operator and combined with OR condition.
        topics that match any of the tags in the list would be returned.
     3. **regex_and** - dictionary of tag and its corresponding values that should be
        matched using a regular expression match and combined with AND condition.
@@ -126,9 +126,9 @@ more of the following tags
 
             condition="(tag1 = 1 or tag1 = 2) and not (tag2 < '' and tag2 > '') and tag3 and tag4 REGEXP '^a.*b$'"
 
-    6. **count** - limit the total number of tag groups returned to given count
-    7. **skip** - number of groups to skip. this parameter along with count can be
+    6. **skip** - number of groups to skip. this parameter along with count can be
        used for paginating results
+    7. **count** - limit the total number of tag groups returned to given count
     8. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
        ascending order
 
@@ -152,7 +152,7 @@ rpc call to to tagging service method **'add_topic_tags'** with parameters:
 ------------------------------
 rpc call to to tagging service method **'add_tags'** with parameters:
 
-    1. **tags** - dictionary object or file containing the topic and the tag details
+    1. **tags** - dictionary object or file containing the topic and the tag details.
        dictionary object or the file content should be of the format:
 
        .. code-block:: python
