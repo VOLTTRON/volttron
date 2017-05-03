@@ -1,8 +1,8 @@
 .. _install:
 
-=================
+===================
 Installing Volttron
-=================
+===================
 
 VOLTTRON requires the following dependencies in order to bootstrap the
 development environment.
@@ -48,7 +48,9 @@ git command.
 
 
 You may use the following command to work with the latest code from the develop
-branch. It must be run within the VOLLTRON source directory.
+branch. It must be run within the VOLLTRON source directory. More discussion on the 
+repository structure can be found at :ref:`Repository Structure <Repository-Structure>`.
+
 
 .. code-block:: bash
 
@@ -135,7 +137,7 @@ volttron.log execute the following.
 Acquiring Third Party Agent Code
 --------------------------------
 
-Third party agents developed from a variaty of sources are available from the volttron-applications repository (https://github.com/VOLTTRON/volttron-applications.git).  The current best practice is to have the main volttron and the volttron-applications repository within the same common ansestry folder.
+Third party agents developed from a variety of sources are available from the volttron-applications repository (https://github.com/VOLTTRON/volttron-applications.git).  The current best practice is to have the main volttron and the volttron-applications repository within the same common ansestry folder.
 
 .. code-block:: bash
 
