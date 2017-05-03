@@ -152,3 +152,9 @@ One can clone the latest applications from the repository via the following comm
 .. code-block:: bash
 
   git clone https://github.com/VOLTTRON/volttron-applications.git
+
+Additional Considerations
+-------------------------
+
+If you are planning to install VOLTTRON at scale or to collect data you want to keep, please see the
+:ref:`Installation Planning <planning-install>` page.
