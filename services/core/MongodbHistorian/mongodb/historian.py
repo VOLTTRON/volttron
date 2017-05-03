@@ -676,15 +676,15 @@ class MongodbHistorian(BaseHistorian):
         if use_rolled_up_data:
             project = {"_id": 0, "data": 1}
         else:
-            project = raw_data_project
-
+            project = {"_id": 0, "timestamp": {
+                '$dateToString': {'format': "%Y-%m-%dT%H:%M:%S.%L000+00:00",
+                                  "date": "$ts"}}, "value": 1}
         pipeline = [{"$match": find_params}, {"$skip": skip_count},
                     {"$sort": {"ts": order_by}}, {"$limit": count},
                     {"$project": project}]
         _log.debug("{}:pipeline for querying {} is {}".format(
             topic_id, collection_name, pipeline))
         cursor = db[collection_name].aggregate(pipeline)
-
         rows = list(cursor)
         _log.debug("{}:Time after fetch {}".format(
             topic_id, datetime.utcnow() - start_time))

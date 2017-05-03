@@ -48,6 +48,8 @@ Full options:
       --log-level LOGGER:LEVEL
                             override default logger logging level
       --monitor             monitor and log connections (implies -v)
+      --msgdebug            publish all messages to a socket for debugging
+                            purposes; used with MessageDebuggerAgent
       -q, --quiet           decrease logger verboseness; may be used multiple
                             times
       -v, --verbose         increase logger verboseness; may be used multiple
