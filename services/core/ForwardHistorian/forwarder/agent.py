@@ -267,6 +267,7 @@ def historian(config_path, **kwargs):
                         _log.debug('debugger: {} {} {}'.format(topic,
                                                                headers,
                                                                payload))
+
                         self._target_platform.vip.pubsub.publish(
                             peer='pubsub',
                             topic=topic,
@@ -283,12 +284,13 @@ def historian(config_path, **kwargs):
                         self._target_platform = None
                         self.vip.health.set_status(
                             STATUS_BAD, "Timeout occured")
+                    except Unreachable:
+                        _log.error("Target not reachable. Wait till it's ready!")
                     except ZMQError as exc:
                         if exc.errno == ENOTSOCK:
                             # Stop the current platform from attempting to
                             # connect
-                            _log.debug("Target disconnected. Stopping target platform agent")
-                            self._target_platform.core.stop()
+                            _log.error("Target disconnected. Stopping target platform agent")
                             self._target_platform = None
                             self.vip.health.set_status(
                                 STATUS_BAD, "Target platform disconnected")

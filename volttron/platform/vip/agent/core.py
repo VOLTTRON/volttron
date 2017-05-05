@@ -612,10 +612,11 @@ class Core(BasicCore):
                 running_event.set()
 
         def close_socket(sender):
+            gevent.sleep(2)
             try:
                 if self.socket is not None:
                     self.socket.monitor(None, 0)
-                    self.socket.close(10)
+                    self.socket.close(1)
             finally:
                 self.socket = None
 
@@ -643,7 +644,6 @@ class Core(BasicCore):
                                 hello()
                             elif event & zmq.EVENT_DISCONNECTED:
                                 self.__connected = False
-                                self.ondisconnected.send(self)
                             elif event & zmq.EVENT_CONNECT_RETRIED:
                                 self._reconnect_attempt += 1
                                 if self._reconnect_attempt == 50:
@@ -726,7 +726,7 @@ class Core(BasicCore):
         try:
             self.socket.disconnect(self.address)
             self.socket.monitor(None, 0)
-            self.socket.close(10)
+            self.socket.close(1)
         except AttributeError:
             pass
         except ZMQError as exc:

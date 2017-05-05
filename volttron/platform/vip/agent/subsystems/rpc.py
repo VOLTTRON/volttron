@@ -74,6 +74,7 @@ from ..results import counter, ResultsDictionary
 from ..decorators import annotate, annotations, dualmethod, spawn
 from .... import jsonrpc
 
+from zmq.green import ZMQError, ENOTSOCK
 
 __all__ = ['RPC']
 
@@ -214,7 +215,7 @@ class RPC(SubsystemBase):
         self._counter = counter()
         self._outstanding = weakref.WeakValueDictionary()
         core.register('RPC', self._handle_subsystem, self._handle_error)
-        self._isconnected = False
+        self._isconnected = True
 
         def export(member):   # pylint: disable=redefined-outer-name
             for name in annotations(member, set, 'rpc.exports'):
@@ -269,8 +270,12 @@ class RPC(SubsystemBase):
         if responses:
             message.user = ''
             message.args = responses
-            if self._isconnected:
-                self.core().socket.send_vip_object(message, copy=False)
+            try:
+                if self._isconnected:
+                    self.core().socket.send_vip_object(message, copy=False)
+            except ZMQError as exc:
+                if exc.errno == ENOTSOCK:
+                    _log.debug("Socket send on non socket {}".format(self.core().identity))
 
     def _handle_error(self, sender, message, error, **kwargs):
         result = self._outstanding.pop(bytes(message.id), None)
@@ -307,7 +312,12 @@ class RPC(SubsystemBase):
         else:
             ident = b''
         if request:
-            self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
+            if self._isconnected:
+                try:
+                    self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
+                except ZMQError as exc:
+                    if exc.errno == ENOTSOCK:
+                        _log.debug("Socket send on non socket {}".format(self.core().identity))
         return results or None
 
     def call(self, peer, method, *args, **kwargs):
@@ -316,7 +326,11 @@ class RPC(SubsystemBase):
         self._outstanding[ident] = result
 
         if self._isconnected:
-            self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
+            try:
+                self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
+            except ZMQError as exc:
+                if exc.errno == ENOTSOCK:
+                    _log.debug("Socket send on non socket {}".format(self.core().identity))
         return result
 
     __call__ = call
@@ -325,7 +339,11 @@ class RPC(SubsystemBase):
         request = self._dispatcher.notify(method, args, kwargs)
 
         if self._isconnected:
-            self.core().socket.send_vip(peer, 'RPC', [request])
+            try:
+                self.core().socket.send_vip(peer, 'RPC', [request])
+            except ZMQError as exc:
+                if exc.errno == ENOTSOCK:
+                    _log.debug("Socket send on non socket {}".format(self.core().identity))
 
     @dualmethod
     def allow(self, method, capabilities):
