@@ -1269,96 +1269,96 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
-# @pytest.mark.historian
-# def test_analysis_topic_replacement(request, historian, publish_agent,
-#                                  query_agent, clean, volttron_instance):
-#
-#     """
-#     Test if topic name substitutions happened.
-#     Publish to topic
-#     'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature' and
-#     query for topic
-#     'PNNL/BUILDING1_ANON/Device/MixedAirTemperature'
-#
-#     :param historian: instance of the historian tested
-#     :param publish_agent: Fake agent used to publish messages to bus
-#     :param query_agent: Fake agent used to query historian
-#     :param clean: teardown function
-#     """
-#     print("\n** test_analysis_topic **")
-#     agent_uuid = None
-#     try:
-#         new_historian = copy.copy(historian)
-#         new_historian["tables_def"] = {"table_prefix": "readonly",
-#             "data_table": "data", "topics_table": "topics",
-#             "meta_table": "meta"}
-#         # new_historian["topic_replace_list"] = [
-#         #     {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}]
-#
-#         new_historian["topic_replace_list"] = [
-#             {"from": "SEB", "to": "BUILDING_1"},
-#             {"from": "PNNL", "to": "Campus1"}]
-#
-#         # 1: Install historian agent
-#         # Install and start historian agent
-#         source = new_historian.pop('source_historian')
-#         agent_uuid = volttron_instance.install_agent(agent_dir=source,
-#             config_file=new_historian, start=True,
-#             vip_identity='replace_hist')
-#         print("agent id: ", agent_uuid)
-#
-#         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-#         # Make some random readings
-#         oat_reading = random.uniform(30, 100)
-#         mixed_reading = oat_reading + random.uniform(-5, 5)
-#         damper_reading = random.uniform(0, 100)
-#
-#         # Create a message for all points.
-#         all_message = [{'OutsideAirTemperature': oat_reading,
-#                         'MixedAirTemperature': mixed_reading,
-#                         'DamperSignal': damper_reading}, {
-#                            'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
-#                                                      'type': 'float'},
-#                            'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
-#                                                    'type': 'float'},
-#                            'DamperSignal': {'units': '%', 'tz': 'UTC',
-#                                             'type': 'float'}}]
-#
-#         # Create timestamp
-#         now = datetime.utcnow().isoformat() + 'Z'
-#         print("now is ", now)
-#         headers = {headers_mod.DATE: now}
-#         # Publish messages
-#         publish(publish_agent, 'analysis/pnnl/seb/device', headers,
-#                 all_message)
-#         gevent.sleep(0.5)
-#
-#         # pytest.set_trace()
-#         # Query the historian
-#         result = query_agent.vip.rpc.call('replace_hist', 'query',
-#             topic='Campus1/BUILDING_1/Device/MixedAirTemperature', start=now,
-#             order="LAST_TO_FIRST").get(timeout=10)
-#         print('Query Result', result)
-#         assert (len(result['values']) == 1)
-#         (now_date, now_time) = now.split("T")
-#         if now_time[-1:] == 'Z':
-#             now_time = now_time[:-1]
-#         assert (result['values'][0][0] == now_date + 'T' + now_time + '+00:00')
-#         assert (result['values'][0][1] == mixed_reading)
-#         topic_list = query_agent.vip.rpc.call(
-#             'replace_hist','get_topic_list').get(timeout=5)
-#         print (topic_list)
-#         assert 'Campus1/BUILDING_1/device/OutsideAirTemperature' in topic_list
-#         assert 'Campus1/BUILDING_1/device/DamperSignal' in topic_list
-#         assert 'Campus1/BUILDING_1/device/MixedAirTemperature' in topic_list
-#     finally:
-#         if agent_uuid:
-#             cleanup_function = globals()["cleanup_" + connection_type]
-#             cleanup_function(db_connection, ['readonly_data',
-#                                              'readonly_topics',
-#                                              'readonly_meta'])
-#             volttron_instance.stop_agent(agent_uuid)
-#             volttron_instance.remove_agent(agent_uuid)
+@pytest.mark.historian
+def test_analysis_topic_replacement(request, historian, publish_agent,
+                                 query_agent, clean, volttron_instance):
+
+    """
+    Test if topic name substitutions happened.
+    Publish to topic
+    'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature' and
+    query for topic
+    'PNNL/BUILDING1_ANON/Device/MixedAirTemperature'
+
+    :param historian: instance of the historian tested
+    :param publish_agent: Fake agent used to publish messages to bus
+    :param query_agent: Fake agent used to query historian
+    :param clean: teardown function
+    """
+    print("\n** test_analysis_topic **")
+    agent_uuid = None
+    try:
+        new_historian = copy.copy(historian)
+        new_historian["tables_def"] = {"table_prefix": "readonly",
+            "data_table": "data", "topics_table": "topics",
+            "meta_table": "meta"}
+        # new_historian["topic_replace_list"] = [
+        #     {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}]
+
+        new_historian["topic_replace_list"] = [
+            {"from": "SEB", "to": "BUILDING_1"},
+            {"from": "PNNL", "to": "Campus1"}]
+
+        # 1: Install historian agent
+        # Install and start historian agent
+        source = new_historian.pop('source_historian')
+        agent_uuid = volttron_instance.install_agent(agent_dir=source,
+            config_file=new_historian, start=True,
+            vip_identity='replace_hist')
+        print("agent id: ", agent_uuid)
+
+        # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+        # Make some random readings
+        oat_reading = random.uniform(30, 100)
+        mixed_reading = oat_reading + random.uniform(-5, 5)
+        damper_reading = random.uniform(0, 100)
+
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': oat_reading,
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading}, {
+                           'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                                     'type': 'float'},
+                           'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                                   'type': 'float'},
+                           'DamperSignal': {'units': '%', 'tz': 'UTC',
+                                            'type': 'float'}}]
+
+        # Create timestamp
+        now = datetime.utcnow().isoformat() + 'Z'
+        print("now is ", now)
+        headers = {headers_mod.DATE: now}
+        # Publish messages
+        publish(publish_agent, 'analysis/pnnl/seb/device', headers,
+                all_message)
+        gevent.sleep(0.5)
+
+        # pytest.set_trace()
+        # Query the historian
+        result = query_agent.vip.rpc.call('replace_hist', 'query',
+            topic='Campus1/BUILDING_1/Device/MixedAirTemperature', start=now,
+            order="LAST_TO_FIRST").get(timeout=10)
+        print('Query Result', result)
+        assert (len(result['values']) == 1)
+        (now_date, now_time) = now.split("T")
+        if now_time[-1:] == 'Z':
+            now_time = now_time[:-1]
+        assert (result['values'][0][0] == now_date + 'T' + now_time + '+00:00')
+        assert (result['values'][0][1] == mixed_reading)
+        topic_list = query_agent.vip.rpc.call(
+            'replace_hist','get_topic_list').get(timeout=5)
+        print (topic_list)
+        assert 'Campus1/BUILDING_1/device/OutsideAirTemperature' in topic_list
+        assert 'Campus1/BUILDING_1/device/DamperSignal' in topic_list
+        assert 'Campus1/BUILDING_1/device/MixedAirTemperature' in topic_list
+    finally:
+        if agent_uuid:
+            cleanup_function = globals()["cleanup_" + connection_type]
+            cleanup_function(db_connection, ['readonly_data',
+                                             'readonly_topics',
+                                             'readonly_meta'])
+            volttron_instance.stop_agent(agent_uuid)
+            volttron_instance.remove_agent(agent_uuid)
 
 
 @pytest.mark.historian

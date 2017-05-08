@@ -461,26 +461,34 @@ class BaseHistorianAgent(Agent):
         :return: 
         """
         output_topic = input_topic
+        _log.debug(
+            "_topic_replace_list  is {}".format(self._topic_replace_list))
+        input_topic_lower = input_topic.lower()
         # Only if we have some topics to replace.
         if self._topic_replace_list:
             # if we have already cached the topic then return it.
-            if input_topic in self._topic_replace_map.keys():
-                output_topic = self._topic_replace_map[input_topic]
+            if input_topic_lower in self._topic_replace_map.keys():
+                output_topic = self._topic_replace_map[input_topic_lower]
             else:
-                self._topic_replace_map[input_topic] = input_topic
+                self._topic_replace_map[input_topic_lower] = input_topic
                 temptopics = {}
                 for x in self._topic_replace_list:
-                    if x['from'] in input_topic:
+                    if x['from'].lower() in input_topic_lower:
                         # this allows multiple things to be replaced from
                         # from a given topic.
-                        new_topic = temptopics.get(input_topic, input_topic)
-                        temptopics[input_topic] = new_topic.replace(
-                            x['from'], x['to'])
+                        new_topic = temptopics.get(input_topic_lower,
+                                                   input_topic)
+                        # temptopics[input_topic] = new_topic.replace(
+                        #     x['from'], x['to'])
+
+                        temptopics[input_topic_lower] = re.compile(
+                            re.escape(x['from']), re.IGNORECASE).sub(x['to'],
+                            new_topic)
 
                 for k, v in temptopics.items():
                     self._topic_replace_map[k] = v
-                output_topic = self._topic_replace_map[input_topic]
-
+                output_topic = self._topic_replace_map[input_topic_lower]
+        _log.debug("Output topic after replacements {}".format(output_topic))
         return output_topic
 
     def _capture_record_data(self, peer, sender, bus, topic, headers,
