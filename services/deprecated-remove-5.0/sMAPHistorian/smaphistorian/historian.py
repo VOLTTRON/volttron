@@ -241,7 +241,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
                 self._topic_to_uuid[path["Path"]] = path["uuid"]
 
     Agent.__name__ = 'SMAPHistorianAgent'
-    return Agent({},**kwargs)
+    return Agent(**kwargs)
 
 
 def main(argv=sys.argv):

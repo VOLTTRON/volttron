@@ -120,29 +120,9 @@ def historian(config_path, **kwargs):
     params = connection.get('params', None)
     assert params is not None
 
-    identity_from_platform = kwargs.pop('identity', None)
-    identity = config_dict.get('identity')
-
-    if identity is not None:
-        _log.warning("DEPRECATION WARNING: Setting a historian's VIP IDENTITY"
-                     " from its configuration file will no longer be supported"
-                     " after VOLTTRON 4.0")
-        _log.warning(
-            "DEPRECATION WARNING: Using the identity configuration setting "
-            "will override the value provided by the platform. This new value "
-            "will not be reported correctly by 'volttron-ctl status'")
-        _log.warning("DEPRECATION WARNING: Please remove 'identity' from your "
-                     "configuration file and use the new method provided by "
-                     "the platform to set an agent's identity. See "
-                     "scripts/core/make-mongo-historian.sh for an example of "
-                     "how this is done.")
-    else:
-        identity = identity_from_platform
-
-
-
     MongodbHistorian.__name__ = 'MongodbHistorian'
-    return MongodbHistorian(config_dict, identity=identity, **kwargs)
+    utils.update_kwargs_with_config(kwargs, config_dict)
+    return MongodbHistorian(**kwargs)
 
 
 class MongodbHistorian(BaseHistorian):
@@ -151,7 +131,12 @@ class MongodbHistorian(BaseHistorian):
 
     """
 
-    def __init__(self, config, **kwargs):
+    def __init__(self, connection, tables_def = None,
+                 initial_rollup_start_time=None, rollup_query_start=None,
+                 rollup_topic_pattern=None, rollup_query_end=1,
+                 periodic_rollup_frequency=1,
+                 periodic_rollup_initial_wait=0.25, **kwargs):
+
         """
         Initialise the historian.
 
@@ -162,18 +147,39 @@ class MongodbHistorian(BaseHistorian):
         In addition, the topic_map and topic_meta are used for caching meta
         data and topics respectively.
 
-        :param kwargs: additional keyword arguments. (optional identity and
-                       topic_replace_list used by parent classes)
-
+        :param connection: dictionary that contains necessary information to
+        establish a connection to the mongo database. The dictionary should 
+        contain two entries - 
+        
+          1. 'type' - describe the type of database and 
+          2. 'params' - parameters for connecting to the database. 
+        :param tables_def: optional parameter. dictionary containing the 
+        names to be used for historian tables. Should contain the following 
+        keys
+        
+          1. "table_prefix": - if specified tables names are prefixed with 
+          this value followed by a underscore
+          2."data_table": name of the table that stores historian data,
+          3."topics_table": name of the table that stores the list of topics 
+          for which historian contains data data
+          4. "meta_table": name of the table that stores the metadata data 
+          for topics
+        :param initial_rollup_start_time: 
+        :param rollup_query_start: 
+        :param rollup_topic_pattern: 
+        :param rollup_query_end: 
+        :param periodic_rollup_frequency: 
+        :param periodic_rollup_initial_wait:
+        :param kwargs: additional keyword arguments. 
         """
 
-        self.tables_def, table_names = self.parse_table_def(config)
+        tables_def, table_names = self.parse_table_def(tables_def)
         self._data_collection = table_names['data_table']
         self._meta_collection = table_names['meta_table']
         self._topic_collection = table_names['topics_table']
         self._agg_topic_collection = table_names['agg_topics_table']
         self._agg_meta_collection = table_names['agg_meta_table']
-        self._connection_params = config['connection']['params']
+        self._connection_params = connection['params']
         self._client = None
 
         self._topic_id_map = {}
@@ -186,68 +192,63 @@ class MongodbHistorian(BaseHistorian):
         self.HOURLY_COLLECTION = "hourly_data"
 
         try:
-            if config.get('initial_rollup_start_time'):
+            self._initial_rollup_start_time = get_aware_utc_now()
+            if initial_rollup_start_time:
                 self._initial_rollup_start_time = datetime.strptime(
-                    config.get('initial_rollup_start_time'),
+                    initial_rollup_start_time,
                     '%Y-%m-%dT%H:%M:%S.%f').replace(tzinfo=pytz.utc)
-            else:
-                self._initial_rollup_start_time = get_aware_utc_now()
+
 
             # Date from which rolled up data exists in hourly_data and
             # daily_data collection
-            if config.get('rollup_query_start'):
+            self.rollup_query_start = get_aware_utc_now() + timedelta(days=1)
+            if rollup_query_start:
                 self.rollup_query_start = datetime.strptime(
-                    config.get('rollup_query_start'),
+                    rollup_query_start,
                     '%Y-%m-%dT%H:%M:%S.%f').replace(tzinfo=pytz.utc)
-            else:
-                self.rollup_query_start = get_aware_utc_now() + \
-                                          timedelta(days=1)
 
             # topic_patterns for which queries can be run against rolled up
             # tables. This is needed only till batch processing of older data
             # is complete and everything gets loaded into hourly and daily
             # collections
-            self.topics_rolled_up = config.get('rollup_topic_pattern')
+            self.topics_rolled_up = None
             try:
-                if self.topics_rolled_up:
-                    self.topics_rolled_up = re.compile(self.topics_rolled_up)
+                if rollup_topic_pattern:
+                    self.topics_rolled_up = re.compile(rollup_topic_pattern)
             except Exception as e:
                 _log.error(
                     "Invalid rollup_topic_pattern in configuration. {} is "
                     "not a valid regular expression. "
-                    "\nException: {} ".format(self.topics_rolled_up, e.args))
+                    "\nException: {} ".format(rollup_topic_pattern, e.args))
 
             # number of days before current time, that can be used as end
             # date for queries from hourly or daily data collections. This is
             # to account for the time it takes the periodic_rollup to process
             # records in data table and insert into daily_data and hourly_data
             # collection
-            self.rollup_query_end = config.get('rollup_query_end')
-            if self.rollup_query_end is not None:
-                self.rollup_query_end = float(self.rollup_query_end)
-            else:
-                self.rollup_query_end = 1 # default 1 day
-                # current time(at the time of query)
+            self.rollup_query_end = 1 # default 1 day
+            if rollup_query_end is not None:
+                self.rollup_query_end = float(rollup_query_end)
 
-            #how minutes ones should the periodic rollup function be run
-            if config.get('periodic_rollup_frequency') is not None:
+            #how many minutes once should the periodic rollup function be run
+            self.periodic_rollup_frequency = 60  # default 1 minute
+            if periodic_rollup_frequency is not None:
                 self.periodic_rollup_frequency = \
-                    float(config.get('periodic_rollup_frequency')) * 60
-            else:
-                self.periodic_rollup_frequency = 60 #run every minute
+                    float(periodic_rollup_frequency) * 60
 
             # Number of minutes to wait before calling the periodic_rollup
             # function for the first time
-            if config.get('periodic_rollup_initial_wait') is not None:
-                self.periodic_rollup_initial_wait = float(config.get(
-                    'periodic_rollup_initial_wait')) * 60
-            else:
-                self.periodic_rollup_initial_wait = 10
-                # by default wait for 10 seconds
-                # before running the periodic_rollup for the first time.
+            # by default wait for 15 seconds
+            # before running the periodic_rollup for the first time.
+            self.periodic_rollup_initial_wait = 15
+            if periodic_rollup_initial_wait is not None:
+                self.periodic_rollup_initial_wait = float(
+                    periodic_rollup_initial_wait) * 60
+
+
 
             #Done with all init call super.init
-            super(MongodbHistorian, self).__init__(config, **kwargs)
+            super(MongodbHistorian, self).__init__(**kwargs)
         except ValueError as e:
             _log.error("Error processing configuration: {}".format(e))
             return

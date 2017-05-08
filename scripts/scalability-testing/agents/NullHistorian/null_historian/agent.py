@@ -64,17 +64,18 @@ from volttron.platform.agent import math_utils
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+
 def historian(config_path, **kwargs):
 
     config = utils.load_config(config_path)
-
+    utils.update_kwargs_with_config(kwargs, config)
 
     class NullHistorian(BaseHistorian):
         '''This historian forwards data to another platform.
         '''
 
-        def __init__(self, config_dict, **kwargs):
-            super(NullHistorian, self).__init__(config_dict, **kwargs)
+        def __init__(self, **kwargs):
+            super(NullHistorian, self).__init__(**kwargs)
 
             if self._gather_timing_data:
                 self._turnaround_times = []
@@ -112,12 +113,11 @@ def historian(config_path, **kwargs):
             """
             raise NotImplemented("query_historian not implimented for null historian")
 
-    return NullHistorian(config, **kwargs)
-
+    return NullHistorian(**kwargs)
 
 
 def main(argv=sys.argv):
-    '''Main method called by the aip.'''
+    """Main method called by the aip."""
     try:
         utils.vip_main(historian, identity="nullhistorian")
     except Exception as e:

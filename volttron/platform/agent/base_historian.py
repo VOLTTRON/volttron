@@ -325,15 +325,15 @@ class BaseHistorianAgent(Agent):
     historian.
     """
 
-    def __init__(self, config, **kwargs):
-
-        retry_period = config.get('retry_period', 300.0)
-        submit_size_limit = config.get('submit_size_limit', 1000)
-        max_time_publishing = config.get('max_time_publishing', 30)
-        backup_storage_limit_gb = config.get('backup_storage_limit_gb')
-        topic_replace_list = config.get('topic_replace_list')
-        gather_timing_data = config.get('gather_timing_data', False)
-        readonly = config.get('readonly', False)
+    def __init__(self,
+                 retry_period=300.0,
+                 submit_size_limit=1000,
+                 max_time_publishing=30,
+                 backup_storage_limit_gb=None,
+                 topic_replace_list=None,
+                 gather_timing_data=False,
+                 readonly=False,
+                 **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
         # This should resemble a dictionary that has key's from and to which
@@ -434,12 +434,11 @@ class BaseHistorianAgent(Agent):
                 # subscriptions never got finished.
                 pass
 
-    def parse_table_def(self, config):
+    def parse_table_def(self, tables_def):
         default_table_def = {"table_prefix": "",
                              "data_table": "data",
                              "topics_table": "topics",
                              "meta_table": "meta"}
-        tables_def = config.get('tables_def', None)
         if not tables_def:
             tables_def = default_table_def
         table_names = dict(tables_def)
@@ -455,7 +454,12 @@ class BaseHistorianAgent(Agent):
             "aggregate_" + tables_def["meta_table"]
         return tables_def, table_names
 
-    def _get_topic(self, input_topic):
+    def get_renamed_topic(self, input_topic):
+        """
+        replace topic name based on configured topic replace list, is any
+        :param input_topic: 
+        :return: 
+        """
         output_topic = input_topic
         # Only if we have some topics to replace.
         if self._topic_replace_list:
@@ -483,7 +487,7 @@ class BaseHistorianAgent(Agent):
                              message):
         _log.debug('Capture record data {}'.format(topic))
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
@@ -506,7 +510,7 @@ class BaseHistorianAgent(Agent):
         """Capture log data and submit it to be published by a historian."""
 
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
         try:
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
@@ -569,7 +573,7 @@ class BaseHistorianAgent(Agent):
             return
 
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
 
         # Because of the above if we know that all is in the topic so
         # we strip it off to get the base device
@@ -585,7 +589,7 @@ class BaseHistorianAgent(Agent):
         """
 
         # Anon the topic.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
 
         if topic.endswith('/'):
             topic = topic[:-1]
@@ -602,7 +606,7 @@ class BaseHistorianAgent(Agent):
     def _capture_data(self, peer, sender, bus, topic, headers, message,
                       device):
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
@@ -658,7 +662,7 @@ class BaseHistorianAgent(Agent):
         """Capture actuation data and submit it to be published by a historian.
         """
         # Anon the topic if necessary.
-        topic = self._get_topic(topic)
+        topic = self.get_renamed_topic(topic)
         timestamp_string = headers.get('time')
         if timestamp_string is None:
             _log.error(
@@ -1451,11 +1455,11 @@ class BaseQueryHistorianAgent(Agent):
 
 
 class BaseHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
-    def __init__(self, config, **kwargs):
+    def __init__(self, **kwargs):
         _log.debug('Constructor of BaseHistorian thread: {}'.format(
             threading.currentThread().getName()
         ))
-        super(BaseHistorian, self).__init__(config, **kwargs)
+        super(BaseHistorian, self).__init__(**kwargs)
 
 
 # The following code is

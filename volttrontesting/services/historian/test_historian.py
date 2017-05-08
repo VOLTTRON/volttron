@@ -156,54 +156,22 @@ query_points = {
     "mixed_point": "Building/LAB/Device/MixedAirTemperature",
     "damper_point": "Building/LAB/Device/DamperSignal"
 }
+## NOTE - In the below configuration, source_historian' is added
+## only for test case setup purposes. It is removed from config before
+## using the configuration for installing the agent.
+
 # default table_defs
-sqlite_platform1 = {
-    "agentid": "sqlhistorian-sqlite-1",
+sqlite_platform = {
     "source_historian": "services/core/SQLHistorian",
     "connection": {
         "type": "sqlite",
         "params": {
             "database": 'test.sqlite'
         }
-    }
-}
-# table_defs without prefix
-sqlite_platform2 = {
-    "agentid": "sqlhistorian-sqlite-2",
-    "source_historian": "services/core/SQLHistorian",
-    "connection": {
-        "type": "sqlite",
-        "params": {
-            "database": 'test.sqlite'
-        }
-    },
-    "tables_def": {
-        "table_prefix": "",
-        "data_table": "data_table",
-        "topics_table": "topics_table",
-        "meta_table": "meta_table",
-    }
-}
-# table_defs with prefix
-sqlite_platform3 = {
-    "agentid": "sqlhistorian-sqlite-3",
-    "source_historian": "services/core/SQLHistorian",
-    "connection": {
-        "type": "sqlite",
-        "params": {
-            "database": 'test.sqlite'
-        }
-    },
-    "tables_def": {
-        "table_prefix": "prefix",
-        "data_table": "data_table",
-        "topics_table": "topics_table",
-        "meta_table": "meta_table",
     }
 }
 
-crate_platform1 = {
-    "agentid": "crate-historian",
+crate_platform = {
     "source_historian": "services/core/CrateHistorian",
     "schema": "testing_historian",
     "connection": {
@@ -219,8 +187,7 @@ crate_platform1 = {
 # "historian" and grant historian user access to "historian" database
 
 # config without table_defs
-mysql_platform1 = {
-    "agentid": "sqlhistorian-mysql-1",
+mysql_platform = {
     "source_historian": "services/core/SQLHistorian",
     "connection": {
         "type": "mysql",
@@ -231,53 +198,10 @@ mysql_platform1 = {
             "user": "historian",
             "passwd": "historian"
         }
-    }
-}
-# table_defs without prefix
-mysql_platform2 = {
-    "agentid": "sqlhistorian-mysql-2",
-    "source_historian": "services/core/SQLHistorian",
-    "connection": {
-        "type": "mysql",
-        "params": {
-            "host": "localhost",
-            "port": 3306,
-            "database": "test_historian",
-            "user": "historian",
-            "passwd": "historian"
-        }
-    },
-    "tables_def": {
-        "table_prefix": "",
-        "data_table": "data_table",
-        "topics_table": "topics_table",
-        "meta_table": "meta_table",
-    }
-}
-# table_defs with prefix
-mysql_platform3 = {
-    "agentid": "sqlhistorian-mysql-3",
-    "source_historian": "services/core/SQLHistorian",
-    "connection": {
-        "type": "mysql",
-        "params": {
-            "host": "localhost",
-            "port": 3306,
-            "database": "test_historian",
-            "user": "historian",
-            "passwd": "historian"
-        }
-    },
-    "tables_def": {
-        "table_prefix": "prefix",
-        "data_table": "data_table",
-        "topics_table": "topics_table",
-        "meta_table": "meta_table",
     }
 }
 
-mongo_aggregator = {
-    "agentid": "mongodb-historian-1",
+mongo_platform = {
     "source_historian": "services/core/MongodbHistorian",
     "connection": {
         "type": "mongodb",
@@ -433,7 +357,7 @@ def get_table_names(config):
 
 
 @pytest.fixture(scope="module",
-                params=[ 'volttron_2', 'volttron_3'])
+                params=[ 'volttron_3'])
 def publish_agent(request, volttron_instance):
     # 1: Start a fake agent to publish to message bus
     print("**In setup of publish_agent volttron is_running {}".format(
@@ -476,14 +400,10 @@ def query_agent(request, volttron_instance):
 # Fixtures for setup and teardown of historian agent
 @pytest.fixture(scope="module",
                 params=[
-                    mysql_skipif(mysql_platform1),
-                    mysql_skipif(mysql_platform2),
-                    mysql_skipif(mysql_platform3),
-                    sqlite_platform1,
-                    sqlite_platform2,
-                    sqlite_platform3,
-                    pymongo_skipif(mongo_aggregator),
-                    crate_skipif(crate_platform1)
+                    mysql_skipif(mysql_platform),
+                    # sqlite_platform,
+                    # pymongo_skipif(mongo_platform),
+                    # crate_skipif(crate_platform)
                 ])
 def historian(request, volttron_instance, query_agent):
     global db_connection, MICROSECOND_PRECISION, table_names, \
@@ -514,9 +434,10 @@ def historian(request, volttron_instance, query_agent):
 
     print ("request.param -- {}".format(request.param))
     # 2. Install agent - historian
+    source = request.param.pop('source_historian')
     historian_uuid = volttron_instance.install_agent(
         vip_identity='platform.historian',
-        agent_dir=request.param['source_historian'],
+        agent_dir=source,
         config_file=request.param,
         start=True)
     print("agent id: ", historian_uuid)
@@ -530,6 +451,9 @@ def historian(request, volttron_instance, query_agent):
         volttron_instance.remove_agent(historian_uuid)
 
     request.addfinalizer(stop_agent)
+    # put source info back as test cases might use it to installer more
+    # instances of historian
+    request.param['source_historian'] = source
     return request.param
 
 
@@ -572,14 +496,6 @@ def assert_timestamp(result, expected_date, expected_time):
         # mysql version < 5.6.4
         assert (result == expected_date + 'T' + expected_time[:-7] +
                 '.000000+00:00')
-
-
-def skip_custom_tables(historian):
-    print ("agent id is *{}*".format(historian))
-    if not historian['agentid'].endswith("-1"):
-        print "agent id ends with something other than -1"
-        pytest.skip(msg="Need not repeat all test cases for custom table "
-                        "names")
 
 
 @pytest.mark.historian
@@ -676,6 +592,101 @@ def test_basic_function(request, historian, publish_agent, query_agent,
     assert (result['values'][0][1] == damper_reading)
     assert set(result['metadata'].items()) == set(percent_meta.items())
 
+@pytest.mark.historian
+def test_basic_function_optional_config(request, historian, publish_agent,
+                                        query_agent, clean, volttron_instance):
+
+    """
+    Test optional table_def config for historians
+    Expected result:
+    data published to message bus should not be recorded in the historian
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param historian: instance of the historian tested
+    :param clean: teardown function
+    :param volttron_instance: instance of PlatformWrapper. Volttron
+    instance in which agents are tested
+    """
+    global query_points, DEVICES_ALL_TOPIC, db_connection, topics_table, \
+        connection_type
+    if historian['connection']['type'] == 'crate':
+        pytest.skip("Skipping testing for otpional 'tables_defs' config for "
+                    "crate historian")
+
+    # print('HOME', volttron_instance.volttron_home)
+    print("\n** test_basic_function_optional_config for {}**".format(
+        request.keywords.node.name))
+    agent_uuid = None
+    try:
+        new_historian = copy.copy(historian)
+        new_historian["tables_def"] = {"table_prefix": "",
+            "data_table": "data_table", "topics_table": "topics_table",
+            "meta_table": "meta_table"}
+
+        # 1: Install historian agent
+        # Install and start historian agent
+        source = new_historian.pop('source_historian')
+        agent_uuid = volttron_instance.install_agent(agent_dir=source,
+            config_file=new_historian, start=True,
+            vip_identity='hist2')
+        print("agent id: ", agent_uuid)
+
+        # Create timestamp
+        query_start = datetime.utcnow().isoformat() + 'Z'
+        print("query_start is ", query_start)
+
+        # Publish messages
+        publish(publish_agent, topics.RECORD(subtopic="test"), None, 1)
+        # sleep 1 second so that records gets inserted with unique timestamp
+        # even in case of older mysql
+        gevent.sleep(1)
+
+        # Query the historian
+        result = query_agent.vip.rpc.call('hist2', 'query',
+            topic=topics.RECORD(subtopic="test"), start=query_start,
+            count=20, order="FIRST_TO_LAST").get(timeout=10)
+        print('Query Result', result)
+        assert (len(result['values']) == 1)
+        assert (result['values'][0][1] == 1)
+
+        volttron_instance.remove_agent(agent_uuid)
+
+        # reinstall agent this time with readonly=True
+
+        new_historian["tables_def"] = {"table_prefix": "prefix",
+                                       "data_table": "data_table",
+                                       "topics_table": "topics_table",
+                                       "meta_table": "meta_table"}
+        agent_uuid = volttron_instance.install_agent(agent_dir=source,
+            config_file=new_historian, start=True,
+            vip_identity='hist2')
+        print("agent id: ", agent_uuid)
+
+        # Publish messages
+        publish(publish_agent, topics.RECORD(subtopic="test"), None, 2)
+        gevent.sleep(1)
+
+        # Query the historian
+        result = query_agent.vip.rpc.call('hist2', 'query',
+            topic=topics.RECORD(subtopic="test"), start=query_start,
+            count=20, order="FIRST_TO_LAST").get(timeout=10)
+        print('Query Result', result)
+        assert (len(result['values']) == 1)
+        assert (result['values'][0][1] == 2)
+
+    finally:
+        if agent_uuid:
+            cleanup_function = globals()["cleanup_" + connection_type]
+            cleanup_function(db_connection,
+                             ['data_table', 'topics_table',
+                              'meta_table', 'prefix_data_table',
+                              'prefix_topics_table', 'prefix_meta_table'])
+            volttron_instance.stop_agent(agent_uuid)
+            volttron_instance.remove_agent(agent_uuid)
+
+
 
 @pytest.mark.historian
 def test_exact_timestamp(request, historian, publish_agent, query_agent,
@@ -692,9 +703,6 @@ def test_exact_timestamp(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC
 
@@ -739,8 +747,6 @@ def test_exact_timestamp_with_z(request, historian, publish_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC
     # print('HOME', volttron_instance.volttron_home)
@@ -783,9 +789,6 @@ def test_query_start_time(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC
     # print('HOME', volttron_instance.volttron_home)
@@ -833,8 +836,6 @@ def test_query_start_time_with_z(request, historian, publish_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC
     # print('HOME', volttron_instance.volttron_home)
@@ -881,8 +882,6 @@ def test_query_end_time(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC, db_connection
     # print('HOME', volttron_instance.volttron_home)
@@ -938,8 +937,6 @@ def test_query_end_time_with_z(request, historian, publish_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC
     # print('HOME', volttron_instance.volttron_home)
@@ -995,8 +992,6 @@ def test_zero_timestamp(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC
     # print('HOME', volttron_instance.volttron_home)
@@ -1055,8 +1050,6 @@ def test_topic_name_case_change(request, historian, publish_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC, db_connection, table_names
     # print('HOME', volttron_instance.volttron_home)
@@ -1136,8 +1129,6 @@ def test_invalid_query(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC
     # print('HOME', volttron_instance.volttron_home)
@@ -1185,8 +1176,6 @@ def test_invalid_time(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC
     # print('HOME', volttron_instance.volttron_home)
@@ -1213,10 +1202,8 @@ def test_invalid_time(request, historian, publish_agent, query_agent,
 def test_analysis_topic(request, historian, publish_agent, query_agent,
                         clean):
     """
-    Test query based on same start and end time with literal 'Z' at the end
-    of utc time.
-    Expected result: record with timestamp == start time
-
+    Test recording and querying of analysis topic
+    
     :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0 agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
@@ -1224,8 +1211,6 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points
     # print('HOME', volttron_instance.volttron_home)
@@ -1284,6 +1269,97 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
+# @pytest.mark.historian
+# def test_analysis_topic_replacement(request, historian, publish_agent,
+#                                  query_agent, clean, volttron_instance):
+#
+#     """
+#     Test if topic name substitutions happened.
+#     Publish to topic
+#     'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature' and
+#     query for topic
+#     'PNNL/BUILDING1_ANON/Device/MixedAirTemperature'
+#
+#     :param historian: instance of the historian tested
+#     :param publish_agent: Fake agent used to publish messages to bus
+#     :param query_agent: Fake agent used to query historian
+#     :param clean: teardown function
+#     """
+#     print("\n** test_analysis_topic **")
+#     agent_uuid = None
+#     try:
+#         new_historian = copy.copy(historian)
+#         new_historian["tables_def"] = {"table_prefix": "readonly",
+#             "data_table": "data", "topics_table": "topics",
+#             "meta_table": "meta"}
+#         # new_historian["topic_replace_list"] = [
+#         #     {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}]
+#
+#         new_historian["topic_replace_list"] = [
+#             {"from": "SEB", "to": "BUILDING_1"},
+#             {"from": "PNNL", "to": "Campus1"}]
+#
+#         # 1: Install historian agent
+#         # Install and start historian agent
+#         source = new_historian.pop('source_historian')
+#         agent_uuid = volttron_instance.install_agent(agent_dir=source,
+#             config_file=new_historian, start=True,
+#             vip_identity='replace_hist')
+#         print("agent id: ", agent_uuid)
+#
+#         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+#         # Make some random readings
+#         oat_reading = random.uniform(30, 100)
+#         mixed_reading = oat_reading + random.uniform(-5, 5)
+#         damper_reading = random.uniform(0, 100)
+#
+#         # Create a message for all points.
+#         all_message = [{'OutsideAirTemperature': oat_reading,
+#                         'MixedAirTemperature': mixed_reading,
+#                         'DamperSignal': damper_reading}, {
+#                            'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
+#                                                      'type': 'float'},
+#                            'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
+#                                                    'type': 'float'},
+#                            'DamperSignal': {'units': '%', 'tz': 'UTC',
+#                                             'type': 'float'}}]
+#
+#         # Create timestamp
+#         now = datetime.utcnow().isoformat() + 'Z'
+#         print("now is ", now)
+#         headers = {headers_mod.DATE: now}
+#         # Publish messages
+#         publish(publish_agent, 'analysis/pnnl/seb/device', headers,
+#                 all_message)
+#         gevent.sleep(0.5)
+#
+#         # pytest.set_trace()
+#         # Query the historian
+#         result = query_agent.vip.rpc.call('replace_hist', 'query',
+#             topic='Campus1/BUILDING_1/Device/MixedAirTemperature', start=now,
+#             order="LAST_TO_FIRST").get(timeout=10)
+#         print('Query Result', result)
+#         assert (len(result['values']) == 1)
+#         (now_date, now_time) = now.split("T")
+#         if now_time[-1:] == 'Z':
+#             now_time = now_time[:-1]
+#         assert (result['values'][0][0] == now_date + 'T' + now_time + '+00:00')
+#         assert (result['values'][0][1] == mixed_reading)
+#         topic_list = query_agent.vip.rpc.call(
+#             'replace_hist','get_topic_list').get(timeout=5)
+#         print (topic_list)
+#         assert 'Campus1/BUILDING_1/device/OutsideAirTemperature' in topic_list
+#         assert 'Campus1/BUILDING_1/device/DamperSignal' in topic_list
+#         assert 'Campus1/BUILDING_1/device/MixedAirTemperature' in topic_list
+#     finally:
+#         if agent_uuid:
+#             cleanup_function = globals()["cleanup_" + connection_type]
+#             cleanup_function(db_connection, ['readonly_data',
+#                                              'readonly_topics',
+#                                              'readonly_meta'])
+#             volttron_instance.stop_agent(agent_uuid)
+#             volttron_instance.remove_agent(agent_uuid)
+
 
 @pytest.mark.historian
 def test_analysis_topic_no_meta(request, historian, publish_agent, query_agent,
@@ -1300,8 +1376,6 @@ def test_analysis_topic_no_meta(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points
     # print('HOME', volttron_instance.volttron_home)
@@ -1369,8 +1443,6 @@ def test_tz_conversion_local_tz(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points
     # print('HOME', volttron_instance.volttron_home)
@@ -1445,8 +1517,6 @@ def test_tz_conversion_naive_ts(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points
     # print('HOME', volttron_instance.volttron_home)
@@ -1520,8 +1590,6 @@ def test_record_topic_query(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     # print('HOME', volttron_instance.volttron_home)
     print("\n** test_exact_timestamp for {}**".format(
@@ -1577,8 +1645,6 @@ def test_log_topic(request, historian, publish_agent, query_agent, clean):
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points
     # print('HOME', volttron_instance.volttron_home)
@@ -1634,8 +1700,6 @@ def test_log_topic_no_header(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points
     # print('HOME', volttron_instance.volttron_home)
@@ -1685,8 +1749,6 @@ def test_log_topic_timestamped_readings(request, historian, publish_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points
     # print('HOME', volttron_instance.volttron_home)
@@ -1745,8 +1807,6 @@ def test_get_topic_metadata(request, historian, publish_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points
     # print('HOME', volttron_instance.volttron_home)
@@ -1899,8 +1959,6 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC, db_connection
 
@@ -1969,8 +2027,6 @@ def test_query_with_naive_timestamp(request, historian, publish_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC, db_connection
 
@@ -2041,8 +2097,6 @@ def test_query_with_start_end_count(request, historian, publish_agent,
     :param historian: instance of the historian tested
     :param clean: teardown function
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
 
     global query_points, DEVICES_ALL_TOPIC, db_connection
 
@@ -2119,8 +2173,7 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
     :param volttron_instance: instance of PlatformWrapper. Volttron
     instance in which agents are tested
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
+
     global query_points, DEVICES_ALL_TOPIC, db_connection, topics_table, \
         connection_type
 
@@ -2138,8 +2191,9 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
 
         # 1: Install historian agent
         # Install and start historian agent
+        source = new_historian.pop('source_historian')
         agent_uuid = volttron_instance.install_agent(
-            agent_dir=new_historian['source_historian'],
+            agent_dir=source,
             config_file=new_historian,
             start=True, vip_identity='topic_list.historian')
         print("agent id: ", agent_uuid)
@@ -2206,13 +2260,12 @@ def test_readonly_mode(request, historian, publish_agent, query_agent,
     :param volttron_instance: instance of PlatformWrapper. Volttron
     instance in which agents are tested
     """
-    # skip if this test case need not repeated for this specific historian
-    skip_custom_tables(historian)
+
     global query_points, DEVICES_ALL_TOPIC, db_connection, topics_table, \
         connection_type
 
     # print('HOME', volttron_instance.volttron_home)
-    print("\n** test_basic_function for {}**".format(
+    print("\n** test_readonly_mode for {}**".format(
         request.keywords.node.name))
     agent_uuid = None
     try:
@@ -2225,8 +2278,9 @@ def test_readonly_mode(request, historian, publish_agent, query_agent,
 
         # 1: Install historian agent
         # Install and start historian agent
+        source = new_historian.pop('source_historian')
         agent_uuid = volttron_instance.install_agent(
-            agent_dir=new_historian['source_historian'],
+            agent_dir=source,
             config_file=new_historian,
             start=True, vip_identity='readonly.historian')
         print("agent id: ", agent_uuid)
@@ -2258,7 +2312,7 @@ def test_readonly_mode(request, historian, publish_agent, query_agent,
 
         new_historian["readonly"] = True
         agent_uuid = volttron_instance.install_agent(
-            agent_dir=new_historian['source_historian'],
+            agent_dir=source,
             config_file=new_historian, start=True,
             vip_identity='readonly.historian')
         print("agent id: ", agent_uuid)

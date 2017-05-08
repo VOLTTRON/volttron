@@ -1308,8 +1308,7 @@ def test_combined_results_rollup_and_raw_data_with_count(volttron_instance,
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_dict_insert_special_character(volttron_instance, database_client):
     """
-    Test the query of rolled up data from hourly, daily and monthly data
-    tables
+    Test the inserting special characters
     :param database_client:
     :param volttron_instance: The instance against which the test is run
     """
@@ -1345,7 +1344,7 @@ def test_dict_insert_special_character(volttron_instance, database_client):
 
         agent_uuid = install_historian_agent(volttron_instance, config)
         # print('HOME', volttron_instance.volttron_home)
-        print("\n** test_data_rollup_insert **")
+        print("\n** test_dict_insert_special_character **")
 
         publish_agent = volttron_instance.build_agent()
 

@@ -96,20 +96,6 @@ sqlite_config = {
         }
     }
 }
-mysql_config = {
-    "agentid": "sqlhistorian-mysql-1",
-    "identity": "platform.historian",
-    "connection": {
-        "type": "mysql",
-        "params": {
-            "host": "localhost",
-            "port": 3306,
-            "database": "test_historian",
-            "user": "historian",
-            "passwd": "historian"
-        }
-    }
-}
 
 volttron_instance1 = None
 volttron_instance2 = None
@@ -215,6 +201,7 @@ def publish(publish_agent, topic, header, message):
                                          message=message).get(timeout=10)
     else:
         publish_agent.publish_json(topic, header, message)
+
 
 @pytest.mark.historian
 @pytest.mark.forwarder
@@ -366,7 +353,6 @@ def test_record_topic_no_header(publish_agent, query_agent):
     assert (result['values'][0][1] == 1)
     assert (result['values'][1][1] == 'value0')
     assert (result['values'][2][1] == {'key': 'value'})
-
 
 @pytest.mark.historian
 @pytest.mark.forwarder
@@ -613,6 +599,30 @@ def test_log_topic_no_header(publish_agent, query_agent):
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
 
+
+@pytest.mark.historian
+@pytest.mark.forwarder
+def test_old_config(volttron_instances, forwarder):
+    """
+    Test adding 'agentid' and 'identity' to config. identity should be 
+    supported with "deprecated warning" and "agentid" should get ignored with a
+    warning message
+    """
+
+    print("\n** test_old_config **")
+
+    global forwarder_config
+
+    forwarder_config['agentid'] = "test_forwarder_agent_id"
+    forwarder_config['identity'] = "second forwarder"
+
+    # 1: Install historian agent
+    # Install and start sqlhistorian agent in instance2
+    uuid = volttron_instance1.install_agent(
+        agent_dir="services/core/DataMover",
+        config_file=forwarder_config, start=True)
+
+    print("data_mover agent id: ", uuid)
 
 @pytest.mark.historian
 @pytest.mark.forwarder
