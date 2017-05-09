@@ -1,6 +1,7 @@
 .. _Building-VOLTTRON:
+
 Building VOLTTRON
-==================
+=================
 
 The VOLTTRON project includes a bootstrap script which automatically
 downloads dependencies and builds VOLTTRON. The script also creates a
@@ -21,7 +22,7 @@ work with the master branch of the repository:
     git clone <https://github.com/VOLTTRON/volttron>
     cd volttron
 
-    # bootstrap.py --help will show you all of the "package options" such as 
+    # bootstrap.py --help will show you all of the "package options" such as
     #installing required packages for volttron central or the platform agent.
     python2.7 bootstrap.py
 
@@ -93,7 +94,7 @@ From the volttron directory:
     volttron-ctl status
 
     # Note the uuid
-    # Check that Listener is publishing heartbeat message: 
+    # Check that Listener is publishing heartbeat message:
     cat volttron.log
 
     # Stop the agent

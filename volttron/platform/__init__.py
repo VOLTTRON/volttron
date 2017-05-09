@@ -60,9 +60,10 @@
 
 
 import os
+import psutil
 import sys
 
-__version__ = '4.0.1'
+__version__ = '4.1'
 
 
 def set_home(home=None):
@@ -97,3 +98,43 @@ def get_address():
         address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
 
     return address
+
+
+def get_volttron_root():
+    """
+    Returns the root folder where the volttron code base resideds on disk.
+
+    :return: absolute path to root folder
+    """
+    return os.path.dirname(
+        os.path.dirname(
+            os.path.dirname(
+                os.path.abspath(__file__)
+            )
+        )
+    )
+
+
+def is_instance_running(volttron_home=None):
+    from zmq.utils import jsonapi
+
+    if volttron_home is None:
+        volttron_home = get_home()
+
+    instance_file = os.path.expanduser("~/.volttron_instances")
+    if not os.path.isfile(instance_file):
+        return False
+
+    with open(instance_file, 'r') as fp:
+        jsonobj = jsonapi.loads(fp.read())
+
+    if volttron_home not in jsonobj:
+        return False
+
+    obj = jsonobj[volttron_home]
+    pid = obj.get('pid', None)
+
+    if not pid:
+        return False
+
+    return psutil.pid_exists(pid)

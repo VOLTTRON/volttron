@@ -5,6 +5,10 @@
     #This setting determines the largest APDU accepted by the Volttron BACnet virtual device.
 	#Valid options are 50, 128, 206, 480, 1024 (default), and 1476
     #"max_apdu_length": 1024,
+
+    #Default Max Per Request, optional, use this number 
+    #when the caller does not provide manually
+    #"default_max_per_request": 100000,
     
 	#ID of the Device object of the virtual bacnet device.
 	#Defaults to 599

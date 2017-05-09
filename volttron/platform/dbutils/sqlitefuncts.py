@@ -253,27 +253,24 @@ class SqlLiteFuncts(DbDriver):
         where_clauses = ["WHERE topic_id = ?"]
         args = [topic_ids[0]]
 
+        # base historian converts naive timestamps to UTC, but if the
+        # start and end had explicit timezone info then they need to get
+        # converted to UTC since sqlite3 only store naive timestamp
         if start:
-            if start.tzinfo is None:
-                start = start.replace(tzinfo=pytz.UTC)
-            else:
-                start = start.astimezone(pytz.UTC)
-
+            start = start.astimezone(pytz.UTC)
         if end:
-            if end.tzinfo is None:
-                end = end.replace(tzinfo=pytz.UTC)
-            else:
-                end = end.astimezone(pytz.UTC)
+            end = end.astimezone(pytz.UTC)
 
         if start and end and start == end:
             where_clauses.append("ts = ?")
             args.append(start)
-        elif start:
-            where_clauses.append("ts >= ?")
-            args.append(start)
-        elif end:
-            where_clauses.append("ts < ?")
-            args.append(end)
+        else:
+            if start:
+                where_clauses.append("ts >= ?")
+                args.append(start)
+            if end:
+                where_clauses.append("ts < ?")
+                args.append(end)
 
 
         where_statement = ' AND '.join(where_clauses)

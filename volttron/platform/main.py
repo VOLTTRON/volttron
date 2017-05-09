@@ -266,7 +266,8 @@ class Router(BaseRouter):
                  default_user_id=None, monitor=False, tracker=None,
                  volttron_central_address=None, instance_name=None,
                  bind_web_address=None, volttron_central_serverkey=None,
-                 protected_topics={}, external_address_file=''):
+                 protected_topics={}, external_address_file='',
+                 msgdebug=None):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
@@ -295,7 +296,8 @@ class Router(BaseRouter):
         self._external_address_file = external_address_file
         self._pubsub = None
         self._ext_rpc = None
-
+        self._msgdebug = msgdebug
+        self._message_debugger_socket = None
 
     def setup(self):
         sock = self.socket
@@ -351,6 +353,18 @@ class Router(BaseRouter):
                 ('incoming' if topic == INCOMING else 'outgoing'), formatter)
         if self._tracker:
             self._tracker.hit(topic, frames, extra)
+        if self._msgdebug:
+            if not self._message_debugger_socket:
+                # Initialize a ZMQ IPC socket on which to publish all messages to MessageDebuggerAgent.
+                socket_path = os.path.expandvars('$VOLTTRON_HOME/run/messagedebug')
+                socket_path = os.path.expanduser(socket_path)
+                socket_path = 'ipc://{}'.format('@' if sys.platform.startswith('linux') else '') + socket_path
+                self._message_debugger_socket = zmq.Context().socket(zmq.PUB)
+                self._message_debugger_socket.connect(socket_path)
+            # Publish the routed message, including the "topic" (status/direction), for use by MessageDebuggerAgent.
+            frame_bytes = [topic]
+            frame_bytes.extend([frame if type(frame) is str else frame.bytes for frame in frames])
+            self._message_debugger_socket.send_pyobj(frame_bytes)
 
     def handle_subsystem(self, frames, user_id):
         subsystem = bytes(frames[5])
@@ -618,8 +632,8 @@ def start_volttron_process(opts):
                    volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
                    bind_web_address=opts.bind_web_address,
-                   protected_topics=protected_topics, external_address_file=external_address_file).run()
-
+                   protected_topics=protected_topics, external_address_file=external_address_file,
+                   msgdebug=opts.msgdebug).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
@@ -815,6 +829,10 @@ def main(argv=sys.argv):
         '--instance-name', default=None,
         help='The name of the instance that will be reported to '
              'VOLTTRON central.')
+    agents.add_argument(
+        '--msgdebug', action='store_true',
+        help='Route all messages to an agent while debugging.')
+
 
     # XXX: re-implement control options
     #on
@@ -894,8 +912,9 @@ def main(argv=sys.argv):
         # allow_users=None,
         # allow_groups=None,
         verify_agents=True,
-        resource_monitor=True
+        resource_monitor=True,
         # mobility=True,
+        msgdebug=None,
     )
 
     # Parse and expand options
