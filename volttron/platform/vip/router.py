@@ -135,45 +135,6 @@ class BaseRouter(object):
         finally:
             self.stop()
 
-    def ext_route(self, socket):
-        # Expecting incoming frames:
-        #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        frames = socket.recv_multipart(copy=False)
-        for f in frames:
-            _log.debug("Frames: {}".format(bytes(f)))
-        if len(frames) < 6:
-            return
-        #sender, proto, auth_token, msg_id = frames[:5]
-        sender, proto = frames[:2]
-        if proto.bytes != b'VIP1':
-            return
-        self._add_peer(sender.bytes)
-        subsystem = frames[4]
-        # Handle requests directed at the router
-        name = subsystem.bytes
-        if name == 'EXT_RPC':
-            _log.debug("EXT ROUTER::Received EXT_RPC sub system message from external platform")
-            # Reframe the frames
-            sender, proto, usr_id, msg_id, subsystem, msg = frames[:6]
-            msg_data = jsonapi.loads(msg.bytes)
-            peer = msg_data['to_peer']
-            _log.debug("EXT ROUTER::Send to: {}".format(peer))
-            #frames[0] = peer
-            #Form new frame for local
-            frames[:9] = [peer, sender, proto, usr_id, msg_id, 'EXT_RPC', msg]
-            try:
-                self.socket.send_multipart(frames, flags=NOBLOCK, copy=False)
-            except ZMQError as ex:
-                _log.debug("ZMQ error: {}".format(ex))
-                pass
-        elif name == 'pubsub':
-            _log.debug("EXT ROUTER::Received external_pubsub")
-            recipient = b''
-            sender, proto, user_id, msg_id, subsystem, op, msg = frames[:7]
-            frames[:8] = sender, recipient, proto, user_id, msg_id, subsystem, op, msg
-            result = self._pubsub.handle_subsystem(frames, user_id)
-            #return result
-
     def start(self):
         '''Create the socket and call setup().
 

@@ -57,16 +57,9 @@
 
 from __future__ import print_function, absolute_import
 
-import argparse
-
 import logging
-from logging import handlers
 import logging.config
-from urlparse import urlparse
-
 import os
-import sys
-import threading
 import uuid
 import re
 
@@ -76,14 +69,12 @@ import zmq
 from zmq import SNDMORE, EHOSTUNREACH, ZMQError, EAGAIN, NOBLOCK
 from zmq import green
 from collections import defaultdict
-import errno
 
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from zmq.utils import jsonapi
-from volttron.platform.agent.utils import watch_file, create_file_if_missing
 from .agent.subsystems.pubsub import ProtectedPubSubTopics
-from .. import jsonrpc
+from volttron.platform.jsonrpc import (INVALID_REQUEST, UNAUTHORIZED)
 from volttron.platform.vip.agent.errors import VIPError
 
 # Optimizing by pre-creating frames
@@ -146,10 +137,11 @@ class PubSubService(object):
     def external_platform_add(self, instance_name):
         self._logger.debug("PUBSUBSERVICE send subs external {}".format(instance_name))
         if self._ext_router is not None:
-            self._send_external_subscriptions(instance_name)
+            self._send_external_subscriptions([instance_name])
 
     def external_platform_drop(self, instance_name):
         self._logger.debug("PUBSUBSERVICE dropping external subscriptions for {}".format(instance_name))
+        #del self._ext_subscriptions[instance_name]
 
     def _sync(self, peer, items):
         """
@@ -378,7 +370,7 @@ class PubSubService(object):
         if errmsg is not None:
             try:
                 frames = [publisher, b'', proto, user_id, msg_id,
-                      b'error', zmq.Frame(bytes(jsonrpc.UNAUTHORIZED)), zmq.Frame(str(errmsg)), b'', subsystem]
+                      b'error', zmq.Frame(bytes(UNAUTHORIZED)), zmq.Frame(str(errmsg)), b'', subsystem]
             except ValueError:
                 self._logger.debug("Value error")
             self._send(frames, publisher)
@@ -435,7 +427,7 @@ class PubSubService(object):
         :return:
         """
         publisher, receiver, proto, user_id, msg_id, subsystem, op, topic, data = frames[0:9]
-
+        drop = ''
         external_subscribers = set()
         for platform_id, subscriptions in self._ext_subscriptions.items():
             for prefix in subscriptions:
@@ -450,9 +442,26 @@ class PubSubService(object):
                 try:
                     if self._ext_router is not None:
                         # Send the message to the external platform
-                        self._ext_router.send_external(platform_id, frames)
-                except ZMQError:
-                    raise
+                        drop = self._ext_router.send_external(platform_id, frames)
+                        #If external platform is unreachable, drop the all subscriptions
+                        if not drop:
+                            self.external_platform_drop(drop)
+                except ZMQError as exc:
+                    try:
+                        errnum, errmsg = error = _ROUTE_ERRORS[exc.errno]
+                    except KeyError:
+                        error = None
+                    if exc.errno == EAGAIN:
+                        # Only send EAGAIN errors, so that publisher can try sending again later
+                        frames = [publisher, b'', proto, user_id, msg_id,
+                                  b'error', errnum, errmsg, drop, subsystem]
+                        try:
+                            self._vip_sock.send_multipart(frames, flags=NOBLOCK, copy=False)
+                        except ZMQError as exc:
+                            # raise
+                            pass
+                    else:
+                        raise
         return len(external_subscribers)
 
     def _send(self, frames, publisher):
@@ -532,12 +541,6 @@ class PubSubService(object):
             for name in external_platforms:
                 self._logger.debug("PUBSUBSERVICE Sending to platform: {}".format(name))
                 self._ext_router.send_external(name, frames)
-            # #if vip_id == self._ext_router.my_vip():
-            # frames[0] = bytes(self._ext_router.my_vip())
-            # try:
-            #     self._vip_sock.send_multipart(frames, flags=NOBLOCK, copy=False)
-            # except ZMQError as e:
-            #     self._logger.error("PUBSUBSERVICE Error sending to external platform {0}, {1}".format(vip_id, self._ext_router.my_vip()))
 
     def _update_caps_users(self, frames):
         """
@@ -631,7 +634,9 @@ class PubSubService(object):
                 result = self._update_external_subscriptions(frames)
             elif op == b'external_publish':
                 self._logger.debug("PUBSUBSERVICE external to local publish")
-                self.external_to_local_publish(frames)
+                self._external_to_local_publish(frames)
+            elif op == b'error':
+                self._handle_error(frames)
             else:
                 self._logger.error("PUBSUBSERVICE Unknown pubsub request {}".format(bytes(op)))
                 pass
@@ -683,7 +688,6 @@ class PubSubService(object):
             #self._logger.debug("PUBSUBSERVICE Msg: {}".format(msg))
             for instance_name in msg:
                 prefixes = msg[instance_name]
-                #prefixes = set(prefixes)
                 self._logger.debug("PUBSUBSERVICE prefixes: {}".format(prefixes))
                 self._ext_subscriptions[instance_name] = prefixes
                 self._logger.debug("PUBSUBSERVICE New external list: {}".format(self._ext_subscriptions))
@@ -707,10 +711,11 @@ class PubSubService(object):
                 self._logger.debug("PUBSUBSERVICE New external list: {}".format(self._ext_subscriptions))
             return True
 
-    def external_to_local_publish(self, frames):
+    def _external_to_local_publish(self, frames):
         results = []
-
+        subscribers_count = 0
         # Check if destination is local VIP -- Todo
+
         if len(frames) > 8:
             publisher, receiver, proto, user_id, msg_id, subsystem, op, topic, data = frames[0:9]
             data = frames[8].bytes
@@ -718,20 +723,40 @@ class PubSubService(object):
             # Check if peer is authorized to publish the topic
             errmsg = self._check_if_protected_topic(bytes(user_id), bytes(topic))
 
-            # Send error message as peer is not authorized to publish to the topic
+            #peer is not authorized to publish to the topic
             if errmsg is not None:
                 try:
                     frames = [publisher, b'', proto, user_id, msg_id,
-                              b'error', zmq.Frame(bytes(jsonrpc.UNAUTHORIZED)),
-                              zmq.Frame(str(errmsg)), b'', subsystem]
+                              subsystem, b'error', zmq.Frame(bytes(UNAUTHORIZED)),
+                              zmq.Frame(str(errmsg))]
+                    self._ext_router.send_external(publisher, frames)
+                    return
                 except ValueError:
                     self._logger.debug("Value error")
-                self._send(frames, publisher)
-                return 0
+
             # Make it an internal publish
             frames[6] = 'publish'
             subscribers_count = self._distribute_internal(frames)
+            # There are no subscribers, send error message back to source platform
+            if subscribers_count == 0:
+                try:
+                    errmsg = 'NO SUBSCRIBERS'
+                    frames = [publisher, b'', proto, user_id, msg_id,
+                              subsystem, zmq.Frame(b'error'), zmq.Frame(bytes(INVALID_REQUEST)),
+                              topic]
+                    self._ext_router.send_external(publisher, frames)
+                except ValueError:
+                    self._logger.debug("Value error")
         return subscribers_count
+
+    def _handle_error(self, frames):
+        self._logger.debug("handle error")
+        if len(frames) > 7:
+            error_type = frames[7].bytes
+            if error_type == INVALID_REQUEST:
+                topic = frames[8].bytes
+                #Remove subscriber for that topic
+
 
 class ProtectedPubSubTopics(object):
     '''Simple class to contain protected pubsub topics'''

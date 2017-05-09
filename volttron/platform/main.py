@@ -100,6 +100,7 @@ from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
 from .vip.routingservice import RoutingService
 from .vip.externalrpcservice import ExternalRPCService
+from .vip.keydiscovery import KeyDiscoveryAgent
 from ..utils.persistance import load_create_store
 
 try:
@@ -327,12 +328,11 @@ class Router(BaseRouter):
                 address.domain = 'vip'
             address.bind(sock)
             _log.debug('Additional VIP router bound to %s' % address)
-        #self._ext_routing = None
+        self._ext_routing = None
         self._ext_routing = RoutingService(self.socket, self.context,
                                            self._socket_class, self._poller,
                                            self._external_address_file, self._addr)
         self._ext_routing.setup()
-        #gevent.spawn_later(2, self._ext_routing.setup())
         self._pubsub = PubSubService(self.socket, self._protected_topics, self._ext_routing)
         self._ext_rpc = ExternalRPCService(self.socket, self._ext_routing)
         self._poller.register(sock, zmq.POLLIN)
@@ -357,6 +357,7 @@ class Router(BaseRouter):
         if subsystem == b'quit':
             sender = bytes(frames[0])
             if sender == b'control' and user_id == self.default_user_id:
+                self._ext_routing.shutdown()
                 raise KeyboardInterrupt()
         elif subsystem == b'agentstop':
             try:
@@ -402,6 +403,7 @@ class Router(BaseRouter):
             return result
         elif subsystem == b'routing_table':
             result = self._ext_routing.handle_subsystem(frames)
+            return result
         elif subsystem == b'EXT_RPC':
             result = self._ext_rpc.handle_subsystem(frames)
             return result
@@ -431,6 +433,52 @@ class Router(BaseRouter):
                 frames = sock.recv_multipart(copy=False)
                 # for f in frames:
                 #     _log.debug("f in frames {}".format(bytes(f)))
+
+
+    def ext_route(self, socket):
+        # Expecting incoming frames:
+        #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
+        frames = socket.recv_multipart(copy=False)
+        # for f in frames:
+        #     _log.debug("Frames: {}".format(bytes(f)))
+        if len(frames) < 6:
+            return
+
+        sender, proto, user_id, msg_id, subsystem = frames[:5]
+        if proto.bytes != b'VIP1':
+            return
+        #self._add_peer(sender.bytes)
+
+        # Handle requests directed at the router
+        name = subsystem.bytes
+        if name == 'EXT_RPC':
+            _log.debug("EXT ROUTER::Received EXT_RPC sub system message from external platform")
+            # Reframe the frames
+            sender, proto, usr_id, msg_id, subsystem, msg = frames[:6]
+            msg_data = jsonapi.loads(msg.bytes)
+            peer = msg_data['to_peer']
+            _log.debug("EXT ROUTER::Send to: {}".format(peer))
+            #frames[0] = peer
+            #Form new frame for local
+            frames[:9] = [peer, sender, proto, usr_id, msg_id, 'EXT_RPC', msg]
+            try:
+                self.socket.send_multipart(frames, flags=NOBLOCK, copy=False)
+            except ZMQError as ex:
+                _log.debug("ZMQ error: {}".format(ex))
+                pass
+        elif name == 'pubsub':
+            _log.debug("EXT ROUTER::Received external_pubsub")
+            if bytes(frames[1]) == b'VIP1':
+                recipient = b''
+                frames[:1] = [zmq.Frame(b''), zmq.Frame(b'')]
+            # sender, proto, user_id, msg_id, subsystem, op, msg = frames[:7]
+            # frames[:8] = sender, recipient, proto, user_id, msg_id, subsystem, op, msg
+            result = self._pubsub.handle_subsystem(frames, user_id)
+        elif name == 'routing_table':
+            if bytes(frames[1]) == b'VIP1':
+                frames[:1] = [zmq.Frame(b''), zmq.Frame(b'')]
+            result = self._ext_routing.handle_subsystem(frames)
+            return result
 
 def start_volttron_process(opts):
     '''Start the main volttron process.
@@ -632,19 +680,22 @@ def start_volttron_process(opts):
 
         protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
         _log.debug('protected topics file %s', protected_topics_file)
-
+        external_address_file = os.path.join(opts.volttron_home, 'external_address.json')
+        _log.debug('external_address_file file %s', external_address_file)
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
             ControlService(opts.aip, address=address, identity='control',
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=True),
+            KeyDiscoveryAgent(address=address, serverkey=publickey, identity='keydiscovery', external_address_config=external_address_file, bind_web_address=opts.bind_web_address),
             # PubSubService(protected_topics_file, address=address,
             #               identity='pubsub', heartbeat_autostart=True,
             #               enable_store=False),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
+
             MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
                 address=address,
