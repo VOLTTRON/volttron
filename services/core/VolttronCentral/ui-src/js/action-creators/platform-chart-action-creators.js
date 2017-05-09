@@ -39,20 +39,6 @@ var platformChartActionCreators = {
             chartKey: chartKey
         });
     },
-    setMin: function (min, chartKey) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CHANGE_CHART_MIN,
-            min: min,
-            chartKey: chartKey
-        });
-    },
-    setMax: function (max, chartKey) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CHANGE_CHART_MAX,
-            max: max,
-            chartKey: chartKey
-        });
-    },
 	refreshChart: function (series, length) {
 
 		var authorization = authorizationStore.getAuthorization();
@@ -74,7 +60,7 @@ var platformChartActionCreators = {
 
                     if (result.hasOwnProperty("values"))
                     {
-                    	item.data = result.values;
+                    	item.data = result.values.reverse();
 
                         item.data.forEach(function (datum) {
                             datum.name = item.name;
@@ -168,7 +154,7 @@ function loadChart(panelItem, emitChange, authorization) {
 
             if (result.hasOwnProperty("values"))
             {    
-                panelItem.data = result.values;
+                panelItem.data = result.values.reverse();
 
                 panelItem.data.forEach(function (datum) {
                     datum.name = panelItem.name;

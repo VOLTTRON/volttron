@@ -1138,14 +1138,7 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
             _devices = [];
             devicesStore.emitChange();
             break;
-        case ACTION_TYPES.CANCEL_SCANNING:
-            // devicesWs.close();
-            // devicesWs = null;
-
-            // devicesStore.emitChange();
-            break;
         case ACTION_TYPES.LISTEN_FOR_IAMS:
-            // _newScan = false;
             _scanningComplete = false;
             _warnings = {};
             devicesStore.emitChange();
@@ -1340,6 +1333,8 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.UPDATE_DEVICES_LIST:            
             _devicesList[action.platformUuid] = action.devices;
             break;
+        default:
+            break;
     }
 
     function setBackupPoints(device)
@@ -1477,42 +1472,24 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
                 if (device)
                 {
                     if (!pointData.hasOwnProperty("status"))
-                    {  
-                        var pointInList = device.registryConfig.find(function (point) {
-                            var indexCell = point.find(function (cell) {
-                                return cell.key === "index";
-                            })
+                    {                          
+                        var newPoint = [];
 
-                            var match = false;
-
-                            if (indexCell)
-                            {
-                                match = (indexCell.value === pointData.results.Index);
-                            }
-
-                            return match;
-                        });
-                    
-                        if (typeof pointInList === "undefined") 
+                        for (var key in pointData.results)
                         {
-                            var newPoint = [];
+                            var cell = {
+                                key: key.toLowerCase().replace(/ /g, "_"),
+                                label: key,
+                                value: (pointData.results[key] === null ? "" : pointData.results[key])
+                            };
 
-                            for (var key in pointData.results)
-                            {
-                                var cell = {
-                                    key: key.toLowerCase().replace(/ /g, "_"),
-                                    label: key,
-                                    value: (pointData.results[key] === null ? "" : pointData.results[key])
-                                };
+                            prepCell(cell);
 
-                                prepCell(cell);
-
-                                newPoint.push(cell);
-                            }
-
-                            var sortedPoint = sortPointColumns(newPoint);
-                            device.registryConfig.push(sortedPoint);
+                            newPoint.push(cell);
                         }
+
+                        var sortedPoint = sortPointColumns(newPoint);
+                        device.registryConfig.push(sortedPoint);
                     }
                     else
                     {

@@ -1,6 +1,7 @@
 .. _Building-VOLTTRON:
+
 Building VOLTTRON
-==================
+=================
 
 The VOLTTRON project includes a bootstrap script which automatically
 downloads dependencies and builds VOLTTRON. The script also creates a
@@ -93,7 +94,7 @@ From the volttron directory:
     volttron-ctl status
 
     # Note the uuid
-    # Check that Listener is publishing heartbeat message: 
+    # Check that Listener is publishing heartbeat message:
     cat volttron.log
 
     # Stop the agent
