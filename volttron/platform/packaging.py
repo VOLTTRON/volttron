@@ -55,8 +55,8 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-'''Agent packaging and signing support.
-'''
+"""Agent packaging and signing support.
+"""
 import logging
 from logging import handlers
 import os
@@ -64,8 +64,8 @@ import shutil
 import subprocess
 import sys
 import uuid
-import wheel
 import tempfile
+import traceback
 
 from wheel.install import WheelFile
 from .packages import *
@@ -84,9 +84,10 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
 
 DEFAULT_CERTS_DIR = '~/.volttron/certificates'
 
+
 def log_to_file(file, level=logging.WARNING,
                 handler_class=logging.StreamHandler):
-    '''Direct log output to a file (or something like one).'''
+    """Direct log output to a file (or something like one)."""
     handler = handler_class(file)
     handler.setLevel(level)
     handler.setFormatter(utils.AgentFormatter(
@@ -97,7 +98,7 @@ def log_to_file(file, level=logging.WARNING,
 
 
 class AgentPackageError(Exception):
-    '''Raised for errors during packaging, extraction and signing.'''
+    """Raised for errors during packaging, extraction and signing."""
     pass
 
 
@@ -150,12 +151,12 @@ def extract_package(wheel_file, install_dir,
 
 
 def repackage(directory, dest=None):
-    '''Repack an wheel unpacked into the given directory.
+    """Repack an wheel unpacked into the given directory.
 
     All files in the RECORD files are added back to the wheel, which is
     written in the current working directory if dest is None or in the
     directory given by dest otherwise.
-    '''
+    """
     if dest is not None:
         try:
             if not os.path.isdir(dest):
@@ -174,9 +175,9 @@ def repackage(directory, dest=None):
     return pkg.repack(dest)
 
 
-#default_wheel_dir = os.environ['VOLTTRON_HOME']+'/packaged'
+# default_wheel_dir = os.environ['VOLTTRON_HOME']+'/packaged'
 def create_package(agent_package_dir, wheelhouse, identity=None):
-    '''Creates a packaged whl file from the passed agent_package_dir.
+    """Creates a packaged whl file from the passed agent_package_dir.
 
     If the passed directory doesn't exist or there isn't a setup.py file
     the directory then AgentPackageError is raised.
@@ -187,7 +188,7 @@ def create_package(agent_package_dir, wheelhouse, identity=None):
 
     Returns
         string - The full path to the created whl file.
-    '''
+    """
     if not os.path.isdir(agent_package_dir):
         raise AgentPackageError("Invalid agent package directory specified")
     setup_file_path = os.path.join(agent_package_dir, 'setup.py')
@@ -200,7 +201,7 @@ def create_package(agent_package_dir, wheelhouse, identity=None):
 
 
 def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
-    '''Create an initial whl file from the passed agent_dir_to_package.
+    """Create an initial whl file from the passed agent_dir_to_package.
 
     The function produces a wheel from the setup.py file located in
     agent_dir_to_package.
@@ -210,15 +211,15 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
                                that is to be packaged.
 
     Returns The path and file name of the packaged whl file.
-    '''
+    """
     tmpdir = tempfile.mkdtemp()
     try:
         builddir = os.path.join(tmpdir, 'pkg')
         distdir = os.path.join(builddir, 'dist')
         shutil.copytree(agent_dir_to_package, builddir)
         subprocess.check_call([sys.executable, 'setup.py', '--no-user-cfg',
-                               'bdist_wheel', '-q'], cwd=builddir,
-                              stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                               'bdist_wheel'], cwd=builddir,
+                              stderr=subprocess.STDOUT)
 
         wheel_name = os.listdir(distdir)[0]
         wheel_path = os.path.join(distdir, wheel_name)
@@ -239,14 +240,17 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         wheel_dest = os.path.join(wheelhouse, wheel_name)
         shutil.move(wheel_path, wheel_dest)
         return wheel_dest
+    except subprocess.CalledProcessError as ex:
+        traceback.print_last()
     finally:
         shutil.rmtree(tmpdir, True)
 
+
 def _files_from_kwargs(**kwargs):
-    '''Grabs the contract and config file from the kwargs
+    """Grabs the contract and config file from the kwargs
 
     Returns None if neither exist.
-    '''
+    """
 
     files = {}
 
@@ -260,8 +264,9 @@ def _files_from_kwargs(**kwargs):
 
     return None
 
+
 def _sign_agent_package(agent_package, **kwargs):
-    '''Sign an agent package'''
+    """Sign an agent package"""
     if not os.path.exists(agent_package):
         raise AgentPackageError('Invalid package {}'.format(agent_package))
 
@@ -293,9 +298,8 @@ def _sign_agent_package(agent_package, **kwargs):
         print('Verification of signing failed!')
 
 
-
 def _cert_type_from_kwargs(**kwargs):
-    '''Return cert type string from kwargs values'''
+    """Return cert type string from kwargs values"""
 
     for k in ('admin', 'creator', 'initiator', 'platform'):
         try:
@@ -309,7 +313,7 @@ def _cert_type_from_kwargs(**kwargs):
 
 
 def _create_ca(certs_dir=DEFAULT_CERTS_DIR):
-    '''Creates a root ca cert using the Certs class'''
+    """Creates a root ca cert using the Certs class"""
     crts = certs.Certs(certs_dir)
     if crts.ca_exists():
         msg = '''Creating a new root ca will overwrite the current ca and
@@ -324,8 +328,9 @@ Are you sure you want to do this? type 'yes' to continue: '''
     data = _create_cert_ui(certs.DEFAULT_ROOT_CA_CN)
     crts.create_root_ca(**data)
 
+
 def _create_cert(name=None, certs_dir= DEFAULT_CERTS_DIR,**kwargs):
-    '''Create a cert using options specified on the command line'''
+    """Create a cert using options specified on the command line"""
 
     crts = certs.Certs(certs_dir)
     if not crts.ca_exists():
@@ -345,7 +350,7 @@ def _create_cert(name=None, certs_dir= DEFAULT_CERTS_DIR,**kwargs):
 
 
 def _create_cert_ui(cn):
-    '''Runs through the different options for the user to create a cert.
+    """Runs through the different options for the user to create a cert.
 
         C  - Country
         ST - State
@@ -353,7 +358,7 @@ def _create_cert_ui(cn):
         O  - Organization
         OU - Organizational Unit
         CN - Common Name
-    '''
+    """
     input_order = ['C', 'ST', 'L', 'O', 'OU', 'CN']
     input_defaults = {'C':'US',
                       'ST': 'Washington',
@@ -378,8 +383,6 @@ def _create_cert_ui(cn):
             output_items[item] = input_defaults[item]
 
     return output_items
-
-
 
 
 def add_files_to_package(package, files=None):
@@ -448,8 +451,6 @@ def main(argv=sys.argv):
             help='agent package to configure')
     config_parser.add_argument('config_file', metavar='CONFIG',
         help='configuration file to add to wheel.')
-
-
 
     if auth is not None:
         cert_dir = os.path.expanduser(DEFAULT_CERTS_DIR)
@@ -586,15 +587,12 @@ def main(argv=sys.argv):
         _log.error(str(e))
         #print e
 
-
     if whl_path:
         print("Package created at: {}".format(whl_path))
 
 
-
-
 def _main():
-    '''Entry point for scripts.'''
+    """Entry point for scripts."""
     try:
         sys.exit(main())
     except KeyboardInterrupt:
