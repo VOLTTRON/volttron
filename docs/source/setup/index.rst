@@ -3,8 +3,6 @@
 Setting up VOLTTRON
 ===================
 
-Installation
-------------
 
 :ref:`Install VOLTTRON <install>` by running the following commands that installs needed
 :ref:`prerequisites <VOLTTRON-Prerequisites>`, clones the source code, then builds the virtual environment for using the platform.
