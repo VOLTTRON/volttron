@@ -69,7 +69,11 @@ Systemd
 -------
 
 An example service file ``scripts/admin/volttron.service`` for systemd cas be used as a starting point
-for setting up VOLTTRON as a service.
+for setting up VOLTTRON as a service. Note that as this will redirect all the output that would 
+be going to stdout - to the syslog.  This can be accessed using journalctl. For systems that run 
+all the time or have a high level of debugging turned on, we recommend checking the system's 
+logrotate settings.
+
 
 ::
 
@@ -90,6 +94,8 @@ for setting up VOLTTRON as a service.
     #Change these to settings to reflect the install location of VOLTTRON
     WorkingDirectory=/var/lib/volttron
     ExecStart=/var/lib/volttron/env/bin/volttron -vv
+    ExecStop=/var/lib/volttron/env/bin/volttron-ctl shutdown --platform
+
 
     [Install]
     WantedBy=multi-user.target
@@ -103,7 +109,7 @@ following commands. These need to be run as root or with sudo as appropriate.
     cp scripts/admin/volttron.service /etc/systemd/system/
 
     #Set the correct permissions if needed
-    chmod 664 /etc/systemd/system/volttron.service
+    chmod 644 /etc/systemd/system/volttron.service
 
     #Notify systemd that a new service file exists (this is crucial!)
     systemctl daemon-reload
