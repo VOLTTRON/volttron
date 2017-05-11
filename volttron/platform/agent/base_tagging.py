@@ -99,16 +99,20 @@ class BaseTaggingService(Agent):
     the tag details
     """
 
-    def __init__(self, config, **kwargs):
-        self.tag_groups = None
+    def __init__(self, resource_sub_dir='resources', **kwargs):
+        self.tag_categories = None
+        self.resource_sub_dir = "resources"
+        if resource_sub_dir:
+            self.resource_sub_dir = resource_sub_dir
+
         super(BaseTaggingService, self).__init__(**kwargs)
-        _log.debug("Done init of base tagging agent")
+        _log.debug("Done init of base tagging service")
 
     @Core.receiver("onstart")
     def on_start(self, sender, **kwargs):
         """
         Method to establish database connection, do any initial bootstrap 
-        necessary. Example - load master list of tags, units, groups etc. into 
+        necessary. Example - load master list of tags, units, categories etc. into 
         datastore/memory   
         """
         self.setup()
@@ -118,10 +122,10 @@ class BaseTaggingService(Agent):
         pass
 
     @RPC.export
-    def get_groups(self, skip, count, order):
+    def get_categories(self, skip=0, count=None, order="FIRST_TO_LAST"):
         """
-        Get the available list tag groups. Group can have multiple tags 
-        and tags could belong to multiple groups
+        Get the available list tag categories. category can have multiple tags 
+        and tags could belong to multiple categories
         :param skip: number of tags to skip. usually used with order
         :param count: limit on the number of tags to return
         :param order: order of result - "FIRST_TO_LAST" or
@@ -129,48 +133,51 @@ class BaseTaggingService(Agent):
         :type skip: int
         :type count: int
         :type order: str
-        :return: list of group names
+        :return: list of category names
         :rtype: list
         """
-        if not self.tag_groups:
-            self.tag_groups = self.query_groups()
-        return self.tag_groups
+        _log.debug("query params: skip:{} count:{} order:{}".format(skip,
+                                                                    count,
+                                                                    order))
+        if not self.tag_categories:
+            self.tag_categories = self.query_categories(skip, count, order)
+        return self.tag_categories
 
     @abstractmethod
-    def query_groups(self, skip=0, count=None, order=None):
+    def query_categories(self, skip=0, count=None, order=None):
         pass
 
     @RPC.export
-    def get_tags_by_group(self, group_name, skip, count, order):
+    def get_tags_by_category(self, category_name, skip, count, order):
         """
-        Get the list of tags for a given group name. Group can have multiple 
-        tags and tags could belong to multiple groups
+        Get the list of tags for a given category name. category can have multiple 
+        tags and tags could belong to multiple categories
         
-        :param group_name: name of the group for which associated tags 
+        :param category_name: name of the category for which associated tags 
         should be returned
         :param skip: number of tags to skip. usually used with order
         :param count: limit on the number of tags to return
         :param order: order of result - "FIRST_TO_LAST" or
                       "LAST_TO_FIRST"
         :return: list of (tag names, its data type/kind)
-        :type group_name: str
+        :type category_name: str
         :type skip: int
         :type count: int
         :type order: str
         :rtype: list
         """
 
-        return self.query_tags_by_group(group_name, skip, count, order)
+        return self.query_tags_by_category(category_name, skip, count, order)
 
     @abstractmethod
-    def query_tags_by_group(self, group_name, skip=0, count=None, order=None):
+    def query_tags_by_category(self, category_name, skip=0, count=None, order=None):
         pass
 
     @RPC.export
     def get_tags_by_topic(self, topic_prefix, skip, count, order):
         """
-        Get the list of tags for a given group name. Group can have multiple 
-        tags and tags could belong to multiple groups
+        Get the list of tags for a given category name. category can have multiple 
+        tags and tags could belong to multiple categories
         :param topic_prefix: topic_prefix for which associated tags should 
         be returned
         :param skip: number of tags to skip. usually used with order
@@ -253,7 +260,8 @@ class BaseTaggingService(Agent):
 
         if and_condition or or_condition or regex_and or regex_or or condition:
             self.query_topics_by_tags(and_condition, or_condition,
-                                      regex_and, regex_or, condition)
+                                      regex_and, regex_or, condition, skip,
+                                      count, order)
         else:
             raise ValueError("Please provide a valid query criteria using "
                              "one or more of the api parameters(and_condition,"

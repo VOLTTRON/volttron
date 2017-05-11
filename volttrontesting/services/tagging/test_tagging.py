@@ -58,10 +58,15 @@
 """
 pytest test cases for tagging service
 """
-
+import copy
 import pytest
 import sqlite3
-import gevent
+
+import sys
+from mock import MagicMock
+
+from volttron.platform.messaging import topics
+
 
 try:
     import pymongo
@@ -72,7 +77,7 @@ except:
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
                                     reason='No pymongo client available.')
 
-sqlite_config_1 = {
+sqlite_config= {
     "connection": {
         "type": "sqlite",
         "params": {
@@ -134,7 +139,7 @@ def query_agent(request, volttron_instance):
 # Fixtures for setup and teardown of historian agent
 @pytest.fixture(scope="module",
                 params=[
-                    sqlite_config_1
+                    sqlite_config
                 ])
 def tagging_service(request, volttron_instance):
     connection_type = request.param['connection']['type']
@@ -153,14 +158,65 @@ def tagging_service(request, volttron_instance):
                 function_name, connection_type))
 
     print ("request.param -- {}".format(request.param))
-    # 2. Install agent - historian
+    # 2. Install agent
+    source = request.param.pop('tagging_source')
     tagging_service_id = volttron_instance.install_agent(
         vip_identity='platform.tagging',
-        agent_dir=request.param['tagging_source'], config_file=request.param,
+        agent_dir=source, config_file=request.param,
         start=True)
+    request.param['source'] = source
     print("agent id: ", tagging_service_id)
+    return request.param
 
-@pytest.mark.dev
-def test_load(tagging_service, query_agent):
-    gevent.sleep(3)
+@pytest.mark.tagging
+def test_init_success(tagging_service, query_agent):
+
+    result = query_agent.vip.rpc.call('platform.tagging',
+                                      'get_categories').get()
+    print("tag categories len:{}".format(len(result)))
+    assert result
     pass
+
+@pytest.mark.tagging
+def test_init_failure(volttron_instance, tagging_service, query_agent):
+    agent_id = None
+    try:
+        query_agent.callback = MagicMock(name="callback")
+        query_agent.callback.reset_mock()
+        # subscribe to schedule response topic
+        query_agent.vip.pubsub.subscribe(peer='pubsub',
+                                         prefix=topics.ALERTS_BASE,
+                                         callback=query_agent.callback).get()
+        new_config = copy.copy(tagging_service)
+        new_config["resource_sub_dir"] = "bad_dir"
+        source = new_config.pop('source')
+        #with pytest.raises(Exception) as e_info:
+        try:
+            agent_id = volttron_instance.install_agent(
+                vip_identity='test.tagging.init',
+            agent_dir=source, config_file=new_config, start=False)
+            volttron_instance.start_agent(agent_id)
+        except:
+            pass
+
+        assert query_agent.callback.call_count == 1
+        assert query_agent.callback.call_args[1] == 'test.tagging.init'
+
+    except Exception as e:
+        print(e.args)
+    finally:
+        if agent_id:
+            volttron_instance.remove_agent(agent_id)
+
+
+@pytest.mark.tagging
+def test_get_categories(tagging_service, query_agent):
+    result = query_agent.vip.rpc.call('platform.tagging',
+                                      'get_categories',
+                                      skip=2,
+                                      count=4,
+                                      order='LAST_TO_FIRST').get(timeout=10)
+    assert isinstance(result, dict)
+    assert len(result) == 4
+
+

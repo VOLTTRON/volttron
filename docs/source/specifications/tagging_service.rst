@@ -52,42 +52,42 @@ Features
 API
 ***
 
-1. Get the list of tag groups available
+1. Get the list of tag categories available
 ---------------------------------------
-rpc call to tagging service method **'get_groups'** with optional parameters:
+rpc call to tagging service method **'get_categories'** with optional parameters:
 
-    1. **skip** - number of groups to skip. this parameter along with count can be
+    1. **skip** - number of categories to skip. this parameter along with count can be
       used for paginating results
-    2. **count** - limit the total number of tag groups returned to given count
+    2. **count** - limit the total number of tag categories returned to given count
     3. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
       ascending order
 
-2. Get the list of tags for a specific group
+2. Get the list of tags for a specific category
 --------------------------------------------
-rpc call to tagging service method **'get_group_tags'** with parameter:
+rpc call to tagging service method **'get_tags_by_category'** with parameter:
 
-    1. **group** - <group name>
+    1. **category** - <category name>
 
     and optional parameters:
 
-    2. **skip** - number of groups to skip. this parameter along with count can be
+    2. **skip** - number of tags to skip. this parameter along with count can be
        used for paginating results
-    3. **count** - limit the total number of tag groups returned to given count
+    3. **count** - limit the total number of tags returned to given count
     4. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
        ascending order
 
 3. Get the list of tags for a topic_name or topic_name_prefix
 -------------------------------------------------------------
-rpc call to tagging service method **get_topic_tags**
+rpc call to tagging service method **get_tags_by_topic**
 
 with parameter
     1. **topic_prefix** - topic name or topic name prefix
 
 and optional parameters:
 
-    2. **skip** - number of groups to skip. this parameter along with count can be
+    2. **skip** - number of tags to skip. this parameter along with count can be
        used for paginating results
-    3. **count** - limit the total number of tag groups returned to given count
+    3. **count** - limit the total number of tags returned to given count
     4. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
        ascending order
 
@@ -126,9 +126,9 @@ more of the following parameters
 
             condition="(tag1 = 1 or tag1 = 2) and not (tag2 < '' and tag2 > '') and tag3 and tag4 REGEXP '^a.*b$'"
 
-    6. **skip** - number of groups to skip. this parameter along with count can be
+    6. **skip** - number of topics to skip. this parameter along with count can be
        used for paginating results
-    7. **count** - limit the total number of tag groups returned to given count
+    7. **count** - limit the total number of tag topics returned to given count
     8. **order** - ASCENDING or DESCENDING. By default, it will be sorted in
        ascending order
 

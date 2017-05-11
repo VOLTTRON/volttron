@@ -1,4 +1,4 @@
-name,kind,description
+Name,Kind,Description
 absorption,Marker,
 ac,Marker,
 active,Marker,
@@ -143,7 +143,6 @@ mixing,Marker,
 multiZone,Marker,
 net,Marker,
 network,Marker,
-hotWaterPlant,Marker,
 neutralDeck,Marker,
 occ,Marker,
 occupancyIndicator,Marker,
@@ -231,5 +230,5 @@ yearBuilt,Number,
 zone,Marker,
 campus,Marker,
 campusRef,Ref,references campus id
-volttronPointName,Str,logical name for the point. Point name used by volttron
+volttronPointName,Str,"logical name for the point. Point name used by volttron"
 pointName,Str,point name provided by device
