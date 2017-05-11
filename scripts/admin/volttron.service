@@ -13,6 +13,7 @@ WorkingDirectory=/var/lib/volttron
 #Uncomment and change this to specify a different VOLTTRON_HOME
 #Environment="VOLTTRON_HOME=/home/volttron/.volttron"
 ExecStart=/var/lib/volttron/env/bin/volttron -vv
+ExecStop=/var/lib/volttron/env/bin/volttron-ctl shutdown --platform
 
 [Install]
 WantedBy=multi-user.target
